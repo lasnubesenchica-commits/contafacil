@@ -1438,8 +1438,17 @@ footer strong { color: var(--text2); }
       <!-- generado por JS -->
     </div>
 
+    <!-- Master Web App URL -->
+    <div class="panel-section-title" style="margin-top:24px;margin-bottom:8px;">🔗 URL Web App del Master (SetupMaestro)</div>
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <input type="text" id="master-webapp-input" placeholder="https://script.google.com/macros/s/…/exec  (SetupMaestro.gs)"
+        style="flex:1;background:#fff;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px;font-family:'Sora',sans-serif;color:var(--text);">
+      <button onclick="saveMasterWebApp()"
+        style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;font-family:'Sora',sans-serif;">Guardar</button>
+    </div>
+
     <!-- API Key global -->
-    <div class="panel-section-title" style="margin-top:24px;margin-bottom:8px;">🔑 API Key Claude global</div>
+    <div class="panel-section-title" style="margin-top:4px;margin-bottom:8px;">🔑 API Key Claude global</div>
     <div style="display:flex;gap:8px;margin-bottom:20px;">
       <input type="password" id="global-apikey-input" placeholder="sk-ant-… (heredada por todos los contribuyentes sin key propia)"
         style="flex:1;background:#fff;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px;font-family:'Sora',sans-serif;color:var(--text);">
@@ -1494,7 +1503,8 @@ footer strong { color: var(--text2); }
 //  MULTI-CONTRIBUYENTE — Fase 7
 // ════════════════════════════════════════════════════════════════
 
-var MASTER_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTIy0BCWoHwkyZhfGRp5HiRfXaynS0ExGNgfGxckEdIMp1cZQheyswA29nnKcGnFwt0lP1T9sHyi_52/pub?gid=1244351954&single=true&output=csv';
+var MASTER_CSV_URL     = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTIy0BCWoHwkyZhfGRp5HiRfXaynS0ExGNgfGxckEdIMp1cZQheyswA29nnKcGnFwt0lP1T9sHyi_52/pub?gid=1244351954&single=true&output=csv';
+var MASTER_WEB_APP_URL = '';
 
 var CONTRIB_COLORS = [
   '#2563eb','#0d9488','#7c3aed','#dc2626','#d97706',
@@ -1651,6 +1661,15 @@ function saveGlobalApiKey() {
   showToast(key ? '\u2713 API Key global guardada' : 'API Key eliminada', 'ok');
 }
 
+// ── Master Web App URL ────────────────────────────────────────
+function saveMasterWebApp() {
+  var url = document.getElementById('master-webapp-input').value.trim();
+  if (url && !url.startsWith('https://')) { showToast('URL inválida', 'err'); return; }
+  MASTER_WEB_APP_URL = url;
+  localStorage.setItem('cf_master_url', url);
+  showToast(url ? '\u2713 URL del Master guardada' : 'URL del Master eliminada', 'ok');
+}
+
 // ── Fetch pendientes ──────────────────────────────────────────
 function fetchPendientes() {
   var el = document.getElementById('pending-list');
@@ -1737,7 +1756,7 @@ function _renderPendientes(pendientes) {
     html += '<span style="font-size:9px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:2px 7px;font-weight:600;">SIN WEB APP</span></div>';
     // FIX: solo pasamos rucClean (string seguro), no JSON.stringify del objeto completo
     html += '<input type="text" id="pw-webapp-' + rucClean + '" placeholder="URL Web App del cliente\u2026" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;width:100%;box-sizing:border-box;margin-bottom:6px;">';
-    html += '<button onclick="_completarSetup(\'' + rucClean + '\')" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">\u2713 Guardar URL</button>';
+    html += '<button id="pw-btn-' + rucClean + '" onclick="_completarSetup(\'' + rucClean + '\')" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">\u2713 Guardar URL</button>';
     html += '</div>';
   });
   el.innerHTML = html;
@@ -1746,18 +1765,13 @@ function _renderPendientes(pendientes) {
 // FIX: firma simplificada — recibe solo rucClean, recupera cliente de _pendientesMap
 function _completarSetup(rucClean) {
   var cliente = _pendientesMap[rucClean];
-  if (!cliente) {
-    showToast('Cliente no encontrado en el mapa', 'err');
-    return;
-  }
+  if (!cliente) { showToast('Cliente no encontrado en el mapa', 'err'); return; }
   var inputEl = document.getElementById('pw-webapp-' + rucClean);
-  if (!inputEl) {
-    showToast('Input no encontrado', 'err');
-    return;
-  }
+  if (!inputEl) { showToast('Input no encontrado', 'err'); return; }
   var webApp = inputEl.value.trim();
   if (!webApp) { showToast('La URL del Web App es obligatoria', 'err'); return; }
 
+  // 1. Actualizar en memoria inmediatamente
   var existing = ALL_CONTRIBS.find(function(c){ return c.ruc.replace(/[\s-]/g,'') === rucClean; });
   if (existing) {
     existing.web_app_url = webApp;
@@ -1770,8 +1784,40 @@ function _completarSetup(rucClean) {
   }
   applyActiveContrib();
   renderContribList();
-  fetchPendientes();
-  showToast('\u2713 ' + cliente.nombre + ' listo \u2014 actualiza la URL en el Master Sheet para que persista', 'ok');
+
+  // 2. Si hay Master Web App URL configurada, persistir en el Sheet maestro
+  if (MASTER_WEB_APP_URL) {
+    var btn = document.getElementById('pw-btn-' + rucClean);
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Guardando…'; }
+
+    fetch(MASTER_WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'actualizarWebApp', ruc: cliente.ruc, web_app_url: webApp, estado: 'ACTIVO' })
+    })
+    .then(function(r) { return r.text(); })
+    .then(function(txt) {
+      if (btn) { btn.disabled = false; btn.textContent = '✓ Guardar URL'; }
+      var res; try { res = JSON.parse(txt); } catch(e) { res = {}; }
+      if (res.ok) {
+        showToast('✓ ' + cliente.nombre + ' guardado en el Master Sheet', 'ok');
+        // Ahora sí re-cargar pendientes — el CSV ya debería tener la URL
+        setTimeout(fetchPendientes, 1500);
+      } else {
+        showToast('Guardado en memoria. Error Master: ' + (res.error || 'desconocido'), 'err');
+      }
+    })
+    .catch(function(err) {
+      if (btn) { btn.disabled = false; btn.textContent = '✓ Guardar URL'; }
+      showToast('Guardado en memoria. Sin conexión al Master.', 'err');
+    });
+  } else {
+    // Sin Master URL — solo memoria, avisar al usuario
+    showToast('✓ ' + cliente.nombre + ' activo en esta sesión. Configura la URL del Master para persistir.', 'ok');
+    // Quitar de pendientes en la UI sin re-cargar el CSV (evita pisarlo)
+    delete _pendientesMap[rucClean];
+    _renderPendientes(Object.values(_pendientesMap));
+  }
 }
 
 // ── Render lista de contribuyentes ────────────────────────────
@@ -1837,6 +1883,11 @@ function openPanel() {
   renderContribList();
   var globalKey = getGlobalApiKey();
   if (globalKey) document.getElementById('global-apikey-input').value = globalKey;
+  var masterUrl = localStorage.getItem('cf_master_url') || '';
+  if (masterUrl) {
+    MASTER_WEB_APP_URL = masterUrl;
+    document.getElementById('master-webapp-input').value = masterUrl;
+  }
   fetchPendientes();
   document.getElementById('panel-screen').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -1865,6 +1916,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (chip) chip.style.display = isAdmin ? '' : 'none';
 
   if (rucParam) setActiveRuc(rucParam);
+
+  // Cargar Master Web App URL si fue guardada previamente
+  var savedMaster = localStorage.getItem('cf_master_url') || '';
+  if (savedMaster) MASTER_WEB_APP_URL = savedMaster;
 
   initContribs();
   renderColorPicker('#2563eb');
