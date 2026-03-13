@@ -1532,6 +1532,25 @@ function setIndivKey(ruc, key) {
   if (key) keys[ruc] = key; else delete keys[ruc];
   localStorage.setItem('cf_keys', JSON.stringify(keys));
 }
+// Persistencia de URLs de clientes (sobrevive refresh)
+function getStoredUrls() { try { return JSON.parse(localStorage.getItem('cf_urls') || '{}'); } catch(e) { return {}; } }
+function setStoredUrl(rucClean, url) {
+  var urls = getStoredUrls();
+  if (url) urls[rucClean] = url; else delete urls[rucClean];
+  localStorage.setItem('cf_urls', JSON.stringify(urls));
+}
+// Aplica URLs guardadas en localStorage sobre un array de clientes del CSV
+function _mergeStoredUrls(contribs) {
+  var stored = getStoredUrls();
+  return contribs.map(function(c) {
+    var key = String(c.ruc || '').replace(/[\s-]/g,'');
+    if (stored[key] && stored[key].indexOf('http') === 0) {
+      c.web_app_url = stored[key];
+      c.estado = 'ACTIVO';
+    }
+    return c;
+  });
+}
 
 // ── Inicializar ───────────────────────────────────────────────
 function initContribs() {
@@ -1548,7 +1567,7 @@ function initContribs() {
     return r.text();
   })
   .then(function(csv) {
-    var loaded = _parseCsv(csv).filter(function(c) {
+    var loaded = _mergeStoredUrls(_parseCsv(csv)).filter(function(c) {
       return c.web_app_url && c.web_app_url.indexOf('http') === 0;
     }).map(function(c, i) {
       c._color = CONTRIB_COLORS[i % CONTRIB_COLORS.length];
@@ -1679,16 +1698,49 @@ function fetchPendientes() {
   fetch(MASTER_CSV_URL)
   .then(function(r) { return r.text(); })
   .then(function(csv) {
-    var todos     = _parseCsv(csv);
+    var todos = _mergeStoredUrls(_parseCsv(csv));
+
+    // Mergear CSV con lo que ya está en memoria:
+    // la memoria gana si ya tiene una URL válida (evita que el CSV
+    // desactualizado pise una URL recién guardada)
+    todos.forEach(function(csvRow) {
+      var rucClean = String(csvRow.ruc || '').replace(/[\s-]/g,'');
+      var inMem = ALL_CONTRIBS.find(function(c) {
+        return String(c.ruc || '').replace(/[\s-]/g,'') === rucClean;
+      });
+      if (inMem && inMem.web_app_url && inMem.web_app_url.indexOf('http') === 0) {
+        // Memoria tiene URL válida → preservarla, ignorar CSV para este campo
+        csvRow.web_app_url = inMem.web_app_url;
+        csvRow.estado      = inMem.estado || csvRow.estado;
+      }
+    });
+
     var pendientes = todos.filter(function(c) {
       return !c.web_app_url || c.web_app_url.indexOf('http') !== 0;
     });
-    ALL_CONTRIBS = todos.filter(function(c) {
+    var activos = todos.filter(function(c) {
       return c.web_app_url && c.web_app_url.indexOf('http') === 0;
     }).map(function(c, i) {
       c._color = CONTRIB_COLORS[i % CONTRIB_COLORS.length];
       return c;
     });
+
+    // Solo reemplazar ALL_CONTRIBS si el CSV trajo activos,
+    // preservando cualquier contrib agregado manualmente que no esté en el CSV
+    if (activos.length > 0) {
+      // Agregar los que están en memoria pero no vienen en el CSV (agregados manualmente)
+      ALL_CONTRIBS.forEach(function(memRow) {
+        var rucClean = String(memRow.ruc || '').replace(/[\s-]/g,'');
+        var yaEsta = activos.find(function(c) {
+          return String(c.ruc || '').replace(/[\s-]/g,'') === rucClean;
+        });
+        if (!yaEsta && memRow.web_app_url && memRow.web_app_url.indexOf('http') === 0) {
+          activos.push(memRow);
+        }
+      });
+      ALL_CONTRIBS = activos;
+    }
+
     applyActiveContrib();
     renderContribList();
     _renderPendientes(pendientes);
@@ -1782,6 +1834,8 @@ function _completarSetup(rucClean) {
       _color: CONTRIB_COLORS[ALL_CONTRIBS.length % CONTRIB_COLORS.length]
     });
   }
+  // Persistir URL en localStorage para que sobreviva refresh
+  setStoredUrl(rucClean, webApp);
   applyActiveContrib();
   renderContribList();
 
