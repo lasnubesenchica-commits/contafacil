@@ -1,0 +1,2976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ContaFácil · Iris Albelo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ─── Variables ─────────────────────────────────────────────── */
+:root {
+  --bg:        #f0f4f9;
+  --bg2:       #ffffff;
+  --surface:   #ffffff;
+  --surface2:  #eef2f8;
+  --border:    #dde3ee;
+  --border2:   #c8d1e6;
+
+  /* Accent palette — azul cobalto + esmeralda */
+  --blue:      #2563eb;
+  --blue-dim:  #dbeafe;
+  --teal:      #0d9488;
+  --teal-dim:  #ccfbf1;
+  --purple:    #6366f1;
+  --amber:     #d97706;
+  --red:       #dc2626;
+  --green:     #16a34a;
+
+  --text:      #0f172a;
+  --text2:     #475569;
+  --text3:     #94a3b8;
+
+  --radius-sm: 8px;
+  --radius:    12px;
+  --radius-lg: 18px;
+
+  --shadow: 0 4px 24px rgba(15,23,42,.08);
+  --shadow-blue: 0 0 40px rgba(37,99,235,.1);
+}
+
+/* ─── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ─── Background mesh ───────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(ellipse 700px 400px at 15% 0%, rgba(37,99,235,.07) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 350px at 85% 90%, rgba(13,148,136,.06) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 250px at 70% 20%, rgba(99,102,241,.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ─── Layout ────────────────────────────────────────────────── */
+.page { position: relative; }
+
+/* ─── Header ────────────────────────────────────────────────── */
+header {
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.85);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 50;
+}
+
+.logo {
+  display: flex; align-items: center; gap: 12px;
+}
+.logo-mark {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 18px;
+  box-shadow: 0 0 20px rgba(59,130,246,.3);
+  flex-shrink: 0;
+}
+.logo-text { line-height: 1.2; }
+.logo-text strong {
+  display: block; font-size: 15px; font-weight: 700;
+  letter-spacing: -.3px;
+  background: linear-gradient(90deg, var(--blue) 0%, var(--teal) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.logo-text span { font-size: 11px; color: var(--text3); font-weight: 400; }
+
+.header-meta {
+  text-align: right; line-height: 1.3;
+}
+.header-meta strong { display: block; font-size: 12px; color: var(--text2); font-weight: 500; }
+.header-meta span { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+.hero {
+  padding: 56px 32px 40px;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--teal-dim);
+  border: 1px solid rgba(13,148,136,.2);
+  border-radius: 99px;
+  padding: 5px 14px;
+  font-size: 11px; font-weight: 600; color: var(--teal);
+  letter-spacing: .5px; text-transform: uppercase;
+  margin-bottom: 20px;
+  animation: fadeUp .6s ease both;
+}
+.hero h1 {
+  font-size: clamp(26px, 5vw, 36px);
+  font-weight: 700; letter-spacing: -.5px; line-height: 1.2;
+  margin-bottom: 14px;
+  color: var(--text);
+  animation: fadeUp .6s .1s ease both;
+}
+.hero h1 span {
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero p {
+  color: var(--text2); font-size: 14px; font-weight: 300; line-height: 1.7;
+  animation: fadeUp .6s .2s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Action Cards ──────────────────────────────────────────── */
+.actions {
+  padding: 0 24px 60px;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: fadeUp .6s .3s ease both;
+}
+
+.action-card {
+  display: flex; align-items: center; gap: 18px;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.4,0,.2,1);
+  text-align: left;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.action-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+  transition: opacity .22s;
+}
+.action-card.egreso::before { background: var(--red); opacity: .6; }
+.action-card.ingreso::before { background: var(--green); opacity: .6; }
+.action-card.dashboard::before { background: var(--blue); opacity: .6; }
+
+.action-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow), var(--shadow-blue);
+}
+.action-card.egreso:hover::before { opacity: 1; }
+.action-card.ingreso:hover::before { opacity: 1; }
+.action-card.dashboard:hover::before { opacity: 1; }
+
+.card-icon {
+  width: 52px; height: 52px; flex-shrink: 0;
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  font-size: 24px;
+  position: relative;
+}
+.egreso .card-icon  { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.2); }
+.ingreso .card-icon { background: rgba(34,197,94,.1);  border: 1px solid rgba(34,197,94,.2); }
+.dashboard .card-icon { background: rgba(37,99,235,.1); border: 1px solid rgba(37,99,235,.2); }
+
+/* ─── DASHBOARD SCREEN ──────────────────────────────────────── */
+.dash-screen {
+  display: none;
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 200;
+  overflow-y: auto;
+  animation: fadeUp .3s ease both;
+}
+.dash-screen.open { display: block; }
+
+.dash-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 20px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+}
+.dash-header h2 { font-size: 16px; font-weight: 600; flex: 1; }
+.dash-header .btn-back {
+  background: none; border: none; cursor: pointer;
+  font-size: 20px; color: var(--text2); padding: 4px 8px;
+  border-radius: 8px; transition: background .2s;
+}
+.dash-header .btn-back:hover { background: var(--surface2); }
+.dash-year {
+  font-size: 12px; color: var(--text3);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px;
+}
+
+.dash-body { padding: 20px; max-width: 560px; margin: 0 auto; }
+
+/* KPI cards */
+.kpi-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; margin-bottom: 20px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative; overflow: hidden;
+}
+.kpi-card::before {
+  content: ''; position: absolute;
+  left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: 3px 0 0 3px;
+}
+.kpi-card.ingresos::before  { background: var(--green); }
+.kpi-card.egresos::before   { background: var(--red); }
+.kpi-card.renta::before     { background: var(--blue); }
+.kpi-card.isr::before       { background: var(--purple); }
+.kpi-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .6px; color: var(--text3); margin-bottom: 6px;
+}
+.kpi-value {
+  font-size: 22px; font-weight: 700; letter-spacing: -.5px;
+  color: var(--text); font-family: 'DM Mono', monospace;
+}
+.kpi-value.negative { color: var(--red); }
+.kpi-value.positive { color: var(--green); }
+.kpi-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+/* Sección títulos */
+.dash-section-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .6px; color: var(--text3);
+  margin: 24px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.dash-section-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* Barras de meses */
+.month-chart { display: flex; flex-direction: column; gap: 8px; }
+.month-row {
+  display: grid; grid-template-columns: 44px 1fr 1fr 80px;
+  align-items: center; gap: 8px;
+}
+.month-label { font-size: 11px; color: var(--text3); font-weight: 500; }
+.month-bar-wrap {
+  height: 8px; background: var(--surface2);
+  border-radius: 4px; overflow: hidden;
+}
+.month-bar { height: 100%; border-radius: 4px; transition: width .6s ease; }
+.month-bar.ing { background: var(--green); }
+.month-bar.egr { background: var(--red); }
+.month-net {
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  text-align: right; font-weight: 500;
+}
+.month-net.pos { color: var(--green); }
+.month-net.neg { color: var(--red); }
+
+/* Categorías */
+.cat-list { display: flex; flex-direction: column; gap: 8px; }
+.cat-row { display: flex; align-items: center; gap: 10px; }
+.cat-name { font-size: 12px; color: var(--text2); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-bar-wrap {
+  width: 120px; height: 6px;
+  background: var(--surface2); border-radius: 3px; overflow: hidden; flex-shrink: 0;
+}
+.cat-bar { height: 100%; border-radius: 3px; background: var(--red); }
+.cat-amount { font-size: 11px; font-family: 'DM Mono', monospace;
+  color: var(--text2); text-align: right; min-width: 64px; }
+
+/* Pendientes */
+.pending-list { display: flex; flex-direction: column; gap: 8px; }
+.pending-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.pending-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--amber); flex-shrink: 0;
+}
+.pending-info { flex: 1; min-width: 0; }
+.pending-info strong { font-size: 12px; display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pending-info span { font-size: 10px; color: var(--text3); }
+.pending-amount { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text2); }
+
+/* ISR estimado box */
+.isr-box {
+  background: linear-gradient(135deg, rgba(99,102,241,.06), rgba(37,99,235,.06));
+  border: 1px solid rgba(99,102,241,.2);
+  border-radius: var(--radius); padding: 16px; margin-top: 4px;
+}
+.isr-box-title { font-size: 11px; font-weight: 600; color: var(--purple); margin-bottom: 10px; }
+.isr-row { display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; padding: 4px 0; }
+.isr-row.total { border-top: 1px solid rgba(99,102,241,.2); margin-top: 6px;
+  padding-top: 10px; font-weight: 600; }
+.isr-row span:last-child { font-family: 'DM Mono', monospace; }
+
+/* Estado carga */
+.dash-loading {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 60px 20px; gap: 16px; color: var(--text3);
+}
+.dash-loading .spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+.dash-empty {
+  text-align: center; padding: 40px 20px;
+  color: var(--text3); font-size: 13px;
+}
+
+.card-body { flex: 1; }
+.card-body strong {
+  display: block; font-size: 16px; font-weight: 600;
+  letter-spacing: -.2px; margin-bottom: 3px;
+  color: var(--text);
+}
+.card-body p { font-size: 12px; color: var(--text2); font-weight: 300; line-height: 1.4; }
+
+.card-arrow {
+  color: var(--text3); font-size: 18px;
+  transition: transform .22s, color .22s;
+  flex-shrink: 0;
+}
+.action-card:hover .card-arrow { transform: translateX(4px); color: var(--text2); }
+
+/* ─── MODAL BACKDROP ────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15,23,42,.4);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: flex-end;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+@media (min-width: 600px) {
+  .modal-backdrop { align-items: center; justify-content: center; }
+}
+.modal-backdrop.open {
+  opacity: 1; pointer-events: all;
+}
+
+/* ─── MODAL PANEL ───────────────────────────────────────────── */
+.modal {
+  width: 100%; max-width: 480px;
+  max-height: 92dvh;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex; flex-direction: column;
+  transform: translateY(40px);
+  transition: transform .35s cubic-bezier(.32,1.2,.65,1);
+  overflow: hidden;
+  box-shadow: 0 -8px 40px rgba(15,23,42,.12);
+}
+@media (min-width: 600px) {
+  .modal {
+    border-radius: var(--radius-lg);
+    transform: scale(.94) translateY(12px);
+    box-shadow: 0 20px 60px rgba(15,23,42,.15);
+  }
+}
+.modal-backdrop.open .modal {
+  transform: translateY(0) scale(1);
+}
+/* Ensure header and footer never shrink */
+.modal-header,
+.drag-handle,
+.modal-footer {
+  flex-shrink: 0;
+}
+
+/* Drag handle (mobile) */
+.drag-handle {
+  width: 36px; height: 4px;
+  background: var(--border2);
+  border-radius: 99px;
+  margin: 12px auto 0;
+  flex-shrink: 0;
+}
+@media (min-width: 600px) { .drag-handle { display: none; } }
+
+/* Modal header */
+.modal-header {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  background: #fff;
+}
+.modal-title { display: flex; align-items: center; gap: 10px; }
+.modal-title .badge {
+  width: 32px; height: 32px; border-radius: 9px;
+  display: grid; place-items: center; font-size: 16px; flex-shrink: 0;
+}
+.modal-egreso .badge { background: rgba(220,38,38,.08); }
+.modal-ingreso .badge { background: rgba(22,163,74,.08); }
+.modal-title h2 { font-size: 15px; font-weight: 600; letter-spacing: -.2px; color: var(--text); }
+.modal-title p { font-size: 11px; color: var(--text3); }
+.btn-close {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text2); cursor: pointer; font-size: 16px;
+  display: grid; place-items: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.btn-close:hover { background: var(--border2); color: var(--text); }
+
+/* ─── Modal Body (scrollable) ───────────────────────────────── */
+.modal-body { flex: 1; overflow-y: auto; padding: 18px 20px; background: #fff; }
+.modal-body::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-track { background: transparent; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ─── Mode toggle inside modal ──────────────────────────────── */
+.mode-toggle {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px; margin-bottom: 16px;
+}
+.mode-btn {
+  padding: 9px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text2);
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .18s;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.mode-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.mode-btn:not(.active):hover { border-color: var(--border2); color: var(--text); background: #fff; }
+
+/* ─── Upload zone ───────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--surface2);
+  margin-bottom: 12px;
+  display: block;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.upload-zone:hover, .upload-zone.drag {
+  border-color: var(--blue); background: var(--blue-dim);
+}
+.upload-zone input {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+}
+.upload-icon { font-size: 32px; margin-bottom: 8px; }
+.upload-zone strong { display: block; font-size: 13px; margin-bottom: 4px; }
+.upload-zone small { color: var(--text3); font-size: 11px; }
+
+.preview-box {
+  display: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  margin-bottom: 12px;
+}
+.preview-box img {
+  width: 100%; max-height: 160px;
+  object-fit: cover; display: block;
+}
+.preview-bar {
+  padding: 8px 12px; display: flex;
+  align-items: center; justify-content: space-between;
+}
+.preview-bar span {
+  font-size: 11px; color: var(--text3);
+  font-family: 'DM Mono', monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;
+}
+.preview-bar button {
+  background: none; border: none; color: var(--red);
+  cursor: pointer; font-size: 12px; padding: 2px 8px;
+  border-radius: 4px; font-family: 'Sora', sans-serif;
+}
+
+/* Analyze button */
+.btn-analyze {
+  width: 100%; padding: 12px;
+  background: linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: 'Sora', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: opacity .2s, transform .1s;
+  margin-bottom: 12px; letter-spacing: .1px;
+}
+.btn-analyze:hover:not(:disabled) { opacity: .88; }
+.btn-analyze:active:not(:disabled) { transform: scale(.98); }
+.btn-analyze:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Status */
+.status-bar {
+  display: none; align-items: center; gap: 8px;
+  padding: 9px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 500; margin-bottom: 10px;
+}
+.status-bar.loading {
+  display: flex;
+  background: var(--blue-dim);
+  border: 1px solid rgba(37,99,235,.25);
+  color: var(--blue);
+}
+.status-bar.success .spinner,
+.status-bar.error .spinner { display: none; }
+.status-bar.success {
+  display: flex;
+  background: #dcfce7;
+  border: 1px solid rgba(22,163,74,.25);
+  color: var(--green);
+}
+.status-bar.error {
+  display: flex;
+  background: #fee2e2;
+  border: 1px solid rgba(220,38,38,.25);
+  color: var(--red);
+}
+.spinner {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 2px solid rgba(37,99,235,.2);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .65s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Divider */
+.sect-divider {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 10px; font-weight: 600; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--text3);
+  margin: 4px 0 14px;
+}
+.sect-divider::before, .sect-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* Confidence */
+.confidence {
+  display: none; margin-bottom: 14px;
+}
+.confidence.show { display: block; }
+.conf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.conf-header span { font-size: 11px; color: var(--text3); }
+.conf-header strong { font-size: 11px; color: var(--teal); font-family: 'DM Mono', monospace; }
+.conf-track { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.conf-fill {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  transition: width .5s ease;
+}
+
+/* ─── Form fields ───────────────────────────────────────────── */
+.form-grid { display: flex; flex-direction: column; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.field label {
+  font-size: 10px; font-weight: 600; letter-spacing: .5px;
+  text-transform: uppercase; color: var(--text3);
+  display: flex; align-items: center; gap: 6px;
+}
+.ia-tag {
+  display: none; font-size: 9px; font-weight: 700;
+  color: var(--purple); letter-spacing: .3px;
+  background: rgba(99,102,241,.1);
+  border: 1px solid rgba(99,102,241,.2);
+  border-radius: 4px; padding: 1px 5px;
+}
+.ia-tag.show { display: inline; }
+
+.field input, .field select, .field textarea {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'Sora', sans-serif;
+  font-size: 13px; font-weight: 400;
+  padding: 10px 12px;
+  transition: border-color .15s, box-shadow .15s;
+  width: 100%;
+  appearance: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.field input.ia, .field select.ia, .field textarea.ia {
+  border-color: rgba(99,102,241,.4);
+  background: rgba(99,102,241,.04);
+}
+.field textarea { resize: vertical; min-height: 60px; }
+.field select option { background: #fff; color: var(--text); }
+
+/* ─── Form section labels ───────────────────────────────────── */
+.form-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .6px;
+  text-transform: uppercase; color: var(--blue);
+  padding: 6px 0 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+/* ─── Modal footer ──────────────────────────────────────────── */
+.modal-footer {
+  padding: 14px 20px 20px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+  flex-shrink: 0;
+  background: #fafbfd;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  position: relative; z-index: 2;
+}
+.btn-save {
+  width: 100%; padding: 13px;
+  border: none; border-radius: var(--radius-sm);
+  font-family: 'Sora', sans-serif;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: opacity .2s, transform .1s;
+  letter-spacing: .1px;
+}
+.btn-save:hover:not(:disabled) { opacity: .88; }
+.btn-save:active:not(:disabled) { transform: scale(.98); }
+.btn-save:disabled { opacity: .4; cursor: not-allowed; }
+.modal-egreso .btn-save {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+}
+.modal-ingreso .btn-save {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+}
+.btn-reset {
+  background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 9px;
+  color: var(--text3); font-family: 'Sora', sans-serif;
+  font-size: 12px; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.btn-reset:hover { border-color: var(--border2); color: var(--text2); }
+
+/* ─── Toast ─────────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: #fff;
+  border: 1px solid var(--border2);
+  border-radius: 10px; padding: 11px 20px;
+  font-size: 13px; font-weight: 500;
+  opacity: 0; transition: all .3s;
+  pointer-events: none; white-space: nowrap; z-index: 999;
+  max-width: calc(100vw - 48px); text-align: center;
+  box-shadow: 0 8px 32px rgba(15,23,42,.12);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.ok { border-color: var(--green); color: var(--green); }
+.toast.err { border-color: var(--red); color: var(--red); }
+
+/* ─── Web App URL config ────────────────────────────────────── */
+.config-bar {
+  background: #fffbeb;
+  border: 1px solid rgba(217,119,6,.25);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 0 24px 16px;
+  display: flex; align-items: center; gap: 10px;
+  animation: fadeUp .5s .4s ease both;
+}
+.config-bar span { font-size: 12px; color: #92400e; flex: 1; line-height: 1.4; }
+.config-bar button {
+  background: rgba(217,119,6,.15); border: 1px solid rgba(217,119,6,.3);
+  border-radius: 6px; color: var(--amber);
+  font-family: 'Sora', sans-serif; font-size: 11px;
+  font-weight: 600; cursor: pointer; padding: 5px 10px;
+  white-space: nowrap; transition: background .15s;
+}
+.config-bar button:hover { background: rgba(217,119,6,.25); }
+.config-bar.hidden { display: none; }
+
+/* ─── Footer ────────────────────────────────────────────────── */
+footer {
+  text-align: center; padding: 24px;
+  color: var(--text3); font-size: 11px;
+  border-top: 1px solid var(--border);
+  animation: fadeUp .5s .5s ease both;
+  background: #fff;
+}
+footer strong { color: var(--text2); }
+
+/* ─── CONTRIBUYENTE SELECTOR (header chip) ──────────────────── */
+.contrib-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 5px 12px 5px 8px;
+  cursor: pointer;
+  transition: all .18s;
+  max-width: 200px;
+}
+.contrib-chip:hover { border-color: var(--border2); background: #fff; }
+.contrib-avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+.contrib-chip-info { min-width: 0; }
+.contrib-chip-name { font-size: 11px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.contrib-chip-ruc { font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace; display: block; }
+.contrib-chip-arrow { font-size: 10px; color: var(--text3); flex-shrink: 0; }
+
+/* ─── PANEL CONTADOR (full-screen overlay) ──────────────────── */
+.panel-screen {
+  display: none;
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 300;
+  overflow-y: auto;
+  animation: fadeUp .3s ease both;
+}
+.panel-screen.open { display: block; }
+
+.panel-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 20px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+}
+.panel-header h2 { font-size: 16px; font-weight: 600; flex: 1; }
+.panel-header .btn-back {
+  background: none; border: none; cursor: pointer;
+  font-size: 20px; color: var(--text2); padding: 4px 8px;
+  border-radius: 8px; transition: background .2s;
+}
+.panel-header .btn-back:hover { background: var(--surface2); }
+
+.panel-body { padding: 20px; max-width: 560px; margin: 0 auto; }
+
+/* Contrib cards */
+.contrib-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.contrib-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer;
+  transition: all .18s;
+  position: relative;
+}
+.contrib-card:hover { border-color: var(--border2); box-shadow: var(--shadow); }
+.contrib-card.active {
+  border-color: var(--blue);
+  background: rgba(37,99,235,.03);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+}
+.contrib-card-avatar {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: grid; place-items: center;
+  font-size: 18px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+.contrib-card-info { flex: 1; min-width: 0; }
+.contrib-card-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.contrib-card-ruc { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+.contrib-card-meta { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.contrib-card-actions {
+  display: flex; gap: 6px; flex-shrink: 0;
+}
+.contrib-card-actions button {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 8px;
+  font-size: 12px; cursor: pointer;
+  transition: background .15s, border-color .15s;
+  font-family: 'Sora', sans-serif; color: var(--text2);
+}
+.contrib-card-actions button:hover { background: var(--border2); }
+.contrib-card-actions .btn-delete:hover { background: #fee2e2; border-color: var(--red); color: var(--red); }
+.contrib-active-badge {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--blue); color: #fff;
+  font-size: 9px; font-weight: 700; letter-spacing: .3px;
+  border-radius: 99px; padding: 2px 7px;
+}
+
+/* Add contributor form */
+.add-contrib-form {
+  background: var(--surface);
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: 4px;
+}
+.add-contrib-form h3 {
+  font-size: 13px; font-weight: 600; margin-bottom: 14px; color: var(--text);
+}
+.form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.add-contrib-form .field input, .add-contrib-form .field select {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-family: 'Sora', sans-serif; font-size: 13px;
+  padding: 10px 12px; width: 100%; appearance: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.add-contrib-form .field input:focus, .add-contrib-form .field select:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.add-contrib-form .field label {
+  font-size: 10px; font-weight: 600; letter-spacing: .5px;
+  text-transform: uppercase; color: var(--text3);
+  display: block; margin-bottom: 5px;
+}
+.btn-add-contrib {
+  width: 100%; margin-top: 14px; padding: 11px;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: 'Sora', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: opacity .2s;
+}
+.btn-add-contrib:hover { opacity: .88; }
+
+/* Section title re-use */
+.panel-section-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .6px; color: var(--text3);
+  margin: 0 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Color options */
+.color-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.color-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer;
+  transition: transform .15s, border-color .15s;
+}
+.color-dot:hover { transform: scale(1.15); }
+.color-dot.selected { border-color: var(--text); transform: scale(1.15); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ─── Header ─────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">☁️</div>
+    <div class="logo-text">
+      <strong>ContaFácil</strong>
+      <span>Sistema de contabilidad</span>
+    </div>
+  </div>
+  <!-- Contrib chip — se llena por JS -->
+  <button class="contrib-chip" id="contrib-chip" onclick="openPanel()" title="Cambiar contribuyente">
+    <div class="contrib-avatar" id="chip-avatar" style="background:#2563eb">IA</div>
+    <div class="contrib-chip-info">
+      <span class="contrib-chip-name" id="chip-name">Iris E. Albelo</span>
+      <span class="contrib-chip-ruc" id="chip-ruc">RUC 8-517-1400</span>
+    </div>
+    <span class="contrib-chip-arrow">⌄</span>
+  </button>
+</header>
+
+<!-- ─── Web App URL config notice ──────────────────────────── -->
+<div class="config-bar hidden" id="config-bar">
+  <span>⚠️ Configura tu API Key y URL del Web App para habilitar todas las funciones.</span>
+  <button onclick="promptConfig()">Configurar</button>
+</div>
+
+<!-- ─── Hero ───────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-eyebrow">
+    <span>●</span> Sistema activo
+  </div>
+  <h1>¿Qué deseas<br><span>registrar hoy?</span></h1>
+  <p>Selecciona el tipo de transacción.<br>La IA puede leer tu factura automáticamente.</p>
+</section>
+
+<!-- ─── Action cards ───────────────────────────────────────── -->
+<div class="actions">
+  <button class="action-card egreso" onclick="openModal('egreso')">
+    <div class="card-icon">💸</div>
+    <div class="card-body">
+      <strong>Registrar Egreso</strong>
+      <p>Pagos, compras, gastos operativos.<br>Sube la factura y la IA extrae los datos.</p>
+    </div>
+    <div class="card-arrow">→</div>
+  </button>
+
+  <button class="action-card ingreso" onclick="openModal('ingreso')">
+    <div class="card-icon">💰</div>
+    <div class="card-body">
+      <strong>Registrar Ingreso</strong>
+      <p>Ventas, servicios, cobros de clientes.<br>Registro manual rápido.</p>
+    </div>
+    <div class="card-arrow">→</div>
+  </button>
+
+  <button class="action-card dashboard" onclick="openDashboard()">
+    <div class="card-icon">📊</div>
+    <div class="card-body">
+      <strong>Ver Dashboard</strong>
+      <p>Ingresos vs egresos, renta estimada,<br>ISR y categorías de gasto.</p>
+    </div>
+    <div class="card-arrow">→</div>
+  </button>
+</div>
+
+<footer>
+  <strong>ContaFácil</strong> · Versión 2.0 · Panamá, <span id="yr"></span>
+</footer>
+</div><!-- end .page -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL DE EGRESO
+═══════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modal-egreso-backdrop" onclick="handleBackdropClick(event,'egreso')">
+  <div class="modal modal-egreso" id="modal-egreso">
+    <div class="drag-handle"></div>
+
+    <div class="modal-header">
+      <div class="modal-title">
+        <div class="badge">💸</div>
+        <div>
+          <h2>Registrar Egreso</h2>
+          <p>Sube factura o llena manualmente</p>
+        </div>
+      </div>
+      <button class="btn-close" onclick="closeModal('egreso')">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Banner: sin Web App URL -->
+      <div id="modal-egreso-no-url" style="display:none;align-items:center;gap:10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400e;">
+        <span>⚠️</span>
+        <span style="flex:1">Sin URL del Web App — puedes analizar con IA pero no guardar.</span>
+        <button onclick="promptConfig()" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Sora',sans-serif;">Configurar</button>
+      </div>
+      <!-- Mode toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="eg-mode-foto" onclick="setEgMode('foto')">📷 Foto de factura</button>
+        <button class="mode-btn" id="eg-mode-manual" onclick="setEgMode('manual')">✍️ Manual</button>
+      </div>
+
+      <!-- Upload (foto mode) -->
+      <div id="eg-foto-panel">
+        <input type="file" id="eg-file" accept="image/*,application/pdf"
+               style="display:none" onchange="egHandleFile(this.files[0])">
+        <label for="eg-file" class="upload-zone" id="eg-upload-zone"
+               ondragover="event.preventDefault();this.classList.add('drag')"
+               ondragleave="this.classList.remove('drag')"
+               ondrop="egHandleDrop(event)">
+          <div class="upload-icon">🧾</div>
+          <strong>Toca aquí para subir tu factura</strong>
+          <small>JPG · PNG · PDF · máx. 10 MB</small>
+        </label>
+        <div class="preview-box" id="eg-preview-box">
+          <img id="eg-preview-img" src="" alt="">
+          <div class="preview-bar">
+            <span id="eg-preview-name">—</span>
+            <button onclick="egClearFile()">✕ Quitar</button>
+          </div>
+        </div>
+        <div class="status-bar" id="eg-status">
+          <div class="spinner"></div>
+          <span id="eg-status-text">Analizando…</span>
+        </div>
+        <button class="btn-analyze" id="eg-btn-analyze" onclick="egAnalyze()" disabled>
+          ✨ Analizar con IA
+        </button>
+        <div class="sect-divider">datos del comprobante</div>
+      </div>
+
+      <!-- Confidence bar -->
+      <div class="confidence" id="eg-confidence">
+        <div class="conf-header">
+          <span>Confianza IA</span>
+          <strong id="eg-conf-pct">—</strong>
+        </div>
+        <div class="conf-track">
+          <div class="conf-fill" id="eg-conf-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="form-grid">
+
+        <!-- SECCIÓN: Fechas y Montos -->
+        <div class="form-section-label">📅 Fecha y Montos</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Fecha gasto <span class="ia-tag" id="eg-b-fecha">✦ IA</span></label>
+            <input type="date" id="eg-fecha">
+          </div>
+          <div class="field">
+            <label>Total USD <span class="ia-tag" id="eg-b-monto">✦ IA</span></label>
+            <input type="number" id="eg-monto" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>ITBMS <span class="ia-tag" id="eg-b-itbms">✦ IA</span></label>
+            <input type="number" id="eg-itbms" step="0.01" placeholder="0.00">
+          </div>
+          <div class="field">
+            <label>Monto deducible</label>
+            <input type="number" id="eg-deducible" step="0.01" placeholder="= Subtotal">
+          </div>
+        </div>
+
+        <!-- SECCIÓN: Proveedor -->
+        <div class="form-section-label">🏪 Proveedor</div>
+        <div class="field">
+          <label>Nombre proveedor <span class="ia-tag" id="eg-b-proveedor">✦ IA</span></label>
+          <input type="text" id="eg-proveedor" placeholder="Nombre del proveedor o comercio">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>RUC / Cédula <span class="ia-tag" id="eg-b-ruc">✦ IA</span></label>
+            <input type="text" id="eg-ruc" placeholder="—">
+          </div>
+          <div class="field">
+            <label>DV <span class="ia-tag" id="eg-b-dv">✦ IA</span></label>
+            <input type="text" id="eg-dv" placeholder="—" maxlength="3">
+          </div>
+        </div>
+        <div class="field">
+          <label>Tipo de persona <span class="ia-tag" id="eg-b-tipo-persona">✦ IA</span></label>
+          <select id="eg-tipo-persona">
+            <option value="">— Seleccionar —</option>
+            <option value="Natural">Natural</option>
+            <option value="Juridica">Jurídica</option>
+          </select>
+        </div>
+
+        <!-- SECCIÓN: Comprobante -->
+        <div class="form-section-label">🧾 Comprobante</div>
+        <div class="field-row">
+          <div class="field">
+            <label>N° Factura <span class="ia-tag" id="eg-b-nfactura">✦ IA</span></label>
+            <input type="text" id="eg-nfactura" placeholder="—">
+          </div>
+          <div class="field">
+            <label>Tipo comprobante</label>
+            <select id="eg-tipo-comprobante">
+              <option>Factura</option>
+              <option>Recibo</option>
+              <option>Ticket</option>
+              <option>Nota de débito</option>
+              <option>Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SECCIÓN: Clasificación Fiscal -->
+        <div class="form-section-label">📊 Clasificación Fiscal</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Tipo de egreso</label>
+            <select id="eg-tipo-egreso">
+              <option value="">— Seleccionar —</option>
+              <option>Operativo</option>
+              <option>Personal</option>
+              <option>Mixto</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="eg-estado">
+              <option>Borrador</option>
+              <option>Confirmado</option>
+              <option>Pagado</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Concepto FRM-94 <span class="ia-tag" id="eg-b-frm94">✦ IA</span></label>
+          <select id="eg-frm94">
+            <option value="">— Seleccionar —</option>
+            <option>Salarios y remuneraciones</option>
+            <option>Alquileres</option>
+            <option>Servicios profesionales</option>
+            <option>Publicidad y propaganda</option>
+            <option>Combustibles y lubricantes</option>
+            <option>Materiales y suministros</option>
+            <option>Servicios públicos</option>
+            <option>Mantenimiento y reparaciones</option>
+            <option>Seguros</option>
+            <option>Viáticos y gastos de viaje</option>
+            <option>Depreciación</option>
+            <option>Intereses y cargos financieros</option>
+            <option>Impuestos y tasas</option>
+            <option>Otros gastos deducibles</option>
+            <option>Gastos no deducibles</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Categoría <span class="ia-tag" id="eg-b-categoria">✦ IA</span></label>
+            <select id="eg-categoria">
+              <option value="">— Seleccionar —</option>
+              <option>Alimentación</option>
+              <option>Combustible</option>
+              <option>Hospedaje / Las Nubes</option>
+              <option>Materiales y suministros</option>
+              <option>Servicios profesionales</option>
+              <option>Servicios públicos</option>
+              <option>Telecomunicaciones</option>
+              <option>Transporte</option>
+              <option>Salarios</option>
+              <option>Seguros</option>
+              <option>Mantenimiento</option>
+              <option>Marketing</option>
+              <option>Equipos y tecnología</option>
+              <option>Impuestos y tasas</option>
+              <option>Otros</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Método de pago</label>
+            <select id="eg-metodo">
+              <option>Efectivo</option>
+              <option>Transferencia</option>
+              <option>Tarjeta débito</option>
+              <option>Tarjeta crédito</option>
+              <option>Cheque</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SECCIÓN: Notas -->
+        <div class="form-section-label">📝 Notas</div>
+        <div class="field">
+          <label>Descripción <span class="ia-tag" id="eg-b-descripcion">✦ IA</span></label>
+          <textarea id="eg-descripcion" placeholder="Detalle del gasto extraído de la factura…"></textarea>
+        </div>
+        <div class="field">
+          <label>Notas internas</label>
+          <textarea id="eg-notas" placeholder="Observaciones internas (opcional)…" style="min-height:44px"></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-save" id="eg-btn-save" onclick="egGuardar()">💾 Guardar Egreso</button>
+      <button class="btn-reset" onclick="egReset()">Limpiar formulario</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL DE INGRESO
+═══════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modal-ingreso-backdrop" onclick="handleBackdropClick(event,'ingreso')">
+  <div class="modal modal-ingreso" id="modal-ingreso">
+    <div class="drag-handle"></div>
+
+    <div class="modal-header">
+      <div class="modal-title">
+        <div class="badge">💰</div>
+        <div>
+          <h2>Registrar Ingreso</h2>
+          <p>Ventas, cobros y servicios prestados</p>
+        </div>
+      </div>
+      <button class="btn-close" onclick="closeModal('ingreso')">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Banner: sin Web App URL -->
+      <div id="modal-ingreso-no-url" style="display:none;align-items:center;gap:10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400e;">
+        <span>⚠️</span>
+        <span style="flex:1">Sin URL del Web App — puedes analizar con IA pero no guardar.</span>
+        <button onclick="promptConfig()" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Sora',sans-serif;">Configurar</button>
+      </div>
+      <!-- Mode toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="in-mode-foto" onclick="setInMode('foto')">📷 Subir comprobante</button>
+        <button class="mode-btn" id="in-mode-manual" onclick="setInMode('manual')">✍️ Manual</button>
+      </div>
+
+      <!-- Upload panel (foto mode) -->
+      <div id="in-foto-panel">
+        <input type="file" id="in-file" accept="image/*,application/pdf"
+               style="display:none" onchange="inHandleFile(this.files[0])">
+        <label for="in-file" class="upload-zone" id="in-upload-zone"
+               ondragover="event.preventDefault();this.classList.add('drag')"
+               ondragleave="this.classList.remove('drag')"
+               ondrop="inHandleDrop(event)">
+          <div class="upload-icon">💰</div>
+          <strong>Toca aquí para subir tu comprobante</strong>
+          <small>Yappy · ACH · Factura · JPG · PNG · PDF · máx. 10 MB</small>
+        </label>
+        <div class="preview-box" id="in-preview-box">
+          <img id="in-preview-img" src="" alt="">
+          <div class="preview-bar">
+            <span id="in-preview-name">—</span>
+            <button onclick="inClearFile()">✕ Quitar</button>
+          </div>
+        </div>
+        <div class="status-bar" id="in-status">
+          <div class="spinner"></div>
+          <span id="in-status-text">Analizando…</span>
+        </div>
+        <button class="btn-analyze" id="in-btn-analyze" onclick="inAnalyze()" disabled>
+          ✨ Analizar con IA
+        </button>
+        <div class="sect-divider">datos del comprobante</div>
+      </div>
+
+      <!-- Confidence bar -->
+      <div class="confidence" id="in-confidence">
+        <div class="conf-header">
+          <span>Confianza IA</span>
+          <strong id="in-conf-pct">—</strong>
+        </div>
+        <div class="conf-track">
+          <div class="conf-fill" id="in-conf-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="form-grid">
+
+        <!-- SECCIÓN: Fecha y Montos -->
+        <div class="form-section-label">📅 Fecha y Montos</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Fecha ingreso <span class="ia-tag" id="in-b-fecha">✦ IA</span></label>
+            <input type="date" id="in-fecha">
+          </div>
+          <div class="field">
+            <label>Total USD <span class="ia-tag" id="in-b-monto">✦ IA</span></label>
+            <input type="number" id="in-monto" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>ITBMS cobrado <span class="ia-tag" id="in-b-itbms">✦ IA</span></label>
+            <input type="number" id="in-itbms" step="0.01" placeholder="0.00">
+          </div>
+          <div class="field">
+            <label>Tipo de ingreso</label>
+            <select id="in-tipo-ingreso">
+              <option value="Gravable">Gravable</option>
+              <option value="Exento">Exento</option>
+              <option value="Mixto">Mixto</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SECCIÓN: Cliente / Pagador -->
+        <div class="form-section-label">🧑‍💼 Cliente / Pagador</div>
+        <div class="field">
+          <label>Nombre del cliente <span class="ia-tag" id="in-b-cliente">✦ IA</span></label>
+          <input type="text" id="in-cliente" placeholder="Nombre o razón social del pagador">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>RUC cliente <span class="ia-tag" id="in-b-ruc-cliente">✦ IA</span></label>
+            <input type="text" id="in-ruc-cliente" placeholder="— opcional —">
+          </div>
+          <div class="field">
+            <label>Tipo persona cliente</label>
+            <select id="in-tipo-persona-cliente">
+              <option value="">— Seleccionar —</option>
+              <option value="Natural">Natural</option>
+              <option value="Juridica">Jurídica</option>
+              <option value="Extranjero">Extranjero</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SECCIÓN: Comprobante -->
+        <div class="form-section-label">🧾 Comprobante</div>
+        <div class="field-row">
+          <div class="field">
+            <label>N° Factura / Ref. <span class="ia-tag" id="in-b-referencia">✦ IA</span></label>
+            <input type="text" id="in-referencia" placeholder="—">
+          </div>
+          <div class="field">
+            <label>Tipo comprobante <span class="ia-tag" id="in-b-tipo-comprobante">✦ IA</span></label>
+            <select id="in-tipo-comprobante">
+              <option value="Factura">Factura</option>
+              <option value="Recibo">Recibo</option>
+              <option value="Yappy">Yappy</option>
+              <option value="ACH">ACH / Transferencia</option>
+              <option value="Estado de cuenta">Estado de cuenta</option>
+              <option value="Contrato">Contrato</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SECCIÓN: Clasificación -->
+        <div class="form-section-label">📊 Clasificación</div>
+        <div class="field">
+          <label>Categoría <span class="ia-tag" id="in-b-categoria">✦ IA</span></label>
+          <select id="in-categoria">
+            <option value="">— Seleccionar —</option>
+            <option>Hospedaje Las Nubes</option>
+            <option>Venta de equipos</option>
+            <option>Servicios de consultoría</option>
+            <option>Comisiones</option>
+            <option>Honorarios profesionales</option>
+            <option>Alquiler</option>
+            <option>Otros ingresos</option>
+          </select>
+        </div>
+
+        <!-- SECCIÓN: Notas -->
+        <div class="form-section-label">📝 Notas</div>
+        <div class="field">
+          <label>Descripción <span class="ia-tag" id="in-b-descripcion">✦ IA</span></label>
+          <textarea id="in-descripcion" placeholder="Concepto del ingreso extraído del comprobante…"></textarea>
+        </div>
+        <div class="field">
+          <label>Notas internas</label>
+          <textarea id="in-notas" placeholder="Observaciones internas (opcional)…" style="min-height:44px"></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-save" id="in-btn-save" onclick="inGuardar()">💾 Guardar Ingreso</button>
+      <button class="btn-reset" onclick="inReset()">Limpiar formulario</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     DASHBOARD SCREEN
+═══════════════════════════════════════════════════════════════ -->
+<div class="dash-screen" id="dash-screen">
+
+  <div class="dash-header">
+    <button class="btn-back" onclick="closeDashboard()">←</button>
+    <h2>📊 Dashboard Fiscal</h2>
+    <select id="dash-year-select" onchange="loadDashboard()" style="font-size:12px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-family:'Sora',sans-serif;cursor:pointer;">
+      <!-- generado por JS -->
+    </select>
+    <button class="btn-back" onclick="loadDashboard()" title="Actualizar">↻</button>
+  </div>
+
+  <div class="dash-body" id="dash-body">
+    <div class="dash-loading" id="dash-loading">
+      <div class="spinner"></div>
+      <span>Cargando datos del Sheet…</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PANEL MULTI-CONTRIBUYENTE (Fase 5)
+═══════════════════════════════════════════════════════════════ -->
+<div class="panel-screen" id="panel-screen">
+
+  <div class="panel-header">
+    <button class="btn-back" onclick="closePanel()">←</button>
+    <h2>👥 Contribuyentes</h2>
+    <span style="font-size:11px;color:var(--text3);">Panel del Contador</span>
+  </div>
+
+  <div class="panel-body">
+
+    <!-- Pendientes del Master -->
+    <div class="panel-section-title" style="margin-bottom:8px;">⏳ Pendientes de setup
+      <span id="pending-badge" style="display:none;background:var(--amber);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;"></span>
+      <button onclick="fetchPendientes()" title="Sincronizar" style="background:none;border:none;cursor:pointer;font-size:13px;margin-left:4px;padding:0;">↻</button>
+    </div>
+    <div id="pending-list" style="margin-bottom:20px;">
+      <div style="font-size:12px;color:var(--text3);padding:8px 0;">⏳ Cargando…</div>
+    </div>
+
+    <!-- Contribuyentes activos -->
+    <div class="panel-section-title" style="margin-bottom:12px;">✅ Contribuyentes configurados</div>
+    <div class="contrib-list" id="contrib-list">
+      <!-- generado por JS -->
+    </div>
+
+    <!-- API Key global -->
+    <div class="panel-section-title" style="margin-top:24px;margin-bottom:8px;">🔑 API Key Claude global</div>
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <input type="password" id="global-apikey-input" placeholder="sk-ant-… (heredada por todos los contribuyentes sin key propia)"
+        style="flex:1;background:#fff;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px;font-family:'Sora',sans-serif;color:var(--text);">
+      <button onclick="saveGlobalApiKey()"
+        style="background:var(--teal);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;font-family:'Sora',sans-serif;">Guardar</button>
+    </div>
+
+    <!-- Agregar manualmente -->
+    <div class="panel-section-title" style="margin-top:4px;">➕ Agregar manualmente</div>
+    <div class="add-contrib-form">
+      <div class="form-grid" style="gap:10px;">
+        <div class="form-2col">
+          <div class="field">
+            <label>Nombre</label>
+            <input type="text" id="nc-nombre" placeholder="Ej: Iris E. Albelo">
+          </div>
+          <div class="field">
+            <label>RUC</label>
+            <input type="text" id="nc-ruc" placeholder="Ej: 8-517-1400">
+          </div>
+        </div>
+        <div class="field">
+          <label>DV (dígito verificador)</label>
+          <input type="text" id="nc-dv" placeholder="Ej: 55" maxlength="4">
+        </div>
+        <div class="field">
+          <label>URL Web App (Apps Script)</label>
+          <input type="text" id="nc-webapp" placeholder="https://script.google.com/macros/s/…/exec">
+        </div>
+        <div class="field">
+          <label>API Key Claude (opcional — hereda global si está vacío)</label>
+          <input type="password" id="nc-apikey" placeholder="sk-ant-…">
+        </div>
+        <div class="field">
+          <label>Color</label>
+          <div class="color-picker" id="nc-color-picker"></div>
+          <input type="hidden" id="nc-color" value="#2563eb">
+        </div>
+      </div>
+      <button class="btn-add-contrib" onclick="addContrib()">＋ Agregar contribuyente</button>
+    </div>
+
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<!-- ─── Toast ───────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  MULTI-CONTRIBUYENTE — Fase 7
+//  Sin localStorage para contribuyentes.
+//  La fuente de verdad es el CSV público del Master Sheet.
+//  Solo se persiste en localStorage:
+//    cf_active_id  → ruc del contribuyente activo
+//    cf_apikey     → API Key Claude global
+//    cf_keys       → { ruc: apiKey } keys individuales por contrib
+// ════════════════════════════════════════════════════════════════
+
+// CSV público del Master Sheet — actualizar si se re-publica
+var MASTER_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTIy0BCWoHwkyZhfGRp5HiRfXaynS0ExGNgfGxckEdIMp1cZQheyswA29nnKcGnFwt0lP1T9sHyi_52/pub?gid=1244351954&single=true&output=csv';
+
+var CONTRIB_COLORS = [
+  '#2563eb','#0d9488','#7c3aed','#dc2626','#d97706',
+  '#16a34a','#0891b2','#db2777','#65a30d','#9333ea'
+];
+
+// ── Estado global en memoria ──────────────────────────────────
+var CLAUDE_API_KEY  = '';
+var WEB_APP_URL     = '';
+var ACTIVE_CONTRIB  = null;
+var ALL_CONTRIBS    = [];   // cargado desde CSV en cada sesión
+
+// ── localStorage mínimo ───────────────────────────────────────
+function getActiveRuc()    { return localStorage.getItem('cf_active_id') || ''; }
+function setActiveRuc(ruc) { localStorage.setItem('cf_active_id', ruc); }
+function getGlobalApiKey() { return localStorage.getItem('cf_apikey') || ''; }
+function getIndivKeys()    { try { return JSON.parse(localStorage.getItem('cf_keys') || '{}'); } catch(e) { return {}; } }
+function setIndivKey(ruc, key) {
+  var keys = getIndivKeys();
+  if (key) keys[ruc] = key; else delete keys[ruc];
+  localStorage.setItem('cf_keys', JSON.stringify(keys));
+}
+
+// ── Inicializar — carga CSV y aplica activo ───────────────────
+function initContribs() {
+  // Aplicar fallback inmediatamente para que el chip sea funcional
+  ALL_CONTRIBS = [{
+    nombre: 'Iris Albelo', ruc: '8-517-1400', dv: '85',
+    web_app_url: 'https://script.google.com/macros/s/AKfycbxmGKBS02yCdY8l1tWrH5uFbyWuu09zvGT4o9WlGPazEcZa8Ryk56t04ve3LKlI0eS2/exec',
+    fecha_creacion: '2026-03-11', estado: 'ACTIVO', _color: '#2563eb'
+  }];
+  applyActiveContrib();
+
+  // Luego cargar el CSV real en background
+  fetch(MASTER_CSV_URL)
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.text();
+  })
+  .then(function(csv) {
+    var loaded = _parseCsv(csv).filter(function(c) {
+      return c.web_app_url && c.web_app_url.indexOf('http') === 0;
+    }).map(function(c, i) {
+      c._color = CONTRIB_COLORS[i % CONTRIB_COLORS.length];
+      return c;
+    });
+    if (loaded.length > 0) {
+      ALL_CONTRIBS = loaded;
+      applyActiveContrib();
+    }
+  })
+  .catch(function() {
+    // CSV no disponible — seguir con fallback
+  });
+}
+
+// ── Activar contribuyente ─────────────────────────────────────
+function applyActiveContrib() {
+  var activeRuc = getActiveRuc();
+  var keys      = getIndivKeys();
+  var global    = getGlobalApiKey();
+
+  ACTIVE_CONTRIB = ALL_CONTRIBS.find(function(c) {
+    return c.ruc.replace(/[\s-]/g,'') === activeRuc.replace(/[\s-]/g,'');
+  }) || ALL_CONTRIBS[0] || null;
+
+  if (ACTIVE_CONTRIB) {
+    if (!getActiveRuc()) setActiveRuc(ACTIVE_CONTRIB.ruc);
+    var indivKey   = keys[ACTIVE_CONTRIB.ruc.replace(/[\s-]/g,'')] || '';
+    CLAUDE_API_KEY = indivKey || global;
+    WEB_APP_URL    = ACTIVE_CONTRIB.web_app_url || '';
+    updateChip(ACTIVE_CONTRIB);
+  }
+  updateConfigBar();
+  if (document.getElementById('contrib-list')) renderContribList();
+}
+
+// ── Switch ────────────────────────────────────────────────────
+function switchContrib(ruc) {
+  setActiveRuc(ruc);
+  applyActiveContrib();
+  showToast('\u2713 Contribuyente cambiado', 'ok');
+}
+
+// ── Agregar manualmente (para contribuyentes fuera del Master) ─
+function addContrib() {
+  var nombre = document.getElementById('nc-nombre').value.trim();
+  var ruc    = document.getElementById('nc-ruc').value.trim();
+  var dv     = document.getElementById('nc-dv').value.trim();
+  var webApp = document.getElementById('nc-webapp').value.trim();
+  var apiKey = document.getElementById('nc-apikey').value.trim();
+
+  if (!nombre || !ruc || !webApp) {
+    showToast('Nombre, RUC y URL son obligatorios', 'err'); return;
+  }
+
+  // Add to in-memory list if not already there
+  var rucClean = ruc.replace(/[\s-]/g,'');
+  var existe   = ALL_CONTRIBS.find(function(c){ return c.ruc.replace(/[\s-]/g,'') === rucClean; });
+  if (!existe) {
+    ALL_CONTRIBS.push({
+      nombre: nombre, ruc: ruc, dv: dv,
+      web_app_url: webApp, estado: 'ACTIVO',
+      _color: CONTRIB_COLORS[ALL_CONTRIBS.length % CONTRIB_COLORS.length]
+    });
+  }
+  if (apiKey) setIndivKey(rucClean, apiKey);
+  setActiveRuc(ruc);
+  applyActiveContrib();
+  renderContribList();
+
+  ['nc-nombre','nc-ruc','nc-dv','nc-webapp','nc-apikey'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  renderColorPicker('#2563eb');
+  showToast('\u2713 ' + nombre + ' agregado', 'ok');
+}
+
+// ── Editar URL de un contrib ──────────────────────────────────
+function editContribUrl(ruc) {
+  var c = ALL_CONTRIBS.find(function(x){ return x.ruc === ruc; });
+  if (!c) return;
+  var url = prompt('URL del Web App para ' + c.nombre + ':', c.web_app_url || '');
+  if (url === null) return;
+  c.web_app_url = url.trim();
+  applyActiveContrib();
+  renderContribList();
+  showToast('\u2713 URL actualizada', 'ok');
+}
+
+// ── Editar contrib completo ───────────────────────────────────
+function editContrib(ruc) {
+  var c = ALL_CONTRIBS.find(function(x){ return x.ruc === ruc; });
+  if (!c) return;
+  var nombre = prompt('Nombre:', c.nombre || ''); if (nombre === null) return;
+  var dv     = prompt('DV:', c.dv || '');         if (dv === null) return;
+  var webApp = prompt('URL Web App:', c.web_app_url || ''); if (webApp === null) return;
+  var rucClean = ruc.replace(/[\s-]/g,'');
+  var apiKey = prompt('API Key Claude (vac\u00edo = usar global):', getIndivKeys()[rucClean] || '');
+  if (apiKey === null) return;
+  c.nombre = nombre.trim(); c.dv = dv.trim(); c.web_app_url = webApp.trim();
+  setIndivKey(rucClean, apiKey.trim());
+  applyActiveContrib();
+  renderContribList();
+  showToast('\u2713 Actualizado', 'ok');
+}
+
+// ── API Key global ────────────────────────────────────────────
+function saveGlobalApiKey() {
+  var key = document.getElementById('global-apikey-input').value.trim();
+  if (key && !key.startsWith('sk-ant-')) { showToast('API Key inv\u00e1lida', 'err'); return; }
+  localStorage.setItem('cf_apikey', key);
+  applyActiveContrib();
+  showToast(key ? '\u2713 API Key global guardada' : 'API Key eliminada', 'ok');
+}
+
+// ── Fetch pendientes (contribs en CSV sin web_app_url válida) ─
+function fetchPendientes() {
+  var el = document.getElementById('pending-list');
+  if (!el) return;
+  el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0;">\u23f3 Cargando\u2026</div>';
+
+  fetch(MASTER_CSV_URL)
+  .then(function(r) { return r.text(); })
+  .then(function(csv) {
+    var todos     = _parseCsv(csv);
+    var pendientes = todos.filter(function(c) {
+      return !c.web_app_url || c.web_app_url.indexOf('http') !== 0;
+    });
+    // Also refresh ALL_CONTRIBS with latest from CSV
+    ALL_CONTRIBS = todos.filter(function(c) {
+      return c.web_app_url && c.web_app_url.indexOf('http') === 0;
+    }).map(function(c, i) {
+      c._color = CONTRIB_COLORS[i % CONTRIB_COLORS.length];
+      return c;
+    });
+    applyActiveContrib();
+    renderContribList();
+    _renderPendientes(pendientes);
+  })
+  .catch(function(err) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--red);padding:8px 0;">\u26a0\ufe0f Error: ' + err.message + '</div>';
+  });
+}
+
+function _parseCsv(csv) {
+  var lines = csv.trim().split('\n');
+  if (lines.length < 2) return [];
+  var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/^"|"$/g, ''); });
+  return lines.slice(1).map(function(line) {
+    var fields = [], cur = '', inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { fields.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    fields.push(cur.trim());
+    var obj = {};
+    headers.forEach(function(h, i) { obj[h] = (fields[i] || '').replace(/^"|"$/g, ''); });
+    return obj;
+  }).filter(function(r) { return r.nombre; });
+}
+
+function _renderPendientes(pendientes) {
+  var badge = document.getElementById('pending-badge');
+  var el    = document.getElementById('pending-list');
+  if (!el) return;
+
+  if (pendientes.length === 0) {
+    if (badge) badge.style.display = 'none';
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0;">\u2713 Sin pendientes — todos los clientes tienen Web App URL.</div>';
+    return;
+  }
+
+  if (badge) { badge.style.display = 'inline'; badge.textContent = pendientes.length; }
+
+  var html = '';
+  pendientes.forEach(function(c, idx) {
+    var rucClean = (c.ruc || '').replace(/[\s-]/g, '');
+    var initials = (c.nombre || '?').split(' ').map(function(w) { return w[0]; }).slice(0, 2).join('').toUpperCase();
+    var color    = CONTRIB_COLORS[idx % CONTRIB_COLORS.length];
+    html += '<div style="background:var(--surface);border:1px solid #fcd34d;border-radius:10px;padding:12px 14px;margin-bottom:8px;">';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">';
+    html += '<div style="width:36px;height:36px;border-radius:9px;background:' + color + ';display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;">' + initials + '</div>';
+    html += '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">' + esc(c.nombre) + '</div>';
+    html += '<div style="font-size:11px;color:var(--text3);">RUC ' + esc(c.ruc) + (c.dv ? ' DV ' + esc(c.dv) : '') + '</div></div>';
+    html += '<span style="font-size:9px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:2px 7px;font-weight:600;">SIN WEB APP</span></div>';
+    html += '<input type="text" id="pw-webapp-' + rucClean + '" placeholder="URL Web App del cliente\u2026" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;width:100%;box-sizing:border-box;margin-bottom:6px;">';
+    html += '<button onclick="_completarSetup(' + JSON.stringify(c) + ',\'' + rucClean + '\')" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">\u2713 Guardar URL</button>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function _completarSetup(cliente, rucClean) {
+  var webApp = document.getElementById('pw-webapp-' + rucClean).value.trim();
+  if (!webApp) { showToast('La URL del Web App es obligatoria', 'err'); return; }
+  // Update in-memory (note: to persist, user must update the Master Sheet directly)
+  var existing = ALL_CONTRIBS.find(function(c){ return c.ruc.replace(/[\s-]/g,'') === rucClean; });
+  if (existing) {
+    existing.web_app_url = webApp;
+  } else {
+    ALL_CONTRIBS.push({
+      nombre: cliente.nombre, ruc: cliente.ruc, dv: cliente.dv || '',
+      web_app_url: webApp, estado: 'ACTIVO',
+      _color: CONTRIB_COLORS[ALL_CONTRIBS.length % CONTRIB_COLORS.length]
+    });
+  }
+  applyActiveContrib();
+  renderContribList();
+  fetchPendientes();
+  showToast('\u2713 ' + cliente.nombre + ' listo \u2014 actualiza la URL en el Master Sheet para que persista', 'ok');
+}
+
+// ── Render lista de contribuyentes ────────────────────────────
+function renderContribList() {
+  var list   = ALL_CONTRIBS;
+  var active = getActiveRuc().replace(/[\s-]/g,'');
+  var el     = document.getElementById('contrib-list');
+  if (!el) return;
+
+  if (list.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0;">Sin contribuyentes con Web App configurado.</div>';
+    return;
+  }
+
+  var html = '';
+  list.forEach(function(c) {
+    var rucClean = c.ruc.replace(/[\s-]/g,'');
+    var isActive = rucClean === active;
+    var initials = c.nombre.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+    html += '<div class="contrib-card' + (isActive ? ' active' : '') + '">';
+    if (isActive) html += '<span class="contrib-active-badge">ACTIVO</span>';
+    html += '<div class="contrib-card-avatar" style="background:' + c._color + '">' + initials + '</div>';
+    html += '<div class="contrib-card-info">';
+    html += '<div class="contrib-card-name">' + esc(c.nombre) + '</div>';
+    html += '<div class="contrib-card-ruc">RUC ' + esc(c.ruc) + (c.dv ? ' \u00b7 DV ' + esc(c.dv) : '') + '</div>';
+    html += '<div class="contrib-card-meta">\uD83D\uDD17 Web App OK \u00b7 Desde ' + (c.fecha_creacion || '\u2014') + '</div>';
+    html += '</div>';
+    html += '<div class="contrib-card-actions">';
+    if (!isActive) html += '<button onclick="switchContrib(\'' + c.ruc + '\')">Activar</button>';
+    html += '<button onclick="editContrib(\'' + c.ruc + '\')">&#9999;&#65039; Editar</button>';
+    html += '<button onclick="editContribUrl(\'' + c.ruc + '\')">&#128279; URL</button>';
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+// ── Update header chip ────────────────────────────────────────
+function updateChipLoading() {
+  var el = document.getElementById('chip-name');
+  if (el) el.textContent = 'Cargando…';
+}
+
+function updateChip(c) {
+  var initials = c.nombre.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+  document.getElementById('chip-avatar').textContent = initials;
+  document.getElementById('chip-avatar').style.background = c._color || '#2563eb';
+  document.getElementById('chip-name').textContent = c.nombre;
+  document.getElementById('chip-ruc').textContent  = 'RUC ' + c.ruc + (c.dv ? ' DV ' + c.dv : '');
+}
+
+// ── Color picker ──────────────────────────────────────────────
+function renderColorPicker(selected) {
+  var html = '';
+  CONTRIB_COLORS.forEach(function(col) {
+    html += '<div class="color-dot' + (col === selected ? ' selected' : '') + '"'
+          + ' style="background:' + col + '"'
+          + ' onclick="selectColor(\'' + col + '\')" title="' + col + '"></div>';
+  });
+  document.getElementById('nc-color-picker').innerHTML = html;
+}
+function selectColor(col) {
+  document.getElementById('nc-color').value = col;
+  renderColorPicker(col);
+}
+
+// ── Panel open/close ──────────────────────────────────────────
+function openPanel() {
+  renderContribList();
+  var globalKey = getGlobalApiKey();
+  if (globalKey) document.getElementById('global-apikey-input').value = globalKey;
+  fetchPendientes();
+  document.getElementById('panel-screen').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closePanel() {
+  document.getElementById('panel-screen').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Helper escape HTML ────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  // ── Parámetros URL ────────────────────────────────────────
+  var params   = new URLSearchParams(window.location.search);
+  var isAdmin  = params.get('admin') === '1';
+  var rucParam = params.get('ruc') || '';
+
+  // Panel del contador solo visible con ?admin=1
+  var chip = document.getElementById('contrib-chip');
+  if (chip) chip.style.display = isAdmin ? '' : 'none';
+
+  // Preseleccionar contribuyente por ?ruc=
+  if (rucParam) setActiveRuc(rucParam);
+
+  initContribs();
+  renderColorPicker('#2563eb');
+  document.getElementById('eg-fecha').value = today();
+  document.getElementById('in-fecha').value = today();
+});
+
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function updateConfigBar() {
+  var bar = document.getElementById('config-bar');
+  if (CLAUDE_API_KEY && WEB_APP_URL) {
+    bar.classList.add('hidden');
+  } else {
+    bar.classList.remove('hidden');
+  }
+}
+
+function promptConfig() {
+  // Permite configurar el contribuyente activo directamente
+  var global = localStorage.getItem('cf_apikey') || '';
+  if (!CLAUDE_API_KEY && !global) {
+    var key = prompt('Pega tu API Key de Anthropic (sk-ant-...):');
+    if (key && key.trim().startsWith('sk-ant-')) {
+      localStorage.setItem('cf_apikey', key.trim());
+      CLAUDE_API_KEY = key.trim();
+    } else if (key) {
+      showToast('API Key inválida', 'err'); return;
+    } else { return; }
+  }
+  if (!WEB_APP_URL) {
+    var url = prompt('Pega la URL del Apps Script Web App para ' + (ACTIVE_CONTRIB ? ACTIVE_CONTRIB.nombre : 'este contribuyente') + ':');
+    if (url && url.trim().startsWith('https://')) {
+      WEB_APP_URL = url.trim();
+      // Actualizar en memoria
+      if (ACTIVE_CONTRIB) ACTIVE_CONTRIB.web_app_url = WEB_APP_URL;
+    } else if (url) {
+      showToast('URL inválida', 'err'); return;
+    } else { return; }
+  }
+  updateConfigBar();
+  showToast('✓ Configuración guardada', 'ok');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MODAL CONTROL
+// ════════════════════════════════════════════════════════════════
+function openModal(type) {
+  document.getElementById('modal-' + type + '-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Mostrar banner de advertencia si falta Web App URL
+  var banner = document.getElementById('modal-' + type + '-no-url');
+  if (banner) {
+    banner.style.display = WEB_APP_URL ? 'none' : 'flex';
+  }
+}
+function closeModal(type) {
+  document.getElementById('modal-' + type + '-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function handleBackdropClick(e, type) {
+  if (e.target === document.getElementById('modal-' + type + '-backdrop')) {
+    closeModal(type);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  EGRESO — estado
+// ════════════════════════════════════════════════════════════════
+var egFileB64 = null, egFileMime = null, egFileName = null, egMode = 'foto';
+
+function setEgMode(mode) {
+  egMode = mode;
+  document.getElementById('eg-mode-foto').classList.toggle('active', mode === 'foto');
+  document.getElementById('eg-mode-manual').classList.toggle('active', mode === 'manual');
+  document.getElementById('eg-foto-panel').style.display = mode === 'foto' ? 'block' : 'none';
+}
+
+// ── File handling ─────────────────────────────────────────────
+function egHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('eg-upload-zone').classList.remove('drag');
+  var file = e.dataTransfer.files[0];
+  if (file) egHandleFile(file);
+}
+
+function egHandleFile(file) {
+  if (!file) return;
+
+  // Validate size (max 4MB for Claude API base64)
+  if (file.size > 4 * 1024 * 1024) {
+    showToast('Archivo muy grande — máx. 4 MB', 'err');
+    return;
+  }
+
+  egFileName = file.name;
+  egFileMime = file.type || 'image/jpeg';
+
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    egFileB64 = ev.target.result.split(',')[1];
+
+    // Show preview, hide upload zone
+    document.getElementById('eg-upload-zone').style.display = 'none';
+    var pb = document.getElementById('eg-preview-box');
+    pb.style.display = 'block';
+    var img = document.getElementById('eg-preview-img');
+    if (file.type.startsWith('image/')) {
+      img.src = ev.target.result;
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+    document.getElementById('eg-preview-name').textContent = file.name;
+    document.getElementById('eg-btn-analyze').disabled = false;
+  };
+  reader.onerror = function() {
+    showToast('Error al leer el archivo', 'err');
+  };
+  reader.readAsDataURL(file);
+}
+
+function egClearFile() {
+  egFileB64 = null; egFileMime = null; egFileName = null;
+  document.getElementById('eg-preview-box').style.display = 'none';
+  document.getElementById('eg-upload-zone').style.display = 'block';
+  var inp = document.getElementById('eg-file');
+  inp.value = '';
+  try { inp.type = 'text'; inp.type = 'file'; } catch(e) {}
+  document.getElementById('eg-btn-analyze').disabled = true;
+  egSetStatus('idle');
+}
+
+function egSetStatus(state, msg) {
+  var bar     = document.getElementById('eg-status');
+  var spinner = bar.querySelector('.spinner');
+  var span    = bar.querySelector('span');
+  bar.className = 'status-bar';
+  spinner.style.display = 'none';
+
+  if (state === 'loading') {
+    bar.classList.add('loading');
+    spinner.style.display = 'block';
+    span.textContent = msg || 'Analizando con IA…';
+  } else if (state === 'success') {
+    bar.classList.add('success');
+    span.textContent = msg || '✓ Datos extraídos';
+  } else if (state === 'error') {
+    bar.classList.add('error');
+    span.textContent = msg || 'Error al analizar';
+  }
+  // idle: bar stays hidden (no class = display:none via CSS)
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ANÁLISIS CON CLAUDE API — directo desde el browser
+// ════════════════════════════════════════════════════════════════
+function egAnalyze() {
+  if (!egFileB64) return;
+
+  if (!CLAUDE_API_KEY) {
+    showToast('Configura tu API Key primero', 'err');
+    promptConfig();
+    return;
+  }
+
+  document.getElementById('eg-btn-analyze').disabled = true;
+  egSetStatus('loading', 'Analizando con Claude Vision…');
+
+  // Determinar mime type válido para Claude y construir bloque de contenido correcto
+  var validImages = ['image/jpeg','image/png','image/webp','image/gif'];
+  var contentBlock;
+  if (egFileMime === 'application/pdf') {
+    contentBlock = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: egFileB64 } };
+  } else {
+    var mime = validImages.indexOf(egFileMime) >= 0 ? egFileMime : 'image/jpeg';
+    contentBlock = { type: 'image', source: { type: 'base64', media_type: mime, data: egFileB64 } };
+  }
+
+  var messageContent = [
+    contentBlock,
+    {
+      type: 'text',
+      text: buildPromptFactura()
+    }
+  ];
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CLAUDE_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: messageContent }]
+    })
+  })
+  .then(function(r) {
+    if (!r.ok) {
+      return r.json().then(function(e) {
+        throw new Error(e.error ? e.error.message : 'Error ' + r.status);
+      });
+    }
+    return r.json();
+  })
+  .then(function(data) {
+    document.getElementById('eg-btn-analyze').disabled = false;
+    var text = data.content[0].text;
+
+    // Extraer JSON de la respuesta
+    var match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('La IA no devolvió JSON válido');
+
+    var parsed = JSON.parse(match[0]);
+
+    // Normalizar fecha
+    if (parsed.fecha) parsed.fecha = normalizarFecha(parsed.fecha);
+
+    // Contar campos encontrados
+    var keys = ['fecha','monto','proveedor','ruc','nfactura','itbms','categoria','descripcion'];
+    var found = keys.filter(function(k) {
+      return parsed[k] !== null && parsed[k] !== undefined && parsed[k] !== '';
+    }).length;
+
+    egSetStatus('success', '✓ ' + found + ' campos extraídos');
+    egFillForm(parsed, parsed._confidence || (found / keys.length));
+  })
+  .catch(function(err) {
+    document.getElementById('eg-btn-analyze').disabled = false;
+    egSetStatus('error', err.message || 'Error de conexión');
+    showToast('Error: ' + (err.message || 'desconocido'), 'err');
+  });
+}
+
+function buildPromptFactura() {
+  var lines = [
+    'Analiza esta factura electronica o comprobante de compra emitido en Panama.',
+    '',
+    'ESTRUCTURA TIPICA DE FACTURAS ELECTRONICAS PANAMEÑAS:',
+    'La cabecera del documento tiene este orden:',
+    '  Linea 1: "DGI" (indica que es factura electronica autorizada)',
+    '  Linea 2: RUC del PROVEEDOR seguido de "DV" y el digito verificador. Ejemplo: "N-20-606 DV 09"',
+    '  Linea 3: Nombre legal del propietario o razon social del PROVEEDOR',
+    '  Lineas siguientes: Direccion del PROVEEDOR',
+    '  Luego: Nombre comercial del negocio',
+    '  Luego: Telefono del negocio',
+    '',
+    'MAS ABAJO aparece la seccion del RECEPTOR/CLIENTE:',
+    '  "RECEPTOR:" o "CLIENTE:" seguido del nombre del comprador',
+    '  "RUC:" seguido del RUC del COMPRADOR — este NO es el proveedor',
+    '',
+    'INSTRUCCION CRITICA: Extrae SIEMPRE los datos de la cabecera (proveedor), NUNCA los del receptor/cliente.',
+    '',
+    'Devuelve SOLO un objeto JSON valido sin texto adicional:',
+    '{"fecha":"YYYY-MM-DD","monto":0.00,"itbms":0.00,"proveedor":"nombre legal o comercial del proveedor","ruc":"RUC de la cabecera","dv":"DV de la cabecera","tipo_persona":"Natural o Juridica","nfactura":"numero de factura","tipo_comprobante":"Factura o Recibo o Ticket","categoria":"categoria","frm94":"concepto FRM-94","tipo_egreso":"Operativo o Personal o Mixto","descripcion":"items comprados","_confidence":0.00}',
+    '',
+    'Categorias: Alimentacion, Combustible, Hospedaje / Las Nubes, Materiales y suministros, Servicios profesionales, Servicios publicos, Telecomunicaciones, Transporte, Salarios, Seguros, Mantenimiento, Marketing, Equipos y tecnologia, Impuestos y tasas, Otros.',
+    '',
+    'Conceptos FRM-94: Salarios y remuneraciones, Alquileres, Servicios profesionales, Publicidad y propaganda, Combustibles y lubricantes, Materiales y suministros, Servicios publicos, Mantenimiento y reparaciones, Seguros, Viaticos y gastos de viaje, Depreciacion, Intereses y cargos financieros, Impuestos y tasas, Otros gastos deducibles, Gastos no deducibles.',
+    '',
+    'Reglas:',
+    '- monto = TOTAL pagado incluyendo ITBMS.',
+    '- itbms = monto del impuesto separado (0 si no aparece).',
+    '- Para el RUC del proveedor: busca en la cabecera el patron "X-XX-XXX DV XX" o "N-XX-XXX DV XX".',
+    '- tipo_persona = Natural si RUC tiene formato cedula (X-XXX-XXXX), Juridica si tiene N- o letras.',
+    '- _confidence entre 0 y 1 segun certeza.',
+    '- Null si un campo no es claro. NO inventes. Solo JSON.'
+  ];
+  return lines.join('\n');
+}
+
+function normalizarFecha(str) {
+  if (!str) return '';
+  str = str.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  // DD/MM/YYYY
+  var m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+  // Fallback
+  var d = new Date(str);
+  if (!isNaN(d)) return d.toISOString().slice(0,10);
+  return str;
+}
+
+// ── Detectar tipo de persona por formato de RUC panameño ────────
+function detectarTipoPersona(ruc) {
+  if (!ruc) return '';
+  ruc = ruc.trim().toUpperCase();
+  if (/^N[- ]/.test(ruc) || /^NT[- ]/.test(ruc)) return 'Juridica';
+  if (/^\d{1,2}-\d{1,4}-\d{1,6}$/.test(ruc)) return 'Natural';
+  if (/^\d{6,10}$/.test(ruc)) return 'Natural';
+  return '';
+}
+
+// ── Fill form with AI data ────────────────────────────────────
+function egFillForm(data, confidence) {
+  // Simple text/number inputs
+  var map = {
+    'eg-fecha':       { val: data.fecha,       badge: 'eg-b-fecha' },
+    'eg-monto':       { val: data.monto,       badge: 'eg-b-monto' },
+    'eg-itbms':       { val: data.itbms,       badge: 'eg-b-itbms' },
+    'eg-proveedor':   { val: data.proveedor,   badge: 'eg-b-proveedor' },
+    'eg-ruc':         { val: data.ruc,         badge: 'eg-b-ruc' },
+    'eg-dv':          { val: data.dv,          badge: 'eg-b-dv' },
+    'eg-nfactura':    { val: data.nfactura,    badge: 'eg-b-nfactura' },
+    'eg-descripcion': { val: data.descripcion, badge: 'eg-b-descripcion' }
+  };
+  // Campos numéricos donde 0 no es dato extraído útil (no mostrar badge)
+  var numericOptional = ['eg-itbms'];
+
+  for (var id in map) {
+    var m = map[id];
+    var val = m.val;
+    var isZeroNumeric = numericOptional.indexOf(id) >= 0 && (val === 0 || val === '0' || val === 0.0);
+    if (val !== null && val !== undefined && val !== '' && !isZeroNumeric) {
+      var el = document.getElementById(id);
+      if (el) { el.value = val; el.classList.add('ia'); }
+      var badge = document.getElementById(m.badge);
+      if (badge) badge.classList.add('show');
+    }
+  }
+  if (data.ruc && !data.tipo_persona) {
+    data.tipo_persona = detectarTipoPersona(data.ruc);
+  }
+
+  // Auto-calculate deducible = monto - itbms if not provided
+  if (data.monto && !data.deducible) {
+    var itbms = parseFloat(data.itbms) || 0;
+    var total = parseFloat(data.monto) || 0;
+    document.getElementById('eg-deducible').value = (total - itbms).toFixed(2);
+  }
+
+  // Select fields — match by text
+  var selects = {
+    'eg-categoria':       { val: data.categoria,     badge: 'eg-b-categoria' },
+    'eg-tipo-persona':    { val: data.tipo_persona,  badge: 'eg-b-tipo-persona' },
+    'eg-frm94':           { val: data.frm94,         badge: 'eg-b-frm94' }
+  };
+  for (var sid in selects) {
+    var s = selects[sid];
+    if (!s.val) continue;
+    var sel = document.getElementById(sid);
+    if (!sel) continue;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].text === s.val || sel.options[i].value === s.val) {
+        sel.selectedIndex = i; sel.classList.add('ia');
+        var b = document.getElementById(s.badge);
+        if (b) b.classList.add('show');
+        break;
+      }
+    }
+  }
+
+  // Store confidence for saving
+  window._egConfianza = confidence || 0;
+
+  if (confidence) {
+    var pct = Math.round(confidence * 100);
+    document.getElementById('eg-confidence').classList.add('show');
+    document.getElementById('eg-conf-fill').style.width = pct + '%';
+    document.getElementById('eg-conf-pct').textContent = pct + '%';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GUARDAR EGRESO — POST al Apps Script Web App
+//  Usamos text/plain para evitar CORS preflight (workaround)
+// ════════════════════════════════════════════════════════════════
+function egGuardar() {
+  var fecha     = document.getElementById('eg-fecha').value;
+  var monto     = document.getElementById('eg-monto').value;
+  var proveedor = document.getElementById('eg-proveedor').value;
+
+  if (!fecha || !monto || !proveedor) {
+    showToast('Completa Fecha, Monto y Proveedor', 'err'); return;
+  }
+  if (!WEB_APP_URL) {
+    showToast('Configura la URL del Web App primero', 'err');
+    promptConfig(); return;
+  }
+
+  var totalVal  = parseFloat(monto) || 0;
+  var itbmsVal  = parseFloat(document.getElementById('eg-itbms').value) || 0;
+  var subtotal  = totalVal - itbmsVal;
+  var deducible = parseFloat(document.getElementById('eg-deducible').value) || subtotal;
+
+  var TIPO_COMP_MAP = {
+    'Factura': 'FACTURA_ELECTRONICA',
+    'Recibo': 'RECIBO',
+    'Ticket': 'TICKET',
+    'Nota de débito': 'NOTA_DEBITO',
+    'Otro': 'OTRO'
+  };
+  var tipoCompRaw = document.getElementById('eg-tipo-comprobante').value;
+
+  var egreso = {
+    // Montos
+    fecha:           fecha,
+    monto:           totalVal,
+    itbms:           itbmsVal,
+    subtotal:        subtotal,
+    deducible:       deducible,
+    // Proveedor
+    proveedor:       proveedor,
+    ruc:             document.getElementById('eg-ruc').value,
+    dv:              document.getElementById('eg-dv').value,
+    tipo_persona:    document.getElementById('eg-tipo-persona').value,
+    // Comprobante
+    nfactura:        document.getElementById('eg-nfactura').value,
+    tipo_comprobante: TIPO_COMP_MAP[tipoCompRaw] || tipoCompRaw.toUpperCase().replace(/\s+/g,'_'),
+    // Clasificación
+    estado:          document.getElementById('eg-estado').value,
+    tipo_egreso:     document.getElementById('eg-tipo-egreso').value,
+    frm94:           document.getElementById('eg-frm94').value,
+    categoria:       document.getElementById('eg-categoria').value,
+    metodo:          document.getElementById('eg-metodo').value,
+    // Notas
+    descripcion:     document.getElementById('eg-descripcion').value,
+    notas:           document.getElementById('eg-notas').value,
+    // Meta — confianza como entero 0–100 (el GS espera parseInt, no decimal)
+    confianza_ia:    Math.round((window._egConfianza || 0) * 100)
+  };
+
+  var btn = document.getElementById('eg-btn-save');
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+
+  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
+
+  // Enviamos como text/plain para evitar preflight CORS
+  fetch(urlActual, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'guardarEgreso', egreso: egreso })
+  })
+  .then(function(r) { return r.text(); })
+  .then(function(txt) {
+    btn.disabled = false; btn.textContent = '💾 Guardar Egreso';
+    var res;
+    try { res = JSON.parse(txt); } catch(e) {
+      showToast('Guardado (respuesta no JSON)', 'ok');
+      setTimeout(function() { egReset(); closeModal('egreso'); }, 1800);
+      return;
+    }
+    if (res.ok) {
+      showToast('✓ ' + res.id + ' guardado correctamente', 'ok');
+      setTimeout(function() { egReset(); closeModal('egreso'); }, 1800);
+    } else {
+      showToast('Error: ' + (res.error || 'desconocido'), 'err');
+    }
+  })
+  .catch(function(err) {
+    btn.disabled = false; btn.textContent = '💾 Guardar Egreso';
+    showToast('Error de conexión al guardar', 'err');
+  });
+}
+
+// ── Reset egreso ──────────────────────────────────────────────
+function egReset() {
+  var textFields = ['eg-fecha','eg-monto','eg-itbms','eg-deducible',
+    'eg-proveedor','eg-ruc','eg-dv','eg-nfactura','eg-descripcion','eg-notas'];
+  textFields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('ia'); }
+  });
+  document.getElementById('eg-fecha').value = today();
+
+  var selFields = ['eg-categoria','eg-metodo','eg-tipo-persona',
+    'eg-tipo-comprobante','eg-tipo-egreso','eg-estado','eg-frm94'];
+  selFields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.selectedIndex = 0; el.classList.remove('ia'); }
+  });
+
+  var badges = ['eg-b-fecha','eg-b-monto','eg-b-itbms','eg-b-proveedor',
+    'eg-b-ruc','eg-b-dv','eg-b-nfactura','eg-b-descripcion',
+    'eg-b-categoria','eg-b-tipo-persona','eg-b-frm94'];
+  badges.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('show');
+  });
+
+  window._egConfianza = 0;
+  document.getElementById('eg-confidence').classList.remove('show');
+  document.getElementById('eg-conf-fill').style.width = '0%';
+  egClearFile();
+  egSetStatus('idle');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  INGRESO — estado
+// ════════════════════════════════════════════════════════════════
+var inFileB64 = null, inFileMime = null, inFileName = null, inMode = 'foto';
+
+function setInMode(mode) {
+  inMode = mode;
+  document.getElementById('in-mode-foto').classList.toggle('active', mode === 'foto');
+  document.getElementById('in-mode-manual').classList.toggle('active', mode === 'manual');
+  document.getElementById('in-foto-panel').style.display = mode === 'foto' ? 'block' : 'none';
+}
+
+// ── File handling ─────────────────────────────────────────────
+function inHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('in-upload-zone').classList.remove('drag');
+  var file = e.dataTransfer.files[0];
+  if (file) inHandleFile(file);
+}
+
+function inHandleFile(file) {
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('Archivo muy grande — máx. 10 MB', 'err'); return;
+  }
+  inFileName = file.name;
+  inFileMime = file.type || 'image/jpeg';
+
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    inFileB64 = ev.target.result.split(',')[1];
+    document.getElementById('in-upload-zone').style.display = 'none';
+    var pb = document.getElementById('in-preview-box');
+    pb.style.display = 'block';
+    var img = document.getElementById('in-preview-img');
+    if (file.type.startsWith('image/')) {
+      img.src = ev.target.result; img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+    document.getElementById('in-preview-name').textContent = file.name;
+    document.getElementById('in-btn-analyze').disabled = false;
+  };
+  reader.onerror = function() { showToast('Error al leer el archivo', 'err'); };
+  reader.readAsDataURL(file);
+}
+
+function inClearFile() {
+  inFileB64 = null; inFileMime = null; inFileName = null;
+  document.getElementById('in-preview-box').style.display = 'none';
+  document.getElementById('in-upload-zone').style.display = 'block';
+  var inp = document.getElementById('in-file');
+  inp.value = '';
+  try { inp.type = 'text'; inp.type = 'file'; } catch(e) {}
+  document.getElementById('in-btn-analyze').disabled = true;
+  inSetStatus('idle');
+}
+
+function inSetStatus(state, msg) {
+  var bar     = document.getElementById('in-status');
+  var spinner = bar.querySelector('.spinner');
+  var span    = bar.querySelector('span');
+  bar.className = 'status-bar';
+  spinner.style.display = 'none';
+  if (state === 'loading') {
+    bar.classList.add('loading'); spinner.style.display = 'block';
+    span.textContent = msg || 'Analizando con IA…';
+  } else if (state === 'success') {
+    bar.classList.add('success'); span.textContent = msg || '✓ Datos extraídos';
+  } else if (state === 'error') {
+    bar.classList.add('error'); span.textContent = msg || 'Error al analizar';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ANÁLISIS IA — INGRESO
+// ════════════════════════════════════════════════════════════════
+function inAnalyze() {
+  if (!inFileB64) return;
+  if (!CLAUDE_API_KEY) {
+    showToast('Configura tu API Key primero', 'err'); promptConfig(); return;
+  }
+
+  document.getElementById('in-btn-analyze').disabled = true;
+  inSetStatus('loading', 'Analizando con Claude Vision…');
+
+  var validImages = ['image/jpeg','image/png','image/webp','image/gif'];
+  var inContentBlock;
+  if (inFileMime === 'application/pdf') {
+    inContentBlock = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: inFileB64 } };
+  } else {
+    var mime = validImages.indexOf(inFileMime) >= 0 ? inFileMime : 'image/jpeg';
+    inContentBlock = { type: 'image', source: { type: 'base64', media_type: mime, data: inFileB64 } };
+  }
+
+  var messageContent = [
+    inContentBlock,
+    { type: 'text', text: buildPromptIngreso() }
+  ];
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CLAUDE_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: messageContent }]
+    })
+  })
+  .then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(e.error ? e.error.message : 'Error ' + r.status); });
+    return r.json();
+  })
+  .then(function(data) {
+    document.getElementById('in-btn-analyze').disabled = false;
+    var text = data.content[0].text;
+    var match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('La IA no devolvió JSON válido');
+
+    var parsed = JSON.parse(match[0]);
+    if (parsed.fecha) parsed.fecha = normalizarFecha(parsed.fecha);
+
+    var keys = ['fecha','monto','cliente','referencia','tipo_comprobante','categoria','descripcion'];
+    var found = keys.filter(function(k) { return parsed[k] !== null && parsed[k] !== undefined && parsed[k] !== ''; }).length;
+
+    inSetStatus('success', '✓ ' + found + ' campos extraídos');
+    inFillForm(parsed, parsed._confidence || (found / keys.length));
+  })
+  .catch(function(err) {
+    document.getElementById('in-btn-analyze').disabled = false;
+    inSetStatus('error', err.message || 'Error de conexión');
+    showToast('Error: ' + (err.message || 'desconocido'), 'err');
+  });
+}
+
+function buildPromptIngreso() {
+  var lines = [
+    'Analiza este comprobante de INGRESO recibido. Puede ser una pantalla de Yappy, un comprobante de ACH/transferencia bancaria, una factura emitida, o un recibo de cobro.',
+    '',
+    'INSTRUCCIONES ESPECÍFICAS POR TIPO DE COMPROBANTE:',
+    '',
+    '— YAPPY —',
+    'El pagador es quien aparece en la frase "[Nombre] te envió". Ejemplo: "Isabel E. te envió $90.00" → cliente = "Isabel E.".',
+    'NO confundir con la sección "Enviado a [Nombre]" que es el RECEPTOR (tú), no el pagador.',
+    'La fecha aparece en formato "9 mar 2026 - 8:56 a.m." → convertir a YYYY-MM-DD.',
+    'La referencia es el código de Confirmación con formato "#XXXX-XXXXXXXX". Ejemplo: "#VVGU-05095180".',
+    'tipo_comprobante = "Yappy".',
+    '',
+    '— ACH / TRANSFERENCIA BANCARIA —',
+    'El pagador aparece como "Usuario originador:" seguido del nombre completo. Ejemplo: "Usuario originador: SHEYLA YASKANIA GARIBALDI VARGAS" → cliente = "SHEYLA YASKANIA GARIBALDI VARGAS".',
+    'La fecha aparece como "Fecha de creación:" o "Fecha de finalización:". Usar fecha de finalización si está disponible.',
+    'La referencia es el "número de transacción" (campo más corto). El "número de referencia" es secundario.',
+    'El concepto o descripción aparece bajo "Concepto:". Ejemplo: "Pago de hospedaje." → descripcion = "Pago de hospedaje".',
+    'tipo_comprobante = "ACH".',
+    '',
+    '— FACTURA EMITIDA —',
+    'El cliente es el RECEPTOR de la factura (quien la recibió y pagó), no el emisor.',
+    'Extraer número de factura, monto total, e ITBMS si aparece discriminado.',
+    'tipo_comprobante = "Factura".',
+    '',
+    'Devuelve SOLO un objeto JSON válido sin texto adicional:',
+    '{"fecha":"YYYY-MM-DD","monto":0.00,"itbms":0.00,"cliente":"nombre completo del pagador","ruc_cliente":"RUC del cliente si aparece","tipo_comprobante":"Yappy o ACH o Factura o Recibo o Otro","referencia":"codigo de confirmacion o numero de transaccion","categoria":"categoria del ingreso","descripcion":"concepto o descripcion del pago","_confidence":0.00}',
+    '',
+    'Categorías de ingreso: Hospedaje Las Nubes, Venta de equipos, Servicios de consultoría, Comisiones, Honorarios profesionales, Alquiler, Otros ingresos.',
+    '',
+    'Reglas generales:',
+    '- monto = monto total recibido (sin itbms separado a menos que la factura lo discrimine).',
+    '- itbms = 0 para Yappy y ACH (no aplica). Solo llenar si la factura lo discrimina.',
+    '- cliente = nombre de quien ENVIÓ el dinero o pagó. NUNCA el nombre del receptor.',
+    '- descripcion = concepto del pago si aparece; si no, inferir del contexto.',
+    '- Si la categoría más probable es hospedaje (palabras como "hospedaje", "cabaña", "alojamiento"), usar "Hospedaje Las Nubes".',
+    '- _confidence entre 0 y 1 según certeza. Null si un campo no es claro. NO inventes. Solo JSON.'
+  ];
+  return lines.join('\n');
+}
+
+// ── Fill form with AI data ─────────────────────────────────────
+function inFillForm(data, confidence) {
+  var map = {
+    'in-fecha':       { val: data.fecha,       badge: 'in-b-fecha' },
+    'in-monto':       { val: data.monto,       badge: 'in-b-monto' },
+    'in-itbms':       { val: data.itbms,       badge: 'in-b-itbms' },
+    'in-cliente':     { val: data.cliente,     badge: 'in-b-cliente' },
+    'in-ruc-cliente': { val: data.ruc_cliente, badge: 'in-b-ruc-cliente' },
+    'in-referencia':  { val: data.referencia,  badge: 'in-b-referencia' },
+    'in-descripcion': { val: data.descripcion, badge: 'in-b-descripcion' }
+  };
+  var inNumericOptional = ['in-itbms'];
+
+  for (var id in map) {
+    var m = map[id];
+    var val = m.val;
+    var isZeroNum = inNumericOptional.indexOf(id) >= 0 && (val === 0 || val === '0' || val === 0.0);
+    if (val !== null && val !== undefined && val !== '' && !isZeroNum) {
+      var el = document.getElementById(id);
+      if (el) { el.value = val; el.classList.add('ia'); }
+      var badge = document.getElementById(m.badge);
+      if (badge) badge.classList.add('show');
+    }
+  }
+
+  // Select fields — match by text
+  var selects = {
+    'in-categoria':          { val: data.categoria,        badge: 'in-b-categoria' },
+    'in-tipo-comprobante':   { val: data.tipo_comprobante, badge: 'in-b-tipo-comprobante' }
+  };
+  for (var sid in selects) {
+    var s = selects[sid];
+    if (!s.val) continue;
+    var sel = document.getElementById(sid);
+    if (!sel) continue;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].text === s.val || sel.options[i].value === s.val) {
+        sel.selectedIndex = i; sel.classList.add('ia');
+        var b = document.getElementById(s.badge);
+        if (b) b.classList.add('show');
+        break;
+      }
+    }
+  }
+
+  window._inConfianza = confidence || 0;
+
+  if (confidence) {
+    var pct = Math.round(confidence * 100);
+    document.getElementById('in-confidence').classList.add('show');
+    document.getElementById('in-conf-fill').style.width = pct + '%';
+    document.getElementById('in-conf-pct').textContent = pct + '%';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GUARDAR INGRESO — POST al Apps Script Web App
+// ════════════════════════════════════════════════════════════════
+function inGuardar() {
+  var fecha   = document.getElementById('in-fecha').value;
+  var monto   = document.getElementById('in-monto').value;
+  var cliente = document.getElementById('in-cliente').value;
+
+  if (!fecha || !monto || !cliente) {
+    showToast('Completa Fecha, Monto y Cliente', 'err'); return;
+  }
+  if (!WEB_APP_URL) {
+    showToast('Configura la URL del Web App primero', 'err'); promptConfig(); return;
+  }
+
+  var totalVal = parseFloat(monto) || 0;
+  var itbmsVal = parseFloat(document.getElementById('in-itbms').value) || 0;
+
+  var ingreso = {
+    fecha:             fecha,
+    monto:             totalVal,
+    itbms:             itbmsVal,
+    subtotal:          totalVal - itbmsVal,
+    cliente:           cliente,
+    ruc_cliente:       document.getElementById('in-ruc-cliente').value,
+    tipo_persona:      document.getElementById('in-tipo-persona-cliente').value,
+    tipo_ingreso:      document.getElementById('in-tipo-ingreso').value,
+    categoria:         document.getElementById('in-categoria').value,
+    tipo_comprobante:  document.getElementById('in-tipo-comprobante').value,
+    referencia:        document.getElementById('in-referencia').value,
+    descripcion:       document.getElementById('in-descripcion').value,
+    notas:             document.getElementById('in-notas').value,
+    confianza_ia:      Math.round((window._inConfianza || 0) * 100)
+  };
+
+  var btn = document.getElementById('in-btn-save');
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+
+  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
+
+  // Enviamos como text/plain para evitar preflight CORS.
+  fetch(urlActual, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action:  'guardarIngreso',
+      ingreso: ingreso,
+      base64:  inFileB64  || null,
+      mime:    inFileMime || null,
+      nombre:  inFileName || null
+    })
+  })
+  .then(function(r) { return r.text(); })
+  .then(function(txt) {
+    btn.disabled = false; btn.textContent = '💾 Guardar Ingreso';
+    var res;
+    try { res = JSON.parse(txt); } catch(e) {
+      showToast('Guardado correctamente', 'ok');
+      setTimeout(function() { inReset(); closeModal('ingreso'); }, 1800);
+      return;
+    }
+    if (res.ok) {
+      showToast('✓ ' + res.id + ' guardado correctamente', 'ok');
+      setTimeout(function() { inReset(); closeModal('ingreso'); }, 1800);
+    } else {
+      showToast('Error: ' + (res.error || 'desconocido'), 'err');
+    }
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = '💾 Guardar Ingreso';
+    showToast('Error de conexión', 'err');
+  });
+}
+
+// ── Reset ingreso ─────────────────────────────────────────────
+function inReset() {
+  var textFields = ['in-fecha','in-monto','in-itbms','in-cliente',
+    'in-ruc-cliente','in-referencia','in-descripcion','in-notas'];
+  textFields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('ia'); }
+  });
+  document.getElementById('in-fecha').value = today();
+
+  var selFields = ['in-tipo-ingreso','in-categoria',
+    'in-tipo-comprobante','in-tipo-persona-cliente'];
+  selFields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.selectedIndex = 0; el.classList.remove('ia'); }
+  });
+
+  var badges = ['in-b-fecha','in-b-monto','in-b-itbms','in-b-cliente',
+    'in-b-ruc-cliente','in-b-referencia','in-b-descripcion',
+    'in-b-categoria','in-b-tipo-comprobante'];
+  badges.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('show');
+  });
+
+  window._inConfianza = 0;
+  document.getElementById('in-confidence').classList.remove('show');
+  document.getElementById('in-conf-fill').style.width = '0%';
+  inClearFile();
+  inSetStatus('idle');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════════════
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || '');
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 3200);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DASHBOARD — lógica completa
+// ════════════════════════════════════════════════════════════════
+
+var MESES_CORTOS = ['Ene','Feb','Mar','Abr','May','Jun',
+                    'Jul','Ago','Sep','Oct','Nov','Dic'];
+
+function openDashboard() {
+  document.getElementById('dash-screen').classList.add('open');
+  // Poblar selector de años (año actual − 3)
+  var sel = document.getElementById('dash-year-select');
+  var curYear = new Date().getFullYear();
+  sel.innerHTML = '';
+  for (var y = curYear; y >= curYear - 3; y--) {
+    var opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    if (y === curYear) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  loadDashboard();
+}
+
+function closeDashboard() {
+  document.getElementById('dash-screen').classList.remove('open');
+}
+
+function loadDashboard() {
+  if (!WEB_APP_URL) {
+    document.getElementById('dash-body').innerHTML =
+      '<div class="dash-empty" style="padding:40px 20px;">' +
+      '<div style="font-size:32px;margin-bottom:12px;">⚙️</div>' +
+      '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px;">Web App no configurado</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:16px;">Configura la URL del Apps Script para cargar el dashboard.</div>' +
+      '<button onclick="promptConfig();loadDashboard();" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-family:\'Sora\',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">⚙️ Configurar ahora</button>' +
+      '</div>';
+    return;
+  }
+
+  var year = parseInt(document.getElementById('dash-year-select').value) || new Date().getFullYear();
+  document.getElementById('dash-body').innerHTML =
+    '<div class="dash-loading"><div class="spinner"></div><span>Cargando datos ' + year + '…</span></div>';
+
+  // Leer WEB_APP_URL fresco en el momento del fetch (no del closure)
+  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
+
+  fetch(urlActual, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'getDashboard', year: year })
+  })
+  .then(function(r) { return r.text(); })
+  .then(function(txt) {
+    var res;
+    try { res = JSON.parse(txt); } catch(e) {
+      showDashError('Respuesta inválida del servidor.<br><small style="font-family:monospace;font-size:10px;">' + esc(txt.slice(0,300)) + '</small>');
+      return;
+    }
+    if (res.error) { showDashError(res.error); return; }
+    renderDashboard(res, year);
+  })
+  .catch(function(err) {
+    var urlCorta = urlActual ? urlActual.slice(0, 60) + '…' : '(vacía)';
+    showDashError(
+      'Error de conexión: <strong>' + (err.message || 'Failed to fetch') + '</strong><br><br>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:4px;">URL activa: <code style="font-size:9px;word-break:break-all;">' + esc(urlCorta) + '</code></div>' +
+      '<div style="font-size:11px;color:var(--text3);margin-top:8px;">Posibles causas: URL de deployment inválida o expirada · Script sin acceso "Anyone" · Error en doPost del GS</div>' +
+      '<br><button onclick="loadDashboard()" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-family:\'Sora\',sans-serif;font-size:12px;cursor:pointer;margin-right:8px;">↻ Reintentar</button>' +
+      '<button onclick="promptConfig();loadDashboard();" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:8px 16px;font-family:\'Sora\',sans-serif;font-size:12px;cursor:pointer;">✏️ Cambiar URL</button>'
+    );
+  });
+}
+
+function showDashError(msg) {
+  document.getElementById('dash-body').innerHTML =
+    '<div class="dash-empty">⚠️ ' + msg + '</div>';
+}
+
+// ── Render completo ────────────────────────────────────────────
+function renderDashboard(d, year) {
+  var totalIng  = d.totalIngresos  || 0;
+  var totalEgr  = d.totalEgresos   || 0;
+  var rentaNeta = totalIng - totalEgr;
+  var isr = calcularISR(rentaNeta);
+
+  var html = '';
+
+  // ── KPI cards ──
+  html += '<div class="kpi-grid">';
+  html += kpiCard('ingresos',  '💚 Ingresos',  fmtUSD(totalIng),  'Total cobrado ' + year, false);
+  html += kpiCard('egresos',   '🔴 Egresos',   fmtUSD(totalEgr),  'Total gastado ' + year, false);
+  html += kpiCard('renta',     '📈 Renta Neta', fmtUSD(rentaNeta), 'Ingresos − Egresos', rentaNeta < 0);
+  html += kpiCard('isr',       '🏛️ ISR Est.',   fmtUSD(isr.total), 'Estimado ' + year, false);
+  html += '</div>';
+
+  // ── Ingresos vs Egresos por mes ──
+  html += '<div class="dash-section-title">📅 Ingresos vs Egresos por mes</div>';
+  html += renderMonthChart(d.porMes || []);
+
+  // ── Top categorías de egreso ──
+  html += '<div class="dash-section-title">📂 Top categorías de gasto</div>';
+  html += renderCategorias(d.categorias || [], totalEgr);
+
+  // ── ISR detalle ──
+  html += '<div class="dash-section-title">🏛️ ISR estimado</div>';
+  html += renderISR(rentaNeta, isr);
+
+  // ── Pendientes de revisión ──
+  var pendientes = d.pendientes || [];
+  html += '<div class="dash-section-title">⚠️ Pendientes de revisión';
+  if (pendientes.length > 0) {
+    html += ' <span style="background:var(--amber);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">' + pendientes.length + '</span>';
+  }
+  html += '</div>';
+  html += renderPendientes(pendientes);
+
+  html += '<div style="height:40px"></div>';
+
+  document.getElementById('dash-body').innerHTML = html;
+}
+
+function kpiCard(cls, label, value, sub, negative) {
+  return '<div class="kpi-card ' + cls + '">' +
+    '<div class="kpi-label">' + label + '</div>' +
+    '<div class="kpi-value' + (negative ? ' negative' : '') + '">' + value + '</div>' +
+    '<div class="kpi-sub">' + sub + '</div>' +
+    '</div>';
+}
+
+// ── Gráfica de barras por mes ──
+function renderMonthChart(porMes) {
+  if (!porMes.length) return '<div class="dash-empty">Sin datos mensuales aún.</div>';
+
+  var maxVal = 0;
+  porMes.forEach(function(m) {
+    maxVal = Math.max(maxVal, m.ingresos || 0, m.egresos || 0);
+  });
+  if (maxVal === 0) maxVal = 1;
+
+  var html = '<div class="month-chart">';
+
+  // Leyenda
+  html += '<div style="display:flex;gap:16px;margin-bottom:6px;">' +
+    '<span style="font-size:10px;color:var(--green);font-weight:600;">▬ Ingresos</span>' +
+    '<span style="font-size:10px;color:var(--red);font-weight:600;">▬ Egresos</span>' +
+    '</div>';
+
+  porMes.forEach(function(m) {
+    var ingPct = Math.round(((m.ingresos || 0) / maxVal) * 100);
+    var egrPct = Math.round(((m.egresos  || 0) / maxVal) * 100);
+    var net    = (m.ingresos || 0) - (m.egresos || 0);
+    var netCls = net >= 0 ? 'pos' : 'neg';
+    var mesLabel = MESES_CORTOS[(m.mes || 1) - 1] || m.mes;
+
+    html += '<div class="month-row">' +
+      '<span class="month-label">' + mesLabel + '</span>' +
+      '<div class="month-bar-wrap"><div class="month-bar ing" style="width:' + ingPct + '%"></div></div>' +
+      '<div class="month-bar-wrap"><div class="month-bar egr" style="width:' + egrPct + '%"></div></div>' +
+      '<span class="month-net ' + netCls + '">' + fmtUSD(net) + '</span>' +
+      '</div>';
+  });
+
+  html += '</div>';
+  return html;
+}
+
+// ── Top categorías ──
+function renderCategorias(categorias, totalEgr) {
+  if (!categorias.length) return '<div class="dash-empty">Sin categorías registradas.</div>';
+  if (totalEgr === 0) totalEgr = 1;
+
+  var html = '<div class="cat-list">';
+  categorias.slice(0, 7).forEach(function(c) {
+    var pct = Math.round(((c.monto || 0) / totalEgr) * 100);
+    html += '<div class="cat-row">' +
+      '<span class="cat-name">' + (c.categoria || 'Sin categoría') + '</span>' +
+      '<div class="cat-bar-wrap"><div class="cat-bar" style="width:' + pct + '%"></div></div>' +
+      '<span class="cat-amount">' + fmtUSD(c.monto) + '</span>' +
+      '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ── ISR Panamá persona natural — escala vigente ──
+function calcularISR(rentaNeta) {
+  // Exención base B/.11,000. Escalas según ley panameña.
+  var base = Math.max(0, rentaNeta - 11000);
+  var isr  = 0;
+  var desglose = [];
+
+  if (base <= 0) {
+    return { total: 0, desglose: [], base: 0, exenta: Math.min(rentaNeta, 11000) };
+  }
+
+  // Tramo 1: B/.0 – B/.100,000 al 15%
+  var t1 = Math.min(base, 100000);
+  var i1 = t1 * 0.15;
+  isr += i1;
+  desglose.push({ label: 'Hasta B/.100,000 (15%)', monto: i1 });
+
+  // Tramo 2: más de B/.100,000 al 25%
+  if (base > 100000) {
+    var t2 = base - 100000;
+    var i2 = t2 * 0.25;
+    isr += i2;
+    desglose.push({ label: 'Más de B/.100,000 (25%)', monto: i2 });
+  }
+
+  return { total: isr, desglose: desglose, base: base, exenta: 11000 };
+}
+
+function renderISR(rentaNeta, isr) {
+  var html = '<div class="isr-box">';
+  html += '<div class="isr-box-title">Estimación ISR · Persona Natural Comerciante</div>';
+  html += isrRow('Renta neta (ingresos − egresos)', fmtUSD(rentaNeta), false);
+  html += isrRow('Deducción básica exenta', '− ' + fmtUSD(11000), false);
+  html += isrRow('Base imponible', fmtUSD(isr.base), false);
+
+  isr.desglose.forEach(function(t) {
+    html += isrRow(t.label, fmtUSD(t.monto), false);
+  });
+
+  html += isrRow('ISR ESTIMADO A PAGAR', fmtUSD(isr.total), true);
+  html += '</div>';
+  html += '<div style="font-size:10px;color:var(--text3);margin-top:8px;padding:0 2px;">⚠️ Estimación referencial. No incluye deducciones personales (médicos, escolares). Consulta con tu contador.</div>';
+  return html;
+}
+
+function isrRow(label, value, total) {
+  return '<div class="isr-row' + (total ? ' total' : '') + '">' +
+    '<span>' + label + '</span><span>' + value + '</span></div>';
+}
+
+// ── Pendientes ──
+function renderPendientes(pendientes) {
+  if (!pendientes.length) {
+    return '<div class="dash-empty" style="padding:20px 0;">✓ Sin registros pendientes de revisión.</div>';
+  }
+  var html = '<div class="pending-list">';
+  pendientes.slice(0, 8).forEach(function(p) {
+    html += '<div class="pending-item">' +
+      '<div class="pending-dot"></div>' +
+      '<div class="pending-info">' +
+        '<strong>' + (p.id || '—') + ' · ' + (p.proveedor || p.cliente || '—') + '</strong>' +
+        '<span>' + (p.fecha || '') + ' · ' + (p.tipo || '') + '</span>' +
+      '</div>' +
+      '<span class="pending-amount">' + fmtUSD(p.monto) + '</span>' +
+      '</div>';
+  });
+  if (pendientes.length > 8) {
+    html += '<div style="text-align:center;font-size:11px;color:var(--text3);padding:8px 0;">…y ' + (pendientes.length - 8) + ' más en el Sheet</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── Helpers ──
+function fmtUSD(n) {
+  var v = parseFloat(n) || 0;
+  return (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString('es-PA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Esc también cierra dashboard
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeModal('egreso'); closeModal('ingreso'); closeDashboard();
+  }
+});
+</script>
+</body>
+</html>
