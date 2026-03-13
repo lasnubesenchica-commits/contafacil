@@ -894,9 +894,81 @@ footer strong { color: var(--text2); }
 .color-dot:hover { transform: scale(1.15); }
 .color-dot.selected { border-color: var(--text); transform: scale(1.15); }
 
+/* ─── DROPDOWN INGRESO ───────────────────────────────────────── */
+.action-card-wrap { position: relative; }
+.ingreso-dropdown {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  z-index: 200; overflow: hidden;
+}
+.ingreso-dropdown.open { display: block; }
+.ingreso-dropdown-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 11px 16px; background: none; border: none;
+  font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 500;
+  color: var(--text); cursor: pointer; text-align: left;
+  transition: background .12s;
+}
+.ingreso-dropdown-item:hover { background: var(--surface2); }
+.ingreso-dropdown-item.venta-item { color: #0f766e; }
+.ingreso-dropdown-item.venta-item:hover { background: #f0fdf9; }
+
+/* ─── MODAL VENTA ────────────────────────────────────────────── */
+#modal-venta-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 500;
+  align-items: flex-start; justify-content: center; padding: 40px 16px;
+}
+#modal-venta-backdrop.open { display: flex; }
+.modal-venta {
+  background: var(--surface); border-radius: var(--radius);
+  width: 100%; max-width: 620px; max-height: 90vh;
+  overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  display: flex; flex-direction: column;
+}
+.modal-venta-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); z-index: 10;
+}
+.modal-venta-header h2 { font-size: 16px; font-weight: 700; margin: 0; }
+.modal-venta-body { padding: 18px 20px; flex: 1; }
+.modal-venta-footer {
+  padding: 14px 20px; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  position: sticky; bottom: 0; background: var(--surface);
+}
+.venta-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--text3);
+  margin: 16px 0 8px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+.venta-section-label:first-child { margin-top: 0; }
+
+/* comprobante adjunto en modal venta */
+.venta-attach-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 10px;
+}
+.venta-attach-row label.attach-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; background: var(--surface2);
+  border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 500; color: var(--text2);
+  cursor: pointer; transition: all .15s;
+}
+.venta-attach-row label.attach-btn:hover { border-color: var(--blue); color: var(--blue); }
+.venta-attach-name { font-size: 11px; color: var(--text3); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.venta-ia-bar {
+  display: none; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 10px;
+  font-size: 12px; color: var(--text2); align-items: center; gap: 8px;
+}
+.venta-ia-bar.visible { display: flex; }
+
 /* ─── MÓDULO VENTA (genérico) ───────────────────────────────── */
 .mode-toggle-3 { grid-template-columns: 1fr 1fr 1fr; }
-
 #in-venta-panel { display: none; }
 
 .venta-header-grid {
@@ -1009,14 +1081,24 @@ footer strong { color: var(--text2); }
     <div class="card-arrow">→</div>
   </button>
 
-  <button class="action-card ingreso" onclick="openModal('ingreso')">
-    <div class="card-icon">💰</div>
-    <div class="card-body">
-      <strong>Registrar Ingreso</strong>
-      <p>Ventas, servicios, cobros de clientes.<br>Registro manual rápido.</p>
+  <div class="action-card-wrap" id="ingreso-wrap">
+    <button class="action-card ingreso" onclick="handleIngresoClick(event)">
+      <div class="card-icon">💰</div>
+      <div class="card-body">
+        <strong>Registrar Ingreso</strong>
+        <p id="ingreso-card-desc">Ventas, servicios, cobros de clientes.<br>Registro manual rápido.</p>
+      </div>
+      <div class="card-arrow" id="ingreso-card-arrow">→</div>
+    </button>
+    <div class="ingreso-dropdown" id="ingreso-dropdown">
+      <button class="ingreso-dropdown-item" onclick="openModal('ingreso'); closeIngresoDropdown()">
+        <span>📄</span><span>Registrar Ingreso</span>
+      </button>
+      <button class="ingreso-dropdown-item venta-item" id="ingreso-dropdown-venta" style="display:none" onclick="vtaOpen(); closeIngresoDropdown()">
+        <span>🛒</span><span>Nueva Venta</span>
+      </button>
     </div>
-    <div class="card-arrow">→</div>
-  </button>
+  </div>
 
   <button class="action-card dashboard" onclick="openDashboard()">
     <div class="card-icon">📊</div>
@@ -1032,6 +1114,99 @@ footer strong { color: var(--text2); }
   <strong>ContaFácil</strong> · Versión 2.0 · Panamá, <span id="yr"></span>
 </footer>
 </div><!-- end .page -->
+
+<!-- ═══════════════════════════════════════════════════════════
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL DE VENTA (módulo custom)
+═══════════════════════════════════════════════════════════════ -->
+<div id="modal-venta-backdrop" onclick="vtaHandleBackdrop(event)">
+  <div class="modal-venta" id="modal-venta">
+
+    <!-- Header -->
+    <div class="modal-venta-header">
+      <h2 id="vta-modal-title">🛒 Nueva Venta</h2>
+      <button class="btn-close" onclick="closeModal('venta')">✕</button>
+    </div>
+
+    <div class="modal-venta-body">
+
+      <!-- Comprobante (opcional) -->
+      <div class="venta-section-label">📎 Comprobante (opcional)</div>
+      <div class="venta-attach-row">
+        <label class="attach-btn" for="vta-file">📎 Adjuntar factura</label>
+        <input type="file" id="vta-file" accept="image/*,application/pdf" style="display:none" onchange="vtaOnFile(this)">
+        <span class="venta-attach-name" id="vta-file-name">Ningún archivo seleccionado</span>
+        <button class="btn-analyze" id="vta-btn-ia" onclick="vtaAnalizarIA()" disabled
+          style="padding:7px 12px;font-size:12px;white-space:nowrap">🤖 Leer con IA</button>
+      </div>
+      <div class="venta-ia-bar" id="vta-ia-bar">
+        <span id="vta-ia-spinner">⏳</span>
+        <span id="vta-ia-msg">Analizando comprobante…</span>
+        <div class="conf-bar" style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div id="vta-ia-fill" style="height:100%;width:0%;background:var(--green);transition:width .4s"></div>
+        </div>
+        <strong id="vta-ia-pct" style="font-size:11px;min-width:32px;text-align:right"></strong>
+      </div>
+
+      <!-- Encabezado de la venta -->
+      <div class="venta-section-label">📋 Datos de la venta</div>
+      <div class="venta-header-grid">
+        <div class="field">
+          <label>Fecha <span class="ia-tag" id="vta-b-fecha" style="display:none">✦ IA</span></label>
+          <input type="date" id="vta-fecha">
+        </div>
+        <div class="field">
+          <label>N° Factura / Ref. <span class="ia-tag" id="vta-b-nfactura" style="display:none">✦ IA</span></label>
+          <input type="text" id="vta-nfactura" placeholder="—">
+        </div>
+        <div class="field field-full">
+          <label>Cliente <span class="ia-tag" id="vta-b-cliente" style="display:none">✦ IA</span></label>
+          <input type="text" id="vta-cliente" placeholder="Nombre del cliente (opcional)">
+        </div>
+        <div class="field field-full">
+          <label>Método de pago</label>
+          <select id="vta-metodo"></select>
+        </div>
+      </div>
+
+      <!-- Líneas de productos -->
+      <div class="venta-section-label">🛒 Productos</div>
+      <table class="lineas-table" id="vta-lineas-table">
+        <thead>
+          <tr>
+            <th class="col-prod">Producto</th>
+            <th class="col-qty">Cant.</th>
+            <th class="col-price">Precio</th>
+            <th class="col-itbms">ITBMS</th>
+            <th class="col-total">Total</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="vta-lineas-body"></tbody>
+      </table>
+      <button class="btn-add-linea" onclick="vtaAddLinea()">＋ Agregar producto</button>
+
+      <!-- Totales -->
+      <div class="venta-totales" id="vta-totales">
+        <div class="venta-total-row"><span>Subtotal</span><span id="vta-t-sub">B/. 0.00</span></div>
+        <div class="venta-total-row"><span>ITBMS (7%)</span><span id="vta-t-itbms">B/. 0.00</span></div>
+        <div class="venta-total-row grand"><span>TOTAL</span><span id="vta-t-total">B/. 0.00</span></div>
+      </div>
+
+      <!-- Notas -->
+      <div class="venta-section-label">📝 Notas</div>
+      <textarea id="vta-notas" placeholder="Observaciones internas (opcional)…" style="min-height:52px;width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-family:'Sora',sans-serif;font-size:13px;color:var(--text);resize:vertical"></textarea>
+
+    </div><!-- /modal-venta-body -->
+
+    <!-- Footer -->
+    <div class="modal-venta-footer">
+      <button class="btn-reset" onclick="vtaModalReset()">Limpiar</button>
+      <button class="btn-save" id="vta-btn-save" onclick="vtaGuardar()">💾 Guardar Venta</button>
+    </div>
+
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════
      MODAL DE EGRESO
@@ -1297,69 +1472,9 @@ footer strong { color: var(--text2); }
         <button onclick="promptConfig()" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Sora',sans-serif;">Configurar</button>
       </div>
       <!-- Mode toggle -->
-      <div class="mode-toggle mode-toggle-3" id="in-mode-toggle">
+      <div class="mode-toggle" id="in-mode-toggle">
         <button class="mode-btn active" id="in-mode-foto" onclick="setInMode('foto')">📷 Subir comprobante</button>
         <button class="mode-btn" id="in-mode-manual" onclick="setInMode('manual')">✍️ Manual</button>
-        <button class="mode-btn" id="in-mode-venta" onclick="setInMode('venta')" style="display:none">🛒 Venta</button>
-      </div>
-
-      <!-- Panel Venta (módulo genérico) -->
-      <div id="in-venta-panel">
-        <div class="form-section-label" id="vta-modulo-label">🛒 Venta</div>
-
-        <!-- Encabezado de la venta -->
-        <div class="venta-header-grid">
-          <div class="field">
-            <label>Fecha</label>
-            <input type="date" id="vta-fecha">
-          </div>
-          <div class="field">
-            <label>N° Factura</label>
-            <input type="text" id="vta-nfactura" placeholder="— opcional —">
-          </div>
-          <div class="field field-full">
-            <label>Cliente</label>
-            <input type="text" id="vta-cliente" placeholder="Nombre del comprador">
-          </div>
-          <div class="field field-full">
-            <label>Método de pago</label>
-            <select id="vta-metodo">
-              <!-- opciones generadas por JS desde MODULO_CUSTOM -->
-            </select>
-          </div>
-        </div>
-
-        <!-- Líneas de productos -->
-        <div class="form-section-label">📦 Productos</div>
-        <table class="lineas-table" id="vta-lineas-table">
-          <thead>
-            <tr>
-              <th class="col-prod">Producto</th>
-              <th class="col-qty">Cant.</th>
-              <th class="col-price">Precio</th>
-              <th class="col-itbms">ITBMS</th>
-              <th class="col-total">Total</th>
-              <th class="col-del"></th>
-            </tr>
-          </thead>
-          <tbody id="vta-lineas-body">
-            <!-- filas generadas por JS -->
-          </tbody>
-        </table>
-        <button class="btn-add-linea" onclick="vtaAddLinea()">＋ Agregar producto</button>
-
-        <!-- Totales -->
-        <div class="venta-totales">
-          <div class="venta-total-row"><span>Subtotal</span><span id="vta-t-subtotal">$0.00</span></div>
-          <div class="venta-total-row"><span>ITBMS</span><span id="vta-t-itbms">$0.00</span></div>
-          <div class="venta-total-row grand"><span>TOTAL</span><span id="vta-t-total">$0.00</span></div>
-        </div>
-
-        <!-- Notas -->
-        <div class="field">
-          <label>Notas</label>
-          <textarea id="vta-notas" placeholder="Observaciones de la venta…" style="min-height:44px"></textarea>
-        </div>
       </div>
 
       <!-- Upload panel (foto mode) -->
@@ -3024,9 +3139,28 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ════════════════════════════════════════════════════════════════
-//  MÓDULO CUSTOM — Opción A (todo viene del GS, HTML genérico)
+//  MÓDULO CUSTOM — Modal de Venta independiente
 // ════════════════════════════════════════════════════════════════
 
+// ── Variables del modal venta ─────────────────────────────────
+var vtaFileB64  = null;
+var vtaFileMime = null;
+var vtaFileName = null;
+
+// ── Dropdown del botón Ingreso ────────────────────────────────
+function handleIngresoClick(e) {
+  if (!MODULO_CUSTOM) { openModal('ingreso'); return; }
+  e.stopPropagation();
+  var dd = document.getElementById('ingreso-dropdown');
+  dd.classList.toggle('open');
+}
+function closeIngresoDropdown() {
+  var dd = document.getElementById('ingreso-dropdown');
+  if (dd) dd.classList.remove('open');
+}
+document.addEventListener('click', function() { closeIngresoDropdown(); });
+
+// ── cargarModuloCustom ────────────────────────────────────────
 function cargarModuloCustom() {
   if (!WEB_APP_URL) return;
   var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
@@ -3039,54 +3173,126 @@ function cargarModuloCustom() {
     MODULO_CUSTOM = m;
     vtaCatalogo   = m.catalogo || [];
 
-    // Mostrar tab Venta
-    var btnVta = document.getElementById('in-mode-venta');
-    if (btnVta) {
-      btnVta.style.display = '';
-      btnVta.textContent   = (m.label_emoji || '🛒') + ' ' + (m.label || 'Venta');
+    // Mostrar opción "Nueva Venta" en dropdown
+    var vtaItem = document.getElementById('ingreso-dropdown-venta');
+    if (vtaItem) {
+      vtaItem.style.display = '';
+      vtaItem.querySelector('span:last-child').textContent = (m.label_emoji||'🛒') + ' Nueva ' + (m.label||'Venta');
     }
-    // Título del panel
-    var lbl = document.getElementById('vta-modulo-label');
-    if (lbl) lbl.textContent = (m.label_emoji || '🛒') + ' ' + (m.label || 'Venta');
 
-    // Métodos de pago en el select
+    // Actualizar card de ingreso para indicar que tiene dropdown
+    var arrow = document.getElementById('ingreso-card-arrow');
+    if (arrow) arrow.textContent = '⌄';
+
+    // Cargar métodos de pago en modal venta
     var sel = document.getElementById('vta-metodo');
     if (sel && m.metodos_pago) {
       sel.innerHTML = '';
       m.metodos_pago.forEach(function(mp) {
         var opt = document.createElement('option');
-        opt.value = mp; opt.textContent = mp;
-        sel.appendChild(opt);
+        opt.value = mp; opt.textContent = mp; sel.appendChild(opt);
       });
     }
+
+    // Título del modal venta
+    var titulo = document.getElementById('vta-modal-title');
+    if (titulo) titulo.textContent = (m.label_emoji||'🛒') + ' Nueva ' + (m.label||'Venta');
   })
   .catch(function() { /* Sin módulo — silencioso */ });
 }
 
-// ── setInMode — sobrescrita con soporte al tercer tab ─────────
+// ── Abrir modal venta ─────────────────────────────────────────
+function vtaOpen() {
+  vtaModalReset();
+  var fd = document.getElementById('vta-fecha');
+  if (fd && !fd.value) fd.value = today();
+  if (vtaLineas.length === 0) vtaAddLinea();
+  openModal('venta');
+}
+
+function vtaHandleBackdrop(e) {
+  if (e.target.id === 'modal-venta-backdrop') closeModal('venta');
+}
+
+// ── Archivo adjunto en modal venta ───────────────────────────
+function vtaOnFile(input) {
+  var file = input.files[0]; if (!file) return;
+  vtaFileName = file.name;
+  vtaFileMime = file.type;
+  document.getElementById('vta-file-name').textContent = file.name;
+  var btnIA = document.getElementById('vta-btn-ia');
+  if (btnIA) btnIA.disabled = false;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    vtaFileB64 = e.target.result.split(',')[1];
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Leer con IA en modal venta ────────────────────────────────
+function vtaAnalizarIA() {
+  if (!vtaFileB64) return;
+  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
+  if (!urlActual) { showToast('Configura la URL del Web App primero', 'err'); return; }
+
+  var bar = document.getElementById('vta-ia-bar');
+  var msg = document.getElementById('vta-ia-msg');
+  var fill = document.getElementById('vta-ia-fill');
+  var pct  = document.getElementById('vta-ia-pct');
+  var btn  = document.getElementById('vta-btn-ia');
+
+  bar.classList.add('visible');
+  msg.textContent = 'Analizando comprobante…';
+  fill.style.width = '0%'; pct.textContent = '';
+  btn.disabled = true;
+
+  fetch(urlActual, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'analizarFactura', base64: vtaFileB64, mime: vtaFileMime, nombre: vtaFileName })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    btn.disabled = false;
+    if (res.error) { msg.textContent = '⚠ ' + res.error; return; }
+    var d    = res.data || {};
+    var conf = res.confidence || 0;
+    fill.style.width = conf + '%';
+    pct.textContent  = conf + '%';
+    msg.textContent  = 'IA completó ' + (res.fieldsFound||0) + ' campos';
+
+    // Llenar campos del encabezado de la venta
+    var setIf = function(elId, val, tagId) {
+      if (val !== null && val !== undefined && val !== '') {
+        var el = document.getElementById(elId); if (el) el.value = val;
+        var tag = document.getElementById(tagId); if (tag) tag.style.display = '';
+      }
+    };
+    setIf('vta-fecha',    d.fecha,     'vta-b-fecha');
+    setIf('vta-nfactura', d.nfactura,  'vta-b-nfactura');
+    // Para ventas, el campo "cliente" lo llena con el nombre del receptor si viene
+    setIf('vta-cliente',  d.cliente || d.receptor || d.proveedor || '', 'vta-b-cliente');
+
+    // Si hay monto y hay una línea vacía, llenar el precio
+    if (d.monto && vtaLineas.length === 1 && vtaLineas[0].precio === 0) {
+      var imp = parseFloat(d.itbms) || 0;
+      var sub = (parseFloat(d.monto) || 0) - imp;
+      vtaLineas[0].precio = sub > 0 ? sub : (parseFloat(d.monto) || 0);
+      vtaLineas[0].itbms_aplica = imp > 0;
+      _vtaRenderLineas();
+    }
+  })
+  .catch(function(e) {
+    btn.disabled = false;
+    msg.textContent = '⚠ Error de conexión';
+  });
+}
+
+// ── setInMode — mantener por compatibilidad (modal ingreso) ───
 function setInMode(mode) {
   inMode = mode;
   document.getElementById('in-mode-foto').classList.toggle('active', mode === 'foto');
   document.getElementById('in-mode-manual').classList.toggle('active', mode === 'manual');
-  var btnVta = document.getElementById('in-mode-venta');
-  if (btnVta) btnVta.classList.toggle('active', mode === 'venta');
-
-  document.getElementById('in-foto-panel').style.display  = mode === 'foto'  ? 'block' : 'none';
-  document.getElementById('in-venta-panel').style.display = mode === 'venta' ? 'block' : 'none';
-
-  var formGrid = document.querySelector('#modal-ingreso .form-grid');
-  if (formGrid) formGrid.style.display = mode === 'venta' ? 'none' : '';
-  var confEl = document.getElementById('in-confidence');
-  if (confEl) confEl.style.display = mode === 'venta' ? 'none' : '';
-
-  var btnSave = document.getElementById('in-btn-save');
-  if (btnSave) btnSave.textContent = mode === 'venta' ? '💾 Guardar Venta' : '💾 Guardar Ingreso';
-
-  if (mode === 'venta' && vtaLineas.length === 0) {
-    vtaAddLinea();
-    var fd = document.getElementById('vta-fecha');
-    if (fd && !fd.value) fd.value = today();
-  }
+  document.getElementById('in-foto-panel').style.display = mode === 'foto' ? 'block' : 'none';
 }
 
 // ── Líneas de venta ───────────────────────────────────────────
@@ -3107,9 +3313,9 @@ function _vtaRenderLineas() {
   var tbody = document.getElementById('vta-lineas-body');
   if (!tbody) return;
   var html = '';
+  var rate = MODULO_CUSTOM ? (MODULO_CUSTOM.itbms_rate || 0.07) : 0.07;
   vtaLineas.forEach(function(l) {
     var base     = (l.qty || 0) * (l.precio || 0);
-    var rate     = MODULO_CUSTOM ? (MODULO_CUSTOM.itbms_rate || 0.07) : 0.07;
     var subtotal = base + (l.itbms_aplica ? base * rate : 0);
 
     var campoProducto;
@@ -3124,7 +3330,7 @@ function _vtaRenderLineas() {
     }
 
     html += '<tr>';
-    html += '<td class="col-prod">'   + campoProducto + '</td>';
+    html += '<td class="col-prod">' + campoProducto + '</td>';
     html += '<td class="col-qty"><input type="number" value="' + (l.qty||1) + '" min="1" step="1" oninput="vtaOnCantChange(' + l.id + ',this.value)"></td>';
     html += '<td class="col-price"><input type="number" value="' + (l.precio||'') + '" step="0.01" placeholder="0.00" oninput="vtaOnPrecioChange(' + l.id + ',this.value)"></td>';
     html += '<td class="col-itbms" style="text-align:center"><input type="checkbox"' + (l.itbms_aplica ? ' checked' : '') + ' style="width:auto;padding:0;" onchange="vtaOnItbmsChange(' + l.id + ',this.checked)"></td>';
@@ -3147,9 +3353,9 @@ function vtaOnProductoChange(id, codigo) {
   }
   _vtaRenderLineas();
 }
-function vtaOnNombreChange(id, val) { var l = _vtaGetLinea(id); if (l) { l.nombre = val; vtaRecalcTotales(); } }
-function vtaOnCantChange(id, val)   { var l = _vtaGetLinea(id); if (l) { l.qty    = parseFloat(val) || 1; _vtaRenderLineas(); } }
-function vtaOnPrecioChange(id, val) { var l = _vtaGetLinea(id); if (l) { l.precio = parseFloat(val) || 0; _vtaRenderLineas(); } }
+function vtaOnNombreChange(id, val) { var l = _vtaGetLinea(id); if (l) { l.nombre = val; } }
+function vtaOnCantChange(id, val)   { var l = _vtaGetLinea(id); if (l) { l.qty    = parseFloat(val)||1; _vtaRenderLineas(); } }
+function vtaOnPrecioChange(id, val) { var l = _vtaGetLinea(id); if (l) { l.precio = parseFloat(val)||0; _vtaRenderLineas(); } }
 function vtaOnItbmsChange(id, chk)  { var l = _vtaGetLinea(id); if (l) { l.itbms_aplica = chk; _vtaRenderLineas(); } }
 
 function vtaRecalcTotales() {
@@ -3161,15 +3367,122 @@ function vtaRecalcTotales() {
     imp += l.itbms_aplica ? base * rate : 0;
   });
   var el = function(id) { return document.getElementById(id); };
-  if (el('vta-t-subtotal')) el('vta-t-subtotal').textContent = fmtUSD(sub);
-  if (el('vta-t-itbms'))    el('vta-t-itbms').textContent    = fmtUSD(imp);
-  if (el('vta-t-total'))    el('vta-t-total').textContent    = fmtUSD(sub + imp);
+  if (el('vta-t-sub'))   el('vta-t-sub').textContent   = fmtUSD(sub);
+  if (el('vta-t-itbms')) el('vta-t-itbms').textContent = fmtUSD(imp);
+  if (el('vta-t-total')) el('vta-t-total').textContent  = fmtUSD(sub + imp);
 }
 
-// ── inGuardar — ramifica según modo ──────────────────────────
-function inGuardar() {
-  if (inMode === 'venta') { _inGuardarVenta(); return; }
+// ── Guardar Venta ─────────────────────────────────────────────
+function vtaGuardar() {
+  var fecha  = document.getElementById('vta-fecha').value;
+  var metodo = document.getElementById('vta-metodo').value;
+  if (!fecha) { showToast('Completa la fecha de la venta', 'err'); return; }
 
+  var lineasValidas = vtaLineas.filter(function(l) { return (l.nombre || l.codigo) && l.precio > 0; });
+  if (lineasValidas.length === 0) { showToast('Agrega al menos un producto con precio', 'err'); return; }
+
+  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
+  if (!urlActual) { showToast('Configura la URL del Web App primero', 'err'); return; }
+
+  var rate = MODULO_CUSTOM ? (MODULO_CUSTOM.itbms_rate || 0.07) : 0.07;
+  var sub = 0, imp = 0;
+  lineasValidas.forEach(function(l) {
+    var base = (l.qty||1) * l.precio; sub += base;
+    imp += l.itbms_aplica ? base * rate : 0;
+  });
+  var total = sub + imp;
+
+  var cliente = document.getElementById('vta-cliente').value;
+  var ingreso = {
+    fecha: fecha, monto: total, itbms: imp, subtotal: sub,
+    cliente: cliente || 'Venta mostrador',
+    tipo_ingreso: 'GRAVABLE',
+    categoria: MODULO_CUSTOM ? (MODULO_CUSTOM.categoria_ingreso || 'Venta de productos') : 'Venta de productos',
+    tipo_comprobante: 'FACTURA',
+    referencia: document.getElementById('vta-nfactura').value,
+    descripcion: 'Venta — ' + lineasValidas.map(function(l){ return l.nombre||l.codigo; }).join(', '),
+    notas: document.getElementById('vta-notas').value,
+    confianza_ia: 0
+  };
+
+  var btn = document.getElementById('vta-btn-save');
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+
+  // Paso 1: guardar en INGRESOS_YYYY
+  fetch(urlActual, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'guardarIngreso', ingreso: ingreso,
+      base64: vtaFileB64||null, mime: vtaFileMime||null, nombre: vtaFileName||null
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    var idIngreso = (res.ok && res.id) ? res.id : '';
+
+    // Paso 2: guardar en VENTAS_YYYY
+    var venta = {
+      fecha: fecha,
+      num_factura: document.getElementById('vta-nfactura').value,
+      cliente: cliente || 'Venta mostrador',
+      metodo_pago: metodo,
+      id_ingreso_ref: idIngreso,
+      notas: document.getElementById('vta-notas').value,
+      lineas: lineasValidas.map(function(l) {
+        var base = (l.qty||1) * l.precio;
+        var impL = l.itbms_aplica ? base * rate : 0;
+        return {
+          codigo: l.codigo || '', producto: l.nombre || l.codigo,
+          cantidad: l.qty||1, precio_unitario: l.precio, itbms_aplica: l.itbms_aplica,
+          subtotal_linea: base, itbms_linea: impL, total_linea: base + impL
+        };
+      })
+    };
+
+    return fetch(urlActual, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'guardarVenta', venta: venta })
+    }).then(function(r2) { return r2.json(); });
+  })
+  .then(function(res2) {
+    btn.disabled = false; btn.textContent = '💾 Guardar Venta';
+    if (res2.ok) {
+      showToast('✓ Venta ' + (res2.id||'') + ' guardada — ' + res2.lineas + ' producto(s)', 'ok');
+      setTimeout(function() { vtaModalReset(); closeModal('venta'); }, 1800);
+    } else {
+      showToast('Error: ' + (res2.error || 'desconocido'), 'err');
+    }
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = '💾 Guardar Venta';
+    showToast('Error de conexión', 'err');
+  });
+}
+
+// ── Reset del modal de venta ──────────────────────────────────
+function vtaModalReset() {
+  vtaLineas = []; vtaLineaCounter = 0;
+  vtaFileB64 = null; vtaFileMime = null; vtaFileName = null;
+  var tbody = document.getElementById('vta-lineas-body');
+  if (tbody) tbody.innerHTML = '';
+  ['vta-fecha','vta-nfactura','vta-cliente','vta-notas'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var fileInput = document.getElementById('vta-file'); if (fileInput) fileInput.value = '';
+  var fname = document.getElementById('vta-file-name'); if (fname) fname.textContent = 'Ningún archivo seleccionado';
+  var btnIA = document.getElementById('vta-btn-ia'); if (btnIA) btnIA.disabled = true;
+  var bar = document.getElementById('vta-ia-bar'); if (bar) bar.classList.remove('visible');
+  ['vta-b-fecha','vta-b-nfactura','vta-b-cliente'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  vtaRecalcTotales();
+}
+
+// Alias para compatibilidad
+function vtaReset() { vtaModalReset(); }
+
+// ── inGuardar — modal de ingreso normal (sin cambios) ─────────
+function inGuardar() {
   var fecha   = document.getElementById('in-fecha').value;
   var monto   = document.getElementById('in-monto').value;
   var cliente = document.getElementById('in-cliente').value;
@@ -3181,15 +3494,15 @@ function inGuardar() {
   var ingreso  = {
     fecha: fecha, monto: totalVal, itbms: itbmsVal, subtotal: totalVal - itbmsVal,
     cliente: cliente,
-    ruc_cliente:     document.getElementById('in-ruc-cliente').value,
-    tipo_persona:    document.getElementById('in-tipo-persona-cliente').value,
-    tipo_ingreso:    document.getElementById('in-tipo-ingreso').value,
-    categoria:       document.getElementById('in-categoria').value,
-    tipo_comprobante:document.getElementById('in-tipo-comprobante').value,
-    referencia:      document.getElementById('in-referencia').value,
-    descripcion:     document.getElementById('in-descripcion').value,
-    notas:           document.getElementById('in-notas').value,
-    confianza_ia: Math.round((window._inConfianza || 0) * 100)
+    ruc_cliente:      document.getElementById('in-ruc-cliente').value,
+    tipo_persona:     document.getElementById('in-tipo-persona-cliente').value,
+    tipo_ingreso:     document.getElementById('in-tipo-ingreso').value,
+    categoria:        document.getElementById('in-categoria').value,
+    tipo_comprobante: document.getElementById('in-tipo-comprobante').value,
+    referencia:       document.getElementById('in-referencia').value,
+    descripcion:      document.getElementById('in-descripcion').value,
+    notas:            document.getElementById('in-notas').value,
+    confianza_ia:     Math.round((window._inConfianza || 0) * 100)
   };
 
   var btn = document.getElementById('in-btn-save');
@@ -3198,7 +3511,8 @@ function inGuardar() {
 
   fetch(urlActual, {
     method: 'POST', headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'guardarIngreso', ingreso: ingreso, base64: inFileB64||null, mime: inFileMime||null, nombre: inFileName||null })
+    body: JSON.stringify({ action: 'guardarIngreso', ingreso: ingreso,
+      base64: inFileB64||null, mime: inFileMime||null, nombre: inFileName||null })
   })
   .then(function(r) { return r.text(); })
   .then(function(txt) {
@@ -3216,90 +3530,6 @@ function inGuardar() {
     btn.disabled = false; btn.textContent = '💾 Guardar Ingreso';
     showToast('Error de conexión', 'err');
   });
-}
-
-function _inGuardarVenta() {
-  var fecha   = document.getElementById('vta-fecha').value;
-  var cliente = document.getElementById('vta-cliente').value;
-  var metodo  = document.getElementById('vta-metodo').value;
-  if (!fecha)   { showToast('Completa la fecha de la venta', 'err'); return; }
-  if (!cliente) { showToast('Completa el nombre del cliente', 'err'); return; }
-  var lineasValidas = vtaLineas.filter(function(l) { return l.nombre && l.precio > 0; });
-  if (lineasValidas.length === 0) { showToast('Agrega al menos un producto con nombre y precio', 'err'); return; }
-  if (!WEB_APP_URL) { showToast('Configura la URL del Web App primero', 'err'); promptConfig(); return; }
-
-  var rate = MODULO_CUSTOM ? (MODULO_CUSTOM.itbms_rate || 0.07) : 0.07;
-  var sub = 0, imp = 0;
-  lineasValidas.forEach(function(l) {
-    var base = l.qty * l.precio; sub += base;
-    imp += l.itbms_aplica ? base * rate : 0;
-  });
-  var total = sub + imp;
-
-  var ingreso = {
-    fecha: fecha, monto: total, itbms: imp, subtotal: sub, cliente: cliente,
-    tipo_ingreso: 'Gravable',
-    categoria: MODULO_CUSTOM ? (MODULO_CUSTOM.categoria_ingreso || 'Venta de productos') : 'Venta de productos',
-    tipo_comprobante: 'Factura',
-    referencia: document.getElementById('vta-nfactura').value,
-    descripcion: 'Venta — ' + lineasValidas.map(function(l){ return l.nombre; }).join(', '),
-    notas: document.getElementById('vta-notas').value,
-    confianza_ia: 0
-  };
-
-  var btn = document.getElementById('in-btn-save');
-  btn.disabled = true; btn.textContent = '⏳ Guardando…';
-  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
-
-  // Paso 1: guardar ingreso core
-  fetch(urlActual, {
-    method: 'POST', headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'guardarIngreso', ingreso: ingreso })
-  })
-  .then(function(r) { return r.text(); })
-  .then(function(txt) {
-    var res; try { res = JSON.parse(txt); } catch(e) { res = {}; }
-    var idIngreso = (res.ok && res.id) ? res.id : '';
-
-    // Paso 2: guardar venta en módulo
-    var venta = {
-      fecha: fecha, num_factura: document.getElementById('vta-nfactura').value,
-      cliente: cliente, metodo: metodo, id_ingreso_ref: idIngreso,
-      notas: document.getElementById('vta-notas').value, total_factura: total,
-      lineas: lineasValidas.map(function(l, i) {
-        var base = l.qty * l.precio, impL = l.itbms_aplica ? base * rate : 0;
-        return { linea_num: i+1, codigo: l.codigo||'', producto: l.nombre,
-          cantidad: l.qty, precio_unitario: l.precio, itbms_aplica: l.itbms_aplica,
-          subtotal_linea: base, itbms_linea: impL, total_linea: base + impL };
-      })
-    };
-    return fetch(urlActual, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'guardarVenta', venta: venta })
-    }).then(function(r2) { return r2.text(); });
-  })
-  .then(function(txt2) {
-    btn.disabled = false; btn.textContent = '💾 Guardar Venta';
-    var res2; try { res2 = JSON.parse(txt2); } catch(e) { res2 = {}; }
-    if (res2.ok) {
-      showToast('✓ Venta guardada correctamente', 'ok');
-      setTimeout(function() { vtaReset(); inReset(); closeModal('ingreso'); }, 1800);
-    } else { showToast('Error: ' + (res2.error || 'desconocido'), 'err'); }
-  })
-  .catch(function() {
-    btn.disabled = false; btn.textContent = '💾 Guardar Venta';
-    showToast('Error de conexión', 'err');
-  });
-}
-
-function vtaReset() {
-  vtaLineas = []; vtaLineaCounter = 0;
-  var tbody = document.getElementById('vta-lineas-body');
-  if (tbody) tbody.innerHTML = '';
-  ['vta-fecha','vta-nfactura','vta-cliente','vta-notas'].forEach(function(id) {
-    var el = document.getElementById(id); if (el) el.value = '';
-  });
-  vtaRecalcTotales();
 }
 </script>
 </body>
