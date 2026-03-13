@@ -2529,7 +2529,7 @@ function egGuardar() {
   var btn = document.getElementById('eg-btn-save');
   btn.disabled = true; btn.textContent = '⏳ Guardando…';
 
-  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.webApp || '') : WEB_APP_URL;
+  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
 
   // Enviamos como text/plain para evitar preflight CORS
   fetch(urlActual, {
@@ -2912,7 +2912,7 @@ function loadDashboard() {
     '<div class="dash-loading"><div class="spinner"></div><span>Cargando datos ' + year + '…</span></div>';
 
   // Leer WEB_APP_URL fresco en el momento del fetch (no del closure)
-  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.webApp || '') : WEB_APP_URL;
+  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
 
   fetch(urlActual, {
     method: 'POST',
