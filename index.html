@@ -3232,58 +3232,85 @@ function vtaOnFile(input) {
 // ── Leer con IA en modal venta ────────────────────────────────
 function vtaAnalizarIA() {
   if (!vtaFileB64) return;
-  var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
-  if (!urlActual) { showToast('Configura la URL del Web App primero', 'err'); return; }
+  if (!CLAUDE_API_KEY) { showToast('Configura tu API Key primero', 'err'); promptConfig(); return; }
 
-  var bar = document.getElementById('vta-ia-bar');
-  var msg = document.getElementById('vta-ia-msg');
+  var bar  = document.getElementById('vta-ia-bar');
+  var msg  = document.getElementById('vta-ia-msg');
   var fill = document.getElementById('vta-ia-fill');
   var pct  = document.getElementById('vta-ia-pct');
   var btn  = document.getElementById('vta-btn-ia');
 
   bar.classList.add('visible');
-  msg.textContent = 'Analizando comprobante…';
+  msg.textContent  = 'Analizando comprobante…';
   fill.style.width = '0%'; pct.textContent = '';
-  btn.disabled = true;
+  btn.disabled     = true;
 
-  fetch(urlActual, {
-    method: 'POST', headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'analizarFactura', base64: vtaFileB64, mime: vtaFileMime, nombre: vtaFileName })
+  var validImages = ['image/jpeg','image/png','image/webp','image/gif'];
+  var contentBlock;
+  if (vtaFileMime === 'application/pdf') {
+    contentBlock = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: vtaFileB64 } };
+  } else {
+    var mime = validImages.indexOf(vtaFileMime) >= 0 ? vtaFileMime : 'image/jpeg';
+    contentBlock = { type: 'image', source: { type: 'base64', media_type: mime, data: vtaFileB64 } };
+  }
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CLAUDE_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: buildPromptIngreso() }] }]
+    })
   })
-  .then(function(r) { return r.json(); })
-  .then(function(res) {
+  .then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(e.error ? e.error.message : 'Error ' + r.status); });
+    return r.json();
+  })
+  .then(function(data) {
     btn.disabled = false;
-    if (res.error) { msg.textContent = '⚠ ' + res.error; return; }
-    var d    = res.data || {};
-    var conf = res.confidence || 0;
+    var text  = data.content[0].text;
+    var match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('La IA no devolvió JSON válido');
+
+    var d    = JSON.parse(match[0]);
+    if (d.fecha) d.fecha = normalizarFecha(d.fecha);
+
+    var keys  = ['fecha','monto','cliente','referencia','categoria','descripcion'];
+    var found = keys.filter(function(k) { return d[k] !== null && d[k] !== undefined && d[k] !== ''; }).length;
+    var conf  = Math.round((d._confidence || (found / keys.length)) * 100);
+
     fill.style.width = conf + '%';
     pct.textContent  = conf + '%';
-    msg.textContent  = 'IA completó ' + (res.fieldsFound||0) + ' campos';
+    msg.textContent  = '✓ ' + found + ' campos extraídos';
 
-    // Llenar campos del encabezado de la venta
     var setIf = function(elId, val, tagId) {
       if (val !== null && val !== undefined && val !== '') {
         var el = document.getElementById(elId); if (el) el.value = val;
         var tag = document.getElementById(tagId); if (tag) tag.style.display = '';
       }
     };
-    setIf('vta-fecha',    d.fecha,     'vta-b-fecha');
-    setIf('vta-nfactura', d.nfactura,  'vta-b-nfactura');
-    // Para ventas, el campo "cliente" lo llena con el nombre del receptor si viene
-    setIf('vta-cliente',  d.cliente || d.receptor || d.proveedor || '', 'vta-b-cliente');
+    setIf('vta-fecha',    d.fecha,                   'vta-b-fecha');
+    setIf('vta-nfactura', d.referencia || d.nfactura,'vta-b-nfactura');
+    setIf('vta-cliente',  d.cliente,                 'vta-b-cliente');
 
-    // Si hay monto y hay una línea vacía, llenar el precio
+    // Si hay monto y línea vacía, prellenar precio
     if (d.monto && vtaLineas.length === 1 && vtaLineas[0].precio === 0) {
       var imp = parseFloat(d.itbms) || 0;
       var sub = (parseFloat(d.monto) || 0) - imp;
-      vtaLineas[0].precio = sub > 0 ? sub : (parseFloat(d.monto) || 0);
+      vtaLineas[0].precio       = sub > 0 ? sub : parseFloat(d.monto) || 0;
       vtaLineas[0].itbms_aplica = imp > 0;
       _vtaRenderLineas();
     }
   })
-  .catch(function(e) {
+  .catch(function(err) {
     btn.disabled = false;
-    msg.textContent = '⚠ Error de conexión';
+    msg.textContent = '⚠ ' + (err.message || 'Error de conexión');
   });
 }
 
