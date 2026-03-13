@@ -2305,6 +2305,32 @@ function egGuardar() {
   var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
   var year = new Date(fecha + 'T12:00:00').getFullYear();
 
+  // ── Banner de error inline (dismissible) ─────────────────
+  function _showEgError(msg) {
+    var el = document.getElementById('eg-inline-error');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'eg-inline-error';
+      el.style.cssText = 'display:flex;align-items:flex-start;gap:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#7f1d1d;line-height:1.5;position:relative;';
+      var footer = document.querySelector('#modal-egreso .modal-footer');
+      if (footer) footer.parentNode.insertBefore(el, footer);
+    }
+    el.innerHTML = '<span style="font-size:16px;flex-shrink:0">⛔</span>'
+      + '<div style="flex:1"><strong style="display:block;margin-bottom:3px;">No se guardó</strong>' + msg + '</div>'
+      + '<button onclick="document.getElementById(\'eg-inline-error\').style.display=\'none\'" '
+      + 'style="background:rgba(127,29,29,.12);border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:13px;color:#7f1d1d;flex-shrink:0;align-self:flex-start;line-height:1;" title="Cerrar">✕</button>';
+    el.style.display = 'flex';
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar Egreso';
+  }
+
+  function _clearEgError() {
+    var el = document.getElementById('eg-inline-error');
+    if (el) el.style.display = 'none';
+  }
+
+  // ── Paso 3: guardar datos ─────────────────────────────────
   function _doSaveEgr() {
     btn.textContent = '⏳ Guardando…';
     fetch(urlActual, {
@@ -2315,15 +2341,20 @@ function egGuardar() {
     .then(function(r) { return r.text(); })
     .then(function(txt) {
       btn.disabled = false; btn.textContent = '💾 Guardar Egreso';
-      var res;
-      try { res = JSON.parse(txt); } catch(e) {
-        showToast('Guardado (respuesta no JSON)', 'ok');
+      var res; try { res = JSON.parse(txt); } catch(e) {
+        showToast('Guardado correctamente', 'ok');
         setTimeout(function() { egReset(); closeModal('egreso'); }, 1800); return;
       }
       if (res.ok) {
+        _clearEgError();
         showToast('✓ ' + res.id + ' guardado', 'ok');
         setTimeout(function() { egReset(); closeModal('egreso'); }, 1800);
-      } else { showToast('Error: ' + (res.error || 'desconocido'), 'err'); }
+      } else if (res.error && res.error.indexOf('DUPLICADO') === 0) {
+        _showEgError(res.error.replace('DUPLICADO: ', ''));
+      } else {
+        showToast('Error: ' + (res.error || 'desconocido'), 'err');
+        btn.disabled = false;
+      }
     })
     .catch(function() {
       btn.disabled = false; btn.textContent = '💾 Guardar Egreso';
@@ -2331,14 +2362,14 @@ function egGuardar() {
     });
   }
 
-  // Si hay archivo, subirlo primero en request separado
-  if (egFileB64 && egFileName) {
+  // ── Paso 2: subir archivo al Drive ────────────────────────
+  function _doUploadEgr() {
+    if (!egFileB64 || !egFileName) { _doSaveEgr(); return; }
     btn.textContent = '⏳ Subiendo archivo…';
-    // Forzar mime correcto: iOS/Android a veces envía octet-stream para PDFs
     var egMimeFinal = egFileMime || '';
     if (!egMimeFinal || egMimeFinal === 'application/octet-stream') {
-      if (egFileName.toLowerCase().endsWith('.pdf'))  egMimeFinal = 'application/pdf';
-      else if (egFileName.toLowerCase().endsWith('.png'))  egMimeFinal = 'image/png';
+      if (egFileName.toLowerCase().endsWith('.pdf'))        egMimeFinal = 'application/pdf';
+      else if (egFileName.toLowerCase().endsWith('.png'))   egMimeFinal = 'image/png';
       else if (egFileName.toLowerCase().match(/\.jpe?g$/)) egMimeFinal = 'image/jpeg';
     }
     fetch(urlActual, {
@@ -2346,13 +2377,8 @@ function egGuardar() {
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'subirArchivo',
-        base64: egFileB64,
-        mime: egMimeFinal,
-        nombre: egFileName,
-        id: 'EGR-' + year + '-TEMP',
-        year: year,
-        fecha: fecha,
-        tipo: 'egreso'
+        base64: egFileB64, mime: egMimeFinal, nombre: egFileName,
+        id: 'EGR-' + year + '-TEMP', year: year, fecha: fecha, tipo: 'egreso'
       })
     })
     .then(function(r) { return r.text(); })
@@ -2361,7 +2387,6 @@ function egGuardar() {
       if (res.ok) {
         egreso.driveUrl  = res.driveUrl  || '';
         egreso.drivePath = res.drivePath || '';
-        if (egreso.driveUrl) showToast('✓ Archivo subido al Drive', 'ok');
       } else {
         showToast('⚠️ No se pudo subir al Drive. Guardando sin archivo…', 'err');
       }
@@ -2371,9 +2396,28 @@ function egGuardar() {
       showToast('⚠️ Error subiendo al Drive. Guardando sin archivo…', 'err');
       _doSaveEgr();
     });
-  } else {
-    _doSaveEgr();
   }
+
+  // ── Paso 1: validar duplicado ANTES de subir archivo ─────
+  btn.textContent = '⏳ Verificando…';
+  fetch(urlActual, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'validarEgreso', egreso: egreso })
+  })
+  .then(function(r) { return r.text(); })
+  .then(function(txt) {
+    var res; try { res = JSON.parse(txt); } catch(e) { res = { ok: true }; }
+    if (!res.ok && res.error && res.error.indexOf('DUPLICADO') === 0) {
+      _showEgError(res.error.replace('DUPLICADO: ', ''));
+    } else {
+      _clearEgError();
+      _doUploadEgr();
+    }
+  })
+  .catch(function() {
+    _doUploadEgr();
+  });
 }
 
 
