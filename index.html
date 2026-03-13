@@ -964,7 +964,7 @@ footer strong { color: var(--text2); }
 </div>
 
 <footer>
-  <strong>ContaFácil</strong> · Versión 2.0 · Panamá, <span id="yr"></span>
+  <strong>ContaFácil</strong> · Versión 2.3 · Panamá, <span id="yr"></span>
 </footer>
 </div><!-- end .page -->
 
@@ -1087,6 +1087,7 @@ footer strong { color: var(--text2); }
             <option value="">— Seleccionar —</option>
             <option value="Natural">Natural</option>
             <option value="Juridica">Jurídica</option>
+            <option value="Extranjero">Extranjero</option>
           </select>
         </div>
 
@@ -1100,11 +1101,13 @@ footer strong { color: var(--text2); }
           <div class="field">
             <label>Tipo comprobante</label>
             <select id="eg-tipo-comprobante">
-              <option>Factura</option>
-              <option>Recibo</option>
-              <option>Ticket</option>
-              <option>Nota de débito</option>
-              <option>Otro</option>
+              <option value="Factura Electrónica">Factura Electrónica</option>
+              <option value="Factura Fiscal">Factura Fiscal</option>
+              <option value="Recibo">Recibo</option>
+              <option value="Yappy">Yappy</option>
+              <option value="ACH">ACH</option>
+              <option value="Estado de banco">Estado de banco</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
         </div>
@@ -1116,17 +1119,17 @@ footer strong { color: var(--text2); }
             <label>Tipo de egreso</label>
             <select id="eg-tipo-egreso">
               <option value="">— Seleccionar —</option>
-              <option>Operativo</option>
-              <option>Personal</option>
-              <option>Mixto</option>
+              <option value="Operativo">Operativo</option>
+              <option value="Personal">Personal deducible</option>
+              <option value="No deducible">No deducible</option>
             </select>
           </div>
           <div class="field">
             <label>Estado</label>
             <select id="eg-estado">
-              <option>Borrador</option>
-              <option>Confirmado</option>
-              <option>Pagado</option>
+              <option value="Borrador">Borrador</option>
+              <option value="Confirmado">Confirmado</option>
+              <option value="Pagado">Pagado</option>
             </select>
           </div>
         </div>
@@ -1156,21 +1159,21 @@ footer strong { color: var(--text2); }
             <label>Categoría <span class="ia-tag" id="eg-b-categoria">✦ IA</span></label>
             <select id="eg-categoria">
               <option value="">— Seleccionar —</option>
-              <option>Alimentación</option>
-              <option>Combustible</option>
-              <option>Hospedaje / Las Nubes</option>
-              <option>Materiales y suministros</option>
-              <option>Servicios profesionales</option>
-              <option>Servicios públicos</option>
-              <option>Telecomunicaciones</option>
-              <option>Transporte</option>
-              <option>Salarios</option>
-              <option>Seguros</option>
-              <option>Mantenimiento</option>
-              <option>Marketing</option>
-              <option>Equipos y tecnología</option>
-              <option>Impuestos y tasas</option>
-              <option>Otros</option>
+              <option value="Alimentación">Alimentación</option>
+              <option value="Combustible">Combustible</option>
+              <option value="Hospedaje">Hospedaje</option>
+              <option value="Materiales y suministros">Materiales y suministros</option>
+              <option value="Servicios profesionales">Servicios profesionales</option>
+              <option value="Servicios públicos">Servicios públicos</option>
+              <option value="Telecomunicaciones">Telecomunicaciones</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Salarios">Salarios</option>
+              <option value="Seguros">Seguros</option>
+              <option value="Mantenimiento">Mantenimiento</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Equipos y tecnología">Equipos y tecnología</option>
+              <option value="Impuestos y tasas">Impuestos y tasas</option>
+              <option value="Otros">Otros</option>
             </select>
           </div>
           <div class="field">
@@ -1342,7 +1345,8 @@ footer strong { color: var(--text2); }
               <option value="Factura">Factura</option>
               <option value="Recibo">Recibo</option>
               <option value="Yappy">Yappy</option>
-              <option value="ACH">ACH / Transferencia</option>
+              <option value="ACH">ACH</option>
+              <option value="Transferencia">Transferencia</option>
               <option value="Estado de cuenta">Estado de cuenta</option>
               <option value="Contrato">Contrato</option>
               <option value="Otro">Otro</option>
@@ -1356,13 +1360,17 @@ footer strong { color: var(--text2); }
           <label>Categoría <span class="ia-tag" id="in-b-categoria">✦ IA</span></label>
           <select id="in-categoria">
             <option value="">— Seleccionar —</option>
-            <option>Hospedaje Las Nubes</option>
-            <option>Venta de equipos</option>
-            <option>Servicios de consultoría</option>
-            <option>Comisiones</option>
-            <option>Honorarios profesionales</option>
-            <option>Alquiler</option>
-            <option>Otros ingresos</option>
+            <option value="Venta de productos">Venta de productos</option>
+            <option value="Honorarios profesionales">Honorarios / Consultoría</option>
+            <option value="Alquiler">Alquiler</option>
+            <option value="Comisiones">Comisiones</option>
+            <option value="Dietas">Dietas</option>
+            <option value="Intereses gravables">Intereses gravables</option>
+            <option value="Otro gravable">Otro gravable</option>
+            <option value="Exento - Lotería">Exento — Lotería</option>
+            <option value="Exento - Indemnización">Exento — Indemnización</option>
+            <option value="Exento - Terminación laboral">Exento — Terminación laboral</option>
+            <option value="Exento - Otro">Exento — Otro</option>
           </select>
         </div>
 
@@ -1517,9 +1525,6 @@ var WEB_APP_URL     = '';
 var ACTIVE_CONTRIB  = null;
 var ALL_CONTRIBS    = [];
 
-// ── FIX: Store pendientes clientes by rucClean to avoid
-//    JSON.stringify() inside onclick HTML attributes,
-//    which breaks when nombres contain quotes or special chars ──
 var _pendientesMap  = {};
 
 // ── localStorage mínimo ───────────────────────────────────────
@@ -1532,14 +1537,12 @@ function setIndivKey(ruc, key) {
   if (key) keys[ruc] = key; else delete keys[ruc];
   localStorage.setItem('cf_keys', JSON.stringify(keys));
 }
-// Persistencia de URLs de clientes (sobrevive refresh)
 function getStoredUrls() { try { return JSON.parse(localStorage.getItem('cf_urls') || '{}'); } catch(e) { return {}; } }
 function setStoredUrl(rucClean, url) {
   var urls = getStoredUrls();
   if (url) urls[rucClean] = url; else delete urls[rucClean];
   localStorage.setItem('cf_urls', JSON.stringify(urls));
 }
-// Aplica URLs guardadas en localStorage sobre un array de clientes del CSV
 function _mergeStoredUrls(contribs) {
   var stored = getStoredUrls();
   return contribs.map(function(c) {
@@ -1581,7 +1584,6 @@ function initContribs() {
   .catch(function() {});
 }
 
-// ── Activar contribuyente ─────────────────────────────────────
 function applyActiveContrib() {
   var activeRuc = getActiveRuc();
   var keys      = getIndivKeys();
@@ -1602,14 +1604,12 @@ function applyActiveContrib() {
   if (document.getElementById('contrib-list')) renderContribList();
 }
 
-// ── Switch ────────────────────────────────────────────────────
 function switchContrib(ruc) {
   setActiveRuc(ruc);
   applyActiveContrib();
   showToast('\u2713 Contribuyente cambiado', 'ok');
 }
 
-// ── Agregar manualmente ───────────────────────────────────────
 function addContrib() {
   var nombre = document.getElementById('nc-nombre').value.trim();
   var ruc    = document.getElementById('nc-ruc').value.trim();
@@ -1642,7 +1642,6 @@ function addContrib() {
   showToast('\u2713 ' + nombre + ' agregado', 'ok');
 }
 
-// ── Editar URL ────────────────────────────────────────────────
 function editContribUrl(ruc) {
   var c = ALL_CONTRIBS.find(function(x){ return x.ruc === ruc; });
   if (!c) return;
@@ -1654,7 +1653,6 @@ function editContribUrl(ruc) {
   showToast('\u2713 URL actualizada', 'ok');
 }
 
-// ── Editar completo ───────────────────────────────────────────
 function editContrib(ruc) {
   var c = ALL_CONTRIBS.find(function(x){ return x.ruc === ruc; });
   if (!c) return;
@@ -1671,7 +1669,6 @@ function editContrib(ruc) {
   showToast('\u2713 Actualizado', 'ok');
 }
 
-// ── API Key global ────────────────────────────────────────────
 function saveGlobalApiKey() {
   var key = document.getElementById('global-apikey-input').value.trim();
   if (key && !key.startsWith('sk-ant-')) { showToast('API Key inv\u00e1lida', 'err'); return; }
@@ -1680,7 +1677,6 @@ function saveGlobalApiKey() {
   showToast(key ? '\u2713 API Key global guardada' : 'API Key eliminada', 'ok');
 }
 
-// ── Master Web App URL ────────────────────────────────────────
 function saveMasterWebApp() {
   var url = document.getElementById('master-webapp-input').value.trim();
   if (url && !url.startsWith('https://')) { showToast('URL inválida', 'err'); return; }
@@ -1689,7 +1685,6 @@ function saveMasterWebApp() {
   showToast(url ? '\u2713 URL del Master guardada' : 'URL del Master eliminada', 'ok');
 }
 
-// ── Fetch pendientes ──────────────────────────────────────────
 function fetchPendientes() {
   var el = document.getElementById('pending-list');
   if (!el) return;
@@ -1700,16 +1695,12 @@ function fetchPendientes() {
   .then(function(csv) {
     var todos = _mergeStoredUrls(_parseCsv(csv));
 
-    // Mergear CSV con lo que ya está en memoria:
-    // la memoria gana si ya tiene una URL válida (evita que el CSV
-    // desactualizado pise una URL recién guardada)
     todos.forEach(function(csvRow) {
       var rucClean = String(csvRow.ruc || '').replace(/[\s-]/g,'');
       var inMem = ALL_CONTRIBS.find(function(c) {
         return String(c.ruc || '').replace(/[\s-]/g,'') === rucClean;
       });
       if (inMem && inMem.web_app_url && inMem.web_app_url.indexOf('http') === 0) {
-        // Memoria tiene URL válida → preservarla, ignorar CSV para este campo
         csvRow.web_app_url = inMem.web_app_url;
         csvRow.estado      = inMem.estado || csvRow.estado;
       }
@@ -1725,10 +1716,7 @@ function fetchPendientes() {
       return c;
     });
 
-    // Solo reemplazar ALL_CONTRIBS si el CSV trajo activos,
-    // preservando cualquier contrib agregado manualmente que no esté en el CSV
     if (activos.length > 0) {
-      // Agregar los que están en memoria pero no vienen en el CSV (agregados manualmente)
       ALL_CONTRIBS.forEach(function(memRow) {
         var rucClean = String(memRow.ruc || '').replace(/[\s-]/g,'');
         var yaEsta = activos.find(function(c) {
@@ -1769,12 +1757,6 @@ function _parseCsv(csv) {
   }).filter(function(r) { return r.nombre; });
 }
 
-// ════════════════════════════════════════════════════════════════
-//  FIX: _renderPendientes usa _pendientesMap en lugar de
-//  JSON.stringify() dentro del atributo onclick, lo que rompía
-//  silenciosamente el botón cuando el nombre tenía caracteres
-//  especiales (comillas, apóstrofes, acentos, etc.)
-// ════════════════════════════════════════════════════════════════
 function _renderPendientes(pendientes) {
   var badge = document.getElementById('pending-badge');
   var el    = document.getElementById('pending-list');
@@ -1788,7 +1770,6 @@ function _renderPendientes(pendientes) {
 
   if (badge) { badge.style.display = 'inline'; badge.textContent = pendientes.length; }
 
-  // Guardar cada cliente en el map por rucClean — evita JSON.stringify en onclick
   _pendientesMap = {};
   pendientes.forEach(function(c) {
     var rucClean = (c.ruc || '').replace(/[\s-]/g, '');
@@ -1806,7 +1787,6 @@ function _renderPendientes(pendientes) {
     html += '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">' + esc(c.nombre) + '</div>';
     html += '<div style="font-size:11px;color:var(--text3);">RUC ' + esc(c.ruc) + (c.dv ? ' DV ' + esc(c.dv) : '') + '</div></div>';
     html += '<span style="font-size:9px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:2px 7px;font-weight:600;">SIN WEB APP</span></div>';
-    // FIX: solo pasamos rucClean (string seguro), no JSON.stringify del objeto completo
     html += '<input type="text" id="pw-webapp-' + rucClean + '" placeholder="URL Web App del cliente\u2026" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;width:100%;box-sizing:border-box;margin-bottom:6px;">';
     html += '<button id="pw-btn-' + rucClean + '" onclick="_completarSetup(\'' + rucClean + '\')" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">\u2713 Guardar URL</button>';
     html += '</div>';
@@ -1814,7 +1794,6 @@ function _renderPendientes(pendientes) {
   el.innerHTML = html;
 }
 
-// FIX: firma simplificada — recibe solo rucClean, recupera cliente de _pendientesMap
 function _completarSetup(rucClean) {
   var cliente = _pendientesMap[rucClean];
   if (!cliente) { showToast('Cliente no encontrado en el mapa', 'err'); return; }
@@ -1823,7 +1802,6 @@ function _completarSetup(rucClean) {
   var webApp = inputEl.value.trim();
   if (!webApp) { showToast('La URL del Web App es obligatoria', 'err'); return; }
 
-  // 1. Actualizar en memoria inmediatamente
   var existing = ALL_CONTRIBS.find(function(c){ return c.ruc.replace(/[\s-]/g,'') === rucClean; });
   if (existing) {
     existing.web_app_url = webApp;
@@ -1834,12 +1812,10 @@ function _completarSetup(rucClean) {
       _color: CONTRIB_COLORS[ALL_CONTRIBS.length % CONTRIB_COLORS.length]
     });
   }
-  // Persistir URL en localStorage para que sobreviva refresh
   setStoredUrl(rucClean, webApp);
   applyActiveContrib();
   renderContribList();
 
-  // 2. Si hay Master Web App URL configurada, persistir en el Sheet maestro
   if (MASTER_WEB_APP_URL) {
     var btn = document.getElementById('pw-btn-' + rucClean);
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Guardando…'; }
@@ -1855,7 +1831,6 @@ function _completarSetup(rucClean) {
       var res; try { res = JSON.parse(txt); } catch(e) { res = {}; }
       if (res.ok) {
         showToast('✓ ' + cliente.nombre + ' guardado en el Master Sheet', 'ok');
-        // Ahora sí re-cargar pendientes — el CSV ya debería tener la URL
         setTimeout(fetchPendientes, 1500);
       } else {
         showToast('Guardado en memoria. Error Master: ' + (res.error || 'desconocido'), 'err');
@@ -1866,15 +1841,12 @@ function _completarSetup(rucClean) {
       showToast('Guardado en memoria. Sin conexión al Master.', 'err');
     });
   } else {
-    // Sin Master URL — solo memoria, avisar al usuario
     showToast('✓ ' + cliente.nombre + ' activo en esta sesión. Configura la URL del Master para persistir.', 'ok');
-    // Quitar de pendientes en la UI sin re-cargar el CSV (evita pisarlo)
     delete _pendientesMap[rucClean];
     _renderPendientes(Object.values(_pendientesMap));
   }
 }
 
-// ── Render lista de contribuyentes ────────────────────────────
 function renderContribList() {
   var list   = ALL_CONTRIBS;
   var active = getActiveRuc().replace(/[\s-]/g,'');
@@ -1908,7 +1880,6 @@ function renderContribList() {
   el.innerHTML = html;
 }
 
-// ── Update header chip ────────────────────────────────────────
 function updateChip(c) {
   var initials = c.nombre.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
   document.getElementById('chip-avatar').textContent = initials;
@@ -1917,7 +1888,6 @@ function updateChip(c) {
   document.getElementById('chip-ruc').textContent  = 'RUC ' + c.ruc + (c.dv ? ' DV ' + c.dv : '');
 }
 
-// ── Color picker ──────────────────────────────────────────────
 function renderColorPicker(selected) {
   var html = '';
   CONTRIB_COLORS.forEach(function(col) {
@@ -1932,7 +1902,6 @@ function selectColor(col) {
   renderColorPicker(col);
 }
 
-// ── Panel open/close ──────────────────────────────────────────
 function openPanel() {
   renderContribList();
   var globalKey = getGlobalApiKey();
@@ -1951,7 +1920,6 @@ function closePanel() {
   document.body.style.overflow = '';
 }
 
-// ── Helper escape HTML ────────────────────────────────────────
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1971,7 +1939,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   if (rucParam) setActiveRuc(rucParam);
 
-  // Cargar Master Web App URL si fue guardada previamente
   var savedMaster = localStorage.getItem('cf_master_url') || '';
   if (savedMaster) MASTER_WEB_APP_URL = savedMaster;
 
@@ -2189,9 +2156,9 @@ function buildPromptFactura() {
     'INSTRUCCION CRITICA: Extrae SIEMPRE los datos de la cabecera (proveedor), NUNCA los del receptor/cliente.',
     '',
     'Devuelve SOLO un objeto JSON valido sin texto adicional:',
-    '{"fecha":"YYYY-MM-DD","monto":0.00,"itbms":0.00,"proveedor":"nombre legal o comercial del proveedor","ruc":"RUC de la cabecera","dv":"DV de la cabecera","tipo_persona":"Natural o Juridica","nfactura":"numero de factura","tipo_comprobante":"Factura o Recibo o Ticket","categoria":"categoria","frm94":"concepto FRM-94","tipo_egreso":"Operativo o Personal o Mixto","descripcion":"items comprados","_confidence":0.00}',
+    '{"fecha":"YYYY-MM-DD","monto":0.00,"itbms":0.00,"proveedor":"nombre legal o comercial del proveedor","ruc":"RUC de la cabecera","dv":"DV de la cabecera","tipo_persona":"Natural o Juridica","nfactura":"numero de factura","tipo_comprobante":"Factura Electronica o Factura Fiscal o Recibo","categoria":"categoria","frm94":"concepto FRM-94","tipo_egreso":"Operativo o Personal o No deducible","descripcion":"items comprados","_confidence":0.00}',
     '',
-    'Categorias: Alimentacion, Combustible, Hospedaje / Las Nubes, Materiales y suministros, Servicios profesionales, Servicios publicos, Telecomunicaciones, Transporte, Salarios, Seguros, Mantenimiento, Marketing, Equipos y tecnologia, Impuestos y tasas, Otros.',
+    'Categorias: Alimentacion, Combustible, Hospedaje, Materiales y suministros, Servicios profesionales, Servicios publicos, Telecomunicaciones, Transporte, Salarios, Seguros, Mantenimiento, Marketing, Equipos y tecnologia, Impuestos y tasas, Otros.',
     '',
     'Conceptos FRM-94: Salarios y remuneraciones, Alquileres, Servicios profesionales, Publicidad y propaganda, Combustibles y lubricantes, Materiales y suministros, Servicios publicos, Mantenimiento y reparaciones, Seguros, Viaticos y gastos de viaje, Depreciacion, Intereses y cargos financieros, Impuestos y tasas, Otros gastos deducibles, Gastos no deducibles.',
     '',
@@ -2298,9 +2265,6 @@ function egGuardar() {
   var subtotal  = totalVal - itbmsVal;
   var deducible = parseFloat(document.getElementById('eg-deducible').value) || subtotal;
 
-  var TIPO_COMP_MAP = { 'Factura': 'FACTURA_ELECTRONICA', 'Recibo': 'RECIBO', 'Ticket': 'TICKET', 'Nota de débito': 'NOTA_DEBITO', 'Otro': 'OTRO' };
-  var tipoCompRaw = document.getElementById('eg-tipo-comprobante').value;
-
   var egreso = {
     fecha: fecha, monto: totalVal, itbms: itbmsVal, subtotal: subtotal, deducible: deducible,
     proveedor: proveedor,
@@ -2308,7 +2272,7 @@ function egGuardar() {
     dv: document.getElementById('eg-dv').value,
     tipo_persona: document.getElementById('eg-tipo-persona').value,
     nfactura: document.getElementById('eg-nfactura').value,
-    tipo_comprobante: TIPO_COMP_MAP[tipoCompRaw] || tipoCompRaw.toUpperCase().replace(/\s+/g,'_'),
+    tipo_comprobante: document.getElementById('eg-tipo-comprobante').value,
     estado: document.getElementById('eg-estado').value,
     tipo_egreso: document.getElementById('eg-tipo-egreso').value,
     frm94: document.getElementById('eg-frm94').value,
@@ -2485,9 +2449,9 @@ function buildPromptIngreso() {
     'tipo_comprobante = "Factura".',
     '',
     'Devuelve SOLO un objeto JSON válido sin texto adicional:',
-    '{"fecha":"YYYY-MM-DD","monto":0.00,"itbms":0.00,"cliente":"nombre completo del pagador","ruc_cliente":"RUC del cliente si aparece","tipo_comprobante":"Yappy o ACH o Factura o Recibo o Otro","referencia":"codigo de confirmacion o numero de transaccion","categoria":"categoria del ingreso","descripcion":"concepto o descripcion del pago","_confidence":0.00}',
+    '{"fecha":"YYYY-MM-DD","monto":0.00,"itbms":0.00,"cliente":"nombre completo del pagador","ruc_cliente":"RUC del cliente si aparece","tipo_comprobante":"Yappy o ACH o Transferencia o Factura o Recibo o Contrato o Otro","referencia":"codigo de confirmacion o numero de transaccion","categoria":"categoria del ingreso","descripcion":"concepto o descripcion del pago","_confidence":0.00}',
     '',
-    'Categorías: Hospedaje Las Nubes, Venta de equipos, Servicios de consultoría, Comisiones, Honorarios profesionales, Alquiler, Otros ingresos.',
+    'Categorías: Venta de productos, Honorarios profesionales, Alquiler, Comisiones, Dietas, Intereses gravables, Otro gravable, Exento - Lotería, Exento - Indemnización, Exento - Terminación laboral, Exento - Otro.',
     '',
     'Reglas: monto = total recibido. itbms = 0 para Yappy y ACH. _confidence entre 0 y 1. Null si no claro. Solo JSON.'
   ];
