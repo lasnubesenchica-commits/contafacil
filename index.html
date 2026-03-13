@@ -699,7 +699,7 @@ header {
   border-radius: 10px; padding: 11px 20px;
   font-size: 13px; font-weight: 500;
   opacity: 0; transition: all .3s;
-  pointer-events: none; white-space: nowrap; z-index: 999;
+  pointer-events: none; white-space: nowrap; z-index: 9999;
   max-width: calc(100vw - 48px); text-align: center;
   box-shadow: 0 8px 32px rgba(15,23,42,.12);
 }
@@ -2784,12 +2784,14 @@ function inReset() {
 // ════════════════════════════════════════════════════════════════
 //  TOAST
 // ════════════════════════════════════════════════════════════════
+var _toastTimer = null;
 function showToast(msg, type) {
+  if (_toastTimer) { clearTimeout(_toastTimer); }
   var t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast ' + (type || '');
   t.classList.add('show');
-  setTimeout(function() { t.classList.remove('show'); }, 3200);
+  _toastTimer = setTimeout(function() { t.classList.remove('show'); _toastTimer = null; }, 3200);
 }
 
 // ════════════════════════════════════════════════════════════════
