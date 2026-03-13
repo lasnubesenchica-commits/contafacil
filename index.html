@@ -1117,21 +1117,33 @@ footer strong { color: var(--text2); }
         <div class="field-row">
           <div class="field">
             <label>Tipo de egreso</label>
-            <select id="eg-tipo-egreso">
+            <select id="eg-tipo-egreso" onchange="egToggleCatPersonal()">
               <option value="">— Seleccionar —</option>
               <option value="Operativo">Operativo</option>
-              <option value="Personal">Personal deducible</option>
+              <option value="Personal deducible">Personal deducible</option>
               <option value="No deducible">No deducible</option>
             </select>
           </div>
           <div class="field">
             <label>Estado</label>
             <select id="eg-estado">
-              <option value="Borrador">Borrador</option>
               <option value="Confirmado">Confirmado</option>
-              <option value="Pagado">Pagado</option>
+              <option value="Pendiente revisión">Pendiente revisión</option>
+              <option value="Anulado">Anulado</option>
             </select>
           </div>
+        </div>
+        <!-- categoria_personal — solo visible si tipo_egreso = Personal deducible -->
+        <div class="field" id="eg-cat-personal-wrap" style="display:none">
+          <label>Categoría personal deducible</label>
+          <select id="eg-categoria-personal">
+            <option value="">— Seleccionar —</option>
+            <option value="Medico">Médico / Salud</option>
+            <option value="Escolar">Escolar / Educación</option>
+            <option value="Hipoteca">Hipoteca / Vivienda</option>
+            <option value="Donacion">Donación</option>
+            <option value="Otro_personal">Otro personal</option>
+          </select>
         </div>
         <div class="field">
           <label>Concepto FRM-94 <span class="ia-tag" id="eg-b-frm94">✦ IA</span></label>
@@ -1156,7 +1168,7 @@ footer strong { color: var(--text2); }
         </div>
         <div class="field-row">
           <div class="field">
-            <label>Categoría <span class="ia-tag" id="eg-b-categoria">✦ IA</span></label>
+            <label>Categoría operativa <span class="ia-tag" id="eg-b-categoria">✦ IA</span></label>
             <select id="eg-categoria">
               <option value="">— Seleccionar —</option>
               <option value="Alimentación">Alimentación</option>
@@ -1177,13 +1189,10 @@ footer strong { color: var(--text2); }
             </select>
           </div>
           <div class="field">
-            <label>Método de pago</label>
+            <label>Tipo de pago (FRM-94)</label>
             <select id="eg-metodo">
-              <option>Efectivo</option>
-              <option>Transferencia</option>
-              <option>Tarjeta débito</option>
-              <option>Tarjeta crédito</option>
-              <option>Cheque</option>
+              <option value="1-COSTO">Costo</option>
+              <option value="2-GASTO">Gasto</option>
             </select>
           </div>
         </div>
@@ -2018,6 +2027,12 @@ function setEgMode(mode) {
   document.getElementById('eg-foto-panel').style.display = mode === 'foto' ? 'block' : 'none';
 }
 
+function egToggleCatPersonal() {
+  var tipo = document.getElementById('eg-tipo-egreso').value;
+  var wrap = document.getElementById('eg-cat-personal-wrap');
+  if (wrap) wrap.style.display = (tipo === 'Personal deducible') ? 'block' : 'none';
+}
+
 function egHandleDrop(e) {
   e.preventDefault();
   document.getElementById('eg-upload-zone').classList.remove('drag');
@@ -2277,6 +2292,7 @@ function egGuardar() {
     tipo_egreso: document.getElementById('eg-tipo-egreso').value,
     frm94: document.getElementById('eg-frm94').value,
     categoria: document.getElementById('eg-categoria').value,
+    categoria_personal: document.getElementById('eg-categoria-personal').value,
     metodo: document.getElementById('eg-metodo').value,
     descripcion: document.getElementById('eg-descripcion').value,
     notas: document.getElementById('eg-notas').value,
@@ -2366,9 +2382,11 @@ function egReset() {
     var el = document.getElementById(id); if (el) { el.value = ''; el.classList.remove('ia'); }
   });
   document.getElementById('eg-fecha').value = today();
-  ['eg-categoria','eg-metodo','eg-tipo-persona','eg-tipo-comprobante','eg-tipo-egreso','eg-estado','eg-frm94'].forEach(function(id) {
+  ['eg-categoria','eg-metodo','eg-tipo-persona','eg-tipo-comprobante','eg-tipo-egreso','eg-estado','eg-frm94','eg-categoria-personal'].forEach(function(id) {
     var el = document.getElementById(id); if (el) { el.selectedIndex = 0; el.classList.remove('ia'); }
   });
+  var wrap = document.getElementById('eg-cat-personal-wrap');
+  if (wrap) wrap.style.display = 'none';
   ['eg-b-fecha','eg-b-monto','eg-b-itbms','eg-b-proveedor','eg-b-ruc','eg-b-dv','eg-b-nfactura','eg-b-descripcion','eg-b-categoria','eg-b-tipo-persona','eg-b-frm94'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.classList.remove('show');
   });
