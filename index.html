@@ -2586,19 +2586,24 @@ function inGuardar() {
   var urlActual = ACTIVE_CONTRIB ? (ACTIVE_CONTRIB.web_app_url || '') : WEB_APP_URL;
   var year = new Date(fecha + 'T12:00:00').getFullYear();
 
+  // ── Banner de error inline (dismissible) ─────────────────
   function _showInlineError(msg) {
-    var existing = document.getElementById('in-inline-error');
-    if (!existing) {
-      existing = document.createElement('div');
-      existing.id = 'in-inline-error';
-      existing.style.cssText = 'display:flex;align-items:flex-start;gap:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#7f1d1d;line-height:1.5;';
+    var el = document.getElementById('in-inline-error');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'in-inline-error';
+      el.style.cssText = 'display:flex;align-items:flex-start;gap:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#7f1d1d;line-height:1.5;position:relative;';
       var footer = document.querySelector('#modal-ingreso .modal-footer');
-      if (footer) footer.parentNode.insertBefore(existing, footer);
+      if (footer) footer.parentNode.insertBefore(el, footer);
     }
-    existing.style.display = 'flex';
-    existing.innerHTML = '<span style="font-size:16px;flex-shrink:0">⛔</span><div style="flex:1"><strong style="display:block;margin-bottom:3px;">No se guardó</strong>' + msg + '</div>';
-    existing.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    btn.disabled = false; btn.textContent = '💾 Guardar Ingreso';
+    el.innerHTML = '<span style="font-size:16px;flex-shrink:0">⛔</span>'
+      + '<div style="flex:1"><strong style="display:block;margin-bottom:3px;">No se guardó</strong>' + msg + '</div>'
+      + '<button onclick="document.getElementById(\'in-inline-error\').style.display=\'none\'" '
+      + 'style="background:rgba(127,29,29,.12);border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:13px;color:#7f1d1d;flex-shrink:0;align-self:flex-start;line-height:1;" title="Cerrar">✕</button>';
+    el.style.display = 'flex';
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar Ingreso';
   }
 
   function _clearInlineError() {
@@ -2606,6 +2611,7 @@ function inGuardar() {
     if (el) el.style.display = 'none';
   }
 
+  // ── Paso 3: guardar datos ─────────────────────────────────
   function _doSave() {
     btn.textContent = '⏳ Guardando…';
     fetch(urlActual, {
@@ -2616,8 +2622,7 @@ function inGuardar() {
     .then(function(r) { return r.text(); })
     .then(function(txt) {
       btn.disabled = false; btn.textContent = '💾 Guardar Ingreso';
-      var res;
-      try { res = JSON.parse(txt); } catch(e) {
+      var res; try { res = JSON.parse(txt); } catch(e) {
         showToast('Guardado correctamente', 'ok');
         setTimeout(function() { inReset(); closeModal('ingreso'); }, 1800); return;
       }
@@ -2638,28 +2643,23 @@ function inGuardar() {
     });
   }
 
-  // Si hay archivo, subirlo primero en request separado
-  if (inFileB64 && inFileName) {
+  // ── Paso 2: subir archivo al Drive ────────────────────────
+  function _doUpload() {
+    if (!inFileB64 || !inFileName) { _doSave(); return; }
     btn.textContent = '⏳ Subiendo archivo…';
-    // Forzar mime correcto: iOS/Android a veces envía octet-stream para PDFs
     var inMimeFinal = inFileMime || '';
     if (!inMimeFinal || inMimeFinal === 'application/octet-stream') {
-      if (inFileName.toLowerCase().endsWith('.pdf'))  inMimeFinal = 'application/pdf';
-      else if (inFileName.toLowerCase().endsWith('.png'))  inMimeFinal = 'image/png';
-      else if (inFileName.toLowerCase().match(/\.jpe?g$/)) inMimeFinal = 'image/jpeg';
+      if (inFileName.toLowerCase().endsWith('.pdf'))         inMimeFinal = 'application/pdf';
+      else if (inFileName.toLowerCase().endsWith('.png'))    inMimeFinal = 'image/png';
+      else if (inFileName.toLowerCase().match(/\.jpe?g$/))  inMimeFinal = 'image/jpeg';
     }
     fetch(urlActual, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'subirArchivo',
-        base64: inFileB64,
-        mime: inMimeFinal,
-        nombre: inFileName,
-        id: 'ING-' + year + '-TEMP',
-        year: year,
-        fecha: fecha,
-        tipo: 'ingreso'
+        base64: inFileB64, mime: inMimeFinal, nombre: inFileName,
+        id: 'ING-' + year + '-TEMP', year: year, fecha: fecha, tipo: 'ingreso'
       })
     })
     .then(function(r) { return r.text(); })
@@ -2668,9 +2668,7 @@ function inGuardar() {
       if (res.ok) {
         ingreso.driveUrl  = res.driveUrl  || '';
         ingreso.drivePath = res.drivePath || '';
-        if (ingreso.driveUrl) showToast('✓ Archivo subido al Drive', 'ok');
       } else {
-        // Drive falló — continuar guardando sin el archivo
         showToast('⚠️ No se pudo subir al Drive. Guardando sin archivo…', 'err');
       }
       _doSave();
@@ -2679,9 +2677,29 @@ function inGuardar() {
       showToast('⚠️ Error subiendo al Drive. Guardando sin archivo…', 'err');
       _doSave();
     });
-  } else {
-    _doSave();
   }
+
+  // ── Paso 1: validar duplicado ANTES de subir archivo ─────
+  btn.textContent = '⏳ Verificando…';
+  fetch(urlActual, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'validarIngreso', ingreso: ingreso })
+  })
+  .then(function(r) { return r.text(); })
+  .then(function(txt) {
+    var res; try { res = JSON.parse(txt); } catch(e) { res = { ok: true }; }
+    if (!res.ok && res.error && res.error.indexOf('DUPLICADO') === 0) {
+      _showInlineError(res.error.replace('DUPLICADO: ', ''));
+    } else {
+      _clearInlineError();
+      _doUpload();
+    }
+  })
+  .catch(function() {
+    // Si la validación falla por red, igual intentamos guardar (el GS vuelve a validar)
+    _doUpload();
+  });
 }
 
 function inReset() {
