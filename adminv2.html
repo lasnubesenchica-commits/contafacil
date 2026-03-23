@@ -5858,11 +5858,29 @@ async function provAnalizarFactura() {
   const btn = document.getElementById('provAnalyzarBtn');
   btn.disabled = true; btn.textContent = '⏳ Analizando...';
   try {
-    const res  = await fetch(GAS_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'analizarFacturaEjemplo', imageBase64: provFileBase64, mimeType: provFileMime }),
-    });
-    const data = await res.json();
+    let res;
+    try {
+      res = await fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body:    JSON.stringify({ action: 'analizarFacturaEjemplo', imageBase64: provFileBase64, mimeType: provFileMime }),
+      });
+    } catch(netErr) {
+      console.error('Network error calling GAS:', netErr);
+      throw new Error('Sin conexión al servidor. ¿Fue redesplegado el Web App? Detalle: ' + netErr.message);
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.error('GAS error', res.status, body);
+      throw new Error('Servidor respondió ' + res.status + (body ? ': ' + body.substring(0,120) : ''));
+    }
+    let data;
+    try { data = await res.json(); }
+    catch(e) {
+      const raw = await res.text().catch(() => '');
+      console.error('GAS not JSON:', raw.substring(0,300));
+      throw new Error('Respuesta no es JSON. Ver consola (F12).');
+    }
     if (!data.success) throw new Error(data.error || 'Error en IA');
     provIaDatos = data;
     document.getElementById('provNombre').value         = data.nombre_proveedor || '';
@@ -5879,6 +5897,7 @@ async function provAnalizarFactura() {
     provGoStep(2);
   } catch(err) {
     showToast('Error analizando factura: ' + err.message, true);
+    console.error('provAnalizarFactura error:', err);
   } finally {
     btn.disabled = false; btn.textContent = '🤖 Analizar con IA';
   }
@@ -5925,11 +5944,24 @@ async function provGuardar() {
       payload.imageName   = provFileName || 'factura_ejemplo.pdf';
       payload.mimeType    = provFileMime || 'application/pdf';
     }
-    const res  = await fetch(GAS_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
+    let res;
+    try {
+      res = await fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body:    JSON.stringify(payload),
+      });
+    } catch(netErr) {
+      console.error('Network error calling GAS:', netErr);
+      throw new Error('Sin conexión al servidor. Detalle: ' + netErr.message);
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error('Servidor respondió ' + res.status + (body ? ': ' + body.substring(0,120) : ''));
+    }
+    let data;
+    try { data = await res.json(); }
+    catch(e) { throw new Error('Respuesta no es JSON. Ver consola (F12).'); }
     if (!data.success) throw new Error(data.error || 'Error al guardar');
     showToast(provEditingId
       ? '✅ Proveedor actualizado correctamente'
