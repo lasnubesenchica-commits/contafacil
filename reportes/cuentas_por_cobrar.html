@@ -1,0 +1,350 @@
+<!-- MÓDULO: Cuentas por Cobrar | Prefijo: cc- | IIFE independiente -->
+<!-- Sin <html>/<head>/<body> — inyectable en #reporteContainer del admin -->
+<!-- v2 — fuente: opItems (Compras_Ventas) estado='facturado' | antigüedad desde fecha_venta -->
+<style>
+  .cc-wrap { font-family: 'Segoe UI', system-ui, sans-serif; padding: 0 4px; color: #1a2535; }
+  .cc-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid #e2e8f0; flex-wrap: wrap; gap: 12px; }
+  .cc-header h2 { margin: 0; font-size: 1.4rem; font-weight: 700; color: #1a2535; display: flex; align-items: center; gap: 8px; }
+  .cc-last-update { font-size: 0.75rem; color: #94a3b8; }
+  .cc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .cc-kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; position: relative; overflow: hidden; }
+  .cc-kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .cc-kpi.total::before  { background: #3b82f6; }
+  .cc-kpi.rango0::before { background: #22c55e; }
+  .cc-kpi.rango1::before { background: #f59e0b; }
+  .cc-kpi.rango2::before { background: #ef4444; }
+  .cc-kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 4px; font-weight: 600; }
+  .cc-kpi-value { font-size: 1.35rem; font-weight: 700; color: #1a2535; line-height: 1.1; }
+  .cc-kpi-sub   { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
+  .cc-aging-bar-wrap { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 22px; }
+  .cc-aging-bar-wrap h3 { margin: 0 0 10px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: .06em; color: #64748b; font-weight: 600; }
+  .cc-aging-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px; margin-bottom: 8px; }
+  .cc-aging-seg { transition: width .4s ease; min-width: 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: #fff; overflow: hidden; white-space: nowrap; }
+  .cc-aging-seg.s0 { background: #22c55e; border-radius: 6px 0 0 6px; }
+  .cc-aging-seg.s1 { background: #f59e0b; }
+  .cc-aging-seg.s2 { background: #ef4444; border-radius: 0 6px 6px 0; }
+  .cc-aging-legend { display: flex; gap: 16px; flex-wrap: wrap; }
+  .cc-aging-leg-item { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: #475569; }
+  .cc-aging-leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .cc-aging-leg-dot.s0 { background: #22c55e; }
+  .cc-aging-leg-dot.s1 { background: #f59e0b; }
+  .cc-aging-leg-dot.s2 { background: #ef4444; }
+  .cc-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .cc-search { flex: 1; min-width: 180px; padding: 7px 12px; border: 1px solid #e2e8f0; border-radius: 7px; font-size: 0.82rem; outline: none; transition: border-color .2s; background: #fff; }
+  .cc-search:focus { border-color: #3b82f6; }
+  .cc-filter-btn { padding: 6px 14px; border-radius: 7px; border: 1.5px solid #e2e8f0; background: #fff; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all .15s; color: #475569; }
+  .cc-filter-btn:hover  { border-color: #94a3b8; background: #f8fafc; }
+  .cc-filter-btn.active { background: #1a2535; color: #fff; border-color: #1a2535; }
+  .cc-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; }
+  .cc-table { width: 100%; border-collapse: collapse; font-size: 0.81rem; }
+  .cc-table thead tr { background: #f1f5f9; }
+  .cc-table th { padding: 10px 14px; text-align: left; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; white-space: nowrap; border-bottom: 1px solid #e2e8f0; }
+  .cc-table th.num { text-align: right; }
+  .cc-table td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+  .cc-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .cc-table tbody tr:last-child td { border-bottom: none; }
+  .cc-table tbody tr:hover td { background: #f8fafc; }
+  .cc-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.67rem; font-weight: 700; white-space: nowrap; }
+  .cc-badge.s0 { background: #dcfce7; color: #15803d; }
+  .cc-badge.s1 { background: #fef9c3; color: #a16207; }
+  .cc-badge.s2 { background: #fee2e2; color: #b91c1c; }
+  .cc-badge-facturado { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.67rem; font-weight: 600; background: #e0f2fe; color: #075985; }
+  .cc-link { color: #3b82f6; text-decoration: none; font-size: 0.75rem; }
+  .cc-link:hover { text-decoration: underline; }
+  .cc-empty { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 0.85rem; }
+  .cc-empty .cc-empty-icon { font-size: 2.2rem; margin-bottom: 8px; }
+  .cc-table-footer { display: flex; justify-content: flex-end; align-items: center; padding: 10px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 10px 10px; font-size: 0.78rem; color: #64748b; gap: 20px; flex-wrap: wrap; }
+  .cc-table-footer strong { color: #1a2535; }
+</style>
+
+<div class="cc-wrap" id="cc-root">
+  <div class="cc-header">
+    <h2>📋 Cuentas por Cobrar</h2>
+    <span class="cc-last-update" id="cc-update-ts"></span>
+  </div>
+  <div class="cc-kpis">
+    <div class="cc-kpi total">
+      <div class="cc-kpi-label">Total por cobrar</div>
+      <div class="cc-kpi-value" id="cc-kpi-total">$0.00</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-total-sub">0 ítems</div>
+    </div>
+    <div class="cc-kpi rango0">
+      <div class="cc-kpi-label">0–30 días</div>
+      <div class="cc-kpi-value" id="cc-kpi-r0">$0.00</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-r0-sub">0 ítems</div>
+    </div>
+    <div class="cc-kpi rango1">
+      <div class="cc-kpi-label">31–60 días</div>
+      <div class="cc-kpi-value" id="cc-kpi-r1">$0.00</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-r1-sub">0 ítems</div>
+    </div>
+    <div class="cc-kpi rango2">
+      <div class="cc-kpi-label">+60 días</div>
+      <div class="cc-kpi-value" id="cc-kpi-r2">$0.00</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-r2-sub">0 ítems</div>
+    </div>
+  </div>
+  <div class="cc-aging-bar-wrap">
+    <h3>Distribución por antigüedad (desde fecha de factura emitida)</h3>
+    <div class="cc-aging-bar">
+      <div class="cc-aging-seg s0" id="cc-seg0" style="width:0%"></div>
+      <div class="cc-aging-seg s1" id="cc-seg1" style="width:0%"></div>
+      <div class="cc-aging-seg s2" id="cc-seg2" style="width:0%"></div>
+    </div>
+    <div class="cc-aging-legend">
+      <div class="cc-aging-leg-item"><div class="cc-aging-leg-dot s0"></div>0–30 días (corriente)</div>
+      <div class="cc-aging-leg-item"><div class="cc-aging-leg-dot s1"></div>31–60 días (atención)</div>
+      <div class="cc-aging-leg-item"><div class="cc-aging-leg-dot s2"></div>+60 días (vencido)</div>
+    </div>
+  </div>
+  <div class="cc-toolbar">
+    <input type="text" class="cc-search" id="cc-search" placeholder="Buscar por cliente, factura, código…" oninput="window.cc_applyFilters()">
+    <button class="cc-filter-btn active" id="cc-btn-all" onclick="window.cc_setRangeFilter('all')">Todas</button>
+    <button class="cc-filter-btn" id="cc-btn-r0" onclick="window.cc_setRangeFilter('r0')">0–30 d</button>
+    <button class="cc-filter-btn" id="cc-btn-r1" onclick="window.cc_setRangeFilter('r1')">31–60 d</button>
+    <button class="cc-filter-btn" id="cc-btn-r2" onclick="window.cc_setRangeFilter('r2')">+60 d</button>
+  </div>
+  <div class="cc-table-wrap">
+    <table class="cc-table">
+      <thead>
+        <tr>
+          <th>Fac. Emitida</th>
+          <th>Fecha Fac.</th>
+          <th>Cliente</th>
+          <th>Descripción</th>
+          <th>Fac. Carbone</th>
+          <th class="num">Costo</th>
+          <th class="num">Venta</th>
+          <th class="num">Margen</th>
+          <th>Estado</th>
+          <th>Antigüedad</th>
+          <th>Días</th>
+          <th>Docs</th>
+        </tr>
+      </thead>
+      <tbody id="cc-tbody">
+        <tr><td colspan="12" class="cc-empty"><div class="cc-empty-icon">📂</div>Cargando datos…</td></tr>
+      </tbody>
+    </table>
+    <div class="cc-table-footer" id="cc-table-footer" style="display:none">
+      <span>Mostrando <strong id="cc-showing">0</strong> de <strong id="cc-total-rows">0</strong></span>
+      <span>Venta: <strong id="cc-venta-filtrada">$0.00</strong></span>
+      <span>Costo: <strong id="cc-costo-filtrado">$0.00</strong></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var cc_state = { data: [], filtered: [], rangeFilter: 'all', searchTerm: '' };
+
+  function cc_fmt(n) {
+    if (isNaN(n) || n == null) return '$0.00';
+    return '$' + parseFloat(n).toLocaleString('es-PA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function cc_parseDate(str) {
+    if (!str) return null;
+    if (str instanceof Date) return isNaN(str) ? null : str;
+    var s = String(str).trim();
+    var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+    var m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) return new Date(+m2[1], +m2[2]-1, +m2[3]);
+    var d = new Date(s); return isNaN(d) ? null : d;
+  }
+  function cc_dias(fechaStr) {
+    var d = cc_parseDate(fechaStr); if (!d) return null;
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+    return Math.floor((hoy - d) / 86400000);
+  }
+  function cc_rango(dias) { return dias === null ? 'r0' : dias <= 30 ? 'r0' : dias <= 60 ? 'r1' : 'r2'; }
+  function cc_badge(dias) {
+    var key = cc_rango(dias);
+    var cls = {r0:'s0',r1:'s1',r2:'s2'}[key];
+    var icon = key==='r0'?'✓ ':key==='r1'?'⚠ ':'🔴 ';
+    var label = dias===null?'?':dias===0?'Hoy':dias+' días';
+    return '<span class="cc-badge '+cls+'">'+icon+label+'</span>';
+  }
+  function cc_fecha(str) {
+    var d = cc_parseDate(str); if (!d) return '—';
+    return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();
+  }
+  function cc_esc(str) { return String(str||'—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function cc_loadData() {
+    var raw = (typeof opItems!=='undefined'&&Array.isArray(opItems)) ? opItems
+            : (typeof window.opItems!=='undefined'&&Array.isArray(window.opItems)) ? window.opItems
+            : null;
+    if (raw) { cc_processData(raw); return; }
+    // Fallback: fetch via gasJsonp
+    if (typeof gasJsonp === 'function') {
+      gasJsonp('getComprasVentas', {})
+        .then(function(d){ cc_processData(d.items||[]); })
+        .catch(function(e){ cc_renderError('Error: '+e.message); });
+    } else {
+      cc_renderError('Cargue la sección "Operaciones" primero para ver las cuentas por cobrar.');
+    }
+  }
+
+  function cc_processData(raw) {
+    var items = [];
+    raw.forEach(function(row) {
+      if (String(row.estado||'').trim().toLowerCase() !== 'facturado') return;
+      var dias = cc_dias(row.fecha_venta||'');
+      items.push({
+        id_item:         row.id_item          || '',
+        num_fac_emitida: row.num_fac_emitida  || '—',
+        num_fac_carbone: row.num_fac_carbone  || '—',
+        fecha_venta:     row.fecha_venta      || '',
+        nombre_cliente:  row.nombre_cliente   || '—',
+        ruc_cliente:     row.ruc_cliente      || '',
+        descripcion:     row.descripcion_prod || '—',
+        codigo:          row.codigo_prod      || '',
+        total_carbone:   parseFloat(row.total_carbone||'0')||0,
+        total_venta:     parseFloat(row.total_venta||'0')||0,
+        margen:          parseFloat(row.margen||'0')||0,
+        drive_url_carb:  row.drive_url_carb   || '',
+        drive_url_emit:  row.drive_url_emit   || '',
+        id_orden_web:    row.id_orden_web     || '',
+        dias:            dias,
+        rango:           cc_rango(dias),
+      });
+    });
+    items.sort(function(a,b){ return (b.dias||0)-(a.dias||0); });
+    cc_state.data = items;
+    cc_computeKPIs();
+    cc_applyFilters();
+    document.getElementById('cc-update-ts').textContent =
+      'Actualizado: '+new Date().toLocaleTimeString('es-PA',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function cc_computeKPIs() {
+    var data=cc_state.data, tot={total:0,r0:0,r1:0,r2:0}, cnt={total:0,r0:0,r1:0,r2:0};
+    data.forEach(function(r){ tot.total+=r.total_venta; tot[r.rango]+=r.total_venta; cnt.total++; cnt[r.rango]++; });
+    document.getElementById('cc-kpi-total').textContent    =cc_fmt(tot.total);
+    document.getElementById('cc-kpi-total-sub').textContent=cnt.total+' ítems';
+    document.getElementById('cc-kpi-r0').textContent       =cc_fmt(tot.r0);
+    document.getElementById('cc-kpi-r0-sub').textContent   =cnt.r0+' ítems';
+    document.getElementById('cc-kpi-r1').textContent       =cc_fmt(tot.r1);
+    document.getElementById('cc-kpi-r1-sub').textContent   =cnt.r1+' ítems';
+    document.getElementById('cc-kpi-r2').textContent       =cc_fmt(tot.r2);
+    document.getElementById('cc-kpi-r2-sub').textContent   =cnt.r2+' ítems';
+    if (tot.total > 0) {
+      ['0','1','2'].forEach(function(n){
+        var pct=(tot['r'+n]/tot.total*100).toFixed(1);
+        var seg=document.getElementById('cc-seg'+n);
+        seg.style.width=pct+'%';
+        if(parseFloat(pct)>8) seg.textContent=pct+'%';
+      });
+    }
+  }
+
+  window.cc_setRangeFilter = function(range) {
+    cc_state.rangeFilter=range;
+    ['all','r0','r1','r2'].forEach(function(k){
+      var b=document.getElementById('cc-btn-'+k);
+      if(b) b.classList.toggle('active',k===range);
+    });
+    cc_applyFilters();
+  };
+
+  window.cc_applyFilters = function() {
+    // Re-procesar desde opItems vivo para reflejar cambios en tiempo real
+    var raw = (typeof opItems!=='undefined'&&Array.isArray(opItems)) ? opItems
+            : (typeof window.opItems!=='undefined'&&Array.isArray(window.opItems)) ? window.opItems
+            : null;
+    if (raw) {
+      // Reprocesar sin triggear applyFilters de nuevo
+      var items = [];
+      raw.forEach(function(row) {
+        if (String(row.estado||'').trim().toLowerCase() !== 'facturado') return;
+        var dias = cc_dias(row.fecha_venta||'');
+        items.push({
+          id_item:         row.id_item          || '',
+          num_fac_emitida: row.num_fac_emitida  || '—',
+          num_fac_carbone: row.num_fac_carbone  || '—',
+          fecha_venta:     row.fecha_venta      || '',
+          nombre_cliente:  row.nombre_cliente   || '—',
+          ruc_cliente:     row.ruc_cliente      || '',
+          descripcion:     row.descripcion_prod || '—',
+          codigo:          row.codigo_prod      || '',
+          total_carbone:   parseFloat(row.total_carbone||'0')||0,
+          total_venta:     parseFloat(row.total_venta||'0')||0,
+          margen:          parseFloat(row.margen||'0')||0,
+          drive_url_carb:  row.drive_url_carb   || '',
+          drive_url_emit:  row.drive_url_emit   || '',
+          id_orden_web:    row.id_orden_web     || '',
+          dias:            dias,
+          rango:           cc_rango(dias),
+        });
+      });
+      items.sort(function(a,b){ return (b.dias||0)-(a.dias||0); });
+      cc_state.data = items;
+      cc_computeKPIs();
+    }
+    var term=(document.getElementById('cc-search')||{value:''}).value.toLowerCase().trim();
+    var result=cc_state.data.filter(function(row){
+      if(cc_state.rangeFilter!=='all'&&row.rango!==cc_state.rangeFilter) return false;
+      if(term){
+        var h=[row.num_fac_emitida,row.num_fac_carbone,row.nombre_cliente,row.descripcion,row.codigo].join(' ').toLowerCase();
+        if(h.indexOf(term)===-1) return false;
+      }
+      return true;
+    });
+    cc_state.filtered=result;
+    cc_renderTable(result);
+  };
+
+  function cc_renderTable(rows) {
+    var tbody=document.getElementById('cc-tbody');
+    var footer=document.getElementById('cc-table-footer');
+    if(!rows.length){
+      tbody.innerHTML='<tr><td colspan="12" class="cc-empty"><div class="cc-empty-icon">🔍</div>'+(cc_state.data.length===0?'No hay ítems facturados pendientes de cobro.':'Sin resultados para los filtros aplicados.')+'</td></tr>';
+      footer.style.display='none'; return;
+    }
+    var html='';
+    rows.forEach(function(row){
+      var mc=row.margen>0?'#16a34a':'#dc2626';
+      var docs='';
+      if(row.drive_url_emit) docs+='<a href="'+cc_esc(row.drive_url_emit)+'" target="_blank" class="cc-link">📄 Fac</a> ';
+      if(row.drive_url_carb) docs+='<a href="'+cc_esc(row.drive_url_carb)+'" target="_blank" class="cc-link">📦 Carb</a>';
+      if(!docs) docs='—';
+      html+='<tr>';
+      html+='<td><span style="font-family:monospace;font-size:.8rem;font-weight:600">'+cc_esc(row.num_fac_emitida)+'</span>';
+      if(row.id_orden_web) html+='<div style="font-size:.65rem;color:#1565C0;margin-top:2px">🛒 '+cc_esc(row.id_orden_web)+'</div>';
+      html+='</td>';
+      html+='<td>'+cc_fecha(row.fecha_venta)+'</td>';
+      html+='<td><div style="font-weight:600">'+cc_esc(row.nombre_cliente)+'</div>';
+      if(row.ruc_cliente) html+='<div style="font-size:.7rem;color:#94a3b8">'+cc_esc(row.ruc_cliente)+'</div>';
+      html+='</td>';
+      html+='<td><div style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+cc_esc(row.descripcion)+'">'+cc_esc(row.descripcion.substring(0,45))+'</div>';
+      if(row.codigo) html+='<div style="font-size:.7rem;color:#94a3b8">'+cc_esc(row.codigo)+'</div>';
+      html+='</td>';
+      html+='<td style="font-size:.78rem;color:#94a3b8">'+cc_esc(row.num_fac_carbone)+'</td>';
+      html+='<td class="num" style="color:#E65100">'+cc_fmt(row.total_carbone)+'</td>';
+      html+='<td class="num" style="color:#15803d;font-size:.95rem">'+cc_fmt(row.total_venta)+'</td>';
+      html+='<td class="num" style="color:'+mc+'">'+cc_fmt(row.margen)+'</td>';
+      html+='<td><span class="cc-badge-facturado">📋 Facturado</span></td>';
+      html+='<td>'+cc_badge(row.dias)+'</td>';
+      html+='<td style="text-align:right;color:#64748b">'+(row.dias!==null?row.dias:'?')+'</td>';
+      html+='<td>'+docs+'</td>';
+      html+='</tr>';
+    });
+    tbody.innerHTML=html;
+    var vt=rows.reduce(function(s,r){return s+r.total_venta;},0);
+    var ct=rows.reduce(function(s,r){return s+r.total_carbone;},0);
+    document.getElementById('cc-showing').textContent      =rows.length;
+    document.getElementById('cc-total-rows').textContent   =cc_state.data.length;
+    document.getElementById('cc-venta-filtrada').textContent=cc_fmt(vt);
+    document.getElementById('cc-costo-filtrado').textContent=cc_fmt(ct);
+    footer.style.display='flex';
+  }
+
+  function cc_renderError(msg) {
+    document.getElementById('cc-tbody').innerHTML='<tr><td colspan="12" class="cc-empty"><div class="cc-empty-icon">⚠️</div>'+cc_esc(msg)+'</td></tr>';
+  }
+
+  setTimeout(function(){ cc_loadData(); }, 0);
+})();
+</script>

@@ -1,0 +1,832 @@
+<!-- ═══════════════════════════════════════════════
+     MÓDULO: Flujo de Caja
+     Prefijo: fc-  |  IIFE independiente
+     Cargado dinámicamente por admin_v12.html
+     Fuentes: ingItems (Ingresos) + egrItems (Egresos)
+             + opItems estado='facturado' (pendientes cobro)
+════════════════════════════════════════════════ -->
+<style>
+/* ── Base ───────────────────────────────────────── */
+.fc-wrap {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  min-height: calc(100vh - 60px);
+  color: var(--text);
+}
+
+/* ── Controls ───────────────────────────────────── */
+.fc-controls {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: 1rem 2rem; border-bottom: 1px solid var(--border);
+  background: var(--white); position: sticky; top: 60px; z-index: 50;
+}
+.fc-ctrl-label {
+  font-family: 'DM Mono', monospace; font-size: .62rem;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.fc-ctrl-select {
+  font-family: 'DM Mono', monospace; font-size: .78rem; font-weight: 600;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r); padding: .35rem .65rem;
+  color: var(--text); outline: none; cursor: pointer;
+}
+.fc-pill {
+  font-size: .78rem; font-weight: 500; padding: .35rem .9rem;
+  border-radius: 100px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--muted); cursor: pointer; transition: all .2s;
+}
+.fc-pill.active { background: var(--orange); border-color: var(--orange); color: #fff; font-weight: 600; }
+.fc-pill.green.active  { background: var(--green);  border-color: var(--green); }
+.fc-pill.blue.active   { background: #1565C0; border-color: #1565C0; }
+.fc-toggle-wrap {
+  display: flex; align-items: center; gap: .45rem;
+  padding: .3rem .75rem; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--bg);
+  cursor: pointer; transition: all .2s; user-select: none;
+}
+.fc-toggle-wrap:hover { border-color: #888; }
+.fc-toggle-wrap.on { border-color: #E65100; background: #FFF3E0; }
+.fc-toggle-switch {
+  width: 28px; height: 16px; border-radius: 8px; background: #ccc;
+  position: relative; transition: background .2s; flex-shrink: 0;
+}
+.fc-toggle-wrap.on .fc-toggle-switch { background: #E65100; }
+.fc-toggle-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; transition: left .2s;
+}
+.fc-toggle-wrap.on .fc-toggle-knob { left: 14px; }
+.fc-toggle-label { font-size: .78rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.fc-toggle-wrap.on .fc-toggle-label { color: #E65100; font-weight: 600; }
+
+/* ── KPI row ────────────────────────────────────── */
+.fc-kpi-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem; padding: 1.25rem 2rem;
+  background: var(--white); border-bottom: 1px solid var(--border);
+}
+.fc-kpi {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 1rem 1.25rem;
+  position: relative; overflow: hidden;
+}
+.fc-kpi::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.fc-kpi.orange::before { background: var(--orange); }
+.fc-kpi.green::before  { background: var(--green); }
+.fc-kpi.red::before    { background: var(--red); }
+.fc-kpi.blue::before   { background: #1565C0; }
+.fc-kpi.purple::before { background: #6A1B9A; }
+.fc-kpi-label { font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem; }
+.fc-kpi-value { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; line-height: 1; }
+.fc-kpi-value.orange { color: var(--orange); }
+.fc-kpi-value.green  { color: var(--green); }
+.fc-kpi-value.red    { color: var(--red); }
+.fc-kpi-value.blue   { color: #1565C0; }
+.fc-kpi-value.purple { color: #6A1B9A; }
+.fc-kpi-sub { font-size: .72rem; color: var(--muted); margin-top: .25rem; }
+
+/* ── Chart section ──────────────────────────────── */
+.fc-chart-section {
+  padding: 1.5rem 2rem; background: var(--white);
+  border-bottom: 1px solid var(--border);
+}
+.fc-chart-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem;
+}
+.fc-chart-title {
+  font-family: 'DM Mono', monospace; font-size: .65rem;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+.fc-chart-legend {
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+.fc-legend-item {
+  display: flex; align-items: center; gap: .35rem;
+  font-size: .72rem; color: var(--muted);
+}
+.fc-legend-dot {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+}
+.fc-chart-wrap { position: relative; height: 240px; }
+
+/* ── Body grid ──────────────────────────────────── */
+.fc-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+@media (max-width: 860px) { .fc-body { grid-template-columns: 1fr; } }
+
+/* ── Tabla mes a mes ────────────────────────────── */
+.fc-table-section {
+  padding: 1.5rem 2rem; overflow-x: auto;
+  border-right: 1px solid var(--border);
+}
+.fc-section-title {
+  font-family: 'DM Mono', monospace; font-size: .65rem;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; margin-bottom: 1rem;
+}
+.fc-table { width: 100%; border-collapse: collapse; min-width: 460px; }
+.fc-table thead th {
+  font-family: 'DM Mono', monospace; font-size: .63rem;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+  padding: .55rem .75rem; border-bottom: 2px solid var(--border);
+  text-align: right; white-space: nowrap;
+}
+.fc-table thead th:first-child { text-align: left; }
+.fc-table tbody tr {
+  border-bottom: 1px solid var(--border); transition: background .12s;
+}
+.fc-table tbody tr:hover { background: var(--bg2, #f9f9f9); }
+.fc-table tbody td {
+  padding: .65rem .75rem; font-size: .82rem;
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+.fc-table tbody td:first-child { text-align: left; font-weight: 600; }
+.fc-table tfoot td {
+  padding: .65rem .75rem; font-size: .82rem; font-weight: 700;
+  text-align: right; border-top: 2px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.fc-table tfoot td:first-child { text-align: left; }
+
+.fc-neto-pos { color: var(--green); font-weight: 700; }
+.fc-neto-neg { color: var(--red);   font-weight: 700; }
+.fc-saldo-pos { color: var(--green); font-weight: 700; font-family: 'DM Mono', monospace; font-size: .78rem; }
+.fc-saldo-neg { color: var(--red);   font-weight: 700; font-family: 'DM Mono', monospace; font-size: .78rem; }
+
+/* ── ITBMS section ──────────────────────────────── */
+.fc-itbms-section { padding: 1.5rem 2rem; }
+.fc-itbms-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 1rem 1.25rem;
+  margin-bottom: .75rem;
+}
+.fc-itbms-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: .4rem 0; border-bottom: 1px solid var(--border); font-size: .83rem;
+}
+.fc-itbms-row:last-child { border-bottom: none; }
+.fc-itbms-label { color: var(--muted); font-size: .78rem; }
+.fc-itbms-val   { font-family: 'DM Mono', monospace; font-weight: 600; font-size: .85rem; }
+.fc-itbms-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: .75rem 1.25rem; border-radius: var(--r);
+  margin-top: .5rem;
+}
+.fc-itbms-total.pagar { background: #FFF3E0; }
+.fc-itbms-total.favor { background: var(--green-bg, #F1F8E9); }
+.fc-itbms-total-label { font-size: .8rem; font-weight: 700; }
+.fc-itbms-total-val   { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; }
+.fc-itbms-total.pagar .fc-itbms-total-val { color: #E65100; }
+.fc-itbms-total.favor .fc-itbms-total-val { color: var(--green); }
+
+/* ── Pendientes cobro ───────────────────────────── */
+.fc-pending-section {
+  padding: 1.5rem 2rem; border-top: 1px solid var(--border);
+  background: var(--white);
+}
+.fc-pending-table { width: 100%; border-collapse: collapse; }
+.fc-pending-table thead th {
+  font-family: 'DM Mono', monospace; font-size: .63rem;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+  padding: .5rem .75rem; border-bottom: 2px solid var(--border);
+  text-align: left; white-space: nowrap;
+}
+.fc-pending-table thead th.num { text-align: right; }
+.fc-pending-table tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+.fc-pending-table tbody tr:hover { background: var(--bg); }
+.fc-pending-table tbody td { padding: .6rem .75rem; font-size: .81rem; }
+.fc-pending-table tbody td.num {
+  text-align: right; font-variant-numeric: tabular-nums;
+  font-family: 'DM Mono', monospace; font-weight: 600;
+}
+.fc-dias-badge {
+  display: inline-block; padding: .18rem .55rem; border-radius: 100px;
+  font-size: .68rem; font-weight: 700;
+}
+.fc-dias-badge.ok  { background: #E8F5E9; color: #388E3C; }
+.fc-dias-badge.mid { background: #FFF9C4; color: #F9A825; }
+.fc-dias-badge.bad { background: #FFEBEE; color: #C62828; }
+.fc-pending-total {
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: 1rem; padding: .75rem; background: var(--bg);
+  border-top: 2px solid var(--border);
+  font-size: .83rem; font-weight: 700;
+}
+
+/* ── Utilidades ─────────────────────────────────── */
+.fc-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: .75rem; padding: 3rem;
+  color: var(--muted); font-size: .85rem;
+}
+.fc-loading {
+  display: flex; align-items: center; gap: .75rem;
+  padding: 3rem; color: var(--muted); justify-content: center;
+}
+.fc-badge-pendiente {
+  display: inline-block; padding: .18rem .55rem; border-radius: 4px;
+  font-size: .68rem; font-weight: 600; background: #E3F2FD; color: #1565C0;
+}
+</style>
+
+<!-- ══════════════════ HTML ══════════════════════ -->
+<div class="fc-wrap">
+
+  <!-- CONTROLS -->
+  <div class="fc-controls">
+    <span class="fc-ctrl-label">Año</span>
+    <select class="fc-ctrl-select" id="fcSelAnio" onchange="fcApply()"></select>
+    <span class="fc-ctrl-label" style="margin-left:.4rem">Vista</span>
+    <button class="fc-pill active" id="fcPillMes"   onclick="fcSetVista('mes',this)">Mensual</button>
+    <button class="fc-pill"        id="fcPillAcum"  onclick="fcSetVista('acum',this)">Acumulado</button>
+    <div class="fc-toggle-wrap on" id="fcToggleInv" onclick="fcToggleInventario()" style="margin-left:auto" title="Incluye egresos de mercancía e inventario en el flujo">
+      <div class="fc-toggle-switch"><div class="fc-toggle-knob"></div></div>
+      <span class="fc-toggle-label">Incluir inventario</span>
+    </div>
+    <button class="fc-pill" onclick="window.fcLoaded=false;window.fcLoad()">↺ Actualizar</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="fc-kpi-row" id="fcKpiRow">
+    <div class="fc-kpi orange"><div class="fc-kpi-label">Cargando...</div></div>
+  </div>
+
+  <!-- GRÁFICA -->
+  <div class="fc-chart-section">
+    <div class="fc-chart-header">
+      <span class="fc-chart-title" id="fcChartTitle">Ingresos vs Egresos — Flujo mensual</span>
+      <div class="fc-chart-legend">
+        <div class="fc-legend-item"><div class="fc-legend-dot" style="background:#4CAF50"></div>Ingresos</div>
+        <div class="fc-legend-item"><div class="fc-legend-dot" style="background:#EF5350"></div>Egresos</div>
+        <div class="fc-legend-item"><div class="fc-legend-dot" style="background:#1565C0;border-radius:50%"></div>Saldo acum.</div>
+      </div>
+    </div>
+    <div class="fc-chart-wrap"><canvas id="fcMainChart"></canvas></div>
+  </div>
+
+  <!-- BODY: tabla mes a mes + ITBMS -->
+  <div class="fc-body">
+
+    <!-- Tabla mes a mes -->
+    <div class="fc-table-section">
+      <div class="fc-section-title">Detalle mensual</div>
+      <table class="fc-table">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th>Ingresos</th>
+            <th>Egresos</th>
+            <th>Neto</th>
+            <th>Saldo acum.</th>
+          </tr>
+        </thead>
+        <tbody id="fcTableBody">
+          <tr><td colspan="5"><div class="fc-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+        </tbody>
+        <tfoot id="fcTableFoot"></tfoot>
+      </table>
+    </div>
+
+    <!-- ITBMS neto -->
+    <div class="fc-itbms-section">
+      <div class="fc-section-title">ITBMS — Posición fiscal</div>
+      <div class="fc-itbms-card" id="fcItbmsCard">
+        <div class="fc-loading" style="padding:1rem 0">
+          <div class="spinner" style="width:18px;height:18px"></div>
+        </div>
+      </div>
+      <div id="fcItbmsTotal"></div>
+
+      <!-- Breakdown egresos por tipo -->
+      <div class="fc-section-title" style="margin-top:1.5rem">Egresos por tipo</div>
+      <div class="fc-itbms-card" id="fcEgrTipoCard">
+        <div class="fc-loading" style="padding:1rem 0">
+          <div class="spinner" style="width:18px;height:18px"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /fc-body -->
+
+  <!-- PENDIENTES DE COBRO -->
+  <div class="fc-pending-section">
+    <div class="fc-section-title">
+      Ventas pendientes de cobro
+      <span style="font-weight:400;color:var(--muted);margin-left:.5rem">
+        — facturadas, pago no registrado
+      </span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="fc-pending-table">
+        <thead>
+          <tr>
+            <th>Factura emitida</th>
+            <th>Cliente</th>
+            <th class="num">Monto</th>
+            <th>Fecha venta</th>
+            <th>Antigüedad</th>
+          </tr>
+        </thead>
+        <tbody id="fcPendingBody">
+          <tr><td colspan="5"><div class="fc-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="fc-pending-total" id="fcPendingTotal" style="display:none"></div>
+  </div>
+
+</div><!-- /fc-wrap -->
+
+<!-- ══════════════════ JS ════════════════════════ -->
+<script>
+(function() {
+
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwsQ2Aob4xsRtHi8r-OoAuGhGH3LKdSPerT1o9SlotkO_0tWGUdHYasgCqjOMJsTYZu/exec';
+
+// ── Estado ───────────────────────────────────────
+let fc_ing    = [];   // todos los ingresos
+let fc_egr    = [];   // todos los egresos
+let fc_op     = [];   // opItems para pendientes
+let fc_year   = new Date().getFullYear();
+let fc_vista       = 'mes';  // 'mes' | 'acum'
+let fc_inv_on      = true;   // incluir costo_mercancia en egresos
+let fc_chart  = null;
+let fcLoaded  = false;
+
+// ── JSONP helper ─────────────────────────────────
+function fcGasJsonp(action) {
+  return new Promise((resolve, reject) => {
+    const cb = 'fcCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let done = false;
+    const t = setTimeout(() => {
+      if (!done) { done=true; cleanup(); reject(new Error('Timeout cargando datos')); }
+    }, 30000);
+    window[cb] = d => { if (!done) { done=true; clearTimeout(t); cleanup(); resolve(d); } };
+    script.onerror = () => { if (!done) { done=true; clearTimeout(t); cleanup(); reject(new Error('Error de red')); } };
+    script.src = GAS_URL + '?action=' + action + '&callback=' + cb;
+    function cleanup() { delete window[cb]; if (script.parentNode) script.parentNode.removeChild(script); }
+    document.head.appendChild(script);
+  });
+}
+
+// ── LOAD ─────────────────────────────────────────
+async function fcLoad() {
+  if (fcLoaded) { fcApply(); return; }
+  try {
+    // Ingresos
+    if (typeof ingItems !== 'undefined' && ingItems.length) {
+      fc_ing = ingItems;
+    } else {
+      const d = await fcGasJsonp('getIngresos');
+      if (!d.success) throw new Error(d.error || 'Error getIngresos');
+      fc_ing = d.items || [];
+    }
+    // Egresos
+    if (typeof egrItems !== 'undefined' && egrItems.length) {
+      fc_egr = egrItems;
+    } else {
+      const d = await fcGasJsonp('getEgresos');
+      if (!d.success) throw new Error(d.error || 'Error getEgresos');
+      fc_egr = d.items || [];
+    }
+    // Pendientes de cobro (opItems estado=facturado)
+    if (typeof opItems !== 'undefined' && opItems.length) {
+      fc_op = opItems;
+    } else {
+      const d = await fcGasJsonp('getComprasVentas');
+      if (!d.success) throw new Error(d.error || 'Error getComprasVentas');
+      fc_op = d.items || [];
+    }
+
+    // Normalizar egresos: derivar mes y anio desde fecha_egreso si el GAS no los incluyó
+    fc_egr.forEach(i => {
+      if (!i.anio && !i.anio_fiscal && i.fecha_egreso) {
+        const d = new Date(String(i.fecha_egreso).substring(0,10) + 'T12:00:00');
+        if (!isNaN(d)) { i.anio = d.getFullYear(); i.mes = d.getMonth() + 1; }
+      }
+    });
+
+    fcLoaded = true;
+    fcPopulateYears();
+    fcApply();
+  } catch(err) {
+    fcShowError(err.message);
+  }
+}
+
+// ── Año selector ─────────────────────────────────
+function fcPopulateYears() {
+  const years = new Set();
+  fc_ing.forEach(i => { if (i.anio_fiscal) years.add(Number(i.anio_fiscal)); });
+  fc_egr.forEach(i => { if (i.anio || i.anio_fiscal) years.add(Number(i.anio || i.anio_fiscal)); });
+  if (!years.size) years.add(new Date().getFullYear());
+  const sel = document.getElementById('fcSelAnio');
+  sel.innerHTML = '';
+  [...years].sort((a,b)=>b-a).forEach(y => {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    if (y === fc_year) o.selected = true;
+    sel.appendChild(o);
+  });
+  fc_year = Number(sel.value);
+}
+
+function fcApply() {
+  fc_year = Number(document.getElementById('fcSelAnio').value);
+  const ing = fc_ing.filter(i => Number(i.anio_fiscal) === fc_year);
+  const egrAll = fc_egr.filter(i => Number(i.anio || i.anio_fiscal) === fc_year);
+  const egr = fc_inv_on
+    ? egrAll
+    : egrAll.filter(i => i.categoria !== 'Inventario' && i.categoria !== 'costo_mercancia');
+  fcRenderKpis(ing, egr);
+  fcRenderChart(ing, egr);
+  fcRenderTable(ing, egr);
+  fcRenderItbms(ing, egr);
+  fcRenderEgrTipo(egr);
+  fcRenderPending();
+}
+
+// ── Helpers numéricos ────────────────────────────
+const fmtUSD = n => '$' + Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtK   = n => { const v=Number(n||0); return v>=1000?'$'+(v/1000).toFixed(1)+'K':fmtUSD(v); };
+
+function fcMonthData(ing, egr) {
+  // Devuelve array[0..11] con {ingresos, egresos, neto, acum}
+  const byMonth = Array.from({length:12}, (_,m) => ({
+    m: m+1,
+    ingresos: 0, egresos: 0,
+  }));
+  ing.forEach(i => {
+    const m = Number(i.mes||0);
+    if (m>=1&&m<=12) byMonth[m-1].ingresos += Number(i.total||0);
+  });
+  egr.forEach(i => {
+    const m = Number(i.mes||0);
+    if (m>=1&&m<=12) byMonth[m-1].egresos += Number(i.total||0);
+  });
+  let acum = 0;
+  byMonth.forEach(r => {
+    r.neto = r.ingresos - r.egresos;
+    acum  += r.neto;
+    r.acum = acum;
+  });
+  return byMonth;
+}
+
+// ── KPIs ─────────────────────────────────────────
+function fcRenderKpis(ing, egr) {
+  const totalIng = ing.reduce((s,i)=>s+Number(i.total||0),0);
+  const totalEgr = egr.reduce((s,i)=>s+Number(i.total||0),0);
+  const saldo    = totalIng - totalEgr;
+
+  const byM  = fcMonthData(ing, egr);
+  const activos = byM.filter(r => r.ingresos>0||r.egresos>0);
+  const mejorM  = activos.length ? activos.reduce((a,b)=>b.neto>a.neto?b:a) : null;
+  const peorM   = activos.length ? activos.reduce((a,b)=>b.neto<a.neto?b:a) : null;
+  const MESES   = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  document.getElementById('fcKpiRow').innerHTML = `
+    <div class="fc-kpi orange">
+      <div class="fc-kpi-label">Ingresos ${fc_year}</div>
+      <div class="fc-kpi-value orange">${fmtK(totalIng)}</div>
+      <div class="fc-kpi-sub">${ing.length} transacciones</div>
+    </div>
+    <div class="fc-kpi red">
+      <div class="fc-kpi-label">Egresos ${fc_year}</div>
+      <div class="fc-kpi-value red">${fmtK(totalEgr)}</div>
+      <div class="fc-kpi-sub">${egr.length} registros</div>
+    </div>
+    <div class="fc-kpi ${saldo>=0?'green':'red'}">
+      <div class="fc-kpi-label">Saldo neto ${fc_year}</div>
+      <div class="fc-kpi-value ${saldo>=0?'green':'red'}">${fmtK(saldo)}</div>
+      <div class="fc-kpi-sub">${saldo>=0?'Posición positiva':'Posición negativa'}</div>
+    </div>
+    <div class="fc-kpi green">
+      <div class="fc-kpi-label">Mejor mes</div>
+      <div class="fc-kpi-value green">${mejorM?MESES[mejorM.m]:'—'}</div>
+      <div class="fc-kpi-sub">${mejorM?fmtUSD(mejorM.neto):''}</div>
+    </div>
+    <div class="fc-kpi ${peorM&&peorM.neto<0?'red':'orange'}">
+      <div class="fc-kpi-label">Mes más ajustado</div>
+      <div class="fc-kpi-value ${peorM&&peorM.neto<0?'red':'orange'}">${peorM?MESES[peorM.m]:'—'}</div>
+      <div class="fc-kpi-sub">${peorM?fmtUSD(peorM.neto):''}</div>
+    </div>
+    <div class="fc-kpi blue">
+      <div class="fc-kpi-label">ITBMS neto a DGI</div>
+      <div class="fc-kpi-value blue">${fmtK(
+        ing.reduce((s,i)=>s+Number(i.itbms||0),0) -
+        egr.reduce((s,i)=>s+Number(i.itbms||0),0)
+      )}</div>
+      <div class="fc-kpi-sub">Cobrado − Pagado</div>
+    </div>
+  `;
+}
+
+// ── Chart ────────────────────────────────────────
+function fcRenderChart(ing, egr) {
+  const byM   = fcMonthData(ing, egr);
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const acum  = fc_vista === 'acum';
+
+  const labels  = MESES;
+  const dsIng   = byM.map(r => acum ? null : r.ingresos);
+  const dsEgr   = byM.map(r => acum ? null : r.egresos);
+  const dsNeto  = byM.map(r => acum ? r.acum : r.neto);
+
+  document.getElementById('fcChartTitle').textContent =
+    acum ? 'Saldo acumulado — Flujo de caja ' + fc_year
+         : 'Ingresos vs Egresos — Flujo mensual ' + fc_year;
+
+  const ctx = document.getElementById('fcMainChart').getContext('2d');
+  if (fc_chart) fc_chart.destroy();
+
+  const datasets = acum ? [
+    {
+      label: 'Saldo acumulado',
+      data: dsNeto,
+      type: 'line',
+      borderColor: '#1565C0',
+      backgroundColor: 'rgba(21,101,192,.1)',
+      borderWidth: 2.5,
+      pointRadius: 4,
+      pointBackgroundColor: dsNeto.map(v => v>=0 ? '#4CAF50' : '#EF5350'),
+      fill: true,
+      tension: .35,
+      yAxisID: 'y',
+    }
+  ] : [
+    {
+      label: 'Ingresos',
+      data: dsIng,
+      backgroundColor: 'rgba(76,175,80,.75)',
+      borderRadius: 4,
+      yAxisID: 'y',
+    },
+    {
+      label: 'Egresos',
+      data: dsEgr,
+      backgroundColor: 'rgba(239,83,80,.7)',
+      borderRadius: 4,
+      yAxisID: 'y',
+    },
+    {
+      label: 'Neto',
+      data: dsNeto,
+      type: 'line',
+      borderColor: '#1565C0',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 3,
+      pointBackgroundColor: dsNeto.map(v => v>=0 ? '#4CAF50' : '#EF5350'),
+      tension: .3,
+      yAxisID: 'y',
+    },
+  ];
+
+  fc_chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + ctx.dataset.label + ': ' + fmtUSD(ctx.parsed.y),
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: {
+          ticks: {
+            callback: v => fmtK(v),
+            font: { size: 11 },
+          },
+          grid: { color: 'rgba(0,0,0,.06)' },
+        },
+      },
+    },
+  });
+}
+
+// ── Tabla mes a mes ───────────────────────────────
+function fcRenderTable(ing, egr) {
+  const byM   = fcMonthData(ing, egr);
+  const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const activos = byM.filter(r => r.ingresos>0||r.egresos>0);
+
+  if (!activos.length) {
+    document.getElementById('fcTableBody').innerHTML =
+      '<tr><td colspan="5"><div class="fc-empty">Sin movimientos en ' + fc_year + '</div></td></tr>';
+    document.getElementById('fcTableFoot').innerHTML = '';
+    return;
+  }
+
+  const rows = byM.map(r => {
+    const hasData = r.ingresos>0||r.egresos>0;
+    const netoClass = r.neto>=0 ? 'fc-neto-pos' : 'fc-neto-neg';
+    const acumClass = r.acum>=0 ? 'fc-saldo-pos' : 'fc-saldo-neg';
+    const style = !hasData ? 'opacity:.35' : '';
+    return `<tr style="${style}">
+      <td>${MESES[r.m]}</td>
+      <td>${hasData||r.ingresos>0 ? fmtUSD(r.ingresos) : '—'}</td>
+      <td>${hasData||r.egresos>0  ? fmtUSD(r.egresos)  : '—'}</td>
+      <td class="${netoClass}">${hasData ? fmtUSD(r.neto) : '—'}</td>
+      <td class="${acumClass}">${hasData ? fmtUSD(r.acum) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const totIng = byM.reduce((s,r)=>s+r.ingresos,0);
+  const totEgr = byM.reduce((s,r)=>s+r.egresos,0);
+  const totNet = totIng - totEgr;
+  const netCls = totNet>=0?'fc-neto-pos':'fc-neto-neg';
+
+  document.getElementById('fcTableBody').innerHTML = rows;
+  document.getElementById('fcTableFoot').innerHTML = `
+    <tr>
+      <td>Total</td>
+      <td>${fmtUSD(totIng)}</td>
+      <td>${fmtUSD(totEgr)}</td>
+      <td class="${netCls}">${fmtUSD(totNet)}</td>
+      <td class="${netCls}">${fmtUSD(totNet)}</td>
+    </tr>`;
+}
+
+// ── ITBMS ────────────────────────────────────────
+function fcRenderItbms(ing, egr) {
+  const cobrado = ing.reduce((s,i)=>s+Number(i.itbms||0),0);
+  const pagado  = egr.reduce((s,i)=>s+Number(i.itbms||0),0);
+  const neto    = cobrado - pagado;
+  const aPagar  = neto >= 0;
+
+  document.getElementById('fcItbmsCard').innerHTML = `
+    <div class="fc-itbms-row">
+      <span class="fc-itbms-label">ITBMS cobrado (ingresos)</span>
+      <span class="fc-itbms-val" style="color:#1565C0">+${fmtUSD(cobrado)}</span>
+    </div>
+    <div class="fc-itbms-row">
+      <span class="fc-itbms-label">ITBMS pagado (egresos)</span>
+      <span class="fc-itbms-val" style="color:#6A1B9A">−${fmtUSD(pagado)}</span>
+    </div>
+  `;
+  document.getElementById('fcItbmsTotal').innerHTML = `
+    <div class="fc-itbms-total ${aPagar?'pagar':'favor'}">
+      <span class="fc-itbms-total-label">${aPagar?'A pagar a DGI':'Saldo a favor'}</span>
+      <span class="fc-itbms-total-val">${fmtUSD(Math.abs(neto))}</span>
+    </div>
+    <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem;padding:0 .25rem">
+      ${aPagar
+        ? '⚠️ Este monto corresponde al ITBMS neto que se debería declarar a DGI por el período.'
+        : '✅ El ITBMS pagado supera el cobrado en este período.'}
+    </div>
+  `;
+}
+
+// ── Egresos por tipo ──────────────────────────────
+function fcRenderEgrTipo(egr) {
+  const map = {};
+  egr.forEach(i => {
+    const k = i.tipo_egreso || 'sin_clasificar';
+    map[k] = (map[k]||0) + Number(i.total||0);
+  });
+  const total = Object.values(map).reduce((s,v)=>s+v,0);
+  const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  const LABELS = {
+    costo_mercancia: 'Costo mercancía',
+    costo_operativo: 'Costo operativo',
+    sin_clasificar:  'Sin clasificar',
+  };
+  const COLORS = {
+    costo_mercancia: '#E65100',
+    costo_operativo: '#1565C0',
+    sin_clasificar:  '#9E9E9E',
+  };
+
+  if (!sorted.length) {
+    document.getElementById('fcEgrTipoCard').innerHTML =
+      '<div class="fc-empty" style="padding:1rem">Sin egresos</div>';
+    return;
+  }
+
+  document.getElementById('fcEgrTipoCard').innerHTML = sorted.map(([k,v]) => {
+    const pct  = total>0 ? (v/total*100).toFixed(1) : 0;
+    const col  = COLORS[k] || '#9E9E9E';
+    const lbl  = LABELS[k] || k;
+    return `
+      <div class="fc-itbms-row">
+        <span class="fc-itbms-label" style="display:flex;align-items:center;gap:.4rem">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${col};flex-shrink:0"></span>
+          ${lbl}
+        </span>
+        <span class="fc-itbms-val">${fmtUSD(v)}
+          <span style="font-size:.68rem;color:var(--muted);font-weight:400"> ${pct}%</span>
+        </span>
+      </div>`;
+  }).join('');
+}
+
+// ── Pendientes de cobro ───────────────────────────
+function fcRenderPending() {
+  const pending = fc_op.filter(i => i.estado === 'facturado');
+  const tbody   = document.getElementById('fcPendingBody');
+  const tfooter = document.getElementById('fcPendingTotal');
+  const hoy     = new Date();
+
+  if (!pending.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="fc-empty"><span style="font-size:1.8rem">✅</span><span>Sin ventas pendientes de cobro</span></div></td></tr>';
+    tfooter.style.display = 'none';
+    return;
+  }
+
+  const rows = pending.map(item => {
+    const monto     = parseFloat(item.total_venta||0);
+    const fechaStr  = String(item.fecha_venta||'').substring(0,10);
+    const fechaDate = fechaStr ? new Date(fechaStr+'T12:00:00') : null;
+    const dias      = fechaDate ? Math.floor((hoy - fechaDate)/(1000*60*60*24)) : null;
+    const diasLbl   = dias===null ? '—' : dias + 'd';
+    const diasCls   = dias===null ? '' : dias<=30?'ok':dias<=60?'mid':'bad';
+    const nFac      = item.num_fac_emitida || '—';
+    const cliente   = item.nombre_cliente  || '—';
+    return `<tr>
+      <td><span class="fc-badge-pendiente">${fcEsc(nFac)}</span></td>
+      <td>${fcEsc(cliente)}</td>
+      <td class="num">${fmtUSD(monto)}</td>
+      <td style="font-size:.78rem;color:var(--muted)">${fechaStr||'—'}</td>
+      <td><span class="fc-dias-badge ${diasCls}">${diasLbl}</span></td>
+    </tr>`;
+  }).join('');
+
+  const totalPend = pending.reduce((s,i)=>s+parseFloat(i.total_venta||0),0);
+  tbody.innerHTML   = rows;
+  tfooter.style.display = 'flex';
+  tfooter.innerHTML = `
+    <span>${pending.length} ítem${pending.length!==1?'s':''} pendiente${pending.length!==1?'s':''}</span>
+    <span>Total: <strong style="color:var(--orange)">${fmtUSD(totalPend)}</strong></span>
+  `;
+}
+
+// ── Controles ────────────────────────────────────
+function fcSetVista(v, btn) {
+  fc_vista = v;
+  document.querySelectorAll('.fc-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const ing = fc_ing.filter(i => Number(i.anio_fiscal)===fc_year);
+  const egrAll = fc_egr.filter(i => Number(i.anio || i.anio_fiscal)===fc_year);
+  const egr = fc_inv_on
+    ? egrAll
+    : egrAll.filter(i => i.categoria !== 'Inventario' && i.categoria !== 'costo_mercancia');
+  fcRenderChart(ing, egr);
+}
+
+// ── Toggle inventario ─────────────────────────────
+function fcToggleInventario() {
+  fc_inv_on = !fc_inv_on;
+  const el = document.getElementById('fcToggleInv');
+  if (fc_inv_on) el.classList.add('on'); else el.classList.remove('on');
+  fcApply();
+}
+
+// ── Error ────────────────────────────────────────
+function fcShowError(msg) {
+  document.getElementById('fcKpiRow').innerHTML =
+    `<div class="fc-kpi" style="grid-column:1/-1">
+      <div class="fc-kpi-label" style="color:var(--red)">Error cargando datos</div>
+      <div style="font-size:.82rem;color:var(--muted);margin:.5rem 0">${msg}</div>
+      <button onclick="window.fcLoaded=false;window.fcLoad()" style="padding:.4rem 1rem;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82rem">Reintentar</button>
+    </div>`;
+}
+
+// ── Escape ───────────────────────────────────────
+function fcEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Exponer al admin padre y al HTML inline ───────
+window.fcApplyFilters     = fcApply;
+window.fcToggleInventario = fcToggleInventario;
+window.fcSetVista         = fcSetVista;
+window.fcLoad             = fcLoad;
+// Exponer fcLoaded para que el botón Actualizar pueda resetearlo
+Object.defineProperty(window, 'fcLoaded', {
+  get: () => fcLoaded,
+  set: v  => { fcLoaded = v; },
+});
+
+// ── Init ─────────────────────────────────────────
+fcLoad();
+
+})();
+</script>
