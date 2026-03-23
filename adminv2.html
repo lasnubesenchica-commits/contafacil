@@ -614,6 +614,100 @@ tr:hover td{background:rgba(0,0,0,.015)}
 /* ── INVENTARIO ── */
 #sectionInventario { display:none }
 #sectionReporte    { display:none }
+
+/* ── PROVEEDORES ── */
+#sectionProveedores { display:none }
+.prov-header {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.5rem 2rem 1rem;border-bottom:1px solid var(--border);
+}
+.prov-header h2 {
+  font-family:'Bebas Neue',sans-serif;font-size:1.6rem;
+  letter-spacing:.05em;color:var(--text);margin:0;
+}
+.prov-subtitle { font-size:.8rem;color:var(--muted);margin-top:.2rem }
+.prov-grid {
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:1rem;padding:1.5rem 2rem;
+}
+.prov-card {
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:1.25rem;position:relative;transition:box-shadow .15s;
+}
+.prov-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08) }
+.prov-card.inactive { opacity:.55 }
+.prov-card-header {
+  display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;
+}
+.prov-badge-id {
+  font-size:.68rem;font-weight:700;letter-spacing:.06em;color:var(--muted);
+  background:var(--bg2);padding:.2rem .55rem;border-radius:4px;
+}
+.prov-toggle {
+  appearance:none;width:36px;height:20px;background:#ccc;border-radius:10px;
+  cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;
+}
+.prov-toggle:checked { background:var(--green) }
+.prov-toggle::after {
+  content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;
+  background:#fff;border-radius:50%;transition:left .2s;
+}
+.prov-toggle:checked::after { left:18px }
+.prov-nombre { font-size:1rem;font-weight:700;color:var(--text);margin-bottom:.1rem }
+.prov-ruc { font-size:.78rem;color:var(--muted);font-family:monospace }
+.prov-meta {
+  margin-top:.75rem;font-size:.78rem;color:var(--muted);
+  display:flex;flex-direction:column;gap:.25rem;
+}
+.prov-meta span { display:flex;align-items:center;gap:.4rem }
+.prov-actions { display:flex;gap:.5rem;margin-top:1rem }
+.prov-btn {
+  flex:1;padding:.45rem .75rem;border-radius:7px;border:1px solid var(--border);
+  font-size:.78rem;font-weight:600;cursor:pointer;background:var(--bg2);
+  color:var(--text);transition:background .15s;
+}
+.prov-btn:hover { background:var(--border) }
+.prov-btn.primary {
+  background:var(--orange);color:#fff;border-color:var(--orange);
+}
+.prov-btn.primary:hover { opacity:.88 }
+.prov-modal-box { max-width:640px }
+.prov-wizard-steps {
+  display:flex;gap:0;margin-bottom:1.25rem;border-radius:8px;
+  overflow:hidden;border:1px solid var(--border);
+}
+.prov-step {
+  flex:1;padding:.6rem .5rem;text-align:center;font-size:.72rem;font-weight:600;
+  letter-spacing:.04em;background:var(--bg2);color:var(--muted);
+  border-right:1px solid var(--border);transition:background .15s,color .15s;
+}
+.prov-step:last-child { border-right:none }
+.prov-step.active { background:var(--orange);color:#fff }
+.prov-step.done   { background:var(--green);color:#fff }
+.prov-wizard-panel { display:none }
+.prov-wizard-panel.active { display:block }
+.prov-upload-zone {
+  border:2px dashed var(--border);border-radius:10px;padding:2rem 1.5rem;
+  text-align:center;cursor:pointer;transition:border-color .15s,background .15s;
+  background:var(--bg);
+}
+.prov-upload-zone:hover,.prov-upload-zone.drag {
+  border-color:var(--orange);background:rgba(224,90,0,.04);
+}
+.prov-upload-zone.has-file { border-color:var(--green);background:rgba(76,175,80,.04) }
+.prov-upload-icon { font-size:2.5rem;margin-bottom:.5rem }
+.prov-upload-label { font-size:.85rem;color:var(--muted) }
+.prov-upload-name  { font-size:.8rem;font-weight:600;color:var(--text);margin-top:.35rem }
+.prov-ia-result {
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:1rem 1.1rem;margin-bottom:1rem;font-size:.82rem;
+}
+.prov-ia-result .ia-tag {
+  display:inline-block;background:#E8F5E9;color:#2E7D32;font-size:.68rem;
+  font-weight:700;letter-spacing:.06em;padding:.15rem .5rem;
+  border-radius:4px;margin-bottom:.6rem;
+}
+.prov-notas-override { font-size:.76rem;color:var(--muted);margin-top:.4rem }
 .inv-grid {
   display:grid;
   grid-template-columns:repeat(auto-fill, minmax(260px,1fr));
@@ -737,6 +831,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
 
     <button class="main-tab" id="tabInventario"  onclick="switchTab('inventario')">📦 Inventario</button>
+    <button class="main-tab" id="tabProveedores" onclick="switchTab('proveedores')">🏭 Proveedores</button>
   </div>
 
   <!-- ══════════ SECCIÓN: VENTAS WEB ══════════ -->
@@ -1162,12 +1257,140 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 </div><!-- /sectionInventario -->
 
+<!-- ═══════════ SECCIÓN: PROVEEDORES ═══════════ -->
+<div id="sectionProveedores">
+  <div class="prov-header">
+    <div>
+      <h2>🏭 Proveedores</h2>
+      <div class="prov-subtitle">Gestiona los proveedores cuyas facturas el sistema lee automáticamente desde Gmail.</div>
+    </div>
+    <button class="btn-primary" onclick="abrirModalNuevoProveedor()">+ Agregar Proveedor</button>
+  </div>
+  <div class="prov-grid" id="provGrid">
+    <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)">
+      <div class="spinner" style="margin:0 auto 1rem"></div>
+      Cargando proveedores...
+    </div>
+  </div>
+</div><!-- /sectionProveedores -->
+
 <!-- ═══════════ SECCIÓN: REPORTE DINÁMICO ═══════════ -->
 <div id="sectionReporte" style="display:none">
   <div id="reporteContainer">
     <!-- El HTML del reporte se inyecta aquí dinámicamente -->
   </div>
 </div><!-- /sectionReporte -->
+
+<!-- ═══════════ MODAL: PROVEEDOR ═══════════ -->
+<div class="modal-overlay" id="provModalOverlay" onclick="if(event.target===this)closeProvModal()">
+  <div class="modal-box prov-modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="provModalTitle">➕ Nuevo Proveedor</div>
+      <button class="modal-close" onclick="closeProvModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="prov-wizard-steps">
+        <div class="prov-step active" id="provStep1Tab">1 · Factura de ejemplo</div>
+        <div class="prov-step"        id="provStep2Tab">2 · Confirmar datos</div>
+        <div class="prov-step"        id="provStep3Tab">3 · Email y guardar</div>
+      </div>
+
+      <!-- Paso 1: subir factura de ejemplo -->
+      <div class="prov-wizard-panel active" id="provPanel1">
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">
+          Sube una factura de este proveedor (PDF o imagen). La IA extraerá los datos automáticamente.
+        </p>
+        <div class="prov-upload-zone" id="provUploadZone"
+             onclick="document.getElementById('provFileInput').click()"
+             ondragover="event.preventDefault();this.classList.add('drag')"
+             ondragleave="this.classList.remove('drag')"
+             ondrop="provHandleDrop(event)">
+          <div class="prov-upload-icon" id="provUploadIcon">📄</div>
+          <div class="prov-upload-label">Haz clic o arrastra una factura aquí</div>
+          <div class="prov-upload-name" id="provUploadName"></div>
+        </div>
+        <input type="file" id="provFileInput" accept=".pdf,image/*" style="display:none"
+               onchange="provHandleFile(this.files[0])">
+        <div class="modal-actions" style="margin-top:1.25rem">
+          <button class="btn-secondary" onclick="closeProvModal()">Cancelar</button>
+          <button class="btn-primary" id="provAnalyzarBtn" onclick="provAnalizarFactura()" disabled>
+            🤖 Analizar con IA
+          </button>
+        </div>
+      </div>
+
+      <!-- Paso 2: confirmar / corregir datos -->
+      <div class="prov-wizard-panel" id="provPanel2">
+        <div class="prov-ia-result" id="provIaResult">
+          <span class="ia-tag">✨ IA</span>
+          <div id="provIaResumen" style="color:var(--muted);font-style:italic">—</div>
+        </div>
+        <div class="modal-grid">
+          <div class="modal-field full">
+            <label>Nombre del proveedor *</label>
+            <input type="text" id="provNombre" placeholder="Empresas XYZ S.A.">
+          </div>
+          <div class="modal-field">
+            <label>RUC *</label>
+            <input type="text" id="provRuc" placeholder="8-123-456 o N-20-606">
+          </div>
+          <div class="modal-field">
+            <label>DV</label>
+            <input type="text" id="provDv" placeholder="09" maxlength="3">
+          </div>
+          <div class="modal-field full">
+            <label>Keywords de detección <span style="font-weight:400;color:var(--muted)">(separadas por |)</span></label>
+            <input type="text" id="provKeywords" placeholder="8123456|EMPRESAS XYZ|xyz">
+            <span class="prov-notas-override">La IA las genera automáticamente. Puedes añadir más.</span>
+          </div>
+          <div class="modal-field full">
+            <label>Nota de formato para IA <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+            <textarea id="provPromptOverride" rows="3"
+              style="resize:vertical;font-size:.82rem;padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:100%;box-sizing:border-box"
+              placeholder="Ej: El número de factura aparece como 'Nota de Entrega #XXXX'. El ITBMS no aparece desglosado."></textarea>
+            <span class="prov-notas-override">La IA la sugiere según el formato detectado. Puedes ajustarla.</span>
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top:1.25rem">
+          <button class="btn-secondary" onclick="provGoStep(1)">← Atrás</button>
+          <button class="btn-primary"   onclick="provGoStep(3)">Siguiente →</button>
+        </div>
+      </div>
+
+      <!-- Paso 3: email origen y confirmar -->
+      <div class="prov-wizard-panel" id="provPanel3">
+        <div class="modal-section">
+          <div class="modal-section-label">📧 Email de origen</div>
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">
+            ¿Desde qué email o dominio llegan las facturas de este proveedor a tu buzón?
+          </p>
+          <div class="modal-field">
+            <label>Email o dominio del proveedor</label>
+            <input type="text" id="provEmailOrigen"
+                   placeholder="facturas@empresaxyz.com  o  empresaxyz.com">
+          </div>
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-label">ℹ️ Cómo funciona</div>
+          <div style="font-size:.78rem;color:var(--muted);line-height:1.7;background:var(--bg2);padding:.75rem 1rem;border-radius:8px">
+            <strong>El sistema ya tiene acceso a Gmail</strong> — no necesita permisos adicionales.<br>
+            Al guardar, el próximo <em>Sincronizar Emails</em> en Operaciones leerá automáticamente
+            las facturas de este proveedor y las vinculará con las facturas de Círculo Financiero.
+          </div>
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-label">📋 Resumen</div>
+          <div id="provResumenFinal" style="font-size:.82rem;color:var(--text);background:var(--bg2);padding:.75rem 1rem;border-radius:8px;line-height:1.9">—</div>
+        </div>
+        <div class="modal-actions" style="margin-top:1.25rem">
+          <button class="btn-secondary" onclick="provGoStep(2)">← Atrás</button>
+          <button class="btn-primary" id="provGuardarBtn" onclick="provGuardar()">💾 Guardar Proveedor</button>
+        </div>
+      </div>
+
+    </div><!-- /modal-body -->
+  </div>
+</div><!-- /provModalOverlay -->
 
 <!-- ═══════════ MODAL: VENDER DESDE INVENTARIO ═══════════ -->
 <div class="modal-overlay" id="invVentaModalOverlay" onclick="if(event.target===this)closeInvVentaModal()">
@@ -2571,26 +2794,29 @@ let activeTab = 'operaciones';
 function switchTab(tab) {
   activeTab = tab;
   const isReporte = tab.startsWith('reporte:');
-  document.getElementById('sectionVentasWeb').style.display   = tab === 'ventasWeb'   ? 'block' : 'none';
-  document.getElementById('sectionOperaciones').style.display = tab === 'operaciones' ? 'block' : 'none';
-  document.getElementById('sectionEgresos').style.display     = tab === 'egresos'     ? 'block' : 'none';
-  document.getElementById('sectionIngresos').style.display    = tab === 'ingresos'    ? 'block' : 'none';
-  document.getElementById('sectionDashboard').style.display   = tab === 'dashboard'   ? 'block' : 'none';
-  document.getElementById('sectionInventario').style.display  = tab === 'inventario'  ? 'block' : 'none';
-  document.getElementById('sectionReporte').style.display     = isReporte             ? 'block' : 'none';
+  document.getElementById('sectionVentasWeb').style.display    = tab === 'ventasWeb'    ? 'block' : 'none';
+  document.getElementById('sectionOperaciones').style.display  = tab === 'operaciones'  ? 'block' : 'none';
+  document.getElementById('sectionEgresos').style.display      = tab === 'egresos'      ? 'block' : 'none';
+  document.getElementById('sectionIngresos').style.display     = tab === 'ingresos'     ? 'block' : 'none';
+  document.getElementById('sectionDashboard').style.display    = tab === 'dashboard'    ? 'block' : 'none';
+  document.getElementById('sectionInventario').style.display   = tab === 'inventario'   ? 'block' : 'none';
+  document.getElementById('sectionProveedores').style.display  = tab === 'proveedores'  ? 'block' : 'none';
+  document.getElementById('sectionReporte').style.display      = isReporte              ? 'block' : 'none';
   document.getElementById('tabVentasWeb').classList.toggle('active',     tab === 'ventasWeb');
   document.getElementById('tabOperaciones').classList.toggle('active',   tab === 'operaciones');
   document.getElementById('tabDashboard').classList.toggle('active',     tab === 'dashboard');
   document.getElementById('tabInventario').classList.toggle('active',    tab === 'inventario');
+  document.getElementById('tabProveedores').classList.toggle('active',   tab === 'proveedores');
   document.getElementById('tabContabilidad').classList.toggle('active',  tab === 'ingresos' || tab === 'egresos');
   document.getElementById('tabReportes').classList.toggle('active',      isReporte);
-  if (tab === 'operaciones' && !opItems.length)  loadOperaciones();
-  if (tab === 'egresos'     && !egrItems.length) loadEgresos();
-  if (tab === 'ingresos'    && !ingItems.length) loadIngresos();
-  if (tab === 'ventasWeb'   && !document.getElementById('ordenesBody').children.length) loadOrdenes();
-  if (tab === 'dashboard')   loadDashboard();
-  if (tab === 'inventario')  loadInventario();
-  if (isReporte)             loadReporte(tab.replace('reporte:', ''));
+  if (tab === 'operaciones'  && !opItems.length)  loadOperaciones();
+  if (tab === 'egresos'      && !egrItems.length) loadEgresos();
+  if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
+  if (tab === 'ventasWeb'    && !document.getElementById('ordenesBody').children.length) loadOrdenes();
+  if (tab === 'dashboard')    loadDashboard();
+  if (tab === 'inventario')   loadInventario();
+  if (tab === 'proveedores'  && !provItems.length) loadProveedores();
+  if (isReporte)              loadReporte(tab.replace('reporte:', ''));
 }
 
 function refreshCurrentSection() {
@@ -2599,6 +2825,7 @@ function refreshCurrentSection() {
   else if (activeTab === 'ingresos')         loadIngresos();
   else if (activeTab === 'dashboard')        { plLoaded = false; loadDashboard(); }
   else if (activeTab === 'inventario')       loadInventario();
+  else if (activeTab === 'proveedores')      loadProveedores();
   else if (activeTab.startsWith('reporte:')) loadReporte(activeTab.replace('reporte:', ''), true);
   else                                       loadOperaciones();
 }
@@ -5473,6 +5700,261 @@ function plFmt(n) {
 }
 function plMesLabel(m) {
   return ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][m] || '';
+}
+
+// ════════════════════════════════════════════════
+//  MÓDULO PROVEEDORES
+// ════════════════════════════════════════════════
+let provItems       = [];
+let provFileBase64  = null;
+let provFileMime    = null;
+let provFileName    = null;
+let provEditingId   = null;
+let provIaDatos     = null;
+let provCurrentStep = 1;
+
+async function loadProveedores() {
+  document.getElementById('provGrid').innerHTML =
+    '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)">' +
+    '<div class="spinner" style="margin:0 auto 1rem"></div>Cargando proveedores...</div>';
+  return new Promise(resolve => {
+    const cb  = 'cbProv_' + Date.now();
+    const url = GAS_URL + '?action=getProveedores&callback=' + cb;
+    window[cb] = data => {
+      delete window[cb];
+      document.getElementById('s_' + cb)?.remove();
+      if (data.success) { provItems = data.items || []; renderProvGrid(); }
+      else showToast('Error cargando proveedores: ' + data.error, true);
+      resolve(data);
+    };
+    const s = document.createElement('script');
+    s.id  = 's_' + cb; s.src = url;
+    document.head.appendChild(s);
+  });
+}
+
+function renderProvGrid() {
+  const grid = document.getElementById('provGrid');
+  if (!provItems.length) {
+    grid.innerHTML =
+      '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)">' +
+      'No hay proveedores configurados. Usa <strong>+ Agregar Proveedor</strong> para empezar.</div>';
+    return;
+  }
+  grid.innerHTML = provItems.map((p, idx) => `
+    <div class="prov-card ${p.activo ? '' : 'inactive'}" id="provCard_${p.id}">
+      <div class="prov-card-header">
+        <span class="prov-badge-id">${p.id}</span>
+        <label title="${p.activo ? 'Activo' : 'Inactivo'}" style="cursor:pointer">
+          <input type="checkbox" class="prov-toggle" ${p.activo ? 'checked' : ''}
+                 onchange="toggleProveedor('${p.id}', this.checked)">
+        </label>
+      </div>
+      <div class="prov-nombre">${p.nombre}</div>
+      <div class="prov-ruc">RUC ${p.ruc}${p.dv ? ' DV ' + p.dv : ''}</div>
+      <div class="prov-meta">
+        ${p.email_origen ? `<span>📧 ${p.email_origen}</span>` : ''}
+        ${p.fecha_alta   ? `<span>📅 Alta: ${p.fecha_alta.slice(0,10)}</span>` : ''}
+        ${p.drive_ejemplo? `<span><a href="${p.drive_ejemplo}" target="_blank" style="color:var(--orange)">📄 Ver factura ejemplo</a></span>` : ''}
+      </div>
+      ${p.prompt_override ? `<div style="margin-top:.6rem;font-size:.72rem;color:var(--muted);font-style:italic">🤖 Nota de IA configurada</div>` : ''}
+      <div class="prov-actions">
+        <button class="prov-btn primary" onclick="abrirModalEditarProveedor(${idx})">✏️ Editar</button>
+        ${p.id !== 'PROV-001'
+          ? `<button class="prov-btn" onclick="toggleProveedor('${p.id}', ${!p.activo})">${p.activo ? '🔕 Desactivar' : '✅ Activar'}</button>`
+          : `<span style="font-size:.72rem;color:var(--muted);align-self:center;margin-left:.25rem">Proveedor base</span>`
+        }
+      </div>
+    </div>
+  `).join('');
+}
+
+async function toggleProveedor(id, activo) {
+  return new Promise(resolve => {
+    const cb  = 'cbProvToggle_' + Date.now();
+    const url = GAS_URL + '?action=toggleProveedor&id=' + encodeURIComponent(id) +
+                '&activo=' + (activo ? 'true' : 'false') + '&callback=' + cb;
+    window[cb] = data => {
+      delete window[cb];
+      document.getElementById('s_' + cb)?.remove();
+      if (data.success) {
+        const p = provItems.find(x => x.id === id);
+        if (p) { p.activo = activo; renderProvGrid(); }
+        showToast(activo ? '✅ Proveedor activado' : '🔕 Proveedor desactivado');
+      } else { showToast('Error: ' + data.error, true); }
+      resolve(data);
+    };
+    const s = document.createElement('script');
+    s.id = 's_' + cb; s.src = url;
+    document.head.appendChild(s);
+  });
+}
+
+function abrirModalNuevoProveedor() {
+  provEditingId = null; provIaDatos = null;
+  provFileBase64 = null; provFileMime = null; provFileName = null;
+  document.getElementById('provModalTitle').textContent = '➕ Nuevo Proveedor';
+  _provResetForm();
+  provGoStep(1);
+  document.getElementById('provModalOverlay').classList.add('open');
+}
+
+function abrirModalEditarProveedor(idx) {
+  const p = provItems[idx];
+  if (!p) return;
+  provEditingId = p.id; provFileBase64 = null; provFileName = null;
+  document.getElementById('provModalTitle').textContent = '✏️ Editar Proveedor';
+  document.getElementById('provNombre').value         = p.nombre          || '';
+  document.getElementById('provRuc').value            = p.ruc             || '';
+  document.getElementById('provDv').value             = p.dv              || '';
+  document.getElementById('provKeywords').value       = p.keywords        || '';
+  document.getElementById('provPromptOverride').value = p.prompt_override || '';
+  document.getElementById('provEmailOrigen').value    = p.email_origen    || '';
+  provGoStep(2);
+  document.getElementById('provModalOverlay').classList.add('open');
+}
+
+function closeProvModal() {
+  document.getElementById('provModalOverlay').classList.remove('open');
+}
+
+function provGoStep(n) {
+  provCurrentStep = n;
+  [1, 2, 3].forEach(i => {
+    document.getElementById('provPanel' + i).classList.toggle('active', i === n);
+    const el = document.getElementById('provStep' + i + 'Tab');
+    el.classList.remove('active', 'done');
+    if (i === n) el.classList.add('active');
+    if (i < n)   el.classList.add('done');
+  });
+  if (n === 3) _provActualizarResumen();
+}
+
+function provHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('provUploadZone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) provHandleFile(f);
+}
+
+function provHandleFile(file) {
+  if (!file) return;
+  provFileName = file.name;
+  provFileMime = file.type || 'application/pdf';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    provFileBase64 = ev.target.result.split(',')[1];
+    const zone = document.getElementById('provUploadZone');
+    zone.classList.add('has-file');
+    document.getElementById('provUploadIcon').textContent = '✅';
+    document.getElementById('provUploadName').textContent  = file.name;
+    document.getElementById('provAnalyzarBtn').disabled    = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function provAnalizarFactura() {
+  if (!provFileBase64) return;
+  const btn = document.getElementById('provAnalyzarBtn');
+  btn.disabled = true; btn.textContent = '⏳ Analizando...';
+  try {
+    const res  = await fetch(GAS_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'analizarFacturaEjemplo', imageBase64: provFileBase64, mimeType: provFileMime }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error en IA');
+    provIaDatos = data;
+    document.getElementById('provNombre').value         = data.nombre_proveedor || '';
+    document.getElementById('provRuc').value            = data.ruc              || '';
+    document.getElementById('provDv').value             = data.dv               || '';
+    document.getElementById('provKeywords').value       = data.keywords         || '';
+    document.getElementById('provEmailOrigen').value    = data.email_origen     || '';
+    let promptSugerido = '';
+    if (data.formato_num_fac) promptSugerido += 'Formato número de factura: ' + data.formato_num_fac + '.\n';
+    if (data.notas_formato)   promptSugerido += data.notas_formato;
+    document.getElementById('provPromptOverride').value = promptSugerido.trim();
+    document.getElementById('provIaResumen').textContent =
+      `Proveedor detectado: ${data.nombre_proveedor || '?'} · RUC: ${data.ruc || '?'} DV: ${data.dv || '?'} · ITBMS: ${data.tiene_itbms ? 'Sí' : 'No detectado'}`;
+    provGoStep(2);
+  } catch(err) {
+    showToast('Error analizando factura: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '🤖 Analizar con IA';
+  }
+}
+
+function _provActualizarResumen() {
+  const nombre = document.getElementById('provNombre').value.trim();
+  const ruc    = document.getElementById('provRuc').value.trim();
+  const dv     = document.getElementById('provDv').value.trim();
+  const email  = document.getElementById('provEmailOrigen').value.trim();
+  const kw     = document.getElementById('provKeywords').value.trim();
+  const prompt = document.getElementById('provPromptOverride').value.trim();
+  document.getElementById('provResumenFinal').innerHTML =
+    `<strong>${nombre || '—'}</strong><br>` +
+    `RUC: ${ruc || '—'}${dv ? ' DV ' + dv : ''}<br>` +
+    `Email origen: ${email || '(no configurado)'}<br>` +
+    `Keywords: <code style="font-size:.75rem">${kw || '—'}</code><br>` +
+    (prompt ? '✅ Nota de IA configurada' : '');
+}
+
+async function provGuardar() {
+  const btn = document.getElementById('provGuardarBtn');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  const nombre = document.getElementById('provNombre').value.trim();
+  const ruc    = document.getElementById('provRuc').value.trim();
+  if (!nombre || !ruc) {
+    showToast('Nombre y RUC son obligatorios', true);
+    btn.disabled = false; btn.textContent = '💾 Guardar Proveedor';
+    return;
+  }
+  try {
+    const payload = {
+      action:          'guardarProveedor',
+      id:              provEditingId || null,
+      nombre, ruc,
+      dv:              document.getElementById('provDv').value.trim(),
+      email_origen:    document.getElementById('provEmailOrigen').value.trim(),
+      keywords:        document.getElementById('provKeywords').value.trim(),
+      prompt_override: document.getElementById('provPromptOverride').value.trim(),
+      activo:          true,
+    };
+    if (provFileBase64) {
+      payload.imageBase64 = provFileBase64;
+      payload.imageName   = provFileName || 'factura_ejemplo.pdf';
+      payload.mimeType    = provFileMime || 'application/pdf';
+    }
+    const res  = await fetch(GAS_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+    showToast(provEditingId
+      ? '✅ Proveedor actualizado correctamente'
+      : '✅ Proveedor ' + data.id + ' creado — el próximo Sincronizar lo incluirá');
+    closeProvModal();
+    provItems = [];
+    await loadProveedores();
+  } catch(err) {
+    showToast('Error guardando proveedor: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Guardar Proveedor';
+  }
+}
+
+function _provResetForm() {
+  ['provNombre','provRuc','provDv','provKeywords','provEmailOrigen'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('provPromptOverride').value  = '';
+  document.getElementById('provUploadZone').classList.remove('has-file','drag');
+  document.getElementById('provUploadIcon').textContent = '📄';
+  document.getElementById('provUploadName').textContent  = '';
+  document.getElementById('provAnalyzarBtn').disabled    = true;
+  document.getElementById('provIaResumen').textContent   = '—';
+  document.getElementById('provResumenFinal').textContent= '—';
 }
 </script>
 </body>
