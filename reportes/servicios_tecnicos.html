@@ -53,10 +53,12 @@
 
   /* ── Cards — 2 col grid + drawer full-width ─────────────── */
   .st-cards-outer { display:flex; flex-direction:column; }
-  .st-cards-row   { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .st-cards-row   { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; align-items:start; }
   @media(max-width:860px){ .st-cards-row { grid-template-columns:1fr; } }
   .st-drawer      { display:none; margin-bottom:10px; }
   .st-drawer.open { display:block; }
+  /* Detail body inside the card itself */
+  .st-card-detail { border-top:1px solid #e2e8f0; }
   .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px;
              overflow:hidden; border-left:4px solid #e2e8f0; transition:box-shadow .15s; }
   .st-card.active { box-shadow:0 0 0 2px #1A237E; }
@@ -649,41 +651,18 @@
     for (var i = 0; i < items.length; i += 2) {
       var left  = items[i];
       var right = items[i + 1] || null;
-
-      // Check if expanded card is in this row
-      var leftExp  = st_state.expandedId && left  && left.id_st  === st_state.expandedId;
-      var rightExp = st_state.expandedId && right && right.id_st === st_state.expandedId;
+      var leftExp  = st_state.expandedId === (left  && left.id_st);
+      var rightExp = st_state.expandedId === (right && right.id_st);
 
       outer += '<div class="st-cards-row">';
-
-      // Left card
-      outer += st_buildCardHead(left, leftExp);
-
-      // Right: if left is expanded show empty placeholder, else show right card
-      if (leftExp) {
-        outer += '<div></div>';
-      } else if (right) {
-        outer += st_buildCardHead(right, rightExp);
-      } else {
-        outer += '<div></div>';
-      }
-
+      outer += st_buildCardHead(left,  leftExp);
+      outer += st_buildCardHead(right, rightExp);
       outer += '</div>';
-
-      // Expanded drawer — inside the same row, full width, below the cards
-      if (leftExp || rightExp) {
-        var expandedST = leftExp ? left : right;
-        outer += '<div class="st-drawer open" id="stdrawer-' + st_esc(expandedST.id_st) + '">';
-        outer +=   '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8">';
-        outer +=     '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>';
-        outer +=   '</div></div>';
-        outer += '</div>';
-      }
     }
     outer += '</div>';
     cont.innerHTML = outer;
 
-    // Load detail if expanded
+    // Load detail into expanded card if any
     if (st_state.expandedId) {
       for (var n = 0; n < items.length; n++) {
         if (items[n].id_st === st_state.expandedId) {
@@ -694,6 +673,44 @@
       }
     }
   }
+
+  function st_buildCardHead(st, isActive) {
+    if (!st) return '<div></div>';
+    var util = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
+    var uClr = util >= 0 ? '#15803d' : '#dc2626';
+    var fecha= String(st.fecha_reg||'').slice(0,10);
+    var aCls = isActive ? ' active' : '';
+    var idEsc= st_esc(st.id_st);
+    var html = '';
+    html += '<div class="st-card s-' + st.estado + aCls + '" id="stcard-' + idEsc + '">';
+    html +=   '<div class="st-card-head" onclick="st_toggleCard(\'' + idEsc + '\')">';
+    html +=     '<div class="st-card-row1">';
+    html +=       '<div class="st-card-cli">' + st_esc(st.nombre_cliente) + '</div>';
+    html +=       '<div class="st-card-right">';
+    html +=         '<div class="st-card-monto">' + st_fmt(st.precio_venta) + '</div>';
+    html +=         '<div class="st-card-util" style="color:' + uClr + '">' + (util>=0?'▲':'▼') + ' ' + st_fmt(Math.abs(util)) + '</div>';
+    html +=         '<div class="st-card-chev">▼</div>';
+    html +=       '</div>';
+    html +=     '</div>';
+    html +=     '<div class="st-card-row2">';
+    html +=       '<span class="st-card-fnum">' + st_esc(st.num_cotizacion) + '</span>';
+    if (fecha) html += '<span class="st-card-fecha">' + fecha + '</span>';
+    html +=       '<span class="st-badge s-' + st.estado + '">' + st_esc(ESTADO_LABEL[st.estado]||st.estado) + '</span>';
+    html +=     '</div>';
+    html +=     '<div class="st-card-row3">' + st_esc(st.descripcion) + '</div>';
+    html +=   '</div>';
+    // Detail body — only shown when active
+    if (isActive) {
+      html += '<div class="st-card-detail" id="stdrawer-' + idEsc + '">';
+      html +=   '<div style="padding:20px;text-align:center;color:#94a3b8">';
+      html +=     '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>';
+      html +=   '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
 
   function st_buildCardHead(st, isActive) {
     if (!st) return '<div></div>';
@@ -801,7 +818,7 @@
     var enEje  = st.estado === 'en_ejecucion';
     var items  = r.items || [];
     var notas  = String(st.notas || '');
-    var html   = '<div class="st-dw-inner">';
+    var html   = '';
 
     // ── Fila comprobantes (3 cols) ────────────────────────
     // Voucher URL: buscar en notas O en ingreso drive_url
@@ -922,7 +939,6 @@
       html += '<div style="padding:12px 14px;font-size:.8rem;color:#94a3b8">Sin costos registrados</div>';
     }
 
-    html += '</div>';
     drawer.innerHTML = html;
   }
 
@@ -1314,7 +1330,7 @@
     if (idx === -1) return;
     var drawer = document.getElementById('stdrawer-' + idST);
     if (drawer) {
-      drawer.innerHTML = '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8"><span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div></div>';
+      drawer.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8"><span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div>';
     }
     st_loadDrawerDetail(idST, idx);
     st_computeKPIs();
