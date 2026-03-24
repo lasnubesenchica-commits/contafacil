@@ -51,25 +51,90 @@
   .st-btn-ghost:hover:not(:disabled)    { background:#e2e8f0; }
   .st-btn-sm { padding:4px 10px; font-size:.75rem; }
 
-  /* ── Cards de ST ──────────────────────────────────────────── */
-  .st-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
-  @media(max-width:800px) { .st-cards { grid-template-columns:1fr; } }
-  .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px 18px; cursor:pointer; transition:all .15s; border-left:4px solid #e2e8f0; }
-  .st-card:hover { border-color:#1A237E; box-shadow:0 2px 12px rgba(26,35,126,.08); }
+  /* ── Cards de ST — expand-in-place ───────────────────────── */
+  .st-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media(max-width:860px) { .st-cards { grid-template-columns:1fr; } }
+
+  /* El card ocupa las 2 columnas cuando está expandido */
+  .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;
+             transition:box-shadow .15s; border-left:4px solid #e2e8f0; }
+  .st-card.expanded { grid-column:1/-1; box-shadow:0 4px 24px rgba(26,35,126,.10); }
+  .st-card:hover:not(.expanded) { box-shadow:0 2px 12px rgba(26,35,126,.07); }
   .st-card.s-cotizado    { border-left-color:#f59e0b; }
   .st-card.s-aprobado    { border-left-color:#3b82f6; }
   .st-card.s-en_ejecucion{ border-left-color:#8b5cf6; }
   .st-card.s-cerrado     { border-left-color:#22c55e; }
   .st-card.s-cancelado   { border-left-color:#ef4444; opacity:.7; }
-  .st-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:10px; }
-  .st-card-id  { font-size:.7rem; color:#94a3b8; font-family:monospace; }
-  .st-card-desc{ font-size:.9rem; font-weight:600; color:#1a2535; margin-bottom:4px; line-height:1.4; }
-  .st-card-cli { font-size:.78rem; color:#475569; }
-  .st-card-nums{ display:flex; gap:16px; margin-top:10px; flex-wrap:wrap; }
-  .st-card-num { text-align:right; }
-  .st-card-num-label { font-size:.65rem; text-transform:uppercase; color:#94a3b8; letter-spacing:.04em; }
-  .st-card-num-value { font-size:.92rem; font-weight:700; }
-  .st-card-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+
+  /* Cabecera del card — siempre visible, clickeable */
+  .st-card-head { display:grid; grid-template-columns:1fr auto; align-items:start;
+                  padding:14px 16px; cursor:pointer; gap:12px; }
+  .st-card-head:hover { background:#fafbff; }
+  .st-card.expanded .st-card-head { background:#f8faff; border-bottom:1px solid #e2e8f0; }
+  .st-card-head-left { min-width:0; }
+  .st-card-head-right { display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0; }
+
+  /* Jerarquía visual: cliente > factura > descripción */
+  .st-card-cliente  { font-size:.95rem; font-weight:700; color:#1a2535; line-height:1.2;
+                      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .st-card-factura  { display:inline-flex; align-items:center; gap:5px; margin-top:4px; }
+  .st-card-fnum     { font-size:.75rem; font-weight:700; font-family:monospace;
+                      background:#EEF2FF; color:#3730A3; padding:2px 8px; border-radius:5px; }
+  .st-card-fecha    { font-size:.72rem; color:#94a3b8; }
+  .st-card-desc-sm  { font-size:.78rem; color:#64748b; margin-top:4px;
+                      overflow:hidden; text-overflow:ellipsis; display:-webkit-box;
+                      -webkit-line-clamp:1; -webkit-box-orient:vertical; }
+
+  .st-card-monto    { font-size:1.1rem; font-weight:700; color:#1A237E; }
+  .st-card-utilidad { font-size:.72rem; font-weight:600; }
+  .st-card-chevron  { font-size:.8rem; color:#94a3b8; transition:transform .2s; margin-top:2px; }
+  .st-card.expanded .st-card-chevron { transform:rotate(180deg); }
+
+  /* Área expandida */
+  .st-card-body { display:none; padding:0; }
+  .st-card.expanded .st-card-body { display:block; }
+
+  /* Fila de comprobantes integrada en propuesta B */
+  .st-docs-row { display:grid; grid-template-columns:repeat(3,1fr);
+                 border-bottom:1px solid #e2e8f0; }
+  .st-doc-cell { padding:10px 16px; border-right:1px solid #e2e8f0; }
+  .st-doc-cell:last-child { border-right:none; }
+  .st-doc-cell-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.05em;
+                       color:#94a3b8; font-weight:600; margin-bottom:3px; }
+  .st-doc-cell-link  { display:flex; align-items:center; gap:5px; font-size:.78rem;
+                       font-weight:600; text-decoration:none; }
+  .st-doc-cell-link.doc-fact  { color:#3730A3; }
+  .st-doc-cell-link.doc-cost  { color:#92400E; }
+  .st-doc-cell-link.doc-pago  { color:#065F46; }
+  .st-doc-cell-none  { font-size:.78rem; color:#94a3b8; font-style:italic; }
+
+  /* Métricas financieras */
+  .st-metrics-row { display:grid; grid-template-columns:repeat(4,1fr);
+                    border-bottom:1px solid #e2e8f0; }
+  .st-metric-cell { padding:10px 16px; border-right:1px solid #e2e8f0; }
+  .st-metric-cell:last-child { border-right:none; }
+  .st-metric-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.05em;
+                     color:#94a3b8; font-weight:600; margin-bottom:2px; }
+  .st-metric-value { font-size:.95rem; font-weight:700; }
+
+  /* Botones de acción dentro del body */
+  .st-card-actions-row { display:flex; gap:6px; flex-wrap:wrap; padding:10px 16px;
+                          border-bottom:1px solid #e2e8f0; background:#fafbff; }
+
+  /* Tabla de costos */
+  .st-costs-wrap { padding:12px 16px; }
+  .st-costs-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.05em;
+                    color:#94a3b8; font-weight:600; margin-bottom:8px; }
+  .st-costs-table { width:100%; border-collapse:collapse; font-size:.79rem; }
+  .st-costs-table th { padding:6px 10px; text-align:left; font-weight:600; font-size:.65rem;
+                       text-transform:uppercase; letter-spacing:.04em; color:#64748b;
+                       border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+  .st-costs-table th.r { text-align:right; }
+  .st-costs-table td { padding:7px 10px; border-bottom:1px solid #f8fafc; color:#334155;
+                       vertical-align:middle; }
+  .st-costs-table td.r { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .st-costs-table tbody tr:last-child td { border-bottom:none; }
+  .st-costs-table tfoot td { background:#f8fafc; font-weight:700; border-top:1.5px solid #e2e8f0; }
 
   /* ── Badges de estado ─────────────────────────────────────── */
   .st-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.67rem; font-weight:700; white-space:nowrap; }
@@ -190,9 +255,8 @@
 
   <!-- ── Navegación interna ── -->
   <div class="st-nav">
-    <button class="st-nav-btn active" id="st-nav-lista"    onclick="st_showView('lista')">📋 Servicios Técnicos</button>
-    <button class="st-nav-btn"        id="st-nav-nuevo"    onclick="st_showView('nuevo')">➕ Nueva Cotización</button>
-    <button class="st-nav-btn"        id="st-nav-detalle"  onclick="st_showView('detalle')" style="display:none">🔍 Detalle ST</button>
+    <button class="st-nav-btn active" id="st-nav-lista" onclick="st_showView('lista')">📋 Servicios Técnicos</button>
+    <button class="st-nav-btn"        id="st-nav-nuevo" onclick="st_showView('nuevo')">➕ Nueva Cotización</button>
   </div>
 
   <!-- ════════════════════════════════════════════
@@ -380,14 +444,6 @@
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════
-       VISTA 3 — DETALLE / EJECUCIÓN
-  ════════════════════════════════════════════ -->
-  <div id="st-view-detalle" style="display:none">
-    <div id="st-detalle-contenido">
-      <div class="st-empty"><div class="st-empty-icon">🔍</div>Selecciona un ST de la lista.</div>
-    </div>
-  </div>
 
 </div>
 
@@ -514,9 +570,10 @@
     data:       [],
     filtered:   [],
     stFilter:   'all',
-    stActual:   null,   // ST seleccionado para detalle
-    itemsLocal: [],     // ítems en memoria antes de guardar
-    editMode:   false,  // true = editando ST existente
+    stActual:   null,
+    expandedId: null,
+    itemsLocal: [],
+    editMode:   false,
     editIdST:   null,
   };
 
@@ -567,16 +624,12 @@
 
   // ── Navegación interna ───────────────────────────────────
   window.st_showView = function(view) {
-    ['lista','nuevo','detalle'].forEach(function(v) {
+    ['lista','nuevo'].forEach(function(v) {
       var el = document.getElementById('st-view-'+v);
       var nb = document.getElementById('st-nav-'+v);
       if (el) el.style.display = v === view ? '' : 'none';
       if (nb) nb.classList.toggle('active', v === view);
     });
-    // Mostrar/ocultar tab detalle
-    var tabDet = document.getElementById('st-nav-detalle');
-    if (tabDet) tabDet.style.display = view === 'detalle' ? '' : 'none';
-
     if (view === 'nuevo' && !st_state.editMode) st_resetForm();
   };
 
@@ -590,6 +643,7 @@
       .then(function(res) {
         if (!res.success) throw new Error(res.error || 'Error al cargar datos');
         st_state.data = res.items || [];
+        st_state.expandedId = null;
         st_computeKPIs();
         st_applyFilters();
         document.getElementById('st-ts').textContent =
@@ -620,6 +674,7 @@
 
   window.st_setFilter = function(f) {
     st_state.stFilter = f;
+    st_state.expandedId = null;
     document.querySelectorAll('[id^=st-f-]').forEach(function(b) {
       b.classList.toggle('active', b.id === 'st-f-'+f);
     });
@@ -641,6 +696,14 @@
     st_renderCards(items);
   };
 
+  function st_numFact(st) {
+    // Extraer número de factura legible del num_cotizacion o descripcion
+    // Prioridad: num_cotizacion que empiece con dígitos (ej COT-RP-2026-0005)
+    // Para STs importados el num_cotizacion tiene el formato de la factura real
+    var n = st.num_cotizacion || '';
+    return n;
+  }
+
   function st_renderCards(items) {
     var cont = document.getElementById('st-cards-container');
     if (!items.length) {
@@ -654,54 +717,120 @@
 
     var html = '';
     items.forEach(function(st, idx) {
-      var estadoCls = 'st-card s-' + st.estado;
-      var acciones  = st_buildCardAcciones(st, idx);
-      var totalCostoCot = parseFloat(st.total_costo_cotizado) || 0;
-      var utilidad  = (st.precio_venta||0) - totalCostoCot;
-      var cotActivo = st.estado === 'cotizado' || st.estado === 'aprobado';
+      var utilidad    = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
+      var utilColor   = utilidad >= 0 ? '#15803d' : '#dc2626';
+      var isExpanded  = st_state.expandedId === st.id_st;
+      var expandCls   = isExpanded ? ' expanded' : '';
 
-      html += '<div class="' + estadoCls + '" style="cursor:default">' +
-        '<div class="st-card-top">' +
-          '<div>' +
-            '<div class="st-card-id">' + st_esc(st.id_st) + ' · ' + st_esc(st.num_cotizacion) + '</div>' +
-            '<div class="st-card-desc">' + st_esc(st.descripcion) + '</div>' +
-            '<div class="st-card-cli">👤 ' + st_esc(st.nombre_cliente) +
-              (st.ruc_cliente ? ' <span style="color:#94a3b8;font-size:.72rem">RUC: '+st_esc(st.ruc_cliente)+'</span>' : '') + '</div>' +
+      // Fecha legible desde fecha_reg
+      var fechaStr = '';
+      if (st.fecha_reg) {
+        fechaStr = String(st.fecha_reg).slice(0,10);
+      }
+
+      html += '<div class="st-card s-' + st.estado + expandCls + '" id="stcard-' + st_esc(st.id_st) + '">' +
+
+        // ── Cabecera clickeable ──────────────────────────────
+        '<div class="st-card-head" onclick="st_toggleCard(\'' + st_esc(st.id_st) + '\',' + idx + ')">' +
+          '<div class="st-card-head-left">' +
+            '<div class="st-card-cliente">' + st_esc(st.nombre_cliente) + '</div>' +
+            '<div class="st-card-factura">' +
+              '<span class="st-card-fnum">' + st_esc(st.num_cotizacion) + '</span>' +
+              (fechaStr ? '<span class="st-card-fecha">' + fechaStr + '</span>' : '') +
+              '<span class="st-badge s-' + st.estado + '" style="font-size:.62rem">' + (ESTADO_LABEL[st.estado]||st.estado) + '</span>' +
+            '</div>' +
+            '<div class="st-card-desc-sm">' + st_esc(st.descripcion) + '</div>' +
           '</div>' +
-          '<span class="st-badge s-' + st.estado + '">' + (ESTADO_LABEL[st.estado]||st.estado) + '</span>' +
+          '<div class="st-card-head-right">' +
+            '<div class="st-card-monto">' + st_fmt(st.precio_venta) + '</div>' +
+            '<div class="st-card-utilidad" style="color:' + utilColor + '">' +
+              (utilidad >= 0 ? '▲' : '▼') + ' ' + st_fmt(Math.abs(utilidad)) +
+            '</div>' +
+            '<div class="st-card-chevron">▼</div>' +
+          '</div>' +
         '</div>' +
-        '<div class="st-card-nums">' +
-          '<div class="st-card-num"><div class="st-card-num-label">Costo cotizado</div><div class="st-card-num-value" style="color:#E65100">' + st_fmt(totalCostoCot) + '</div></div>' +
-          '<div class="st-card-num"><div class="st-card-num-label">Precio venta</div><div class="st-card-num-value" style="color:#1A237E">' + st_fmt(st.precio_venta) + '</div></div>' +
-          '<div class="st-card-num"><div class="st-card-num-label">Utilidad est.</div><div class="st-card-num-value" style="color:' + (utilidad>=0?'#15803d':'#dc2626') + '">' + st_fmt(utilidad) + '</div></div>' +
-          (st.total_costo_real > 0 ? '<div class="st-card-num"><div class="st-card-num-label">Costo real</div><div class="st-card-num-value" style="color:#8b5cf6">' + st_fmt(st.total_costo_real) + '</div></div>' : '') +
+
+        // ── Cuerpo expandible ────────────────────────────────
+        '<div class="st-card-body" id="stbody-' + st_esc(st.id_st) + '">' +
+          '<div id="stdetail-' + st_esc(st.id_st) + '">' +
+            '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.82rem">' +
+              '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
-        acciones +
-        '</div>';
+
+      '</div>';
     });
     cont.innerHTML = html;
+
+    // Restaurar expanded si había uno abierto antes de refrescar
+    if (st_state.expandedId) {
+      var idx2 = -1;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].id_st === st_state.expandedId) { idx2 = i; break; }
+      }
+      if (idx2 !== -1) st_toggleCard(st_state.expandedId, idx2, true);
+    }
   }
 
-  function st_buildCardAcciones(st, idx) {
-    var btns = '<div class="st-card-actions">';
-    btns += '<button class="st-btn st-btn-ghost st-btn-sm" onclick="st_verDetalle(' + idx + ')">🔍 Ver detalle</button>';
+  // ── Toggle expand / collapse ─────────────────────────────
+  window.st_toggleCard = function(idST, idx, forceOpen) {
+    var cardEl = document.getElementById('stcard-' + idST);
+    var bodyEl = document.getElementById('stbody-' + idST);
+    if (!cardEl || !bodyEl) return;
 
-    if (st.estado === 'cotizado') {
-      btns += '<button class="st-btn st-btn-ghost st-btn-sm" onclick="st_editarCotizacion(' + idx + ')">✏️ Editar</button>';
-      btns += '<button class="st-btn st-btn-warning st-btn-sm" onclick="st_accionEmail(' + idx + ')">📧 Enviar email</button>';
-      btns += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionAprobar(' + idx + ')">✅ Aprobar</button>';
-      btns += '<button class="st-btn st-btn-danger st-btn-sm" onclick="st_accionCancelar(' + idx + ')">✕ Cancelar</button>';
+    var isOpen = cardEl.classList.contains('expanded');
+
+    // Cerrar cualquier otro card abierto
+    if (st_state.expandedId && st_state.expandedId !== idST) {
+      var prevCard = document.getElementById('stcard-' + st_state.expandedId);
+      var prevBody = document.getElementById('stbody-' + st_state.expandedId);
+      if (prevCard) prevCard.classList.remove('expanded');
+      if (prevBody) prevBody.style.display = 'none';
     }
-    if (st.estado === 'aprobado') {
-      btns += '<button class="st-btn st-btn-warning st-btn-sm" onclick="st_accionEmail(' + idx + ')">📧 Reenviar email</button>';
-      btns += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionIniciar(' + idx + ')">🚀 Iniciar ejecución</button>';
+
+    if (isOpen && !forceOpen) {
+      // Cerrar
+      cardEl.classList.remove('expanded');
+      bodyEl.style.display = 'none';
+      st_state.expandedId = null;
+      st_state.stActual   = null;
+      return;
     }
-    if (st.estado === 'en_ejecucion') {
-      btns += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_verDetalle(' + idx + ')">📋 Gestionar</button>';
+
+    // Abrir
+    cardEl.classList.add('expanded');
+    bodyEl.style.display = 'block';
+    st_state.expandedId = idST;
+    st_state.stActual   = st_state.filtered[idx] || null;
+
+    // Scroll suave al card
+    setTimeout(function() {
+      cardEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }, 50);
+
+    // Cargar detalle si no está cargado aún
+    var detailEl = document.getElementById('stdetail-' + idST);
+    if (detailEl && detailEl.querySelector('.st-spinner')) {
+      gasJsonp('getResumenST', { id_st: idST })
+        .then(function(res) {
+          if (!res.success) throw new Error(res.error);
+          // Refrescar stActual con datos frescos
+          gasJsonp('getCotizaciones', { id_st: idST })
+            .then(function(r2) {
+              if (r2.success && r2.items && r2.items.length) {
+                st_state.stActual = r2.items[0];
+              }
+              st_renderDetalleInCard(idST, res.resumen);
+            })
+            .catch(function() { st_renderDetalleInCard(idST, res.resumen); });
+        })
+        .catch(function(e) {
+          if (detailEl) detailEl.innerHTML =
+            '<div class="st-empty"><div class="st-empty-icon">⚠️</div>' + st_esc(e.message) + '</div>';
+        });
     }
-    btns += '</div>';
-    return btns;
-  }
+  };
 
   // ── ACCIONES RÁPIDAS DESDE CARDS ────────────────────────
 
@@ -1020,210 +1149,184 @@
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   };
 
-  // ── VISTA DETALLE / EJECUCIÓN ────────────────────────────
+  // ── DETALLE IN-CARD (propuesta B) ────────────────────────
 
+  // st_verDetalle kept for backward compat from card actions
   window.st_verDetalle = function(idx) {
     var st = st_state.filtered[idx];
-    if (!st) return;
-    st_state.stActual = st;
-
-    // Cargar resumen actualizado
-    gasJsonp('getResumenST', { id_st: st.id_st })
-      .then(function(res) {
-        if (!res.success) throw new Error(res.error);
-        st_renderDetalle(res.resumen);
-      })
-      .catch(function(e) {
-        document.getElementById('st-detalle-contenido').innerHTML =
-          '<div class="st-empty"><div class="st-empty-icon">⚠️</div>' + st_esc(e.message) + '</div>';
-      });
-
-    var tabDet = document.getElementById('st-nav-detalle');
-    if (tabDet) { tabDet.style.display = ''; tabDet.textContent = '🔍 ' + st.num_cotizacion; }
-    st_showView('detalle');
+    if (st) st_toggleCard(st.id_st, idx);
   };
 
-  function st_renderDetalle(r) {
-    var st     = st_state.stActual;
+  function st_renderDetalleInCard(idST, r) {
+    var detailEl = document.getElementById('stdetail-' + idST);
+    if (!detailEl) return;
+    var st    = st_state.stActual;
+    if (!st) return;
+
     var enEje  = st.estado === 'en_ejecucion';
-    var cotApro= st.estado === 'cotizado' || st.estado === 'aprobado';
-    var cerrado= st.estado === 'cerrado';
-    var semCls = 'st-sem-' + (r.semaforo_global||'verde');
+    var items  = r.items || [];
     var varPct = r.variacion_pct || 0;
+
+    // Detectar ST de email (sin cotización previa)
+    var notas     = String(st.notas || '');
+    var esEmailST = notas.indexOf('Importado desde historial') !== -1 ||
+                    notas.indexOf('Creado automáticamente desde email') !== -1 ||
+                    notas.indexOf('email automático') !== -1 ||
+                    (!st.fecha_aprobacion && (st.estado==='cerrado'||st.estado==='en_ejecucion') &&
+                     st.total_costo_real > 0 && (!st.margen_pct || st.margen_pct===0));
 
     var html = '';
 
-    // Header
-    html += '<div class="st-detail-header">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">' +
-        '<div>' +
-          '<h3>' + st_esc(r.descripcion) + '</h3>' +
-          '<div class="st-detail-sub">' + st_esc(r.num_cotizacion) + ' · ' + st_esc(r.nombre_cliente) + '</div>' +
-        '</div>' +
-        '<span class="st-badge s-' + st.estado + '" style="flex-shrink:0">' + (ESTADO_LABEL[st.estado]||st.estado) + '</span>' +
-      '</div>' +
+    // ── Fila comprobantes (3 columnas) ────────────────────
+    var factUrl = st.drive_url || '';
+    var costUrls = [];
+    var urlsVistos = {};
+    items.forEach(function(it) {
+      if (it.drive_url && !urlsVistos[it.drive_url]) {
+        urlsVistos[it.drive_url] = true;
+        costUrls.push({ url: it.drive_url, desc: it.descripcion || 'Costo' });
+      }
+    });
+    var voucherUrl = '';
+    var voucherMatch = notas.match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
+    if (voucherMatch) voucherUrl = voucherMatch[1];
+
+    html += '<div class="st-docs-row">';
+
+    // Factura emitida
+    html += '<div class="st-doc-cell">' +
+      '<div class="st-doc-cell-label">🧾 Factura emitida</div>' +
+      (factUrl
+        ? '<a href="' + st_esc(factUrl) + '" target="_blank" class="st-doc-cell-link doc-fact">' +
+            st_esc(st.num_cotizacion) + ' ↗' +
+          '</a>'
+        : '<span class="st-doc-cell-none">Sin adjunto</span>') +
     '</div>';
 
-    // Métricas principales
-    html += '<div class="st-detail-meta">' +
-      '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Costo cotizado</div><div class="st-detail-meta-value" style="color:#E65100">' + st_fmt(r.total_cotizado) + '</div></div>' +
-      '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Precio de venta</div><div class="st-detail-meta-value" style="color:#1A237E">' + st_fmt(r.precio_venta) + '</div></div>' +
-      '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Utilidad cotizada</div><div class="st-detail-meta-value" style="color:#15803d">' + st_fmt(r.utilidad_cotizada) + '</div></div>' +
-      (r.total_real > 0
-        ? '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Costo real</div><div class="st-detail-meta-value" style="color:#8b5cf6">' + st_fmt(r.total_real) + '</div></div>' +
-          '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Utilidad real</div><div class="st-detail-meta-value" style="color:' + (r.utilidad_real>=0?'#15803d':'#dc2626') + '">' + st_fmt(r.utilidad_real) + '</div></div>' +
-          '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Variación costo</div><div class="st-detail-meta-value ' + semCls + '">' + (varPct > 0 ? '+' : '') + st_fmtPct(varPct) + '</div></div>'
-        : '') +
-    '</div>';
-
-    // Botones de flujo
-    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">';
-    if (st.estado === 'cotizado') {
-      html += '<button class="st-btn st-btn-warning" onclick="st_accionEmail_st()">📧 Enviar cotización</button>';
-      html += '<button class="st-btn st-btn-primary" onclick="st_accionAprobar_st()">✅ Aprobar</button>';
-    }
-    if (st.estado === 'aprobado') {
-      html += '<button class="st-btn st-btn-primary" onclick="st_accionIniciar_st()">🚀 Iniciar ejecución</button>';
-    }
-    if (enEje && !r.ingreso_id) {
-      html += '<button class="st-btn st-btn-success" onclick="st_abrirModalIngreso()">💰 Registrar ingreso</button>';
-    }
-    if (enEje) {
-      html += '<button class="st-btn st-btn-primary" onclick="st_abrirModalEgreso()">💸 Registrar costo real</button>';
-    }
-    if (enEje && r.ingreso_id) {
-      html += '<button class="st-btn st-btn-success" onclick="st_accionCerrar_st()">🔒 Cerrar ST</button>';
+    // Factura(s) de costo
+    html += '<div class="st-doc-cell">' +
+      '<div class="st-doc-cell-label">📦 Factura de costo</div>';
+    if (costUrls.length === 0) {
+      html += '<span class="st-doc-cell-none">Sin adjunto</span>';
+    } else {
+      costUrls.forEach(function(c, ci) {
+        var lbl = c.desc.length > 30 ? c.desc.substring(0,30)+'…' : c.desc;
+        html += '<a href="' + st_esc(c.url) + '" target="_blank" class="st-doc-cell-link doc-cost"' +
+          (ci > 0 ? ' style="margin-top:2px"' : '') + '>' + st_esc(lbl) + ' ↗</a>';
+      });
     }
     html += '</div>';
 
-    // ── Tira de comprobantes ──────────────────────────────────
-    // Reúne: factura emitida · facturas de costo · voucher de pago
-    var items = r.items || [];
+    // Pago del cliente
+    html += '<div class="st-doc-cell">' +
+      '<div class="st-doc-cell-label">💳 Pago del cliente</div>' +
+      (r.ingreso_id
+        ? (voucherUrl
+            ? '<a href="' + st_esc(voucherUrl) + '" target="_blank" class="st-doc-cell-link doc-pago">' +
+                st_esc(r.ingreso_id) + ' ↗</a>'
+            : '<span class="st-doc-cell-link doc-pago" style="cursor:default">' +
+                st_esc(r.ingreso_id) + '</span>')
+        : '<span class="st-doc-cell-none">Pendiente</span>') +
+    '</div>';
 
-    // Construir chips
-    var chips = [];
+    html += '</div>';
 
-    // 1. Factura emitida por CEYCO
-    var factUrl = st.drive_url || '';
-    var factRef = st.num_cotizacion || '';
-    chips.push(
-      factUrl
-        ? '<a href="' + st_esc(factUrl) + '" target="_blank" class="st-doc-chip doc-factura">' +
-            '<span class="st-doc-chip-icon">🧾</span>' +
-            '<span>Factura CEYCO</span>' +
-            '<span class="st-doc-chip-ref">' + st_esc(factRef) + '</span>' +
-          '</a>'
-        : '<span class="st-doc-chip doc-sin-url">' +
-            '<span class="st-doc-chip-icon">🧾</span>' +
-            '<span>Factura CEYCO</span>' +
-            '<span class="st-doc-chip-ref">sin adjunto</span>' +
-          '</span>'
-    );
+    // ── Métricas financieras (4 columnas) ────────────────
+    var utilReal = r.utilidad_real !== undefined ? r.utilidad_real : (r.precio_venta - r.total_real);
+    var margenReal = r.total_real > 0
+      ? parseFloat(((r.precio_venta - r.total_real) / r.total_real * 100).toFixed(1))
+      : 0;
+    html += '<div class="st-metrics-row">' +
+      '<div class="st-metric-cell"><div class="st-metric-label">Facturado</div>' +
+        '<div class="st-metric-value" style="color:#1A237E">' + st_fmt(r.precio_venta) + '</div></div>' +
+      '<div class="st-metric-cell"><div class="st-metric-label">Costo real</div>' +
+        '<div class="st-metric-value" style="color:#8b5cf6">' + st_fmt(r.total_real) + '</div></div>' +
+      '<div class="st-metric-cell"><div class="st-metric-label">Utilidad</div>' +
+        '<div class="st-metric-value" style="color:' + (utilReal>=0?'#15803d':'#dc2626') + '">' +
+          st_fmt(utilReal) + '</div></div>' +
+      '<div class="st-metric-cell"><div class="st-metric-label">Margen</div>' +
+        '<div class="st-metric-value" style="color:' + (margenReal>=0?'#15803d':'#dc2626') + '">' +
+          (margenReal > 0 ? '+' : '') + margenReal + '%</div></div>' +
+    '</div>';
 
-    // 2. Facturas de costo (una por ítem ejecutado con drive_url)
-    var costosVistos = {};
-    items.forEach(function(it) {
-      if (!it.drive_url || costosVistos[it.drive_url]) return;
-      costosVistos[it.drive_url] = true;
-      var label = it.descripcion ? it.descripcion.substring(0, 28) + (it.descripcion.length > 28 ? '…' : '') : 'Costo';
-      chips.push(
-        '<a href="' + st_esc(it.drive_url) + '" target="_blank" class="st-doc-chip doc-costo">' +
-          '<span class="st-doc-chip-icon">📦</span>' +
-          '<span>' + st_esc(label) + '</span>' +
-        '</a>'
-      );
-    });
-
-    // 3. Voucher de pago del cliente (desde notas del ST o ingreso_id)
-    // El drive_url del ingreso no llega en r directamente — extraer de notas si hay "Voucher:"
-    var voucherUrl = '';
-    var voucherRef = '';
-    if (st.notas) {
-      var voucherMatch = st.notas.match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
-      if (voucherMatch) voucherUrl = voucherMatch[1];
-    }
-    if (r.ingreso_id) {
-      voucherRef = r.ingreso_id;
-      chips.push(
-        voucherUrl
-          ? '<a href="' + st_esc(voucherUrl) + '" target="_blank" class="st-doc-chip doc-pago">' +
-              '<span class="st-doc-chip-icon">💳</span>' +
-              '<span>Pago cliente</span>' +
-              '<span class="st-doc-chip-ref">' + st_esc(voucherRef) + '</span>' +
-            '</a>'
-          : '<span class="st-doc-chip doc-pago" style="opacity:.8">' +
-              '<span class="st-doc-chip-icon">💳</span>' +
-              '<span>Pago cliente</span>' +
-              '<span class="st-doc-chip-ref">' + st_esc(voucherRef) + '</span>' +
-            '</span>'
-      );
+    // ── Botones de acción ─────────────────────────────────
+    var tieneBotones = enEje || st.estado === 'cotizado' || st.estado === 'aprobado';
+    if (tieneBotones) {
+      html += '<div class="st-card-actions-row">';
+      if (st.estado === 'cotizado') {
+        html += '<button class="st-btn st-btn-ghost st-btn-sm" onclick="st_accionEmail_st()">📧 Enviar cotización</button>';
+        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionAprobar_st()">✅ Aprobar</button>';
+      }
+      if (st.estado === 'aprobado') {
+        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionIniciar_st()">🚀 Iniciar ejecución</button>';
+      }
+      if (enEje && !r.ingreso_id) {
+        html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_abrirModalIngreso()">💰 Registrar ingreso</button>';
+      }
+      if (enEje) {
+        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_abrirModalEgreso()">💸 Registrar costo</button>';
+      }
+      if (enEje && r.ingreso_id) {
+        html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_accionCerrar_st()">🔒 Cerrar ST</button>';
+      }
+      html += '</div>';
     }
 
-    html += '<div class="st-docs-strip">' + chips.join('') + '</div>';
+    // ── Tabla de costos ───────────────────────────────────
+    if (items.length) {
+      html += '<div class="st-costs-wrap">' +
+        '<div class="st-costs-label">Costos ejecutados</div>' +
+        '<table class="st-costs-table"><thead><tr>' +
+          '<th>Tipo</th><th>Descripción</th>' +
+          '<th class="r">Monto</th>' +
+          '<th>Estado</th>' +
+          '<th style="width:28px;text-align:center">Doc</th>' +
+          (enEje ? '<th style="width:60px"></th>' : '') +
+        '</tr></thead><tbody>';
 
-    // ── Tabla de ítems ────────────────────────────────────────
-    html += '<div class="st-section">' +
-      '<div class="st-section-title">Comparativo Presupuestado vs Ejecutado</div>' +
-      '<div class="st-comp-table-wrap"><table class="st-comp-table">' +
-      '<thead><tr>' +
-        '<th>Tipo</th><th>Descripción</th>' +
-        '<th class="num">Cotizado</th><th class="num">Real</th>' +
-        '<th class="num">Variación</th><th>Estado</th>' +
-        '<th style="width:36px;text-align:center" title="Adjunto">📎</th>' +
-        (enEje ? '<th style="width:70px"></th>' : '') +
-      '</tr></thead><tbody>';
-
-    if (!items.length) {
-      html += '<tr><td colspan="' + (enEje?8:7) + '" style="text-align:center;color:#94a3b8;padding:20px">Sin ítems registrados</td></tr>';
-    } else {
       items.forEach(function(it) {
-        var varCls  = it.semaforo === 'verde' ? '#15803d' : it.semaforo === 'amarillo' ? '#d97706' : '#dc2626';
-        var varSign = (it.variacion_monto > 0 ? '+' : '') + st_fmt(it.variacion_monto);
         var estadoBadge = it.estado_item === 'ejecutado'
-          ? '<span style="background:#dcfce7;color:#15803d;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px">✓ Ejecutado</span>'
+          ? '<span style="background:#dcfce7;color:#15803d;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:10px">✓ OK</span>'
           : it.es_adicional
-            ? '<span style="background:#ede9fe;color:#6d28d9;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px">+ Adicional</span>'
-            : '<span style="background:#fef9c3;color:#a16207;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px">Pendiente</span>';
+            ? '<span style="background:#ede9fe;color:#6d28d9;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:10px">+ Adic.</span>'
+            : '<span style="background:#fef9c3;color:#a16207;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:10px">Pend.</span>';
 
-        // Ícono de adjunto por ítem
         var adjIcon = it.drive_url
-          ? '<a href="' + st_esc(it.drive_url) + '" target="_blank" ' +
-              'title="Ver comprobante" ' +
+          ? '<a href="' + st_esc(it.drive_url) + '" target="_blank" title="Ver doc" ' +
               'style="display:inline-flex;align-items:center;justify-content:center;' +
-              'width:26px;height:26px;border-radius:6px;background:#F1F5F9;' +
-              'border:1px solid #E2E8F0;text-decoration:none;font-size:.85rem;">📄</a>'
-          : '<span style="color:#d1d5db;font-size:.75rem;display:block;text-align:center">—</span>';
+              'width:22px;height:22px;border-radius:5px;background:#f1f5f9;' +
+              'border:1px solid #e2e8f0;text-decoration:none;font-size:.8rem;">📄</a>'
+          : '<span style="color:#d1d5db;font-size:.7rem;display:block;text-align:center">—</span>';
+
+        var realAmt = it.total_real > 0 ? st_fmt(it.total_real) : st_fmt(it.total_cotizado);
 
         html += '<tr>' +
-          '<td style="font-size:.75rem;color:#64748b;white-space:nowrap">' + (TIPO_LABEL[it.tipo]||it.tipo) + '</td>' +
+          '<td style="font-size:.72rem;color:#64748b;white-space:nowrap">' + (TIPO_LABEL[it.tipo]||it.tipo) + '</td>' +
           '<td>' + st_esc(it.descripcion) +
-            (it.cantidad > 1 ? '<div style="font-size:.7rem;color:#94a3b8">×'+it.cantidad+'</div>' : '') +
+            (it.cantidad > 1 ? ' <span style="font-size:.68rem;color:#94a3b8">×'+it.cantidad+'</span>' : '') +
           '</td>' +
-          '<td class="num" style="color:#E65100">' + st_fmt(it.total_cotizado) + '</td>' +
-          '<td class="num" style="color:#8b5cf6">' + (it.total_real > 0 ? st_fmt(it.total_real) : '—') + '</td>' +
-          '<td class="num" style="color:' + varCls + '">' + (it.total_real > 0 ? varSign : '—') + '</td>' +
+          '<td class="r">' + realAmt + '</td>' +
           '<td>' + estadoBadge + '</td>' +
-          '<td style="text-align:center;padding:6px 8px">' + adjIcon + '</td>' +
+          '<td style="text-align:center">' + adjIcon + '</td>' +
           (enEje
             ? '<td>' + (it.estado_item !== 'ejecutado'
-                ? '<button class="st-btn st-btn-ghost st-btn-sm" onclick="st_abrirModalEgresoItem(' + JSON.stringify(it.id_item_st) + ')">💸</button>'
-                : '') +
-              '</td>'
+                ? '<button class="st-btn st-btn-ghost st-btn-sm" style="padding:2px 8px" onclick="st_abrirModalEgresoItem(' + JSON.stringify(it.id_item_st) + ')">💸</button>'
+                : '') + '</td>'
             : '') +
         '</tr>';
       });
+
+      var totalReal = r.total_real || 0;
+      html += '</tbody><tfoot><tr>' +
+        '<td colspan="2" style="padding:6px 10px">Total costos</td>' +
+        '<td class="r">' + st_fmt(totalReal) + '</td>' +
+        '<td colspan="' + (enEje?3:2) + '"></td>' +
+      '</tr></tfoot></table></div>';
+    } else {
+      html += '<div style="padding:14px 16px;font-size:.8rem;color:#94a3b8">Sin ítems de costo registrados</div>';
     }
 
-    html += '</tbody><tfoot><tr>' +
-      '<td colspan="2" style="padding:8px 12px">TOTALES</td>' +
-      '<td class="num" style="color:#E65100">' + st_fmt(r.total_cotizado) + '</td>' +
-      '<td class="num" style="color:#8b5cf6">' + (r.total_real > 0 ? st_fmt(r.total_real) : '—') + '</td>' +
-      '<td class="num" style="color:' + (varPct > 10 ? '#dc2626' : varPct > 0 ? '#d97706' : '#15803d') + '">' +
-        (r.total_real > 0 ? (varPct > 0 ? '+' : '') + st_fmtPct(varPct) : '—') + '</td>' +
-      '<td colspan="' + (enEje?3:2) + '"></td>' +
-    '</tr></tfoot></table></div></div>';
-
-    document.getElementById('st-detalle-contenido').innerHTML = html;
+    detailEl.innerHTML = html;
   }
 
   // Acciones desde vista detalle
@@ -1280,19 +1383,33 @@
   function st_recargarDetalle() {
     var st = st_state.stActual;
     if (!st) return;
-    // Refrescar stActual desde datos recargados
-    gasJsonp('getCotizaciones', { id_st: st.id_st })
+    var idST = st.id_st;
+    // Forzar recarga del detalle marcando el spinner
+    var detailEl = document.getElementById('stdetail-' + idST);
+    if (detailEl) {
+      detailEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.82rem">' +
+        '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>' +
+        '</div>';
+    }
+    gasJsonp('getCotizaciones', { id_st: idST })
       .then(function(res) {
         if (res.success && res.items && res.items.length) {
           st_state.stActual = res.items[0];
-          return gasJsonp('getResumenST', { id_st: st.id_st });
+          // Actualizar card en la lista de datos
+          for (var i = 0; i < st_state.data.length; i++) {
+            if (st_state.data[i].id_st === idST) { st_state.data[i] = res.items[0]; break; }
+          }
+          for (var j = 0; j < st_state.filtered.length; j++) {
+            if (st_state.filtered[j].id_st === idST) { st_state.filtered[j] = res.items[0]; break; }
+          }
+          return gasJsonp('getResumenST', { id_st: idST });
         }
         throw new Error('ST no encontrado');
       })
       .then(function(res) {
         if (!res.success) throw new Error(res.error);
-        st_renderDetalle(res.resumen);
-        st_cargarDatos(false);
+        st_renderDetalleInCard(idST, res.resumen);
+        st_computeKPIs();
       })
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   }
