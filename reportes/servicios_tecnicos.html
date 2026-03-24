@@ -692,7 +692,7 @@
     }
   }
 
-  function st_buildCardHead(st, isActive) {
+  window.st_buildCardHead = function(st, isActive) {
     if (!st) return '<div></div>';
     var util = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
     var uClr = util >= 0 ? '#15803d' : '#dc2626';
@@ -732,7 +732,7 @@
   }
 
 
-  function st_buildCardHead(st, isActive) {
+  window.st_buildCardHead = function(st, isActive) {
     if (!st) return '<div></div>';
     var util = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
     var uClr = util >= 0 ? '#15803d' : '#dc2626';
@@ -1569,7 +1569,10 @@
   };
 
   // ── INIT ─────────────────────────────────────────────────
-  setTimeout(function() { st_cargarDatos(true); }, 0);
+  // Guard: if DOM already has cards from a previous IIFE, re-render
+  setTimeout(function() {
+    st_cargarDatos(true);
+  }, 0);
 
 })();
 </script>
