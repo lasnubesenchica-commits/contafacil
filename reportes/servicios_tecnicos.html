@@ -725,6 +725,8 @@
       html +=   '</div>';
       html += '</div>';
     }
+    // Always-present drawer (hidden by default, shown on click)
+    html += '<div class="st-card-detail" id="stdrawer-' + idEsc + '" style="display:none"></div>';
     html += '</div>';
     return html;
   }
