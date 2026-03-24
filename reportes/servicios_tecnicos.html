@@ -647,54 +647,43 @@
 
     var outer = '<div class="st-cards-outer">';
     for (var i = 0; i < items.length; i += 2) {
-      outer += '<div class="st-cards-row">';
-      for (var j = i; j < Math.min(i + 2, items.length); j++) {
-        var st   = items[j];
-        var util = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
-        var uClr = util >= 0 ? '#15803d' : '#dc2626';
-        var fecha= String(st.fecha_reg||'').slice(0,10);
-        var aCls = st_state.expandedId === st.id_st ? ' active' : '';
-        var idEsc= st_esc(st.id_st);
+      var left  = items[i];
+      var right = items[i + 1] || null;
 
-        outer += '<div class="st-card s-' + st.estado + aCls + '" id="stcard-' + idEsc + '">';
-        outer +=   '<div class="st-card-head" onclick="st_toggleCard(\'' + idEsc + '\')">';
-        outer +=     '<div class="st-card-row1">';
-        outer +=       '<div class="st-card-cli">' + st_esc(st.nombre_cliente) + '</div>';
-        outer +=       '<div class="st-card-right">';
-        outer +=         '<div class="st-card-monto">' + st_fmt(st.precio_venta) + '</div>';
-        outer +=         '<div class="st-card-util" style="color:' + uClr + '">' + (util>=0?'▲':'▼') + ' ' + st_fmt(Math.abs(util)) + '</div>';
-        outer +=         '<div class="st-card-chev">▼</div>';
-        outer +=       '</div>';
-        outer +=     '</div>';
-        outer +=     '<div class="st-card-row2">';
-        outer +=       '<span class="st-card-fnum">' + st_esc(st.num_cotizacion) + '</span>';
-        if (fecha) outer += '<span class="st-card-fecha">' + fecha + '</span>';
-        outer +=       '<span class="st-badge s-' + st.estado + '">' + st_esc(ESTADO_LABEL[st.estado]||st.estado) + '</span>';
-        outer +=     '</div>';
-        outer +=     '<div class="st-card-row3">' + st_esc(st.descripcion) + '</div>';
-        outer +=   '</div>';
+      // Check if expanded card is in this row
+      var leftExp  = st_state.expandedId && left  && left.id_st  === st_state.expandedId;
+      var rightExp = st_state.expandedId && right && right.id_st === st_state.expandedId;
+
+      outer += '<div class="st-cards-row">';
+
+      // Left card
+      outer += st_buildCardHead(left, leftExp);
+
+      // Right: if left is expanded show empty placeholder, else show right card
+      if (leftExp) {
+        outer += '<div></div>';
+      } else if (right) {
+        outer += st_buildCardHead(right, rightExp);
+      } else {
+        outer += '<div></div>';
+      }
+
+      outer += '</div>';
+
+      // Expanded drawer — inside the same row, full width, below the cards
+      if (leftExp || rightExp) {
+        var expandedST = leftExp ? left : right;
+        outer += '<div class="st-drawer open" id="stdrawer-' + st_esc(expandedST.id_st) + '">';
+        outer +=   '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8">';
+        outer +=     '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>';
+        outer +=   '</div></div>';
         outer += '</div>';
       }
-      // Pad to 2 if odd number
-      if (i + 1 >= items.length) outer += '<div></div>';
-      outer += '</div>';
-
-      // Drawer after each row
-      var rowIdx  = Math.floor(i / 2);
-      var openCls = '';
-      for (var k = i; k < Math.min(i+2, items.length); k++) {
-        if (st_state.expandedId === items[k].id_st) { openCls = ' open'; break; }
-      }
-      outer += '<div class="st-drawer' + openCls + '" id="stdrawer-row-' + rowIdx + '">';
-      outer +=   '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8">';
-      outer +=     '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>';
-      outer +=   '</div></div>';
-      outer += '</div>';
     }
     outer += '</div>';
     cont.innerHTML = outer;
 
-    // If something was expanded, reload it
+    // Load detail if expanded
     if (st_state.expandedId) {
       for (var n = 0; n < items.length; n++) {
         if (items[n].id_st === st_state.expandedId) {
@@ -706,72 +695,75 @@
     }
   }
 
+  function st_buildCardHead(st, isActive) {
+    if (!st) return '<div></div>';
+    var util = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
+    var uClr = util >= 0 ? '#15803d' : '#dc2626';
+    var fecha= String(st.fecha_reg||'').slice(0,10);
+    var aCls = isActive ? ' active' : '';
+    var idEsc= st_esc(st.id_st);
+    var html = '';
+    html += '<div class="st-card s-' + st.estado + aCls + '" id="stcard-' + idEsc + '">';
+    html +=   '<div class="st-card-head" onclick="st_toggleCard(\'' + idEsc + '\')">';
+    html +=     '<div class="st-card-row1">';
+    html +=       '<div class="st-card-cli">' + st_esc(st.nombre_cliente) + '</div>';
+    html +=       '<div class="st-card-right">';
+    html +=         '<div class="st-card-monto">' + st_fmt(st.precio_venta) + '</div>';
+    html +=         '<div class="st-card-util" style="color:' + uClr + '">' + (util>=0?'▲':'▼') + ' ' + st_fmt(Math.abs(util)) + '</div>';
+    html +=         '<div class="st-card-chev">▼</div>';
+    html +=       '</div>';
+    html +=     '</div>';
+    html +=     '<div class="st-card-row2">';
+    html +=       '<span class="st-card-fnum">' + st_esc(st.num_cotizacion) + '</span>';
+    if (fecha) html += '<span class="st-card-fecha">' + fecha + '</span>';
+    html +=       '<span class="st-badge s-' + st.estado + '">' + st_esc(ESTADO_LABEL[st.estado]||st.estado) + '</span>';
+    html +=     '</div>';
+    html +=     '<div class="st-card-row3">' + st_esc(st.descripcion) + '</div>';
+    html +=   '</div>';
+    html += '</div>';
+    return html;
+  }
+
+
   // Calcular qué drawer row corresponde a un índice de item
   function st_rowForIdx(idx) { return Math.floor(idx / 2); }
 
   window.st_toggleCard = function(idST) {
     var isOpen = st_state.expandedId === idST;
 
-    // Marcar activo/inactivo
-    var prevId = st_state.expandedId;
-    if (prevId) {
-      var prevCard = document.getElementById('stcard-' + prevId);
+    // Collapse previous
+    if (st_state.expandedId) {
+      var prevCard = document.getElementById('stcard-' + st_state.expandedId);
       if (prevCard) prevCard.classList.remove('active');
     }
+    st_state.expandedId = null;
+    st_state.stActual   = null;
 
     if (isOpen) {
-      // Cerrar
-      st_state.expandedId = null;
-      st_state.stActual   = null;
-      // Cerrar drawer de esa fila
-      var prevIdx = -1;
-      for (var k = 0; k < st_state.filtered.length; k++) {
-        if (st_state.filtered[k].id_st === prevId) { prevIdx = k; break; }
-      }
-      if (prevIdx !== -1) {
-        var dr = document.getElementById('stdrawer-row-' + st_rowForIdx(prevIdx));
-        if (dr) dr.classList.remove('open');
-      }
+      // Just collapsed — re-render cards without any expanded
+      st_applyFilters();
       return;
     }
 
-    // Abrir nuevo
-    // Cerrar drawer previo si está en fila diferente
-    if (prevId) {
-      var prevIdx2 = -1;
-      for (var m = 0; m < st_state.filtered.length; m++) {
-        if (st_state.filtered[m].id_st === prevId) { prevIdx2 = m; break; }
-      }
-      if (prevIdx2 !== -1) {
-        var drPrev = document.getElementById('stdrawer-row-' + st_rowForIdx(prevIdx2));
-        if (drPrev) drPrev.classList.remove('open');
-      }
-    }
-
+    // Expand new
     st_state.expandedId = idST;
-    var newIdx = -1;
     for (var n = 0; n < st_state.filtered.length; n++) {
-      if (st_state.filtered[n].id_st === idST) { newIdx = n; break; }
-    }
-    if (newIdx === -1) return;
-
-    st_state.stActual = st_state.filtered[newIdx];
-    var cardEl = document.getElementById('stcard-' + idST);
-    if (cardEl) cardEl.classList.add('active');
-
-    var rowIdx = st_rowForIdx(newIdx);
-    var drawer = document.getElementById('stdrawer-row-' + rowIdx);
-    if (drawer) {
-      drawer.classList.add('open');
-      // Reset content to spinner
-      drawer.innerHTML = '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8"><span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div></div>';
-      setTimeout(function() {
-        drawer.scrollIntoView({ behavior:'smooth', block:'nearest' });
-      }, 50);
+      if (st_state.filtered[n].id_st === idST) {
+        st_state.stActual = st_state.filtered[n];
+        break;
+      }
     }
 
-    st_loadDrawerDetail(idST, newIdx);
+    // Re-render so the layout updates (placeholder on right, drawer appears)
+    st_applyFilters();
+
+    // Scroll to drawer
+    setTimeout(function() {
+      var dr = document.getElementById('stdrawer-' + idST);
+      if (dr) dr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 60);
   };
+
 
   function st_loadDrawerDetail(idST, idx) {
     gasJsonp('getResumenST', { id_st: idST })
@@ -791,8 +783,7 @@
           .catch(function() { st_renderDrawer(idST, res.resumen); });
       })
       .catch(function(e) {
-        var rowIdx = st_rowForIdx(idx);
-        var dr = document.getElementById('stdrawer-row-' + rowIdx);
+        var dr = document.getElementById('stdrawer-' + idST);
         if (dr) dr.innerHTML = '<div class="st-empty"><div class="st-empty-icon">⚠️</div>'+st_esc(e.message)+'</div>';
       });
   }
@@ -802,7 +793,7 @@
     for (var k=0; k<st_state.filtered.length; k++) {
       if (st_state.filtered[k].id_st === idST) { idx=k; break; }
     }
-    var drawer = document.getElementById('stdrawer-row-' + st_rowForIdx(idx));
+    var drawer = document.getElementById('stdrawer-' + idST);
     if (!drawer) return;
     var st = st_state.stActual;
     if (!st) return;
@@ -852,9 +843,10 @@
     html += '<div class="st-doc-cell"><div class="st-doc-lbl">💳 Pago del cliente</div>';
     if (r.ingreso_id) {
       if (voucherUrl) {
-        html += '<a href="'+st_esc(voucherUrl)+'" target="_blank" class="st-doc-a fp">'+st_esc(r.ingreso_id)+' ↗</a>';
+        html += '<a href="' + st_esc(voucherUrl) + '" target="_blank" rel="noopener" class="st-doc-a fp" style="cursor:pointer;pointer-events:auto">' + st_esc(r.ingreso_id) + ' ↗</a>';
       } else {
-        html += '<span class="st-doc-a fp" style="cursor:default">'+st_esc(r.ingreso_id)+'</span>';
+        // No voucher URL yet — show ID but flag it visually
+        html += '<span class="st-doc-none" style="color:#065F46;font-style:normal;font-weight:600">' + st_esc(r.ingreso_id) + ' (sin comprobante)</span>';
       }
     } else {
       html += '<span class="st-doc-none">Pendiente</span>';
@@ -1320,7 +1312,7 @@
       if (st_state.filtered[k].id_st === idST) { idx=k; break; }
     }
     if (idx === -1) return;
-    var drawer = document.getElementById('stdrawer-row-' + Math.floor(idx/2));
+    var drawer = document.getElementById('stdrawer-' + idST);
     if (drawer) {
       drawer.innerHTML = '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8"><span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div></div>';
     }
