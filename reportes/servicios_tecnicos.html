@@ -563,6 +563,24 @@
     'en_ejecucion':'En Ejecución','cerrado':'Cerrado','cancelado':'Cancelado'
   };
 
+  // Extract real invoice number from ST data
+  // Priority: num_cotizacion if it looks like a real invoice (starts with digits)
+  // Otherwise extract from notas (pattern: Carpeta: FACTNNNCLIENT or num_factura from importHistorial)
+  function st_numFactura(st) {
+    var nc = String(st.num_cotizacion || '');
+    // If looks like a real DGI invoice number (all digits or 0000000NNN format)
+    if (/^\d{7,}$/.test(nc.trim())) return nc.trim();
+    // Try to extract from notas: "Carpeta: FACT508KOMEX" -> "508"
+    var notas = String(st.notas || '');
+    var m1 = notas.match(/Carpeta:\s*FACT(\d+)/i);
+    if (m1) return 'FACT ' + m1[1];
+    // Try "num_factura: 0000000508" pattern
+    var m2 = notas.match(/num_factura[:\s]+(\d{7,})/i);
+    if (m2) return m2[1];
+    // Fallback: return num_cotizacion as-is
+    return nc;
+  }
+
   // ── Navegación interna ───────────────────────────────────
   window.st_showView = function(view) {
     ['lista','nuevo'].forEach(function(v) {
@@ -693,7 +711,7 @@
     html +=       '</div>';
     html +=     '</div>';
     html +=     '<div class="st-card-row2">';
-    html +=       '<span class="st-card-fnum">' + st_esc(st.num_cotizacion) + '</span>';
+    html +=       '<span class="st-card-fnum">' + st_esc(st_numFactura(st)) + '</span>';
     if (fecha) html += '<span class="st-card-fecha">' + fecha + '</span>';
     html +=       '<span class="st-badge s-' + st.estado + '">' + st_esc(ESTADO_LABEL[st.estado]||st.estado) + '</span>';
     html +=     '</div>';
@@ -731,7 +749,7 @@
     html +=       '</div>';
     html +=     '</div>';
     html +=     '<div class="st-card-row2">';
-    html +=       '<span class="st-card-fnum">' + st_esc(st.num_cotizacion) + '</span>';
+    html +=       '<span class="st-card-fnum">' + st_esc(st_numFactura(st)) + '</span>';
     if (fecha) html += '<span class="st-card-fecha">' + fecha + '</span>';
     html +=       '<span class="st-badge s-' + st.estado + '">' + st_esc(ESTADO_LABEL[st.estado]||st.estado) + '</span>';
     html +=     '</div>';
@@ -840,15 +858,15 @@
     // Factura emitida
     html += '<div class="st-doc-cell"><div class="st-doc-lbl">🧾 Factura emitida</div>';
     if (st.drive_url) {
-      html += '<a href="'+st_esc(st.drive_url)+'" target="_blank" class="st-doc-a fl">'+st_esc(st.num_cotizacion)+' ↗</a>';
+      html += '<a href="'+st_esc(st.drive_url)+'" target="_blank" class="st-doc-a fl">'+st_esc(st_numFactura(st))+' ↗</a>';
     } else {
-      html += '<span class="st-doc-none">Sin adjunto</span>';
+      html += '<span class="st-doc-a fl" style="cursor:default;opacity:.7">'+st_esc(st_numFactura(st))+'</span>';
     }
     html += '</div>';
     // Facturas de costo
     html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Factura de costo</div>';
     if (costUrls.length === 0) {
-      html += '<span class="st-doc-none">Sin adjunto</span>';
+      html += '<span class="st-doc-a fl" style="cursor:default;opacity:.7">'+st_esc(st_numFactura(st))+'</span>';
     } else {
       costUrls.forEach(function(c, ci) {
         var lbl = c.desc.length > 32 ? c.desc.slice(0,32)+'…' : c.desc;
