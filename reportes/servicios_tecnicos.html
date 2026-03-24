@@ -51,91 +51,61 @@
   .st-btn-ghost:hover:not(:disabled)    { background:#e2e8f0; }
   .st-btn-sm { padding:4px 10px; font-size:.75rem; }
 
-  /* ── Cards de ST — expand-in-place ───────────────────────── */
-  .st-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
-  @media(max-width:860px) { .st-cards { grid-template-columns:1fr; } }
-
-  /* El card ocupa las 2 columnas cuando está expandido */
-  .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;
-             transition:box-shadow .15s; border-left:4px solid #e2e8f0; }
-  .st-card.expanded { grid-column:1/-1; box-shadow:0 4px 24px rgba(26,35,126,.10); }
-  .st-card:hover:not(.expanded) { box-shadow:0 2px 12px rgba(26,35,126,.07); }
+  /* ── Cards — 2 col grid + drawer full-width ─────────────── */
+  .st-cards-outer { display:flex; flex-direction:column; }
+  .st-cards-row   { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  @media(max-width:860px){ .st-cards-row { grid-template-columns:1fr; } }
+  .st-drawer      { display:none; margin-bottom:10px; }
+  .st-drawer.open { display:block; }
+  .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px;
+             overflow:hidden; border-left:4px solid #e2e8f0; transition:box-shadow .15s; }
+  .st-card.active { box-shadow:0 0 0 2px #1A237E; }
   .st-card.s-cotizado    { border-left-color:#f59e0b; }
   .st-card.s-aprobado    { border-left-color:#3b82f6; }
   .st-card.s-en_ejecucion{ border-left-color:#8b5cf6; }
   .st-card.s-cerrado     { border-left-color:#22c55e; }
   .st-card.s-cancelado   { border-left-color:#ef4444; opacity:.7; }
-
-  /* Cabecera del card — siempre visible, clickeable */
-  .st-card-head { display:grid; grid-template-columns:1fr auto; align-items:start;
-                  padding:14px 16px; cursor:pointer; gap:12px; }
+  .st-card-head  { padding:13px 15px; cursor:pointer; }
   .st-card-head:hover { background:#fafbff; }
-  .st-card.expanded .st-card-head { background:#f8faff; border-bottom:1px solid #e2e8f0; }
-  .st-card-head-left { min-width:0; }
-  .st-card-head-right { display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0; }
-
-  /* Jerarquía visual: cliente > factura > descripción */
-  .st-card-cliente  { font-size:.95rem; font-weight:700; color:#1a2535; line-height:1.2;
-                      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .st-card-factura  { display:inline-flex; align-items:center; gap:5px; margin-top:4px; }
-  .st-card-fnum     { font-size:.75rem; font-weight:700; font-family:monospace;
-                      background:#EEF2FF; color:#3730A3; padding:2px 8px; border-radius:5px; }
-  .st-card-fecha    { font-size:.72rem; color:#94a3b8; }
-  .st-card-desc-sm  { font-size:.78rem; color:#64748b; margin-top:4px;
-                      overflow:hidden; text-overflow:ellipsis; display:-webkit-box;
-                      -webkit-line-clamp:1; -webkit-box-orient:vertical; }
-
-  .st-card-monto    { font-size:1.1rem; font-weight:700; color:#1A237E; }
-  .st-card-utilidad { font-size:.72rem; font-weight:600; }
-  .st-card-chevron  { font-size:.8rem; color:#94a3b8; transition:transform .2s; margin-top:2px; }
-  .st-card.expanded .st-card-chevron { transform:rotate(180deg); }
-
-  /* Área expandida */
-  .st-card-body { display:none; padding:0; }
-  .st-card.expanded .st-card-body { display:block; }
-
-  /* Fila de comprobantes integrada en propuesta B */
-  .st-docs-row { display:grid; grid-template-columns:repeat(3,1fr);
-                 border-bottom:1px solid #e2e8f0; }
-  .st-doc-cell { padding:10px 16px; border-right:1px solid #e2e8f0; }
+  .st-card.active .st-card-head { background:#f0f4ff; }
+  .st-card-row1  { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:5px; }
+  .st-card-row2  { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px; }
+  .st-card-row3  { font-size:.74rem; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .st-card-cli   { font-size:.95rem; font-weight:700; color:#1a2535; }
+  .st-card-right { display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0; }
+  .st-card-monto { font-size:1rem; font-weight:700; color:#1A237E; }
+  .st-card-util  { font-size:.71rem; font-weight:600; }
+  .st-card-fnum  { font-size:.71rem; font-weight:700; font-family:monospace;
+                   background:#EEF2FF; color:#3730A3; padding:2px 7px; border-radius:5px; }
+  .st-card-fecha { font-size:.69rem; color:#94a3b8; }
+  .st-card-chev  { font-size:.7rem; color:#94a3b8; transition:transform .2s; }
+  .st-card.active .st-card-chev { transform:rotate(180deg); color:#1A237E; }
+  .st-dw-inner   { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+  .st-docs-row   { display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid #e2e8f0; }
+  .st-doc-cell   { padding:10px 14px; border-right:1px solid #e2e8f0; }
   .st-doc-cell:last-child { border-right:none; }
-  .st-doc-cell-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.05em;
-                       color:#94a3b8; font-weight:600; margin-bottom:3px; }
-  .st-doc-cell-link  { display:flex; align-items:center; gap:5px; font-size:.78rem;
-                       font-weight:600; text-decoration:none; }
-  .st-doc-cell-link.doc-fact  { color:#3730A3; }
-  .st-doc-cell-link.doc-cost  { color:#92400E; }
-  .st-doc-cell-link.doc-pago  { color:#065F46; }
-  .st-doc-cell-none  { font-size:.78rem; color:#94a3b8; font-style:italic; }
-
-  /* Métricas financieras */
-  .st-metrics-row { display:grid; grid-template-columns:repeat(4,1fr);
-                    border-bottom:1px solid #e2e8f0; }
-  .st-metric-cell { padding:10px 16px; border-right:1px solid #e2e8f0; }
-  .st-metric-cell:last-child { border-right:none; }
-  .st-metric-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.05em;
-                     color:#94a3b8; font-weight:600; margin-bottom:2px; }
-  .st-metric-value { font-size:.95rem; font-weight:700; }
-
-  /* Botones de acción dentro del body */
-  .st-card-actions-row { display:flex; gap:6px; flex-wrap:wrap; padding:10px 16px;
-                          border-bottom:1px solid #e2e8f0; background:#fafbff; }
-
-  /* Tabla de costos */
-  .st-costs-wrap { padding:12px 16px; }
-  .st-costs-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.05em;
-                    color:#94a3b8; font-weight:600; margin-bottom:8px; }
-  .st-costs-table { width:100%; border-collapse:collapse; font-size:.79rem; }
-  .st-costs-table th { padding:6px 10px; text-align:left; font-weight:600; font-size:.65rem;
-                       text-transform:uppercase; letter-spacing:.04em; color:#64748b;
-                       border-bottom:1px solid #e2e8f0; white-space:nowrap; }
-  .st-costs-table th.r { text-align:right; }
-  .st-costs-table td { padding:7px 10px; border-bottom:1px solid #f8fafc; color:#334155;
-                       vertical-align:middle; }
-  .st-costs-table td.r { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
-  .st-costs-table tbody tr:last-child td { border-bottom:none; }
-  .st-costs-table tfoot td { background:#f8fafc; font-weight:700; border-top:1.5px solid #e2e8f0; }
-
+  .st-doc-lbl    { font-size:.6rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:600; margin-bottom:3px; }
+  .st-doc-a      { display:inline-flex; align-items:center; gap:4px; font-size:.78rem; font-weight:600; text-decoration:none; }
+  .st-doc-a:hover{ text-decoration:underline; }
+  .st-doc-a.fl   { color:#3730A3; } .st-doc-a.fc { color:#92400E; } .st-doc-a.fp { color:#065F46; }
+  .st-doc-none   { font-size:.76rem; color:#94a3b8; font-style:italic; }
+  .st-met-row    { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #e2e8f0; }
+  .st-met-cell   { padding:10px 14px; border-right:1px solid #e2e8f0; }
+  .st-met-cell:last-child { border-right:none; }
+  .st-met-lbl    { font-size:.6rem; text-transform:uppercase; letter-spacing:.04em; color:#94a3b8; font-weight:600; margin-bottom:2px; }
+  .st-met-val    { font-size:.95rem; font-weight:700; }
+  .st-act-row    { display:flex; gap:6px; flex-wrap:wrap; padding:9px 14px; border-bottom:1px solid #e2e8f0; background:#fafbff; }
+  .st-cst-wrap   { padding:10px 14px; }
+  .st-cst-lbl    { font-size:.6rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:600; margin-bottom:7px; }
+  .st-cst-tbl    { width:100%; border-collapse:collapse; font-size:.78rem; }
+  .st-cst-tbl th { padding:5px 9px; text-align:left; font-size:.63rem; font-weight:600;
+                   text-transform:uppercase; letter-spacing:.04em; color:#64748b;
+                   border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+  .st-cst-tbl th.r { text-align:right; }
+  .st-cst-tbl td { padding:6px 9px; border-bottom:1px solid #f8fafc; color:#334155; vertical-align:middle; }
+  .st-cst-tbl td.r { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .st-cst-tbl tbody tr:last-child td { border-bottom:none; }
+  .st-cst-tbl tfoot td { background:#f8fafc; font-weight:700; border-top:1.5px solid #e2e8f0; }
   /* ── Badges de estado ─────────────────────────────────────── */
   .st-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.67rem; font-weight:700; white-space:nowrap; }
   .st-badge.s-cotizado    { background:#fef9c3; color:#a16207; }
@@ -187,26 +157,6 @@
   .st-margen-field input { padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:.88rem; text-align:right; font-weight:600; outline:none; }
   .st-margen-field input:focus { border-color:#1A237E; }
 
-  /* ── Vista detalle ST ─────────────────────────────────────── */
-  .st-detail-header { background:#1A237E; color:#fff; border-radius:10px; padding:16px 20px; margin-bottom:16px; }
-  .st-detail-header h3 { margin:0 0 4px; font-size:1.1rem; }
-  .st-detail-header .st-detail-sub { font-size:.78rem; opacity:.8; }
-  .st-detail-meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:16px; }
-  .st-detail-meta-item { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; }
-  .st-detail-meta-label { font-size:.65rem; text-transform:uppercase; color:#94a3b8; letter-spacing:.04em; margin-bottom:2px; }
-  .st-detail-meta-value { font-size:.9rem; font-weight:600; color:#1a2535; }
-
-  /* ── Tabla comparativa ────────────────────────────────────── */
-  .st-comp-table { width:100%; border-collapse:collapse; font-size:.81rem; }
-  .st-comp-table thead tr { background:#f1f5f9; }
-  .st-comp-table th { padding:8px 12px; text-align:left; font-weight:600; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:#64748b; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
-  .st-comp-table th.num { text-align:right; }
-  .st-comp-table td { padding:8px 12px; border-bottom:1px solid #f1f5f9; color:#334155; vertical-align:middle; }
-  .st-comp-table td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
-  .st-comp-table tbody tr:last-child td { border-bottom:none; }
-  .st-comp-table tfoot td { background:#f8fafc; font-weight:700; border-top:2px solid #e2e8f0; }
-  .st-comp-table-wrap { border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; overflow-x:auto; background:#fff; margin-bottom:14px; }
-
   /* ── Modal de egreso ──────────────────────────────────────── */
   .st-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9000; display:flex; align-items:center; justify-content:center; padding:16px; }
   .st-modal { background:#fff; border-radius:14px; padding:24px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; overflow-x:hidden; box-shadow:0 20px 60px rgba(0,0,0,.2); box-sizing:border-box; }
@@ -230,17 +180,6 @@
   .st-empty { padding:40px 20px; text-align:center; color:#94a3b8; font-size:.85rem; }
   .st-empty-icon { font-size:2.4rem; margin-bottom:8px; }
 
-  /* ── Tira de comprobantes ─────────────────────────────────── */
-  .st-docs-strip { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
-  .st-doc-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:8px; font-size:.75rem; font-weight:600; text-decoration:none; border:1.5px solid; transition:all .15s; white-space:nowrap; cursor:pointer; }
-  .st-doc-chip:hover { opacity:.85; box-shadow:0 2px 8px rgba(0,0,0,.12); transform:translateY(-1px); }
-  .st-doc-chip.doc-factura  { background:#EEF2FF; border-color:#A5B4FC; color:#3730A3; }
-  .st-doc-chip.doc-costo    { background:#FFF7ED; border-color:#FBD38D; color:#92400E; }
-  .st-doc-chip.doc-pago     { background:#ECFDF5; border-color:#6EE7B7; color:#065F46; }
-  .st-doc-chip.doc-sin-url  { background:#F8FAFC; border-color:#E2E8F0; color:#94A3B8; cursor:default; opacity:.7; }
-  .st-doc-chip-icon { font-size:.9rem; line-height:1; }
-  .st-doc-chip-ref  { font-size:.68rem; opacity:.75; margin-left:2px; }
-
   /* ── Sección con título ───────────────────────────────────── */
   .st-section { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:14px; }
   .st-section-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:#64748b; font-weight:600; margin:0 0 12px; }
@@ -255,8 +194,8 @@
 
   <!-- ── Navegación interna ── -->
   <div class="st-nav">
-    <button class="st-nav-btn active" id="st-nav-lista" onclick="st_showView('lista')">📋 Servicios Técnicos</button>
-    <button class="st-nav-btn"        id="st-nav-nuevo" onclick="st_showView('nuevo')">➕ Nueva Cotización</button>
+    <button class="st-nav-btn active" id="st-nav-lista"    onclick="st_showView('lista')">📋 Servicios Técnicos</button>
+    <button class="st-nav-btn"        id="st-nav-nuevo"    onclick="st_showView('nuevo')">➕ Nueva Cotización</button>
   </div>
 
   <!-- ════════════════════════════════════════════
@@ -674,7 +613,6 @@
 
   window.st_setFilter = function(f) {
     st_state.stFilter = f;
-    st_state.expandedId = null;
     document.querySelectorAll('[id^=st-f-]').forEach(function(b) {
       b.classList.toggle('active', b.id === 'st-f-'+f);
     });
@@ -696,141 +634,309 @@
     st_renderCards(items);
   };
 
-  function st_numFact(st) {
-    // Extraer número de factura legible del num_cotizacion o descripcion
-    // Prioridad: num_cotizacion que empiece con dígitos (ej COT-RP-2026-0005)
-    // Para STs importados el num_cotizacion tiene el formato de la factura real
-    var n = st.num_cotizacion || '';
-    return n;
-  }
-
   function st_renderCards(items) {
     var cont = document.getElementById('st-cards-container');
     if (!items.length) {
       cont.innerHTML = '<div class="st-empty"><div class="st-empty-icon">🔍</div>' +
         (st_state.data.length === 0
-          ? 'No hay servicios técnicos registrados. <button class="st-btn st-btn-primary" style="margin-top:12px" onclick="st_showView(\'nuevo\')">➕ Crear primera cotización</button>'
+          ? 'No hay servicios técnicos registrados. <button class="st-btn st-btn-primary" style="margin-top:12px" onclick="st_showView('nuevo')">➕ Crear primera cotización</button>'
           : 'Sin resultados para los filtros aplicados.') +
         '</div>';
       return;
     }
 
-    var html = '';
-    items.forEach(function(st, idx) {
-      var utilidad    = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
-      var utilColor   = utilidad >= 0 ? '#15803d' : '#dc2626';
-      var isExpanded  = st_state.expandedId === st.id_st;
-      var expandCls   = isExpanded ? ' expanded' : '';
+    // Agrupar en pares de 2 para filas del grid
+    var outer = '<div class="st-cards-outer">';
+    for (var i = 0; i < items.length; i += 2) {
+      var pair = [items[i], items[i+1]];
+      outer += '<div class="st-cards-row">';
+      pair.forEach(function(st) {
+        if (!st) { outer += '<div></div>'; return; }
+        var util  = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
+        var uClr  = util >= 0 ? '#15803d' : '#dc2626';
+        var fecha = String(st.fecha_reg||'').slice(0,10);
+        var actCls = st_state.expandedId === st.id_st ? ' active' : '';
+        outer +=
+          '<div class="st-card s-'+st.estado+actCls+'" id="stcard-'+st_esc(st.id_st)+'">' +
+            '<div class="st-card-head" onclick="st_toggleCard(''+st_esc(st.id_st)+'')">' +
+              '<div class="st-card-row1">' +
+                '<div class="st-card-cli">'+st_esc(st.nombre_cliente)+'</div>' +
+                '<div class="st-card-right">' +
+                  '<div class="st-card-monto">'+st_fmt(st.precio_venta)+'</div>' +
+                  '<div class="st-card-util" style="color:'+uClr+'">'+(util>=0?'▲':'▼')+' '+st_fmt(Math.abs(util))+'</div>' +
+                  '<div class="st-card-chev">▼</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="st-card-row2">' +
+                '<span class="st-card-fnum">'+st_esc(st.num_cotizacion)+'</span>' +
+                (fecha ? '<span class="st-card-fecha">'+fecha+'</span>' : '') +
+                '<span class="st-badge s-'+st.estado+'">'+st_esc(ESTADO_LABEL[st.estado]||st.estado)+'</span>' +
+              '</div>' +
+              '<div class="st-card-row3">'+st_esc(st.descripcion)+'</div>' +
+            '</div>' +
+          '</div>';
+      });
+      outer += '</div>';
 
-      // Fecha legible desde fecha_reg
-      var fechaStr = '';
-      if (st.fecha_reg) {
-        fechaStr = String(st.fecha_reg).slice(0,10);
+      // Drawer — se inserta después de cada fila
+      var rowIdx = Math.floor(i / 2);
+      var openCls = '';
+      var drawerContent = '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8"><span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div></div>';
+      // Check if any card in this row is expanded
+      var expandedInRow = null;
+      for (var j = i; j < Math.min(i+2, items.length); j++) {
+        if (st_state.expandedId === items[j].id_st) {
+          expandedInRow = items[j].id_st;
+          openCls = ' open';
+          break;
+        }
       }
+      outer += '<div class="st-drawer'+openCls+'" id="stdrawer-row-'+rowIdx+'" data-row="'+rowIdx+'">' + drawerContent + '</div>';
+    }
+    outer += '</div>';
+    cont.innerHTML = outer;
 
-      html += '<div class="st-card s-' + st.estado + expandCls + '" id="stcard-' + st_esc(st.id_st) + '">' +
-
-        // ── Cabecera clickeable ──────────────────────────────
-        '<div class="st-card-head" onclick="st_toggleCard(\'' + st_esc(st.id_st) + '\',' + idx + ')">' +
-          '<div class="st-card-head-left">' +
-            '<div class="st-card-cliente">' + st_esc(st.nombre_cliente) + '</div>' +
-            '<div class="st-card-factura">' +
-              '<span class="st-card-fnum">' + st_esc(st.num_cotizacion) + '</span>' +
-              (fechaStr ? '<span class="st-card-fecha">' + fechaStr + '</span>' : '') +
-              '<span class="st-badge s-' + st.estado + '" style="font-size:.62rem">' + (ESTADO_LABEL[st.estado]||st.estado) + '</span>' +
-            '</div>' +
-            '<div class="st-card-desc-sm">' + st_esc(st.descripcion) + '</div>' +
-          '</div>' +
-          '<div class="st-card-head-right">' +
-            '<div class="st-card-monto">' + st_fmt(st.precio_venta) + '</div>' +
-            '<div class="st-card-utilidad" style="color:' + utilColor + '">' +
-              (utilidad >= 0 ? '▲' : '▼') + ' ' + st_fmt(Math.abs(utilidad)) +
-            '</div>' +
-            '<div class="st-card-chevron">▼</div>' +
-          '</div>' +
-        '</div>' +
-
-        // ── Cuerpo expandible ────────────────────────────────
-        '<div class="st-card-body" id="stbody-' + st_esc(st.id_st) + '">' +
-          '<div id="stdetail-' + st_esc(st.id_st) + '">' +
-            '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.82rem">' +
-              '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-
-      '</div>';
-    });
-    cont.innerHTML = html;
-
-    // Restaurar expanded si había uno abierto antes de refrescar
+    // Si hay un expandedId, cargar su detalle
     if (st_state.expandedId) {
-      var idx2 = -1;
-      for (var i = 0; i < items.length; i++) {
-        if (items[i].id_st === st_state.expandedId) { idx2 = i; break; }
+      var idToLoad = st_state.expandedId;
+      var foundIdx = -1;
+      for (var k = 0; k < items.length; k++) {
+        if (items[k].id_st === idToLoad) { foundIdx = k; break; }
       }
-      if (idx2 !== -1) st_toggleCard(st_state.expandedId, idx2, true);
+      if (foundIdx !== -1) {
+        st_state.stActual = items[foundIdx];
+        st_loadDrawerDetail(idToLoad, foundIdx);
+      }
     }
   }
 
-  // ── Toggle expand / collapse ─────────────────────────────
-  window.st_toggleCard = function(idST, idx, forceOpen) {
-    var cardEl = document.getElementById('stcard-' + idST);
-    var bodyEl = document.getElementById('stbody-' + idST);
-    if (!cardEl || !bodyEl) return;
+  // Calcular qué drawer row corresponde a un índice de item
+  function st_rowForIdx(idx) { return Math.floor(idx / 2); }
 
-    var isOpen = cardEl.classList.contains('expanded');
+  window.st_toggleCard = function(idST) {
+    var isOpen = st_state.expandedId === idST;
 
-    // Cerrar cualquier otro card abierto
-    if (st_state.expandedId && st_state.expandedId !== idST) {
-      var prevCard = document.getElementById('stcard-' + st_state.expandedId);
-      var prevBody = document.getElementById('stbody-' + st_state.expandedId);
-      if (prevCard) prevCard.classList.remove('expanded');
-      if (prevBody) prevBody.style.display = 'none';
+    // Marcar activo/inactivo
+    var prevId = st_state.expandedId;
+    if (prevId) {
+      var prevCard = document.getElementById('stcard-' + prevId);
+      if (prevCard) prevCard.classList.remove('active');
     }
 
-    if (isOpen && !forceOpen) {
+    if (isOpen) {
       // Cerrar
-      cardEl.classList.remove('expanded');
-      bodyEl.style.display = 'none';
       st_state.expandedId = null;
       st_state.stActual   = null;
+      // Cerrar drawer de esa fila
+      var prevIdx = -1;
+      for (var k = 0; k < st_state.filtered.length; k++) {
+        if (st_state.filtered[k].id_st === prevId) { prevIdx = k; break; }
+      }
+      if (prevIdx !== -1) {
+        var dr = document.getElementById('stdrawer-row-' + st_rowForIdx(prevIdx));
+        if (dr) dr.classList.remove('open');
+      }
       return;
     }
 
-    // Abrir
-    cardEl.classList.add('expanded');
-    bodyEl.style.display = 'block';
-    st_state.expandedId = idST;
-    st_state.stActual   = st_state.filtered[idx] || null;
-
-    // Scroll suave al card
-    setTimeout(function() {
-      cardEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
-    }, 50);
-
-    // Cargar detalle si no está cargado aún
-    var detailEl = document.getElementById('stdetail-' + idST);
-    if (detailEl && detailEl.querySelector('.st-spinner')) {
-      gasJsonp('getResumenST', { id_st: idST })
-        .then(function(res) {
-          if (!res.success) throw new Error(res.error);
-          // Refrescar stActual con datos frescos
-          gasJsonp('getCotizaciones', { id_st: idST })
-            .then(function(r2) {
-              if (r2.success && r2.items && r2.items.length) {
-                st_state.stActual = r2.items[0];
-              }
-              st_renderDetalleInCard(idST, res.resumen);
-            })
-            .catch(function() { st_renderDetalleInCard(idST, res.resumen); });
-        })
-        .catch(function(e) {
-          if (detailEl) detailEl.innerHTML =
-            '<div class="st-empty"><div class="st-empty-icon">⚠️</div>' + st_esc(e.message) + '</div>';
-        });
+    // Abrir nuevo
+    // Cerrar drawer previo si está en fila diferente
+    if (prevId) {
+      var prevIdx2 = -1;
+      for (var m = 0; m < st_state.filtered.length; m++) {
+        if (st_state.filtered[m].id_st === prevId) { prevIdx2 = m; break; }
+      }
+      if (prevIdx2 !== -1) {
+        var drPrev = document.getElementById('stdrawer-row-' + st_rowForIdx(prevIdx2));
+        if (drPrev) drPrev.classList.remove('open');
+      }
     }
+
+    st_state.expandedId = idST;
+    var newIdx = -1;
+    for (var n = 0; n < st_state.filtered.length; n++) {
+      if (st_state.filtered[n].id_st === idST) { newIdx = n; break; }
+    }
+    if (newIdx === -1) return;
+
+    st_state.stActual = st_state.filtered[newIdx];
+    var cardEl = document.getElementById('stcard-' + idST);
+    if (cardEl) cardEl.classList.add('active');
+
+    var rowIdx = st_rowForIdx(newIdx);
+    var drawer = document.getElementById('stdrawer-row-' + rowIdx);
+    if (drawer) {
+      drawer.classList.add('open');
+      // Reset content to spinner
+      drawer.innerHTML = '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8"><span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div></div>';
+      setTimeout(function() {
+        drawer.scrollIntoView({ behavior:'smooth', block:'nearest' });
+      }, 50);
+    }
+
+    st_loadDrawerDetail(idST, newIdx);
   };
+
+  function st_loadDrawerDetail(idST, idx) {
+    gasJsonp('getResumenST', { id_st: idST })
+      .then(function(res) {
+        if (!res.success) throw new Error(res.error);
+        // Refresh stActual
+        gasJsonp('getCotizaciones', { id_st: idST })
+          .then(function(r2) {
+            if (r2.success && r2.items && r2.items.length) {
+              st_state.stActual = r2.items[0];
+              for (var i=0;i<st_state.data.length;i++) {
+                if (st_state.data[i].id_st===idST) { st_state.data[i]=r2.items[0]; break; }
+              }
+            }
+            st_renderDrawer(idST, res.resumen);
+          })
+          .catch(function() { st_renderDrawer(idST, res.resumen); });
+      })
+      .catch(function(e) {
+        var rowIdx = st_rowForIdx(idx);
+        var dr = document.getElementById('stdrawer-row-' + rowIdx);
+        if (dr) dr.innerHTML = '<div class="st-empty"><div class="st-empty-icon">⚠️</div>'+st_esc(e.message)+'</div>';
+      });
+  }
+
+  function st_renderDrawer(idST, r) {
+    var idx = -1;
+    for (var k=0; k<st_state.filtered.length; k++) {
+      if (st_state.filtered[k].id_st === idST) { idx=k; break; }
+    }
+    var drawer = document.getElementById('stdrawer-row-' + st_rowForIdx(idx));
+    if (!drawer) return;
+    var st = st_state.stActual;
+    if (!st) return;
+
+    var enEje  = st.estado === 'en_ejecucion';
+    var items  = r.items || [];
+    var notas  = String(st.notas || '');
+    var html   = '<div class="st-dw-inner">';
+
+    // ── Fila comprobantes (3 cols) ────────────────────────
+    // Voucher URL: buscar en notas O en ingreso drive_url
+    var voucherUrl = '';
+    var vm = notas.match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
+    if (vm) voucherUrl = vm[1];
+    // También revisar r.ingreso_drive_url si el GAS lo devuelve
+    if (!voucherUrl && r.ingreso_drive_url) voucherUrl = r.ingreso_drive_url;
+
+    var costUrls = [], seen = {};
+    items.forEach(function(it) {
+      if (it.drive_url && !seen[it.drive_url]) {
+        seen[it.drive_url] = true;
+        costUrls.push({ url: it.drive_url, desc: it.descripcion||'Costo' });
+      }
+    });
+
+    html += '<div class="st-docs-row">';
+    // Factura emitida
+    html += '<div class="st-doc-cell"><div class="st-doc-lbl">🧾 Factura emitida</div>';
+    if (st.drive_url) {
+      html += '<a href="'+st_esc(st.drive_url)+'" target="_blank" class="st-doc-a fl">'+st_esc(st.num_cotizacion)+' ↗</a>';
+    } else {
+      html += '<span class="st-doc-none">Sin adjunto</span>';
+    }
+    html += '</div>';
+    // Facturas de costo
+    html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Factura de costo</div>';
+    if (costUrls.length === 0) {
+      html += '<span class="st-doc-none">Sin adjunto</span>';
+    } else {
+      costUrls.forEach(function(c, ci) {
+        var lbl = c.desc.length > 32 ? c.desc.slice(0,32)+'…' : c.desc;
+        html += '<a href="'+st_esc(c.url)+'" target="_blank" class="st-doc-a fc"'+(ci>0?' style="margin-top:2px"':'')+'>'+st_esc(lbl)+' ↗</a>';
+      });
+    }
+    html += '</div>';
+    // Pago del cliente
+    html += '<div class="st-doc-cell"><div class="st-doc-lbl">💳 Pago del cliente</div>';
+    if (r.ingreso_id) {
+      if (voucherUrl) {
+        html += '<a href="'+st_esc(voucherUrl)+'" target="_blank" class="st-doc-a fp">'+st_esc(r.ingreso_id)+' ↗</a>';
+      } else {
+        html += '<span class="st-doc-a fp" style="cursor:default">'+st_esc(r.ingreso_id)+'</span>';
+      }
+    } else {
+      html += '<span class="st-doc-none">Pendiente</span>';
+    }
+    html += '</div></div>';
+
+    // ── Métricas (4 cols) ─────────────────────────────────
+    var utilReal = (r.precio_venta||0) - (r.total_real||0);
+    var margen   = r.total_real > 0 ? ((utilReal / r.total_real)*100).toFixed(1) : '—';
+    html += '<div class="st-met-row">' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Facturado</div><div class="st-met-val" style="color:#1A237E">'+st_fmt(r.precio_venta)+'</div></div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Costo real</div><div class="st-met-val" style="color:#8b5cf6">'+st_fmt(r.total_real)+'</div></div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Utilidad</div><div class="st-met-val" style="color:'+(utilReal>=0?'#15803d':'#dc2626')+'">'+st_fmt(utilReal)+'</div></div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Margen</div><div class="st-met-val" style="color:'+(parseFloat(margen)>=0?'#15803d':'#dc2626')+'">'+
+        (margen !== '—' ? (parseFloat(margen)>0?'+':'')+margen+'%' : '—')+'</div></div>' +
+    '</div>';
+
+    // ── Botones ───────────────────────────────────────────
+    var hasBtns = enEje || st.estado==='cotizado' || st.estado==='aprobado';
+    if (hasBtns) {
+      html += '<div class="st-act-row">';
+      if (st.estado==='cotizado') {
+        html += '<button class="st-btn st-btn-warning st-btn-sm" onclick="st_accionEmail_st()">📧 Enviar</button>';
+        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionAprobar_st()">✅ Aprobar</button>';
+      }
+      if (st.estado==='aprobado') {
+        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionIniciar_st()">🚀 Iniciar</button>';
+      }
+      if (enEje && !r.ingreso_id) {
+        html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_abrirModalIngreso()">💰 Registrar ingreso</button>';
+      }
+      if (enEje) {
+        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_abrirModalEgreso()">💸 Registrar costo</button>';
+      }
+      if (enEje && r.ingreso_id) {
+        html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_accionCerrar_st()">🔒 Cerrar ST</button>';
+      }
+      html += '</div>';
+    }
+
+    // ── Tabla costos ──────────────────────────────────────
+    if (items.length) {
+      html += '<div class="st-cst-wrap"><div class="st-cst-lbl">Costos ejecutados</div>' +
+        '<table class="st-cst-tbl"><thead><tr>' +
+        '<th>Tipo</th><th>Descripción</th><th class="r">Monto</th><th>Estado</th>' +
+        '<th style="width:26px;text-align:center">Doc</th>' +
+        (enEje ? '<th style="width:50px"></th>' : '') +
+        '</tr></thead><tbody>';
+      items.forEach(function(it) {
+        var badge = it.estado_item==='ejecutado'
+          ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 6px;border-radius:10px">✓ OK</span>'
+          : it.es_adicional
+            ? '<span style="background:#ede9fe;color:#6d28d9;font-size:.63rem;font-weight:700;padding:1px 6px;border-radius:10px">+ Adic.</span>'
+            : '<span style="background:#fef9c3;color:#a16207;font-size:.63rem;font-weight:700;padding:1px 6px;border-radius:10px">Pend.</span>';
+        var doc = it.drive_url
+          ? '<a href="'+st_esc(it.drive_url)+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.78rem;">📄</a>'
+          : '<span style="color:#d1d5db;font-size:.7rem;display:block;text-align:center">—</span>';
+        html += '<tr>' +
+          '<td style="font-size:.7rem;color:#64748b;white-space:nowrap">'+(TIPO_LABEL[it.tipo]||it.tipo)+'</td>' +
+          '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">×'+it.cantidad+'</span>':'')+'</td>' +
+          '<td class="r">'+(it.total_real>0?st_fmt(it.total_real):st_fmt(it.total_cotizado))+'</td>' +
+          '<td>'+badge+'</td>' +
+          '<td style="text-align:center">'+doc+'</td>' +
+          (enEje ? '<td>'+(it.estado_item!=='ejecutado'?'<button class="st-btn st-btn-ghost st-btn-sm" style="padding:2px 7px" onclick="st_abrirModalEgresoItem('+JSON.stringify(it.id_item_st)+')">💸</button>':'')+'</td>' : '') +
+        '</tr>';
+      });
+      html += '</tbody><tfoot><tr>' +
+        '<td colspan="2" style="padding:5px 9px">Total costos</td>' +
+        '<td class="r">'+st_fmt(r.total_real||0)+'</td>' +
+        '<td colspan="'+(enEje?3:2)+'"></td>' +
+        '</tr></tfoot></table></div>';
+    } else {
+      html += '<div style="padding:12px 14px;font-size:.8rem;color:#94a3b8">Sin costos registrados</div>';
+    }
+
+    html += '</div>';
+    drawer.innerHTML = html;
+  }
 
   // ── ACCIONES RÁPIDAS DESDE CARDS ────────────────────────
 
@@ -1149,185 +1255,14 @@
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   };
 
-  // ── DETALLE IN-CARD (propuesta B) ────────────────────────
+  // ── VISTA DETALLE / EJECUCIÓN ────────────────────────────
 
-  // st_verDetalle kept for backward compat from card actions
   window.st_verDetalle = function(idx) {
     var st = st_state.filtered[idx];
-    if (st) st_toggleCard(st.id_st, idx);
+    if (st) st_toggleCard(st.id_st);
   };
 
-  function st_renderDetalleInCard(idST, r) {
-    var detailEl = document.getElementById('stdetail-' + idST);
-    if (!detailEl) return;
-    var st    = st_state.stActual;
-    if (!st) return;
 
-    var enEje  = st.estado === 'en_ejecucion';
-    var items  = r.items || [];
-    var varPct = r.variacion_pct || 0;
-
-    // Detectar ST de email (sin cotización previa)
-    var notas     = String(st.notas || '');
-    var esEmailST = notas.indexOf('Importado desde historial') !== -1 ||
-                    notas.indexOf('Creado automáticamente desde email') !== -1 ||
-                    notas.indexOf('email automático') !== -1 ||
-                    (!st.fecha_aprobacion && (st.estado==='cerrado'||st.estado==='en_ejecucion') &&
-                     st.total_costo_real > 0 && (!st.margen_pct || st.margen_pct===0));
-
-    var html = '';
-
-    // ── Fila comprobantes (3 columnas) ────────────────────
-    var factUrl = st.drive_url || '';
-    var costUrls = [];
-    var urlsVistos = {};
-    items.forEach(function(it) {
-      if (it.drive_url && !urlsVistos[it.drive_url]) {
-        urlsVistos[it.drive_url] = true;
-        costUrls.push({ url: it.drive_url, desc: it.descripcion || 'Costo' });
-      }
-    });
-    var voucherUrl = '';
-    var voucherMatch = notas.match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
-    if (voucherMatch) voucherUrl = voucherMatch[1];
-
-    html += '<div class="st-docs-row">';
-
-    // Factura emitida
-    html += '<div class="st-doc-cell">' +
-      '<div class="st-doc-cell-label">🧾 Factura emitida</div>' +
-      (factUrl
-        ? '<a href="' + st_esc(factUrl) + '" target="_blank" class="st-doc-cell-link doc-fact">' +
-            st_esc(st.num_cotizacion) + ' ↗' +
-          '</a>'
-        : '<span class="st-doc-cell-none">Sin adjunto</span>') +
-    '</div>';
-
-    // Factura(s) de costo
-    html += '<div class="st-doc-cell">' +
-      '<div class="st-doc-cell-label">📦 Factura de costo</div>';
-    if (costUrls.length === 0) {
-      html += '<span class="st-doc-cell-none">Sin adjunto</span>';
-    } else {
-      costUrls.forEach(function(c, ci) {
-        var lbl = c.desc.length > 30 ? c.desc.substring(0,30)+'…' : c.desc;
-        html += '<a href="' + st_esc(c.url) + '" target="_blank" class="st-doc-cell-link doc-cost"' +
-          (ci > 0 ? ' style="margin-top:2px"' : '') + '>' + st_esc(lbl) + ' ↗</a>';
-      });
-    }
-    html += '</div>';
-
-    // Pago del cliente
-    html += '<div class="st-doc-cell">' +
-      '<div class="st-doc-cell-label">💳 Pago del cliente</div>' +
-      (r.ingreso_id
-        ? (voucherUrl
-            ? '<a href="' + st_esc(voucherUrl) + '" target="_blank" class="st-doc-cell-link doc-pago">' +
-                st_esc(r.ingreso_id) + ' ↗</a>'
-            : '<span class="st-doc-cell-link doc-pago" style="cursor:default">' +
-                st_esc(r.ingreso_id) + '</span>')
-        : '<span class="st-doc-cell-none">Pendiente</span>') +
-    '</div>';
-
-    html += '</div>';
-
-    // ── Métricas financieras (4 columnas) ────────────────
-    var utilReal = r.utilidad_real !== undefined ? r.utilidad_real : (r.precio_venta - r.total_real);
-    var margenReal = r.total_real > 0
-      ? parseFloat(((r.precio_venta - r.total_real) / r.total_real * 100).toFixed(1))
-      : 0;
-    html += '<div class="st-metrics-row">' +
-      '<div class="st-metric-cell"><div class="st-metric-label">Facturado</div>' +
-        '<div class="st-metric-value" style="color:#1A237E">' + st_fmt(r.precio_venta) + '</div></div>' +
-      '<div class="st-metric-cell"><div class="st-metric-label">Costo real</div>' +
-        '<div class="st-metric-value" style="color:#8b5cf6">' + st_fmt(r.total_real) + '</div></div>' +
-      '<div class="st-metric-cell"><div class="st-metric-label">Utilidad</div>' +
-        '<div class="st-metric-value" style="color:' + (utilReal>=0?'#15803d':'#dc2626') + '">' +
-          st_fmt(utilReal) + '</div></div>' +
-      '<div class="st-metric-cell"><div class="st-metric-label">Margen</div>' +
-        '<div class="st-metric-value" style="color:' + (margenReal>=0?'#15803d':'#dc2626') + '">' +
-          (margenReal > 0 ? '+' : '') + margenReal + '%</div></div>' +
-    '</div>';
-
-    // ── Botones de acción ─────────────────────────────────
-    var tieneBotones = enEje || st.estado === 'cotizado' || st.estado === 'aprobado';
-    if (tieneBotones) {
-      html += '<div class="st-card-actions-row">';
-      if (st.estado === 'cotizado') {
-        html += '<button class="st-btn st-btn-ghost st-btn-sm" onclick="st_accionEmail_st()">📧 Enviar cotización</button>';
-        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionAprobar_st()">✅ Aprobar</button>';
-      }
-      if (st.estado === 'aprobado') {
-        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionIniciar_st()">🚀 Iniciar ejecución</button>';
-      }
-      if (enEje && !r.ingreso_id) {
-        html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_abrirModalIngreso()">💰 Registrar ingreso</button>';
-      }
-      if (enEje) {
-        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_abrirModalEgreso()">💸 Registrar costo</button>';
-      }
-      if (enEje && r.ingreso_id) {
-        html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_accionCerrar_st()">🔒 Cerrar ST</button>';
-      }
-      html += '</div>';
-    }
-
-    // ── Tabla de costos ───────────────────────────────────
-    if (items.length) {
-      html += '<div class="st-costs-wrap">' +
-        '<div class="st-costs-label">Costos ejecutados</div>' +
-        '<table class="st-costs-table"><thead><tr>' +
-          '<th>Tipo</th><th>Descripción</th>' +
-          '<th class="r">Monto</th>' +
-          '<th>Estado</th>' +
-          '<th style="width:28px;text-align:center">Doc</th>' +
-          (enEje ? '<th style="width:60px"></th>' : '') +
-        '</tr></thead><tbody>';
-
-      items.forEach(function(it) {
-        var estadoBadge = it.estado_item === 'ejecutado'
-          ? '<span style="background:#dcfce7;color:#15803d;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:10px">✓ OK</span>'
-          : it.es_adicional
-            ? '<span style="background:#ede9fe;color:#6d28d9;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:10px">+ Adic.</span>'
-            : '<span style="background:#fef9c3;color:#a16207;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:10px">Pend.</span>';
-
-        var adjIcon = it.drive_url
-          ? '<a href="' + st_esc(it.drive_url) + '" target="_blank" title="Ver doc" ' +
-              'style="display:inline-flex;align-items:center;justify-content:center;' +
-              'width:22px;height:22px;border-radius:5px;background:#f1f5f9;' +
-              'border:1px solid #e2e8f0;text-decoration:none;font-size:.8rem;">📄</a>'
-          : '<span style="color:#d1d5db;font-size:.7rem;display:block;text-align:center">—</span>';
-
-        var realAmt = it.total_real > 0 ? st_fmt(it.total_real) : st_fmt(it.total_cotizado);
-
-        html += '<tr>' +
-          '<td style="font-size:.72rem;color:#64748b;white-space:nowrap">' + (TIPO_LABEL[it.tipo]||it.tipo) + '</td>' +
-          '<td>' + st_esc(it.descripcion) +
-            (it.cantidad > 1 ? ' <span style="font-size:.68rem;color:#94a3b8">×'+it.cantidad+'</span>' : '') +
-          '</td>' +
-          '<td class="r">' + realAmt + '</td>' +
-          '<td>' + estadoBadge + '</td>' +
-          '<td style="text-align:center">' + adjIcon + '</td>' +
-          (enEje
-            ? '<td>' + (it.estado_item !== 'ejecutado'
-                ? '<button class="st-btn st-btn-ghost st-btn-sm" style="padding:2px 8px" onclick="st_abrirModalEgresoItem(' + JSON.stringify(it.id_item_st) + ')">💸</button>'
-                : '') + '</td>'
-            : '') +
-        '</tr>';
-      });
-
-      var totalReal = r.total_real || 0;
-      html += '</tbody><tfoot><tr>' +
-        '<td colspan="2" style="padding:6px 10px">Total costos</td>' +
-        '<td class="r">' + st_fmt(totalReal) + '</td>' +
-        '<td colspan="' + (enEje?3:2) + '"></td>' +
-      '</tr></tfoot></table></div>';
-    } else {
-      html += '<div style="padding:14px 16px;font-size:.8rem;color:#94a3b8">Sin ítems de costo registrados</div>';
-    }
-
-    detailEl.innerHTML = html;
-  }
 
   // Acciones desde vista detalle
   window.st_accionAprobar_st = function() {
@@ -1384,34 +1319,17 @@
     var st = st_state.stActual;
     if (!st) return;
     var idST = st.id_st;
-    // Forzar recarga del detalle marcando el spinner
-    var detailEl = document.getElementById('stdetail-' + idST);
-    if (detailEl) {
-      detailEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.82rem">' +
-        '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>' +
-        '</div>';
+    var idx  = -1;
+    for (var k=0; k<st_state.filtered.length; k++) {
+      if (st_state.filtered[k].id_st === idST) { idx=k; break; }
     }
-    gasJsonp('getCotizaciones', { id_st: idST })
-      .then(function(res) {
-        if (res.success && res.items && res.items.length) {
-          st_state.stActual = res.items[0];
-          // Actualizar card en la lista de datos
-          for (var i = 0; i < st_state.data.length; i++) {
-            if (st_state.data[i].id_st === idST) { st_state.data[i] = res.items[0]; break; }
-          }
-          for (var j = 0; j < st_state.filtered.length; j++) {
-            if (st_state.filtered[j].id_st === idST) { st_state.filtered[j] = res.items[0]; break; }
-          }
-          return gasJsonp('getResumenST', { id_st: idST });
-        }
-        throw new Error('ST no encontrado');
-      })
-      .then(function(res) {
-        if (!res.success) throw new Error(res.error);
-        st_renderDetalleInCard(idST, res.resumen);
-        st_computeKPIs();
-      })
-      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+    if (idx === -1) return;
+    var drawer = document.getElementById('stdrawer-row-' + Math.floor(idx/2));
+    if (drawer) {
+      drawer.innerHTML = '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8"><span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div></div>';
+    }
+    st_loadDrawerDetail(idST, idx);
+    st_computeKPIs();
   }
 
   // ── MODAL EGRESO ─────────────────────────────────────────
