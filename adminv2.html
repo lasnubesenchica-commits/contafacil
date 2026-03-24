@@ -2871,9 +2871,14 @@ async function loadReporte(path, forceReload) {
     container.innerHTML = tmp.innerHTML;
 
     // Ejecutar scripts DESPUÉS de que el DOM esté listo
+    const scriptKey = 'reporte-script-' + path.replace(/[^a-z0-9]/gi,'_');
+    const prevScript = document.getElementById(scriptKey);
+    if (prevScript) prevScript.remove();
+
     setTimeout(() => {
       doc.querySelectorAll('script').forEach(oldScript => {
         const newScript = document.createElement('script');
+        newScript.id = scriptKey;
         if (oldScript.src) {
           newScript.src   = oldScript.src;
           newScript.async = false;
