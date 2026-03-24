@@ -639,73 +639,69 @@
     if (!items.length) {
       cont.innerHTML = '<div class="st-empty"><div class="st-empty-icon">🔍</div>' +
         (st_state.data.length === 0
-          ? 'No hay servicios técnicos registrados. <button class="st-btn st-btn-primary" style="margin-top:12px" onclick="st_showView('nuevo')">➕ Crear primera cotización</button>'
+          ? 'No hay servicios técnicos registrados.'
           : 'Sin resultados para los filtros aplicados.') +
         '</div>';
       return;
     }
 
-    // Agrupar en pares de 2 para filas del grid
     var outer = '<div class="st-cards-outer">';
     for (var i = 0; i < items.length; i += 2) {
-      var pair = [items[i], items[i+1]];
       outer += '<div class="st-cards-row">';
-      pair.forEach(function(st) {
-        if (!st) { outer += '<div></div>'; return; }
-        var util  = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
-        var uClr  = util >= 0 ? '#15803d' : '#dc2626';
-        var fecha = String(st.fecha_reg||'').slice(0,10);
-        var actCls = st_state.expandedId === st.id_st ? ' active' : '';
-        outer +=
-          '<div class="st-card s-'+st.estado+actCls+'" id="stcard-'+st_esc(st.id_st)+'">' +
-            '<div class="st-card-head" onclick="st_toggleCard(''+st_esc(st.id_st)+'')">' +
-              '<div class="st-card-row1">' +
-                '<div class="st-card-cli">'+st_esc(st.nombre_cliente)+'</div>' +
-                '<div class="st-card-right">' +
-                  '<div class="st-card-monto">'+st_fmt(st.precio_venta)+'</div>' +
-                  '<div class="st-card-util" style="color:'+uClr+'">'+(util>=0?'▲':'▼')+' '+st_fmt(Math.abs(util))+'</div>' +
-                  '<div class="st-card-chev">▼</div>' +
-                '</div>' +
-              '</div>' +
-              '<div class="st-card-row2">' +
-                '<span class="st-card-fnum">'+st_esc(st.num_cotizacion)+'</span>' +
-                (fecha ? '<span class="st-card-fecha">'+fecha+'</span>' : '') +
-                '<span class="st-badge s-'+st.estado+'">'+st_esc(ESTADO_LABEL[st.estado]||st.estado)+'</span>' +
-              '</div>' +
-              '<div class="st-card-row3">'+st_esc(st.descripcion)+'</div>' +
-            '</div>' +
-          '</div>';
-      });
+      for (var j = i; j < Math.min(i + 2, items.length); j++) {
+        var st   = items[j];
+        var util = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
+        var uClr = util >= 0 ? '#15803d' : '#dc2626';
+        var fecha= String(st.fecha_reg||'').slice(0,10);
+        var aCls = st_state.expandedId === st.id_st ? ' active' : '';
+        var idEsc= st_esc(st.id_st);
+
+        outer += '<div class="st-card s-' + st.estado + aCls + '" id="stcard-' + idEsc + '">';
+        outer +=   '<div class="st-card-head" onclick="st_toggleCard(\'' + idEsc + '\')">';
+        outer +=     '<div class="st-card-row1">';
+        outer +=       '<div class="st-card-cli">' + st_esc(st.nombre_cliente) + '</div>';
+        outer +=       '<div class="st-card-right">';
+        outer +=         '<div class="st-card-monto">' + st_fmt(st.precio_venta) + '</div>';
+        outer +=         '<div class="st-card-util" style="color:' + uClr + '">' + (util>=0?'▲':'▼') + ' ' + st_fmt(Math.abs(util)) + '</div>';
+        outer +=         '<div class="st-card-chev">▼</div>';
+        outer +=       '</div>';
+        outer +=     '</div>';
+        outer +=     '<div class="st-card-row2">';
+        outer +=       '<span class="st-card-fnum">' + st_esc(st.num_cotizacion) + '</span>';
+        if (fecha) outer += '<span class="st-card-fecha">' + fecha + '</span>';
+        outer +=       '<span class="st-badge s-' + st.estado + '">' + st_esc(ESTADO_LABEL[st.estado]||st.estado) + '</span>';
+        outer +=     '</div>';
+        outer +=     '<div class="st-card-row3">' + st_esc(st.descripcion) + '</div>';
+        outer +=   '</div>';
+        outer += '</div>';
+      }
+      // Pad to 2 if odd number
+      if (i + 1 >= items.length) outer += '<div></div>';
       outer += '</div>';
 
-      // Drawer — se inserta después de cada fila
-      var rowIdx = Math.floor(i / 2);
+      // Drawer after each row
+      var rowIdx  = Math.floor(i / 2);
       var openCls = '';
-      var drawerContent = '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8"><span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div></div>';
-      // Check if any card in this row is expanded
-      var expandedInRow = null;
-      for (var j = i; j < Math.min(i+2, items.length); j++) {
-        if (st_state.expandedId === items[j].id_st) {
-          expandedInRow = items[j].id_st;
-          openCls = ' open';
-          break;
-        }
+      for (var k = i; k < Math.min(i+2, items.length); k++) {
+        if (st_state.expandedId === items[k].id_st) { openCls = ' open'; break; }
       }
-      outer += '<div class="st-drawer'+openCls+'" id="stdrawer-row-'+rowIdx+'" data-row="'+rowIdx+'">' + drawerContent + '</div>';
+      outer += '<div class="st-drawer' + openCls + '" id="stdrawer-row-' + rowIdx + '">';
+      outer +=   '<div class="st-dw-inner"><div style="padding:20px;text-align:center;color:#94a3b8">';
+      outer +=     '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>';
+      outer +=   '</div></div>';
+      outer += '</div>';
     }
     outer += '</div>';
     cont.innerHTML = outer;
 
-    // Si hay un expandedId, cargar su detalle
+    // If something was expanded, reload it
     if (st_state.expandedId) {
-      var idToLoad = st_state.expandedId;
-      var foundIdx = -1;
-      for (var k = 0; k < items.length; k++) {
-        if (items[k].id_st === idToLoad) { foundIdx = k; break; }
-      }
-      if (foundIdx !== -1) {
-        st_state.stActual = items[foundIdx];
-        st_loadDrawerDetail(idToLoad, foundIdx);
+      for (var n = 0; n < items.length; n++) {
+        if (items[n].id_st === st_state.expandedId) {
+          st_state.stActual = items[n];
+          st_loadDrawerDetail(st_state.expandedId, n);
+          break;
+        }
       }
     }
   }
