@@ -1085,12 +1085,19 @@
     var semCls  = 'st-sem-' + (r.semaforo_global || 'verde');
     var varPct  = r.variacion_pct || 0;
 
-    // Detectar si el ST vino de email (sin cotización previa = costo_cotizado ≈ costo_real)
-    // Si margen_pct es 0 y total_real > 0, es un ST de email directo — no mostrar col Cotizado
-    var esEmailST = (st.margen_pct === 0 || !st.margen_pct) &&
-                    (st.total_costo_real > 0) &&
-                    (st.estado === 'cerrado' || st.estado === 'en_ejecucion') &&
-                    (!st.fecha_aprobacion);
+    // Detectar ST creado desde email automático — múltiples señales para ser infalible:
+    // 1. Notas contienen la firma del procesador automático
+    // 2. O: tiene costo_real > 0, está cerrado/en_ejecucion, y NO tiene fecha_aprobacion
+    //    (los STs de cotización siempre pasan por aprobarCotizacion que pone fecha_aprobacion)
+    var notas       = String(st.notas || '');
+    var esEmailST   = notas.indexOf('Creado automáticamente desde email:') !== -1 ||
+                      notas.indexOf('email automático') !== -1 ||
+                      (
+                        !st.fecha_aprobacion &&
+                        (st.estado === 'cerrado' || st.estado === 'en_ejecucion') &&
+                        st.total_costo_real > 0 &&
+                        (!st.margen_pct || st.margen_pct === 0)
+                      );
 
     var html = '';
 
