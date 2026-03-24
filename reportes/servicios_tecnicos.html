@@ -764,23 +764,29 @@
   function st_rowForIdx(idx) { return Math.floor(idx / 2); }
 
   window.st_toggleCard = function(idST) {
-    var isOpen = st_state.expandedId === idST;
+    var prevId  = st_state.expandedId;
+    var isOpen  = prevId === idST;
 
-    // Collapse previous
-    if (st_state.expandedId) {
-      var prevCard = document.getElementById('stcard-' + st_state.expandedId);
+    // Collapse previous if different
+    if (prevId && prevId !== idST) {
+      var prevCard = document.getElementById('stcard-' + prevId);
+      var prevDraw = document.getElementById('stdrawer-' + prevId);
       if (prevCard) prevCard.classList.remove('active');
+      if (prevDraw) prevDraw.style.display = 'none';
     }
-    st_state.expandedId = null;
-    st_state.stActual   = null;
 
     if (isOpen) {
-      // Just collapsed — re-render cards without any expanded
-      st_applyFilters();
+      // Collapse current
+      var cardEl = document.getElementById('stcard-' + idST);
+      var drawEl = document.getElementById('stdrawer-' + idST);
+      if (cardEl) cardEl.classList.remove('active');
+      if (drawEl) drawEl.style.display = 'none';
+      st_state.expandedId = null;
+      st_state.stActual   = null;
       return;
     }
 
-    // Expand new
+    // Open
     st_state.expandedId = idST;
     for (var n = 0; n < st_state.filtered.length; n++) {
       if (st_state.filtered[n].id_st === idST) {
@@ -789,14 +795,29 @@
       }
     }
 
-    // Re-render so the layout updates (placeholder on right, drawer appears)
-    st_applyFilters();
+    var cardEl2 = document.getElementById('stcard-' + idST);
+    var drawEl2 = document.getElementById('stdrawer-' + idST);
 
-    // Scroll to drawer
-    setTimeout(function() {
-      var dr = document.getElementById('stdrawer-' + idST);
-      if (dr) dr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 60);
+    if (cardEl2) cardEl2.classList.add('active');
+
+    if (drawEl2) {
+      drawEl2.style.display = 'block';
+      drawEl2.innerHTML =
+        '<div style="padding:20px;text-align:center;color:#94a3b8">' +
+        '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;' +
+        'width:18px;height:18px;border-width:2px"></span></div>';
+
+      // Find index for loadDrawerDetail
+      var idx = -1;
+      for (var k = 0; k < st_state.filtered.length; k++) {
+        if (st_state.filtered[k].id_st === idST) { idx = k; break; }
+      }
+      st_loadDrawerDetail(idST, idx);
+
+      setTimeout(function() {
+        drawEl2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 60);
+    }
   };
 
 
