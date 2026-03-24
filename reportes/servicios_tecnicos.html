@@ -52,7 +52,8 @@
   .st-btn-sm { padding:4px 10px; font-size:.75rem; }
 
   /* ── Cards de ST ──────────────────────────────────────────── */
-  .st-cards { display:grid; gap:12px; }
+  .st-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  @media(max-width:800px) { .st-cards { grid-template-columns:1fr; } }
   .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px 18px; cursor:pointer; transition:all .15s; border-left:4px solid #e2e8f0; }
   .st-card:hover { border-color:#1A237E; box-shadow:0 2px 12px rgba(26,35,126,.08); }
   .st-card.s-cotizado    { border-left-color:#f59e0b; }
@@ -164,6 +165,17 @@
   .st-empty { padding:40px 20px; text-align:center; color:#94a3b8; font-size:.85rem; }
   .st-empty-icon { font-size:2.4rem; margin-bottom:8px; }
 
+  /* ── Tira de comprobantes ─────────────────────────────────── */
+  .st-docs-strip { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .st-doc-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:8px; font-size:.75rem; font-weight:600; text-decoration:none; border:1.5px solid; transition:all .15s; white-space:nowrap; cursor:pointer; }
+  .st-doc-chip:hover { opacity:.85; box-shadow:0 2px 8px rgba(0,0,0,.12); transform:translateY(-1px); }
+  .st-doc-chip.doc-factura  { background:#EEF2FF; border-color:#A5B4FC; color:#3730A3; }
+  .st-doc-chip.doc-costo    { background:#FFF7ED; border-color:#FBD38D; color:#92400E; }
+  .st-doc-chip.doc-pago     { background:#ECFDF5; border-color:#6EE7B7; color:#065F46; }
+  .st-doc-chip.doc-sin-url  { background:#F8FAFC; border-color:#E2E8F0; color:#94A3B8; cursor:default; opacity:.7; }
+  .st-doc-chip-icon { font-size:.9rem; line-height:1; }
+  .st-doc-chip-ref  { font-size:.68rem; opacity:.75; margin-left:2px; }
+
   /* ── Sección con título ───────────────────────────────────── */
   .st-section { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:14px; }
   .st-section-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:#64748b; font-weight:600; margin:0 0 12px; }
@@ -222,7 +234,7 @@
       <button class="st-fbtn"        id="st-f-aprobado"    onclick="st_setFilter('aprobado')">Aprobados</button>
       <button class="st-fbtn"        id="st-f-en_ejecucion"onclick="st_setFilter('en_ejecucion')">En Ejecución</button>
       <button class="st-fbtn"        id="st-f-cerrado"     onclick="st_setFilter('cerrado')">Cerrados</button>
-      <button class="st-btn st-btn-primary" id="st-btn-sync" onclick="st_sincronizarEmails()" style="margin-left:auto">📨 Sincronizar emails</button>
+      <button class="st-btn st-btn-primary" onclick="st_cargarDatos(true)" style="margin-left:auto">🔄 Actualizar</button>
     </div>
 
     <div id="st-cards-container">
@@ -445,54 +457,7 @@
   </div>
 </div>
 
-<!-- MODAL EDITAR DATOS ST (funciona en cualquier estado, incluyendo cerrado) -->
-<div id="st-modal-editar" class="st-modal-overlay" style="display:none">
-  <div class="st-modal">
-    <h3>✏️ Editar datos del ST</h3>
-    <div class="st-form-grid">
-      <div class="st-field st-form-full">
-        <label class="st-label">Descripción del servicio</label>
-        <input class="st-input" id="st-ed-desc" placeholder="Descripción">
-      </div>
-      <div class="st-field">
-        <label class="st-label">Cliente</label>
-        <input class="st-input" id="st-ed-cliente" placeholder="Nombre / razón social">
-      </div>
-      <div class="st-field">
-        <label class="st-label">RUC</label>
-        <input class="st-input" id="st-ed-ruc" placeholder="8-123-456">
-      </div>
-      <div class="st-field">
-        <label class="st-label">DV</label>
-        <input class="st-input" id="st-ed-dv" placeholder="00" style="max-width:80px">
-      </div>
-      <div class="st-field">
-        <label class="st-label">Contacto (tel)</label>
-        <input class="st-input" id="st-ed-contacto" placeholder="6000-0000">
-      </div>
-      <div class="st-field">
-        <label class="st-label">Email cliente</label>
-        <input class="st-input" id="st-ed-email" type="email" placeholder="cliente@empresa.com">
-      </div>
-      <div class="st-field">
-        <label class="st-label">Precio de venta ($)</label>
-        <input class="st-input" id="st-ed-precio" type="number" min="0" step="0.01" placeholder="0.00">
-      </div>
-      <div class="st-field st-form-full">
-        <label class="st-label">Notas (se agrega al historial)</label>
-        <textarea class="st-textarea" id="st-ed-notas" placeholder="Ej: corrección de datos extraídos por IA, ajuste de precio…"></textarea>
-      </div>
-    </div>
-    <div class="st-modal-footer">
-      <button class="st-btn st-btn-ghost" onclick="st_cerrarModalEditar()">Cancelar</button>
-      <button class="st-btn st-btn-primary" id="st-ed-btn-guardar" onclick="st_guardarEdicion()">
-        💾 Guardar cambios
-      </button>
-    </div>
-  </div>
-</div>
-
-
+<!-- MODAL INGRESO ST -->
 <div id="st-modal-ingreso" class="st-modal-overlay" style="display:none">
   <div class="st-modal">
     <h3>💰 Registrar Ingreso del Servicio</h3>
@@ -1079,76 +1044,39 @@
   };
 
   function st_renderDetalle(r) {
-    var st      = st_state.stActual;
-    var enEje   = st.estado === 'en_ejecucion';
-    var cerrado = st.estado === 'cerrado';
-    var semCls  = 'st-sem-' + (r.semaforo_global || 'verde');
-    var varPct  = r.variacion_pct || 0;
-
-    // Detectar ST creado desde email automático — múltiples señales para ser infalible:
-    // 1. Notas contienen la firma del procesador automático
-    // 2. O: tiene costo_real > 0, está cerrado/en_ejecucion, y NO tiene fecha_aprobacion
-    //    (los STs de cotización siempre pasan por aprobarCotizacion que pone fecha_aprobacion)
-    var notas       = String(st.notas || '');
-    var esEmailST   = notas.indexOf('Creado automáticamente desde email:') !== -1 ||
-                      notas.indexOf('email automático') !== -1 ||
-                      (
-                        !st.fecha_aprobacion &&
-                        (st.estado === 'cerrado' || st.estado === 'en_ejecucion') &&
-                        st.total_costo_real > 0 &&
-                        (!st.margen_pct || st.margen_pct === 0)
-                      );
+    var st     = st_state.stActual;
+    var enEje  = st.estado === 'en_ejecucion';
+    var cotApro= st.estado === 'cotizado' || st.estado === 'aprobado';
+    var cerrado= st.estado === 'cerrado';
+    var semCls = 'st-sem-' + (r.semaforo_global||'verde');
+    var varPct = r.variacion_pct || 0;
 
     var html = '';
 
-    // ── Header ──────────────────────────────────────────────
+    // Header
     html += '<div class="st-detail-header">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">' +
-        '<div style="flex:1;min-width:0">' +
-          '<h3 style="margin:0 0 4px;font-size:1.05rem;line-height:1.3">' + st_esc(r.descripcion) + '</h3>' +
-          '<div class="st-detail-sub">' + st_esc(r.num_cotizacion) + ' · ' +
-            '<strong>' + st_esc(r.nombre_cliente) + '</strong>' +
-            (st.ruc_cliente ? ' <span style="opacity:.7;font-size:.75rem">RUC: ' + st_esc(st.ruc_cliente) + (st.dv_cliente ? ' DV: '+st_esc(st.dv_cliente) : '') + '</span>' : '') +
-          '</div>' +
-          (st.contacto || st.email_cliente
-            ? '<div style="font-size:.73rem;opacity:.7;margin-top:2px">' +
-                (st.contacto ? '📞 ' + st_esc(st.contacto) + '  ' : '') +
-                (st.email_cliente ? '✉️ ' + st_esc(st.email_cliente) : '') +
-              '</div>'
-            : '') +
+        '<div>' +
+          '<h3>' + st_esc(r.descripcion) + '</h3>' +
+          '<div class="st-detail-sub">' + st_esc(r.num_cotizacion) + ' · ' + st_esc(r.nombre_cliente) + '</div>' +
         '</div>' +
-        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">' +
-          '<span class="st-badge s-' + st.estado + '">' + (ESTADO_LABEL[st.estado]||st.estado) + '</span>' +
-          '<button class="st-btn st-btn-ghost st-btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onclick="st_abrirModalEditar()">✏️ Editar</button>' +
-        '</div>' +
+        '<span class="st-badge s-' + st.estado + '" style="flex-shrink:0">' + (ESTADO_LABEL[st.estado]||st.estado) + '</span>' +
       '</div>' +
     '</div>';
 
-    // ── KPIs financieros ────────────────────────────────────
-    html += '<div class="st-detail-meta">';
-    if (!esEmailST) {
-      html += '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Costo cotizado</div>' +
-        '<div class="st-detail-meta-value" style="color:#E65100">' + st_fmt(r.total_cotizado) + '</div></div>';
-    }
-    html += '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Precio de venta</div>' +
-      '<div class="st-detail-meta-value" style="color:#1A237E;font-size:1.05rem">' + st_fmt(r.precio_venta) + '</div></div>';
-    if (!esEmailST) {
-      html += '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Utilidad cotizada</div>' +
-        '<div class="st-detail-meta-value" style="color:#15803d">' + st_fmt(r.utilidad_cotizada) + '</div></div>';
-    }
-    if (r.total_real > 0) {
-      html += '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Costo real</div>' +
-        '<div class="st-detail-meta-value" style="color:#8b5cf6">' + st_fmt(r.total_real) + '</div></div>' +
-        '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Utilidad real</div>' +
-        '<div class="st-detail-meta-value" style="color:' + (r.utilidad_real>=0?'#15803d':'#dc2626') + ';font-size:1.05rem;font-weight:700">' + st_fmt(r.utilidad_real) + '</div></div>';
-      if (!esEmailST) {
-        html += '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Variación costo</div>' +
-          '<div class="st-detail-meta-value ' + semCls + '">' + (varPct > 0 ? '+' : '') + st_fmtPct(varPct) + '</div></div>';
-      }
-    }
-    html += '</div>';
+    // Métricas principales
+    html += '<div class="st-detail-meta">' +
+      '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Costo cotizado</div><div class="st-detail-meta-value" style="color:#E65100">' + st_fmt(r.total_cotizado) + '</div></div>' +
+      '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Precio de venta</div><div class="st-detail-meta-value" style="color:#1A237E">' + st_fmt(r.precio_venta) + '</div></div>' +
+      '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Utilidad cotizada</div><div class="st-detail-meta-value" style="color:#15803d">' + st_fmt(r.utilidad_cotizada) + '</div></div>' +
+      (r.total_real > 0
+        ? '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Costo real</div><div class="st-detail-meta-value" style="color:#8b5cf6">' + st_fmt(r.total_real) + '</div></div>' +
+          '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Utilidad real</div><div class="st-detail-meta-value" style="color:' + (r.utilidad_real>=0?'#15803d':'#dc2626') + '">' + st_fmt(r.utilidad_real) + '</div></div>' +
+          '<div class="st-detail-meta-item"><div class="st-detail-meta-label">Variación costo</div><div class="st-detail-meta-value ' + semCls + '">' + (varPct > 0 ? '+' : '') + st_fmtPct(varPct) + '</div></div>'
+        : '') +
+    '</div>';
 
-    // ── Botones de flujo ────────────────────────────────────
+    // Botones de flujo
     html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">';
     if (st.estado === 'cotizado') {
       html += '<button class="st-btn st-btn-warning" onclick="st_accionEmail_st()">📧 Enviar cotización</button>';
@@ -1161,50 +1089,92 @@
       html += '<button class="st-btn st-btn-success" onclick="st_abrirModalIngreso()">💰 Registrar ingreso</button>';
     }
     if (enEje) {
-      html += '<button class="st-btn st-btn-primary" onclick="st_abrirModalEgreso()">💸 Agregar costo</button>';
+      html += '<button class="st-btn st-btn-primary" onclick="st_abrirModalEgreso()">💸 Registrar costo real</button>';
     }
     if (enEje && r.ingreso_id) {
       html += '<button class="st-btn st-btn-success" onclick="st_accionCerrar_st()">🔒 Cerrar ST</button>';
     }
     html += '</div>';
 
-    // ── Sección pago del cliente (si tiene ingreso) ─────────
+    // ── Tira de comprobantes ──────────────────────────────────
+    // Reúne: factura emitida · facturas de costo · voucher de pago
+    var items = r.items || [];
+
+    // Construir chips
+    var chips = [];
+
+    // 1. Factura emitida por CEYCO
+    var factUrl = st.drive_url || '';
+    var factRef = st.num_cotizacion || '';
+    chips.push(
+      factUrl
+        ? '<a href="' + st_esc(factUrl) + '" target="_blank" class="st-doc-chip doc-factura">' +
+            '<span class="st-doc-chip-icon">🧾</span>' +
+            '<span>Factura CEYCO</span>' +
+            '<span class="st-doc-chip-ref">' + st_esc(factRef) + '</span>' +
+          '</a>'
+        : '<span class="st-doc-chip doc-sin-url">' +
+            '<span class="st-doc-chip-icon">🧾</span>' +
+            '<span>Factura CEYCO</span>' +
+            '<span class="st-doc-chip-ref">sin adjunto</span>' +
+          '</span>'
+    );
+
+    // 2. Facturas de costo (una por ítem ejecutado con drive_url)
+    var costosVistos = {};
+    items.forEach(function(it) {
+      if (!it.drive_url || costosVistos[it.drive_url]) return;
+      costosVistos[it.drive_url] = true;
+      var label = it.descripcion ? it.descripcion.substring(0, 28) + (it.descripcion.length > 28 ? '…' : '') : 'Costo';
+      chips.push(
+        '<a href="' + st_esc(it.drive_url) + '" target="_blank" class="st-doc-chip doc-costo">' +
+          '<span class="st-doc-chip-icon">📦</span>' +
+          '<span>' + st_esc(label) + '</span>' +
+        '</a>'
+      );
+    });
+
+    // 3. Voucher de pago del cliente (desde notas del ST o ingreso_id)
+    // El drive_url del ingreso no llega en r directamente — extraer de notas si hay "Voucher:"
+    var voucherUrl = '';
+    var voucherRef = '';
+    if (st.notas) {
+      var voucherMatch = st.notas.match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
+      if (voucherMatch) voucherUrl = voucherMatch[1];
+    }
     if (r.ingreso_id) {
-      var ingresoST = null;
-      // Buscar drive_url del ingreso en el stActual si está disponible
-      html += '<div class="st-section" style="border-left:4px solid #15803d;margin-bottom:14px">' +
-        '<div class="st-section-title" style="color:#15803d">💰 Pago del cliente</div>' +
-        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-          '<span style="font-size:.82rem;color:#334155">ID Ingreso: <strong>' + st_esc(r.ingreso_id) + '</strong></span>' +
-          '<span style="font-size:.82rem;color:#15803d;font-weight:700">' + st_fmt(r.precio_venta) + '</span>' +
-          (st.drive_url
-            ? '<a href="' + st_esc(st.drive_url) + '" target="_blank" class="st-btn st-btn-ghost st-btn-sm">📄 Ver factura emitida</a>'
-            : '') +
-        '</div>' +
-      '</div>';
+      voucherRef = r.ingreso_id;
+      chips.push(
+        voucherUrl
+          ? '<a href="' + st_esc(voucherUrl) + '" target="_blank" class="st-doc-chip doc-pago">' +
+              '<span class="st-doc-chip-icon">💳</span>' +
+              '<span>Pago cliente</span>' +
+              '<span class="st-doc-chip-ref">' + st_esc(voucherRef) + '</span>' +
+            '</a>'
+          : '<span class="st-doc-chip doc-pago" style="opacity:.8">' +
+              '<span class="st-doc-chip-icon">💳</span>' +
+              '<span>Pago cliente</span>' +
+              '<span class="st-doc-chip-ref">' + st_esc(voucherRef) + '</span>' +
+            '</span>'
+      );
     }
 
-    // ── Tabla de costos ──────────────────────────────────────
-    var items   = r.items || [];
-    var colSpan = esEmailST ? 4 : 5;
+    html += '<div class="st-docs-strip">' + chips.join('') + '</div>';
 
+    // ── Tabla de ítems ────────────────────────────────────────
     html += '<div class="st-section">' +
-      '<div class="st-section-title">' +
-        (esEmailST ? '📦 Costos del servicio' : 'Comparativo Presupuestado vs Ejecutado') +
-      '</div>' +
-      '<div class="st-comp-table-wrap"><table class="st-comp-table"><thead><tr>' +
-        '<th>Tipo</th>' +
-        '<th>Descripción</th>' +
-        (!esEmailST ? '<th class="num">Cotizado</th>' : '') +
-        '<th class="num">Real</th>' +
-        (!esEmailST ? '<th class="num">Variación</th>' : '') +
-        '<th>Estado</th>' +
-        '<th style="width:80px"></th>' +   // columna adjuntos/acciones
-        (enEje ? '<th style="width:80px"></th>' : '') +
+      '<div class="st-section-title">Comparativo Presupuestado vs Ejecutado</div>' +
+      '<div class="st-comp-table-wrap"><table class="st-comp-table">' +
+      '<thead><tr>' +
+        '<th>Tipo</th><th>Descripción</th>' +
+        '<th class="num">Cotizado</th><th class="num">Real</th>' +
+        '<th class="num">Variación</th><th>Estado</th>' +
+        '<th style="width:36px;text-align:center" title="Adjunto">📎</th>' +
+        (enEje ? '<th style="width:70px"></th>' : '') +
       '</tr></thead><tbody>';
 
     if (!items.length) {
-      html += '<tr><td colspan="' + (colSpan + (enEje?2:1)) + '" style="text-align:center;color:#94a3b8;padding:20px">Sin ítems registrados</td></tr>';
+      html += '<tr><td colspan="' + (enEje?8:7) + '" style="text-align:center;color:#94a3b8;padding:20px">Sin ítems registrados</td></tr>';
     } else {
       items.forEach(function(it) {
         var varCls  = it.semaforo === 'verde' ? '#15803d' : it.semaforo === 'amarillo' ? '#d97706' : '#dc2626';
@@ -1215,22 +1185,25 @@
             ? '<span style="background:#ede9fe;color:#6d28d9;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px">+ Adicional</span>'
             : '<span style="background:#fef9c3;color:#a16207;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px">Pendiente</span>';
 
-        // Botón de adjunto del ítem
-        var adjBtn = it.drive_url
-          ? '<a href="' + st_esc(it.drive_url) + '" target="_blank" title="Ver comprobante" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.9rem" >📄</a>'
-          : '<span style="color:#d1d5db;font-size:.75rem">—</span>';
+        // Ícono de adjunto por ítem
+        var adjIcon = it.drive_url
+          ? '<a href="' + st_esc(it.drive_url) + '" target="_blank" ' +
+              'title="Ver comprobante" ' +
+              'style="display:inline-flex;align-items:center;justify-content:center;' +
+              'width:26px;height:26px;border-radius:6px;background:#F1F5F9;' +
+              'border:1px solid #E2E8F0;text-decoration:none;font-size:.85rem;">📄</a>'
+          : '<span style="color:#d1d5db;font-size:.75rem;display:block;text-align:center">—</span>';
 
         html += '<tr>' +
           '<td style="font-size:.75rem;color:#64748b;white-space:nowrap">' + (TIPO_LABEL[it.tipo]||it.tipo) + '</td>' +
-          '<td style="max-width:280px">' +
-            '<div style="font-size:.82rem;font-weight:600;color:#1a2535">' + st_esc(it.descripcion) + '</div>' +
+          '<td>' + st_esc(it.descripcion) +
             (it.cantidad > 1 ? '<div style="font-size:.7rem;color:#94a3b8">×'+it.cantidad+'</div>' : '') +
           '</td>' +
-          (!esEmailST ? '<td class="num" style="color:#E65100">' + st_fmt(it.total_cotizado) + '</td>' : '') +
-          '<td class="num" style="color:#8b5cf6;font-weight:700">' + (it.total_real > 0 ? st_fmt(it.total_real) : '—') + '</td>' +
-          (!esEmailST ? '<td class="num" style="color:' + varCls + '">' + (it.total_real > 0 ? varSign : '—') + '</td>' : '') +
+          '<td class="num" style="color:#E65100">' + st_fmt(it.total_cotizado) + '</td>' +
+          '<td class="num" style="color:#8b5cf6">' + (it.total_real > 0 ? st_fmt(it.total_real) : '—') + '</td>' +
+          '<td class="num" style="color:' + varCls + '">' + (it.total_real > 0 ? varSign : '—') + '</td>' +
           '<td>' + estadoBadge + '</td>' +
-          '<td style="text-align:center">' + adjBtn + '</td>' +
+          '<td style="text-align:center;padding:6px 8px">' + adjIcon + '</td>' +
           (enEje
             ? '<td>' + (it.estado_item !== 'ejecutado'
                 ? '<button class="st-btn st-btn-ghost st-btn-sm" onclick="st_abrirModalEgresoItem(' + JSON.stringify(it.id_item_st) + ')">💸</button>'
@@ -1241,17 +1214,13 @@
       });
     }
 
-    // Footer totales
-    var totalRealFmt = r.total_real > 0 ? st_fmt(r.total_real) : '—';
     html += '</tbody><tfoot><tr>' +
-      '<td colspan="2" style="padding:8px 12px;font-weight:700">TOTALES</td>' +
-      (!esEmailST ? '<td class="num" style="color:#E65100">' + st_fmt(r.total_cotizado) + '</td>' : '') +
-      '<td class="num" style="color:#8b5cf6;font-weight:700">' + totalRealFmt + '</td>' +
-      (!esEmailST
-        ? '<td class="num" style="color:' + (varPct > 10 ? '#dc2626' : varPct > 0 ? '#d97706' : '#15803d') + '">' +
-            (r.total_real > 0 ? (varPct > 0 ? '+' : '') + st_fmtPct(varPct) : '—') + '</td>'
-        : '') +
-      '<td colspan="' + (enEje ? 3 : 2) + '"></td>' +
+      '<td colspan="2" style="padding:8px 12px">TOTALES</td>' +
+      '<td class="num" style="color:#E65100">' + st_fmt(r.total_cotizado) + '</td>' +
+      '<td class="num" style="color:#8b5cf6">' + (r.total_real > 0 ? st_fmt(r.total_real) : '—') + '</td>' +
+      '<td class="num" style="color:' + (varPct > 10 ? '#dc2626' : varPct > 0 ? '#d97706' : '#15803d') + '">' +
+        (r.total_real > 0 ? (varPct > 0 ? '+' : '') + st_fmtPct(varPct) : '—') + '</td>' +
+      '<td colspan="' + (enEje?3:2) + '"></td>' +
     '</tr></tfoot></table></div></div>';
 
     document.getElementById('st-detalle-contenido').innerHTML = html;
@@ -1517,91 +1486,6 @@
     } else {
       doSave('','','');
     }
-  };
-
-  // ── MODAL EDITAR DATOS ST ────────────────────────────────
-
-  window.st_abrirModalEditar = function() {
-    var st = st_state.stActual;
-    if (!st) return;
-    document.getElementById('st-ed-desc').value     = st.descripcion    || '';
-    document.getElementById('st-ed-cliente').value  = st.nombre_cliente || '';
-    document.getElementById('st-ed-ruc').value      = st.ruc_cliente    || '';
-    document.getElementById('st-ed-dv').value       = st.dv_cliente     || '';
-    document.getElementById('st-ed-contacto').value = st.contacto       || '';
-    document.getElementById('st-ed-email').value    = st.email_cliente  || '';
-    document.getElementById('st-ed-precio').value   = st.precio_venta   || '';
-    document.getElementById('st-ed-notas').value    = '';
-    document.getElementById('st-modal-editar').style.display = 'flex';
-  };
-
-  window.st_cerrarModalEditar = function() {
-    document.getElementById('st-modal-editar').style.display = 'none';
-  };
-
-  window.st_guardarEdicion = function() {
-    var st = st_state.stActual;
-    if (!st) return;
-
-    var params = { id_st: st.id_st };
-    var campos = [
-      { id: 'st-ed-desc',     key: 'descripcion'     },
-      { id: 'st-ed-cliente',  key: 'nombre_cliente'  },
-      { id: 'st-ed-ruc',      key: 'ruc_cliente'     },
-      { id: 'st-ed-dv',       key: 'dv_cliente'      },
-      { id: 'st-ed-contacto', key: 'contacto'        },
-      { id: 'st-ed-email',    key: 'email_cliente'   },
-      { id: 'st-ed-precio',   key: 'precio_venta'    },
-      { id: 'st-ed-notas',    key: 'notas'           },
-    ];
-    var tieneCambios = false;
-    campos.forEach(function(c) {
-      var val = document.getElementById(c.id).value.trim();
-      if (val) { params[c.key] = val; tieneCambios = true; }
-    });
-
-    if (!tieneCambios) {
-      st_toast('No hay cambios para guardar', 'error');
-      return;
-    }
-
-    st_setLoading('st-ed-btn-guardar', true, '💾 Guardar cambios');
-    gasJsonp('actualizarDatosST', params)
-      .then(function(r) {
-        st_setLoading('st-ed-btn-guardar', false, '💾 Guardar cambios');
-        if (!r.success) throw new Error(r.error);
-        st_toast('✅ Datos actualizados: ' + (r.campos_actualizados||[]).join(', '), 'success');
-        st_cerrarModalEditar();
-        st_recargarDetalle();
-      })
-      .catch(function(e) {
-        st_setLoading('st-ed-btn-guardar', false, '💾 Guardar cambios');
-        st_toast('⚠️ ' + e.message, 'error');
-      });
-  };
-
-  // ── SINCRONIZAR EMAILS ───────────────────────────────────
-
-  window.st_sincronizarEmails = function() {
-    var btn = document.getElementById('st-btn-sync');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="st-spinner"></span> Sincronizando…'; }
-
-    // Llama al trigger manualmente vía GAS action
-    gasJsonp('sincronizarEmailsST', {})
-      .then(function(r) {
-        if (btn) { btn.disabled = false; btn.innerHTML = '📨 Sincronizar emails'; }
-        if (!r.success) throw new Error(r.error || 'Error al sincronizar');
-        var msg = '✅ Sincronización completa';
-        if (r.procesados > 0)  msg += ' — ' + r.procesados + ' email(s) procesados';
-        if (r.nuevos_st > 0)   msg += ', ' + r.nuevos_st + ' ST(s) creados';
-        if (r.procesados === 0) msg = 'ℹ️ Sin emails nuevos en la bandeja';
-        st_toast(msg, 'success');
-        if (r.procesados > 0) st_cargarDatos(true);
-      })
-      .catch(function(e) {
-        if (btn) { btn.disabled = false; btn.innerHTML = '📨 Sincronizar emails'; }
-        st_toast('⚠️ ' + e.message, 'error');
-      });
   };
 
   // ── INIT ─────────────────────────────────────────────────
