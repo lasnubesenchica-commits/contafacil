@@ -838,8 +838,15 @@
     var aCls = isActive ? ' active' : '';
     var idEsc = st_esc(st.id_st);
     var h = '';
-    h += '<div class="st-card s-' + st.estado + aCls + '" id="stcard-' + idEsc + '">';
-    h +=   '<div class="st-card-head" onclick="st_toggleCard(\'' + idEsc + '\')">';
+    h += '<div class="st-card s-' + st.estado + aCls + '" id="stcard-' + idEsc + '" style="position:relative">';
+    // Trash button — positioned top-right, stops propagation so it doesn't toggle the drawer
+    h += '<button onclick="event.stopPropagation();st_eliminarST(\''+idEsc+'\')" ' +
+         'title="Eliminar ST y todos sus registros" ' +
+         'style="position:absolute;top:8px;right:8px;z-index:10;background:none;border:none;cursor:pointer;' +
+         'padding:4px 6px;border-radius:5px;font-size:.85rem;color:#cbd5e1;line-height:1;transition:all .15s" ' +
+         'onmouseover="this.style.color=\'#dc2626\';this.style.background=\'#fee2e2\'" ' +
+         'onmouseout="this.style.color=\'#cbd5e1\';this.style.background=\'none\'">🗑️</button>';
+    h +=   '<div class="st-card-head" onclick="st_toggleCard(\'' + idEsc + '\')" style="padding-right:36px">';
     h +=     '<div class="st-card-row1">';
     h +=       '<div class="st-card-cli">' + st_esc(st.nombre_cliente) + '</div>';
     h +=       '<div class="st-card-right">';
@@ -1271,6 +1278,7 @@
       if (enEje && st.ingreso_id) {
         html += '<button class="st-tbl-btn success" onclick="st_accionCerrarTabla(\''+st_esc(st.id_st)+'\')">🔒</button>';
       }
+      html += '<button class="st-tbl-btn danger" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST y todos sus registros" style="padding:3px 7px">🗑️</button>';
       html += '</div></td>';
       html += '</tr>';
     });
@@ -2352,6 +2360,53 @@
       reader.onload = function(ev) { doSave(ev.target.result.split(',')[1], file.type||'image/jpeg', file.name); };
       reader.readAsDataURL(file);
     } else { doSave('','',''); }
+  };
+
+  // ── ELIMINAR ST (borrado completo) ───────────────────────
+
+  window.st_eliminarST = function(idST) {
+    // Find the ST data for the confirmation message
+    var stRef = null;
+    for (var i = 0; i < st_state.data.length; i++) {
+      if (st_state.data[i].id_st === idST) { stRef = st_state.data[i]; break; }
+    }
+    var label = stRef ? (st_numFactura(stRef) + ' — ' + stRef.nombre_cliente) : idST;
+
+    // First confirmation
+    if (!confirm('⚠️ ¿Eliminar permanentemente el ST ' + label + '?\n\nEsto borrará:\n• La fila en Servicios_Tecnicos\n• Todos sus ítems en ST_Items\n• Sus egresos en Egresos\n• Su ingreso en Ingresos (si existe)\n\nEsta acción NO se puede deshacer.')) return;
+
+    // Second confirmation — type-to-confirm style with the ST id
+    var confirm2 = prompt('Confirmación final.\n\nEscribe el número de cotización "' + (stRef ? st_numFactura(stRef) : idST) + '" para confirmar el borrado:');
+    if (confirm2 === null) return; // cancelled
+    var expected = stRef ? st_numFactura(stRef) : idST;
+    if (confirm2.trim() !== expected.trim()) {
+      st_toast('Cancelado — el texto no coincide', 'error');
+      return;
+    }
+
+    // Call backend
+    gasJsonp('eliminarST', { id_st: idST })
+      .then(function(res) {
+        if (!res.success) throw new Error(res.error || 'Error al eliminar');
+        var msg = '🗑️ ST eliminado';
+        if (res.items_eliminados)   msg += ' · ' + res.items_eliminados + ' ítem(s)';
+        if (res.egresos_eliminados) msg += ' · ' + res.egresos_eliminados + ' egreso(s)';
+        if (res.ingreso_anulado)    msg += ' · ingreso anulado';
+        st_toast(msg, 'success');
+        // Remove from local state immediately
+        st_state.data     = st_state.data.filter(function(s)     { return s.id_st !== idST; });
+        st_state.filtered = st_state.filtered.filter(function(s) { return s.id_st !== idST; });
+        if (st_state.expandedId === idST) { st_state.expandedId = null; st_state.stActual = null; }
+        st_computeKPIs();
+        if (st_state.vistaMode === 'tabla') {
+          st_renderTabla();
+        } else {
+          st_renderCards(st_state.filtered);
+          // Re-trigger detalle expand for remaining cards
+          setTimeout(function() { st_setVista('detalle'); }, 80);
+        }
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   };
 
   // ── INIT ─────────────────────────────────────────────────
