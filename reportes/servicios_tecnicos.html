@@ -184,6 +184,50 @@
     .st-form-grid { grid-template-columns:1fr; }
     .st-item-row  { grid-template-columns:1fr 1fr; grid-template-rows:auto auto auto; }
   }
+
+  /* ── Tooltip inventario ───────────────────────────────────── */
+  .st-inv-tooltip-wrap { position:relative; display:inline-block; }
+  .st-inv-tooltip { display:none; position:absolute; left:0; top:100%; margin-top:4px; z-index:9990;
+    background:#fff; border:1px solid #e2e8f0; border-radius:9px; box-shadow:0 8px 24px rgba(0,0,0,.13);
+    padding:10px 13px; min-width:220px; max-width:280px; font-size:.75rem; line-height:1.5; color:#334155; }
+  .st-inv-tooltip::before { content:''; position:absolute; top:-6px; left:12px;
+    border:6px solid transparent; border-bottom-color:#e2e8f0; border-top:none; }
+  .st-inv-tooltip::after  { content:''; position:absolute; top:-5px; left:12px;
+    border:6px solid transparent; border-bottom-color:#fff; border-top:none; }
+  .st-inv-tooltip-wrap:hover .st-inv-tooltip { display:block; }
+  .st-inv-badge { display:inline-flex; align-items:center; gap:4px; font-size:.75rem; font-weight:700;
+    color:#1d4ed8; background:#dbeafe; border-radius:5px; padding:2px 8px; cursor:default; }
+  .st-inv-badge.pendiente { color:#92400e; background:#fef3c7; }
+  .st-inv-upload-link { font-size:.76rem; font-weight:600; color:#dc2626; text-decoration:underline; cursor:pointer; }
+  .st-inv-upload-link:hover { color:#b91c1c; }
+
+  /* ── Tabla vista ──────────────────────────────────────────── */
+  .st-table-wrap { overflow-x:auto; border:1px solid #e2e8f0; border-radius:10px; margin-top:4px; }
+  .st-table { width:100%; border-collapse:collapse; font-size:.78rem; }
+  .st-table thead th { background:#1A237E; color:#fff; padding:9px 12px; text-align:left; font-weight:600; font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+  .st-table thead th.r { text-align:right; }
+  .st-table tbody tr { border-bottom:1px solid #f1f5f9; transition:background .1s; }
+  .st-table tbody tr:hover { background:#f8fafc; }
+  .st-table tbody tr:last-child { border-bottom:none; }
+  .st-table td { padding:8px 12px; color:#334155; vertical-align:middle; }
+  .st-table td.r { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .st-table td.mono { font-family:monospace; font-size:.73rem; }
+  .st-tbl-actions { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+  .st-tbl-btn { padding:3px 8px; border-radius:5px; border:1px solid #e2e8f0; background:#fff; font-size:.7rem; font-weight:600; cursor:pointer; white-space:nowrap; transition:all .12s; }
+  .st-tbl-btn:hover { background:#f1f5f9; }
+  .st-tbl-btn.primary { background:#1A237E; color:#fff; border-color:#1A237E; }
+  .st-tbl-btn.primary:hover { background:#283593; }
+  .st-tbl-btn.success { background:#15803d; color:#fff; border-color:#15803d; }
+  .st-tbl-btn.warning { background:#d97706; color:#fff; border-color:#d97706; }
+  .st-tbl-btn.danger  { background:#dc2626; color:#fff; border-color:#dc2626; }
+
+  /* ── Modal pago cliente ───────────────────────────────────── */
+  .st-pago-modal .st-progress { height:6px; border-radius:3px; background:#e2e8f0; margin:8px 0; overflow:hidden; }
+  .st-pago-modal .st-progress-bar { height:100%; border-radius:3px; background:#1A237E; transition:width .3s; }
+  .st-pago-modal .st-pago-status { padding:8px 12px; border-radius:8px; font-size:.78rem; margin-top:8px; }
+  .st-pago-modal .st-pago-status.completo { background:#dcfce7; color:#15803d; }
+  .st-pago-modal .st-pago-status.parcial  { background:#fef9c3; color:#a16207; }
+  .st-pago-modal .st-pago-status.sinpago  { background:#fee2e2; color:#b91c1c; }
 </style>
 
 <div class="st-wrap" id="st-root">
@@ -249,8 +293,8 @@
       <button onclick="st_limpiarFecha()" title="Limpiar filtro de fechas" style="padding:4px 9px;border:1.5px solid #e2e8f0;border-radius:6px;background:#fff;cursor:pointer;font-size:.9rem;color:#64748b;line-height:1" title="Limpiar fechas">✕</button>
       <span style="flex:1"></span>
       <span style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;white-space:nowrap">Vista</span>
-      <button id="st-v-simple"  onclick="st_setVista('simple')"  style="font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer">Simple</button>
-      <button id="st-v-detalle" onclick="st_setVista('detalle')" style="font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer">Detalle</button>
+      <button id="st-v-detalle" onclick="st_setVista('detalle')" style="font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer">🃏 Detalle</button>
+      <button id="st-v-tabla"   onclick="st_setVista('tabla')"   style="font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer">📊 Tabla</button>
     </div>
 
     <div id="st-cards-container">
@@ -465,6 +509,90 @@
   </div>
 </div>
 
+<!-- MODAL SUBIR FACTURA DE COSTO -->
+<div id="st-modal-factura-costo" class="st-modal-overlay" style="display:none">
+  <div class="st-modal" style="max-width:560px">
+    <h3>📦 Subir Factura de Costo</h3>
+    <p style="font-size:.8rem;color:#64748b;margin:-4px 0 14px">La IA buscará los códigos de producto y asignará el costo a los ítems pendientes.</p>
+    <div class="st-form-grid">
+      <div class="st-field st-form-full">
+        <label class="st-label">Factura / Comprobante (imagen o PDF)</label>
+        <input type="file" id="st-fc-file" accept="image/*,application/pdf" style="font-size:.78rem">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Proveedor</label>
+        <input class="st-input" id="st-fc-prov" placeholder="Nombre del proveedor">
+      </div>
+      <div class="st-field">
+        <label class="st-label">N° Factura</label>
+        <input class="st-input" id="st-fc-nfac" placeholder="Número de factura">
+      </div>
+    </div>
+    <div id="st-fc-ia-result" style="display:none;margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:.78rem"></div>
+    <div class="st-modal-footer">
+      <button class="st-btn st-btn-ghost" onclick="document.getElementById('st-modal-factura-costo').style.display='none'">Cancelar</button>
+      <button class="st-btn st-btn-warning" id="st-fc-btn-analizar" onclick="st_analizarFacturaCosto()">🤖 Analizar con IA</button>
+      <button class="st-btn st-btn-primary" id="st-fc-btn-guardar" onclick="st_guardarFacturaCosto()" style="display:none">💾 Guardar y Asignar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PAGO DEL CLIENTE -->
+<div id="st-modal-pago-cliente" class="st-modal-overlay st-pago-modal" style="display:none">
+  <div class="st-modal" style="max-width:560px">
+    <h3>💳 Registrar Pago del Cliente</h3>
+    <div id="st-pc-info" style="background:#f0f4ff;border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:.8rem;color:#1A237E;font-weight:600"></div>
+    <div class="st-form-grid">
+      <div class="st-field st-form-full">
+        <label class="st-label">Comprobante de Pago (opcional — Yappy, Transferencia, Factura)</label>
+        <input type="file" id="st-pc-file" accept="image/*,application/pdf" style="font-size:.78rem">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Monto Pagado ($)</label>
+        <input class="st-input" id="st-pc-monto" type="number" min="0" step="0.01" placeholder="0.00" oninput="st_calcPagoStatus()">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Fecha del Pago</label>
+        <input class="st-input" id="st-pc-fecha" type="date">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Tipo de Pago</label>
+        <select class="st-select" id="st-pc-tipo">
+          <option value="Yappy">Yappy</option>
+          <option value="transferencia">Transferencia bancaria</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="cheque">Cheque</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="st-field">
+        <label class="st-label">Código / Referencia</label>
+        <input class="st-input" id="st-pc-codigo" placeholder="Código de transacción">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Nombre del Pagador</label>
+        <input class="st-input" id="st-pc-pagador" placeholder="Nombre completo">
+      </div>
+    </div>
+    <div id="st-pc-ia-status" style="display:none;margin-top:8px">
+      <div style="font-size:.73rem;color:#1A237E;font-weight:600;margin-bottom:4px">📡 Analizando comprobante con IA…</div>
+      <div class="st-progress"><div class="st-progress-bar" id="st-pc-ia-bar" style="width:0%"></div></div>
+    </div>
+    <div id="st-pc-status-box" style="display:none;margin-top:10px"></div>
+    <div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:.78rem;cursor:pointer">
+        <input type="checkbox" id="st-pc-sin-voucher" onchange="st_toggleSinVoucher()" style="accent-color:#1A237E">
+        <span style="color:#64748b">Cerrar sin comprobante (el cliente ha pagado pero no hay voucher disponible)</span>
+      </label>
+    </div>
+    <div class="st-modal-footer">
+      <button class="st-btn st-btn-ghost" onclick="document.getElementById('st-modal-pago-cliente').style.display='none'">Cancelar</button>
+      <button class="st-btn st-btn-warning" id="st-pc-btn-ia" onclick="st_analizarPago()">🤖 Leer Comprobante</button>
+      <button class="st-btn st-btn-success" id="st-pc-btn-guardar" onclick="st_guardarPago()">💳 Registrar Pago</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL INGRESO ST -->
 <div id="st-modal-ingreso" class="st-modal-overlay" style="display:none">
   <div class="st-modal">
@@ -603,6 +731,10 @@
         st_poblarMeses();
         st_computeKPIs();
         st_applyFilters();
+        // After data loads, trigger the current vista mode to render properly
+        if (force && st_state.vistaMode === 'detalle') {
+          setTimeout(function() { st_setVista('detalle'); }, 100);
+        }
         document.getElementById('st-ts').textContent =
           'Actualizado: ' + new Date().toLocaleTimeString('es-PA',{hour:'2-digit',minute:'2-digit'});
       })
@@ -663,7 +795,11 @@
       return true;
     });
     st_state.filtered = items;
-    st_renderCards(items);
+    if (st_state.vistaMode === 'tabla') {
+      st_renderTabla();
+    } else {
+      st_renderCards(items);
+    }
   };
 
   // ── Helper: extract real invoice number ─────────────────
@@ -823,36 +959,105 @@
     var notas = String(st.notas || '');
     var html  = '';
     var voucherUrl = '';
-    // Check notas field (set by ImportHistorial with "Voucher: https://...")
     var vm = notas.match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
     if (vm) voucherUrl = vm[1];
-    // Also check resumen notas if available
     if (!voucherUrl && r.notas) {
       var vm2 = String(r.notas).match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
       if (vm2) voucherUrl = vm2[1];
     }
     if (!voucherUrl && r.ingreso_drive_url) voucherUrl = r.ingreso_drive_url;
+
+    // Build inventory/cost cell
     var costUrls = [], seen = {};
+    var pendItems = [];
     items.forEach(function(it) {
       if (it.drive_url && !seen[it.drive_url]) { seen[it.drive_url]=true; costUrls.push({url:it.drive_url,desc:it.descripcion||'Costo'}); }
+      if (it.estado_item !== 'ejecutado' && it.tipo === 'producto') pendItems.push(it);
     });
+
+    // Check if items came from inventory (no external cost doc)
+    var hasInventoryItems = items.some(function(it) { return it.tipo === 'producto'; });
+    var hasExternalDocs   = costUrls.length > 0;
+
     html += '<div class="st-docs-row">';
+
+    // CELL 1: Factura emitida
     html += '<div class="st-doc-cell"><div class="st-doc-lbl">🧾 Factura emitida</div>';
     html += st.drive_url
       ? '<a href="' + st_esc(st.drive_url) + '" target="_blank" class="st-doc-a fl">' + st_esc(st_numFactura(st)) + ' ↗</a>'
       : '<span class="st-doc-none">' + st_esc(st_numFactura(st)) + '</span>';
     html += '</div>';
-    html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Factura de costo</div>';
-    if (!costUrls.length) { html += '<span class="st-doc-none">Sin adjunto</span>'; }
-    else costUrls.forEach(function(c,ci){ var lbl=c.desc.length>32?c.desc.slice(0,32)+'…':c.desc; html+='<a href="'+st_esc(c.url)+'" target="_blank" class="st-doc-a fc"'+(ci?' style="margin-top:2px"':'')+'>'+st_esc(lbl)+' ↗</a>'; });
+
+    // CELL 2: Inventario (renamed from Factura de costo)
+    html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Inventario</div>';
+    if (hasInventoryItems && !hasExternalDocs) {
+      // Items came from inventory — show inventory badge with tooltip
+      var invHtml = '<div class="st-inv-tooltip-wrap">';
+      invHtml += '<span class="st-inv-badge">📦 En inventario</span>';
+      invHtml += '<div class="st-inv-tooltip">';
+      invHtml += '<div style="font-weight:700;margin-bottom:5px;color:#1A237E">🔍 Detalle de inventario</div>';
+      items.forEach(function(it) {
+        if (it.tipo !== 'producto') return;
+        var color = it.estado_item === 'ejecutado' ? '#15803d' : '#d97706';
+        var badge = it.estado_item === 'ejecutado' ? '✓' : '⏳';
+        invHtml += '<div style="padding:3px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px">';
+        invHtml += '<span style="color:#334155">' + st_esc(it.descripcion.length > 36 ? it.descripcion.slice(0,36)+'…' : it.descripcion) + '</span>';
+        invHtml += '<span style="font-weight:700;color:'+color+'">'+badge+' '+st_fmt(it.total_cotizado)+'</span>';
+        invHtml += '</div>';
+      });
+      if (pendItems.length > 0) {
+        invHtml += '<div style="margin-top:6px;font-size:.7rem;color:#d97706;font-weight:600">⚠️ '+pendItems.length+' ítem(s) pendiente(s) de costo real</div>';
+      }
+      invHtml += '</div></div>';
+      html += invHtml;
+      // If there are still pending items and no doc, offer upload
+      if (pendItems.length > 0 && enEje) {
+        html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto()">📎 Subir factura de costo</span>';
+      }
+    } else if (hasExternalDocs) {
+      // External cost docs attached
+      var invWrap = '<div class="st-inv-tooltip-wrap">';
+      invWrap += '<span class="st-inv-badge">📄 ' + costUrls.length + ' doc(s)</span>';
+      invWrap += '<div class="st-inv-tooltip">';
+      invWrap += '<div style="font-weight:700;margin-bottom:5px;color:#1A237E">📄 Documentos de costo</div>';
+      costUrls.forEach(function(c) {
+        invWrap += '<div style="padding:2px 0"><a href="'+st_esc(c.url)+'" target="_blank" style="color:#3730A3;font-size:.73rem">'+st_esc(c.desc.slice(0,40))+'… ↗</a></div>';
+      });
+      invWrap += '</div></div>';
+      html += invWrap;
+    } else {
+      // No inventory items, no docs — offer upload if in execution
+      if (enEje) {
+        html += '<span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto()">📎 Sin adjunto — subir factura</span>';
+      } else {
+        html += '<span class="st-doc-none">Sin adjunto</span>';
+      }
+    }
     html += '</div>';
+
+    // CELL 3: Pago del cliente
     html += '<div class="st-doc-cell"><div class="st-doc-lbl">💳 Pago del cliente</div>';
     if (r.ingreso_id) {
-      html += voucherUrl
-        ? '<a href="'+st_esc(voucherUrl)+'" target="_blank" class="st-doc-a fp">'+st_esc(r.ingreso_id)+' ↗</a>'
-        : '<span class="st-doc-none" style="color:#065F46;font-style:normal;font-weight:600">'+st_esc(r.ingreso_id)+'</span>';
-    } else html += '<span class="st-doc-none">Pendiente</span>';
+      if (voucherUrl) {
+        html += '<a href="'+st_esc(voucherUrl)+'" target="_blank" class="st-doc-a fp">'+st_esc(r.ingreso_id)+' ↗</a>';
+      } else {
+        // Ingreso exists but no voucher — offer upload
+        html += '<div>';
+        html += '<span style="font-size:.76rem;font-weight:600;color:#065F46">'+st_esc(r.ingreso_id)+'</span>';
+        if (enEje || st.estado === 'cerrado') {
+          html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalPagoCliente('+JSON.stringify({ingreso_id:r.ingreso_id,precio_venta:r.precio_venta,total_real:r.total_real})+')" style="color:#d97706">📎 Sin comprobante — subir</span>';
+        }
+        html += '</div>';
+      }
+    } else {
+      if (enEje) {
+        html += '<span class="st-inv-upload-link" onclick="st_abrirModalPagoCliente('+JSON.stringify({ingreso_id:'',precio_venta:r.precio_venta,total_real:r.total_real})+')">⚠️ Sin pago — registrar</span>';
+      } else {
+        html += '<span class="st-doc-none">Pendiente</span>';
+      }
+    }
     html += '</div></div>';
+
     var utilReal = (r.precio_venta||0) - (r.total_real||0);
     var margen = r.total_real > 0 ? ((utilReal/r.total_real)*100).toFixed(1) : '—';
     html += '<div class="st-met-row">' +
@@ -885,7 +1090,7 @@
           : '<span style="background:#fef9c3;color:#a16207;font-size:.63rem;font-weight:700;padding:1px 6px;border-radius:10px">Pend.</span>';
         var doc = it.drive_url
           ? '<a href="'+st_esc(it.drive_url)+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.78rem;">📄</a>'
-          : '<span style="color:#d1d5db">—</span>';
+          : (it.tipo==='producto' ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto()" title="Subir factura">📎</span>' : '<span style="color:#d1d5db">—</span>');
         html += '<tr><td style="font-size:.7rem;color:#64748b;white-space:nowrap">'+(TIPO_LABEL[it.tipo]||it.tipo)+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">×'+it.cantidad+'</span>':'')+'</td>' +
           '<td class="r">'+(it.total_real>0?st_fmt(it.total_real):st_fmt(it.total_cotizado))+'</td>' +
@@ -964,40 +1169,100 @@
 
   window.st_setVista = function(modo) {
     st_state.vistaMode = modo;
-    var btnS = document.getElementById('st-v-simple');
     var btnD = document.getElementById('st-v-detalle');
+    var btnT = document.getElementById('st-v-tabla');
     var actStyle  = 'font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer';
     var idleStyle = 'font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer';
-    if (btnS) btnS.style.cssText = modo === 'simple'  ? actStyle : idleStyle;
     if (btnD) btnD.style.cssText = modo === 'detalle' ? actStyle : idleStyle;
+    if (btnT) btnT.style.cssText = modo === 'tabla'   ? actStyle : idleStyle;
 
-    if (modo === 'detalle') {
-      // Expand all: load drawer for each card sequentially with small delay
+    if (modo === 'tabla') {
+      st_renderTabla();
+    } else {
+      // Detalle: expand all cards
+      var cont = document.getElementById('st-cards-container');
+      // Re-render cards first (they may have been replaced by table)
+      st_renderCards(st_state.filtered);
       st_state.filtered.forEach(function(st, i) {
         setTimeout(function() {
           var cardEl = document.getElementById('stcard-' + st.id_st);
           var drawEl = document.getElementById('stdrawer-' + st.id_st);
           if (!cardEl || !drawEl) return;
           cardEl.classList.add('active');
-          if (!drawEl.innerHTML.trim()) {
+          if (!drawEl.innerHTML.trim() || drawEl.innerHTML.indexOf('st-spinner') !== -1) {
             drawEl.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8">' +
               '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:14px;height:14px;border-width:2px"></span></div>';
             st_state.stActual = st;
             st_state.expandedId = st.id_st;
             st_loadDrawerDetail(st.id_st, i);
           }
-        }, i * 120); // stagger to avoid GAS rate limit
+        }, i * 120);
       });
-    } else {
-      // Collapse all
-      st_state.filtered.forEach(function(st) {
-        var cardEl = document.getElementById('stcard-' + st.id_st);
-        if (cardEl) cardEl.classList.remove('active');
-      });
-      st_state.expandedId = null;
-      st_state.stActual   = null;
     }
   };
+
+  function st_renderTabla() {
+    var cont = document.getElementById('st-cards-container');
+    var items = st_state.filtered;
+    if (!items.length) {
+      cont.innerHTML = '<div class="st-empty"><div class="st-empty-icon">🔍</div>Sin resultados.</div>';
+      return;
+    }
+    var html = '<div class="st-table-wrap"><table class="st-table">';
+    html += '<thead><tr>';
+    html += '<th>N° / ID</th><th>Cliente</th><th>Descripción</th><th>Estado</th>';
+    html += '<th class="r">Facturado</th><th class="r">Costo</th><th class="r">Utilidad</th><th class="r">Margen</th>';
+    html += '<th>Inventario</th><th>Pago</th><th>Acciones</th>';
+    html += '</tr></thead><tbody>';
+    items.forEach(function(st) {
+      var utilidad = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0));
+      var totalCosto = st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0);
+      var margenPct = totalCosto > 0 ? ((utilidad / totalCosto)*100).toFixed(1) : '—';
+      var uColor = utilidad >= 0 ? '#15803d' : '#dc2626';
+      var enEje = st.estado === 'en_ejecucion';
+      var hasInvItems = (st.items||[]).some(function(it){ return it.tipo==='producto'; });
+      var hasCostDoc  = (st.items||[]).some(function(it){ return it.drive_url; });
+      var invCell = hasInvItems ? '<span class="st-inv-badge" style="font-size:.68rem">📦 Inventario</span>' :
+                    (hasCostDoc ? '<span class="st-inv-badge" style="font-size:.68rem">📄 Doc</span>' :
+                    (enEje ? '<span class="st-inv-upload-link" style="font-size:.68rem" onclick="st_abrirModalFacturaCostoTabla(\''+st_esc(st.id_st)+'\')">📎 Subir</span>' : '<span style="color:#94a3b8;font-size:.68rem">—</span>'));
+      var pagoCell = st.ingreso_id
+        ? '<span style="font-size:.68rem;color:#15803d;font-weight:600">'+st_esc(st.ingreso_id.slice(-12))+'</span>'
+        : (enEje ? '<span class="st-inv-upload-link" style="font-size:.68rem" onclick="st_abrirModalPagoCliente('+JSON.stringify({ingreso_id:'',precio_venta:st.precio_venta,total_real:st.total_costo_real})+')">⚠️ Registrar</span>' : '<span style="color:#94a3b8;font-size:.68rem">—</span>');
+
+      html += '<tr>';
+      html += '<td class="mono"><div>'+st_esc(st_numFactura(st))+'</div><div style="font-size:.65rem;color:#94a3b8">'+st_esc(st.id_st)+'</div></td>';
+      html += '<td style="font-weight:600;max-width:150px">'+st_esc(st.nombre_cliente)+'</td>';
+      html += '<td style="max-width:200px;color:#64748b;font-size:.73rem">'+st_esc(st.descripcion.length>60?st.descripcion.slice(0,60)+'…':st.descripcion)+'</td>';
+      html += '<td><span class="st-badge s-'+st_esc(st.estado)+'">'+st_esc(ESTADO_LABEL[st.estado]||st.estado)+'</span></td>';
+      html += '<td class="r">'+st_fmt(st.precio_venta)+'</td>';
+      html += '<td class="r" style="color:#8b5cf6">'+st_fmt(totalCosto)+'</td>';
+      html += '<td class="r" style="color:'+uColor+'">'+st_fmt(utilidad)+'</td>';
+      html += '<td class="r" style="color:'+uColor+'">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
+      html += '<td>'+invCell+'</td>';
+      html += '<td>'+pagoCell+'</td>';
+      html += '<td><div class="st-tbl-actions">';
+      if (st.estado === 'cotizado') {
+        html += '<button class="st-tbl-btn warning" onclick="st_accionEmailTabla(\''+st_esc(st.id_st)+'\',\''+st_esc(st.email_cliente||'')+'\')">📧</button>';
+        html += '<button class="st-tbl-btn primary" onclick="st_accionAprobarTabla(\''+st_esc(st.id_st)+'\',\''+st_esc(st.num_cotizacion)+'\')">✅ Aprobar</button>';
+      }
+      if (st.estado === 'aprobado') {
+        html += '<button class="st-tbl-btn primary" onclick="st_accionIniciarTabla(\''+st_esc(st.id_st)+'\')">🚀 Iniciar</button>';
+      }
+      if (enEje && !st.ingreso_id) {
+        html += '<button class="st-tbl-btn success" onclick="st_accionRegistrarIngresoTabla(\''+st_esc(st.id_st)+'\')">💰</button>';
+      }
+      if (enEje) {
+        html += '<button class="st-tbl-btn" onclick="st_accionRegistrarCostoTabla(\''+st_esc(st.id_st)+'\')">💸</button>';
+      }
+      if (enEje && st.ingreso_id) {
+        html += '<button class="st-tbl-btn success" onclick="st_accionCerrarTabla(\''+st_esc(st.id_st)+'\')">🔒</button>';
+      }
+      html += '</div></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    cont.innerHTML = html;
+  }
 
   // ── ACCIONES RÁPIDAS DESDE CARDS ────────────────────────
 
@@ -1316,30 +1581,6 @@
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   };
 
-  // ── VISTA DETALLE / EJECUCIÓN ────────────────────────────
-
-  window.st_verDetalle = function(idx) {
-    var st = st_state.filtered[idx];
-    if (!st) return;
-    st_state.stActual = st;
-
-    // Cargar resumen actualizado
-    gasJsonp('getResumenST', { id_st: st.id_st })
-      .then(function(res) {
-        if (!res.success) throw new Error(res.error);
-        st_renderDetalle(res.resumen);
-      })
-      .catch(function(e) {
-        document.getElementById('st-detalle-contenido').innerHTML =
-          '<div class="st-empty"><div class="st-empty-icon">⚠️</div>' + st_esc(e.message) + '</div>';
-      });
-
-    var tabDet = document.getElementById('st-nav-detalle');
-    if (tabDet) { tabDet.style.display = ''; tabDet.textContent = '🔍 ' + st.num_cotizacion; }
-    st_showView('detalle');
-  };
-
-
 
   // Acciones desde vista detalle
   window.st_accionAprobar_st = function() {
@@ -1394,20 +1635,33 @@
 
   function st_recargarDetalle() {
     var st = st_state.stActual;
-    if (!st) return;
-    // Refrescar stActual desde datos recargados
-    gasJsonp('getCotizaciones', { id_st: st.id_st })
+    if (!st) { st_cargarDatos(true); return; }
+    var idST = st.id_st;
+    // Refresh stActual from backend
+    gasJsonp('getCotizaciones', { id_st: idST })
       .then(function(res) {
         if (res.success && res.items && res.items.length) {
           st_state.stActual = res.items[0];
-          return gasJsonp('getResumenST', { id_st: st.id_st });
+          // Update in main data array too
+          for (var i = 0; i < st_state.data.length; i++) {
+            if (st_state.data[i].id_st === idST) { st_state.data[i] = res.items[0]; break; }
+          }
+          for (var j = 0; j < st_state.filtered.length; j++) {
+            if (st_state.filtered[j].id_st === idST) { st_state.filtered[j] = res.items[0]; break; }
+          }
+          if (st_state.vistaMode === 'tabla') {
+            st_renderTabla();
+            return Promise.resolve();
+          }
+          return gasJsonp('getResumenST', { id_st: idST });
         }
         throw new Error('ST no encontrado');
       })
       .then(function(res) {
+        if (!res) return; // tabla mode already rendered
         if (!res.success) throw new Error(res.error);
-        st_renderDetalle(res.resumen);
-        st_cargarDatos(false);
+        st_renderDrawer(idST, res.resumen);
+        st_computeKPIs();
       })
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   }
@@ -1603,8 +1857,450 @@
     }
   };
 
+  // ── ACCIONES DESDE TABLA ─────────────────────────────────
+
+  window.st_accionEmailTabla = function(idST, email) {
+    var dest = prompt('Email destinatario:', email||'');
+    if (dest === null) return;
+    gasJsonp('enviarCotizacionEmail', { id_st: idST, email_destino: dest })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('📧 Cotización enviada a ' + r.email_destino, 'success');
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  window.st_accionAprobarTabla = function(idST, numCot) {
+    if (!confirm('¿Aprobar la cotización ' + numCot + '?')) return;
+    gasJsonp('aprobarCotizacion', { id_st: idST })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('✅ Cotización aprobada', 'success');
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  window.st_accionIniciarTabla = function(idST) {
+    if (!confirm('¿Iniciar ejecución del ST ' + idST + '?')) return;
+    gasJsonp('iniciarEjecucion', { id_st: idST, fecha_inicio: st_today() })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('🚀 Ejecución iniciada', 'success');
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  window.st_accionRegistrarIngresoTabla = function(idST) {
+    for (var i = 0; i < st_state.filtered.length; i++) {
+      if (st_state.filtered[i].id_st === idST) { st_state.stActual = st_state.filtered[i]; break; }
+    }
+    st_abrirModalIngreso();
+  };
+
+  window.st_accionRegistrarCostoTabla = function(idST) {
+    for (var i = 0; i < st_state.filtered.length; i++) {
+      if (st_state.filtered[i].id_st === idST) { st_state.stActual = st_state.filtered[i]; break; }
+    }
+    st_abrirModalEgreso();
+  };
+
+  window.st_accionCerrarTabla = function(idST) {
+    if (!confirm('¿Cerrar el ST ' + idST + '? Esta acción no se puede deshacer.')) return;
+    gasJsonp('cerrarST', { id_st: idST, fecha_cierre: st_today() })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('🔒 ST cerrado exitosamente', 'success');
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  // ── MODAL FACTURA DE COSTO ───────────────────────────────
+
+  var st_fcContext = { idST: null, iaResult: null };
+
+  window.st_abrirModalFacturaCosto = function(idST) {
+    var stRef = idST ? null : st_state.stActual;
+    if (idST) {
+      for (var i = 0; i < st_state.filtered.length; i++) {
+        if (st_state.filtered[i].id_st === idST) { stRef = st_state.filtered[i]; break; }
+      }
+    }
+    if (!stRef) return;
+    st_state.stActual = stRef;
+    st_fcContext.idST = stRef.id_st;
+    st_fcContext.iaResult = null;
+    ['st-fc-file','st-fc-prov','st-fc-nfac'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    var iaRes = document.getElementById('st-fc-ia-result');
+    if (iaRes) { iaRes.style.display = 'none'; iaRes.innerHTML = ''; }
+    var btnG = document.getElementById('st-fc-btn-guardar');
+    if (btnG) btnG.style.display = 'none';
+    document.getElementById('st-modal-factura-costo').style.display = 'flex';
+  };
+
+  window.st_abrirModalFacturaCostoTabla = window.st_abrirModalFacturaCosto;
+
+  window.st_analizarFacturaCosto = function() {
+    var file = document.getElementById('st-fc-file').files[0];
+    if (!file) { st_toast('Selecciona una imagen o PDF de la factura', 'error'); return; }
+
+    var btn = document.getElementById('st-fc-btn-analizar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="st-spinner"></span> Analizando…';
+
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var b64  = ev.target.result.split(',')[1];
+      var mime = file.type || 'image/jpeg';
+      fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action:      'parseFacturaEgreso',
+          imageBase64: b64,
+          mimeType:    mime,
+        }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = '🤖 Analizar con IA';
+        if (!res.success) throw new Error(res.error || 'Error en IA');
+
+        st_fcContext.iaResult = res;
+
+        // Auto-fill fields
+        if (res.proveedor) document.getElementById('st-fc-prov').value = res.proveedor;
+        if (res.num_factura) document.getElementById('st-fc-nfac').value = res.num_factura;
+
+        // Match IA items against pending ST items
+        var st = st_state.stActual;
+        var pendItems = (st && st.items || []).filter(function(it) {
+          return it.estado_item !== 'ejecutado' && it.tipo === 'producto';
+        });
+
+        var iaItems = res.items || [];
+        var matches = [];
+        var noMatch = [];
+
+        pendItems.forEach(function(pItem) {
+          var descNorm = String(pItem.descripcion).toUpperCase().replace(/[\[\]]/g,'').trim();
+          var best = null, bestScore = 0;
+          iaItems.forEach(function(iaItem) {
+            var iaDesc = String(iaItem.descripcion||'').toUpperCase();
+            // Check if ia description contains product code parts
+            var parts = descNorm.split(/[\s\-_]+/).filter(function(p){ return p.length > 2; });
+            var score = 0;
+            parts.forEach(function(p) { if (iaDesc.indexOf(p) !== -1) score++; });
+            if (score > bestScore) { bestScore = score; best = iaItem; }
+          });
+          if (bestScore > 0 && best) {
+            matches.push({ stItem: pItem, iaItem: best, score: bestScore });
+          } else {
+            noMatch.push(pItem);
+          }
+        });
+
+        var html = '';
+        if (matches.length) {
+          html += '<div style="font-weight:700;color:#15803d;margin-bottom:6px">✅ Coincidencias encontradas ('+matches.length+')</div>';
+          matches.forEach(function(m) {
+            html += '<div style="display:flex;justify-content:space-between;background:#f0fdf4;border-radius:6px;padding:6px 9px;margin-bottom:4px;font-size:.75rem">' +
+              '<span>'+st_esc(m.stItem.descripcion.slice(0,45))+'…</span>' +
+              '<span style="font-weight:700;color:#15803d">'+st_fmt(m.iaItem.total||m.iaItem.precio_unitario||0)+'</span>' +
+              '</div>';
+          });
+        }
+        if (noMatch.length) {
+          html += '<div style="font-weight:700;color:#d97706;margin-top:8px;margin-bottom:6px">⚠️ Sin coincidencia ('+noMatch.length+')</div>';
+          noMatch.forEach(function(it) {
+            html += '<div style="background:#fef9c3;border-radius:6px;padding:5px 8px;margin-bottom:3px;font-size:.73rem;color:#92400e">'+st_esc(it.descripcion)+'</div>';
+          });
+          if (matches.length === 0) {
+            html += '<div style="margin-top:8px;color:#dc2626;font-size:.73rem">❌ No se encontró ningún ítem coincidente. Verifica que subiste la factura correcta.</div>';
+          }
+        }
+        if (!pendItems.length) {
+          html += '<div style="color:#64748b;font-size:.78rem">No hay ítems pendientes de costo en este ST.</div>';
+          html += '<div style="margin-top:6px;color:#94a3b8;font-size:.73rem">Factura: '+st_esc(res.proveedor||'')+ ' · ' + st_esc(res.num_factura||'') + ' · '+st_fmt(res.total)+'</div>';
+        }
+
+        var iaRes = document.getElementById('st-fc-ia-result');
+        iaRes.innerHTML = html;
+        iaRes.style.display = 'block';
+
+        // Show save button if we have at least some matches or want to register as egreso anyway
+        var btnG = document.getElementById('st-fc-btn-guardar');
+        btnG.style.display = '';
+        if (noMatch.length > 0 && matches.length === 0) {
+          btnG.textContent = '⚠️ Registrar como egreso sin asignar';
+          btnG.className = 'st-btn st-btn-warning';
+        } else {
+          btnG.textContent = '💾 Guardar y Asignar (' + matches.length + ' ítem' + (matches.length!==1?'s':'') + ')';
+          btnG.className = 'st-btn st-btn-primary';
+        }
+        btnG.dataset.matches = JSON.stringify(matches.map(function(m){
+          return { idItemST: m.stItem.id_item_st, total: m.iaItem.total||m.iaItem.precio_unitario||0 };
+        }));
+      })
+      .catch(function(e) {
+        btn.disabled = false;
+        btn.innerHTML = '🤖 Analizar con IA';
+        st_toast('⚠️ ' + e.message, 'error');
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.st_guardarFacturaCosto = function() {
+    var st = st_state.stActual;
+    if (!st) return;
+    var res = st_fcContext.iaResult;
+    if (!res) { st_toast('Analiza la factura primero', 'error'); return; }
+
+    var prov = document.getElementById('st-fc-prov').value.trim() || res.proveedor || '';
+    var nfac = document.getElementById('st-fc-nfac').value.trim() || res.num_factura || '';
+    var file = document.getElementById('st-fc-file').files[0];
+    var btn  = document.getElementById('st-fc-btn-guardar');
+    btn.disabled = true; btn.innerHTML = '<span class="st-spinner"></span> Guardando…';
+
+    var doSave = function(b64, mime, nombre) {
+      var payload = {
+        action:      'registrarEgresoST',
+        id_st:       st.id_st,
+        id_item_st:  '',
+        tipo:        'producto',
+        descripcion: res.items && res.items.length ? res.items.map(function(i){return i.descripcion;}).join(' | ') : (prov + ' — factura costo'),
+        proveedor:   prov,
+        ruc_prov:    res.ruc_proveedor || '',
+        dv_prov:     res.dv_proveedor  || '',
+        num_factura: nfac,
+        total:       res.total    || 0,
+        itbms:       res.itbms    || 0,
+        subtotal:    res.subtotal || 0,
+        fecha:       res.fecha    || st_today(),
+        notas:       'Asignado por IA desde factura de costo',
+        imageBase64: b64,
+        imageMime:   mime,
+        imageName:   nombre,
+      };
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(r) {
+        btn.disabled = false; btn.innerHTML = '💾 Guardar y Asignar';
+        if (!r.success) throw new Error(r.error);
+        st_toast('✅ Factura de costo registrada — ' + r.egreso_id, 'success');
+        document.getElementById('st-modal-factura-costo').style.display = 'none';
+        st_recargarDetalle();
+        if (st_state.vistaMode === 'tabla') { setTimeout(st_renderTabla, 400); }
+      })
+      .catch(function(e) {
+        btn.disabled = false; btn.innerHTML = '💾 Guardar y Asignar';
+        st_toast('⚠️ ' + e.message, 'error');
+      });
+    };
+
+    if (file) {
+      var reader = new FileReader();
+      reader.onload = function(ev) { doSave(ev.target.result.split(',')[1], file.type||'image/jpeg', file.name); };
+      reader.readAsDataURL(file);
+    } else { doSave('','',''); }
+  };
+
+  // ── MODAL PAGO DEL CLIENTE ────────────────────────────────
+
+  var st_pcContext = { ingresoId: null, precioVenta: 0, sinVoucher: false };
+
+  window.st_abrirModalPagoCliente = function(ctx) {
+    if (typeof ctx === 'string') ctx = JSON.parse(ctx);
+    st_pcContext.ingresoId   = ctx.ingreso_id  || '';
+    st_pcContext.precioVenta = parseFloat(ctx.precio_venta) || 0;
+    st_pcContext.sinVoucher  = false;
+
+    var info = document.getElementById('st-pc-info');
+    if (info) info.innerHTML = 'Precio de venta: <strong>' + st_fmt(st_pcContext.precioVenta) + '</strong>' +
+      (st_pcContext.ingresoId ? ' · Ingreso: ' + st_esc(st_pcContext.ingresoId) : ' · Sin ingreso previo');
+
+    ['st-pc-monto','st-pc-codigo','st-pc-pagador'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('st-pc-fecha').value = st_today();
+    document.getElementById('st-pc-file').value  = '';
+    document.getElementById('st-pc-sin-voucher').checked = false;
+    document.getElementById('st-pc-ia-status').style.display = 'none';
+    document.getElementById('st-pc-status-box').style.display = 'none';
+    document.getElementById('st-pc-btn-ia').style.display = '';
+    document.getElementById('st-modal-pago-cliente').style.display = 'flex';
+  };
+
+  window.st_toggleSinVoucher = function() {
+    st_pcContext.sinVoucher = document.getElementById('st-pc-sin-voucher').checked;
+    document.getElementById('st-pc-btn-ia').style.display = st_pcContext.sinVoucher ? 'none' : '';
+  };
+
+  window.st_calcPagoStatus = function() {
+    var monto = parseFloat(document.getElementById('st-pc-monto').value) || 0;
+    var total = st_pcContext.precioVenta;
+    if (!monto || !total) { document.getElementById('st-pc-status-box').style.display='none'; return; }
+    var box = document.getElementById('st-pc-status-box');
+    var saldo = total - monto;
+    var cls, msg;
+    if (monto >= total) { cls = 'completo'; msg = '✅ Pago completo'; }
+    else if (monto > 0)  { cls = 'parcial';  msg = '⚠️ Pago parcial — Saldo pendiente: ' + st_fmt(saldo); }
+    else                 { cls = 'sinpago';  msg = '❌ Sin pago'; }
+    box.className = 'st-pago-status ' + cls;
+    box.textContent = msg;
+    box.style.display = 'block';
+  };
+
+  window.st_analizarPago = function() {
+    var file = document.getElementById('st-pc-file').files[0];
+    if (!file) { st_toast('Selecciona el comprobante de pago', 'error'); return; }
+    var btn = document.getElementById('st-pc-btn-ia');
+    btn.disabled = true; btn.innerHTML = '<span class="st-spinner"></span> Leyendo…';
+
+    var iaStatus = document.getElementById('st-pc-ia-status');
+    var iaBar    = document.getElementById('st-pc-ia-bar');
+    iaStatus.style.display = 'block';
+    var prog = 0;
+    var progIntvl = setInterval(function(){ prog = Math.min(prog + 15, 85); iaBar.style.width = prog + '%'; }, 300);
+
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action:      'parseComprobanteIngreso',
+          imageBase64: ev.target.result.split(',')[1],
+          mimeType:    file.type || 'image/jpeg',
+        }),
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(res) {
+        clearInterval(progIntvl); iaBar.style.width = '100%';
+        setTimeout(function(){ iaStatus.style.display='none'; iaBar.style.width='0%'; }, 600);
+        btn.disabled = false; btn.innerHTML = '🤖 Leer Comprobante';
+        if (!res.success) throw new Error(res.error);
+        if (res.monto)   document.getElementById('st-pc-monto').value   = parseFloat(res.monto)||0;
+        if (res.fecha)   document.getElementById('st-pc-fecha').value   = res.fecha.slice(0,10);
+        if (res.notas)   document.getElementById('st-pc-codigo').value  = res.notas.slice(0,60);
+        if (res.nombre_pagador) document.getElementById('st-pc-pagador').value = res.nombre_pagador;
+        if (res.tipo_comprobante) {
+          var tipMap = { 'yappy':'Yappy','transferencia':'transferencia','factura':'otro' };
+          var sel = document.getElementById('st-pc-tipo');
+          if (tipMap[res.tipo_comprobante] && sel) sel.value = tipMap[res.tipo_comprobante];
+        }
+        st_calcPagoStatus();
+        st_toast('✅ Comprobante leído con IA', 'success');
+      })
+      .catch(function(e) {
+        clearInterval(progIntvl); iaStatus.style.display='none';
+        btn.disabled = false; btn.innerHTML = '🤖 Leer Comprobante';
+        st_toast('⚠️ ' + e.message, 'error');
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.st_guardarPago = function() {
+    var st = st_state.stActual;
+    var monto = parseFloat(document.getElementById('st-pc-monto').value) || 0;
+    var sinVoucher = st_pcContext.sinVoucher;
+
+    if (!monto && !sinVoucher) { st_toast('Ingresa el monto pagado', 'error'); return; }
+
+    var total = st_pcContext.precioVenta;
+    var saldo = total - monto;
+    var esAbono = !sinVoucher && monto > 0 && monto < total;
+    var esCompleto = sinVoucher || monto >= total;
+
+    var btn = document.getElementById('st-pc-btn-guardar');
+    btn.disabled = true; btn.innerHTML = '<span class="st-spinner"></span> Registrando…';
+
+    var file = document.getElementById('st-pc-file').files[0];
+    var doSave = function(b64, mime, nombre) {
+      // Build notas string for actualizarNotasIngreso
+      var datosPago = 'Pago: ' + document.getElementById('st-pc-tipo').value +
+        ' | Monto: ' + (monto || 'Sin especificar') +
+        (document.getElementById('st-pc-codigo').value  ? ' | Ref: '+document.getElementById('st-pc-codigo').value : '') +
+        (document.getElementById('st-pc-pagador').value ? ' | Pagador: '+document.getElementById('st-pc-pagador').value : '') +
+        (document.getElementById('st-pc-fecha').value   ? ' | Fecha: '+document.getElementById('st-pc-fecha').value : '') +
+        (esAbono ? ' | ABONO — Saldo pendiente: '+st_fmt(saldo) : '') +
+        (sinVoucher ? ' | SIN VOUCHER' : '');
+
+      var promises = [];
+
+      // If we have an ingreso ID, update notes
+      if (st_pcContext.ingresoId) {
+        promises.push(
+          new Promise(function(resolve) {
+            var cb = 'cb_pago_' + Date.now();
+            var url = GAS_URL + '?action=actualizarNotasIngreso&callback=' + cb +
+              '&ingreso_id=' + encodeURIComponent(st_pcContext.ingresoId) +
+              '&datos_pago=' + encodeURIComponent(datosPago);
+            window[cb] = function(data) { delete window[cb]; resolve(data); };
+            var s = document.createElement('script'); s.src = url;
+            document.head.appendChild(s);
+          })
+        );
+      }
+
+      // If has file, upload as corregirComprobante or simple drive upload
+      if (b64 && st_pcContext.ingresoId) {
+        promises.push(
+          fetch(GAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action:      'corregirComprobante',
+              id_item:     st && st.id_st ? st.id_st : '',
+              ingreso_id:  st_pcContext.ingresoId,
+              imageBase64: b64,
+              imageMime:   mime,
+              imageName:   nombre,
+            }),
+          }).then(function(r){ return r.json(); })
+        );
+      }
+
+      Promise.all(promises)
+        .then(function() {
+          btn.disabled = false; btn.innerHTML = '💳 Registrar Pago';
+          document.getElementById('st-modal-pago-cliente').style.display = 'none';
+          if (esAbono) {
+            st_toast('⚠️ Abono registrado — Saldo pendiente: ' + st_fmt(saldo), 'success');
+          } else {
+            st_toast('✅ Pago registrado correctamente', 'success');
+          }
+          st_recargarDetalle();
+          if (st_state.vistaMode === 'tabla') { setTimeout(st_renderTabla, 400); }
+        })
+        .catch(function(e) {
+          btn.disabled = false; btn.innerHTML = '💳 Registrar Pago';
+          st_toast('⚠️ ' + e.message, 'error');
+        });
+    };
+
+    if (file && !sinVoucher) {
+      var reader = new FileReader();
+      reader.onload = function(ev) { doSave(ev.target.result.split(',')[1], file.type||'image/jpeg', file.name); };
+      reader.readAsDataURL(file);
+    } else { doSave('','',''); }
+  };
+
   // ── INIT ─────────────────────────────────────────────────
-  setTimeout(function() { st_cargarDatos(true); }, 0);
+  setTimeout(function() {
+    st_state.vistaMode = 'detalle';
+    st_cargarDatos(true);
+  }, 0);
 
 })();
 </script>
