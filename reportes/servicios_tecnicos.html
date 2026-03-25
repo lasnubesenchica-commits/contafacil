@@ -507,6 +507,10 @@
     stFilter:   'all',
     stActual:   null,
     expandedId: null,
+    vistaMode:  'simple',   // 'simple' | 'detalle'
+    filtroMes:  '',         // 'YYYY-MM' or ''
+    filtroDesde:'',
+    filtroHasta:'',
     itemsLocal: [],
     editMode:   false,
     editIdST:   null,
@@ -579,6 +583,7 @@
         if (!res.success) throw new Error(res.error || 'Error al cargar datos');
         st_state.data = res.items || [];
         st_state.expandedId = null;
+        st_poblarMeses();
         st_computeKPIs();
         st_applyFilters();
         document.getElementById('st-ts').textContent =
@@ -756,8 +761,14 @@
     var notas = String(st.notas || '');
     var html  = '';
     var voucherUrl = '';
+    // Check notas field (set by ImportHistorial with "Voucher: https://...")
     var vm = notas.match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
     if (vm) voucherUrl = vm[1];
+    // Also check resumen notas if available
+    if (!voucherUrl && r.notas) {
+      var vm2 = String(r.notas).match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
+      if (vm2) voucherUrl = vm2[1];
+    }
     if (!voucherUrl && r.ingreso_drive_url) voucherUrl = r.ingreso_drive_url;
     var costUrls = [], seen = {};
     items.forEach(function(it) {
@@ -828,6 +839,103 @@
   }
 
 
+
+
+  // ── FILTROS DE FECHA ─────────────────────────────────────
+
+  function st_poblarMeses() {
+    var select = document.getElementById('st-f-mes');
+    if (!select) return;
+    var meses = {};
+    st_state.data.forEach(function(st) {
+      var m = String(st.fecha_reg||'').slice(0,7);
+      if (m) meses[m] = true;
+    });
+    var keys = Object.keys(meses).sort().reverse();
+    var hoy = new Date();
+    var mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
+    select.innerHTML = '<option value="">— Todos los meses —</option>';
+    keys.forEach(function(k) {
+      var opt = document.createElement('option');
+      opt.value = k;
+      // Format: "Enero 2026"
+      var d = new Date(k + '-15');
+      opt.textContent = d.toLocaleDateString('es-PA', {month:'long',year:'numeric'});
+      select.appendChild(opt);
+    });
+    // Default to current month if present
+    if (meses[mesActual]) {
+      select.value = mesActual;
+      st_state.filtroMes = mesActual;
+    }
+  }
+
+  window.st_setFiltroMes = function() {
+    var mes = document.getElementById('st-f-mes').value;
+    st_state.filtroMes  = mes;
+    st_state.filtroDesde = '';
+    st_state.filtroHasta = '';
+    document.getElementById('st-f-desde').value = '';
+    document.getElementById('st-f-hasta').value = '';
+    st_applyFilters();
+  };
+
+  window.st_setFiltroRango = function() {
+    st_state.filtroMes  = '';
+    st_state.filtroDesde = document.getElementById('st-f-desde').value;
+    st_state.filtroHasta = document.getElementById('st-f-hasta').value;
+    document.getElementById('st-f-mes').value = '';
+    st_applyFilters();
+  };
+
+  window.st_limpiarFecha = function() {
+    st_state.filtroMes   = '';
+    st_state.filtroDesde = '';
+    st_state.filtroHasta = '';
+    document.getElementById('st-f-mes').value   = '';
+    document.getElementById('st-f-desde').value = '';
+    document.getElementById('st-f-hasta').value = '';
+    st_applyFilters();
+  };
+
+  // ── VISTA SIMPLE / DETALLE ────────────────────────────────
+
+  window.st_setVista = function(modo) {
+    st_state.vistaMode = modo;
+    var btnS = document.getElementById('st-v-simple');
+    var btnD = document.getElementById('st-v-detalle');
+    var actStyle  = 'font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer';
+    var idleStyle = 'font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer';
+    if (btnS) btnS.style.cssText = modo === 'simple'  ? actStyle : idleStyle;
+    if (btnD) btnD.style.cssText = modo === 'detalle' ? actStyle : idleStyle;
+
+    if (modo === 'detalle') {
+      // Expand all: load drawer for each card sequentially with small delay
+      st_state.filtered.forEach(function(st, i) {
+        setTimeout(function() {
+          var cardEl = document.getElementById('stcard-' + st.id_st);
+          var drawEl = document.getElementById('stdrawer-' + st.id_st);
+          if (!cardEl || !drawEl) return;
+          cardEl.classList.add('active');
+          if (!drawEl.innerHTML.trim()) {
+            drawEl.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8">' +
+              '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:14px;height:14px;border-width:2px"></span></div>';
+            st_state.stActual = st;
+            st_state.expandedId = st.id_st;
+            st_loadDrawerDetail(st.id_st, i);
+          }
+        }, i * 120); // stagger to avoid GAS rate limit
+      });
+    } else {
+      // Collapse all
+      st_state.filtered.forEach(function(st) {
+        var cardEl = document.getElementById('stcard-' + st.id_st);
+        if (cardEl) cardEl.classList.remove('active');
+      });
+      st_state.expandedId = null;
+      st_state.stActual   = null;
+    }
+  };
 
   // ── ACCIONES RÁPIDAS DESDE CARDS ────────────────────────
 
