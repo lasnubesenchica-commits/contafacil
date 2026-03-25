@@ -236,6 +236,23 @@
       <button class="st-btn st-btn-primary" onclick="st_cargarDatos(true)" style="margin-left:auto">🔄 Actualizar</button>
     </div>
 
+    <!-- ── Segunda barra: filtros de fecha + vista ── -->
+    <div class="st-toolbar" style="margin-top:-6px;margin-bottom:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;white-space:nowrap">Período</span>
+      <select id="st-f-mes" class="st-select" style="padding:5px 8px;font-size:.78rem;max-width:160px" onchange="st_setFiltroMes()">
+        <option value="">— Todos los meses —</option>
+      </select>
+      <span style="font-size:.72rem;color:#94a3b8">ó</span>
+      <input type="date" id="st-f-desde" class="st-input" style="padding:5px 8px;font-size:.78rem;max-width:130px" onchange="st_setFiltroRango()" title="Desde">
+      <span style="font-size:.72rem;color:#94a3b8">–</span>
+      <input type="date" id="st-f-hasta" class="st-input" style="padding:5px 8px;font-size:.78rem;max-width:130px" onchange="st_setFiltroRango()" title="Hasta">
+      <button onclick="st_limpiarFecha()" title="Limpiar filtro de fechas" style="padding:4px 9px;border:1.5px solid #e2e8f0;border-radius:6px;background:#fff;cursor:pointer;font-size:.9rem;color:#64748b;line-height:1" title="Limpiar fechas">✕</button>
+      <span style="flex:1"></span>
+      <span style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;white-space:nowrap">Vista</span>
+      <button id="st-v-simple"  onclick="st_setVista('simple')"  style="font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer">Simple</button>
+      <button id="st-v-detalle" onclick="st_setVista('detalle')" style="font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer">Detalle</button>
+    </div>
+
     <div id="st-cards-container">
       <div class="st-empty"><div class="st-empty-icon">📂</div>Cargando datos…</div>
     </div>
@@ -621,13 +638,27 @@
   };
 
   window.st_applyFilters = function() {
-    var term  = (document.getElementById('st-search')||{value:''}).value.toLowerCase().trim();
-    var filt  = st_state.stFilter;
-    var items = st_state.data.filter(function(st) {
+    var term   = (document.getElementById('st-search')||{value:''}).value.toLowerCase().trim();
+    var filt   = st_state.stFilter;
+    var mes    = st_state.filtroMes;
+    var desde  = st_state.filtroDesde;
+    var hasta  = st_state.filtroHasta;
+    var items  = st_state.data.filter(function(st) {
       if (filt !== 'all' && st.estado !== filt) return false;
       if (term) {
         var hay = [st.nombre_cliente, st.descripcion, st.num_cotizacion, st.id_st].join(' ').toLowerCase();
         if (hay.indexOf(term) === -1) return false;
+      }
+      // Filtro por mes (YYYY-MM)
+      if (mes) {
+        var fechaST = String(st.fecha_reg || '').slice(0, 7);
+        if (fechaST !== mes) return false;
+      }
+      // Filtro por rango desde/hasta
+      if (desde || hasta) {
+        var fechaDia = String(st.fecha_reg || '').slice(0, 10);
+        if (desde && fechaDia < desde) return false;
+        if (hasta && fechaDia > hasta) return false;
       }
       return true;
     });
