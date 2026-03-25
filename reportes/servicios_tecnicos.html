@@ -1070,15 +1070,24 @@
 
     // Margen range: Ceyco target 20–25%
     var MARGEN_MIN = 20, MARGEN_MAX = 25;
-    var margenTag, margenTagColor;
+    var margenTag, margenTagColor, margenDisplay;
     if (margen === '—') {
-      margenTag = ''; margenTagColor = '';
+      margenTag = ''; margenTagColor = ''; margenDisplay = '—';
     } else if (margenNum < MARGEN_MIN) {
-      margenTag = '▼ Debajo del rango'; margenTagColor = '#dc2626';
+      var diff = (MARGEN_MIN - margenNum).toFixed(1);
+      margenDisplay  = '-' + diff + '%';
+      margenTag      = '▼ ' + diff + '% debajo del rango (20–25%)';
+      margenTagColor = '#dc2626';
     } else if (margenNum > MARGEN_MAX) {
-      margenTag = '▲ Por encima del rango'; margenTagColor = '#d97706';
+      var diff = (margenNum - MARGEN_MAX).toFixed(1);
+      margenDisplay  = '+' + diff + '%';
+      margenTag      = '▲ ' + diff + '% por encima del rango (20–25%)';
+      margenTagColor = '#d97706';
     } else {
-      margenTag = '✓ En rango (20–25%)'; margenTagColor = '#15803d';
+      var diff = margenNum.toFixed(1);
+      margenDisplay  = margenNum + '%';
+      margenTag      = '✓ En rango (20–25%)';
+      margenTagColor = '#15803d';
     }
 
     html += '<div class="st-met-row">' +
@@ -1097,7 +1106,7 @@
       '</div>' +
       '<div class="st-met-cell"><div class="st-met-lbl">Margen</div>' +
         '<div class="st-met-val" style="color:'+(margenNum>=0?'#15803d':'#dc2626')+'">' +
-          (margen!=='—'?(margenNum>0?'+':'')+margen+'%':'—') +
+          margenDisplay +
         '</div>' +
         (margenTag ? '<div style="font-size:.62rem;font-weight:600;color:'+margenTagColor+';margin-top:2px;line-height:1.2">'+margenTag+'</div>' : '') +
       '</div>' +
