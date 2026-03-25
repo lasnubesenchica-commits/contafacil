@@ -1061,13 +1061,46 @@
     }
     html += '</div></div>';
 
-    var utilReal = (r.precio_venta||0) - (r.total_real||0);
-    var margen = r.precio_venta > 0 ? ((utilReal / r.precio_venta) * 100).toFixed(1) : '—';
+    var utilReal   = (r.precio_venta||0) - (r.total_real||0);
+    var pv         = r.precio_venta || 0;
+    var margen     = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
+    var pctCosto   = pv > 0 ? ((r.total_real / pv) * 100).toFixed(1) : '—';
+    var pctUtil    = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
+    var margenNum  = parseFloat(margen) || 0;
+
+    // Margen range: Ceyco target 20–25%
+    var MARGEN_MIN = 20, MARGEN_MAX = 25;
+    var margenTag, margenTagColor;
+    if (margen === '—') {
+      margenTag = ''; margenTagColor = '';
+    } else if (margenNum < MARGEN_MIN) {
+      margenTag = '▼ Debajo del rango'; margenTagColor = '#dc2626';
+    } else if (margenNum > MARGEN_MAX) {
+      margenTag = '▲ Por encima del rango'; margenTagColor = '#d97706';
+    } else {
+      margenTag = '✓ En rango (20–25%)'; margenTagColor = '#15803d';
+    }
+
     html += '<div class="st-met-row">' +
-      '<div class="st-met-cell"><div class="st-met-lbl">Facturado</div><div class="st-met-val" style="color:#1A237E">'+st_fmt(r.precio_venta)+'</div></div>' +
-      '<div class="st-met-cell"><div class="st-met-lbl">Costo real</div><div class="st-met-val" style="color:#8b5cf6">'+st_fmt(r.total_real)+'</div></div>' +
-      '<div class="st-met-cell"><div class="st-met-lbl">Utilidad</div><div class="st-met-val" style="color:'+(utilReal>=0?'#15803d':'#dc2626')+'">'+st_fmt(utilReal)+'</div></div>' +
-      '<div class="st-met-cell"><div class="st-met-lbl">Margen</div><div class="st-met-val" style="color:'+(parseFloat(margen)>=0?'#15803d':'#dc2626')+'">'+(margen!=='—'?(parseFloat(margen)>0?'+':'')+margen+'%':'—')+'</div></div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Facturado</div>' +
+        '<div class="st-met-val" style="color:#1A237E">'+st_fmt(pv)+'</div>' +
+      '</div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Costo real</div>' +
+        '<div class="st-met-val" style="color:#8b5cf6">'+st_fmt(r.total_real) +
+          (pctCosto !== '—' ? '<span style="font-size:.65rem;font-weight:500;color:#94a3b8;margin-left:4px">('+pctCosto+'%)</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Utilidad</div>' +
+        '<div class="st-met-val" style="color:'+(utilReal>=0?'#15803d':'#dc2626')+'">'+st_fmt(utilReal) +
+          (pctUtil !== '—' ? '<span style="font-size:.65rem;font-weight:500;color:#94a3b8;margin-left:4px">('+pctUtil+'%)</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Margen</div>' +
+        '<div class="st-met-val" style="color:'+(margenNum>=0?'#15803d':'#dc2626')+'">' +
+          (margen!=='—'?(margenNum>0?'+':'')+margen+'%':'—') +
+        '</div>' +
+        (margenTag ? '<div style="font-size:.62rem;font-weight:600;color:'+margenTagColor+';margin-top:2px;line-height:1.2">'+margenTag+'</div>' : '') +
+      '</div>' +
     '</div>';
     var hasBtns = enEje || st.estado==='cotizado' || st.estado==='aprobado';
     if (hasBtns) {
@@ -1112,9 +1145,13 @@
           : (src === 'pend' || src === 'fact')
             ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" title="Subir factura de costo">📎</span>'
             : '<span style="color:#d1d5db">—</span>';
+        var montoItem = it.total_real > 0 ? it.total_real : it.total_cotizado;
+        var pctItem   = pv > 0 && montoItem > 0 ? ((montoItem / pv) * 100).toFixed(1) : '';
         html += '<tr><td style="font-size:.7rem;color:#64748b;white-space:nowrap">'+(TIPO_LABEL[it.tipo]||it.tipo)+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">×'+it.cantidad+'</span>':'')+'</td>' +
-          '<td class="r">'+(it.total_real>0?st_fmt(it.total_real):st_fmt(it.total_cotizado))+'</td>' +
+          '<td class="r">'+st_fmt(montoItem) +
+            (pctItem ? '<span style="font-size:.63rem;font-weight:500;color:#94a3b8;margin-left:3px">('+pctItem+'%)</span>' : '') +
+          '</td>' +
           '<td>'+badge+'</td><td style="text-align:center">'+doc+'</td>' +
           (enEje?'<td>'+(it.estado_item!=='ejecutado'?'<button class="st-btn st-btn-ghost st-btn-sm" style="padding:2px 7px" onclick="st_abrirModalEgresoItem('+JSON.stringify(it.id_item_st)+',\''+idST+'\')">💸</button>':'')+'</td>':'') +
         '</tr>';
