@@ -771,7 +771,7 @@
         if (!res.success) throw new Error(res.error);
         var resumen = res.resumen;
 
-        // Si hay ingreso pero sin drive_url, intentar obtenerlo de la hoja Ingresos
+        // Si hay ingreso pero sin drive_url, buscarlo en la hoja Ingresos
         var needsIngresoUrl = resumen.ingreso_id && !resumen.ingreso_drive_url;
 
         var p1 = gasJsonp('getCotizaciones', { id_st: idST })
@@ -781,16 +781,22 @@
           .catch(function() {});
 
         var p2 = needsIngresoUrl
-          ? gasJsonp('getIngresos', { id_ingreso: resumen.ingreso_id })
+          ? gasJsonp('getIngresos', {})
               .then(function(ri) {
                 if (ri.success && ri.items && ri.items.length) {
-                  var ing = ri.items[0];
-                  // drive_url puede venir en varios campos según versión del backend
-                  resumen.ingreso_drive_url = ing.drive_url || ing.voucher_url || ing.comprobante_url || '';
-                  // También buscar en notas del ingreso el patrón Voucher:
-                  if (!resumen.ingreso_drive_url && ing.notas) {
-                    var vm = String(ing.notas).match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
-                    if (vm) resumen.ingreso_drive_url = vm[1];
+                  // Buscar el ingreso que coincide con ingreso_id
+                  for (var i = 0; i < ri.items.length; i++) {
+                    if (ri.items[i].id_trans === resumen.ingreso_id) {
+                      var ing = ri.items[i];
+                      // drive_url es el comprobante de pago (Yappy, ACH, etc.)
+                      resumen.ingreso_drive_url = ing.drive_url || '';
+                      // Si no hay drive_url, buscar patrón Voucher: en notas
+                      if (!resumen.ingreso_drive_url && ing.notas) {
+                        var vm = String(ing.notas).match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
+                        if (vm) resumen.ingreso_drive_url = vm[1];
+                      }
+                      break;
+                    }
                   }
                 }
               })
