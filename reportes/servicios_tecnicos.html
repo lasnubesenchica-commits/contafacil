@@ -731,10 +731,6 @@
         st_poblarMeses();
         st_computeKPIs();
         st_applyFilters();
-        // After data loads, trigger the current vista mode to render properly
-        if (force && st_state.vistaMode === 'detalle') {
-          setTimeout(function() { st_setVista('detalle'); }, 100);
-        }
         document.getElementById('st-ts').textContent =
           'Actualizado: ' + new Date().toLocaleTimeString('es-PA',{hour:'2-digit',minute:'2-digit'});
       })
@@ -828,17 +824,22 @@
     }
     outer += '</div>';
     cont.innerHTML = outer;
+    // Auto-load all drawers with stagger
+    items.forEach(function(stItem, i) {
+      setTimeout(function() {
+        st_state.stActual = stItem;
+        st_loadDrawerDetail(stItem.id_st, i);
+      }, i * 120);
+    });
   }
 
   function st_buildCard(st) {
     var util = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
     var uClr = util >= 0 ? '#15803d' : '#dc2626';
     var fecha = String(st.fecha_reg||'').slice(0,10);
-    var isActive = st_state.expandedId === st.id_st;
-    var aCls = isActive ? ' active' : '';
     var idEsc = st_esc(st.id_st);
     var h = '';
-    h += '<div class="st-card s-' + st.estado + aCls + '" id="stcard-' + idEsc + '" style="position:relative">';
+    h += '<div class="st-card s-' + st.estado + ' active" id="stcard-' + idEsc + '" style="position:relative">';
     // Trash button — positioned top-right, stops propagation so it doesn't toggle the drawer
     h += '<button onclick="event.stopPropagation();st_eliminarST(\''+idEsc+'\')" ' +
          'title="Eliminar ST y todos sus registros" ' +
@@ -852,7 +853,6 @@
     h +=       '<div class="st-card-right">';
     h +=         '<div class="st-card-monto">' + st_fmt(st.precio_venta) + '</div>';
     h +=         '<div class="st-card-util" style="color:' + uClr + '">' + (util>=0?'▲':'▼') + ' ' + st_fmt(Math.abs(util)) + '</div>';
-    h +=         '<div class="st-card-chev">▼</div>';
     h +=       '</div>';
     h +=     '</div>';
     h +=     '<div class="st-card-row2">';
@@ -863,45 +863,26 @@
     h +=     '<div class="st-card-row3">' + st_esc(st.descripcion) + '</div>';
     h +=   '</div>';
     h += '<div class="st-card-detail" id="stdrawer-' + idEsc + '">';
-    if (isActive) {
-      h += '<div style="padding:20px;text-align:center;color:#94a3b8">' +
-           '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>' +
-           '</div>';
-    }
+    h += '<div style="padding:20px;text-align:center;color:#94a3b8">' +
+         '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>' +
+         '</div>';
     h += '</div>';
     h += '</div>';
     return h;
   }
 
   window.st_toggleCard = function(idST) {
-    var prevId = st_state.expandedId;
-    if (prevId === idST) {
-      st_state.expandedId = null;
-      st_state.stActual   = null;
-      var el = document.getElementById('stcard-' + idST);
-      if (el) el.classList.remove('active');
-      return;
-    }
-    if (prevId) {
-      var prev = document.getElementById('stcard-' + prevId);
-      if (prev) prev.classList.remove('active');
-    }
+    // Cards are always open — clicking header sets stActual but doesn't collapse
     st_state.expandedId = idST;
     for (var n = 0; n < st_state.filtered.length; n++) {
       if (st_state.filtered[n].id_st === idST) { st_state.stActual = st_state.filtered[n]; break; }
     }
-    var cardEl = document.getElementById('stcard-' + idST);
+    // If drawer is empty, load it
     var drawEl = document.getElementById('stdrawer-' + idST);
-    if (cardEl) cardEl.classList.add('active');
-    if (drawEl) {
-      drawEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">' +
-        '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span></div>';
-      var idx = -1;
-      for (var k = 0; k < st_state.filtered.length; k++) {
-        if (st_state.filtered[k].id_st === idST) { idx = k; break; }
-      }
-      st_loadDrawerDetail(idST, idx);
-      setTimeout(function(){ drawEl.scrollIntoView({ behavior:'smooth', block:'nearest' }); }, 80);
+    if (drawEl && (!drawEl.innerHTML.trim() || drawEl.innerHTML.indexOf('st-spinner') !== -1)) {
+      var cardEl = document.getElementById('stcard-' + idST);
+      if (cardEl) cardEl.classList.add('active');
+      st_loadDrawerDetail(idST, 0);
     }
   };
 
@@ -973,30 +954,40 @@
     }
     if (!voucherUrl && r.ingreso_drive_url) voucherUrl = r.ingreso_drive_url;
 
-    // Collect cost doc URLs (unique) and classify items by source
-    var costUrls = [], seen = {};
+    // Collect cost doc URLs:
+    // - productCostUrls: drive_urls from producto-type items → shown in header cell
+    // - All unique drive_urls across items → available for table column
+    var productCostUrls = [], seen = {};
+    var allItemUrls = {};  // item id → drive_url (including from egreso siblings)
     items.forEach(function(it) {
-      if (it.drive_url && !seen[it.drive_url]) {
+      // Build per-item url map for table Doc column
+      if (it.drive_url) allItemUrls[it.id_item_st] = it.drive_url;
+      // Collect unique product-type cost docs for header cell
+      if (it.drive_url && it.tipo === 'producto' && !seen[it.drive_url]) {
         seen[it.drive_url] = true;
-        costUrls.push({ url: it.drive_url, desc: it.descripcion || 'Costo' });
+        productCostUrls.push({ url: it.drive_url, desc: it.descripcion || 'Factura costo' });
       }
     });
-    // Per-item source classification for Estado column:
-    // 'fact' = has drive_url (attached cost invoice) OR ejecutado with total_real (manual, no doc)
-    // 'inv'  = producto type, ejecutado, egreso_id references an inventory egreso (EGR-RP-*-INV or id_item_cv pattern)
-    // 'pend' = producto type, not ejecutado, no confirmed cost source
-    // 'ok'   = non-product types (mano_obra, flete, etc.)
+    // Also check for a shared product cost url: if any producto item has a drive_url,
+    // assign it to sibling producto items that share the same egreso provider (same nfactura)
+    // This handles the Dinyeen case where 2 items share one invoice but only one has url
+    var sharedProductUrl = productCostUrls.length > 0 ? productCostUrls[0].url : '';
+    if (sharedProductUrl) {
+      items.forEach(function(it) {
+        if (it.tipo === 'producto' && !allItemUrls[it.id_item_st]) {
+          allItemUrls[it.id_item_st] = sharedProductUrl;
+        }
+      });
+    }
+
+    // Per-item source classification for Estado column
     function st_itemSource(it) {
-      if (it.drive_url) return 'fact';  // has attached document
+      if (it.drive_url || allItemUrls[it.id_item_st]) return 'fact';
       if (it.tipo === 'producto') {
         if (it.estado_item === 'ejecutado') {
-          // Check if egreso_id suggests it came from inventory movement
           var eid = String(it.egreso_id || '');
-          // Inventory egresos created by _handleMoverAInventario have categoria=Inventario
-          // We can't check categoria here, but we can check if total_real > 0 (manually registered cost)
-          // Reserve 'inv' only if egreso_id exists and total_real is 0 (came from inventory at no additional cost)
           if (eid && (it.total_real === 0 || !it.total_real)) return 'inv';
-          return 'fact';  // ejecutado with a real cost — registered manually without doc
+          return 'fact';
         }
         return 'pend';
       }
@@ -1013,23 +1004,19 @@
       : '<span class="st-doc-none">' + st_esc(st_numFactura(st)) + '</span>';
     html += '</div>';
 
-    // CELL 2: Factura de costo — original behavior + clickable Sin adjunto
+    // CELL 2: Factura de costo — ONLY product purchase invoices in header
     html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Factura de costo</div>';
-    if (costUrls.length) {
-      // Show each unique cost doc as a link
-      costUrls.forEach(function(c, ci) {
+    if (productCostUrls.length) {
+      productCostUrls.forEach(function(c, ci) {
         var lbl = c.desc.length > 32 ? c.desc.slice(0, 32) + '…' : c.desc;
         html += '<a href="' + st_esc(c.url) + '" target="_blank" class="st-doc-a fc"' +
           (ci ? ' style="margin-top:2px"' : '') + '>' + st_esc(lbl) + ' ↗</a>';
       });
-      // If there are still pending products, also offer upload link
       if (hasPendingProduct && enEje) {
         html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" style="font-size:.71rem">📎 Subir otra factura</span>';
       }
     } else {
-      // No cost doc at all
       if (enEje) {
-        // Clickable to open upload modal
         html += '<span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto(\''+idST+'\')">📎 Sin adjunto</span>';
       } else {
         html += '<span class="st-doc-none">Sin adjunto</span>';
@@ -1149,9 +1136,10 @@
             ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">✓ OK</span>'
             : '<span style="background:#f1f5f9;color:#64748b;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">—</span>';
         }
-        var doc = it.drive_url
-          ? '<a href="'+st_esc(it.drive_url)+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.78rem;">📄</a>'
-          : (src === 'pend' || src === 'fact')
+        var itemDocUrl = it.drive_url || allItemUrls[it.id_item_st] || '';
+        var doc = itemDocUrl
+          ? '<a href="'+st_esc(itemDocUrl)+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.78rem;">📄</a>'
+          : (src === 'pend' || (src === 'fact' && !itemDocUrl))
             ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" title="Subir factura de costo">📎</span>'
             : '<span style="color:#d1d5db">—</span>';
         var montoItem = it.total_real > 0 ? it.total_real : it.total_cotizado;
@@ -1246,25 +1234,8 @@
     if (modo === 'tabla') {
       st_renderTabla();
     } else {
-      // Detalle: expand all cards
-      var cont = document.getElementById('st-cards-container');
-      // Re-render cards first (they may have been replaced by table)
+      // Detalle: renderCards handles all drawer loading automatically
       st_renderCards(st_state.filtered);
-      st_state.filtered.forEach(function(st, i) {
-        setTimeout(function() {
-          var cardEl = document.getElementById('stcard-' + st.id_st);
-          var drawEl = document.getElementById('stdrawer-' + st.id_st);
-          if (!cardEl || !drawEl) return;
-          cardEl.classList.add('active');
-          if (!drawEl.innerHTML.trim() || drawEl.innerHTML.indexOf('st-spinner') !== -1) {
-            drawEl.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8">' +
-              '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:14px;height:14px;border-width:2px"></span></div>';
-            st_state.stActual = st;
-            st_state.expandedId = st.id_st;
-            st_loadDrawerDetail(st.id_st, i);
-          }
-        }, i * 120);
-      });
     }
   };
 
