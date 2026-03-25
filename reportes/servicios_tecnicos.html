@@ -976,14 +976,25 @@
       }
     });
     // Per-item source classification for Estado column:
-    // 'fact' = has drive_url (attached cost invoice)
-    // 'inv'  = producto type, ejecutado, no drive_url (came from inventory)
-    // 'pend' = producto type, not ejecutado, no drive_url
+    // 'fact' = has drive_url (attached cost invoice) OR ejecutado with total_real (manual, no doc)
+    // 'inv'  = producto type, ejecutado, egreso_id references an inventory egreso (EGR-RP-*-INV or id_item_cv pattern)
+    // 'pend' = producto type, not ejecutado, no confirmed cost source
+    // 'ok'   = non-product types (mano_obra, flete, etc.)
     function st_itemSource(it) {
-      if (it.drive_url)                                      return 'fact';
-      if (it.tipo === 'producto' && it.estado_item === 'ejecutado') return 'inv';
-      if (it.tipo === 'producto')                            return 'pend';
-      return 'ok';  // mano_obra, flete, etc. — no source needed
+      if (it.drive_url) return 'fact';  // has attached document
+      if (it.tipo === 'producto') {
+        if (it.estado_item === 'ejecutado') {
+          // Check if egreso_id suggests it came from inventory movement
+          var eid = String(it.egreso_id || '');
+          // Inventory egresos created by _handleMoverAInventario have categoria=Inventario
+          // We can't check categoria here, but we can check if total_real > 0 (manually registered cost)
+          // Reserve 'inv' only if egreso_id exists and total_real is 0 (came from inventory at no additional cost)
+          if (eid && (it.total_real === 0 || !it.total_real)) return 'inv';
+          return 'fact';  // ejecutado with a real cost — registered manually without doc
+        }
+        return 'pend';
+      }
+      return 'ok';
     }
     var hasPendingProduct = items.some(function(it) { return st_itemSource(it) === 'pend'; });
 
@@ -1044,7 +1055,7 @@
     html += '</div></div>';
 
     var utilReal = (r.precio_venta||0) - (r.total_real||0);
-    var margen = r.total_real > 0 ? ((utilReal/r.total_real)*100).toFixed(1) : '—';
+    var margen = r.precio_venta > 0 ? ((utilReal / r.precio_venta) * 100).toFixed(1) : '—';
     html += '<div class="st-met-row">' +
       '<div class="st-met-cell"><div class="st-met-lbl">Facturado</div><div class="st-met-val" style="color:#1A237E">'+st_fmt(r.precio_venta)+'</div></div>' +
       '<div class="st-met-cell"><div class="st-met-lbl">Costo real</div><div class="st-met-val" style="color:#8b5cf6">'+st_fmt(r.total_real)+'</div></div>' +
@@ -1073,7 +1084,12 @@
         var src = st_itemSource(it);
         var badge;
         if (src === 'fact') {
-          badge = '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Fact</span>';
+          // Green if has doc, grey-green if ejecutado but no doc
+          if (it.drive_url) {
+            badge = '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Fact</span>';
+          } else {
+            badge = '<span style="background:#f0fdf4;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px" title="Registrado sin documento adjunto">Fact*</span>';
+          }
         } else if (src === 'inv') {
           badge = '<span style="background:#dbeafe;color:#1d4ed8;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Inv</span>';
         } else if (src === 'pend') {
@@ -1086,7 +1102,9 @@
         }
         var doc = it.drive_url
           ? '<a href="'+st_esc(it.drive_url)+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.78rem;">📄</a>'
-          : (src === 'pend' ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto()" title="Subir factura de costo">📎</span>' : '<span style="color:#d1d5db">—</span>');
+          : (src === 'pend' || src === 'fact')
+            ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto()" title="Subir factura de costo">📎</span>'
+            : '<span style="color:#d1d5db">—</span>';
         html += '<tr><td style="font-size:.7rem;color:#64748b;white-space:nowrap">'+(TIPO_LABEL[it.tipo]||it.tipo)+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">×'+it.cantidad+'</span>':'')+'</td>' +
           '<td class="r">'+(it.total_real>0?st_fmt(it.total_real):st_fmt(it.total_cotizado))+'</td>' +
@@ -1213,7 +1231,7 @@
     items.forEach(function(st) {
       var utilidad = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0));
       var totalCosto = st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0);
-      var margenPct = totalCosto > 0 ? ((utilidad / totalCosto)*100).toFixed(1) : '—';
+      var margenPct = st.precio_venta > 0 ? ((utilidad / st.precio_venta) * 100).toFixed(1) : '—';
       var uColor = utilidad >= 0 ? '#15803d' : '#dc2626';
       var enEje = st.estado === 'en_ejecucion';
       var hasInvItems = (st.items||[]).some(function(it){ return it.tipo==='producto'; });
