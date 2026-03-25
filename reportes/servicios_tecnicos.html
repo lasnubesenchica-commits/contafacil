@@ -967,17 +967,25 @@
     }
     if (!voucherUrl && r.ingreso_drive_url) voucherUrl = r.ingreso_drive_url;
 
-    // Build inventory/cost cell
+    // Collect cost doc URLs (unique) and classify items by source
     var costUrls = [], seen = {};
-    var pendItems = [];
     items.forEach(function(it) {
-      if (it.drive_url && !seen[it.drive_url]) { seen[it.drive_url]=true; costUrls.push({url:it.drive_url,desc:it.descripcion||'Costo'}); }
-      if (it.estado_item !== 'ejecutado' && it.tipo === 'producto') pendItems.push(it);
+      if (it.drive_url && !seen[it.drive_url]) {
+        seen[it.drive_url] = true;
+        costUrls.push({ url: it.drive_url, desc: it.descripcion || 'Costo' });
+      }
     });
-
-    // Check if items came from inventory (no external cost doc)
-    var hasInventoryItems = items.some(function(it) { return it.tipo === 'producto'; });
-    var hasExternalDocs   = costUrls.length > 0;
+    // Per-item source classification for Estado column:
+    // 'fact' = has drive_url (attached cost invoice)
+    // 'inv'  = producto type, ejecutado, no drive_url (came from inventory)
+    // 'pend' = producto type, not ejecutado, no drive_url
+    function st_itemSource(it) {
+      if (it.drive_url)                                      return 'fact';
+      if (it.tipo === 'producto' && it.estado_item === 'ejecutado') return 'inv';
+      if (it.tipo === 'producto')                            return 'pend';
+      return 'ok';  // mano_obra, flete, etc. — no source needed
+    }
+    var hasPendingProduct = items.some(function(it) { return st_itemSource(it) === 'pend'; });
 
     html += '<div class="st-docs-row">';
 
@@ -988,47 +996,24 @@
       : '<span class="st-doc-none">' + st_esc(st_numFactura(st)) + '</span>';
     html += '</div>';
 
-    // CELL 2: Inventario (renamed from Factura de costo)
-    html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Inventario</div>';
-    if (hasInventoryItems && !hasExternalDocs) {
-      // Items came from inventory — show inventory badge with tooltip
-      var invHtml = '<div class="st-inv-tooltip-wrap">';
-      invHtml += '<span class="st-inv-badge">📦 En inventario</span>';
-      invHtml += '<div class="st-inv-tooltip">';
-      invHtml += '<div style="font-weight:700;margin-bottom:5px;color:#1A237E">🔍 Detalle de inventario</div>';
-      items.forEach(function(it) {
-        if (it.tipo !== 'producto') return;
-        var color = it.estado_item === 'ejecutado' ? '#15803d' : '#d97706';
-        var badge = it.estado_item === 'ejecutado' ? '✓' : '⏳';
-        invHtml += '<div style="padding:3px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px">';
-        invHtml += '<span style="color:#334155">' + st_esc(it.descripcion.length > 36 ? it.descripcion.slice(0,36)+'…' : it.descripcion) + '</span>';
-        invHtml += '<span style="font-weight:700;color:'+color+'">'+badge+' '+st_fmt(it.total_cotizado)+'</span>';
-        invHtml += '</div>';
+    // CELL 2: Factura de costo — original behavior + clickable Sin adjunto
+    html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Factura de costo</div>';
+    if (costUrls.length) {
+      // Show each unique cost doc as a link
+      costUrls.forEach(function(c, ci) {
+        var lbl = c.desc.length > 32 ? c.desc.slice(0, 32) + '…' : c.desc;
+        html += '<a href="' + st_esc(c.url) + '" target="_blank" class="st-doc-a fc"' +
+          (ci ? ' style="margin-top:2px"' : '') + '>' + st_esc(lbl) + ' ↗</a>';
       });
-      if (pendItems.length > 0) {
-        invHtml += '<div style="margin-top:6px;font-size:.7rem;color:#d97706;font-weight:600">⚠️ '+pendItems.length+' ítem(s) pendiente(s) de costo real</div>';
+      // If there are still pending products, also offer upload link
+      if (hasPendingProduct && enEje) {
+        html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto()" style="font-size:.71rem">📎 Subir otra factura</span>';
       }
-      invHtml += '</div></div>';
-      html += invHtml;
-      // If there are still pending items and no doc, offer upload
-      if (pendItems.length > 0 && enEje) {
-        html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto()">📎 Subir factura de costo</span>';
-      }
-    } else if (hasExternalDocs) {
-      // External cost docs attached
-      var invWrap = '<div class="st-inv-tooltip-wrap">';
-      invWrap += '<span class="st-inv-badge">📄 ' + costUrls.length + ' doc(s)</span>';
-      invWrap += '<div class="st-inv-tooltip">';
-      invWrap += '<div style="font-weight:700;margin-bottom:5px;color:#1A237E">📄 Documentos de costo</div>';
-      costUrls.forEach(function(c) {
-        invWrap += '<div style="padding:2px 0"><a href="'+st_esc(c.url)+'" target="_blank" style="color:#3730A3;font-size:.73rem">'+st_esc(c.desc.slice(0,40))+'… ↗</a></div>';
-      });
-      invWrap += '</div></div>';
-      html += invWrap;
     } else {
-      // No inventory items, no docs — offer upload if in execution
+      // No cost doc at all
       if (enEje) {
-        html += '<span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto()">📎 Sin adjunto — subir factura</span>';
+        // Clickable to open upload modal
+        html += '<span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto()">📎 Sin adjunto</span>';
       } else {
         html += '<span class="st-doc-none">Sin adjunto</span>';
       }
@@ -1085,12 +1070,23 @@
         '<th style="width:26px;text-align:center">Doc</th>' + (enEje?'<th style="width:50px"></th>':'') +
         '</tr></thead><tbody>';
       items.forEach(function(it){
-        var badge = it.estado_item==='ejecutado'
-          ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 6px;border-radius:10px">✓ OK</span>'
-          : '<span style="background:#fef9c3;color:#a16207;font-size:.63rem;font-weight:700;padding:1px 6px;border-radius:10px">Pend.</span>';
+        var src = st_itemSource(it);
+        var badge;
+        if (src === 'fact') {
+          badge = '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Fact</span>';
+        } else if (src === 'inv') {
+          badge = '<span style="background:#dbeafe;color:#1d4ed8;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Inv</span>';
+        } else if (src === 'pend') {
+          badge = '<span style="background:#fef9c3;color:#a16207;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Pend.</span>';
+        } else {
+          // mano_obra, flete, etc. — show OK if ejecutado
+          badge = it.estado_item === 'ejecutado'
+            ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">✓ OK</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">—</span>';
+        }
         var doc = it.drive_url
           ? '<a href="'+st_esc(it.drive_url)+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.78rem;">📄</a>'
-          : (it.tipo==='producto' ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto()" title="Subir factura">📎</span>' : '<span style="color:#d1d5db">—</span>');
+          : (src === 'pend' ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto()" title="Subir factura de costo">📎</span>' : '<span style="color:#d1d5db">—</span>');
         html += '<tr><td style="font-size:.7rem;color:#64748b;white-space:nowrap">'+(TIPO_LABEL[it.tipo]||it.tipo)+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">×'+it.cantidad+'</span>':'')+'</td>' +
           '<td class="r">'+(it.total_real>0?st_fmt(it.total_real):st_fmt(it.total_cotizado))+'</td>' +
