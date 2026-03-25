@@ -450,7 +450,7 @@
     <div class="st-form-grid">
       <div class="st-field">
         <label class="st-label">Ítem cotizado (opcional)</label>
-        <select class="st-select" id="st-me-item">
+        <select class="st-select" id="st-me-item" onchange="st_onItemSelectChange()">
           <option value="">— Costo adicional / libre —</option>
         </select>
       </div>
@@ -468,7 +468,7 @@
         </select>
       </div>
       <div class="st-field st-form-full">
-        <label class="st-label">Descripción *</label>
+        <label class="st-label" id="st-me-desc-lbl">Descripción *</label>
         <input class="st-input" id="st-me-desc" placeholder="Descripción del costo">
       </div>
       <div class="st-field">
@@ -1697,6 +1697,9 @@
     ['st-me-desc','st-me-prov','st-me-nfac','st-me-total','st-me-itbms','st-me-notas']
       .forEach(function(id) { document.getElementById(id).value = ''; });
     document.getElementById('st-me-file').value = '';
+    // Reset desc label to required
+    var lbl = document.getElementById('st-me-desc-lbl');
+    if (lbl) lbl.textContent = 'Descripción *';
     document.getElementById('st-modal-egreso').style.display = 'flex';
   };
 
@@ -1751,15 +1754,47 @@
     document.getElementById('st-modal-egreso').style.display = 'none';
   };
 
+  window.st_onItemSelectChange = function() {
+    var hasItem = !!document.getElementById('st-me-item').value;
+    var lbl = document.getElementById('st-me-desc-lbl');
+    if (lbl) lbl.textContent = hasItem ? 'Descripción (opcional)' : 'Descripción *';
+    // If a specific item is selected, auto-fill desc from its label
+    if (hasItem) {
+      var sel = document.getElementById('st-me-item');
+      var opt = sel.options[sel.selectedIndex];
+      if (opt && !document.getElementById('st-me-desc').value.trim()) {
+        // Extract description from option text: "type — desc (price)"
+        var txt = opt.textContent || '';
+        var m = txt.match(/—\s*(.+?)\s*\(/);
+        if (m) document.getElementById('st-me-desc').value = m[1].trim();
+      }
+    }
+  };
+
   window.st_guardarEgreso = function() {
     var st = st_state.stActual;
-    if (!st) return;
+    if (!st) { st_toast('Error: no hay ST activo', 'error'); return; }
+
+    // Capture idST now before anything closes/changes stActual
+    var idSTActivo = st.id_st;
 
     var total = parseFloat(document.getElementById('st-me-total').value) || 0;
     if (!total) { st_toast('Ingresa el monto total del egreso', 'error'); return; }
 
-    var desc = document.getElementById('st-me-desc').value.trim();
-    if (!desc) { st_toast('Ingresa una descripción', 'error'); return; }
+    var itemSel = document.getElementById('st-me-item').value || '';
+    var desc    = document.getElementById('st-me-desc').value.trim();
+
+    // Description is required only when no item is selected
+    if (!desc && !itemSel) { st_toast('Ingresa una descripción', 'error'); return; }
+
+    // If no desc but item selected, use the item's description from the select
+    if (!desc && itemSel) {
+      var sel = document.getElementById('st-me-item');
+      var opt = sel.options[sel.selectedIndex];
+      var txt = (opt && opt.textContent) || '';
+      var m = txt.match(/—\s*(.+?)\s*\(/);
+      desc = m ? m[1].trim() : txt.split('(')[0].replace(/^[^—]*—\s*/,'').trim() || 'Costo registrado';
+    }
 
     st_setLoading('st-me-btn-guardar', true, '💾 Registrar egreso');
 
@@ -1767,8 +1802,8 @@
     var doSave = function(b64, mime, nombre) {
       var payload = {
         action:       'registrarEgresoST',
-        id_st:        st.id_st,
-        id_item_st:   document.getElementById('st-me-item').value || '',
+        id_st:        idSTActivo,
+        id_item_st:   itemSel,
         tipo:         document.getElementById('st-me-tipo').value,
         descripcion:  desc,
         proveedor:    document.getElementById('st-me-prov').value.trim(),
@@ -1792,6 +1827,8 @@
         if (!res.success) throw new Error(res.error);
         st_toast('✅ Egreso ' + res.egreso_id + ' registrado — ' + st_fmt(res.total), 'success');
         st_cerrarModalEgreso();
+        // Set stActual back to the correct ST before reloading its drawer
+        st_setActualById(idSTActivo);
         st_recargarDetalle();
       })
       .catch(function(e) {
@@ -1803,9 +1840,7 @@
     if (file) {
       var reader = new FileReader();
       reader.onload = function(ev) {
-        var b64   = ev.target.result.split(',')[1];
-        var mime  = file.type || 'image/jpeg';
-        doSave(b64, mime, file.name);
+        doSave(ev.target.result.split(',')[1], file.type || 'image/jpeg', file.name);
       };
       reader.readAsDataURL(file);
     } else {
