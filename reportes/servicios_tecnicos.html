@@ -53,7 +53,7 @@
 
   /* ── Cards — 2 col + drawer ─────────────────────────────── */
   .st-cards-outer { display:flex; flex-direction:column; }
-  .st-cards-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; align-items:start; }
+  .st-cards-row { display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:10px; align-items:start; }
   @media(max-width:860px){ .st-cards-row { grid-template-columns:1fr; } }
   .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; border-left:4px solid #e2e8f0; }
   .st-card.active { box-shadow:0 0 0 2px #1A237E; }
@@ -821,10 +821,9 @@
       return;
     }
     var outer = '<div class="st-cards-outer">';
-    for (var i = 0; i < items.length; i += 2) {
+    for (var i = 0; i < items.length; i++) {
       outer += '<div class="st-cards-row">';
       outer += st_buildCard(items[i]);
-      outer += items[i+1] ? st_buildCard(items[i+1]) : '<div></div>';
       outer += '</div>';
     }
     outer += '</div>';
@@ -1018,13 +1017,13 @@
       });
       // If there are still pending products, also offer upload link
       if (hasPendingProduct && enEje) {
-        html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto()" style="font-size:.71rem">📎 Subir otra factura</span>';
+        html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" style="font-size:.71rem">📎 Subir otra factura</span>';
       }
     } else {
       // No cost doc at all
       if (enEje) {
         // Clickable to open upload modal
-        html += '<span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto()">📎 Sin adjunto</span>';
+        html += '<span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto(\''+idST+'\')">📎 Sin adjunto</span>';
       } else {
         html += '<span class="st-doc-none">Sin adjunto</span>';
       }
@@ -1037,17 +1036,18 @@
       if (voucherUrl) {
         html += '<a href="'+st_esc(voucherUrl)+'" target="_blank" class="st-doc-a fp">'+st_esc(r.ingreso_id)+' ↗</a>';
       } else {
-        // Ingreso exists but no voucher — offer upload
         html += '<div>';
         html += '<span style="font-size:.76rem;font-weight:600;color:#065F46">'+st_esc(r.ingreso_id)+'</span>';
         if (enEje || st.estado === 'cerrado') {
-          html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalPagoCliente('+JSON.stringify({ingreso_id:r.ingreso_id,precio_venta:r.precio_venta,total_real:r.total_real})+')" style="color:#d97706">📎 Sin comprobante — subir</span>';
+          var pcCtx1 = JSON.stringify({ingreso_id:r.ingreso_id,precio_venta:r.precio_venta,total_real:r.total_real,id_st:idST});
+          html += '<br><span class="st-inv-upload-link" onclick="st_setActualById(\''+idST+'\');st_abrirModalPagoCliente('+pcCtx1+')" style="color:#d97706">📎 Sin comprobante — subir</span>';
         }
         html += '</div>';
       }
     } else {
       if (enEje) {
-        html += '<span class="st-inv-upload-link" onclick="st_abrirModalPagoCliente('+JSON.stringify({ingreso_id:'',precio_venta:r.precio_venta,total_real:r.total_real})+')">⚠️ Sin pago — registrar</span>';
+        var pcCtx2 = JSON.stringify({ingreso_id:'',precio_venta:r.precio_venta,total_real:r.total_real,id_st:idST});
+        html += '<span class="st-inv-upload-link" onclick="st_setActualById(\''+idST+'\');st_abrirModalPagoCliente('+pcCtx2+')">⚠️ Sin pago — registrar</span>';
       } else {
         html += '<span class="st-doc-none">Pendiente</span>';
       }
@@ -1070,8 +1070,8 @@
         html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionAprobar_st()">✅ Aprobar</button>';
       }
       if (st.estado==='aprobado') html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionIniciar_st()">🚀 Iniciar</button>';
-      if (enEje && !r.ingreso_id) html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_abrirModalIngreso()">💰 Registrar ingreso</button>';
-      if (enEje) html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_abrirModalEgreso()">💸 Registrar costo</button>';
+      if (enEje && !r.ingreso_id) html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_abrirModalIngreso(\''+idST+'\')">💰 Registrar ingreso</button>';
+      if (enEje) html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_abrirModalEgreso(\''+idST+'\')">💸 Registrar costo</button>';
       if (enEje && r.ingreso_id) html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_accionCerrar_st()">🔒 Cerrar ST</button>';
       html += '</div>';
     }
@@ -1103,13 +1103,13 @@
         var doc = it.drive_url
           ? '<a href="'+st_esc(it.drive_url)+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.78rem;">📄</a>'
           : (src === 'pend' || src === 'fact')
-            ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto()" title="Subir factura de costo">📎</span>'
+            ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" title="Subir factura de costo">📎</span>'
             : '<span style="color:#d1d5db">—</span>';
         html += '<tr><td style="font-size:.7rem;color:#64748b;white-space:nowrap">'+(TIPO_LABEL[it.tipo]||it.tipo)+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">×'+it.cantidad+'</span>':'')+'</td>' +
           '<td class="r">'+(it.total_real>0?st_fmt(it.total_real):st_fmt(it.total_cotizado))+'</td>' +
           '<td>'+badge+'</td><td style="text-align:center">'+doc+'</td>' +
-          (enEje?'<td>'+(it.estado_item!=='ejecutado'?'<button class="st-btn st-btn-ghost st-btn-sm" style="padding:2px 7px" onclick="st_abrirModalEgresoItem('+JSON.stringify(it.id_item_st)+')">💸</button>':'')+'</td>':'') +
+          (enEje?'<td>'+(it.estado_item!=='ejecutado'?'<button class="st-btn st-btn-ghost st-btn-sm" style="padding:2px 7px" onclick="st_abrirModalEgresoItem('+JSON.stringify(it.id_item_st)+',\''+idST+'\')">💸</button>':'')+'</td>':'') +
         '</tr>';
       });
       html += '</tbody><tfoot><tr><td colspan="2" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(r.total_real||0)+'</td><td colspan="'+(enEje?3:2)+'"></td></tr></tfoot></table></div>';
@@ -1682,7 +1682,16 @@
 
   // ── MODAL EGRESO ─────────────────────────────────────────
 
-  window.st_abrirModalEgreso = function() {
+  function st_setActualById(idST) {
+    if (!idST) return;
+    for (var n = 0; n < st_state.data.length; n++) {
+      if (st_state.data[n].id_st === idST) { st_state.stActual = st_state.data[n]; return; }
+    }
+  }
+  window.st_setActualById = st_setActualById;
+
+  window.st_abrirModalEgreso = function(idST) {
+    if (idST) st_setActualById(idST);
     st_poblarSelectItems('');
     document.getElementById('st-me-fecha').value = st_today();
     ['st-me-desc','st-me-prov','st-me-nfac','st-me-total','st-me-itbms','st-me-notas']
@@ -1691,7 +1700,8 @@
     document.getElementById('st-modal-egreso').style.display = 'flex';
   };
 
-  window.st_abrirModalEgresoItem = function(idItemST) {
+  window.st_abrirModalEgresoItem = function(idItemST, idST) {
+    if (idST) st_setActualById(idST);
     st_poblarSelectItems(idItemST);
     document.getElementById('st-me-fecha').value = st_today();
     ['st-me-desc','st-me-prov','st-me-nfac','st-me-total','st-me-itbms','st-me-notas']
@@ -1705,14 +1715,12 @@
       for (var i = 0; i < sel.options.length; i++) {
         if (sel.options[i].value === idItemST) { sel.selectedIndex = i; break; }
       }
-      // Pre-llenar tipo
-      var st = st_state.stActual;
-      if (st && st.items) {
-        var found = st.items.find ? st.items.find(function(it) { return it.id_item_st === idItemST; }) : null;
-        if (!found) {
-          for (var j = 0; j < (st.items||[]).length; j++) {
-            if (st.items[j].id_item_st === idItemST) { found = st.items[j]; break; }
-          }
+      // Pre-llenar tipo y desc desde stActual
+      var stRef = st_state.stActual;
+      if (stRef && stRef.items) {
+        var found = null;
+        for (var j = 0; j < (stRef.items||[]).length; j++) {
+          if (stRef.items[j].id_item_st === idItemST) { found = stRef.items[j]; break; }
         }
         if (found) {
           document.getElementById('st-me-tipo').value  = found.tipo || 'otro';
@@ -1807,7 +1815,8 @@
 
   // ── MODAL INGRESO ─────────────────────────────────────────
 
-  window.st_abrirModalIngreso = function() {
+  window.st_abrirModalIngreso = function(idST) {
+    if (idST) st_setActualById(idST);
     var st = st_state.stActual;
     if (!st) return;
     document.getElementById('st-mi-fecha').value = st_today();
