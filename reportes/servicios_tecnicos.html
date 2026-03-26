@@ -1245,12 +1245,10 @@
 
         // Doc btn
         var docBtn = itemDocUrl
-          ? '<a href="'+st_esc(itemDocUrl)+'" target="_blank" class="st-item-btn" title="Ver documento">\ud83d\udcc4</a>'
+          ? '<a href="'+st_esc(itemDocUrl)+'" target="_blank" class="st-item-btn" title="Ver documento">Doc</a>'
           : (src === 'pend' || src === 'fact')
-            ? '<span class="st-item-btn" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" title="Subir factura">\ud83d\udcce</span>'
-            : '<span class="st-item-btn" style="opacity:.3;cursor:default">\ud83d\udcc4</span>';
-
-        // Edit btn
+            ? '<span class="st-item-btn" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" title="Subir factura">Subir</span>'
+            : '<span class="st-item-btn" style="opacity:.3;cursor:default">—</span>';
 
         // Edit btn
         var editBtn = '<span class="st-item-btn" title="Editar costo"' +
@@ -1259,12 +1257,12 @@
           ' data-prov="'+st_esc(it.proveedor||'')+'" data-nfac="'+st_esc(it.num_factura||'')+'"' +
           ' data-total="'+st_esc(String(it.total_real||''))+'" data-itbms="'+st_esc(String(it.itbms_real||''))+'"' +
           ' data-egreso="'+st_esc(it.egreso_id||'')+'"' +
-          ' onclick="st_editarItem(this)">✏️</span>';
+          ' onclick="st_editarItem(this)">Editar</span>';
 
         // Del btn
         var delBtn = '<span class="st-item-btn del" title="Eliminar \u00edtem" ' +
           'data-item-id="'+st_esc(itemId)+'" data-st-id="'+st_esc(idST)+'" ' +
-          'onclick="st_eliminarItemBtn(this)">\ud83d\uddd1</span>';
+          'onclick="st_eliminarItemBtn(this)">Borrar</span>';
 
         html += '<tr><td style="white-space:nowrap">'+tipoCell+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">\u00d7'+it.cantidad+'</span>':'')+'</td>' +
