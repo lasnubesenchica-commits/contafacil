@@ -60,6 +60,26 @@
     background:#fff; color:#3730a3; font-weight:600; outline:none; cursor:pointer; max-width:140px; }
   .st-prov-cell { font-size:.72rem; color:#64748b; max-width:160px; overflow:hidden;
     text-overflow:ellipsis; white-space:nowrap; }
+  /* ── Resumen por tipo ─────────────────────────────────────── */
+  .st-res-wrap { padding:12px 14px 8px; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; }
+  .st-res-lbl  { font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; margin-bottom:9px; }
+  .st-res-row  { display:grid; grid-template-columns:100px 1fr 44px 58px; align-items:center; gap:8px; margin-bottom:8px; }
+  .st-res-row:last-of-type { margin-bottom:4px; }
+  .st-res-tipo { font-size:.72rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .st-res-track{ height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden; }
+  .st-res-fill { height:100%; border-radius:3px; }
+  .st-res-pct  { font-size:.68rem; color:#94a3b8; text-align:right; }
+  .st-res-amt  { font-size:.72rem; font-weight:600; color:#1a2535; text-align:right; }
+  .st-res-foot { display:flex; justify-content:space-between; padding:6px 0 2px; border-top:0.5px solid #e2e8f0; margin-top:5px; }
+  .st-res-ft-l { font-size:.7rem; color:#94a3b8; }
+  .st-res-ft-v { font-size:.72rem; font-weight:600; color:#1a2535; }
+  /* ── Acciones de ítem ─────────────────────────────────────── */
+  .st-item-btn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
+    border-radius:5px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; font-size:.78rem;
+    transition:all .12s; text-decoration:none; }
+  .st-item-btn:hover { background:#e2e8f0; }
+  .st-item-btn.del { border-color:#fecaca; background:#fff5f5; }
+  .st-item-btn.del:hover { background:#fee2e2; }
 
   /* ── Cards — 2 col + drawer ─────────────────────────────── */
   .st-cards-outer { display:flex; flex-direction:column; }
@@ -1141,39 +1161,70 @@
       html += '</div>';
     }
     if (items.length) {
+      // ── Resumen por tipo ──────────────────────────────────────
+      var TIPO_COLORS = {
+        'producto':'#378ADD','shipping_handling':'#1D9E75','mano_obra':'#D85A30',
+        'flete':'#D85A30','impuesto':'#BA7517','aduana':'#BA7517',
+        'combustible':'#E24B4A','fianza':'#888780','subcontrato':'#7F77DD','otro':'#888780'
+      };
+      var tipoTotales = {};
+      items.forEach(function(it) {
+        var t = it.tipo || 'otro';
+        var m = it.total_real > 0 ? it.total_real : it.total_cotizado;
+        tipoTotales[t] = (tipoTotales[t] || 0) + m;
+      });
+      var tipoEntries = Object.keys(tipoTotales).map(function(t) {
+        return { tipo: t, monto: tipoTotales[t] };
+      }).sort(function(a, b) { return b.monto - a.monto; });
+      var totalCostos = r.total_real || 0;
+      var maxMonto    = tipoEntries.length ? tipoEntries[0].monto : 1;
+
+      html += '<div class="st-res-wrap"><div class="st-res-lbl">Costos por tipo</div>';
+      tipoEntries.forEach(function(entry) {
+        var color    = TIPO_COLORS[entry.tipo] || '#888780';
+        var pctFact  = pv > 0 ? ((entry.monto / pv) * 100).toFixed(1) : '0';
+        var barWidth = maxMonto > 0 ? Math.round((entry.monto / maxMonto) * 100) : 0;
+        var tipoNom  = TIPO_LABEL[entry.tipo] ? TIPO_LABEL[entry.tipo].replace(/^\S+\s/,'') : entry.tipo;
+        html += '<div class="st-res-row">' +
+          '<div class="st-res-tipo">'+st_esc(tipoNom)+'</div>' +
+          '<div class="st-res-track"><div class="st-res-fill" style="width:'+barWidth+'%;background:'+color+'"></div></div>' +
+          '<div class="st-res-pct">'+pctFact+'%</div>' +
+          '<div class="st-res-amt">'+st_fmt(entry.monto)+'</div>' +
+        '</div>';
+      });
+      var pctTotal = pv > 0 ? ((totalCostos / pv) * 100).toFixed(1) : '\u2014';
+      html += '<div class="st-res-foot">' +
+        '<span class="st-res-ft-l">Total costos</span>' +
+        '<span class="st-res-ft-v">'+st_fmt(totalCostos)+
+          ' <span style="font-size:.68rem;font-weight:400;color:#94a3b8">\u2014 '+pctTotal+'% del facturado</span>' +
+        '</span>' +
+      '</div></div>';
+
+      // ── Tabla de costos ejecutados ────────────────────────────
       html += '<div class="st-cst-wrap"><div class="st-cst-lbl">Costos ejecutados</div><table class="st-cst-tbl"><thead><tr>' +
-        '<th style="width:110px">Tipo</th><th>Descripción</th><th style="width:130px">Proveedor</th><th class="r">Monto</th><th>Estado</th>' +
-        '<th style="width:26px;text-align:center">Doc</th>' + (enEje?'<th style="width:50px"></th>':'') +
+        '<th style="width:110px">Tipo</th><th>Descripci\u00f3n</th><th style="width:130px">Proveedor</th><th class="r">Monto</th><th>Estado</th>' +
+        '<th style="width:72px;text-align:center">Acciones</th>' +
         '</tr></thead><tbody>';
       items.forEach(function(it){
         var src = st_itemSource(it);
         var badge;
         if (src === 'fact') {
-          // Green if has doc, grey-green if ejecutado but no doc
-          if (it.drive_url) {
-            badge = '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Fact</span>';
-          } else {
-            badge = '<span style="background:#f0fdf4;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px" title="Registrado sin documento adjunto">Fact*</span>';
-          }
+          badge = it.drive_url
+            ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Fact</span>'
+            : '<span style="background:#f0fdf4;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px" title="Sin documento adjunto">Fact*</span>';
         } else if (src === 'inv') {
           badge = '<span style="background:#dbeafe;color:#1d4ed8;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Inv</span>';
         } else if (src === 'pend') {
           badge = '<span style="background:#fef9c3;color:#a16207;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Pend.</span>';
         } else {
-          // mano_obra, flete, etc. — show OK if ejecutado
           badge = it.estado_item === 'ejecutado'
-            ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">✓ OK</span>'
-            : '<span style="background:#f1f5f9;color:#64748b;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">—</span>';
+            ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">\u2713 OK</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">\u2014</span>';
         }
         var itemDocUrl = it.drive_url || allItemUrls[it.id_item_st] || '';
-        var doc = itemDocUrl
-          ? '<a href="'+st_esc(itemDocUrl)+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;text-decoration:none;font-size:.78rem;">📄</a>'
-          : (src === 'pend' || (src === 'fact' && !itemDocUrl))
-            ? '<span style="color:#d97706;font-size:.72rem;cursor:pointer" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" title="Subir factura de costo">📎</span>'
-            : '<span style="color:#d1d5db">—</span>';
-        var montoItem = it.total_real > 0 ? it.total_real : it.total_cotizado;
-        var pctItem   = pv > 0 && montoItem > 0 ? ((montoItem / pv) * 100).toFixed(1) : '';
-        var itemId    = it.id_item_st;
+        var montoItem  = it.total_real > 0 ? it.total_real : it.total_cotizado;
+        var pctItem    = pv > 0 && montoItem > 0 ? ((montoItem / pv) * 100).toFixed(1) : '';
+        var itemId     = it.id_item_st;
         var tipoActual = it.tipo || 'otro';
         var tipoCell;
         if (enEje) {
@@ -1182,27 +1233,45 @@
           }).join('');
           tipoCell = '<select class="st-tipo-select" title="Reclasificar tipo" ' +
             'data-item-id="'+st_esc(itemId)+'" data-orig="'+st_esc(tipoActual)+'" ' +
-            'onchange="st_reclasificarTipo(this,\''+idST+'\')">' +
-            optsHtml + '</select>';
+            'onchange="st_reclasificarTipo(this,\''+idST+'\')">'+optsHtml+'</select>';
         } else {
-          var tipoIcon = TIPO_LABEL[tipoActual] ? TIPO_LABEL[tipoActual].split(' ')[0] : '📌';
+          var tipoIcon = TIPO_LABEL[tipoActual] ? TIPO_LABEL[tipoActual].split(' ')[0] : '\ud83d\udccc';
           tipoCell = '<span class="st-tipo-chip">'+tipoIcon+' '+(TIPO_LABEL[tipoActual]||tipoActual).replace(/^. /,'')+'</span>';
         }
         var provText = it.proveedor || '';
         var provCell = provText
           ? '<span class="st-prov-cell" title="'+st_esc(provText)+'">'+st_esc(provText)+'</span>'
-          : '<span style="color:#d1d5db;font-size:.7rem">—</span>';
+          : '<span style="color:#d1d5db;font-size:.7rem">\u2014</span>';
+
+        // Doc btn
+        var docBtn = itemDocUrl
+          ? '<a href="'+st_esc(itemDocUrl)+'" target="_blank" class="st-item-btn" title="Ver documento">\ud83d\udcc4</a>'
+          : (src === 'pend' || src === 'fact')
+            ? '<span class="st-item-btn" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" title="Subir factura">\ud83d\udcce</span>'
+            : '<span class="st-item-btn" style="opacity:.3;cursor:default">\ud83d\udcc4</span>';
+
+        // Edit btn
+        var editData = JSON.stringify({id_item_st:itemId,id_st:idST,tipo:tipoActual,
+          descripcion:it.descripcion,proveedor:it.proveedor||'',
+          num_factura:it.num_factura||'',total_real:it.total_real,
+          itbms_real:it.itbms_real,egreso_id:it.egreso_id||''});
+        var editBtn = '<span class="st-item-btn" title="Editar costo" onclick="st_editarItem('+
+          editData.replace(/"/g,'\"').replace(/'/g,"\'")+')">\u270f\ufe0f</span>';
+
+        // Del btn
+        var delBtn = '<span class="st-item-btn del" title="Eliminar \u00edtem" onclick="st_eliminarItem(\''+st_esc(itemId)+'\',\''+idST+'\')">\ud83d\uddd1</span>';
+
         html += '<tr><td style="white-space:nowrap">'+tipoCell+'</td>' +
-          '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">×'+it.cantidad+'</span>':'')+'</td>' +
+          '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">\u00d7'+it.cantidad+'</span>':'')+'</td>' +
           '<td>'+provCell+'</td>' +
-          '<td class="r">'+st_fmt(montoItem) +
-            (pctItem ? '<span style="font-size:.63rem;font-weight:500;color:#94a3b8;margin-left:3px">('+pctItem+'%)</span>' : '') +
+          '<td class="r">'+st_fmt(montoItem)+
+            (pctItem ? '<span style="font-size:.63rem;font-weight:500;color:#94a3b8;margin-left:3px">('+pctItem+'%)</span>' : '')+
           '</td>' +
-          '<td>'+badge+'</td><td style="text-align:center">'+doc+'</td>' +
-          (enEje?'<td>'+(it.estado_item!=='ejecutado'?'<button class="st-btn st-btn-ghost st-btn-sm" style="padding:2px 7px" onclick="st_abrirModalEgresoItem('+JSON.stringify(it.id_item_st)+',\''+idST+'\')">💸</button>':'')+'</td>':'') +
+          '<td>'+badge+'</td>' +
+          '<td style="text-align:center;white-space:nowrap;display:flex;gap:3px;justify-content:center;padding:6px 4px">'+docBtn+editBtn+delBtn+'</td>' +
         '</tr>';
       });
-      html += '</tbody><tfoot><tr><td colspan="3" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(r.total_real||0)+'</td><td colspan="'+(enEje?3:2)+'"></td></tr></tfoot></table></div>';
+      html += '</tbody><tfoot><tr><td colspan="3" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(r.total_real||0)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
     } else {
       html += '<div style="padding:12px 14px;font-size:.8rem;color:#94a3b8">Sin costos registrados</div>';
     }
@@ -2493,6 +2562,38 @@
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   };
 
+
+  // ── EDITAR ÍTEM ──────────────────────────────────────────────
+  window.st_editarItem = function(itemData) {
+    if (typeof itemData === 'string') try { itemData = JSON.parse(itemData); } catch(e) { return; }
+    var idST = itemData.id_st || (st_state.stActual && st_state.stActual.id_st) || '';
+    if (idST) st_setActualById(idST);
+    st_poblarSelectItems(itemData.id_item_st || '');
+    // Prefill fields
+    document.getElementById('st-me-tipo').value  = itemData.tipo        || 'otro';
+    document.getElementById('st-me-desc').value  = itemData.descripcion || '';
+    document.getElementById('st-me-prov').value  = itemData.proveedor   || '';
+    document.getElementById('st-me-nfac').value  = itemData.num_factura || '';
+    document.getElementById('st-me-total').value = itemData.total_real  || '';
+    document.getElementById('st-me-itbms').value = itemData.itbms_real  || '';
+    document.getElementById('st-me-fecha').value = st_today();
+    document.getElementById('st-me-notas').value = itemData.egreso_id ? 'Edición de: ' + itemData.egreso_id : '';
+    document.getElementById('st-me-file').value  = '';
+    document.getElementById('st-modal-egreso').style.display = 'flex';
+  };
+
+  // ── ELIMINAR ÍTEM ─────────────────────────────────────────────
+  window.st_eliminarItem = function(idItemST, idST) {
+    if (!confirm('\u00bfEliminar este ítem de costos?\n\nSi tiene un egreso registrado, se mantendrá en la hoja Egresos (estado anulado).')) return;
+    gasJsonp('eliminarItemCotizacion', { id_item_st: idItemST, id_st: idST })
+      .then(function(res) {
+        if (!res.success) throw new Error(res.error || 'Error al eliminar');
+        st_toast('\u2705 Ítem eliminado', 'success');
+        st_setActualById(idST);
+        st_recargarDetalle();
+      })
+      .catch(function(e) { st_toast('\u26a0\ufe0f ' + e.message, 'error'); });
+  };
 
   // ── RECLASIFICAR TIPO DE ÍTEM ────────────────────────────
   window.st_reclasificarTipo = function(selectEl, idST) {
