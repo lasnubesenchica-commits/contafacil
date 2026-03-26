@@ -2597,9 +2597,7 @@
 
   // ── ELIMINAR ÍTEM ─────────────────────────────────────────────
   window.st_eliminarItem = function(idItemST, idST) {
-    if (!confirm('¿Eliminar este ítem de costos?
-
-Si tiene un egreso registrado, se mantendrá en la hoja Egresos (estado anulado).')) return;
+    if (!confirm('\u00bfEliminar este \u00edtem de costos?\n\nSi tiene un egreso registrado, se mantendr\u00e1 en la hoja Egresos (estado anulado).')) return;
     gasJsonp('eliminarItemCotizacion', { id_item_st: idItemST, id_st: idST })
       .then(function(res) {
         if (!res.success) throw new Error(res.error || 'Error al eliminar');
