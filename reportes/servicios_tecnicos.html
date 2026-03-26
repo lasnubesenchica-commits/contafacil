@@ -3,7 +3,8 @@
 <!-- v1.0 — Cotizador + Ejecución + Comparativo -->
 <style>
   /* ── Reset & base ─────────────────────────────────────────── */
-  .st-wrap { font-family:'Segoe UI',system-ui,sans-serif; padding:0 4px; color:#1a2535; }
+  .st-wrap { font-family:'Segoe UI',system-ui,sans-serif; color:#1a2535; }
+  .st-inner { max-width:1200px; margin:0 auto; padding:0 24px; }
 
   /* ── Navegación interna ───────────────────────────────────── */
   .st-nav { display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #e2e8f0; padding-bottom:0; flex-wrap:wrap; }
@@ -262,6 +263,7 @@
 </style>
 
 <div class="st-wrap" id="st-root">
+<div class="st-inner">
 
   <!-- ── Navegación interna ── -->
   <div class="st-nav">
@@ -672,6 +674,7 @@
       </button>
     </div>
   </div>
+</div><!-- /st-inner -->
 </div>
 
 <script>
