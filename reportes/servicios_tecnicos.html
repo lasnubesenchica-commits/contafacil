@@ -899,7 +899,23 @@
 
         var p1 = gasJsonp('getCotizaciones', { id_st: idST })
           .then(function(r2) {
-            if (r2.success && r2.items && r2.items.length) st_state.stActual = r2.items[0];
+            if (r2.success && r2.items && r2.items.length) {
+              st_state.stActual = r2.items[0];
+              // Merge resumen items into stActual so poblarSelectItems
+              // sees free egresos (EGR- prefix) that aren't in ST_Items
+              if (resumen.items && resumen.items.length) {
+                var sti_ids = {};
+                (st_state.stActual.items || []).forEach(function(it) {
+                  sti_ids[it.id_item_st] = true;
+                });
+                resumen.items.forEach(function(it) {
+                  if (!sti_ids[it.id_item_st]) {
+                    st_state.stActual.items = st_state.stActual.items || [];
+                    st_state.stActual.items.push(it);
+                  }
+                });
+              }
+            }
           })
           .catch(function() {});
 
@@ -968,26 +984,26 @@
         productCostUrls.push({ url: it.drive_url, desc: it.descripcion || 'Factura costo' });
       }
     });
-    // Also check for a shared product cost url: if any producto item has a drive_url,
-    // assign it to sibling producto items that share the same egreso provider (same nfactura)
-    // This handles the Dinyeen case where 2 items share one invoice but only one has url
-    var sharedProductUrl = productCostUrls.length > 0 ? productCostUrls[0].url : '';
+    // Propagate shared product url only to non-inventory producto items
     if (sharedProductUrl) {
       items.forEach(function(it) {
-        if (it.tipo === 'producto' && !allItemUrls[it.id_item_st]) {
+        if (it.tipo === 'producto' && !allItemUrls[it.id_item_st] && !it.from_inventory) {
           allItemUrls[it.id_item_st] = sharedProductUrl;
         }
       });
     }
 
-    // Per-item source classification for Estado column
+    // Per-item source classification for Estado column:
+    // 'fact' = has drive_url (own or shared), OR ejecutado sin doc (costo externo sin PDF)
+    // 'inv'  = from_inventory:true (señal explícita del backend: notas "Origen: inventario")
+    // 'pend' = producto pendiente sin fuente confirmada
+    // 'ok'   = tipos no-producto (mano_obra, flete, etc.)
     function st_itemSource(it) {
       if (it.drive_url || allItemUrls[it.id_item_st]) return 'fact';
       if (it.tipo === 'producto') {
         if (it.estado_item === 'ejecutado') {
-          var eid = String(it.egreso_id || '');
-          if (eid && (it.total_real === 0 || !it.total_real)) return 'inv';
-          return 'fact';
+          if (it.from_inventory === true) return 'inv';  // señal explícita del backend
+          return 'fact';  // ejecutado sin doc = costo externo sin PDF adjunto (Fact*)
         }
         return 'pend';
       }
@@ -1676,28 +1692,44 @@
     var st = st_state.stActual;
     if (!st) { st_cargarDatos(true); return; }
     var idST = st.id_st;
-    // Refresh stActual from backend
-    gasJsonp('getCotizaciones', { id_st: idST })
+    var resumenItems = [];  // capture resumen items for merge
+    gasJsonp('getResumenST', { id_st: idST })
+      .then(function(res) {
+        if (!res.success) throw new Error(res.error);
+        resumenItems = res.resumen.items || [];
+        return gasJsonp('getCotizaciones', { id_st: idST });
+      })
       .then(function(res) {
         if (res.success && res.items && res.items.length) {
           st_state.stActual = res.items[0];
-          // Update in main data array too
+          // Merge EGR- free egresos from resumen into stActual.items
+          if (resumenItems.length) {
+            var stiIds = {};
+            (st_state.stActual.items || []).forEach(function(it) { stiIds[it.id_item_st] = true; });
+            resumenItems.forEach(function(it) {
+              if (!stiIds[it.id_item_st]) {
+                st_state.stActual.items = st_state.stActual.items || [];
+                st_state.stActual.items.push(it);
+              }
+            });
+          }
           for (var i = 0; i < st_state.data.length; i++) {
-            if (st_state.data[i].id_st === idST) { st_state.data[i] = res.items[0]; break; }
+            if (st_state.data[i].id_st === idST) { st_state.data[i] = st_state.stActual; break; }
           }
           for (var j = 0; j < st_state.filtered.length; j++) {
-            if (st_state.filtered[j].id_st === idST) { st_state.filtered[j] = res.items[0]; break; }
+            if (st_state.filtered[j].id_st === idST) { st_state.filtered[j] = st_state.stActual; break; }
           }
           if (st_state.vistaMode === 'tabla') {
             st_renderTabla();
-            return Promise.resolve();
+            return null;
           }
+          // Find the resumen from the already-fetched data
           return gasJsonp('getResumenST', { id_st: idST });
         }
         throw new Error('ST no encontrado');
       })
       .then(function(res) {
-        if (!res) return; // tabla mode already rendered
+        if (!res) return;
         if (!res.success) throw new Error(res.error);
         st_renderDrawer(idST, res.resumen);
         st_computeKPIs();
@@ -1765,6 +1797,8 @@
     if (!st || !st.items) return;
     (st.items||[]).forEach(function(it) {
       if (it.estado_item === 'cancelado') return;
+      // Skip EGR- pseudo-items — they're already-executed free egresos, not real ST_Items
+      if (String(it.id_item_st || '').indexOf('EGR-') === 0) return;
       var opt = document.createElement('option');
       opt.value       = it.id_item_st;
       opt.textContent = (TIPO_LABEL[it.tipo]||it.tipo) + ' — ' + it.descripcion +
