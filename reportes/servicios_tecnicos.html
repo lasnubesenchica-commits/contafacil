@@ -1057,13 +1057,38 @@
       : '<span class="st-doc-none">' + st_esc(st_numFactura(st)) + '</span>';
     html += '</div>';
 
-    // CELL 2: Factura de costo — ONLY product purchase invoices in header
+    // CELL 2: Factura de costo — links agrupados por categoría
     html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Factura de costo</div>';
-    if (productCostUrls.length) {
-      productCostUrls.forEach(function(c, ci) {
-        var lbl = c.desc.length > 32 ? c.desc.slice(0, 32) + '…' : c.desc;
-        html += '<a href="' + st_esc(c.url) + '" target="_blank" class="st-doc-a fc"' +
-          (ci ? ' style="margin-top:2px"' : '') + '>' + st_esc(lbl) + ' ↗</a>';
+    // Agrupar: tipo → array de {url, num_factura}
+    var costByTipo = {};
+    items.forEach(function(it) {
+      var url = it.drive_url || allItemUrls[it.id_item_st] || '';
+      if (!url) return;
+      var t = it.tipo || 'otro';
+      if (!costByTipo[t]) costByTipo[t] = [];
+      var alreadyHas = costByTipo[t].some(function(x) { return x.url === url; });
+      if (!alreadyHas) costByTipo[t].push({ url: url, num_factura: it.num_factura || '' });
+    });
+    var tipoKeys = Object.keys(costByTipo);
+    var TIPO_LABEL_SHORT = {
+      'producto':'Producto','mano_obra':'Mano de obra','flete':'Flete',
+      'impuesto':'Impuesto','combustible':'Combustible','fianza':'Fianza',
+      'subcontrato':'Subcontrato','aduana':'Aduana',
+      'shipping_handling':'Shipping & Handling','otro':'Otro'
+    };
+    if (tipoKeys.length) {
+      tipoKeys.forEach(function(t) {
+        var entries = costByTipo[t];
+        var lbl = TIPO_LABEL_SHORT[t] || t;
+        if (entries.length === 1) {
+          html += '<div style="margin-bottom:2px"><a href="'+st_esc(entries[0].url)+'" target="_blank" class="st-doc-a fc">'+st_esc(lbl)+' ↗</a></div>';
+        } else {
+          var linksHtml = entries.map(function(e, ei) {
+            var lt = e.num_factura || ('fact'+(ei+1));
+            return '<a href="'+st_esc(e.url)+'" target="_blank" class="st-doc-a fc" style="font-size:.72rem">'+st_esc(lt)+' ↗</a>';
+          }).join(' ');
+          html += '<div style="margin-bottom:2px"><span style="font-size:.73rem;color:#64748b;font-weight:600">'+st_esc(lbl)+'</span> <span style="font-size:.68rem;color:#94a3b8">('+linksHtml+')</span></div>';
+        }
       });
       if (hasPendingProduct && enEje) {
         html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" style="font-size:.71rem">📎 Subir otra factura</span>';
@@ -1105,8 +1130,9 @@
     }
     html += '</div></div>';
 
-    var utilReal   = (r.precio_venta||0) - (r.total_real||0);
-    var pv         = r.precio_venta || 0;
+    // Facturado neto: precio_venta almacenado incluye ITBMS 7%; mostramos base neta
+    var pv         = r.precio_venta > 0 ? parseFloat((r.precio_venta / 1.07).toFixed(2)) : 0;
+    var utilReal   = pv - (r.total_real||0);
     var margen     = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
     var pctCosto   = pv > 0 ? ((r.total_real / pv) * 100).toFixed(1) : '—';
     var pctUtil    = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
@@ -1251,12 +1277,10 @@
           ? '<span class="st-prov-cell" title="'+st_esc(provText)+'">'+st_esc(provText)+'</span>'
           : '<span style="color:#d1d5db;font-size:.7rem">\u2014</span>';
 
-        // Doc btn
+        // Doc btn — removed "Subir" button per client request
         var docBtn = itemDocUrl
           ? '<a href="'+st_esc(itemDocUrl)+'" target="_blank" class="st-item-btn" title="Ver documento">Doc</a>'
-          : (src === 'pend' || src === 'fact')
-            ? '<span class="st-item-btn" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" title="Subir factura">Subir</span>'
-            : '<span class="st-item-btn" style="opacity:.3;cursor:default">—</span>';
+          : '<span class="st-item-btn" style="opacity:.3;cursor:default">—</span>';
 
         // Edit btn
         var editBtn = '<span class="st-item-btn" title="Editar costo"' +
