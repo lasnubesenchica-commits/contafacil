@@ -51,6 +51,16 @@
   .st-btn-ghost:hover:not(:disabled)    { background:#e2e8f0; }
   .st-btn-sm { padding:4px 10px; font-size:.75rem; }
 
+  /* ── Tipo chip reclasificable ─────────────────────────────── */
+  .st-tipo-chip { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:10px;
+    background:#f1f5f9; border:1px solid #e2e8f0; font-size:.66rem; font-weight:600; color:#475569;
+    cursor:pointer; transition:all .15s; white-space:nowrap; }
+  .st-tipo-chip:hover { background:#e0e7ff; border-color:#818cf8; color:#3730a3; }
+  .st-tipo-select { font-size:.72rem; border:1px solid #818cf8; border-radius:6px; padding:2px 4px;
+    background:#fff; color:#3730a3; font-weight:600; outline:none; cursor:pointer; max-width:140px; }
+  .st-prov-cell { font-size:.72rem; color:#64748b; max-width:160px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+
   /* ── Cards — 2 col + drawer ─────────────────────────────── */
   .st-cards-outer { display:flex; flex-direction:column; }
   .st-cards-row { display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:10px; align-items:start; }
@@ -1130,7 +1140,7 @@
     }
     if (items.length) {
       html += '<div class="st-cst-wrap"><div class="st-cst-lbl">Costos ejecutados</div><table class="st-cst-tbl"><thead><tr>' +
-        '<th>Tipo</th><th>Descripción</th><th class="r">Monto</th><th>Estado</th>' +
+        '<th style="width:110px">Tipo</th><th>Descripción</th><th style="width:130px">Proveedor</th><th class="r">Monto</th><th>Estado</th>' +
         '<th style="width:26px;text-align:center">Doc</th>' + (enEje?'<th style="width:50px"></th>':'') +
         '</tr></thead><tbody>';
       items.forEach(function(it){
@@ -1161,8 +1171,27 @@
             : '<span style="color:#d1d5db">—</span>';
         var montoItem = it.total_real > 0 ? it.total_real : it.total_cotizado;
         var pctItem   = pv > 0 && montoItem > 0 ? ((montoItem / pv) * 100).toFixed(1) : '';
-        html += '<tr><td style="font-size:.7rem;color:#64748b;white-space:nowrap">'+(TIPO_LABEL[it.tipo]||it.tipo)+'</td>' +
+        var itemId    = it.id_item_st;
+        var tipoActual = it.tipo || 'otro';
+        var tipoCell;
+        if (enEje) {
+          var optsHtml = Object.keys(TIPO_LABEL).map(function(k) {
+            return '<option value="'+k+'"'+(k===tipoActual?' selected':'')+'>'+TIPO_LABEL[k]+'</option>';
+          }).join('');
+          tipoCell = '<select class="st-tipo-select" title="Reclasificar tipo" ' +
+            'onchange="st_reclasificarTipo('+JSON.stringify(itemId)+',\''+idST+'\',this.value,this)">' +
+            optsHtml + '</select>';
+        } else {
+          var tipoIcon = TIPO_LABEL[tipoActual] ? TIPO_LABEL[tipoActual].split(' ')[0] : '📌';
+          tipoCell = '<span class="st-tipo-chip">'+tipoIcon+' '+(TIPO_LABEL[tipoActual]||tipoActual).replace(/^. /,'')+'</span>';
+        }
+        var provText = it.proveedor || '';
+        var provCell = provText
+          ? '<span class="st-prov-cell" title="'+st_esc(provText)+'">'+st_esc(provText)+'</span>'
+          : '<span style="color:#d1d5db;font-size:.7rem">—</span>';
+        html += '<tr><td style="white-space:nowrap">'+tipoCell+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">×'+it.cantidad+'</span>':'')+'</td>' +
+          '<td>'+provCell+'</td>' +
           '<td class="r">'+st_fmt(montoItem) +
             (pctItem ? '<span style="font-size:.63rem;font-weight:500;color:#94a3b8;margin-left:3px">('+pctItem+'%)</span>' : '') +
           '</td>' +
@@ -1170,7 +1199,7 @@
           (enEje?'<td>'+(it.estado_item!=='ejecutado'?'<button class="st-btn st-btn-ghost st-btn-sm" style="padding:2px 7px" onclick="st_abrirModalEgresoItem('+JSON.stringify(it.id_item_st)+',\''+idST+'\')">💸</button>':'')+'</td>':'') +
         '</tr>';
       });
-      html += '</tbody><tfoot><tr><td colspan="2" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(r.total_real||0)+'</td><td colspan="'+(enEje?3:2)+'"></td></tr></tfoot></table></div>';
+      html += '</tbody><tfoot><tr><td colspan="3" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(r.total_real||0)+'</td><td colspan="'+(enEje?3:2)+'"></td></tr></tfoot></table></div>';
     } else {
       html += '<div style="padding:12px 14px;font-size:.8rem;color:#94a3b8">Sin costos registrados</div>';
     }
@@ -2442,7 +2471,7 @@
         if (!res.success) throw new Error(res.error || 'Error al eliminar');
         var msg = '🗑️ ST eliminado';
         if (res.items_eliminados)   msg += ' · ' + res.items_eliminados + ' ítem(s)';
-        if (res.egresos_eliminados) msg += ' · ' + res.egresos_eliminados + ' egreso(s)';
+        if (res.egresos_anulados) msg += ' · ' + res.egresos_anulados + ' egreso(s)';
         if (res.ingreso_anulado)    msg += ' · ingreso anulado';
         st_toast(msg, 'success');
         // Remove from local state immediately
@@ -2459,6 +2488,46 @@
         }
       })
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+
+  // ── RECLASIFICAR TIPO DE ÍTEM ────────────────────────────
+  window.st_reclasificarTipo = function(idItemST, idST, nuevoTipo, selectEl) {
+    var orig = selectEl.getAttribute('data-orig') || selectEl.value;
+    if (!selectEl.getAttribute('data-orig')) selectEl.setAttribute('data-orig', selectEl.value);
+    if (nuevoTipo === orig) return;
+    selectEl.disabled = true;
+    selectEl.style.opacity = '0.5';
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'actualizarItemTipo', id_item_st: idItemST, id_st: idST, tipo: nuevoTipo })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      selectEl.disabled = false;
+      selectEl.style.opacity = '1';
+      if (res.success) {
+        selectEl.setAttribute('data-orig', nuevoTipo);
+        st_toast('✅ Tipo actualizado a "' + (TIPO_LABEL[nuevoTipo]||nuevoTipo) + '"', 'success');
+        var stObj = st_state.stActual;
+        if (stObj && stObj.items) {
+          stObj.items.forEach(function(it) {
+            if (it.id_item_st === idItemST) it.tipo = nuevoTipo;
+          });
+        }
+      } else {
+        st_toast('⚠️ ' + (res.error || 'Error al reclasificar'), 'error');
+        selectEl.value = orig;
+        selectEl.setAttribute('data-orig', orig);
+      }
+    })
+    .catch(function(e) {
+      selectEl.disabled = false;
+      selectEl.style.opacity = '1';
+      selectEl.value = orig;
+      st_toast('⚠️ Error de red: ' + e.message, 'error');
+    });
   };
 
   // ── INIT ─────────────────────────────────────────────────
