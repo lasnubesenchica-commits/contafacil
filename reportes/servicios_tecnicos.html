@@ -1082,15 +1082,19 @@
         html += '<div>';
         html += '<span style="font-size:.76rem;font-weight:600;color:#065F46">'+st_esc(r.ingreso_id)+'</span>';
         if (enEje || st.estado === 'cerrado') {
-          var pcCtx1 = JSON.stringify({ingreso_id:r.ingreso_id,precio_venta:r.precio_venta,total_real:r.total_real,id_st:idST});
-          html += '<br><span class="st-inv-upload-link" onclick="st_setActualById(\''+idST+'\');st_abrirModalPagoCliente('+pcCtx1+')" style="color:#d97706">📎 Sin comprobante — subir</span>';
+          var _ing = st_esc(String(r.ingreso_id||'')), _pv = st_esc(String(r.precio_venta||0)), _tr = st_esc(String(r.total_real||0));
+          html += '<br><span class="st-inv-upload-link" style="color:#d97706"' +
+            ' data-ing="'+_ing+'" data-pv="'+_pv+'" data-tr="'+_tr+'" data-st="'+st_esc(idST)+'"' +
+            ' onclick="st_pagoClienteBtn(this)">📎 Sin comprobante — subir</span>';
         }
         html += '</div>';
       }
     } else {
       if (enEje) {
-        var pcCtx2 = JSON.stringify({ingreso_id:'',precio_venta:r.precio_venta,total_real:r.total_real,id_st:idST});
-        html += '<span class="st-inv-upload-link" onclick="st_setActualById(\''+idST+'\');st_abrirModalPagoCliente('+pcCtx2+')">⚠️ Sin pago — registrar</span>';
+        var _pv2 = st_esc(String(r.precio_venta||0)), _tr2 = st_esc(String(r.total_real||0));
+        html += '<span class="st-inv-upload-link"' +
+          ' data-ing="" data-pv="'+_pv2+'" data-tr="'+_tr2+'" data-st="'+st_esc(idST)+'"' +
+          ' onclick="st_pagoClienteBtn(this)">⚠️ Sin pago — registrar</span>';
       } else {
         html += '<span class="st-doc-none">Pendiente</span>';
       }
@@ -2604,6 +2608,15 @@ Si tiene un egreso registrado, se mantendrá en la hoja Egresos (estado anulado)
         st_recargarDetalle();
       })
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  window.st_pagoClienteBtn = function(el) {
+    var idST      = el.getAttribute('data-st')  || '';
+    var ingresoId = el.getAttribute('data-ing') || '';
+    var pv        = parseFloat(el.getAttribute('data-pv') || '0');
+    var tr        = parseFloat(el.getAttribute('data-tr') || '0');
+    if (idST) st_setActualById(idST);
+    st_abrirModalPagoCliente({ ingreso_id: ingresoId, precio_venta: pv, total_real: tr, id_st: idST });
   };
 
   window.st_eliminarItemBtn = function(el) {
