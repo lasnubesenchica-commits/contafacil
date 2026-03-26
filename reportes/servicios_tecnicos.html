@@ -74,11 +74,12 @@
   .st-res-ft-l { font-size:.7rem; color:#94a3b8; }
   .st-res-ft-v { font-size:.72rem; font-weight:600; color:#1a2535; }
   /* ── Acciones de ítem ─────────────────────────────────────── */
-  .st-item-btn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
-    border-radius:5px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; font-size:.78rem;
-    transition:all .12s; text-decoration:none; }
-  .st-item-btn:hover { background:#e2e8f0; }
-  .st-item-btn.del { border-color:#fecaca; background:#fff5f5; }
+  .st-item-btn { display:inline-flex; align-items:center; justify-content:center;
+    height:22px; padding:0 6px; min-width:22px;
+    border-radius:4px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; font-size:.68rem; font-weight:600; color:#475569;
+    transition:all .12s; text-decoration:none; white-space:nowrap; }
+  .st-item-btn:hover { background:#e2e8f0; color:#1e293b; }
+  .st-item-btn.del { border-color:#fecaca; background:#fff5f5; color:#dc2626; }
   .st-item-btn.del:hover { background:#fee2e2; }
 
   /* ── Cards — 2 col + drawer ─────────────────────────────── */
@@ -1275,7 +1276,7 @@
             (pctItem ? '<span style="font-size:.63rem;font-weight:500;color:#94a3b8;margin-left:3px">('+pctItem+'%)</span>' : '')+
           '</td>' +
           '<td>'+badge+'</td>' +
-          '<td style="text-align:center;white-space:nowrap;display:flex;gap:3px;justify-content:center;padding:6px 4px">'+docBtn+editBtn+delBtn+'</td>' +
+          '<td style="text-align:center;padding:4px 6px"><div style="display:inline-flex;gap:3px;align-items:center">'+docBtn+editBtn+delBtn+'</div></td>' +
         '</tr>';
       });
       html += '</tbody><tfoot><tr><td colspan="3" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(r.total_real||0)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
