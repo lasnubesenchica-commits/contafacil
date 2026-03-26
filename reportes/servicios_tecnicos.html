@@ -1179,7 +1179,8 @@
             return '<option value="'+k+'"'+(k===tipoActual?' selected':'')+'>'+TIPO_LABEL[k]+'</option>';
           }).join('');
           tipoCell = '<select class="st-tipo-select" title="Reclasificar tipo" ' +
-            'onchange="st_reclasificarTipo('+JSON.stringify(itemId)+',\''+idST+'\',this.value,this)">' +
+            'data-item-id="'+st_esc(itemId)+'" data-orig="'+st_esc(tipoActual)+'" ' +
+            'onchange="st_reclasificarTipo(this,\''+idST+'\')">' +
             optsHtml + '</select>';
         } else {
           var tipoIcon = TIPO_LABEL[tipoActual] ? TIPO_LABEL[tipoActual].split(' ')[0] : '📌';
@@ -2492,9 +2493,10 @@
 
 
   // ── RECLASIFICAR TIPO DE ÍTEM ────────────────────────────
-  window.st_reclasificarTipo = function(idItemST, idST, nuevoTipo, selectEl) {
-    var orig = selectEl.getAttribute('data-orig') || selectEl.value;
-    if (!selectEl.getAttribute('data-orig')) selectEl.setAttribute('data-orig', selectEl.value);
+  window.st_reclasificarTipo = function(selectEl, idST) {
+    var idItemST  = selectEl.getAttribute('data-item-id') || '';
+    var nuevoTipo = selectEl.value;
+    var orig      = selectEl.getAttribute('data-orig') || nuevoTipo;
     if (nuevoTipo === orig) return;
     selectEl.disabled = true;
     selectEl.style.opacity = '0.5';
