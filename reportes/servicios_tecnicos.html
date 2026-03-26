@@ -1261,6 +1261,11 @@
           ' data-egreso="'+st_esc(it.egreso_id||'')+'"' +
           ' onclick="st_editarItem(this)">✏️</span>';
 
+        // Del btn
+        var delBtn = '<span class="st-item-btn del" title="Eliminar \u00edtem" ' +
+          'data-item-id="'+st_esc(itemId)+'" data-st-id="'+st_esc(idST)+'" ' +
+          'onclick="st_eliminarItemBtn(this)">\ud83d\uddd1</span>';
+
         html += '<tr><td style="white-space:nowrap">'+tipoCell+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">\u00d7'+it.cantidad+'</span>':'')+'</td>' +
           '<td>'+provCell+'</td>' +
@@ -2590,15 +2595,23 @@
 
   // ── ELIMINAR ÍTEM ─────────────────────────────────────────────
   window.st_eliminarItem = function(idItemST, idST) {
-    if (!confirm('\u00bfEliminar este ítem de costos?\n\nSi tiene un egreso registrado, se mantendrá en la hoja Egresos (estado anulado).')) return;
+    if (!confirm('¿Eliminar este ítem de costos?
+
+Si tiene un egreso registrado, se mantendrá en la hoja Egresos (estado anulado).')) return;
     gasJsonp('eliminarItemCotizacion', { id_item_st: idItemST, id_st: idST })
       .then(function(res) {
         if (!res.success) throw new Error(res.error || 'Error al eliminar');
-        st_toast('\u2705 Ítem eliminado', 'success');
+        st_toast('✅ Ítem eliminado', 'success');
         st_setActualById(idST);
         st_recargarDetalle();
       })
-      .catch(function(e) { st_toast('\u26a0\ufe0f ' + e.message, 'error'); });
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  window.st_eliminarItemBtn = function(el) {
+    var idItemST = el.getAttribute('data-item-id') || '';
+    var idST     = el.getAttribute('data-st-id')   || '';
+    st_eliminarItem(idItemST, idST);
   };
 
   // ── RECLASIFICAR TIPO DE ÍTEM ────────────────────────────
