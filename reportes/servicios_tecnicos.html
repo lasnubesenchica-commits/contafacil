@@ -1232,8 +1232,8 @@
             return '<option value="'+k+'"'+(k===tipoActual?' selected':'')+'>'+TIPO_LABEL[k]+'</option>';
           }).join('');
           tipoCell = '<select class="st-tipo-select" title="Reclasificar tipo" ' +
-            'data-item-id="'+st_esc(itemId)+'" data-orig="'+st_esc(tipoActual)+'" ' +
-            'onchange="st_reclasificarTipo(this,\''+idST+'\')">'+optsHtml+'</select>';
+            'data-item-id="'+st_esc(itemId)+'" data-orig="'+st_esc(tipoActual)+'" data-st-id="'+st_esc(idST)+'" ' +
+            'onchange="st_reclasificarTipo(this)">'+optsHtml+'</select>';
         } else {
           var tipoIcon = TIPO_LABEL[tipoActual] ? TIPO_LABEL[tipoActual].split(' ')[0] : '\ud83d\udccc';
           tipoCell = '<span class="st-tipo-chip">'+tipoIcon+' '+(TIPO_LABEL[tipoActual]||tipoActual).replace(/^. /,'')+'</span>';
@@ -1251,15 +1251,15 @@
             : '<span class="st-item-btn" style="opacity:.3;cursor:default">\ud83d\udcc4</span>';
 
         // Edit btn
-        var editData = JSON.stringify({id_item_st:itemId,id_st:idST,tipo:tipoActual,
-          descripcion:it.descripcion,proveedor:it.proveedor||'',
-          num_factura:it.num_factura||'',total_real:it.total_real,
-          itbms_real:it.itbms_real,egreso_id:it.egreso_id||''});
-        var editBtn = '<span class="st-item-btn" title="Editar costo" onclick="st_editarItem('+
-          editData.replace(/"/g,'\"').replace(/'/g,"\'")+')">\u270f\ufe0f</span>';
 
-        // Del btn
-        var delBtn = '<span class="st-item-btn del" title="Eliminar \u00edtem" onclick="st_eliminarItem(\''+st_esc(itemId)+'\',\''+idST+'\')">\ud83d\uddd1</span>';
+        // Edit btn
+        var editBtn = '<span class="st-item-btn" title="Editar costo"' +
+          ' data-item-id="'+st_esc(itemId)+'" data-st-id="'+st_esc(idST)+'"' +
+          ' data-tipo="'+st_esc(tipoActual)+'" data-desc="'+st_esc(it.descripcion)+'"' +
+          ' data-prov="'+st_esc(it.proveedor||'')+'" data-nfac="'+st_esc(it.num_factura||'')+'"' +
+          ' data-total="'+st_esc(String(it.total_real||''))+'" data-itbms="'+st_esc(String(it.itbms_real||''))+'"' +
+          ' data-egreso="'+st_esc(it.egreso_id||'')+'"' +
+          ' onclick="st_editarItem(this)">✏️</span>';
 
         html += '<tr><td style="white-space:nowrap">'+tipoCell+'</td>' +
           '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">\u00d7'+it.cantidad+'</span>':'')+'</td>' +
@@ -2564,20 +2564,26 @@
 
 
   // ── EDITAR ÍTEM ──────────────────────────────────────────────
-  window.st_editarItem = function(itemData) {
-    if (typeof itemData === 'string') try { itemData = JSON.parse(itemData); } catch(e) { return; }
-    var idST = itemData.id_st || (st_state.stActual && st_state.stActual.id_st) || '';
+  window.st_editarItem = function(el) {
+    var idST       = el.getAttribute('data-st-id')   || (st_state.stActual && st_state.stActual.id_st) || '';
+    var idItemST   = el.getAttribute('data-item-id') || '';
+    var tipo       = el.getAttribute('data-tipo')    || 'otro';
+    var desc       = el.getAttribute('data-desc')    || '';
+    var prov       = el.getAttribute('data-prov')    || '';
+    var nfac       = el.getAttribute('data-nfac')    || '';
+    var total      = el.getAttribute('data-total')   || '';
+    var itbms      = el.getAttribute('data-itbms')   || '';
+    var egresoId   = el.getAttribute('data-egreso')  || '';
     if (idST) st_setActualById(idST);
-    st_poblarSelectItems(itemData.id_item_st || '');
-    // Prefill fields
-    document.getElementById('st-me-tipo').value  = itemData.tipo        || 'otro';
-    document.getElementById('st-me-desc').value  = itemData.descripcion || '';
-    document.getElementById('st-me-prov').value  = itemData.proveedor   || '';
-    document.getElementById('st-me-nfac').value  = itemData.num_factura || '';
-    document.getElementById('st-me-total').value = itemData.total_real  || '';
-    document.getElementById('st-me-itbms').value = itemData.itbms_real  || '';
+    st_poblarSelectItems(idItemST);
+    document.getElementById('st-me-tipo').value  = tipo;
+    document.getElementById('st-me-desc').value  = desc;
+    document.getElementById('st-me-prov').value  = prov;
+    document.getElementById('st-me-nfac').value  = nfac;
+    document.getElementById('st-me-total').value = total;
+    document.getElementById('st-me-itbms').value = itbms;
     document.getElementById('st-me-fecha').value = st_today();
-    document.getElementById('st-me-notas').value = itemData.egreso_id ? 'Edición de: ' + itemData.egreso_id : '';
+    document.getElementById('st-me-notas').value = egresoId ? 'Edición de: ' + egresoId : '';
     document.getElementById('st-me-file').value  = '';
     document.getElementById('st-modal-egreso').style.display = 'flex';
   };
@@ -2596,8 +2602,9 @@
   };
 
   // ── RECLASIFICAR TIPO DE ÍTEM ────────────────────────────
-  window.st_reclasificarTipo = function(selectEl, idST) {
+  window.st_reclasificarTipo = function(selectEl) {
     var idItemST  = selectEl.getAttribute('data-item-id') || '';
+    var idST      = selectEl.getAttribute('data-st-id')   || '';
     var nuevoTipo = selectEl.value;
     var orig      = selectEl.getAttribute('data-orig') || nuevoTipo;
     if (nuevoTipo === orig) return;
