@@ -985,6 +985,7 @@
       }
     });
     // Propagate shared product url only to non-inventory producto items
+    var sharedProductUrl = productCostUrls.length > 0 ? productCostUrls[0].url : '';
     if (sharedProductUrl) {
       items.forEach(function(it) {
         if (it.tipo === 'producto' && !allItemUrls[it.id_item_st] && !it.from_inventory) {
