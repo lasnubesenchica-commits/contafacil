@@ -1011,9 +1011,15 @@
     // - All unique drive_urls across items → available for table column
     var productCostUrls = [], seen = {};
     var allItemUrls = {};  // item id → drive_url (including from egreso siblings)
+    // First pass: map egreso_id → drive_url (so non-producto items can inherit their egreso's URL)
+    var egresoUrlMap = {};
+    items.forEach(function(it) {
+      if (it.drive_url && it.egreso_id) egresoUrlMap[it.egreso_id] = it.drive_url;
+    });
     items.forEach(function(it) {
       // Build per-item url map for table Doc column
-      if (it.drive_url) allItemUrls[it.id_item_st] = it.drive_url;
+      var url = it.drive_url || (it.egreso_id && egresoUrlMap[it.egreso_id] ? egresoUrlMap[it.egreso_id] : '');
+      if (url) allItemUrls[it.id_item_st] = url;
       // Collect unique product-type cost docs for header cell
       if (it.drive_url && it.tipo === 'producto' && !seen[it.drive_url]) {
         seen[it.drive_url] = true;
