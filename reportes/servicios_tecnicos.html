@@ -1977,19 +1977,14 @@
     var st = st_state.stActual;
     if (!st) { st_toast('Error: no hay ST activo', 'error'); return; }
 
-    // Capture idST now before anything closes/changes stActual
     var idSTActivo = st.id_st;
-
     var total = parseFloat(document.getElementById('st-me-total').value) || 0;
     if (!total) { st_toast('Ingresa el monto total del egreso', 'error'); return; }
 
     var itemSel = document.getElementById('st-me-item').value || '';
     var desc    = document.getElementById('st-me-desc').value.trim();
 
-    // Description is required only when no item is selected
     if (!desc && !itemSel) { st_toast('Ingresa una descripción', 'error'); return; }
-
-    // If no desc but item selected, use the item's description from the select
     if (!desc && itemSel) {
       var sel = document.getElementById('st-me-item');
       var opt = sel.options[sel.selectedIndex];
@@ -1998,14 +1993,31 @@
       desc = m ? m[1].trim() : txt.split('(')[0].replace(/^[^—]*—\s*/,'').trim() || 'Costo registrado';
     }
 
-    st_setLoading('st-me-btn-guardar', true, '💾 Registrar egreso');
+    // Detectar si es edicion (item ya tiene egreso_id)
+    var egresoIdExistente = '';
+    if (itemSel && st_state.stActual && st_state.stActual.items) {
+      for (var xi = 0; xi < st_state.stActual.items.length; xi++) {
+        var xit = st_state.stActual.items[xi];
+        if (xit.id_item_st === itemSel && xit.egreso_id) {
+          egresoIdExistente = xit.egreso_id;
+          break;
+        }
+      }
+    }
+
+    var esEdicion  = !!egresoIdExistente;
+    var actionGAS  = esEdicion ? 'actualizarEgresoST' : 'registrarEgresoST';
+    var btnLabel   = esEdicion ? 'Actualizar egreso' : 'Registrar egreso';
+
+    st_setLoading('st-me-btn-guardar', true, btnLabel);
 
     var file = document.getElementById('st-me-file').files[0];
     var doSave = function(b64, mime, nombre) {
       var payload = {
-        action:       'registrarEgresoST',
+        action:       actionGAS,
         id_st:        idSTActivo,
         id_item_st:   itemSel,
+        egreso_id:    egresoIdExistente,
         tipo:         document.getElementById('st-me-tipo').value,
         descripcion:  desc,
         proveedor:    document.getElementById('st-me-prov').value.trim(),
@@ -2014,9 +2026,9 @@
         itbms:        parseFloat(document.getElementById('st-me-itbms').value) || 0,
         fecha:        document.getElementById('st-me-fecha').value,
         notas:        document.getElementById('st-me-notas').value.trim(),
-        imageBase64:  b64   || '',
-        imageMime:    mime  || '',
-        imageName:    nombre|| '',
+        imageBase64:  b64    || '',
+        imageMime:    mime   || '',
+        imageName:    nombre || '',
       };
       fetch(GAS_URL, {
         method:  'POST',
@@ -2025,16 +2037,19 @@
       })
       .then(function(r) { return r.json(); })
       .then(function(res) {
-        st_setLoading('st-me-btn-guardar', false, '💾 Registrar egreso');
+        st_setLoading('st-me-btn-guardar', false, btnLabel);
         if (!res.success) throw new Error(res.error);
-        st_toast('✅ Egreso ' + res.egreso_id + ' registrado — ' + st_fmt(res.total), 'success');
+        var idMostrar = res.egreso_id_nuevo || res.egreso_id || '';
+        var msg = esEdicion
+          ? '✅ Egreso actualizado — ' + idMostrar + ' — ' + st_fmt(res.total)
+          : '✅ Egreso ' + idMostrar + ' registrado — ' + st_fmt(res.total);
+        st_toast(msg, 'success');
         st_cerrarModalEgreso();
-        // Set stActual back to the correct ST before reloading its drawer
         st_setActualById(idSTActivo);
         st_recargarDetalle();
       })
       .catch(function(e) {
-        st_setLoading('st-me-btn-guardar', false, '💾 Registrar egreso');
+        st_setLoading('st-me-btn-guardar', false, btnLabel);
         st_toast('⚠️ ' + e.message, 'error');
       });
     };
@@ -2624,22 +2639,45 @@
     document.getElementById('st-me-total').value = total;
     document.getElementById('st-me-itbms').value = itbms;
     document.getElementById('st-me-fecha').value = st_today();
-    document.getElementById('st-me-notas').value = egresoId ? 'Edición de: ' + egresoId : '';
+    document.getElementById('st-me-notas').value = '';
     document.getElementById('st-me-file').value  = '';
+    // Título y botón según modo
+    var _mt = document.querySelector('#st-modal-egreso h3');
+    var _bg = document.getElementById('st-me-btn-guardar');
+    if (egresoId) {
+      if (_mt) _mt.textContent = '✏️ Editar Costo Registrado';
+      if (_bg) _bg.textContent = '✅ Actualizar egreso';
+    } else {
+      if (_mt) _mt.textContent = '💸 Registrar Costo Real';
+      if (_bg) _bg.textContent = '💾 Registrar egreso';
+    }
     document.getElementById('st-modal-egreso').style.display = 'flex';
   };
 
   // ── ELIMINAR ÍTEM ─────────────────────────────────────────────
   window.st_eliminarItem = function(idItemST, idST) {
-    if (!confirm('\u00bfEliminar este \u00edtem de costos?\n\nSi tiene un egreso registrado, se mantendr\u00e1 en la hoja Egresos (estado anulado).')) return;
+    var tieneEgreso = false;
+    if (st_state.stActual && st_state.stActual.items) {
+      for (var xi = 0; xi < st_state.stActual.items.length; xi++) {
+        var xit = st_state.stActual.items[xi];
+        if (xit.id_item_st === idItemST && xit.egreso_id) { tieneEgreso = true; break; }
+      }
+    }
+    var confirmMsg = tieneEgreso
+      ? '\u00bfEliminar este \u00edtem?\n\nTiene un egreso registrado que ser\u00e1 ANULADO autom\u00e1ticamente en Egresos.'
+      : '\u00bfEliminar este \u00edtem de costos?';
+    if (!confirm(confirmMsg)) return;
     gasJsonp('eliminarItemCotizacion', { id_item_st: idItemST, id_st: idST })
       .then(function(res) {
         if (!res.success) throw new Error(res.error || 'Error al eliminar');
-        st_toast('✅ Ítem eliminado', 'success');
+        var toastMsg = res.egreso_anulado
+          ? '\u2705 \u00cdtem eliminado \u2014 egreso ' + res.egreso_id + ' anulado'
+          : '\u2705 \u00cdtem eliminado';
+        st_toast(toastMsg, 'success');
         st_setActualById(idST);
         st_recargarDetalle();
       })
-      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+      .catch(function(e) { st_toast('\u26a0\ufe0f ' + e.message, 'error'); });
   };
 
   window.st_pagoClienteBtn = function(el) {
