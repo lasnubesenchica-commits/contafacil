@@ -5420,7 +5420,8 @@ function renderDashboard() {
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
   // Ingresos NETO = subtotal sin ITBMS (base imponible real)
   const totalIngNeto = ingresos.reduce((s,i) => s + (parseFloat(i.subtotal)||0), 0);
-  const utilNeta     = totalIngNeto - totalEgr;
+  // Utilidad usa cogs (ST_Items) — misma fuente que la tabla ST
+  const utilNeta     = totalIngNeto - cogs;
   const margenNeto   = totalIngNeto > 0 ? (utilNeta / totalIngNeto) * 100 : 0;
   const itbmsNeto    = itbmsIng - itbmsEgr;   // lo que hay que pagar a DGI
   const txCount      = ingresos.length;
