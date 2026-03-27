@@ -1,19 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
 //  Ramon Pico — Backend de Órdenes + Ingresos + Egresos
 //  Google Apps Script
-//  v10 — registrarPagoOperacion en doPost + doGet
-//         marcarCostoOperativo en doGet
+//  v12 — corregirComprobante añadido (PATCH)
+//  v12.1 — actualizarNotasIngreso añadido (PATCH)
+//  v12.2 — EGRESOS_NCOLS = 21, COL_E.ID_ST_ITEM = 21 (col U)
+//           _initEgresosSheet: cabecera col U = id_st_item
+//           _handleGetEgresos: expone id_st_item en respuestas
 // ═══════════════════════════════════════════════════════════════
 
 // ── CONFIG ────────────────────────────────────────────────────
 var CONFIG = {
-  SHEET_ID:          '19NdRKbHpGNwHY8liyEX7K6OYjXBak_aCRIAlEJ_msXs',
+  SHEET_ID:          '1UCV17jyqvwbiR6YyuUkvhhjPJrR_9Bh7w9XgSGRZkNk',
   SHEET_ORDENES:     'Ordenes',
   SHEET_INGRESOS:    'Ingresos',
-  ADMIN_EMAIL:       'lasnubesenchica@gmail.com',
-  NEGOCIO:           'Ramon Pico — Equipos Industriales',
-  WA_NUM:            '50766724615',
-  VOUCHER_FOLDER_ID: '1LeRHdrP4m0f3z6aU9xoUDyfzUa-UAoh7',
+  ADMIN_EMAIL:       'finanzas@contecpma.com',
+  NEGOCIO:           'Consultores Electrotecnicos y Contratistas, S.A.',
+  WA_NUM:            '50760909384',
+  VOUCHER_FOLDER_ID: '1OiVyKh7HdyQUKPNB7EYu2UsOmdUCyyYd',
   ITBMS_RATE:        0.07,
 };
 
@@ -55,10 +58,12 @@ var COL_I = {
   DESCRIPCION:  22,
   NOTAS_INT:    23,
   FLAG_REV:     24,
+  DV_CLI:       25,
 };
-var INGRESOS_NCOLS = 24;
+var INGRESOS_NCOLS = 25;
 
-// Columnas Tab Egresos (base 1) — 20 cols, 2 filas cabecera
+// Columnas Tab Egresos (base 1) — 21 cols, 2 filas cabecera
+// v12.2: añadida col U id_st_item (= 21)
 var SHEET_EGRESOS = 'Egresos';
 var COL_E = {
   ID:          1,   // A  id_egreso
@@ -81,8 +86,13 @@ var COL_E = {
   DRIVE_URL:  18,   // R  drive_url
   DESCRIPCION:19,   // S  descripcion
   NOTAS:      20,   // T  notas
+  ID_ST_ITEM: 21,   // U  id_st_item  ← v12.2
 };
-var EGRESOS_NCOLS = 20;
+var EGRESOS_NCOLS = 21;  // v12.2: era 20
+
+// Columnas Compras_Ventas usadas por _handleCorregirComprobante
+var _CC_DRIVE_URL_EMIT = 25;  // col Y — drive_url_emitida (= COL_CV.DRIVE_URL_EMIT)
+var _CC_INGRESO_ID     = 27;  // col AA — ingreso_id (= COL_CV.INGRESO_ID)
 
 // ═══════════════════════════════════════════════════════════════
 //  WEB APP ENTRY POINT — doPost
@@ -92,7 +102,8 @@ function doPost(e) {
   try {
     var data   = JSON.parse(e.postData.contents);
     var action = data.action || '';
-     Logger.log('doPost action: ' + action + ' | id_item: ' + (data.id_item||''));  // ← agregar esta línea
+    Logger.log('doPost action: ' + action + ' | id_item: ' + (data.id_item||''));
+
     // ── ADMIN: subir voucher COD ────────────────────────────────
     if (action === 'uploadVoucherCOD') {
       if (!data.voucherBase64 || !data.orderNumber) {
@@ -128,15 +139,33 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // ── ADMIN: corregir comprobante de ítem cerrado ─────────────
+    if (action === 'corregirComprobante') {
+      return _handleCorregirComprobante(data);
+    }
+
     // ── ADMIN: analizar factura de egreso con IA ────────────────
     if (action === 'parseFacturaEgreso') {
       return _handleParseFacturaEgreso(data);
     }
 
     // ── ADMIN: analizar comprobante de ingreso con IA ───────────
+    // ── SERVICIOS TÉCNICOS ──────────────────────────────────────
+    if (action === 'crearCotizacion')        return _handleCrearCotizacion(data);
+    if (action === 'actualizarCotizacion')   return _handleActualizarCotizacion(data);
+    if (action === 'agregarItemCotizacion')  return _handleAgregarItemCotizacion(data);
+    if (action === 'registrarIngresoST')     return _handleRegistrarIngresoST(data);
+    if (action === 'registrarEgresoST')      return _handleRegistrarEgresoST(data);
     if (action === 'parseComprobanteIngreso') {
       return _handleParseComprobanteIngreso(data);
     }
+    // ── PROVEEDORES ────────────────────────────────────────────
+    if (action === 'analizarFacturaEjemplo') return _handleAnalizarFacturaEjemplo(data);
+    if (action === 'guardarProveedor')       return _handleGuardarProveedor(data);
+
+    // ── ACTUALIZAR ITEMS ────────────────────────────────────────────
+    if (action === 'actualizarItemTipo') return _handleActualizarItemTipo(data);
+    if (action === 'actualizarEgresoST') return _handleActualizarEgresoST(data);
 
     if (action === 'analizarFacturaPendiente') {
       var pData = {
@@ -149,7 +178,6 @@ function doPost(e) {
 
     // ── OPERACIONES: registrar comprobante de pago → cierra ciclo ──
     if (action === 'registrarPagoOperacion') {
-      // Subir comprobante a Drive si viene en el payload
       var driveUrlPago = '';
       if (data.imageBase64 && data.imageName) {
         try {
@@ -164,7 +192,6 @@ function doPost(e) {
           Logger.log('Error subiendo comprobante pago: ' + driveErr.message);
         }
       }
-      // Delegar al handler de Operaciones
       var pagoParams = {
         id_item:    data.id_item    || '',
         forma_pago: data.forma_pago || '',
@@ -247,6 +274,33 @@ function _updateOrden(data) {
 
   if (data.estado === 'Cancelada') {
     sheet.getRange(found, 1, 1, COL_O.DV).setBackground('#FFEBEE');
+
+    var ingresoId = String(sheet.getRange(found, COL_O.INGRESO_ID).getValue() || '').trim();
+    if (ingresoId) {
+      try {
+        var ssIng    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+        var sheetIng = ssIng.getSheetByName(CONFIG.SHEET_INGRESOS);
+        if (sheetIng && sheetIng.getLastRow() > 2) {
+          var ingData = sheetIng.getRange(3, 1, sheetIng.getLastRow() - 2, INGRESOS_NCOLS).getValues();
+          for (var ai = 0; ai < ingData.length; ai++) {
+            if (String(ingData[ai][COL_I.ID_TRANS - 1]) === ingresoId) {
+              var ingRow = ai + 3;
+              sheetIng.getRange(ingRow, COL_I.ESTADO).setValue('anulado');
+              sheetIng.getRange(ingRow, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
+              var notaIng  = String(sheetIng.getRange(ingRow, COL_I.NOTAS_INT).getValue() || '');
+              var stampIng = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+              sheetIng.getRange(ingRow, COL_I.NOTAS_INT).setValue(
+                notaIng + ' | ANULADO por cancelación de orden: ' + stampIng
+              );
+              Logger.log('✅ Ingreso anulado por cancelación: ' + ingresoId);
+              break;
+            }
+          }
+        }
+      } catch(anulErr) {
+        Logger.log('⚠️ Error anulando ingreso ' + ingresoId + ': ' + anulErr.message);
+      }
+    }
   }
 }
 
@@ -262,6 +316,8 @@ function doGet(e) {
   try {
 
     // ── OPERACIONES ─────────────────────────────────────────────
+    if (action === 'anularRegistro')      return _handleAnularRegistro(params, callback);
+    if (action === 'actualizarCategoria') return _handleActualizarCategoria(params, callback);
     if (action === 'sincronizarEmails')        return _handleSincronizar(params, callback);
     if (action === 'getComprasVentas')         return _handleGetComprasVentas(params, callback);
     if (action === 'aprobarMatch')             return _handleAprobarMatch(params, callback);
@@ -270,13 +326,34 @@ function doGet(e) {
     if (action === 'buscarOrdenWeb')           return _handleBuscarOrdenWeb(params, callback);
     if (action === 'vincularOrdenWeb')         return _handleVincularOrdenWeb(params, callback);
     if (action === 'moverAInventario')         return _handleMoverAInventario(params, callback);
-    // PATCH 12 — nuevas actions añadidas
     if (action === 'registrarEgresoOperativo') return _handleRegistrarEgresoOperativo(params, callback);
     if (action === 'marcarCostoOperativo')     return _handleMarcarCostoOperativo(params, callback);
     if (action === 'registrarPagoOperacion')   return _handleRegistrarPagoOperacion(params, callback);
     if (action === 'getEgresos')               return _handleGetEgresos(params, callback);
     if (action === 'getIngresos')              return _handleGetIngresos(params, callback);
     if (action === 'registrarIngresoManual')   return _handleRegistrarIngresoManual(params, callback);
+    if (action === 'actualizarNotasIngreso')   return _handleActualizarNotasIngreso(params, callback);
+    // ── SERVICIOS TÉCNICOS ──────────────────────────────────────
+    if (action === 'getCotizaciones')        return _handleGetCotizaciones(params, callback);
+    if (action === 'aprobarCotizacion')      return _handleAprobarCotizacion(params, callback);
+    if (action === 'iniciarEjecucion')       return _handleIniciarEjecucion(params, callback);
+    if (action === 'cerrarST')               return _handleCerrarST(params, callback);
+    if (action === 'cancelarST')             return _handleCancelarST(params, callback);
+    if (action === 'getResumenST')           return _handleGetResumenST(params, callback);
+    if (action === 'enviarCotizacionEmail')  return _handleEnviarCotizacionEmail(params, callback);
+    if (action === 'eliminarItemCotizacion') return _handleEliminarItemCotizacion(params, callback);
+    if (action === 'actualizarDatosST')      return _handleActualizarDatosST(params, callback);
+    if (action === 'sincronizarEmailsST')    return _handleSincronizarEmailsST(params, callback);
+    // ── PROVEEDORES ─────────────────────────────────────────────
+    if (action === 'getProveedores')  return _handleGetProveedores(params, callback);
+    if (action === 'toggleProveedor') return _handleToggleProveedor(params, callback);
+    // ── INVENTARIO ──────────────────────────────────────────────
+    if (action === 'getInventario')       return _handleGetInventario(params, callback);
+    if (action === 'getMovimientosInv')   return _handleGetMovimientosInv(params, callback);
+    if (action === 'registrarEntradaInv') return _handleRegistrarEntradaInv(params, callback);
+    if (action === 'ajustarInventario')   return _handleAjustarInventario(params, callback);
+    // ── ELIMINAR ST ─────────────────────────────────────────────
+    if (action === 'eliminarST') return _handleEliminarST(params, callback);
 
     // ── JSONP: uploadVoucher ─────────────────────────────────────
     if (action === 'uploadVoucher') {
@@ -514,12 +591,13 @@ function crearIngreso(orden) {
   fila[COL_I.RUC_CLI - 1]       = orden.ruc    || '';
   fila[COL_I.TIPO_PERSONA - 1]  = detectarTipoPersona(String(orden.ruc || ''));
   fila[COL_I.NUM_FACTURA - 1]   = orden.orderNumber || '';
-  fila[COL_I.TIPO_COMP - 1]     = 'orden_web';
+  fila[COL_I.TIPO_COMP - 1]     = orden.tipoComprobante || 'orden_web';
   fila[COL_I.DRIVE_URL - 1]     = orden.voucherUrl || '';
   fila[COL_I.DRIVE_PATH - 1]    = '';
   fila[COL_I.DESCRIPCION - 1]   = desc;
   fila[COL_I.NOTAS_INT - 1]     = notas;
   fila[COL_I.FLAG_REV - 1]      = String(orden.estadoPago) === 'parcial';
+  fila[COL_I.DV_CLI - 1]        = orden.dv || '';
 
   var lastRow = sheet.getLastRow() + 1;
   sheet.getRange(lastRow, 1, 1, INGRESOS_NCOLS).setValues([fila]);
@@ -641,8 +719,8 @@ function saveOrden(data, voucherUrl) {
   row[COL_O.ESTADO_PAGO - 1]  = data.estadoPago     || '';
   row[COL_O.SALDO_PEND - 1]   = data.saldoPendiente || '';
   row[COL_O.CODIGO_TRANS - 1] = data.codigo         || '';
-  row[COL_O.PAGADOR - 1]      = data.pagador         || '';
-  row[COL_O.FECHA_PAGO - 1]   = data.fechaPago       || '';
+  row[COL_O.PAGADOR - 1]      = data.pagador        || '';
+  row[COL_O.FECHA_PAGO - 1]   = data.fechaPago      || '';
   row[COL_O.INGRESO_ID - 1]   = '';
   row[COL_O.DV - 1]           = data.dv || '';
 
@@ -877,7 +955,7 @@ function _initIngresosSheet(ss) {
 
   var meta = [
     'METADATA','','','','FECHA','','','MONTOS','','','',
-    'CLASIF FISCAL','','','CLIENTE','','','COMPROBANTE','','','','NOTAS','',''
+    'CLASIF FISCAL','','','CLIENTE','','','COMPROBANTE','','','','NOTAS','','',''
   ];
   var headers = [
     'id_transaccion','fecha_registro','estado','confianza_ia',
@@ -886,7 +964,7 @@ function _initIngresosSheet(ss) {
     'tipo_ingreso','categoria_ingreso','concepto_exento_frm93',
     'nombre_cliente','ruc_cliente','tipo_persona_cliente',
     'num_factura','tipo_comprobante','drive_url','drive_path',
-    'descripcion','notas_internas','flag_revision'
+    'descripcion','notas_internas','flag_revision','dv_cliente'
   ];
 
   sheet.getRange(1, 1, 1, INGRESOS_NCOLS).setValues([meta]);
@@ -901,6 +979,7 @@ function _initIngresosSheet(ss) {
   Logger.log('✅ Hoja Ingresos creada.');
 }
 
+// v12.2: _initEgresosSheet actualizada — col U id_st_item añadida
 function _initEgresosSheet(ss) {
   var existing = ss.getSheetByName(SHEET_EGRESOS);
   if (existing) return existing;
@@ -910,7 +989,7 @@ function _initEgresosSheet(ss) {
 
   var meta = [
     'METADATA','','','FECHA','','','MONTOS','','','','CLASIFICACIÓN','',
-    'PROVEEDOR','','','COMPROBANTE','','','NOTAS',''
+    'PROVEEDOR','','','COMPROBANTE','','','NOTAS','',''
   ];
   var headers = [
     'id_egreso','fecha_registro','estado','fecha_egreso','mes','anio_fiscal',
@@ -918,7 +997,7 @@ function _initEgresosSheet(ss) {
     'tipo_egreso','categoria',
     'proveedor','ruc_proveedor','dv_proveedor',
     'num_factura_ref','id_item_cv','drive_url',
-    'descripcion','notas'
+    'descripcion','notas','id_st_item'
   ];
 
   sheet.getRange(1, 1, 1, EGRESOS_NCOLS).setValues([meta]);
@@ -929,7 +1008,7 @@ function _initEgresosSheet(ss) {
     .setBackground('#546E7A').setFontColor('#FFFFFF').setFontWeight('bold');
   sheet.setFrozenRows(2);
 
-  var widths = [180,150,100,110,50,80,90,70,90,60,120,130,200,130,80,140,160,260,300,220];
+  var widths = [180,150,100,110,50,80,90,70,90,60,120,130,200,130,80,140,160,260,300,220,160];
   for (var i = 0; i < widths.length; i++) sheet.setColumnWidth(i + 1, widths[i]);
   sheet.getRange('G3:I1000').setNumberFormat('#,##0.00');
   Logger.log('✅ Hoja Egresos creada.');
@@ -977,6 +1056,7 @@ function migrarEgresosDV() {
 
 // ═══════════════════════════════════════════════════════════════
 //  _handleGetEgresos
+//  v12.2: expone id_st_item en la respuesta
 // ═══════════════════════════════════════════════════════════════
 
 function _handleGetEgresos(params, callback) {
@@ -993,7 +1073,9 @@ function _handleGetEgresos(params, callback) {
     }
 
     var numDataRows = sheet.getLastRow() - 2;
-    var data  = sheet.getRange(3, 1, numDataRows, EGRESOS_NCOLS).getValues();
+    // Leer hasta la col 21 (EGRESOS_NCOLS) — incluye id_st_item
+    var ncols = Math.min(sheet.getLastColumn(), EGRESOS_NCOLS);
+    var data  = sheet.getRange(3, 1, numDataRows, ncols).getValues();
     var items = [];
 
     for (var i = 0; i < data.length; i++) {
@@ -1010,6 +1092,8 @@ function _handleGetEgresos(params, callback) {
         fecha_reg:    r[COL_E.FECHA_REG - 1],
         estado:       r[COL_E.ESTADO - 1]       || 'registrado',
         fecha_egreso: fechaGasto,
+        mes:          r[COL_E.MES - 1]          || '',
+        anio:         r[COL_E.ANIO - 1]         || '',
         tipo_egreso:  r[COL_E.TIPO_EGRESO - 1]  || '',
         categoria:    r[COL_E.CATEGORIA - 1]    || '',
         subtotal:     parseFloat(r[COL_E.SUBTOTAL - 1])  || 0,
@@ -1023,6 +1107,7 @@ function _handleGetEgresos(params, callback) {
         drive_url:    r[COL_E.DRIVE_URL - 1]   || '',
         descripcion:  r[COL_E.DESCRIPCION - 1] || '',
         notas:        r[COL_E.NOTAS - 1]       || '',
+        id_st_item:   (ncols >= COL_E.ID_ST_ITEM) ? (r[COL_E.ID_ST_ITEM - 1] || '') : '',
         _row:         i + 3,
       });
     }
@@ -1115,6 +1200,7 @@ function _handleRegistrarEgresoOperativo(params, callback) {
     fila[COL_E.DRIVE_URL - 1]   = params.driveUrl    || '';
     fila[COL_E.DESCRIPCION - 1] = params.descripcion || '';
     fila[COL_E.NOTAS - 1]       = params.notas       || '';
+    // id_st_item no aplica para egresos operativos manuales
 
     var newRow = sheet.getLastRow() + 1;
     sheet.getRange(newRow, 1, 1, EGRESOS_NCOLS).setValues([fila]);
@@ -1174,7 +1260,6 @@ function _handleMoverAInventario(params, callback) {
         notaActual ? notaActual + ' | ' + notaNueva : notaNueva
       );
 
-      // ── Crear egreso de costo_mercancia ─────────────────────
       var sheetEgr    = _initEgresosSheet(ss);
       var ahora       = new Date();
       var totalCarb   = parseFloat(data[i][COL_CV.TOTAL_CARBONE - 1] || '0') || 0;
@@ -1234,6 +1319,7 @@ function _handleMoverAInventario(params, callback) {
       filaEgr[COL_E.DRIVE_URL - 1]   = driveCarb;
       filaEgr[COL_E.DESCRIPCION - 1] = descripProd + (cantidad > 1 ? ' ×' + cantidad : '');
       filaEgr[COL_E.NOTAS - 1]       = 'Ingreso a inventario · Cant: ' + cantidad;
+      // id_st_item vacío — egresos de inventario Carbone no tienen ST_Item
 
       var newEgrRow = sheetEgr.getLastRow() + 1;
       sheetEgr.getRange(newEgrRow, 1, 1, EGRESOS_NCOLS).setValues([filaEgr]);
@@ -1259,7 +1345,7 @@ function _handleMoverAInventario(params, callback) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  _handleGetIngresos  ← FIX: fecha_reg serializada correctamente
+//  _handleGetIngresos
 // ═══════════════════════════════════════════════════════════════
 
 function _handleGetIngresos(params, callback) {
@@ -1428,6 +1514,7 @@ function _handleRegistrarIngresoManual(params, callback) {
     fila[COL_I.DESCRIPCION - 1]   = params.descripcion || '';
     fila[COL_I.NOTAS_INT - 1]     = params.notas       || '';
     fila[COL_I.FLAG_REV - 1]      = false;
+    fila[COL_I.DV_CLI - 1]        = params.dv || '';
 
     var newRow = sheet.getLastRow() + 1;
     sheet.getRange(newRow, 1, 1, INGRESOS_NCOLS).setValues([fila]);
@@ -1497,17 +1584,15 @@ function _handleParseFacturaEgreso(data) {
     };
 
     var response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-      method:          'post',
-      contentType:     'application/json',
-      headers:         { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      payload:         JSON.stringify(payload),
+      method:             'post',
+      contentType:        'application/json',
+      headers:            { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      payload:            JSON.stringify(payload),
       muteHttpExceptions: true,
     });
 
     var code = response.getResponseCode();
-    if (code !== 200) {
-      throw new Error('Claude API error ' + code + ': ' + response.getContentText().substring(0, 200));
-    }
+    if (code !== 200) throw new Error('Claude API error ' + code + ': ' + response.getContentText().substring(0, 200));
 
     var respData = JSON.parse(response.getContentText());
     var text     = '';
@@ -1609,9 +1694,7 @@ function _handleParseComprobanteIngreso(data) {
     });
 
     var code = response.getResponseCode();
-    if (code !== 200) {
-      throw new Error('Claude API error ' + code + ': ' + response.getContentText().substring(0, 200));
-    }
+    if (code !== 200) throw new Error('Claude API error ' + code + ': ' + response.getContentText().substring(0, 200));
 
     var respData = JSON.parse(response.getContentText());
     var text     = '';
@@ -1644,4 +1727,220 @@ function _handleParseComprobanteIngreso(data) {
       .createTextOutput(JSON.stringify({ success: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleCorregirComprobante  ← PATCH v12
+// ═══════════════════════════════════════════════════════════════
+
+function _handleCorregirComprobante(data) {
+  try {
+    var idItem    = data.id_item    || '';
+    var ingresoId = data.ingreso_id || '';
+    if (!idItem) throw new Error('id_item requerido');
+
+    var b64      = data.imageBase64 || '';
+    var mimeType = data.imageMime   || 'image/jpeg';
+    var fileName = data.imageName   || ('comp_corr_' + idItem + '_' + Date.now() + '.jpg');
+    if (!b64) throw new Error('imageBase64 requerido');
+
+    var folder  = DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID);
+    var bytes   = Utilities.base64Decode(b64);
+    var blob    = Utilities.newBlob(bytes, mimeType, fileName);
+    var file    = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var driveUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
+
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+    var sheetCV = ss.getSheetByName('Compras_Ventas');
+    if (!sheetCV) throw new Error('Hoja Compras_Ventas no encontrada');
+
+    var cvData  = sheetCV.getDataRange().getValues();
+    var cvFound = false;
+    for (var i = 2; i < cvData.length; i++) {
+      if (String(cvData[i][0]) === String(idItem)) {
+        sheetCV.getRange(i + 1, _CC_DRIVE_URL_EMIT).setValue(driveUrl);
+        cvFound = true;
+        Logger.log('✅ CV drive_url_emit actualizado: ' + idItem);
+        break;
+      }
+    }
+    if (!cvFound) Logger.log('⚠️ id_item no encontrado en CV: ' + idItem);
+
+    var ingFound = false;
+    if (ingresoId && ingresoId.indexOf('OPERATIVO-') === -1) {
+      var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+      if (sheetIng && sheetIng.getLastRow() > 2) {
+        var ingData = sheetIng.getRange(3, 1, sheetIng.getLastRow() - 2, INGRESOS_NCOLS).getValues();
+        for (var j = 0; j < ingData.length; j++) {
+          if (String(ingData[j][COL_I.ID_TRANS - 1]) === String(ingresoId)) {
+            var rowIng = j + 3;
+            sheetIng.getRange(rowIng, COL_I.DRIVE_URL).setValue(driveUrl);
+            var notaActual = String(sheetIng.getRange(rowIng, COL_I.NOTAS_INT).getValue() || '');
+            var stamp      = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+            var notaNueva  = 'Comprobante corregido: ' + stamp;
+            sheetIng.getRange(rowIng, COL_I.NOTAS_INT).setValue(
+              notaActual ? notaActual + ' | ' + notaNueva : notaNueva
+            );
+            ingFound = true;
+            Logger.log('✅ Ingresos drive_url actualizado: ' + ingresoId);
+            break;
+          }
+        }
+        if (!ingFound) Logger.log('⚠️ ingreso_id no encontrado en Ingresos: ' + ingresoId);
+      }
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        success:  true,
+        driveUrl: driveUrl,
+        cvFound:  cvFound,
+        ingFound: ingFound,
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    Logger.log('Error _handleCorregirComprobante: ' + err.message);
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleActualizarNotasIngreso  ← PATCH v12.1
+// ═══════════════════════════════════════════════════════════════
+
+function _handleActualizarNotasIngreso(params, callback) {
+  var result = { success: false, error: null };
+  try {
+    var ingresoId = String(params.ingreso_id || '').trim();
+    var datosPago = String(params.datos_pago  || '').trim();
+
+    if (!ingresoId) throw new Error('ingreso_id requerido');
+    if (!datosPago)  throw new Error('datos_pago requerido');
+
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+    if (!sheet) throw new Error('Hoja Ingresos no encontrada');
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 2) throw new Error('Hoja Ingresos vacía');
+
+    var numRows = lastRow - 2;
+    var ids     = sheet.getRange(3, COL_I.ID_TRANS, numRows, 1).getValues();
+    var found   = false;
+
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]).trim() === ingresoId) {
+        var rowNum     = i + 3;
+        var notaActual = String(sheet.getRange(rowNum, COL_I.NOTAS_INT).getValue() || '');
+        var notaNueva  = notaActual ? notaActual + ' | ' + datosPago : datosPago;
+        sheet.getRange(rowNum, COL_I.NOTAS_INT).setValue(notaNueva);
+        found = true;
+        Logger.log('✅ Notas actualizadas en ingreso: ' + ingresoId);
+        break;
+      }
+    }
+
+    if (!found) throw new Error('Ingreso no encontrado: ' + ingresoId);
+    result.success = true;
+
+  } catch(err) {
+    result.error = err.message;
+    Logger.log('Error _handleActualizarNotasIngreso: ' + err.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+function _handleAnularRegistro(params, callback) {
+  var result = { success: false, error: null };
+  try {
+    var tipo = params.tipo || '';
+    var id   = params.id   || '';
+    Logger.log('ANULAR — tipo: [' + tipo + '] id: [' + id + ']');
+    if (!tipo || !id) throw new Error('tipo e id requeridos');
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+    if (tipo === 'ingreso') {
+      var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+      var lastRowIng = sheetIng.getLastRow();
+      Logger.log('Ingresos lastRow: ' + lastRowIng);
+      if (lastRowIng <= 2) throw new Error('Hoja Ingresos sin datos');
+      var dataIng = sheetIng.getRange(3, 1, lastRowIng - 2, INGRESOS_NCOLS).getValues();
+      Logger.log('Filas a buscar: ' + dataIng.length + ' | Primera ID: [' + String(dataIng[0][COL_I.ID_TRANS-1]) + ']');
+      for (var i = 0; i < dataIng.length; i++) {
+        if (String(dataIng[i][COL_I.ID_TRANS-1]) === id) {
+          sheetIng.getRange(i+3, COL_I.ESTADO).setValue('anulado');
+          sheetIng.getRange(i+3, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
+          Logger.log('✅ Anulado en fila ' + (i+3));
+          break;
+        }
+      }
+    } else {
+      var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
+      var lastRowEgr = sheetEgr.getLastRow();
+      Logger.log('Egresos lastRow: ' + lastRowEgr);
+      if (lastRowEgr <= 2) throw new Error('Hoja Egresos sin datos');
+      var dataEgr = sheetEgr.getRange(3, 1, lastRowEgr - 2, EGRESOS_NCOLS).getValues();
+      Logger.log('Filas a buscar: ' + dataEgr.length + ' | Primera ID: [' + String(dataEgr[0][COL_E.ID-1]) + ']');
+      for (var j = 0; j < dataEgr.length; j++) {
+        if (String(dataEgr[j][COL_E.ID-1]) === id) {
+          sheetEgr.getRange(j+3, COL_E.ESTADO).setValue('anulado');
+          sheetEgr.getRange(j+3, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
+          Logger.log('✅ Anulado en fila ' + (j+3));
+          break;
+        }
+      }
+    }
+    result.success = true;
+  } catch(err) {
+    result.error = err.message;
+    Logger.log('ERROR: ' + err.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+function _handleActualizarCategoria(params, callback) {
+  var result = { success: false, error: null };
+  try {
+    var tipo      = params.tipo      || '';
+    var id        = params.id        || '';
+    var categoria = params.categoria || '';
+    if (!tipo || !id || !categoria) throw new Error('tipo, id y categoria requeridos');
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+    if (tipo === 'ingreso') {
+      var sheetIng2 = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+      var dataIng2  = sheetIng2.getRange(3, 1, sheetIng2.getLastRow()-2, INGRESOS_NCOLS).getValues();
+      for (var i = 0; i < dataIng2.length; i++) {
+        if (String(dataIng2[i][COL_I.ID_TRANS-1]) === id) {
+          sheetIng2.getRange(i+3, COL_I.CATEGORIA).setValue(categoria);
+          break;
+        }
+      }
+    } else {
+      var sheetEgr2 = ss.getSheetByName(SHEET_EGRESOS);
+      var dataEgr2  = sheetEgr2.getRange(3, 1, sheetEgr2.getLastRow()-2, EGRESOS_NCOLS).getValues();
+      for (var j = 0; j < dataEgr2.length; j++) {
+        if (String(dataEgr2[j][COL_E.ID-1]) === id) {
+          sheetEgr2.getRange(j+3, COL_E.CATEGORIA).setValue(categoria);
+          break;
+        }
+      }
+    }
+    result.success = true;
+  } catch(err) {
+    result.error = err.message;
+    Logger.log('Error _handleActualizarCategoria: ' + err.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
