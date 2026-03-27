@@ -1442,9 +1442,9 @@
     var html = '<div class="st-table-wrap"><table class="st-table">';
     html += '<thead><tr>';
     html += '<th>N° / ID</th><th>Cliente</th><th>Descripción</th><th>Estado</th>';
-    html += '<th class="r">Neto</th><th class="r" style="background:#f0fdf4;color:#15803d">ITBMS</th><th class="r" style="background:#f0fdf4;color:#15803d">Total</th>';
-    html += '<th class="r">Costo</th><th class="r">Utilidad</th><th class="r">Margen</th>';
-    html += '<th>Pago</th><th>Acciones</th>';
+    html += '<th class="r" style="background:#f0fdf4;color:#15803d">Neto</th><th class="r" style="background:#f0fdf4;color:#15803d">ITBMS</th><th class="r" style="background:#f0fdf4;color:#15803d">Total</th>';
+    html += '<th class="r" style="background:#eff6ff;color:#1d4ed8">Costo</th><th class="r" style="background:#eff6ff;color:#1d4ed8">Utilidad</th><th class="r" style="background:#eff6ff;color:#1d4ed8">Margen</th>';
+    html += '<th>Acciones</th>';
     html += '</tr></thead><tbody>';
     items.forEach(function(st) {
       var pvNeto   = st.subtotal_venta > 0
@@ -1461,22 +1461,17 @@
       var margenPct = pvNeto > 0 ? ((utilidad / pvNeto) * 100).toFixed(1) : '—';
       var uColor = utilidad >= 0 ? '#15803d' : '#dc2626';
       var enEje = st.estado === 'en_ejecucion';
-      var pagoCell = st.ingreso_id
-        ? '<span style="font-size:.68rem;color:#15803d;font-weight:600">'+st_esc(st.ingreso_id.slice(-12))+'</span>'
-        : (enEje ? '<span class="st-inv-upload-link" style="font-size:.68rem" onclick="st_abrirModalPagoCliente('+JSON.stringify({ingreso_id:'',precio_venta:st.precio_venta,total_real:st.total_costo_real})+')">⚠️ Registrar</span>' : '<span style="color:#94a3b8;font-size:.68rem">—</span>');
-
       html += '<tr>';
       html += '<td class="mono"><div>'+st_esc(st_numFactura(st))+'</div><div style="font-size:.65rem;color:#94a3b8">'+st_esc(st.id_st)+'</div></td>';
       html += '<td style="font-weight:600;max-width:150px">'+st_esc(st.nombre_cliente)+'</td>';
       html += '<td style="max-width:200px;color:#64748b;font-size:.73rem">'+st_esc(st.descripcion.length>60?st.descripcion.slice(0,60)+'…':st.descripcion)+'</td>';
       html += '<td><span class="st-badge s-'+st_esc(st.estado)+'">'+st_esc(ESTADO_LABEL[st.estado]||st.estado)+'</span></td>';
-      html += '<td class="r">'+st_fmt(pvNeto)+'</td>';
+      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:600">'+st_fmt(pvNeto)+'</td>';
       html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:600">'+(esExento ? '<span style="font-size:.68rem;font-weight:600;color:#64748b">Exento</span>' : st_fmt(pvItbms))+'</td>';
       html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:700">'+(pvTotal > 0 ? st_fmt(pvTotal) : '—')+'</td>';
-      html += '<td class="r" style="color:#8b5cf6">'+st_fmt(totalCosto)+'</td>';
-      html += '<td class="r" style="color:'+uColor+'">'+st_fmt(utilidad)+'</td>';
-      html += '<td class="r" style="color:'+uColor+'">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
-      html += '<td>'+pagoCell+'</td>';
+      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+st_fmt(totalCosto)+'</td>';
+      html += '<td class="r" style="background:#eff6ff;color:'+uColor+';font-weight:600">'+st_fmt(utilidad)+'</td>';
+      html += '<td class="r" style="background:#eff6ff;color:'+uColor+';font-weight:600">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
       html += '<td><div class="st-tbl-actions">';
       if (st.estado === 'cotizado') {
         html += '<button class="st-tbl-btn warning" onclick="st_accionEmailTabla(\''+st_esc(st.id_st)+'\',\''+st_esc(st.email_cliente||'')+'\')">📧</button>';
@@ -1489,10 +1484,10 @@
         html += '<button class="st-tbl-btn success" onclick="st_accionRegistrarIngresoTabla(\''+st_esc(st.id_st)+'\')">💰</button>';
       }
       if (enEje) {
-        html += '<button class="st-tbl-btn danger" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST" style="padding:3px 7px">🗑️</button>';
+        html += '<button class="st-tbl-btn" style="background:none;border:none;padding:3px 5px;font-size:.9rem;cursor:pointer;color:#94a3b8" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST">🗑️</button>';
         html += '<button class="st-tbl-btn" style="background:#f0fdf4;border-color:#86efac;color:#15803d;padding:3px 7px" onclick="st_accionCerrarTabla(\''+st_esc(st.id_st)+'\')" title="Cerrar ST">🔒</button>';
       } else {
-        html += '<button class="st-tbl-btn danger" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST" style="padding:3px 7px">🗑️</button>';
+        html += '<button class="st-tbl-btn" style="background:none;border:none;padding:3px 5px;font-size:.9rem;cursor:pointer;color:#94a3b8" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST">🗑️</button>';
       }
       html += '</div></td>';
       html += '</tr>';
