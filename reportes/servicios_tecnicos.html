@@ -1427,7 +1427,7 @@
 
   // ── VISTA SIMPLE / DETALLE ────────────────────────────────
 
-  window.st_setVista = function(modo) {
+  window.st_setVista = function(modo, skipRender) {
     st_state.vistaMode = modo;
     var btnD = document.getElementById('st-v-detalle');
     var btnT = document.getElementById('st-v-tabla');
@@ -1435,11 +1435,10 @@
     var idleStyle = 'font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer';
     if (btnD) btnD.style.cssText = modo === 'detalle' ? actStyle : idleStyle;
     if (btnT) btnT.style.cssText = modo === 'tabla'   ? actStyle : idleStyle;
-
+    if (skipRender) return;
     if (modo === 'tabla') {
       st_renderTabla();
     } else {
-      // Detalle: renderCards handles all drawer loading automatically
       st_renderCards(st_state.filtered);
     }
   };
@@ -2769,8 +2768,8 @@
 
   // ── INIT ─────────────────────────────────────────────────
   setTimeout(function() {
-    st_state.vistaMode = 'detalle';
-    st_cargarDatos(true);
+    st_setVista('tabla', true);   // set mode + button styles, no render yet
+    st_cargarDatos(true);         // carga datos → applyFilters → renderTabla
   }, 0);
 
 })();
