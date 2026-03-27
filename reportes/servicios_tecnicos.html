@@ -866,7 +866,11 @@
   }
 
   function st_buildCard(st) {
-    var pvNeto = st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0;
+    // pvNeto: usar subtotal_venta del resumen si existe (correcto para gravados y exentos),
+    // fallback a /1.07 solo si no está disponible.
+    var pvNeto = st.subtotal_venta > 0
+      ? st.subtotal_venta
+      : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
     var util = pvNeto - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
     var uClr = util >= 0 ? '#15803d' : '#dc2626';
     var fecha = String(st.fecha_reg||'').slice(0,10);
@@ -1151,8 +1155,12 @@
     items.forEach(function(it) { totalCostoCalc += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0; });
     totalCostoCalc = parseFloat(totalCostoCalc.toFixed(2));
 
-    // Facturado neto: precio_venta almacenado incluye ITBMS 7%; mostramos base neta
-    var pv         = r.precio_venta > 0 ? parseFloat((r.precio_venta / 1.07).toFixed(2)) : 0;
+    // Facturado neto: usar subtotal_venta del resumen (calculado correctamente por el GAS
+    // tanto para gravados como exentos). Fallback a /1.07 si no está disponible.
+    var esExento   = r.es_exento || false;
+    var pv         = r.subtotal_venta > 0
+      ? r.subtotal_venta
+      : (r.precio_venta > 0 ? parseFloat((r.precio_venta / 1.07).toFixed(2)) : 0);
     var utilReal   = pv - totalCostoCalc;
     var margen     = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
     var pctCosto   = pv > 0 ? ((totalCostoCalc / pv) * 100).toFixed(1) : '—';
@@ -1182,7 +1190,11 @@
     }
 
     html += '<div class="st-met-row">' +
-      '<div class="st-met-cell"><div class="st-met-lbl">Facturado</div>' +
+      '<div class="st-met-cell">' +
+        '<div class="st-met-lbl">Neto' +
+          (esExento ? ' <span style="background:#dcfce7;color:#15803d;font-size:.58rem;font-weight:700;' +
+            'padding:1px 6px;border-radius:10px;vertical-align:middle;margin-left:4px">Exento</span>' : '') +
+        '</div>' +
         '<div class="st-met-val" style="color:#1A237E">'+st_fmt(pv)+'</div>' +
       '</div>' +
       '<div class="st-met-cell"><div class="st-met-lbl">Costo real</div>' +
@@ -1430,10 +1442,12 @@
     html += '<th>Inventario</th><th>Pago</th><th>Acciones</th>';
     html += '</tr></thead><tbody>';
     items.forEach(function(st) {
-      var pvNetoT  = st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0;
+      var pvNetoT  = st.subtotal_venta > 0
+        ? st.subtotal_venta
+        : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
       var totalCosto = st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0);
       var utilidad = pvNetoT - totalCosto;
-      var margenPct = st.precio_venta > 0 ? ((utilidad / st.precio_venta) * 100).toFixed(1) : '—';
+      var margenPct = pvNetoT > 0 ? ((utilidad / pvNetoT) * 100).toFixed(1) : '—';
       var uColor = utilidad >= 0 ? '#15803d' : '#dc2626';
       var enEje = st.estado === 'en_ejecucion';
       var hasInvItems = (st.items||[]).some(function(it){ return it.tipo==='producto'; });
@@ -1861,7 +1875,9 @@
       });
       totalCostoReal = parseFloat(totalCostoReal.toFixed(2));
     }
-    var pvNeto = st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0;
+    var pvNeto = st.subtotal_venta > 0
+      ? st.subtotal_venta
+      : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
     var util   = pvNeto - (totalCostoReal > 0 ? totalCostoReal : (parseFloat(st.total_costo_cotizado)||0));
     var uClr   = util >= 0 ? '#15803d' : '#dc2626';
     var montoEl = document.getElementById('stcard-monto-' + idST);
