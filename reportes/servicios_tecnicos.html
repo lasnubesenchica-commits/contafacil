@@ -883,8 +883,8 @@
     h +=     '<div class="st-card-row1">';
     h +=       '<div class="st-card-cli">' + st_esc(st.nombre_cliente) + '</div>';
     h +=       '<div class="st-card-right">';
-    h +=         '<div class="st-card-monto">' + st_fmt(st.precio_venta) + '</div>';
-    h +=         '<div class="st-card-util" style="color:' + uClr + '">' + (util>=0?'▲':'▼') + ' ' + st_fmt(Math.abs(util)) + '</div>';
+    h +=         '<div class="st-card-monto" id="stcard-monto-' + idEsc + '">' + st_fmt(st.precio_venta) + '</div>';
+    h +=         '<div class="st-card-util" id="stcard-util-' + idEsc + '" style="color:' + uClr + '">' + (util>=0?'▲':'▼') + ' ' + st_fmt(Math.abs(util)) + '</div>';
     h +=       '</div>';
     h +=     '</div>';
     h +=     '<div class="st-card-row2">';
@@ -1829,6 +1829,19 @@
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   };
 
+  function st_refreshCardHeader(idST, st, totalCostoReal) {
+    if (!st) return;
+    var util   = (st.precio_venta||0) - (totalCostoReal > 0 ? totalCostoReal : (parseFloat(st.total_costo_cotizado)||0));
+    var uClr   = util >= 0 ? '#15803d' : '#dc2626';
+    var montoEl = document.getElementById('stcard-monto-' + idST);
+    var utilEl  = document.getElementById('stcard-util-'  + idST);
+    if (montoEl) montoEl.textContent = st_fmt(st.precio_venta);
+    if (utilEl) {
+      utilEl.textContent = (util >= 0 ? '▲' : '▼') + ' ' + st_fmt(Math.abs(util));
+      utilEl.style.color = uClr;
+    }
+  }
+
   function st_recargarDetalle() {
     var st = st_state.stActual;
     if (!st) { st_cargarDatos(true); return; }
@@ -1873,6 +1886,7 @@
         if (!res) return;
         if (!res.success) throw new Error(res.error);
         st_renderDrawer(idST, res.resumen);
+        st_refreshCardHeader(idST, st_state.stActual, res.resumen.total_real || 0);
         st_computeKPIs();
       })
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
