@@ -1,5 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-//  ContaFacil_ImportHistorial.gs  — v2.9f
+//  ContaFacil_ImportHistorial.gs  — v2.9g
+//  v2.9g — retry automático en llamadas Claude API:
+//    _claudeFetchConRetry: 3 intentos con backoff 15s para errores
+//    529 (Overloaded), 500, 503, 429. Aplica a parsear CEYCO y costo.
+//    max_tokens confirmado en 2000 en ambas funciones ✅
 //  v2.9f — drive_url_factura en ST_Items:
 //    _crearSTItem y _crearSTItemGeneral ahora escriben la URL de la
 //    factura de costo en COL_STI.DRIVE_URL (col Q drive_url_factura).
@@ -668,6 +672,43 @@ function _debeIgnorar(nombre, mime) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════
+//  _claudeFetchConRetry
+//  Wrapper con reintentos automáticos para errores transitorios
+//  de la API de Claude (529 Overloaded, 500, 503, 429).
+//  - Hasta 3 intentos
+//  - Espera 15s entre intentos
+//  - Lanza error solo si los 3 intentos fallan
+// ═══════════════════════════════════════════════════════════════
+
+function _claudeFetchConRetry(payload, contexto) {
+  var apiKey  = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  var opciones = {
+    method: 'post', contentType: 'application/json',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    payload: JSON.stringify(payload), muteHttpExceptions: true,
+  };
+  var REINTENTOS    = 3;
+  var ESPERA_MS     = 15000;
+  var CODIGOS_RETRY = [429, 500, 503, 529];
+
+  for (var intento = 1; intento <= REINTENTOS; intento++) {
+    var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', opciones);
+    var code = resp.getResponseCode();
+    if (code === 200) return resp;
+
+    var reintentable = CODIGOS_RETRY.indexOf(code) !== -1;
+    Logger.log('  ⚠️  Claude API ' + code + ' (' + contexto + ') — intento ' + intento + '/' + REINTENTOS +
+               (reintentable && intento < REINTENTOS ? ' — reintentando en ' + (ESPERA_MS/1000) + 's...' : ''));
+
+    if (!reintentable || intento === REINTENTOS) {
+      throw new Error('Claude API error ' + code + ' (' + contexto + ') tras ' + intento + ' intento(s)');
+    }
+    Utilities.sleep(ESPERA_MS);
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  _parsearFacturaCeyco — multi-ítem con código de producto
 // ═══════════════════════════════════════════════════════════════
@@ -724,13 +765,7 @@ function _parsearFacturaCeyco(archivo) {
     messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }]
   };
 
-  var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post', contentType: 'application/json',
-    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify(payload), muteHttpExceptions: true,
-  });
-
-  if (resp.getResponseCode() !== 200) throw new Error('Claude API error ' + resp.getResponseCode() + ' (parsear CEYCO)');
+  var resp = _claudeFetchConRetry(payload, 'parsear CEYCO');
 
   var text = '';
   var content = JSON.parse(resp.getContentText()).content || [];
@@ -853,13 +888,7 @@ function _parsearFacturaCosto(archivo) {
     messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }]
   };
 
-  var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post', contentType: 'application/json',
-    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify(payload), muteHttpExceptions: true,
-  });
-
-  if (resp.getResponseCode() !== 200) throw new Error('Claude API error ' + resp.getResponseCode() + ' (parsear costo)');
+  var resp = _claudeFetchConRetry(payload, 'parsear costo');
 
   var text = '';
   var content = JSON.parse(resp.getContentText()).content || [];
