@@ -1141,6 +1141,55 @@ function _handleGetCotizaciones(params, callback) {
       return String(b.fecha_reg).localeCompare(String(a.fecha_reg));
     });
 
+    // Enriquecer con subtotal_venta y es_exento cruzando hoja Ingresos
+    // Necesario para que el KPI Cerrados muestre el neto real (gravados Y exentos)
+    try {
+      var sheetIngLst = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+      if (sheetIngLst && sheetIngLst.getLastRow() > 2) {
+        var numIngLst = sheetIngLst.getLastRow() - 2;
+        var ingLstData = sheetIngLst.getRange(3, 1, numIngLst, INGRESOS_NCOLS).getValues();
+        // Construir mapa ingreso_id → {subtotal, categoria, fecha_ingreso, mes, anio}
+        var ingMap = {};
+        for (var ii = 0; ii < ingLstData.length; ii++) {
+          var ingId  = String(ingLstData[ii][COL_I.ID_TRANS - 1] || '').trim();
+          if (!ingId) continue;
+          var fechaIng = ingLstData[ii][COL_I.FECHA_INGRESO - 1];
+          if (fechaIng instanceof Date) {
+            fechaIng = Utilities.formatDate(fechaIng, 'America/Panama', 'yyyy-MM-dd');
+          } else {
+            fechaIng = String(fechaIng || '').slice(0, 10);
+          }
+          ingMap[ingId] = {
+            subtotal:      parseFloat(ingLstData[ii][COL_I.SUBTOTAL  - 1] || '0') || 0,
+            categoria:     String(ingLstData[ii][COL_I.CATEGORIA - 1] || ''),
+            fecha_ingreso: fechaIng,
+            mes:           ingLstData[ii][COL_I.MES - 1] || '',
+            anio:          ingLstData[ii][COL_I.ANIO_FISCAL - 1] || '',
+          };
+        }
+        // Asignar a cada ST con ingreso_id
+        for (var si = 0; si < sts.length; si++) {
+          var ingId2 = String(sts[si].ingreso_id || '').trim();
+          if (ingId2 && ingMap[ingId2]) {
+            sts[si].subtotal_venta = ingMap[ingId2].subtotal;
+            var cat = ingMap[ingId2].categoria;
+            sts[si].es_exento      = (cat === 'servicio_tecnico_exento' || cat === 'venta_producto_exento');
+            sts[si].fecha_ingreso  = ingMap[ingId2].fecha_ingreso;
+            sts[si].mes_ingreso    = ingMap[ingId2].mes;
+            sts[si].anio_ingreso   = ingMap[ingId2].anio;
+          } else {
+            sts[si].subtotal_venta = 0;
+            sts[si].es_exento      = false;
+            sts[si].fecha_ingreso  = '';
+            sts[si].mes_ingreso    = '';
+            sts[si].anio_ingreso   = '';
+          }
+        }
+      }
+    } catch(ingErr) {
+      Logger.log('⚠️ _handleGetCotizaciones: error enriqueciendo subtotal_venta: ' + ingErr.message);
+    }
+
     result.success = true;
     result.items   = sts;
   } catch(err) {
