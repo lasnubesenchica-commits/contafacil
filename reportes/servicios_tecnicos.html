@@ -1132,11 +1132,16 @@
     }
     html += '</div></div>';
 
+    // Calcular total de costos sumando ítems (fuente de verdad = tabla, no r.total_real que puede estar desactualizado)
+    var totalCostoCalc = 0;
+    items.forEach(function(it) { totalCostoCalc += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0; });
+    totalCostoCalc = parseFloat(totalCostoCalc.toFixed(2));
+
     // Facturado neto: precio_venta almacenado incluye ITBMS 7%; mostramos base neta
     var pv         = r.precio_venta > 0 ? parseFloat((r.precio_venta / 1.07).toFixed(2)) : 0;
-    var utilReal   = pv - (r.total_real||0);
+    var utilReal   = pv - totalCostoCalc;
     var margen     = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
-    var pctCosto   = pv > 0 ? ((r.total_real / pv) * 100).toFixed(1) : '—';
+    var pctCosto   = pv > 0 ? ((totalCostoCalc / pv) * 100).toFixed(1) : '—';
     var pctUtil    = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
     var margenNum  = parseFloat(margen) || 0;
 
@@ -1167,7 +1172,7 @@
         '<div class="st-met-val" style="color:#1A237E">'+st_fmt(pv)+'</div>' +
       '</div>' +
       '<div class="st-met-cell"><div class="st-met-lbl">Costo real</div>' +
-        '<div class="st-met-val" style="color:#8b5cf6">'+st_fmt(r.total_real) +
+        '<div class="st-met-val" style="color:#8b5cf6">'+st_fmt(totalCostoCalc) +
           (pctCosto !== '—' ? '<span style="font-size:.65rem;font-weight:500;color:#94a3b8;margin-left:4px">('+pctCosto+'%)</span>' : '') +
         '</div>' +
       '</div>' +
@@ -1213,7 +1218,7 @@
       var tipoEntries = Object.keys(tipoTotales).map(function(t) {
         return { tipo: t, monto: tipoTotales[t] };
       }).sort(function(a, b) { return b.monto - a.monto; });
-      var totalCostos = r.total_real || 0;
+      var totalCostos = totalCostoCalc;
       var maxMonto    = tipoEntries.length ? tipoEntries[0].monto : 1;
 
       html += '<div class="st-res-wrap"><div class="st-res-lbl">Costos por tipo</div>';
@@ -1831,6 +1836,16 @@
 
   function st_refreshCardHeader(idST, st, totalCostoReal) {
     if (!st) return;
+    // Recalculate from items if available (avoids stale r.total_real from backend)
+    if (st.items && st.items.length) {
+      totalCostoReal = 0;
+      st.items.forEach(function(it) {
+        if (it.estado_item !== 'cancelado') {
+          totalCostoReal += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0;
+        }
+      });
+      totalCostoReal = parseFloat(totalCostoReal.toFixed(2));
+    }
     var util   = (st.precio_venta||0) - (totalCostoReal > 0 ? totalCostoReal : (parseFloat(st.total_costo_cotizado)||0));
     var uClr   = util >= 0 ? '#15803d' : '#dc2626';
     var montoEl = document.getElementById('stcard-monto-' + idST);
