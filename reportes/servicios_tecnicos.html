@@ -990,7 +990,7 @@
     var st = st_state.stActual;
     if (!st) return;
     var enEje = st.estado === 'en_ejecucion';
-    var items = r.items || [];
+    var items = (r.items || []).filter(function(it) { return it.estado_item !== 'cancelado'; });
     var notas = String(st.notas || '');
     var html  = '';
     var voucherUrl = '';
@@ -1192,6 +1192,7 @@
       }
       if (st.estado==='aprobado') html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionIniciar_st()">🚀 Iniciar</button>';
       if (enEje && !r.ingreso_id) html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_abrirModalIngreso(\''+idST+'\')">💰 Registrar ingreso</button>';
+      if (enEje) html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_abrirModalNuevoCosto(\''+idST+'\')">💸 Registrar costo</button>';
 
       if (enEje && r.ingreso_id) html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_accionCerrar_st()">🔒 Cerrar ST</button>';
       html += '</div>';
@@ -1884,6 +1885,31 @@
     }
   }
   window.st_setActualById = st_setActualById;
+
+  // Abre el modal para registrar un costo NUEVO (sin egreso previo)
+  // Solo se llama desde el boton "Registrar costo" del drawer
+  window.st_abrirModalNuevoCosto = function(idST) {
+    if (idST) st_setActualById(idST);
+    // Limpiar todo el modal
+    ['st-me-tipo','st-me-desc','st-me-prov','st-me-nfac','st-me-total','st-me-itbms','st-me-notas'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = (id === 'st-me-tipo') ? 'producto' : '';
+    });
+    document.getElementById('st-me-fecha').value = st_today();
+    document.getElementById('st-me-file').value  = '';
+    // Limpiar campos ocultos — sin egreso_id ni item_id = nuevo costo libre
+    var hidEgresoId = document.getElementById('st-me-egreso-id');
+    var hidItemId   = document.getElementById('st-me-item-id-actual');
+    hidEgresoId.value = '';
+    hidEgresoId.setAttribute('data-st-id', idST || '');
+    hidItemId.value   = '';
+    // Titulo y boton
+    var mt = document.querySelector('#st-modal-egreso h3');
+    var bg = document.getElementById('st-me-btn-guardar');
+    if (mt) mt.textContent = '💸 Registrar Costo';
+    if (bg) bg.textContent = '💾 Registrar';
+    document.getElementById('st-modal-egreso').style.display = 'flex';
+  };
 
   window.st_cerrarModalEgreso = function() {
     document.getElementById('st-modal-egreso').style.display = 'none';
