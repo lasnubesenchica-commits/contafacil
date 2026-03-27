@@ -1155,14 +1155,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="pl-card-header"><span class="pl-card-title">Métricas clave</span></div>
       <div class="pl-metric-grid">
         <div class="pl-metric">
-          <div class="pl-metric-label">Margen bruto</div>
-          <div class="pl-metric-value" id="plMBruto" style="color:var(--green)">—</div>
-        </div>
-        <div class="pl-metric">
-          <div class="pl-metric-label">Margen neto</div>
-          <div class="pl-metric-value" id="plMNeto" style="color:var(--green)">—</div>
-        </div>
-        <div class="pl-metric">
           <div class="pl-metric-label">Ticket promedio</div>
           <div class="pl-metric-value" id="plTicket" style="color:var(--text)">—</div>
         </div>
@@ -1177,6 +1169,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <div class="pl-metric">
           <div class="pl-metric-label">ITBMS pagado</div>
           <div class="pl-metric-value" id="plItbmsEgr" style="color:#6A1B9A">—</div>
+        </div>
+        <div class="pl-metric" style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:.75rem;margin-top:.25rem">
+          <div class="pl-metric-label">ITBMS neto a pagar DGI</div>
+          <div class="pl-metric-value" id="plItbmsNeto" style="color:#1565C0">—</div>
         </div>
       </div>
     </div>
@@ -5394,52 +5390,52 @@ function renderDashboard() {
   const totalIng    = ingresos.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
   const itbmsIng    = ingresos.reduce((s,i) => s + (parseFloat(i.itbms)||0), 0);
   // FIX #3: COGS real = costo_mercancia + costos de flete/aduana/servicio vinculados a un ST
-  // Los egresos de tipo costo_servicio_tecnico generados por ST son parte del costo del proyecto
   const cogs        = egresos.filter(e =>
     e.tipo_egreso === 'costo_mercancia' ||
     (e.tipo_egreso === 'costo_servicio_tecnico' && String(e.notas || e.notas_internas || '').includes('ST:'))
   ).reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
-  const utilBruta   = totalIng - cogs;
-  const utilNeta    = totalIng - totalEgr;
-  const margenBruto = totalIng > 0 ? (utilBruta / totalIng) * 100 : 0;
-  const margenNeto  = totalIng > 0 ? (utilNeta  / totalIng) * 100 : 0;
-  const txCount     = ingresos.length;
-  const ticket      = txCount > 0 ? totalIng / txCount : 0;
+  // Ingresos NETO = subtotal sin ITBMS (base imponible real)
+  const totalIngNeto = ingresos.reduce((s,i) => s + (parseFloat(i.subtotal)||0), 0);
+  const utilNeta     = totalIngNeto - totalEgr;
+  const margenNeto   = totalIngNeto > 0 ? (utilNeta / totalIngNeto) * 100 : 0;
+  const itbmsNeto    = itbmsIng - itbmsEgr;   // lo que hay que pagar a DGI
+  const txCount      = ingresos.length;
+  const ticket       = txCount > 0 ? totalIngNeto / txCount : 0;
 
-  function pctBadge(pct) {
-    const val   = parseFloat(pct);
-    const color = val >= 0 ? 'var(--green)' : 'var(--red)';
-    const bg    = val >= 0 ? 'rgba(46,125,50,.1)' : 'rgba(198,40,40,.1)';
-    const sign  = val >= 0 ? '+' : '';
-    return `<span class="pl-stmt-pct" style="color:${color};background:${bg}">(${sign}${val.toFixed(1)}%)</span>`;
-  }
-
-  // KPIs
+  // KPIs — 4 widgets: Ingresos Neto | Costo Mercancía | Utilidad Neta | ITBMS DGI
   document.getElementById('plKpiRow').innerHTML = `
     <div class="pl-kpi" style="--kpi-accent:var(--orange)">
-      <div class="pl-kpi-label">Ingresos brutos</div>
-      <div class="pl-kpi-value orange">${plFmt(totalIng)}</div>
-      <div class="pl-kpi-sub"><span class="pl-kpi-tag neutral">${plMonth === 'ytd' ? 'YTD' : plMesLabel(plMonth)} ${plYear}</span></div>
-    </div>
-    <div class="pl-kpi" style="--kpi-accent:#E65100">
-      <div class="pl-kpi-label">Costo mercancía (COGS)</div>
-      <div class="pl-kpi-value" style="color:#E65100">${plFmt(cogs)}</div>
-      <div class="pl-kpi-sub">${totalIng > 0 ? ((cogs/totalIng)*100).toFixed(1)+'% de ingresos' : '—'}</div>
-    </div>
-    <div class="pl-kpi" style="--kpi-accent:${utilBruta >= 0 ? 'var(--green)' : 'var(--red)'}">
-      <div class="pl-kpi-label">Margen bruto</div>
-      <div class="pl-kpi-value ${utilBruta >= 0 ? 'green' : 'red'}">${plFmt(utilBruta)}</div>
+      <div class="pl-kpi-label">Ingresos neto</div>
+      <div class="pl-kpi-value orange">${plFmt(totalIngNeto)}</div>
       <div class="pl-kpi-sub">
-        <span class="pl-kpi-tag ${margenBruto >= 0 ? 'pos' : 'neg'}">${margenBruto.toFixed(1)}%</span>
-        sobre ingresos
+        <span class="pl-kpi-tag neutral">${plMonth === 'ytd' ? 'YTD' : plMesLabel(plMonth)} ${plYear}</span>
+        <span style="margin-left:.25rem">sin ITBMS · bruto ${plFmt(totalIng)}</span>
       </div>
     </div>
+    <div class="pl-kpi" style="--kpi-accent:#E65100">
+      <div class="pl-kpi-label">Costo mercancía</div>
+      <div class="pl-kpi-value" style="color:#E65100">${plFmt(cogs)}</div>
+      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogs/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
+    </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
-      <div class="pl-kpi-label">Utilidad neta estimada</div>
+      <div class="pl-kpi-label">Utilidad neta</div>
       <div class="pl-kpi-value ${utilNeta >= 0 ? 'green' : 'red'}">${plFmt(utilNeta)}</div>
-      <div class="pl-kpi-sub">Ingresos − todos los egresos</div>
+      <div class="pl-kpi-sub">
+        <span class="pl-kpi-tag ${margenNeto >= 0 ? 'pos' : 'neg'}">${margenNeto >= 0 ? '+' : ''}${margenNeto.toFixed(1)}%</span>
+        sobre ingresos neto
+      </div>
+    </div>
+    <div class="pl-kpi" style="--kpi-accent:${itbmsNeto >= 0 ? '#1565C0' : 'var(--green)'}">
+      <div class="pl-kpi-label">ITBMS neto · DGI</div>
+      <div class="pl-kpi-value" style="color:${itbmsNeto >= 0 ? '#1565C0' : 'var(--green)'}">${plFmt(Math.abs(itbmsNeto))}</div>
+      <div class="pl-kpi-sub" style="flex-direction:column;align-items:flex-start;gap:.1rem">
+        <span>Cobrado <strong style="color:#1565C0">${plFmt(itbmsIng)}</strong> · Pagado <strong style="color:#6A1B9A">${plFmt(itbmsEgr)}</strong></span>
+        <span style="color:${itbmsNeto >= 0 ? '#1565C0' : 'var(--green)'}">
+          ${itbmsNeto >= 0 ? '↑ a pagar a DGI' : '↓ crédito fiscal'}
+        </span>
+      </div>
     </div>`;
 
   // Gráfica barras
@@ -5451,15 +5447,16 @@ function renderDashboard() {
   // Dona egresos
   plRenderDonaChart(egresos, totalEgr);
 
-  // Métricas
-  document.getElementById('plMBruto').textContent  = margenBruto.toFixed(1) + '%';
-  document.getElementById('plMBruto').className    = 'pl-metric-value ' + (margenBruto >= 0 ? 'green' : 'red');
-  document.getElementById('plMNeto').textContent   = margenNeto.toFixed(1) + '%';
-  document.getElementById('plMNeto').className     = 'pl-metric-value ' + (margenNeto >= 0 ? 'green' : 'red');
-  document.getElementById('plTicket').textContent  = plFmt(ticket);
-  document.getElementById('plTxCount').textContent = txCount;
-  document.getElementById('plItbmsIng').textContent= plFmt(itbmsIng);
-  document.getElementById('plItbmsEgr').textContent= plFmt(itbmsEgr);
+  // Métricas inferiores
+  document.getElementById('plTicket').textContent   = plFmt(ticket);
+  document.getElementById('plTxCount').textContent  = txCount;
+  document.getElementById('plItbmsIng').textContent = plFmt(itbmsIng);
+  document.getElementById('plItbmsEgr').textContent = plFmt(itbmsEgr);
+  const itbmsNetoEl = document.getElementById('plItbmsNeto');
+  if (itbmsNetoEl) {
+    itbmsNetoEl.textContent = plFmt(Math.abs(itbmsNeto));
+    itbmsNetoEl.style.color = itbmsNeto >= 0 ? '#1565C0' : 'var(--green)';
+  }
 
   // Gap
   plRenderGap();
@@ -5469,7 +5466,7 @@ function renderDashboard() {
     ? 'Enero – ' + ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][new Date().getMonth()+1] + ' ' + plYear
     : plMesLabel(plMonth) + ' ' + plYear;
   document.getElementById('plChartSub').textContent    = periodoLabel;
-  document.getElementById('plIngSubtitle').textContent = plFmt(totalIng);
+  document.getElementById('plIngSubtitle').textContent = plFmt(totalIngNeto) + ' neto';
   document.getElementById('plEgrSubtitle').textContent = plFmt(totalEgr);
 }
 
