@@ -713,6 +713,22 @@
       String(d.getDate()).padStart(2,'0');
   }
 
+  // Calcula el costo real sumando los ítems del ST (excluyendo cancelados).
+  // Fuente de verdad: evita usar total_costo_real del Sheet que puede incluir
+  // egresos anulados y no se recalcula al anular un ítem individual.
+  function st_calcCostoReal(st) {
+    var items = st.items;
+    if (!items || !items.length) {
+      return st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado || 0);
+    }
+    var total = 0;
+    items.forEach(function(it) {
+      if (it.estado_item === 'cancelado') return;
+      total += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0;
+    });
+    return parseFloat(total.toFixed(2));
+  }
+
   function st_toast(msg, type) {
     var t = document.createElement('div');
     t.className = 'st-toast' + (type ? ' '+type : '');
@@ -897,7 +913,7 @@
     var pvNeto = st.subtotal_venta > 0
       ? st.subtotal_venta
       : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
-    var util = pvNeto - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
+    var util = pvNeto - st_calcCostoReal(st);
     var uClr = util >= 0 ? '#15803d' : '#dc2626';
     var fecha = String(st.fecha_reg||'').slice(0,10);
     var idEsc = st_esc(st.id_st);
@@ -1480,7 +1496,7 @@
         : 0;
       var pvTotal  = st.precio_venta || 0;
       var esExento = pvNeto > 0 && pvItbms < 0.01;
-      var totalCosto = st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0);
+      var totalCosto = st_calcCostoReal(st);
       var utilidad = pvNeto - totalCosto;
       var margenPct = pvNeto > 0 ? ((utilidad / pvNeto) * 100).toFixed(1) : '—';
       var uColor = utilidad >= 0 ? '#15803d' : '#dc2626';
