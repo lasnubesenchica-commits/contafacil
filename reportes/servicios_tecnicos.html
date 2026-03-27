@@ -4,7 +4,7 @@
 <style>
   /* ── Reset & base ─────────────────────────────────────────── */
   .st-wrap { font-family:'Segoe UI',system-ui,sans-serif; color:#1a2535; }
-  .st-inner { max-width:1200px; margin:0 auto; padding:0 24px; }
+  .st-inner { width:100%; padding:0 12px; box-sizing:border-box; }
 
   /* ── Navegación interna ───────────────────────────────────── */
   .st-nav { display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #e2e8f0; padding-bottom:0; flex-wrap:wrap; }
@@ -234,14 +234,14 @@
   .st-inv-upload-link:hover { color:#b91c1c; }
 
   /* ── Tabla vista ──────────────────────────────────────────── */
-  .st-table-wrap { overflow-x:auto; border:1px solid #e2e8f0; border-radius:10px; margin-top:4px; }
+  .st-table-wrap { overflow-x:auto; border:1px solid #e2e8f0; border-radius:10px; margin-top:4px; background:#fff; }
   .st-table { width:100%; border-collapse:collapse; font-size:.78rem; }
-  .st-table thead th { background:#1A237E; color:#fff; padding:9px 12px; text-align:left; font-weight:600; font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+  .st-table thead th { background:#f8fafc; color:#64748b; padding:10px 12px; text-align:left; font-weight:700; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; border-bottom:2px solid #e2e8f0; }
   .st-table thead th.r { text-align:right; }
   .st-table tbody tr { border-bottom:1px solid #f1f5f9; transition:background .1s; }
-  .st-table tbody tr:hover { background:#f8fafc; }
+  .st-table tbody tr:hover { background:#fafbff; }
   .st-table tbody tr:last-child { border-bottom:none; }
-  .st-table td { padding:8px 12px; color:#334155; vertical-align:middle; }
+  .st-table td { padding:9px 12px; color:#334155; vertical-align:middle; }
   .st-table td.r { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
   .st-table td.mono { font-family:monospace; font-size:.73rem; }
   .st-tbl-actions { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
@@ -778,7 +778,11 @@
     d.forEach(function(st) {
       if (st.estado === 'cotizado' || st.estado === 'aprobado') { cot++; cotVal += st.precio_venta||0; }
       if (st.estado === 'en_ejecucion') { eje++; ejeVal += st.precio_venta||0; }
-      if (st.estado === 'cerrado') { cerr++; cerrVal += st.precio_venta||0; }
+      if (st.estado === 'cerrado') {
+        cerr++;
+        var pvCerr = st.subtotal_venta > 0 ? st.subtotal_venta : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
+        cerrVal += pvCerr;
+      }
     });
     document.getElementById('st-kpi-total').textContent     = tot;
     document.getElementById('st-kpi-cot').textContent       = cot;
@@ -786,7 +790,7 @@
     document.getElementById('st-kpi-eje').textContent       = eje;
     document.getElementById('st-kpi-eje-val').textContent   = st_fmt(ejeVal) + ' en curso';
     document.getElementById('st-kpi-cerr').textContent      = cerr;
-    document.getElementById('st-kpi-cerr-val').textContent  = st_fmt(cerrVal) + ' facturado';
+    document.getElementById('st-kpi-cerr-val').textContent  = st_fmt(cerrVal) + ' neto s/ITBMS';
   }
 
   window.st_setFilter = function(f) {
@@ -1438,23 +1442,25 @@
     var html = '<div class="st-table-wrap"><table class="st-table">';
     html += '<thead><tr>';
     html += '<th>N° / ID</th><th>Cliente</th><th>Descripción</th><th>Estado</th>';
-    html += '<th class="r">Facturado</th><th class="r">Costo</th><th class="r">Utilidad</th><th class="r">Margen</th>';
-    html += '<th>Inventario</th><th>Pago</th><th>Acciones</th>';
+    html += '<th class="r">Neto</th><th class="r" style="background:#f0fdf4;color:#15803d">ITBMS</th><th class="r" style="background:#f0fdf4;color:#15803d">Total</th>';
+    html += '<th class="r">Costo</th><th class="r">Utilidad</th><th class="r">Margen</th>';
+    html += '<th>Pago</th><th>Acciones</th>';
     html += '</tr></thead><tbody>';
     items.forEach(function(st) {
-      var pvNetoT  = st.subtotal_venta > 0
+      var pvNeto   = st.subtotal_venta > 0
         ? st.subtotal_venta
         : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
+      var pvItbms  = st.precio_venta > 0
+        ? parseFloat((st.precio_venta - pvNeto).toFixed(2))
+        : 0;
+      var pvTotal  = st.precio_venta || 0;
+      // detect exento: ITBMS amount is negligible relative to total (< 0.5% or explicitly 0)
+      var esExento = pvNeto > 0 && pvItbms < 0.01;
       var totalCosto = st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0);
-      var utilidad = pvNetoT - totalCosto;
-      var margenPct = pvNetoT > 0 ? ((utilidad / pvNetoT) * 100).toFixed(1) : '—';
+      var utilidad = pvNeto - totalCosto;
+      var margenPct = pvNeto > 0 ? ((utilidad / pvNeto) * 100).toFixed(1) : '—';
       var uColor = utilidad >= 0 ? '#15803d' : '#dc2626';
       var enEje = st.estado === 'en_ejecucion';
-      var hasInvItems = (st.items||[]).some(function(it){ return it.tipo==='producto'; });
-      var hasCostDoc  = (st.items||[]).some(function(it){ return it.drive_url; });
-      var invCell = hasInvItems ? '<span class="st-inv-badge" style="font-size:.68rem">📦 Inventario</span>' :
-                    (hasCostDoc ? '<span class="st-inv-badge" style="font-size:.68rem">📄 Doc</span>' :
-                    (enEje ? '<span class="st-inv-upload-link" style="font-size:.68rem" onclick="st_abrirModalFacturaCostoTabla(\''+st_esc(st.id_st)+'\')">📎 Subir</span>' : '<span style="color:#94a3b8;font-size:.68rem">—</span>'));
       var pagoCell = st.ingreso_id
         ? '<span style="font-size:.68rem;color:#15803d;font-weight:600">'+st_esc(st.ingreso_id.slice(-12))+'</span>'
         : (enEje ? '<span class="st-inv-upload-link" style="font-size:.68rem" onclick="st_abrirModalPagoCliente('+JSON.stringify({ingreso_id:'',precio_venta:st.precio_venta,total_real:st.total_costo_real})+')">⚠️ Registrar</span>' : '<span style="color:#94a3b8;font-size:.68rem">—</span>');
@@ -1464,11 +1470,12 @@
       html += '<td style="font-weight:600;max-width:150px">'+st_esc(st.nombre_cliente)+'</td>';
       html += '<td style="max-width:200px;color:#64748b;font-size:.73rem">'+st_esc(st.descripcion.length>60?st.descripcion.slice(0,60)+'…':st.descripcion)+'</td>';
       html += '<td><span class="st-badge s-'+st_esc(st.estado)+'">'+st_esc(ESTADO_LABEL[st.estado]||st.estado)+'</span></td>';
-      html += '<td class="r">'+st_fmt(st.precio_venta)+'</td>';
+      html += '<td class="r">'+st_fmt(pvNeto)+'</td>';
+      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:600">'+(esExento ? '<span style="font-size:.68rem;font-weight:600;color:#64748b">Exento</span>' : st_fmt(pvItbms))+'</td>';
+      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:700">'+(pvTotal > 0 ? st_fmt(pvTotal) : '—')+'</td>';
       html += '<td class="r" style="color:#8b5cf6">'+st_fmt(totalCosto)+'</td>';
       html += '<td class="r" style="color:'+uColor+'">'+st_fmt(utilidad)+'</td>';
       html += '<td class="r" style="color:'+uColor+'">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
-      html += '<td>'+invCell+'</td>';
       html += '<td>'+pagoCell+'</td>';
       html += '<td><div class="st-tbl-actions">';
       if (st.estado === 'cotizado') {
@@ -1481,12 +1488,13 @@
       if (enEje && !st.ingreso_id) {
         html += '<button class="st-tbl-btn success" onclick="st_accionRegistrarIngresoTabla(\''+st_esc(st.id_st)+'\')">💰</button>';
       }
+      }
       if (enEje) {
+        html += '<button class="st-tbl-btn danger" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST" style="padding:3px 7px">🗑️</button>';
+        html += '<button class="st-tbl-btn" style="background:#f0fdf4;border-color:#86efac;color:#15803d;padding:3px 7px" onclick="st_accionCerrarTabla(\''+st_esc(st.id_st)+'\')" title="Cerrar ST">🔒</button>';
+      } else {
+        html += '<button class="st-tbl-btn danger" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST" style="padding:3px 7px">🗑️</button>';
       }
-      if (enEje && st.ingreso_id) {
-        html += '<button class="st-tbl-btn success" onclick="st_accionCerrarTabla(\''+st_esc(st.id_st)+'\')">🔒</button>';
-      }
-      html += '<button class="st-tbl-btn danger" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST y todos sus registros" style="padding:3px 7px">🗑️</button>';
       html += '</div></td>';
       html += '</tr>';
     });
