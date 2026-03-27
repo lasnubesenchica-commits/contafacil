@@ -328,8 +328,8 @@
       <button onclick="st_limpiarFecha()" title="Limpiar filtro de fechas" style="padding:4px 9px;border:1.5px solid #e2e8f0;border-radius:6px;background:#fff;cursor:pointer;font-size:.9rem;color:#64748b;line-height:1" title="Limpiar fechas">✕</button>
       <span style="flex:1"></span>
       <span style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;white-space:nowrap">Vista</span>
-      <button id="st-v-detalle" onclick="st_setVista('detalle')" style="font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer">🃏 Detalle</button>
-      <button id="st-v-tabla"   onclick="st_setVista('tabla')"   style="font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer">📊 Tabla</button>
+      <button id="st-v-tabla"   onclick="st_setVista('tabla')"   style="font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer">📊 Tabla</button>
+      <button id="st-v-detalle" onclick="st_setVista('detalle')" style="font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer">🃏 Detalle</button>
     </div>
 
     <div id="st-cards-container">
@@ -686,7 +686,7 @@
     stFilter:   'all',
     stActual:   null,
     expandedId: null,
-    vistaMode:  'simple',   // 'simple' | 'detalle'
+    vistaMode:  'tabla',    // 'tabla' | 'detalle'
     filtroMes:  '',         // 'YYYY-MM' or ''
     filtroDesde:'',
     filtroHasta:'',
@@ -815,14 +815,18 @@
         var hay = [st.nombre_cliente, st.descripcion, st.num_cotizacion, st.id_st].join(' ').toLowerCase();
         if (hay.indexOf(term) === -1) return false;
       }
+      // Fecha efectiva: fecha_ingreso (factura emitida) si existe, si no fecha_reg
+      var fechaEfectiva = (st.fecha_ingreso && st.fecha_ingreso.length >= 7)
+        ? st.fecha_ingreso
+        : String(st.fecha_reg || '');
       // Filtro por mes (YYYY-MM)
       if (mes) {
-        var fechaST = String(st.fecha_reg || '').slice(0, 7);
+        var fechaST = fechaEfectiva.slice(0, 7);
         if (fechaST !== mes) return false;
       }
       // Filtro por rango desde/hasta
       if (desde || hasta) {
-        var fechaDia = String(st.fecha_reg || '').slice(0, 10);
+        var fechaDia = fechaEfectiva.slice(0, 10);
         if (desde && fechaDia < desde) return false;
         if (hasta && fechaDia > hasta) return false;
       }
@@ -1365,7 +1369,11 @@
     if (!select) return;
     var meses = {};
     st_state.data.forEach(function(st) {
-      var m = String(st.fecha_reg||'').slice(0,7);
+      // Usar fecha_ingreso (factura) si existe, si no fecha_reg
+      var fechaEf = (st.fecha_ingreso && st.fecha_ingreso.length >= 7)
+        ? st.fecha_ingreso
+        : String(st.fecha_reg || '');
+      var m = fechaEf.slice(0, 7);
       if (m) meses[m] = true;
     });
     var keys = Object.keys(meses).sort().reverse();
@@ -1375,15 +1383,17 @@
     keys.forEach(function(k) {
       var opt = document.createElement('option');
       opt.value = k;
-      // Format: "Enero 2026"
       var d = new Date(k + '-15');
       opt.textContent = d.toLocaleDateString('es-PA', {month:'long',year:'numeric'});
       select.appendChild(opt);
     });
-    // Default to current month if present
+    // Default: mes actual si existe, si no el más reciente disponible
     if (meses[mesActual]) {
       select.value = mesActual;
       st_state.filtroMes = mesActual;
+    } else if (keys.length > 0) {
+      select.value = keys[0];
+      st_state.filtroMes = keys[0];
     }
   }
 
