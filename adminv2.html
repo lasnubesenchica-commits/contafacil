@@ -2854,12 +2854,13 @@ async function loadReporte(path, forceReload) {
     // Inyectar estilos en <head> (solo una vez por path)
     const styleKey = 'reporte-style-' + path.replace(/[^a-z0-9]/gi,'_');
     if (!document.getElementById(styleKey)) {
-      doc.querySelectorAll('style').forEach(s => {
+      const allStyles = Array.from(doc.querySelectorAll('style'));
+      if (allStyles.length) {
         const tag = document.createElement('style');
         tag.id = styleKey;
-        tag.textContent = s.textContent;
+        tag.textContent = allStyles.map(s => s.textContent).join('\n');
         document.head.appendChild(tag);
-      });
+      }
     }
 
     // Poner solo el HTML (sin script/style) en el contenedor
@@ -2876,17 +2877,22 @@ async function loadReporte(path, forceReload) {
     if (prevScript) prevScript.remove();
 
     setTimeout(() => {
-      doc.querySelectorAll('script').forEach(oldScript => {
+      // Primero inyectar scripts externos (src) en orden
+      doc.querySelectorAll('script[src]').forEach((oldScript, i) => {
         const newScript = document.createElement('script');
-        newScript.id = scriptKey;
-        if (oldScript.src) {
-          newScript.src   = oldScript.src;
-          newScript.async = false;
-        } else {
-          newScript.textContent = oldScript.textContent;
-        }
+        newScript.id    = scriptKey + '-ext-' + i;
+        newScript.src   = oldScript.src;
+        newScript.async = false;
         document.head.appendChild(newScript);
       });
+      // Concatenar todos los scripts inline en uno solo para evitar ID duplicado
+      const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
+      if (inlineScripts.length) {
+        const combined = document.createElement('script');
+        combined.id = scriptKey;
+        combined.textContent = inlineScripts.map(s => s.textContent).join('\n');
+        document.head.appendChild(combined);
+      }
     }, 0);
 
   } catch(err) {
