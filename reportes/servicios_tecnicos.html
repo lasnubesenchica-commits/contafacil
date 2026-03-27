@@ -948,6 +948,13 @@
                   }
                 });
               }
+              // Sync items back into st_state.data so refreshCardHeader can find them by idST
+              for (var _d = 0; _d < st_state.data.length; _d++) {
+                if (st_state.data[_d].id_st === idST) {
+                  st_state.data[_d].items = st_state.stActual.items;
+                  break;
+                }
+              }
             }
           })
           .catch(function() {});
@@ -977,7 +984,12 @@
 
         Promise.all([p1, p2]).then(function() {
           st_renderDrawer(idST, resumen);
-          st_refreshCardHeader(idST, st_state.stActual, resumen.total_real || 0);
+          // Find this ST's data by id (st_state.stActual may point to a different ST during staggered async load)
+          var stData = null;
+          for (var _i = 0; _i < st_state.data.length; _i++) {
+            if (st_state.data[_i].id_st === idST) { stData = st_state.data[_i]; break; }
+          }
+          if (stData) st_refreshCardHeader(idST, stData, resumen.total_real || 0);
         });
       })
       .catch(function(e) {
