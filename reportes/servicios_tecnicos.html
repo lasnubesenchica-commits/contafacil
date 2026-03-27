@@ -1309,7 +1309,9 @@
           '<td style="text-align:center;padding:4px 6px"><div style="display:inline-flex;gap:3px;align-items:center">'+docBtn+editBtn+delBtn+'</div></td>' +
         '</tr>';
       });
-      html += '</tbody><tfoot><tr><td colspan="3" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(r.total_real||0)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
+      var totalCostosCalc = 0;
+      items.forEach(function(it) { totalCostosCalc += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0; });
+      html += '</tbody><tfoot><tr><td colspan="3" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(totalCostosCalc)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
     } else {
       html += '<div style="padding:12px 14px;font-size:.8rem;color:#94a3b8">Sin costos registrados</div>';
     }
@@ -1901,8 +1903,8 @@
     var hidEgresoId = document.getElementById('st-me-egreso-id');
     var hidItemId   = document.getElementById('st-me-item-id-actual');
     hidEgresoId.value = '';
-    hidEgresoId.setAttribute('data-st-id', idST || '');
     hidItemId.value   = '';
+    st_state.modalIdST = idST || '';
     // Titulo y boton
     var mt = document.querySelector('#st-modal-egreso h3');
     var bg = document.getElementById('st-me-btn-guardar');
@@ -1918,7 +1920,7 @@
   // st_guardarEgreso — llamado solo desde botón Editar de cada ítem
   // Lee egreso_id e item_id de campos ocultos seteados por st_editarItem
   window.st_guardarEgreso = function() {
-    var idSTActivo    = document.getElementById('st-me-egreso-id').getAttribute('data-st-id') || '';
+    var idSTActivo    = st_state.modalIdST || '';
     var idItemST      = document.getElementById('st-me-item-id-actual').value || '';
     var egresoIdViejo = document.getElementById('st-me-egreso-id').value || '';
 
@@ -2565,8 +2567,8 @@
     var hidEgresoId = document.getElementById('st-me-egreso-id');
     var hidItemId   = document.getElementById('st-me-item-id-actual');
     hidEgresoId.value = egresoId || '';
-    hidEgresoId.setAttribute('data-st-id', idST);
     hidItemId.value   = idItemST || '';
+    st_state.modalIdST = idST || '';
 
     // Título y botón
     var mt = document.querySelector('#st-modal-egreso h3');
