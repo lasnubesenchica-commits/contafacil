@@ -1572,7 +1572,10 @@ function _handleRegistrarEgresoST(data) {
 
 
 // ═══════════════════════════════════════════════════════════════
-//  _handleGetResumenST  (doGet)  — v1.2
+//  _handleGetResumenST  (doGet)  — v1.3
+//  v1.3: agrega subtotal_venta y es_exento al resumen
+//    subtotal_venta = monto neto sin ITBMS (correcto para gravados y exentos)
+//    es_exento = true si categoria del ingreso es venta_producto_exento o servicio_tecnico_exento
 // ═══════════════════════════════════════════════════════════════
 
 function _handleGetResumenST(params, callback) {
@@ -1726,6 +1729,36 @@ function _handleGetResumenST(params, callback) {
       sheetST.getRange(rec.row, COL_ST.TOTAL_COSTO_REAL).setValue(totalReal);
     }
 
+    // Buscar ingreso para obtener subtotal_venta y es_exento
+    // El subtotal ya está calculado correctamente en ambos casos:
+    //   gravado: total / 1.07  (precio sin ITBMS)
+    //   exento:  total          (precio ya es neto, no se descuenta nada)
+    var subtotalVenta = 0;
+    var esExento      = false;
+    if (st.ingreso_id) {
+      try {
+        var sheetIngRes = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+        if (sheetIngRes && sheetIngRes.getLastRow() > 2) {
+          var numIngRes = sheetIngRes.getLastRow() - 2;
+          var ingResData = sheetIngRes.getRange(3, 1, numIngRes, INGRESOS_NCOLS).getValues();
+          for (var ir = 0; ir < ingResData.length; ir++) {
+            if (String(ingResData[ir][COL_I.ID_TRANS - 1]).trim() === String(st.ingreso_id).trim()) {
+              subtotalVenta = parseFloat(ingResData[ir][COL_I.SUBTOTAL - 1]) || 0;
+              var catIng    = String(ingResData[ir][COL_I.CATEGORIA - 1] || '');
+              esExento      = catIng === 'venta_producto_exento' || catIng === 'servicio_tecnico_exento';
+              break;
+            }
+          }
+        }
+      } catch(ingErr) {
+        Logger.log('⚠️  getResumenST: error buscando ingreso: ' + ingErr.message);
+      }
+    }
+    // Fallback: si no encontramos el ingreso, calcular desde precio_venta
+    if (subtotalVenta === 0 && precioVenta > 0) {
+      subtotalVenta = parseFloat((precioVenta / 1.07).toFixed(2));
+    }
+
     result.success = true;
     result.resumen = {
       id_st: idST, estado: st.estado, num_cotizacion: st.num_cotizacion,
@@ -1736,6 +1769,8 @@ function _handleGetResumenST(params, callback) {
       margen_cotizado: margenCotizado, margen_real: margenReal,
       semaforo_global: varTotalPct <= 0 ? 'verde' : (varTotalPct <= 10 ? 'amarillo' : 'rojo'),
       items: items, ingreso_id: st.ingreso_id,
+      subtotal_venta: subtotalVenta,
+      es_exento:      esExento,
     };
 
   } catch(err) {
