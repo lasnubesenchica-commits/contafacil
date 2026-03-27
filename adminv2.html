@@ -567,6 +567,26 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .pl-kpi-tag.pos { background:var(--green-bg);color:var(--green) }
 .pl-kpi-tag.neg { background:var(--red-bg);color:var(--red) }
 .pl-kpi-tag.neutral { background:var(--blue-bg);color:#1565C0 }
+/* ── Fila de desglose de costos por tipo ── */
+.pl-cost-row {
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;
+  padding:.75rem 2rem 1.25rem;background:var(--white);border-bottom:1px solid var(--border);
+}
+@media(max-width:700px){ .pl-cost-row{ grid-template-columns:repeat(3,1fr) } }
+.pl-cost-widget {
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);
+  padding:.75rem 1.1rem;display:flex;align-items:center;gap:.9rem;
+}
+.pl-cost-icon { font-size:1.4rem;line-height:1;flex-shrink:0; }
+.pl-cost-body { flex:1;min-width:0; }
+.pl-cost-label {
+  font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:.15rem;
+}
+.pl-cost-pct {
+  font-family:'Bebas Neue',sans-serif;font-size:1.55rem;line-height:1;color:var(--text);
+}
+.pl-cost-amt { font-size:.72rem;color:var(--muted);margin-top:.1rem; }
 .pl-body {
   display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;
   padding:1.25rem 2rem;
@@ -1087,6 +1107,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
   <div class="pl-kpi-row" id="plKpiRow">
     <div class="pl-loading" style="grid-column:1/-1"><div class="spinner"></div><span>Cargando dashboard...</span></div>
   </div>
+
+  <!-- FILA DESGLOSE DE COSTOS POR TIPO -->
+  <div class="pl-cost-row" id="plCostRow"></div>
 
   <!-- BODY GRID -->
   <div class="pl-body">
@@ -5464,6 +5487,9 @@ function renderDashboard() {
   // Gráfica barras
   plRenderBarChart(plYear);
 
+  // Desglose costos por tipo
+  plRenderCostRow(cogs);
+
   // Tabla ingresos por tipo
   plRenderIngTable(ingresos, totalIng);
 
@@ -5491,6 +5517,64 @@ function renderDashboard() {
   document.getElementById('plChartSub').textContent    = periodoLabel;
   document.getElementById('plIngSubtitle').textContent = plFmt(totalIngNeto) + ' neto';
   document.getElementById('plEgrSubtitle').textContent = plFmt(totalEgr);
+}
+
+function plRenderCostRow(totalCogsRef) {
+  const el = document.getElementById('plCostRow');
+  if (!el) return;
+
+  // Sumar ST_Items del período activo agrupados por tipo
+  const byTipo = {};
+  plStItems.forEach(si => {
+    const siAnio = parseInt(si.anio) || 0;
+    const siMes  = parseInt(si.mes)  || 0;
+    if (siAnio !== plYear) return;
+    if (plMonth !== 'ytd' && siMes !== plMonth) return;
+    const tipo = si.item.tipo || 'otro';
+    const tr   = parseFloat(si.item.total_real)     || 0;
+    const tc   = parseFloat(si.item.total_cotizado) || 0;
+    byTipo[tipo] = (byTipo[tipo] || 0) + (tr > 0 ? tr : tc);
+  });
+
+  const TIPO_CFG = {
+    producto:          { label: 'Producto',           icon: '📦', color: '#1565C0' },
+    impuesto:          { label: 'Impuestos / Aduana', icon: '🏛️', color: '#6A1B9A' },
+    shipping_handling: { label: 'Shipping & Handling', icon: '✈️', color: '#00695C' },
+    mano_obra:         { label: 'Mano de obra',        icon: '🔧', color: '#E65100' },
+    flete:             { label: 'Flete',               icon: '🚛', color: '#4527A0' },
+    subcontrato:       { label: 'Subcontrato',         icon: '🤝', color: '#558B2F' },
+    combustible:       { label: 'Combustible',         icon: '⛽', color: '#827717' },
+    fianza:            { label: 'Fianza',              icon: '🔒', color: '#78909C' },
+    otro:              { label: 'Otro',                icon: '📌', color: '#9E9E9E' },
+  };
+
+  // Solo mostrar tipos con monto > 0, ordenados de mayor a menor
+  const entries = Object.entries(byTipo)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (!entries.length) {
+    el.innerHTML = '';
+    return;
+  }
+
+  // totalIngNeto para calcular % sobre facturado — usar la base del período
+  const ingPeriodo = plFiltrarIngresos()
+    .reduce((s, i) => s + (parseFloat(i.subtotal) || 0), 0);
+  const base = ingPeriodo > 0 ? ingPeriodo : totalCogsRef;
+
+  el.innerHTML = entries.map(([tipo, monto]) => {
+    const cfg  = TIPO_CFG[tipo] || TIPO_CFG.otro;
+    const pct  = base > 0 ? (monto / base * 100).toFixed(1) : '0.0';
+    return `<div class="pl-cost-widget">
+      <div class="pl-cost-icon">${cfg.icon}</div>
+      <div class="pl-cost-body">
+        <div class="pl-cost-label">${cfg.label}</div>
+        <div class="pl-cost-pct" style="color:${cfg.color}">${pct}%</div>
+        <div class="pl-cost-amt">${plFmt(monto)} del facturado neto</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function plRenderBarChart(year) {
