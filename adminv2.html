@@ -2093,10 +2093,10 @@ const COL = {
 // ══════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════
-let ordenes       = [];
-let ordenesFilter = [];
-let activeFilter  = 'all';
-let currentOrden  = null;
+var ordenes       = [];
+var ordenesFilter = [];
+var activeFilter  = 'all';
+var currentOrden  = null;
 
 // ══════════════════════════════════════════════════
 //  LOGIN
@@ -2613,8 +2613,8 @@ async function analizarVisionModal() {
 }
 
 // ── COD VOUCHER UPLOAD ──
-let codVoucherBase64 = null;
-let codVoucherName   = null;
+var codVoucherBase64 = null;
+var codVoucherName   = null;
 
 function handleCodVoucherSelect(e) {
   const file = e.target.files[0];
@@ -2833,7 +2833,7 @@ function refreshCurrentSection() {
 // ══════════════════════════════════════════════════
 //  CARGAR REPORTE DINÁMICO
 // ══════════════════════════════════════════════════
-let reporteActual = null;
+var reporteActual = null;
 
 async function loadReporte(path, forceReload) {
   if (reporteActual === path && !forceReload) return;
@@ -2903,13 +2903,13 @@ async function loadReporte(path, forceReload) {
 // ══════════════════════════════════════════════════
 //  OPERACIONES STATE
 // ══════════════════════════════════════════════════
-let opItems      = [];
-let opFiltered   = [];
-let opFilter     = 'all';
-let currentOpItem = null;
-let opPdfBase64  = null;
-let opPdfName    = null;
-let opPdfMime    = null;
+var opItems      = [];
+var opFiltered   = [];
+var opFilter     = 'all';
+var currentOpItem = null;
+var opPdfBase64  = null;
+var opPdfName    = null;
+var opPdfMime    = null;
 
 // ══════════════════════════════════════════════════
 //  CARGAR OPERACIONES
@@ -3055,8 +3055,8 @@ document.addEventListener('click', function(e) {
 });
 
 // ── Sort Operaciones ──
-let opSortCol = 'fecha_venta';
-let opSortAsc = false;
+var opSortCol = 'fecha_venta';
+var opSortAsc = false;
 
 function sortOpTable(col) {
   if (opSortCol === col) {
@@ -3624,7 +3624,7 @@ function gasJsonp(action, params, timeoutMs) {
 // ══════════════════════════════════════════════════
 //  MOVER A INVENTARIO
 // ══════════════════════════════════════════════════
-let invItemActual = null;
+var invItemActual = null;
 
 function abrirModalInventario(idx) {
   const item = opFiltered[idx];
@@ -3690,9 +3690,9 @@ async function confirmarMoverInventario() {
 // ══════════════════════════════════════════════════
 //  EGRESOS — STATE & LOAD
 // ══════════════════════════════════════════════════
-let egrItems    = [];
-let egrFiltered = [];
-let egrFilter   = 'all';
+var egrItems    = [];
+var egrFiltered = [];
+var egrFilter   = 'all';
 
 async function loadEgresos() {
   document.getElementById('egresoBody').innerHTML =
@@ -3916,11 +3916,11 @@ function waCliente(idx) {
 // ══════════════════════════════════════════════════
 //  INGRESOS
 // ══════════════════════════════════════════════════
-let ingItems    = [];
-let ingFiltered = [];
-let ingSortCol  = 'fecha_ingreso';
-let ingSortAsc  = false;
-let ingFilter   = 'all';
+var ingItems    = [];
+var ingFiltered = [];
+var ingSortCol  = 'fecha_ingreso';
+var ingSortAsc  = false;
+var ingFilter   = 'all';
 
 async function loadIngresos() {
   document.getElementById('ingresosBody').innerHTML =
@@ -4169,8 +4169,8 @@ function recalcEgreso() {
 }
 
 // ── IA INGRESOS — leer Yappy / transferencia / factura ──────
-let ingresoFileB64  = null;
-let ingresoFileMime = null;
+var ingresoFileB64  = null;
+var ingresoFileMime = null;
 
 function handleIngresoFileDrop(e) {
   e.preventDefault();
@@ -4266,10 +4266,10 @@ function llenarCamposIngreso(parsed) {
 // ══════════════════════════════════════════════════════════
 //  MODAL PAGO OPERACION — registrar comprobante de pago para item 'facturado'
 // ══════════════════════════════════════════════════════════
-let pagoOpFileB64  = null;
-let pagoOpFileMime = null;
-let pagoOpItem     = null;
-let pagoOpIAData   = null;   // datos extraídos por IA del comprobante
+var pagoOpFileB64  = null;
+var pagoOpFileMime = null;
+var pagoOpItem     = null;
+var pagoOpIAData   = null;   // datos extraídos por IA del comprobante
 
 function abrirModalPagoOp(item) {
   pagoOpItem    = item;
@@ -4480,7 +4480,7 @@ async function corregirComprobante() {
 // ══════════════════════════════════════════════════════════
 //  MODAL COSTO OPERATIVO — marcar ítem pendiente como costo_operativo
 // ══════════════════════════════════════════════════════════
-let costoOpItem = null;
+var costoOpItem = null;
 
 function abrirModalCostoOperativo(item) {
   costoOpItem = item;
@@ -4556,9 +4556,9 @@ async function guardarNuevoIngreso() {
 // ══════════════════════════════════════════════════
 //  IA EGRESOS — leer factura con Claude
 // ══════════════════════════════════════════════════
-let egresoFileB64  = null;
-let egresoFileMime = null;
-let egresoIAItems  = [];
+var egresoFileB64  = null;
+var egresoFileMime = null;
+var egresoIAItems  = [];
 
 function handleEgresoFileDrop(e) {
   e.preventDefault();
@@ -4855,12 +4855,12 @@ function showToast(msg) {
 // ══════════════════════════════════════════════════
 //  INVENTARIO
 // ══════════════════════════════════════════════════
-let invItems     = [];
-let invFiltered  = [];
-let invView      = 'grid';   // 'grid' | 'list'
-let invItemVenta = null;
-let invVMPdfB64  = null;
-let invVMPdfName = null;
+var invItems     = [];
+var invFiltered  = [];
+var invView      = 'grid';   // 'grid' | 'list'
+var invItemVenta = null;
+var invVMPdfB64  = null;
+var invVMPdfName = null;
 
 async function loadInventario() {
   document.getElementById('invGrid').innerHTML =
@@ -5195,15 +5195,15 @@ async function guardarVentaInv() {
   btn.disabled = false; btn.textContent = '💾 Registrar venta';
 }
 
-let plIngresos  = [];
-let plEgresos   = [];
-let plOpItems   = [];
-let plYear      = new Date().getFullYear();
-let plMonth     = 'ytd';
-let plTipo      = 'todos';
-let plBarChart  = null;
-let plDonaChart = null;
-let plLoaded    = false;
+var plIngresos  = [];
+var plEgresos   = [];
+var plOpItems   = [];
+var plYear      = new Date().getFullYear();
+var plMonth     = 'ytd';
+var plTipo      = 'todos';
+var plBarChart  = null;
+var plDonaChart = null;
+var plLoaded    = false;
 
 const EGR_COLORS = {
   costo_mercancia:          '#E65100',
@@ -5710,13 +5710,13 @@ function plMesLabel(m) {
 // ════════════════════════════════════════════════
 //  MÓDULO PROVEEDORES
 // ════════════════════════════════════════════════
-let provItems       = [];
-let provFileBase64  = null;
-let provFileMime    = null;
-let provFileName    = null;
-let provEditingId   = null;
-let provIaDatos     = null;
-let provCurrentStep = 1;
+var provItems       = [];
+var provFileBase64  = null;
+var provFileMime    = null;
+var provFileName    = null;
+var provEditingId   = null;
+var provIaDatos     = null;
+var provCurrentStep = 1;
 
 async function loadProveedores() {
   document.getElementById('provGrid').innerHTML =
