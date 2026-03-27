@@ -535,6 +535,8 @@
         <input class="st-input" id="st-me-notas" placeholder="Observaciones adicionales">
       </div>
     </div>
+    <input type="hidden" id="st-me-egreso-id" value="">
+    <input type="hidden" id="st-me-item-id-actual" value="">
     <div class="st-modal-footer">
       <button class="st-btn st-btn-ghost" onclick="st_cerrarModalEgreso()">Cancelar</button>
       <button class="st-btn st-btn-primary" id="st-me-btn-guardar" onclick="st_guardarEgreso()">
@@ -1900,6 +1902,9 @@
     // Reset desc label to required
     var lbl = document.getElementById('st-me-desc-lbl');
     if (lbl) lbl.textContent = 'Descripción *';
+    // Limpiar campos ocultos al abrir en modo nuevo
+    document.getElementById('st-me-egreso-id').value      = '';
+    document.getElementById('st-me-item-id-actual').value = '';
     document.getElementById('st-modal-egreso').style.display = 'flex';
   };
 
@@ -1981,7 +1986,10 @@
     var total = parseFloat(document.getElementById('st-me-total').value) || 0;
     if (!total) { st_toast('Ingresa el monto total del egreso', 'error'); return; }
 
-    var itemSel = document.getElementById('st-me-item').value || '';
+    // Leer item seleccionado: priorizar el campo oculto (cuando se abre desde Editar)
+    // El campo oculto st-me-item-id-actual se setea en st_editarItem con el id exacto del ítem
+    var itemIdOculto = document.getElementById('st-me-item-id-actual').value || '';
+    var itemSel = itemIdOculto || document.getElementById('st-me-item').value || '';
     var desc    = document.getElementById('st-me-desc').value.trim();
 
     if (!desc && !itemSel) { st_toast('Ingresa una descripción', 'error'); return; }
@@ -1993,17 +2001,8 @@
       desc = m ? m[1].trim() : txt.split('(')[0].replace(/^[^—]*—\s*/,'').trim() || 'Costo registrado';
     }
 
-    // Detectar si es edicion (item ya tiene egreso_id)
-    var egresoIdExistente = '';
-    if (itemSel && st_state.stActual && st_state.stActual.items) {
-      for (var xi = 0; xi < st_state.stActual.items.length; xi++) {
-        var xit = st_state.stActual.items[xi];
-        if (xit.id_item_st === itemSel && xit.egreso_id) {
-          egresoIdExistente = xit.egreso_id;
-          break;
-        }
-      }
-    }
+    // Leer egreso_id del campo oculto (seteado por st_editarItem de forma confiable)
+    var egresoIdExistente = document.getElementById('st-me-egreso-id').value || '';
 
     var esEdicion  = !!egresoIdExistente;
     var actionGAS  = esEdicion ? 'actualizarEgresoST' : 'registrarEgresoST';
@@ -2641,6 +2640,9 @@
     document.getElementById('st-me-fecha').value = st_today();
     document.getElementById('st-me-notas').value = '';
     document.getElementById('st-me-file').value  = '';
+    // Guardar egreso_id e item_id en campos ocultos para que st_guardarEgreso los lea de forma confiable
+    document.getElementById('st-me-egreso-id').value      = egresoId || '';
+    document.getElementById('st-me-item-id-actual').value = idItemST || '';
     // Título y botón según modo
     var _mt = document.querySelector('#st-modal-egreso h3');
     var _bg = document.getElementById('st-me-btn-guardar');
@@ -2716,12 +2718,14 @@
       if (res.success) {
         selectEl.setAttribute('data-orig', nuevoTipo);
         st_toast('✅ Tipo actualizado a "' + (TIPO_LABEL[nuevoTipo]||nuevoTipo) + '"', 'success');
+        // Actualizar en memoria Y recargar el drawer para que refleje el cambio visualmente
         var stObj = st_state.stActual;
         if (stObj && stObj.items) {
           stObj.items.forEach(function(it) {
             if (it.id_item_st === idItemST) it.tipo = nuevoTipo;
           });
         }
+        st_recargarDetalle();
       } else {
         st_toast('⚠️ ' + (res.error || 'Error al reclasificar'), 'error');
         selectEl.value = orig;
