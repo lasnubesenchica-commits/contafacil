@@ -866,7 +866,8 @@
   }
 
   function st_buildCard(st) {
-    var util = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
+    var pvNeto = st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0;
+    var util = pvNeto - (st.total_costo_real > 0 ? st.total_costo_real : (parseFloat(st.total_costo_cotizado)||0));
     var uClr = util >= 0 ? '#15803d' : '#dc2626';
     var fecha = String(st.fecha_reg||'').slice(0,10);
     var idEsc = st_esc(st.id_st);
@@ -1416,8 +1417,9 @@
     html += '<th>Inventario</th><th>Pago</th><th>Acciones</th>';
     html += '</tr></thead><tbody>';
     items.forEach(function(st) {
-      var utilidad = (st.precio_venta||0) - (st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0));
+      var pvNetoT  = st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0;
       var totalCosto = st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado||0);
+      var utilidad = pvNetoT - totalCosto;
       var margenPct = st.precio_venta > 0 ? ((utilidad / st.precio_venta) * 100).toFixed(1) : '—';
       var uColor = utilidad >= 0 ? '#15803d' : '#dc2626';
       var enEje = st.estado === 'en_ejecucion';
@@ -1846,7 +1848,8 @@
       });
       totalCostoReal = parseFloat(totalCostoReal.toFixed(2));
     }
-    var util   = (st.precio_venta||0) - (totalCostoReal > 0 ? totalCostoReal : (parseFloat(st.total_costo_cotizado)||0));
+    var pvNeto = st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0;
+    var util   = pvNeto - (totalCostoReal > 0 ? totalCostoReal : (parseFloat(st.total_costo_cotizado)||0));
     var uClr   = util >= 0 ? '#15803d' : '#dc2626';
     var montoEl = document.getElementById('stcard-monto-' + idST);
     var utilEl  = document.getElementById('stcard-util-'  + idST);
