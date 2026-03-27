@@ -1171,9 +1171,65 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
   </div><!-- /pl-body -->
 
-  <!-- BOTTOM ROW -->
+  <!-- TABLAS DETALLE: Ingresos / Egresos con toggle -->
+  <div style="padding:0 2rem 2rem">
+    <div class="pl-card">
+      <!-- Toggle header -->
+      <div style="display:flex;align-items:center;gap:.5rem;padding:.85rem 1.25rem;border-bottom:1px solid var(--border)">
+        <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Detalle</span>
+        <div style="display:flex;gap:.3rem;margin-left:.5rem">
+          <button id="plTblBtnIng" onclick="plSwitchTable('ingresos')"
+            style="font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid #1A237E;background:#1A237E;color:#fff;cursor:pointer;font-weight:600">
+            Ingresos
+          </button>
+          <button id="plTblBtnEgr" onclick="plSwitchTable('egresos')"
+            style="font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">
+            Egresos
+          </button>
+        </div>
+        <div style="margin-left:auto">
+          <input type="text" id="plTblSearch" placeholder="Buscar..." oninput="plFilterTable()"
+            style="font-size:.75rem;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none;width:180px">
+        </div>
+      </div>
+      <!-- Tabla Ingresos -->
+      <div id="plTblIngresos" style="overflow-x:auto">
+        <table class="op-table" style="min-width:780px">
+          <thead><tr>
+            <th>Fecha</th>
+            <th>Factura</th>
+            <th>Cliente</th>
+            <th>Categoría</th>
+            <th style="text-align:right">Subtotal</th>
+            <th style="text-align:right">ITBMS</th>
+            <th style="text-align:right">Total</th>
+            <th>Estado</th>
+            <th>Comp.</th>
+          </tr></thead>
+          <tbody id="plTblIngBody"></tbody>
+        </table>
+      </div>
+      <!-- Tabla Egresos -->
+      <div id="plTblEgresos" style="overflow-x:auto;display:none">
+        <table class="op-table" style="min-width:860px">
+          <thead><tr>
+            <th>Fecha</th>
+            <th>ID</th>
+            <th>Categoría</th>
+            <th>Descripción</th>
+            <th>Proveedor</th>
+            <th>Factura Ref.</th>
+            <th style="text-align:right">Total</th>
+            <th>Estado</th>
+          </tr></thead>
+          <tbody id="plTblEgrBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÉTRICAS CLAVE (compactas al fondo) -->
   <div class="pl-bottom">
-    <!-- Métricas clave -->
     <div class="pl-card">
       <div class="pl-card-header"><span class="pl-card-title">Métricas clave</span></div>
       <div class="pl-metric-grid">
@@ -5496,6 +5552,9 @@ function renderDashboard() {
   // Dona egresos
   plRenderDonaChart(egresos, totalEgr);
 
+  // Tablas detalle (ingresos / egresos)
+  plRenderTables();
+
   // Métricas inferiores
   document.getElementById('plTicket').textContent   = plFmt(ticket);
   document.getElementById('plTxCount').textContent  = txCount;
@@ -5517,6 +5576,157 @@ function renderDashboard() {
   document.getElementById('plChartSub').textContent    = periodoLabel;
   document.getElementById('plIngSubtitle').textContent = plFmt(totalIngNeto) + ' neto';
   document.getElementById('plEgrSubtitle').textContent = plFmt(totalEgr);
+}
+
+// ── Tablas detalle del P&L ─────────────────────────────────────
+
+var plTblMode = 'ingresos';   // 'ingresos' | 'egresos'
+
+function plSwitchTable(mode) {
+  plTblMode = mode;
+  const isIng = mode === 'ingresos';
+  document.getElementById('plTblIngresos').style.display = isIng  ? ''     : 'none';
+  document.getElementById('plTblEgresos').style.display  = !isIng ? ''     : 'none';
+  const btnIng = document.getElementById('plTblBtnIng');
+  const btnEgr = document.getElementById('plTblBtnEgr');
+  const activeStyle = 'font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid #1A237E;background:#1A237E;color:#fff;cursor:pointer;font-weight:600';
+  const idleStyle   = 'font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer';
+  btnIng.style.cssText = isIng  ? activeStyle : idleStyle;
+  btnEgr.style.cssText = !isIng ? activeStyle : idleStyle;
+  plFilterTable();
+}
+
+function plFilterTable() {
+  const q = (document.getElementById('plTblSearch') ? document.getElementById('plTblSearch').value : '').toLowerCase().trim();
+  if (plTblMode === 'ingresos') plRenderTblIngresos(q);
+  else                          plRenderTblEgresos(q);
+}
+
+function plRenderTables() {
+  plRenderTblIngresos('');
+  plRenderTblEgresos('');
+}
+
+function plRenderTblIngresos(q) {
+  const tbody = document.getElementById('plTblIngBody');
+  if (!tbody) return;
+  // Usa plIngresos — misma fuente que los widgets (ya filtrado por estado)
+  // Filtra por año/mes igual que el resto del dashboard
+  let items = plIngresos.filter(i => {
+    if (String(i.estado || '').toLowerCase() === 'anulado') return false;
+    if (parseInt(i.anio_fiscal) !== plYear) return false;
+    if (plMonth !== 'ytd' && parseInt(i.mes) !== plMonth) return false;
+    return true;
+  });
+  if (q) items = items.filter(i =>
+    (i.nombre_cliente||'').toLowerCase().includes(q) ||
+    (i.num_factura||'').toLowerCase().includes(q)    ||
+    (i.descripcion||'').toLowerCase().includes(q)
+  );
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
+    return;
+  }
+  const estadoBadge = e => ({
+    confirmado: '<span class="badge badge-cerrado">✓ Confirmado</span>',
+    pendiente:  '<span class="badge badge-pendiente">● Pendiente</span>',
+    abono:      '<span class="badge badge-revision">◑ Abono</span>',
+  }[e] || `<span class="badge">${esc(e||'—')}</span>`);
+
+  const catBadgeIng = c => ({
+    venta_producto_gravado:   '<span class="badge badge-vinculado">📦 Venta (+ITBMS)</span>',
+    venta_producto_exento:    '<span class="badge" style="background:#F5F5F5;color:#555">📦 Venta (exento)</span>',
+    servicio_tecnico_gravado: '<span class="badge" style="background:#E8EAF6;color:#283593">🔧 Técnico (+ITBMS)</span>',
+    servicio_tecnico_exento:  '<span class="badge" style="background:#F5F5F5;color:#555">🔧 Técnico (exento)</span>',
+    asesoria_consultoria:     '<span class="badge" style="background:#E8EAF6;color:#283593">💼 Asesoría</span>',
+    comision:                 '<span class="badge" style="background:#FFF9C4;color:#795548">💳 Comisión</span>',
+    otro_gravado:             '<span class="badge badge-vinculado">📋 Otro (+ITBMS)</span>',
+    otro_exento:              '<span class="badge" style="background:#F5F5F5;color:#555">📋 Otro (exento)</span>',
+  }[c] || `<span class="badge">${esc(c||'—')}</span>`);
+
+  // Fila de totales
+  const totSubtotal = items.reduce((s,i) => s+(parseFloat(i.subtotal)||0), 0);
+  const totItbms    = items.reduce((s,i) => s+(parseFloat(i.itbms)||0), 0);
+  const totTotal    = items.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
+
+  tbody.innerHTML = items.map(item => {
+    const subtotal = parseFloat(item.subtotal||'0')||0;
+    const itbms    = parseFloat(item.itbms||'0')||0;
+    const total    = parseFloat(item.total||'0')||0;
+    const driveUrl = item.drive_url || '';
+    const compLink = driveUrl
+      ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄</a>`
+      : '—';
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--muted);font-size:.8rem">${esc(String(item.fecha_ingreso||'').substring(0,10))}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(item.num_factura||'—')}</span></td>
+      <td><div style="font-weight:500">${esc(item.nombre_cliente||'—')}</div><div style="font-size:.65rem;color:var(--muted)">${esc(item.ruc_cliente||'')}</div></td>
+      <td>${catBadgeIng(item.categoria_ingreso)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem">$${subtotal.toFixed(2)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;color:var(--muted)">${itbms > 0 ? '$'+itbms.toFixed(2) : '—'}</td>
+      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--green)">$${total.toFixed(2)}</td>
+      <td>${estadoBadge(item.estado)}</td>
+      <td style="text-align:center">${compLink}</td>
+    </tr>`;
+  }).join('') +
+  `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
+    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${items.length} registros</td>
+    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--text)">$${totSubtotal.toFixed(2)}</td>
+    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--muted)">$${totItbms.toFixed(2)}</td>
+    <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--green)">$${totTotal.toFixed(2)}</td>
+    <td colspan="2"></td>
+  </tr>`;
+}
+
+function plRenderTblEgresos(q) {
+  const tbody = document.getElementById('plTblEgrBody');
+  if (!tbody) return;
+  // Usa plEgresos — misma fuente que los widgets, filtrado por año/mes
+  let items = plEgresos.filter(e => {
+    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    const eMes  = parseInt(e.mes)  || _mesDesfecha(e.fecha_egreso);
+    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== plYear) return false;
+    if (plMonth !== 'ytd' && eMes !== plMonth) return false;
+    return true;
+  });
+  if (q) items = items.filter(e =>
+    (e.descripcion||'').toLowerCase().includes(q) ||
+    (e.proveedor||'').toLowerCase().includes(q)   ||
+    (e.id_egreso||'').toLowerCase().includes(q)
+  );
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
+    return;
+  }
+  const catBadgeEgr = c => ({
+    costo_mercancia:        '<span class="badge badge-egreso-mercancia">📦 Mercancía</span>',
+    costo_servicio_tecnico: '<span class="badge" style="background:#EDE7F6;color:#4527A0">🔧 Serv. técnico</span>',
+    combustible:            '<span class="badge badge-egreso-operativo">⛽ Combustible</span>',
+    servicios_profesionales:'<span class="badge badge-egreso-servicios">📋 Honorarios</span>',
+    otros_deducibles:       '<span class="badge">📂 Otros</span>',
+  }[c] || `<span class="badge">${esc(c||'—')}</span>`);
+
+  const totTotal = items.reduce((s,e) => s+(parseFloat(e.total)||0), 0);
+
+  tbody.innerHTML = items.map(item => {
+    const total = parseFloat(item.total||'0')||0;
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--muted);font-size:.8rem">${esc(String(item.fecha_egreso||'').substring(0,10))}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:.68rem">${esc(item.id_egreso||'')}</span></td>
+      <td>${catBadgeEgr(item.categoria||item.tipo_egreso)}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descripcion||'')}">${esc((item.descripcion||'').substring(0,60))}</td>
+      <td style="font-size:.8rem">${esc(item.proveedor||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.72rem">${esc(item.num_fac_ref||'—')}</td>
+      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#C62828">$${total.toFixed(2)}</td>
+      <td><span class="badge badge-pendiente">● Registrado</span></td>
+    </tr>`;
+  }).join('') +
+  `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
+    <td colspan="6" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${items.length} registros</td>
+    <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totTotal.toFixed(2)}</td>
+    <td></td>
+  </tr>`;
 }
 
 function plRenderCostRow(totalCogsRef) {
@@ -5612,7 +5822,7 @@ function plRenderBarChart(year) {
 
   ingYear.forEach(i => {
     const m = parseInt(i.mes) - 1;
-    if (m >= 0 && m < 12) ingData[m] += parseFloat(i.total) || 0;
+    if (m >= 0 && m < 12) ingData[m] += parseFloat(i.subtotal) || 0;  // neto sin ITBMS
   });
 
   const egrByMes = new Array(12).fill(0);
@@ -5632,7 +5842,7 @@ function plRenderBarChart(year) {
     }
   });
 
-  for (let m = 0; m < 12; m++) utilData[m] = ingData[m] - egrByMes[m];
+  for (let m = 0; m < 12; m++) utilData[m] = ingData[m] - cogsData[m];
 
   const activeMes = plMonth === 'ytd' ? -1 : plMonth - 1;
   const ingColors  = meses.map((_,i) => i === activeMes ? '#E05A00' : 'rgba(224,90,0,.5)');
