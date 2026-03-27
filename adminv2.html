@@ -5200,6 +5200,7 @@ async function guardarVentaInv() {
 var plIngresos  = [];
 var plEgresos   = [];
 var plOpItems   = [];
+var plStItems   = [];   // ítems de ST_Items vía getCotizaciones — fuente de verdad para COGS
 var plYear      = new Date().getFullYear();
 var plMonth     = 'ytd';
 var plTipo      = 'todos';
@@ -5249,10 +5250,11 @@ async function loadDashboard() {
   document.getElementById('plKpiRow').innerHTML =
     '<div class="pl-loading" style="grid-column:1/-1"><div class="spinner"></div><span>Cargando datos...</span></div>';
   try {
-    const [ingRes, egrRes, opRes] = await Promise.all([
+    const [ingRes, egrRes, opRes, stRes] = await Promise.all([
       plGasGet('getIngresos'),
       plGasGet('getEgresos'),
       plGasGet('getComprasVentas'),
+      plGasGet('getCotizaciones'),   // para COGS desde ST_Items (fuente de verdad)
     ]);
     // FIX #1: incluir 'pendiente' — los STs cerrados con historial importado
     // quedan en estado 'pendiente' (sin comprobante de pago físico aún),
@@ -5262,6 +5264,16 @@ async function loadDashboard() {
     );
     plEgresos  = egrRes.items  || [];
     plOpItems  = opRes.items   || [];
+    // Aplanar todos los ítems de todos los STs (excluyendo cancelados)
+    // para calcular COGS desde ST_Items — la misma fuente que usa la tabla ST
+    plStItems  = [];
+    (stRes.items || []).forEach(st => {
+      (st.items || []).forEach(it => {
+        if (it.estado_item !== 'cancelado') {
+          plStItems.push({ id_st: st.id_st, mes: st.mes, anio: st.anio, item: it });
+        }
+      });
+    });
     plLoaded   = true;
     initPlYearSelector();
     renderDashboard();
@@ -5389,11 +5401,21 @@ function renderDashboard() {
 
   const totalIng    = ingresos.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
   const itbmsIng    = ingresos.reduce((s,i) => s + (parseFloat(i.itbms)||0), 0);
-  // FIX #3: COGS real = costo_mercancia + costos de flete/aduana/servicio vinculados a un ST
-  const cogs        = egresos.filter(e =>
-    e.tipo_egreso === 'costo_mercancia' ||
-    (e.tipo_egreso === 'costo_servicio_tecnico' && String(e.notas || e.notas_internas || '').includes('ST:'))
-  ).reduce((s,e) => s + (parseFloat(e.total)||0), 0);
+  // COGS desde ST_Items (misma fuente que la tabla de Servicios Técnicos).
+  // Suma total_real si existe, total_cotizado si no, excluyendo cancelados.
+  // Filtra por mes/año igual que los ingresos para consistencia de período.
+  const cogsItems = plStItems.filter(si => {
+    const siAnio = parseInt(si.anio) || 0;
+    const siMes  = parseInt(si.mes)  || 0;
+    if (siAnio !== plYear) return false;
+    if (plMonth !== 'ytd' && siMes !== plMonth) return false;
+    return true;
+  });
+  const cogs = cogsItems.reduce((s, si) => {
+    const tr = parseFloat(si.item.total_real)     || 0;
+    const tc = parseFloat(si.item.total_cotizado) || 0;
+    return s + (tr > 0 ? tr : tc);
+  }, 0);
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
   // Ingresos NETO = subtotal sin ITBMS (base imponible real)
@@ -5514,14 +5536,15 @@ function plRenderBarChart(year) {
     if (m >= 0 && m < 12) egrByMes[m] += parseFloat(e.total) || 0;
   });
 
-  // FIX #3: mismo criterio de COGS que renderDashboard
+  // COGS en gráfica: misma fuente que renderDashboard — ST_Items agrupados por mes
   const cogsData = new Array(12).fill(0);
-  egrYear.filter(e =>
-    e.tipo_egreso === 'costo_mercancia' ||
-    (e.tipo_egreso === 'costo_servicio_tecnico' && String(e.notas || e.notas_internas || '').includes('ST:'))
-  ).forEach(e => {
-    const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
-    if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
+  plStItems.filter(si => (parseInt(si.anio) || 0) === year).forEach(si => {
+    const m = (parseInt(si.mes) || 0) - 1;
+    if (m >= 0 && m < 12) {
+      const tr = parseFloat(si.item.total_real)     || 0;
+      const tc = parseFloat(si.item.total_cotizado) || 0;
+      cogsData[m] += tr > 0 ? tr : tc;
+    }
   });
 
   for (let m = 0; m < 12; m++) utilData[m] = ingData[m] - egrByMes[m];
