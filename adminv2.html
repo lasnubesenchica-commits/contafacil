@@ -342,7 +342,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .main-tab-arrow{font-size:.6rem;margin-left:.3rem;opacity:.6}
 
 /* ── OPERACIONES SECTION ── */
-#sectionOperaciones{display:block}
+#sectionOperaciones{display:none}
 #sectionVentasWeb{display:none}
 #sectionIngresos{display:none}
 
@@ -804,7 +804,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   <!-- MAIN TABS -->
   <div class="main-tabs">
-    <button class="main-tab active" id="tabOperaciones" onclick="switchTab('operaciones')">⚙️ Operaciones</button>
+    <button class="main-tab active" id="tabServiciosTecnicos" onclick="switchTab('reporte:reportes/servicios_tecnicos.html')">🔧 Servicios Técnicos</button>
     <button class="main-tab" id="tabVentasWeb"   onclick="switchTab('ventasWeb')">🛒 Ventas Web</button>
 
     <!-- Contabilidad dropdown -->
@@ -822,10 +822,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <div class="main-tab-group">
       <button class="main-tab" id="tabReportes">📈 Reportes <span class="main-tab-arrow">▾</span></button>
       <div class="dropdown-menu">
+        <a href="javascript:void(0)" onclick="switchTab('operaciones')">⚙️ Operaciones</a>
         <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/margenes.html')">📊 Márgenes por producto</a>
         <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/inventario_valorado.html')">📦 Inventario valorado</a>
         <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/cuentas_por_cobrar.html')">💳 Cuentas por cobrar</a>
-        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/servicios_tecnicos.html')">🔧 Servicios Técnicos</a>
         <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/flujo_caja.html')">💵 Flujo de caja</a>
       </div>
     </div>
@@ -2113,7 +2113,7 @@ function doLogin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadOrdenes();
-    loadOperaciones();
+    switchTab('reporte:reportes/servicios_tecnicos.html');
   } else {
     document.getElementById('loginError').style.display = 'block';
     document.getElementById('loginPwd').value = '';
@@ -2789,7 +2789,7 @@ async function guardarCambios() {
 // ══════════════════════════════════════════════════
 //  TAB SWITCHING
 // ══════════════════════════════════════════════════
-let activeTab = 'operaciones';
+let activeTab = 'reporte:reportes/servicios_tecnicos.html';
 
 function switchTab(tab) {
   activeTab = tab;
@@ -2802,13 +2802,13 @@ function switchTab(tab) {
   document.getElementById('sectionInventario').style.display   = tab === 'inventario'   ? 'block' : 'none';
   document.getElementById('sectionProveedores').style.display  = tab === 'proveedores'  ? 'block' : 'none';
   document.getElementById('sectionReporte').style.display      = isReporte              ? 'block' : 'none';
+  document.getElementById('tabServiciosTecnicos').classList.toggle('active', tab === 'reporte:reportes/servicios_tecnicos.html');
   document.getElementById('tabVentasWeb').classList.toggle('active',     tab === 'ventasWeb');
-  document.getElementById('tabOperaciones').classList.toggle('active',   tab === 'operaciones');
   document.getElementById('tabDashboard').classList.toggle('active',     tab === 'dashboard');
   document.getElementById('tabInventario').classList.toggle('active',    tab === 'inventario');
   document.getElementById('tabProveedores').classList.toggle('active',   tab === 'proveedores');
   document.getElementById('tabContabilidad').classList.toggle('active',  tab === 'ingresos' || tab === 'egresos');
-  document.getElementById('tabReportes').classList.toggle('active',      isReporte);
+  document.getElementById('tabReportes').classList.toggle('active',      isReporte && tab !== 'reporte:reportes/servicios_tecnicos.html');
   if (tab === 'operaciones'  && !opItems.length)  loadOperaciones();
   if (tab === 'egresos'      && !egrItems.length) loadEgresos();
   if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
