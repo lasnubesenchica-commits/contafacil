@@ -1167,7 +1167,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="pl-metric-value" id="plTicket" style="color:var(--text)">—</div>
         </div>
         <div class="pl-metric">
-          <div class="pl-metric-label">Transacciones</div>
+          <div class="pl-metric-label">Ventas / STs</div>
           <div class="pl-metric-value" id="plTxCount" style="color:var(--text)">—</div>
         </div>
         <div class="pl-metric">
@@ -5258,7 +5258,12 @@ async function loadDashboard() {
       plGasGet('getEgresos'),
       plGasGet('getComprasVentas'),
     ]);
-    plIngresos = (ingRes.items || []).filter(i => i.estado === 'confirmado' || i.estado === 'abono');
+    // FIX #1: incluir 'pendiente' — los STs cerrados con historial importado
+    // quedan en estado 'pendiente' (sin comprobante de pago físico aún),
+    // pero representan ventas reales. Se excluyen anulados en plFiltrarIngresos.
+    plIngresos = (ingRes.items || []).filter(i =>
+      i.estado === 'confirmado' || i.estado === 'abono' || i.estado === 'pendiente'
+    );
     plEgresos  = egrRes.items  || [];
     plOpItems  = opRes.items   || [];
     plLoaded   = true;
@@ -5353,11 +5358,14 @@ function plFiltrarIngresos() {
     if (plTipo !== 'todos') {
       const t = (i.tipo_ingreso || '').toLowerCase();
       const c = (i.categoria_ingreso || '').toLowerCase();
-      if (plTipo === 'venta_producto'   && !t.includes('venta')   && !c.includes('venta'))   return false;
-      if (plTipo === 'servicio_tecnico' && !t.includes('tecnico') && !t.includes('técnico')) return false;
-      if (plTipo === 'servicio_asesoria'&& !t.includes('asesoria')&& !t.includes('asesor'))  return false;
-      if (plTipo === 'comision'         && !t.includes('comision'))                          return false;
-      if (plTipo === 'otro'             && t !== 'otro')                                     return false;
+      const n = (i.notas_internas || i.notas || '').toLowerCase();
+      // FIX #2: 'servicio_tecnico' captura ingresos tipo servicio_tecnico Y
+      // cualquier venta_producto que haya sido generada por un ST (nota contiene 'st:')
+      if (plTipo === 'venta_producto'    && !t.includes('venta')   && !c.includes('venta'))   return false;
+      if (plTipo === 'servicio_tecnico'  && !t.includes('tecnico') && !t.includes('técnico') && !n.includes('st:')) return false;
+      if (plTipo === 'servicio_asesoria' && !t.includes('asesoria')&& !t.includes('asesor'))  return false;
+      if (plTipo === 'comision'          && !t.includes('comision'))                          return false;
+      if (plTipo === 'otro'              && t !== 'otro')                                     return false;
     }
     return true;
   });
@@ -5385,8 +5393,12 @@ function renderDashboard() {
 
   const totalIng    = ingresos.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
   const itbmsIng    = ingresos.reduce((s,i) => s + (parseFloat(i.itbms)||0), 0);
-  const cogs        = egresos.filter(e => e.tipo_egreso === 'costo_mercancia')
-                              .reduce((s,e) => s + (parseFloat(e.total)||0), 0);
+  // FIX #3: COGS real = costo_mercancia + costos de flete/aduana/servicio vinculados a un ST
+  // Los egresos de tipo costo_servicio_tecnico generados por ST son parte del costo del proyecto
+  const cogs        = egresos.filter(e =>
+    e.tipo_egreso === 'costo_mercancia' ||
+    (e.tipo_egreso === 'costo_servicio_tecnico' && String(e.notas || e.notas_internas || '').includes('ST:'))
+  ).reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
   const utilBruta   = totalIng - cogs;
@@ -5472,8 +5484,10 @@ function plRenderBarChart(year) {
     if (plTipo === 'todos') return true;
     const t = (i.tipo_ingreso || '').toLowerCase();
     const c = (i.categoria_ingreso || '').toLowerCase();
+    const n = (i.notas_internas || i.notas || '').toLowerCase();
+    // FIX #2: mismo criterio que plFiltrarIngresos
     if (plTipo === 'venta_producto')    return t.includes('venta') || c.includes('venta');
-    if (plTipo === 'servicio_tecnico')  return t.includes('tecnico') || t.includes('técnico');
+    if (plTipo === 'servicio_tecnico')  return t.includes('tecnico') || t.includes('técnico') || n.includes('st:');
     if (plTipo === 'servicio_asesoria') return t.includes('asesoria') || t.includes('asesor');
     if (plTipo === 'comision')          return t.includes('comision');
     if (plTipo === 'otro')              return t === 'otro';
@@ -5503,8 +5517,12 @@ function plRenderBarChart(year) {
     if (m >= 0 && m < 12) egrByMes[m] += parseFloat(e.total) || 0;
   });
 
+  // FIX #3: mismo criterio de COGS que renderDashboard
   const cogsData = new Array(12).fill(0);
-  egrYear.filter(e => e.tipo_egreso === 'costo_mercancia').forEach(e => {
+  egrYear.filter(e =>
+    e.tipo_egreso === 'costo_mercancia' ||
+    (e.tipo_egreso === 'costo_servicio_tecnico' && String(e.notas || e.notas_internas || '').includes('ST:'))
+  ).forEach(e => {
     const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
     if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
   });
