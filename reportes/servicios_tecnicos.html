@@ -977,6 +977,7 @@
 
         Promise.all([p1, p2]).then(function() {
           st_renderDrawer(idST, resumen);
+          st_refreshCardHeader(idST, st_state.stActual, resumen.total_real || 0);
         });
       })
       .catch(function(e) {
