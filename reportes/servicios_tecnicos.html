@@ -1483,8 +1483,8 @@
       html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:600">'+(esExento ? '<span style="font-size:.68rem;font-weight:600;color:#64748b">Exento</span>' : st_fmt(pvItbms))+'</td>';
       html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:700">'+(pvTotal > 0 ? st_fmt(pvTotal) : '—')+'</td>';
       html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+st_fmt(totalCosto)+'</td>';
-      html += '<td class="r" style="background:#eff6ff;color:'+uColor+';font-weight:600">'+st_fmt(utilidad)+'</td>';
-      html += '<td class="r" style="background:#eff6ff;color:'+uColor+';font-weight:600">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
+      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+st_fmt(utilidad)+'</td>';
+      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
       html += '<td><div class="st-tbl-actions">';
       if (st.estado === 'cotizado') {
         html += '<button class="st-tbl-btn warning" onclick="st_accionEmailTabla(\''+st_esc(st.id_st)+'\',\''+st_esc(st.email_cliente||'')+'\')">📧</button>';
@@ -1522,8 +1522,8 @@
     html += '<td class="r" style="background:#dcfce7;color:#15803d;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totItbms)+'</td>';
     html += '<td class="r" style="background:#dcfce7;color:#15803d;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totTotal)+'</td>';
     html += '<td class="r" style="background:#dbeafe;color:#1d4ed8;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totCosto)+'</td>';
-    html += '<td class="r" style="background:#dbeafe;color:'+totUColor+';font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totUtilidad)+'</td>';
-    html += '<td class="r" style="background:#dbeafe;color:'+totUColor+';font-weight:800;font-size:.82rem;padding:10px 12px">'+(totMargenPct!=='—'?(parseFloat(totMargenPct)>0?'+':'')+totMargenPct+'%':'—')+'</td>';
+    html += '<td class="r" style="background:#dbeafe;color:#1d4ed8;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totUtilidad)+'</td>';
+    html += '<td class="r" style="background:#dbeafe;color:#1d4ed8;font-weight:800;font-size:.82rem;padding:10px 12px">'+(totMargenPct!=='—'?(parseFloat(totMargenPct)>0?'+':'')+totMargenPct+'%':'—')+'<span style="display:block;font-size:.6rem;font-weight:400;color:#94a3b8;margin-top:1px">avg.</span></td>';
     html += '<td style="background:#f8fafc;padding:10px 12px"></td>';
     html += '</tr>';
     html += '</tfoot>';
