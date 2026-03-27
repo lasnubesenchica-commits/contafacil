@@ -816,10 +816,21 @@
         if (hay.indexOf(term) === -1) return false;
       }
       // Fecha efectiva para filtro: fecha_ingreso (factura emitida) si existe,
-      // si no fecha_cierre (cuando se cerró/facturó), si no fecha_reg
+      // si no extraer del ingreso_id (formato ING-RP-YYYYMMDD...), 
+      // si no fecha_cierre, si no fecha_reg
       var fechaEfectiva;
       if (st.fecha_ingreso && st.fecha_ingreso.length >= 7) {
         fechaEfectiva = st.fecha_ingreso;
+      } else if (st.ingreso_id) {
+        // ingreso_id formato: ING-RP-20260129... → extraer YYYYMMDD
+        var mIngId = String(st.ingreso_id).match(/(\d{4})(\d{2})(\d{2})/);
+        if (mIngId) {
+          fechaEfectiva = mIngId[1] + '-' + mIngId[2] + '-' + mIngId[3];
+        } else if (st.fecha_cierre && String(st.fecha_cierre).length >= 7) {
+          fechaEfectiva = String(st.fecha_cierre).slice(0, 10);
+        } else {
+          fechaEfectiva = String(st.fecha_reg || '');
+        }
       } else if (st.fecha_cierre && String(st.fecha_cierre).length >= 7) {
         fechaEfectiva = String(st.fecha_cierre).slice(0, 10);
       } else {
