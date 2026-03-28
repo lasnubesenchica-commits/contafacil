@@ -238,14 +238,32 @@
   .st-table { width:100%; border-collapse:collapse; font-size:.78rem; }
   .st-table thead th { background:#f8fafc; color:#64748b; padding:10px 12px; text-align:left; font-weight:700; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; border-bottom:2px solid #e2e8f0; }
   .st-table thead th.r { text-align:right; }
+  .st-table thead th.sortable { cursor:pointer; user-select:none; }
+  .st-table thead th.sortable:hover { background:#f1f5f9; }
+  .st-table thead th.sort-active { background:rgba(0,0,0,.045); }
+  .st-table thead th .st-sort-arrow { font-size:.6rem; margin-left:2px; opacity:.7; }
   .st-table tbody tr { border-bottom:1px solid #f1f5f9; transition:background .1s; }
-  .st-table tbody tr:hover { background:#fafbff; }
+  .st-table tbody tr.st-main-row { cursor:pointer; }
+  .st-table tbody tr.st-main-row:hover { background:#fafbff; }
+  .st-table tbody tr.st-main-row.expanded { background:#f8faff; }
   .st-table tbody tr:last-child { border-bottom:none; }
   .st-table td { padding:9px 12px; color:#334155; vertical-align:middle; }
   .st-table td.r { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
   .st-table td.mono { font-family:monospace; font-size:.73rem; }
   .st-table tfoot tr { border-top:2px solid #cbd5e1; }
   .st-table tfoot td { font-variant-numeric:tabular-nums; }
+  /* Sub-fila de costos expandida */
+  .st-sub-row td { padding:0 !important; border-bottom:2px solid #e2e8f0 !important; }
+  .st-sub-inner { padding:10px 16px 14px 40px; background:#f8faff; }
+  .st-sub-title { font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; margin-bottom:6px; }
+  .st-sub-tbl { width:100%; border-collapse:collapse; font-size:.73rem; }
+  .st-sub-tbl th { color:#94a3b8; font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:4px 8px; text-align:left; border-bottom:1px solid #e2e8f0; }
+  .st-sub-tbl th.r { text-align:right; }
+  .st-sub-tbl td { padding:5px 8px; color:#475569; border-bottom:1px solid #f1f5f9; }
+  .st-sub-tbl td.r { text-align:right; font-variant-numeric:tabular-nums; }
+  .st-sub-tbl tr:last-child td { border-bottom:none; }
+  .st-sub-tbl tr:hover td { background:rgba(255,255,255,.7); }
+  .st-expand-chevron { display:inline-block; transition:transform .15s; font-style:normal; font-size:.7rem; color:#94a3b8; margin-right:4px; }
   .st-tbl-actions { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
   .st-tbl-btn { padding:3px 8px; border-radius:5px; border:1px solid #e2e8f0; background:#fff; font-size:.7rem; font-weight:600; cursor:pointer; white-space:nowrap; transition:all .12s; }
   .st-tbl-btn:hover { background:#f1f5f9; }
@@ -775,6 +793,9 @@
     itemsLocal: [],
     editMode:   false,
     editIdST:   null,
+    sortCol:    'fecha_reg', // columna activa de sort en vista tabla
+    sortDir:    'desc',      // 'asc' | 'desc'
+    expandedRows: {},        // { id_st: true } — filas expandidas en tabla
   };
 
   // ── Helpers ──────────────────────────────────────────────
@@ -1551,23 +1572,102 @@
     }
   };
 
+  // ── Toggle expand/collapse de costos en tabla ───────────────
+  window.st_toggleExpand = function(idST, event) {
+    // Evitar que el click en botones de acciones propague al row
+    if (event && event.target && event.target.closest('.st-tbl-actions')) return;
+    if (st_state.expandedRows[idST]) {
+      delete st_state.expandedRows[idST];
+    } else {
+      st_state.expandedRows[idST] = true;
+    }
+    st_renderTabla();
+  };
+
+  // ── Toggle sort de columna ───────────────────────────────────
+  window.st_sortTabla = function(col) {
+    if (st_state.sortCol === col) {
+      st_state.sortDir = st_state.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      st_state.sortCol = col;
+      st_state.sortDir = col === 'fecha_reg' ? 'desc' : 'asc';
+    }
+    st_renderTabla();
+  };
+
   function st_renderTabla() {
     var cont = document.getElementById('st-cards-container');
-    var items = st_state.filtered;
-    if (!items.length) {
+    var rawItems = st_state.filtered;
+    if (!rawItems.length) {
       cont.innerHTML = '<div class="st-empty"><div class="st-empty-icon">🔍</div>Sin resultados.</div>';
       return;
     }
+
+    // ── Sort ────────────────────────────────────────────────────
+    var col = st_state.sortCol;
+    var dir = st_state.sortDir;
+    var items = rawItems.slice().sort(function(a, b) {
+      var va, vb;
+      if (col === 'num_factura')    { va = st_numFactura(a); vb = st_numFactura(b); }
+      else if (col === 'cliente')   { va = (a.nombre_cliente||'').toLowerCase(); vb = (b.nombre_cliente||'').toLowerCase(); }
+      else if (col === 'estado')    { va = a.estado||''; vb = b.estado||''; }
+      else if (col === 'neto')      { va = a.subtotal_venta > 0 ? a.subtotal_venta : parseFloat((a.precio_venta/1.07).toFixed(2)); vb = b.subtotal_venta > 0 ? b.subtotal_venta : parseFloat((b.precio_venta/1.07).toFixed(2)); }
+      else if (col === 'total')     { va = a.precio_venta||0; vb = b.precio_venta||0; }
+      else if (col === 'costo')     { va = st_calcCostoReal(a); vb = st_calcCostoReal(b); }
+      else if (col === 'utilidad')  {
+        var na = a.subtotal_venta > 0 ? a.subtotal_venta : parseFloat((a.precio_venta/1.07).toFixed(2));
+        var nb = b.subtotal_venta > 0 ? b.subtotal_venta : parseFloat((b.precio_venta/1.07).toFixed(2));
+        va = na - st_calcCostoReal(a); vb = nb - st_calcCostoReal(b);
+      }
+      else if (col === 'margen')    {
+        var na2 = a.subtotal_venta > 0 ? a.subtotal_venta : parseFloat((a.precio_venta/1.07).toFixed(2));
+        var nb2 = b.subtotal_venta > 0 ? b.subtotal_venta : parseFloat((b.precio_venta/1.07).toFixed(2));
+        va = na2 > 0 ? (na2 - st_calcCostoReal(a)) / na2 : 0;
+        vb = nb2 > 0 ? (nb2 - st_calcCostoReal(b)) / nb2 : 0;
+      }
+      else { va = String(a.fecha_reg||''); vb = String(b.fecha_reg||''); }
+      if (va < vb) return dir === 'asc' ? -1 : 1;
+      if (va > vb) return dir === 'asc' ?  1 : -1;
+      return 0;
+    });
+
+    // ── Helper: header con sort ──────────────────────────────────
+    function th(label, colKey, extraClass, extraStyle) {
+      var isActive = col === colKey;
+      var arrow    = isActive ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
+      var bgActive = isActive ? 'rgba(0,0,0,.045)' : '';
+      var cls      = 'sortable' + (extraClass ? ' '+extraClass : '') + (isActive ? ' sort-active' : '');
+      var sty      = (extraStyle||'') + (bgActive ? 'background:'+bgActive+';' : '');
+      return '<th class="'+cls+'" style="'+sty+'" onclick="st_sortTabla(\''+colKey+'\')">'+label+'<span class="st-sort-arrow">'+arrow+'</span></th>';
+    }
+
     var html = '<div class="st-table-wrap"><table class="st-table">';
     html += '<thead><tr>';
-    html += '<th>N° / ID</th><th>Cliente</th><th>Descripción</th><th>Estado</th>';
-    html += '<th class="r" style="background:#f0fdf4;color:#15803d">Neto</th><th class="r" style="background:#f0fdf4;color:#15803d">ITBMS</th><th class="r" style="background:#f0fdf4;color:#15803d">Total</th>';
-    html += '<th class="r" style="background:#eff6ff;color:#1d4ed8">Costo</th><th class="r" style="background:#eff6ff;color:#1d4ed8">Utilidad</th><th class="r" style="background:#eff6ff;color:#1d4ed8">Margen</th>';
+    html += th('N° / ID',      'num_factura', '', '');
+    html += th('Cliente',      'cliente',     '', '');
+    html += th('Descripción',  'descripcion', '', '');
+    html += th('Estado',       'estado',      '', '');
+    html += th('Neto',         'neto',        'r', 'background:#f0fdf4;color:#15803d;');
+    html += '<th class="r" style="background:#f0fdf4;color:#15803d">ITBMS</th>';
+    html += th('Total',        'total',       'r', 'background:#f0fdf4;color:#15803d;');
+    html += th('Costo',        'costo',       'r', 'background:#eff6ff;color:#1d4ed8;');
+    html += th('Utilidad',     'utilidad',    'r', 'background:#eff6ff;color:#1d4ed8;');
+    html += th('Margen',       'margen',      'r', 'background:#eff6ff;color:#1d4ed8;');
     html += '<th>Acciones</th>';
     html += '</tr></thead><tbody>';
 
-    // Acumuladores para totales
     var totNeto = 0, totItbms = 0, totTotal = 0, totCosto = 0, totUtilidad = 0;
+
+    var TIPO_ICON = {
+      producto:'📦', shipping_handling:'✈️', impuesto:'🏛️',
+      mano_obra:'🔧', flete:'🚛', subcontrato:'🤝',
+      combustible:'⛽', fianza:'🔒', aduana:'🛃', otro:'📌',
+    };
+    var TIPO_LABEL = {
+      producto:'Producto', shipping_handling:'S&H', impuesto:'Impuesto',
+      mano_obra:'Mano obra', flete:'Flete', subcontrato:'Subcontrato',
+      combustible:'Combustible', fianza:'Fianza', aduana:'Aduana', otro:'Otro',
+    };
 
     items.forEach(function(st) {
       var pvNeto   = st.subtotal_venta > 0
@@ -1576,23 +1676,30 @@
       var pvItbms  = st.precio_venta > 0
         ? parseFloat((st.precio_venta - pvNeto).toFixed(2))
         : 0;
-      var pvTotal  = st.precio_venta || 0;
-      var esExento = pvNeto > 0 && pvItbms < 0.01;
+      var pvTotal    = st.precio_venta || 0;
+      var esExento   = pvNeto > 0 && pvItbms < 0.01;
       var totalCosto = st_calcCostoReal(st);
-      var utilidad = pvNeto - totalCosto;
-      var margenPct = pvNeto > 0 ? ((utilidad / pvNeto) * 100).toFixed(1) : '—';
-      var uColor = utilidad >= 0 ? '#15803d' : '#dc2626';
-      var enEje = st.estado === 'en_ejecucion';
+      var utilidad   = pvNeto - totalCosto;
+      var margenPct  = pvNeto > 0 ? ((utilidad / pvNeto) * 100).toFixed(1) : '—';
+      var enEje      = st.estado === 'en_ejecucion';
+      var isExpanded = !!st_state.expandedRows[st.id_st];
+      var hasItems   = st.items && st.items.filter(function(i){ return i.estado_item !== 'cancelado'; }).length > 0;
 
-      // Acumular
       totNeto     += pvNeto;
       totItbms    += esExento ? 0 : pvItbms;
       totTotal    += pvTotal;
       totCosto    += totalCosto;
       totUtilidad += utilidad;
 
-      html += '<tr>';
-      html += '<td class="mono"><div>'+st_esc(st_numFactura(st))+'</div><div style="font-size:.65rem;color:#94a3b8">'+st_esc(st.id_st)+'</div></td>';
+      var chevron = hasItems
+        ? '<i class="st-expand-chevron">'+(isExpanded ? '▼' : '▶')+'</i>'
+        : '<i class="st-expand-chevron" style="opacity:.2">▶</i>';
+
+      var rowCls = 'st-main-row' + (isExpanded ? ' expanded' : '');
+      var clickAttr = hasItems ? 'onclick="st_toggleExpand(\''+st_esc(st.id_st)+'\',event)"' : '';
+
+      html += '<tr class="'+rowCls+'" '+clickAttr+'>';
+      html += '<td class="mono">'+chevron+'<span><div>'+st_esc(st_numFactura(st))+'</div><div style="font-size:.65rem;color:#94a3b8">'+st_esc(st.id_st)+'</div></span></td>';
       html += '<td style="font-weight:600;max-width:150px">'+st_esc(st.nombre_cliente)+'</td>';
       html += '<td style="max-width:200px;color:#64748b;font-size:.73rem">'+st_esc(st.descripcion.length>60?st.descripcion.slice(0,60)+'…':st.descripcion)+'</td>';
       html += '<td><span class="st-badge s-'+st_esc(st.estado)+'">'+st_esc(ESTADO_LABEL[st.estado]||st.estado)+'</span></td>';
@@ -1621,14 +1728,57 @@
       }
       html += '</div></td>';
       html += '</tr>';
+
+      // ── Sub-fila de costos ─────────────────────────────────────
+      if (isExpanded && hasItems) {
+        var costItems = st.items.filter(function(i){ return i.estado_item !== 'cancelado'; });
+        html += '<tr class="st-sub-row"><td colspan="11">';
+        html += '<div class="st-sub-inner">';
+        html += '<div class="st-sub-title">Costos — '+costItems.length+' ítem'+(costItems.length!==1?'s':'')+'</div>';
+        html += '<table class="st-sub-tbl">';
+        html += '<thead><tr>';
+        html += '<th>Tipo</th><th>Descripción</th><th>Proveedor</th>';
+        html += '<th class="r">Cotizado</th><th class="r">Real</th><th>Estado</th>';
+        html += '</tr></thead><tbody>';
+        var subTotal = 0;
+        costItems.forEach(function(it) {
+          var monto  = it.total_real > 0 ? it.total_real : (it.total_cotizado||0);
+          var icon   = TIPO_ICON[it.tipo] || '📌';
+          var tlabel = TIPO_LABEL[it.tipo] || it.tipo;
+          var isReal = it.total_real > 0;
+          var diff   = it.total_real > 0 && it.total_cotizado > 0
+            ? parseFloat((it.total_real - it.total_cotizado).toFixed(2)) : null;
+          var diffHtml = '';
+          if (diff !== null) {
+            var dColor = diff > 0 ? '#dc2626' : '#15803d';
+            var dSign  = diff > 0 ? '+' : '';
+            diffHtml = ' <span style="font-size:.62rem;color:'+dColor+';">('+dSign+st_fmt(diff)+')</span>';
+          }
+          subTotal += monto;
+          var estadoColor = it.estado_item === 'ejecutado' ? '#15803d'
+            : it.estado_item === 'pendiente' ? '#d97706' : '#64748b';
+          html += '<tr>';
+          html += '<td style="white-space:nowrap"><span style="font-size:.78rem">'+icon+' '+st_esc(tlabel)+'</span></td>';
+          html += '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+st_esc(it.descripcion||'')+'">'+st_esc((it.descripcion||'').substring(0,60))+'</td>';
+          html += '<td style="color:#64748b;font-size:.7rem">'+st_esc(it.proveedor||'—')+'</td>';
+          html += '<td class="r" style="color:#94a3b8">'+(it.total_cotizado > 0 ? st_fmt(it.total_cotizado) : '—')+'</td>';
+          html += '<td class="r" style="font-weight:600;color:'+(isReal?'#1d4ed8':'#94a3b8')+'">'+st_fmt(monto)+diffHtml+'</td>';
+          html += '<td><span style="font-size:.65rem;font-weight:600;color:'+estadoColor+'">'+st_esc(it.estado_item||'')+'</span></td>';
+          html += '</tr>';
+        });
+        html += '</tbody>';
+        html += '<tfoot><tr>';
+        html += '<td colspan="4" style="padding:5px 8px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8">Total costos</td>';
+        html += '<td class="r" style="font-weight:800;color:#1d4ed8;font-size:.78rem">'+st_fmt(subTotal)+'</td>';
+        html += '<td></td>';
+        html += '</tr></tfoot>';
+        html += '</table></div></td></tr>';
+      }
     });
 
-    // Calcular margen total
     var totMargenPct = totNeto > 0 ? ((totUtilidad / totNeto) * 100).toFixed(1) : '—';
-    var totUColor    = totUtilidad >= 0 ? '#15803d' : '#dc2626';
-    var nItems       = items.length;
+    var nItems = items.length;
 
-    // Fila de totales
     html += '</tbody>';
     html += '<tfoot>';
     html += '<tr style="border-top:2px solid #cbd5e1">';
@@ -1645,7 +1795,7 @@
     html += '</tr>';
     html += '</tfoot>';
     html += '</table></div>';
-    html += '<div style="height:32px"></div>';  // gap al final para scroll
+    html += '<div style="height:32px"></div>';
     cont.innerHTML = html;
   }
 
