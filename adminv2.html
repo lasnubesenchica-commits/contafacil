@@ -1123,55 +1123,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <div class="pl-chart-wrap"><canvas id="plBarChart"></canvas></div>
       </div>
     </div>
-    <!-- Ingresos por tipo -->
-    <div class="pl-card">
-      <div class="pl-card-header">
-        <span class="pl-card-title">Ingresos por tipo</span>
-        <span class="pl-card-sub" id="plIngSubtitle">—</span>
-      </div>
-      <div class="pl-card-body" style="padding:0">
-        <table class="pl-breakdown">
-          <thead><tr>
-            <th>Tipo</th>
-            <th style="text-align:right">Monto</th>
-            <th style="text-align:right">%</th>
-            <th style="min-width:80px">Distrib.</th>
-          </tr></thead>
-          <tbody id="plIngBody"></tbody>
-        </table>
-      </div>
-    </div>
-    <!-- Egresos por categoría -->
-    <div class="pl-card">
-      <div class="pl-card-header">
-        <span class="pl-card-title">Egresos por categoría</span>
-        <span class="pl-card-sub" id="plEgrSubtitle">—</span>
-      </div>
-      <div class="pl-card-body">
-        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem">
-          <div style="position:relative;width:130px;height:130px;flex-shrink:0">
-            <canvas id="plDonaChart" width="130" height="130"></canvas>
-            <div id="plDonaCenter" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;line-height:1" id="plDonaCenterVal">—</div>
-              <div style="font-size:.6rem;color:var(--muted)">total</div>
-            </div>
-          </div>
-          <div style="flex:1;overflow:auto">
-            <table class="pl-breakdown">
-              <thead><tr>
-                <th>Categoría</th>
-                <th style="text-align:right">Total</th>
-                <th style="text-align:right">%</th>
-              </tr></thead>
-              <tbody id="plEgrBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
   </div><!-- /pl-body -->
 
-  <!-- TABLAS DETALLE: Ingresos / Egresos con toggle -->
+  <!-- TABLAS DETALLE: Ingresos / Costos con toggle -->
   <div style="padding:0 2rem 2rem">
     <div class="pl-card">
       <!-- Toggle header -->
@@ -1184,7 +1138,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           </button>
           <button id="plTblBtnEgr" onclick="plSwitchTable('egresos')"
             style="font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">
-            Egresos
+            Costos
           </button>
         </div>
         <div style="margin-left:auto">
@@ -1209,18 +1163,15 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <tbody id="plTblIngBody"></tbody>
         </table>
       </div>
-      <!-- Tabla Egresos -->
+      <!-- Tabla Costos (egresos) -->
       <div id="plTblEgresos" style="overflow-x:auto;display:none">
-        <table class="op-table" style="min-width:860px">
+        <table class="op-table" style="min-width:700px">
           <thead><tr>
-            <th>Fecha</th>
-            <th>ID</th>
-            <th>Categoría</th>
+            <th>Tipo</th>
             <th>Descripción</th>
             <th>Proveedor</th>
-            <th>Factura Ref.</th>
-            <th style="text-align:right">Total</th>
-            <th>Estado</th>
+            <th>ST</th>
+            <th style="text-align:right">Monto</th>
           </tr></thead>
           <tbody id="plTblEgrBody"></tbody>
         </table>
@@ -1228,44 +1179,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
   </div>
 
-  <!-- MÉTRICAS CLAVE (compactas al fondo) -->
-  <div class="pl-bottom">
-    <div class="pl-card">
-      <div class="pl-card-header"><span class="pl-card-title">Métricas clave</span></div>
-      <div class="pl-metric-grid">
-        <div class="pl-metric">
-          <div class="pl-metric-label">Ticket promedio</div>
-          <div class="pl-metric-value" id="plTicket" style="color:var(--text)">—</div>
-        </div>
-        <div class="pl-metric">
-          <div class="pl-metric-label">Ventas / STs</div>
-          <div class="pl-metric-value" id="plTxCount" style="color:var(--text)">—</div>
-        </div>
-        <div class="pl-metric">
-          <div class="pl-metric-label">ITBMS cobrado</div>
-          <div class="pl-metric-value" id="plItbmsIng" style="color:#1565C0">—</div>
-        </div>
-        <div class="pl-metric">
-          <div class="pl-metric-label">ITBMS pagado</div>
-          <div class="pl-metric-value" id="plItbmsEgr" style="color:#6A1B9A">—</div>
-        </div>
-        <div class="pl-metric" style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:.75rem;margin-top:.25rem">
-          <div class="pl-metric-label">ITBMS neto a pagar DGI</div>
-          <div class="pl-metric-value" id="plItbmsNeto" style="color:#1565C0">—</div>
-        </div>
-      </div>
-    </div>
-    <!-- Gap operativo -->
-    <div class="pl-card">
-      <div class="pl-card-header">
-        <span class="pl-card-title">Órdenes web sin factura emitida</span>
-        <span class="pl-card-sub">Gap operativo</span>
-      </div>
-      <div class="pl-card-body" id="plGapBody">
-        <div class="pl-loading" style="padding:1rem 0"><div class="spinner" style="width:20px;height:20px"></div></div>
-      </div>
-    </div>
-  </div><!-- /pl-bottom -->
+  <!-- IDs ocultos para JS del widget ITBMS (sin card visible) -->
+  <span id="plItbmsIng"  style="display:none"></span>
+  <span id="plItbmsEgr"  style="display:none"></span>
+  <span id="plItbmsNeto" style="display:none"></span>
+  <span id="plTicket"    style="display:none"></span>
+  <span id="plTxCount"   style="display:none"></span>
+
+</div><!-- /sectionDashboard -->
 
 </div><!-- /sectionDashboard -->
 
@@ -5546,13 +5467,7 @@ function renderDashboard() {
   // Desglose costos por tipo
   plRenderCostRow(cogs);
 
-  // Tabla ingresos por tipo
-  plRenderIngTable(ingresos, totalIng);
-
-  // Dona egresos
-  plRenderDonaChart(egresos, totalEgr);
-
-  // Tablas detalle (ingresos / egresos)
+  // Tablas detalle (ingresos / costos)
   plRenderTables();
 
   // Métricas inferiores
@@ -5567,15 +5482,10 @@ function renderDashboard() {
   }
 
   // Gap
-  plRenderGap();
-
-  // Subtítulos
   const periodoLabel = plMonth === 'ytd'
     ? 'Enero – ' + ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][new Date().getMonth()+1] + ' ' + plYear
     : plMesLabel(plMonth) + ' ' + plYear;
-  document.getElementById('plChartSub').textContent    = periodoLabel;
-  document.getElementById('plIngSubtitle').textContent = plFmt(totalIngNeto) + ' neto';
-  document.getElementById('plEgrSubtitle').textContent = plFmt(totalEgr);
+  document.getElementById('plChartSub').textContent = periodoLabel;
 }
 
 // ── Tablas detalle del P&L ─────────────────────────────────────
@@ -5681,51 +5591,68 @@ function plRenderTblIngresos(q) {
 function plRenderTblEgresos(q) {
   const tbody = document.getElementById('plTblEgrBody');
   if (!tbody) return;
-  // Usa plEgresos — misma fuente que los widgets, filtrado por año/mes
-  let items = plEgresos.filter(e => {
-    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
-    const eMes  = parseInt(e.mes)  || _mesDesfecha(e.fecha_egreso);
-    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
-    if (!eAnio || eAnio !== plYear) return false;
-    if (plMonth !== 'ytd' && eMes !== plMonth) return false;
+
+  // Usa plStItems — misma fuente que los widgets de COGS y la tabla ST
+  // Así el total del pie coincide exactamente con el widget Costo Mercancía
+  let items = plStItems.filter(si => {
+    const siAnio = parseInt(si.anio) || 0;
+    const siMes  = parseInt(si.mes)  || 0;
+    if (siAnio !== plYear) return false;
+    if (plMonth !== 'ytd' && siMes !== plMonth) return false;
     return true;
   });
-  if (q) items = items.filter(e =>
-    (e.descripcion||'').toLowerCase().includes(q) ||
-    (e.proveedor||'').toLowerCase().includes(q)   ||
-    (e.id_egreso||'').toLowerCase().includes(q)
+
+  // Cada si.item es un STI — aplanar para la tabla
+  if (q) items = items.filter(si =>
+    (si.item.descripcion||'').toLowerCase().includes(q) ||
+    (si.item.proveedor||'').toLowerCase().includes(q)   ||
+    (si.item.tipo||'').toLowerCase().includes(q)        ||
+    (si.id_st||'').toLowerCase().includes(q)
   );
+
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
     return;
   }
-  const catBadgeEgr = c => ({
-    costo_mercancia:        '<span class="badge badge-egreso-mercancia">📦 Mercancía</span>',
-    costo_servicio_tecnico: '<span class="badge" style="background:#EDE7F6;color:#4527A0">🔧 Serv. técnico</span>',
-    combustible:            '<span class="badge badge-egreso-operativo">⛽ Combustible</span>',
-    servicios_profesionales:'<span class="badge badge-egreso-servicios">📋 Honorarios</span>',
-    otros_deducibles:       '<span class="badge">📂 Otros</span>',
-  }[c] || `<span class="badge">${esc(c||'—')}</span>`);
 
-  const totTotal = items.reduce((s,e) => s+(parseFloat(e.total)||0), 0);
+  const TIPO_ICON = {
+    producto:'📦', shipping_handling:'✈️', impuesto:'🏛️',
+    mano_obra:'🔧', flete:'🚛', subcontrato:'🤝',
+    combustible:'⛽', fianza:'🔒', aduana:'🛃', otro:'📌',
+  };
+  const TIPO_LABEL_MAP = {
+    producto:'Producto', shipping_handling:'Shipping & Handling',
+    impuesto:'Impuesto / Aduana', mano_obra:'Mano de obra',
+    flete:'Flete', subcontrato:'Subcontrato',
+    combustible:'Combustible', fianza:'Fianza',
+    aduana:'Aduana', otro:'Otro',
+  };
 
-  tbody.innerHTML = items.map(item => {
-    const total = parseFloat(item.total||'0')||0;
+  const totTotal = items.reduce((s, si) => {
+    const tr = parseFloat(si.item.total_real)||0;
+    const tc = parseFloat(si.item.total_cotizado)||0;
+    return s + (tr > 0 ? tr : tc);
+  }, 0);
+
+  tbody.innerHTML = items.map(si => {
+    const it    = si.item;
+    const monto = (parseFloat(it.total_real)||0) > 0
+      ? parseFloat(it.total_real)
+      : (parseFloat(it.total_cotizado)||0);
+    const tipo  = it.tipo || 'otro';
+    const icon  = TIPO_ICON[tipo]  || '📌';
+    const label = TIPO_LABEL_MAP[tipo] || tipo;
     return `<tr>
-      <td style="white-space:nowrap;color:var(--muted);font-size:.8rem">${esc(String(item.fecha_egreso||'').substring(0,10))}</td>
-      <td><span style="font-family:'DM Mono',monospace;font-size:.68rem">${esc(item.id_egreso||'')}</span></td>
-      <td>${catBadgeEgr(item.categoria||item.tipo_egreso)}</td>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descripcion||'')}">${esc((item.descripcion||'').substring(0,60))}</td>
-      <td style="font-size:.8rem">${esc(item.proveedor||'—')}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:.72rem">${esc(item.num_fac_ref||'—')}</td>
-      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#C62828">$${total.toFixed(2)}</td>
-      <td><span class="badge badge-pendiente">● Registrado</span></td>
+      <td style="white-space:nowrap"><span style="font-size:.8rem">${icon} ${esc(label)}</span></td>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.descripcion||'')}">${esc((it.descripcion||'').substring(0,70))}</td>
+      <td style="font-size:.8rem">${esc(it.proveedor||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)">${esc(si.id_st||'')}</td>
+      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#C62828">$${monto.toFixed(2)}</td>
     </tr>`;
   }).join('') +
   `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
-    <td colspan="6" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${items.length} registros</td>
+    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${items.length} ítems</td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totTotal.toFixed(2)}</td>
-    <td></td>
   </tr>`;
 }
 
@@ -5895,131 +5822,6 @@ function plRenderBarChart(year) {
       }
     }
   });
-}
-
-function plRenderIngTable(ingresos, totalIng) {
-  const byTipo = {};
-  ingresos.forEach(i => {
-    const t = i.tipo_ingreso || 'otro';
-    byTipo[t] = (byTipo[t] || 0) + (parseFloat(i.total) || 0);
-  });
-  const rows = Object.entries(byTipo).sort((a,b) => b[1]-a[1]);
-  const maxVal = rows.length ? rows[0][1] : 1;
-  const colorMap = {
-    venta_producto:'#E05A00', servicio_tecnico:'#1565C0',
-    servicio_asesoria:'#2E7D32', comision:'#6A1B9A',
-    exportacion:'#00695C', otro:'#AEAEB2',
-  };
-  if (!rows.length) {
-    document.getElementById('plIngBody').innerHTML =
-      '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:2rem">Sin datos para el período</td></tr>';
-    return;
-  }
-  document.getElementById('plIngBody').innerHTML = rows.map(([tipo, monto]) => {
-    const pct   = totalIng > 0 ? (monto/totalIng*100).toFixed(1) : '0.0';
-    const w     = maxVal  > 0 ? (monto/maxVal*100).toFixed(1) : '0';
-    const color = colorMap[tipo] || '#AEAEB2';
-    return `<tr>
-      <td style="font-weight:500">${esc(TIPO_LABEL[tipo]||tipo)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem">${plFmt(monto)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${pct}%</td>
-      <td><div class="pl-bar-wrap"><div class="pl-bar-track"><div class="pl-bar-fill" style="width:${w}%;background:${color}"></div></div></div></td>
-    </tr>`;
-  }).join('');
-}
-
-function plRenderDonaChart(egresos, totalEgr) {
-  const byCat = {};
-  egresos.forEach(e => {
-    const c = e.categoria || e.tipo_egreso || 'otros_deducibles';
-    byCat[c] = (byCat[c] || 0) + (parseFloat(e.total) || 0);
-  });
-  const entries = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
-  document.getElementById('plDonaCenterVal').textContent = plFmt(totalEgr);
-  const ctx = document.getElementById('plDonaChart').getContext('2d');
-  if (plDonaChart) { plDonaChart.destroy(); plDonaChart = null; }
-  if (!entries.length) {
-    document.getElementById('plEgrBody').innerHTML =
-      '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:1rem">Sin egresos</td></tr>';
-    return;
-  }
-  plDonaChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: entries.map(([c]) => EGR_LABEL[c]||c),
-      datasets: [{
-        data:            entries.map(([,v]) => v),
-        backgroundColor: entries.map(([c]) => EGR_COLORS[c]||'#AEAEB2'),
-        borderWidth: 2, borderColor: '#fff', hoverOffset: 4,
-      }]
-    },
-    options: {
-      responsive: false, maintainAspectRatio: false, cutout: '65%',
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: c => ' ' + plFmt(c.raw||0) } }
-      }
-    }
-  });
-  document.getElementById('plEgrBody').innerHTML = entries.map(([cat, monto]) => {
-    const pct = totalEgr > 0 ? (monto/totalEgr*100).toFixed(1) : '0.0';
-    const col = EGR_COLORS[cat] || '#AEAEB2';
-    return `<tr>
-      <td>
-        <div style="display:flex;align-items:center;gap:.4rem">
-          <div style="width:8px;height:8px;border-radius:2px;background:${col};flex-shrink:0"></div>
-          <span style="font-size:.78rem">${esc(EGR_LABEL[cat]||cat)}</span>
-        </div>
-      </td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.75rem">${plFmt(monto)}</td>
-      <td style="text-align:right;font-size:.72rem;color:var(--muted)">${pct}%</td>
-    </tr>`;
-  }).join('');
-}
-
-function plRenderGap() {
-  const gapBody = document.getElementById('plGapBody');
-  const cvSinOrden = plOpItems.filter(item => {
-    if (item.estado !== 'cerrado' || item.id_orden_web) return false;
-    const fechaV = item.fecha_venta ? new Date(String(item.fecha_venta).substring(0,10) + 'T12:00:00') : null;
-    if (!fechaV || isNaN(fechaV)) return false;
-    if (fechaV.getFullYear() !== plYear) return false;
-    if (plMonth !== 'ytd' && (fechaV.getMonth()+1) !== plMonth) return false;
-    return true;
-  });
-  const totalGap = cvSinOrden.reduce((s,i) => s + (parseFloat(i.total_venta)||0), 0);
-  if (!cvSinOrden.length) {
-    gapBody.innerHTML = `
-      <div style="display:flex;align-items:center;gap:.75rem;color:var(--green)">
-        <span style="font-size:1.3rem">✅</span>
-        <div>
-          <div style="font-weight:600;font-size:.85rem">Sin gaps detectados</div>
-          <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">Todas las ventas cerradas tienen orden web vinculada</div>
-        </div>
-      </div>`;
-    return;
-  }
-  gapBody.innerHTML = `
-    <div style="margin-bottom:.75rem;padding:.75rem;background:#FFF3E0;border-radius:var(--r);border:1px solid rgba(224,90,0,.2)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:.78rem;color:var(--muted)">${cvSinOrden.length} venta${cvSinOrden.length>1?'s':''} sin orden web</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--orange)">${plFmt(totalGap)}</div>
-      </div>
-    </div>
-    <div style="overflow-x:auto;max-width:100%">
-    <table class="pl-breakdown">
-      <thead><tr><th>Factura emitida</th><th>Cliente</th><th style="text-align:right">Venta</th></tr></thead>
-      <tbody>
-        ${cvSinOrden.slice(0,8).map(i => `
-          <tr>
-            <td style="font-family:'DM Mono',monospace;font-size:.72rem;white-space:nowrap">${esc(i.num_fac_emitida||'—')}</td>
-            <td style="font-size:.78rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.nombre_cliente||'—')}</td>
-            <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.75rem;white-space:nowrap">${plFmt(parseFloat(i.total_venta)||0)}</td>
-          </tr>`).join('')}
-        ${cvSinOrden.length > 8 ? `<tr><td colspan="3" style="text-align:center;color:var(--muted);font-size:.72rem">+${cvSinOrden.length-8} más...</td></tr>` : ''}
-      </tbody>
-    </table>
-    </div>`;
 }
 
 // Helpers para extraer mes/anio desde string de fecha cuando los campos explícitos fallan
