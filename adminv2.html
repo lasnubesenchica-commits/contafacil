@@ -1149,14 +1149,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <!-- Tabla Ingresos -->
       <div id="plTblIngresos" style="overflow-x:auto">
         <table class="op-table" style="min-width:780px">
-          <thead><tr>
-            <th>Fecha</th>
-            <th>Factura</th>
-            <th>Cliente</th>
+          <thead><tr id="plIngHead">
+            <th data-sort-ing="fecha_ingreso" style="cursor:pointer;user-select:none">Fecha <span class="pl-sort-arrow"></span></th>
+            <th data-sort-ing="num_factura" style="cursor:pointer;user-select:none">Factura <span class="pl-sort-arrow"></span></th>
+            <th data-sort-ing="nombre_cliente" style="cursor:pointer;user-select:none">Cliente <span class="pl-sort-arrow"></span></th>
             <th>Categoría</th>
-            <th style="text-align:right">Subtotal</th>
-            <th style="text-align:right">ITBMS</th>
-            <th style="text-align:right">Total</th>
+            <th data-sort-ing="subtotal" style="cursor:pointer;user-select:none;text-align:right">Subtotal <span class="pl-sort-arrow"></span></th>
+            <th data-sort-ing="itbms" style="cursor:pointer;user-select:none;text-align:right">ITBMS <span class="pl-sort-arrow"></span></th>
+            <th data-sort-ing="total" style="cursor:pointer;user-select:none;text-align:right">Total <span class="pl-sort-arrow"></span></th>
             <th>Estado</th>
             <th>Comp.</th>
           </tr></thead>
@@ -1166,12 +1166,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <!-- Tabla Costos (egresos) -->
       <div id="plTblEgresos" style="overflow-x:auto;display:none">
         <table class="op-table" style="min-width:700px">
-          <thead><tr>
-            <th>Tipo</th>
-            <th>Descripción</th>
-            <th>Proveedor</th>
-            <th>ST</th>
-            <th style="text-align:right">Monto</th>
+          <thead><tr id="plEgrHead">
+            <th data-sort-egr="tipo" style="cursor:pointer;user-select:none">Tipo <span class="pl-sort-arrow"></span></th>
+            <th data-sort-egr="descripcion" style="cursor:pointer;user-select:none">Descripción <span class="pl-sort-arrow"></span></th>
+            <th data-sort-egr="proveedor" style="cursor:pointer;user-select:none">Proveedor <span class="pl-sort-arrow"></span></th>
+            <th data-sort-egr="id_st" style="cursor:pointer;user-select:none">ST <span class="pl-sort-arrow"></span></th>
+            <th data-sort-egr="monto" style="cursor:pointer;user-select:none;text-align:right">Monto <span class="pl-sort-arrow"></span></th>
           </tr></thead>
           <tbody id="plTblEgrBody"></tbody>
         </table>
@@ -5431,7 +5431,7 @@ function renderDashboard() {
   document.getElementById('plKpiRow').innerHTML = `
     <div class="pl-kpi" style="--kpi-accent:var(--orange)">
       <div class="pl-kpi-label">Ingresos neto</div>
-      <div class="pl-kpi-value orange">${plFmt(totalIngNeto)}</div>
+      <div class="pl-kpi-value orange">${plFmtFull(totalIngNeto)}</div>
       <div class="pl-kpi-sub">
         <span class="pl-kpi-tag neutral">${plMonth === 'ytd' ? 'YTD' : plMesLabel(plMonth)} ${plYear}</span>
         <span style="margin-left:.25rem">sin ITBMS · bruto ${plFmt(totalIng)}</span>
@@ -5439,7 +5439,7 @@ function renderDashboard() {
     </div>
     <div class="pl-kpi" style="--kpi-accent:#E65100">
       <div class="pl-kpi-label">Costo mercancía</div>
-      <div class="pl-kpi-value" style="color:#E65100">${plFmt(cogs)}</div>
+      <div class="pl-kpi-value" style="color:#E65100">${plFmtFull(cogs)}</div>
       <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogs/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
@@ -5492,6 +5492,34 @@ function renderDashboard() {
 
 var plTblMode = 'ingresos';   // 'ingresos' | 'egresos'
 
+// Sort state — tablas Ingresos y Costos
+var plIngSort = { col: 'fecha_ingreso', dir: 'desc' };
+var plEgrSort = { col: 'monto',         dir: 'desc' };
+
+// Inicializar click handlers de sort al cargar
+(function() {
+  function initSortHeaders() {
+    document.querySelectorAll('[data-sort-ing]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sortIng;
+        if (plIngSort.col === col) plIngSort.dir = plIngSort.dir === 'asc' ? 'desc' : 'asc';
+        else { plIngSort.col = col; plIngSort.dir = 'asc'; }
+        plFilterTable();
+      });
+    });
+    document.querySelectorAll('[data-sort-egr]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sortEgr;
+        if (plEgrSort.col === col) plEgrSort.dir = plEgrSort.dir === 'asc' ? 'desc' : 'asc';
+        else { plEgrSort.col = col; plEgrSort.dir = 'asc'; }
+        plFilterTable();
+      });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initSortHeaders);
+  else initSortHeaders();
+})();
+
 function plSwitchTable(mode) {
   plTblMode = mode;
   const isIng = mode === 'ingresos';
@@ -5520,8 +5548,6 @@ function plRenderTables() {
 function plRenderTblIngresos(q) {
   const tbody = document.getElementById('plTblIngBody');
   if (!tbody) return;
-  // Usa plIngresos — misma fuente que los widgets (ya filtrado por estado)
-  // Filtra por año/mes igual que el resto del dashboard
   let items = plIngresos.filter(i => {
     if (String(i.estado || '').toLowerCase() === 'anulado') return false;
     if (parseInt(i.anio_fiscal) !== plYear) return false;
@@ -5533,6 +5559,29 @@ function plRenderTblIngresos(q) {
     (i.num_factura||'').toLowerCase().includes(q)    ||
     (i.descripcion||'').toLowerCase().includes(q)
   );
+
+  // Sort
+  const { col, dir } = plIngSort;
+  items = [...items].sort((a, b) => {
+    let va, vb;
+    if (['subtotal','itbms','total'].includes(col)) {
+      va = parseFloat(a[col]||0); vb = parseFloat(b[col]||0);
+    } else {
+      va = String(a[col]||'').toLowerCase(); vb = String(b[col]||'').toLowerCase();
+    }
+    if (va < vb) return dir === 'asc' ? -1 : 1;
+    if (va > vb) return dir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  // Header highlight + flecha
+  document.querySelectorAll('[data-sort-ing]').forEach(th => {
+    const isActive = th.dataset.sortIng === col;
+    th.style.background = isActive ? 'rgba(0,0,0,.04)' : '';
+    const arrow = th.querySelector('.pl-sort-arrow');
+    if (arrow) arrow.textContent = isActive ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
+  });
+
   if (!items.length) {
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
     return;
@@ -5554,7 +5603,11 @@ function plRenderTblIngresos(q) {
     otro_exento:              '<span class="badge" style="background:#F5F5F5;color:#555">📋 Otro (exento)</span>',
   }[c] || `<span class="badge">${esc(c||'—')}</span>`);
 
-  // Fila de totales
+  // Índice de columna activa para highlight de celda
+  const colIdx = { fecha_ingreso:0, num_factura:1, nombre_cliente:2, subtotal:4, itbms:5, total:6 };
+  const activeIdx = colIdx[col] ?? -1;
+  const cellBg = 'background:rgba(0,0,0,.03)';
+
   const totSubtotal = items.reduce((s,i) => s+(parseFloat(i.subtotal)||0), 0);
   const totItbms    = items.reduce((s,i) => s+(parseFloat(i.itbms)||0), 0);
   const totTotal    = items.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
@@ -5567,14 +5620,15 @@ function plRenderTblIngresos(q) {
     const compLink = driveUrl
       ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄</a>`
       : '—';
+    const h = (i) => activeIdx === i ? cellBg : '';
     return `<tr>
-      <td style="white-space:nowrap;color:var(--muted);font-size:.8rem">${esc(String(item.fecha_ingreso||'').substring(0,10))}</td>
-      <td><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(item.num_factura||'—')}</span></td>
-      <td><div style="font-weight:500">${esc(item.nombre_cliente||'—')}</div><div style="font-size:.65rem;color:var(--muted)">${esc(item.ruc_cliente||'')}</div></td>
+      <td style="white-space:nowrap;color:var(--muted);font-size:.8rem;${h(0)}">${esc(String(item.fecha_ingreso||'').substring(0,10))}</td>
+      <td style="${h(1)}"><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(item.num_factura||'—')}</span></td>
+      <td style="${h(2)}"><div style="font-weight:500">${esc(item.nombre_cliente||'—')}</div><div style="font-size:.65rem;color:var(--muted)">${esc(item.ruc_cliente||'')}</div></td>
       <td>${catBadgeIng(item.categoria_ingreso)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem">$${subtotal.toFixed(2)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;color:var(--muted)">${itbms > 0 ? '$'+itbms.toFixed(2) : '—'}</td>
-      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--green)">$${total.toFixed(2)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;${h(4)}">$${subtotal.toFixed(2)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;color:var(--muted);${h(5)}">${itbms > 0 ? '$'+itbms.toFixed(2) : '—'}</td>
+      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--green);${h(6)}">$${total.toFixed(2)}</td>
       <td>${estadoBadge(item.estado)}</td>
       <td style="text-align:center">${compLink}</td>
     </tr>`;
@@ -5592,8 +5646,6 @@ function plRenderTblEgresos(q) {
   const tbody = document.getElementById('plTblEgrBody');
   if (!tbody) return;
 
-  // Usa plStItems — misma fuente que los widgets de COGS y la tabla ST
-  // Así el total del pie coincide exactamente con el widget Costo Mercancía
   let items = plStItems.filter(si => {
     const siAnio = parseInt(si.anio) || 0;
     const siMes  = parseInt(si.mes)  || 0;
@@ -5602,7 +5654,6 @@ function plRenderTblEgresos(q) {
     return true;
   });
 
-  // Cada si.item es un STI — aplanar para la tabla
   if (q) items = items.filter(si =>
     (si.item.descripcion||'').toLowerCase().includes(q) ||
     (si.item.proveedor||'').toLowerCase().includes(q)   ||
@@ -5610,8 +5661,33 @@ function plRenderTblEgresos(q) {
     (si.id_st||'').toLowerCase().includes(q)
   );
 
+  // Sort
+  const { col, dir } = plEgrSort;
+  items = [...items].sort((a, b) => {
+    let va, vb;
+    if (col === 'monto') {
+      const getM = si => { const tr = parseFloat(si.item.total_real)||0; const tc = parseFloat(si.item.total_cotizado)||0; return tr > 0 ? tr : tc; };
+      va = getM(a); vb = getM(b);
+    } else if (col === 'tipo')        { va = String(a.item.tipo||'').toLowerCase();        vb = String(b.item.tipo||'').toLowerCase(); }
+    else if (col === 'descripcion')   { va = String(a.item.descripcion||'').toLowerCase(); vb = String(b.item.descripcion||'').toLowerCase(); }
+    else if (col === 'proveedor')     { va = String(a.item.proveedor||'').toLowerCase();   vb = String(b.item.proveedor||'').toLowerCase(); }
+    else if (col === 'id_st')         { va = String(a.id_st||'').toLowerCase();            vb = String(b.id_st||'').toLowerCase(); }
+    else                              { va = ''; vb = ''; }
+    if (va < vb) return dir === 'asc' ? -1 : 1;
+    if (va > vb) return dir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  // Header highlight + flecha
+  document.querySelectorAll('[data-sort-egr]').forEach(th => {
+    const isActive = th.dataset.sortEgr === col;
+    th.style.background = isActive ? 'rgba(0,0,0,.04)' : '';
+    const arrow = th.querySelector('.pl-sort-arrow');
+    if (arrow) arrow.textContent = isActive ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
+  });
+
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
     return;
   }
 
@@ -5628,6 +5704,11 @@ function plRenderTblEgresos(q) {
     aduana:'Aduana', otro:'Otro',
   };
 
+  // Índice de columna activa para highlight de celda
+  const colIdx = { tipo:0, descripcion:1, proveedor:2, id_st:3, monto:4 };
+  const activeIdx = colIdx[col] ?? -1;
+  const cellBg = 'background:rgba(0,0,0,.03)';
+
   const totTotal = items.reduce((s, si) => {
     const tr = parseFloat(si.item.total_real)||0;
     const tc = parseFloat(si.item.total_cotizado)||0;
@@ -5642,12 +5723,13 @@ function plRenderTblEgresos(q) {
     const tipo  = it.tipo || 'otro';
     const icon  = TIPO_ICON[tipo]  || '📌';
     const label = TIPO_LABEL_MAP[tipo] || tipo;
+    const h = (i) => activeIdx === i ? cellBg : '';
     return `<tr>
-      <td style="white-space:nowrap"><span style="font-size:.8rem">${icon} ${esc(label)}</span></td>
-      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.descripcion||'')}">${esc((it.descripcion||'').substring(0,70))}</td>
-      <td style="font-size:.8rem">${esc(it.proveedor||'—')}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)">${esc(si.id_st||'')}</td>
-      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#C62828">$${monto.toFixed(2)}</td>
+      <td style="white-space:nowrap;${h(0)}"><span style="font-size:.8rem">${icon} ${esc(label)}</span></td>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${h(1)}" title="${esc(it.descripcion||'')}">${esc((it.descripcion||'').substring(0,70))}</td>
+      <td style="font-size:.8rem;${h(2)}">${esc(it.proveedor||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);${h(3)}">${esc(si.id_st||'')}</td>
+      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#C62828;${h(4)}">$${monto.toFixed(2)}</td>
     </tr>`;
   }).join('') +
   `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
@@ -5842,6 +5924,13 @@ function plFmt(n) {
   const f = abs >= 10000
     ? '$' + (abs/1000).toLocaleString('es-PA',{minimumFractionDigits:1,maximumFractionDigits:1}) + 'k'
     : '$' + abs.toLocaleString('es-PA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return n < 0 ? '-' + f : f;
+}
+// Versión sin abreviatura K — para KPIs donde se quiere el número completo
+function plFmtFull(n) {
+  if (isNaN(n) || n === null) return '—';
+  const abs = Math.abs(n);
+  const f = '$' + abs.toLocaleString('es-PA',{minimumFractionDigits:2,maximumFractionDigits:2});
   return n < 0 ? '-' + f : f;
 }
 function plMesLabel(m) {
