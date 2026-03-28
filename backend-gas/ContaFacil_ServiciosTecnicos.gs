@@ -1092,6 +1092,28 @@ function _handleEliminarItemCotizacion(params, callback) {
 //  _handleGetCotizaciones  (doGet)
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+//  PATCH ContaFacil_ServiciosTecnicos.gs → v1.3.1
+//
+//  FIX: columna "Proveedor" vacía en tabla Costos del P&L.
+//
+//  CAUSA: _handleGetCotizaciones llamaba a _serializeSTItem()
+//  directamente. Ese helper inicializa proveedor='' y num_factura=''
+//  por diseño (el comentario en el código dice explícitamente que
+//  "se inyectan en _handleGetResumenST cruzando con el mapa de
+//  egresos"). El handler getCotizaciones nunca hacía ese cruce,
+//  así que plStItems.filter(si => si.item.proveedor).length === 0.
+//
+//  SOLUCIÓN: construir el mismo mapa egreso_id → {proveedor,
+//  num_factura} que usa getResumenST, e inyectarlo en cada ítem
+//  al armar itemsMap. Un solo recorrido de la hoja Egresos cubre
+//  todos los STs de una vez (O(n) en vez de O(n×m)).
+//
+//  INSTRUCCIÓN: reemplazar la función _handleGetCotizaciones
+//  en ContaFacil_ServiciosTecnicos.gs con la versión de abajo.
+//  Sin más cambios. Redeploy después de guardar.
+// ═══════════════════════════════════════════════════════════════
+
 function _handleGetCotizaciones(params, callback) {
   var result = { success: false, items: [], error: null };
   try {
@@ -1111,6 +1133,25 @@ function _handleGetCotizaciones(params, callback) {
     var numSTRows = sheetST.getLastRow() - 2;
     var stData    = sheetST.getRange(3, 1, numSTRows, ST_NCOLS).getValues();
 
+    // ── Mapa egreso_id → { proveedor, num_factura } ──────────────────────
+    // Necesario para inyectar el nombre del proveedor en cada ST_Item.
+    // _serializeSTItem los inicializa en '' por diseño — solo viven en Egresos.
+    var egresoMap = {};
+    var sheetEgr  = ss.getSheetByName(SHEET_EGRESOS);
+    if (sheetEgr && sheetEgr.getLastRow() > 2) {
+      var numEgrRows = sheetEgr.getLastRow() - 2;
+      var egrData    = sheetEgr.getRange(3, 1, numEgrRows, EGRESOS_NCOLS).getValues();
+      for (var e = 0; e < egrData.length; e++) {
+        var eid = String(egrData[e][COL_E.ID - 1] || '').trim();
+        if (!eid) continue;
+        egresoMap[eid] = {
+          proveedor:   String(egrData[e][COL_E.PROVEEDOR - 1] || ''),
+          num_factura: String(egrData[e][COL_E.NFACTURA  - 1] || ''),
+        };
+      }
+    }
+
+    // ── ST_Items → itemsMap con proveedor inyectado ──────────────────────
     var sheetSTI   = ss.getSheetByName(SHEET_ST_ITEM);
     var itemsMap   = {};
     if (sheetSTI && sheetSTI.getLastRow() > 2) {
@@ -1121,7 +1162,13 @@ function _handleGetCotizaciones(params, callback) {
         var stKey = String(r[COL_STI.ID_ST - 1] || '');
         if (!stKey) continue;
         if (!itemsMap[stKey]) itemsMap[stKey] = [];
-        itemsMap[stKey].push(_serializeSTItem(r));
+        var item = _serializeSTItem(r);
+        // Inyectar proveedor/num_factura desde el mapa de egresos
+        if (item.egreso_id && egresoMap[item.egreso_id]) {
+          item.proveedor   = egresoMap[item.egreso_id].proveedor;
+          item.num_factura = egresoMap[item.egreso_id].num_factura;
+        }
+        itemsMap[stKey].push(item);
       }
     }
 
@@ -1141,17 +1188,15 @@ function _handleGetCotizaciones(params, callback) {
       return String(b.fecha_reg).localeCompare(String(a.fecha_reg));
     });
 
-    // Enriquecer con subtotal_venta y es_exento cruzando hoja Ingresos
-    // Necesario para que el KPI Cerrados muestre el neto real (gravados Y exentos)
+    // ── Enriquecer con subtotal_venta y es_exento desde Ingresos ─────────
     try {
       var sheetIngLst = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
       if (sheetIngLst && sheetIngLst.getLastRow() > 2) {
-        var numIngLst = sheetIngLst.getLastRow() - 2;
+        var numIngLst  = sheetIngLst.getLastRow() - 2;
         var ingLstData = sheetIngLst.getRange(3, 1, numIngLst, INGRESOS_NCOLS).getValues();
-        // Construir mapa ingreso_id → {subtotal, categoria, fecha_ingreso, mes, anio}
         var ingMap = {};
         for (var ii = 0; ii < ingLstData.length; ii++) {
-          var ingId  = String(ingLstData[ii][COL_I.ID_TRANS - 1] || '').trim();
+          var ingId = String(ingLstData[ii][COL_I.ID_TRANS - 1] || '').trim();
           if (!ingId) continue;
           var fechaIng = ingLstData[ii][COL_I.FECHA_INGRESO - 1];
           if (fechaIng instanceof Date) {
@@ -1167,7 +1212,6 @@ function _handleGetCotizaciones(params, callback) {
             anio:          ingLstData[ii][COL_I.ANIO_FISCAL - 1] || '',
           };
         }
-        // Asignar a cada ST con ingreso_id
         for (var si = 0; si < sts.length; si++) {
           var ingId2 = String(sts[si].ingreso_id || '').trim();
           if (ingId2 && ingMap[ingId2]) {
@@ -1915,14 +1959,25 @@ function _handleCerrarST(params, callback) {
 
 
 // ═══════════════════════════════════════════════════════════════
-//  _handleCancelarST  (doGet)
+//  _handleCancelarST  (doGet)  v2
+//  — Cancelación contable limpia:
+//    · cotizado/aprobado  → solo marca cancelado (no hay egresos/ingreso aún)
+//    · en_ejecucion       → anula egresos activos (por ID exacto desde ST_Items)
+//                           + anula ingreso si existe, marca items cancelado
+//    · cerrado / cancelado → bloqueado
 // ═══════════════════════════════════════════════════════════════
 
 function _handleCancelarST(params, callback) {
-  var result = { success: false, error: null };
+  var result = {
+    success:         false,
+    id_st:           null,
+    egresos_anulados: 0,
+    ingreso_anulado: false,
+    error:           null,
+  };
   try {
-    var idST   = params.id_st  || '';
-    var motivo = params.motivo || '';
+    var idST   = String(params.id_st  || '').trim();
+    var motivo = String(params.motivo || '').trim();
     if (!idST) throw new Error('id_st requerido');
 
     var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
@@ -1930,27 +1985,105 @@ function _handleCancelarST(params, callback) {
     if (!rec) throw new Error('ST no encontrado: ' + idST);
 
     var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual === 'en_ejecucion') {
-      throw new Error('No se puede cancelar un ST en ejecución. Ciérralo manualmente o contacta al administrador.');
-    }
     if (estadoActual === 'cerrado') {
-      throw new Error('Este ST ya está cerrado y no puede cancelarse.');
+      throw new Error('Este ST ya está cerrado y no puede cancelarse. Los registros contables son definitivos.');
+    }
+    if (estadoActual === 'cancelado') {
+      throw new Error('Este ST ya está cancelado.');
     }
 
+    var stamp = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+
+    // ── Si está en ejecución: limpiar contabilidad antes de cancelar ──────
+    if (estadoActual === 'en_ejecucion') {
+
+      // 1. Recolectar egreso_ids exactos desde ST_Items
+      var egresoIdsSet = {};
+      var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
+      if (sheetSTI && sheetSTI.getLastRow() > 2) {
+        var numSTI  = sheetSTI.getLastRow() - 2;
+        var dataSTI = sheetSTI.getRange(3, 1, numSTI, STI_NCOLS).getValues();
+        for (var i = 0; i < dataSTI.length; i++) {
+          if (String(dataSTI[i][COL_STI.ID_ST - 1]) !== idST) continue;
+          var eid = String(dataSTI[i][COL_STI.EGRESO_ID - 1] || '').trim();
+          if (eid) egresoIdsSet[eid] = true;
+          // Marcar item como cancelado (preserva historial, no borra fila)
+          sheetSTI.getRange(i + 3, COL_STI.ESTADO_ITEM).setValue('cancelado');
+          sheetSTI.getRange(i + 3, COL_STI.NOTAS).setValue(
+            String(dataSTI[i][COL_STI.NOTAS - 1] || '') +
+            ' | CANCELADO ST: ' + stamp + (motivo ? ' — ' + motivo : '')
+          );
+        }
+        SpreadsheetApp.flush();
+      }
+
+      // 2. Anular egresos por ID exacto
+      var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
+      if (sheetEgr && sheetEgr.getLastRow() > 2 && Object.keys(egresoIdsSet).length > 0) {
+        var numEgr  = sheetEgr.getLastRow() - 2;
+        var dataEgr = sheetEgr.getRange(3, 1, numEgr, EGRESOS_NCOLS).getValues();
+        for (var e = 0; e < dataEgr.length; e++) {
+          var egresoId = String(dataEgr[e][COL_E.ID - 1] || '').trim();
+          if (!egresoId || !egresoIdsSet[egresoId]) continue;
+          var estadoE = String(dataEgr[e][COL_E.ESTADO - 1] || '').toLowerCase();
+          if (estadoE === 'anulado') continue;
+          var rowEgr = e + 3;
+          sheetEgr.getRange(rowEgr, COL_E.ESTADO).setValue('anulado');
+          sheetEgr.getRange(rowEgr, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
+          var notaE = String(dataEgr[e][COL_E.NOTAS - 1] || '');
+          sheetEgr.getRange(rowEgr, COL_E.NOTAS).setValue(
+            notaE + ' | ANULADO — cancelación ST ' + idST + ': ' + stamp +
+            (motivo ? ' — ' + motivo : '')
+          );
+          result.egresos_anulados++;
+        }
+        SpreadsheetApp.flush();
+      }
+
+      // 3. Anular ingreso si existe
+      var ingresoId = String(rec.data[COL_ST.INGRESO_ID - 1] || '').trim();
+      if (ingresoId) {
+        var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+        if (sheetIng && sheetIng.getLastRow() > 2) {
+          var numIng  = sheetIng.getLastRow() - 2;
+          var dataIng = sheetIng.getRange(3, 1, numIng, INGRESOS_NCOLS).getValues();
+          for (var n = 0; n < dataIng.length; n++) {
+            if (String(dataIng[n][COL_I.ID_TRANS - 1]) !== ingresoId) continue;
+            var rowIng = n + 3;
+            sheetIng.getRange(rowIng, COL_I.ESTADO).setValue('anulado');
+            sheetIng.getRange(rowIng, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
+            var notaIng = String(dataIng[n][COL_I.NOTAS_INT - 1] || '');
+            sheetIng.getRange(rowIng, COL_I.NOTAS_INT).setValue(
+              notaIng + ' | ANULADO — cancelación ST ' + idST + ': ' + stamp +
+              (motivo ? ' — ' + motivo : '')
+            );
+            result.ingreso_anulado = true;
+            break;
+          }
+          SpreadsheetApp.flush();
+        }
+      }
+    }
+
+    // ── Marcar el ST como cancelado ───────────────────────────────────────
     var sheetST = ss.getSheetByName(SHEET_ST);
     sheetST.getRange(rec.row, COL_ST.ESTADO).setValue('cancelado');
-    var stamp   = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
     var notaAct = String(rec.data[COL_ST.NOTAS - 1] || '');
     sheetST.getRange(rec.row, COL_ST.NOTAS).setValue(
       notaAct + ' | CANCELADO: ' + stamp + (motivo ? ' — ' + motivo : '')
     );
     sheetST.getRange(rec.row, 1, 1, ST_NCOLS).setBackground('#FFEBEE');
+    SpreadsheetApp.flush();
 
     result.success = true;
-    Logger.log('✅ ST cancelado: ' + idST);
+    result.id_st   = idST;
+    Logger.log('✅ ST cancelado: ' + idST +
+               ' | Egresos anulados: ' + result.egresos_anulados +
+               ' | Ingreso anulado: '  + result.ingreso_anulado);
+
   } catch(err) {
     result.error = err.message;
-    Logger.log('Error _handleCancelarST: ' + err.message);
+    Logger.log('Error _handleCancelarST v2: ' + err.message);
   }
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -2156,7 +2289,11 @@ function _htmlEscape(str) {
 
 
 // ═══════════════════════════════════════════════════════════════
-//  _handleEliminarST  v2
+//  _handleEliminarST  v3  — FIX: usa solo IDs exactos desde ST_Items
+//  — Solo permite eliminar STs en estado: cotizado | aprobado | cancelado
+//  — Para en_ejecucion o cerrado: usar cancelarST primero
+//  — NO usa indexOf en notas para buscar egresos (era la fuente del bug
+//    de contaminación cruzada entre STs con IDs similares)
 // ═══════════════════════════════════════════════════════════════
 
 function _handleEliminarST(params, callback) {
@@ -2176,10 +2313,23 @@ function _handleEliminarST(params, callback) {
     var rec = _getSTById(ss, idST);
     if (!rec) throw new Error('ST no encontrado: ' + idST);
 
+    // ── Guard de estado: solo permite eliminar estados sin impacto contable firme ──
+    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
+    var estadosPermitidos = ['cotizado', 'aprobado', 'cancelado'];
+    if (estadosPermitidos.indexOf(estadoActual) === -1) {
+      throw new Error(
+        'No se puede eliminar un ST en estado "' + estadoActual + '". ' +
+        'Solo se permiten eliminar STs cotizados, aprobados o cancelados. ' +
+        'Para STs en ejecución, primero cancélalo desde el mismo botón.'
+      );
+    }
+
     var ingresoId = String(rec.data[COL_ST.INGRESO_ID - 1] || '').trim();
     var stamp     = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
 
-    var egresoIdsDeItems = {};
+    // ── 1. Recolectar egreso_ids EXACTOS desde ST_Items (único criterio confiable) ──
+    var egresoIdsDeItems = {};   // { egresoId: true }
+    var egresoIdStItemCol = {};  // { egresoId: true } — respaldo por col 21
     var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
     var rowsSTI  = [];
 
@@ -2194,14 +2344,14 @@ function _handleEliminarST(params, callback) {
       }
     }
 
+    // ── 2. Anular egresos por ID exacto ÚNICAMENTE ────────────────────────
     var sheetEgr  = ss.getSheetByName(SHEET_EGRESOS);
     var egresosAn = 0;
-    var stTag     = 'ST: ' + idST;
+    var colsRead  = Math.max(EGRESOS_NCOLS, 21);
 
-    if (sheetEgr && sheetEgr.getLastRow() > 2) {
-      var numEgr   = sheetEgr.getLastRow() - 2;
-      var colsRead = Math.max(EGRESOS_NCOLS, 21);
-      var dataEgr  = sheetEgr.getRange(3, 1, numEgr, colsRead).getValues();
+    if (sheetEgr && sheetEgr.getLastRow() > 2 && Object.keys(egresoIdsDeItems).length > 0) {
+      var numEgr  = sheetEgr.getLastRow() - 2;
+      var dataEgr = sheetEgr.getRange(3, 1, numEgr, colsRead).getValues();
 
       for (var e = 0; e < dataEgr.length; e++) {
         var egresoId = String(dataEgr[e][COL_E.ID - 1] || '').trim();
@@ -2210,19 +2360,17 @@ function _handleEliminarST(params, callback) {
         var estadoE = String(dataEgr[e][COL_E.ESTADO - 1] || '').toLowerCase();
         if (estadoE === 'anulado') continue;
 
+        // ⚠️  SOLO criterios basados en IDs exactos — NUNCA indexOf en notas
         var idStItemCol = (colsRead >= 21) ? String(dataEgr[e][20] || '').trim() : '';
-        var notasE      = String(dataEgr[e][COL_E.NOTAS - 1] || '');
-
-        var pertenece = egresoIdsDeItems[egresoId]
-                     || idStItemCol === idST
-                     || notasE.indexOf(stTag) !== -1;
+        var pertenece   = egresoIdsDeItems[egresoId]
+                       || idStItemCol === idST;
 
         if (!pertenece) continue;
 
         var rowEgr = e + 3;
         sheetEgr.getRange(rowEgr, COL_E.ESTADO).setValue('anulado');
         sheetEgr.getRange(rowEgr, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
-        var notaActual = String(sheetEgr.getRange(rowEgr, COL_E.NOTAS).getValue() || '');
+        var notaActual = String(dataEgr[e][COL_E.NOTAS - 1] || '');
         sheetEgr.getRange(rowEgr, COL_E.NOTAS).setValue(
           notaActual + ' | ANULADO — eliminación ST ' + idST + ': ' + stamp
         );
@@ -2231,6 +2379,7 @@ function _handleEliminarST(params, callback) {
       SpreadsheetApp.flush();
     }
 
+    // ── 3. Anular ingreso por ID exacto ───────────────────────────────────
     var ingresoAnulado = false;
     if (ingresoId) {
       var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
@@ -2242,7 +2391,7 @@ function _handleEliminarST(params, callback) {
           var rowIng = n + 3;
           sheetIng.getRange(rowIng, COL_I.ESTADO).setValue('anulado');
           sheetIng.getRange(rowIng, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
-          var notaIng = String(sheetIng.getRange(rowIng, COL_I.NOTAS_INT).getValue() || '');
+          var notaIng = String(dataIng[n][COL_I.NOTAS_INT - 1] || '');
           sheetIng.getRange(rowIng, COL_I.NOTAS_INT).setValue(
             notaIng + ' | ANULADO — eliminación ST ' + idST + ': ' + stamp
           );
@@ -2253,12 +2402,14 @@ function _handleEliminarST(params, callback) {
       }
     }
 
+    // ── 4. Borrar filas ST_Items (descendente para no desplazar índices) ──
     if (sheetSTI && rowsSTI.length > 0) {
       rowsSTI.sort(function(a, b) { return b - a; });
       rowsSTI.forEach(function(rowNum) { sheetSTI.deleteRow(rowNum); });
       SpreadsheetApp.flush();
     }
 
+    // ── 5. Borrar fila del ST ─────────────────────────────────────────────
     var sheetST = ss.getSheetByName(SHEET_ST);
     if (sheetST) {
       sheetST.deleteRow(rec.row);
@@ -2278,7 +2429,7 @@ function _handleEliminarST(params, callback) {
 
   } catch(err) {
     result.error = err.message;
-    Logger.log('❌ _handleEliminarST: ' + err.message);
+    Logger.log('❌ _handleEliminarST v3: ' + err.message);
   }
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
