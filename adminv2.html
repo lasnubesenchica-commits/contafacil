@@ -5391,6 +5391,7 @@ function plFiltrarEgresos() {
     if (plTipo !== 'todos' && plTipo !== 'venta_producto') {
       if ((e.tipo_egreso || '') === 'costo_mercancia') return false;
     }
+    // credito_fiscal siempre incluido — necesario para cálculo ITBMS neto DGI
     return true;
   });
 }
@@ -5409,6 +5410,7 @@ function renderDashboard() {
     const siMes  = parseInt(si.mes)  || 0;
     if (siAnio !== plYear) return false;
     if (plMonth !== 'ytd' && siMes !== plMonth) return false;
+    if ((si.item.tipo || '') === 'credito_fiscal') return false; // no es costo, es crédito
     return true;
   });
   const cogs = cogsItems.reduce((s, si) => {
@@ -5651,6 +5653,7 @@ function plRenderTblEgresos(q) {
     const siMes  = parseInt(si.mes)  || 0;
     if (siAnio !== plYear) return false;
     if (plMonth !== 'ytd' && siMes !== plMonth) return false;
+    if ((si.item.tipo || '') === 'credito_fiscal') return false; // va al widget ITBMS, no a costos
     return true;
   });
 
@@ -5694,14 +5697,14 @@ function plRenderTblEgresos(q) {
   const TIPO_ICON = {
     producto:'📦', shipping_handling:'✈️', impuesto:'🏛️',
     mano_obra:'🔧', flete:'🚛', subcontrato:'🤝',
-    combustible:'⛽', fianza:'🔒', aduana:'🛃', otro:'📌',
+    combustible:'⛽', fianza:'🔒', aduana:'🛃', credito_fiscal:'💳', otro:'📌',
   };
   const TIPO_LABEL_MAP = {
     producto:'Producto', shipping_handling:'Shipping & Handling',
     impuesto:'Impuesto / Aduana', mano_obra:'Mano de obra',
     flete:'Flete', subcontrato:'Subcontrato',
     combustible:'Combustible', fianza:'Fianza',
-    aduana:'Aduana', otro:'Otro',
+    aduana:'Aduana', credito_fiscal:'Crédito Fiscal ITBM', otro:'Otro',
   };
 
   // Índice de columna activa para highlight de celda
