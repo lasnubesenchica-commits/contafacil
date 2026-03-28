@@ -1859,16 +1859,40 @@ function _handleCerrarST(params, callback) {
     var fechaCierre = params.fecha_cierre ||
       Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd');
 
+    // FIX #4: mes/anio reflejan la fecha real de cierre, no la de creación
+    var fechaCierreDate = new Date(fechaCierre + 'T12:00:00');
+    var mesCierre  = isNaN(fechaCierreDate.getTime()) ? new Date().getMonth() + 1 : fechaCierreDate.getMonth() + 1;
+    var anioCierre = isNaN(fechaCierreDate.getTime()) ? new Date().getFullYear()  : fechaCierreDate.getFullYear();
+
     var sheetST = ss.getSheetByName(SHEET_ST);
     sheetST.getRange(rec.row, COL_ST.ESTADO).setValue('cerrado');
     sheetST.getRange(rec.row, COL_ST.FECHA_CIERRE).setValue(fechaCierre);
+    sheetST.getRange(rec.row, COL_ST.MES).setValue(mesCierre);
+    sheetST.getRange(rec.row, COL_ST.ANIO).setValue(anioCierre);
     sheetST.getRange(rec.row, 1, 1, ST_NCOLS).setBackground('#F1F8E9');
 
     var sheetSTI   = ss.getSheetByName(SHEET_ST_ITEM);
     var totalReal  = _calcSTTotalsReal(sheetSTI, idST);
     sheetST.getRange(rec.row, COL_ST.TOTAL_COSTO_REAL).setValue(totalReal);
 
-    Logger.log('✅ ST cerrado: ' + idST + ' | Costo real: $' + totalReal);
+    // FIX #1b: marcar el ingreso vinculado como 'confirmado' al cerrar el ST
+    // Esto asegura que el P&L lo incluya sin depender del estado 'pendiente'
+    var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+    if (ingresoId && sheetIng && sheetIng.getLastRow() > 2) {
+      var numIng  = sheetIng.getLastRow() - 2;
+      var dataIng = sheetIng.getRange(3, 1, numIng, INGRESOS_NCOLS).getValues();
+      for (var ni = 0; ni < dataIng.length; ni++) {
+        if (String(dataIng[ni][COL_I.ID_TRANS - 1]) !== ingresoId) continue;
+        var estadoIng = String(dataIng[ni][COL_I.ESTADO - 1] || '');
+        if (estadoIng !== 'anulado') {
+          sheetIng.getRange(ni + 3, COL_I.ESTADO).setValue('confirmado');
+          Logger.log('✅ Ingreso confirmado al cerrar ST: ' + ingresoId);
+        }
+        break;
+      }
+    }
+
+    Logger.log('✅ ST cerrado: ' + idST + ' | Costo real: $' + totalReal + ' | Mes cierre: ' + mesCierre + '/' + anioCierre);
 
     result.success = true;
     result.resumen = {
