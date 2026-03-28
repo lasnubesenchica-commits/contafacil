@@ -533,8 +533,17 @@
         <input class="st-input" id="st-me-total" type="number" min="0" step="0.01" placeholder="0.00" oninput="st_recalcEgreso()">
       </div>
       <div class="st-field">
-        <label class="st-label">ITBMS incluido ($)</label>
+        <label class="st-label" style="display:flex;align-items:center;gap:6px">
+          ITBMS incluido ($)
+          <label style="display:flex;align-items:center;gap:4px;font-weight:400;font-size:.72rem;color:#64748b;cursor:pointer;margin-left:auto">
+            <input type="checkbox" id="st-me-itbms-aplica" onchange="st_recalcEgreso()" style="accent-color:#1A237E">
+            Aplica 7%
+          </label>
+        </label>
         <input class="st-input" id="st-me-itbms" type="number" min="0" step="0.01" placeholder="0.00" oninput="st_recalcEgreso()">
+        <div id="st-me-subtotal-disp" style="font-size:.71rem;color:#64748b;margin-top:3px;display:none">
+          Subtotal: <span id="st-me-subtotal-val">$0.00</span>
+        </div>
       </div>
       <div class="st-field">
         <label class="st-label">Fecha del gasto</label>
@@ -2030,9 +2039,25 @@
   };
 
   window.st_recalcEgreso = function() {
-    var total = parseFloat(document.getElementById('st-me-total').value) || 0;
-    var itbms = parseFloat(document.getElementById('st-me-itbms').value) || 0;
-    // Si hay total pero no ITBMS, dejar que el usuario lo ponga
+    var total   = parseFloat(document.getElementById('st-me-total').value) || 0;
+    var aplica  = document.getElementById('st-me-itbms-aplica').checked;
+    var itbmsEl = document.getElementById('st-me-itbms');
+    var dispEl  = document.getElementById('st-me-subtotal-disp');
+    var valEl   = document.getElementById('st-me-subtotal-val');
+    if (aplica && total > 0) {
+      // Auto-calcular ITBMS solo si el campo está vacío o fue autocompletado antes
+      // Si el usuario lo editó manualmente, respetar su valor
+      var itbmsAuto = parseFloat((total - total / 1.07).toFixed(2));
+      itbmsEl.value = itbmsAuto.toFixed(2);
+    }
+    var itbms    = parseFloat(itbmsEl.value) || 0;
+    var subtotal = parseFloat((total - itbms).toFixed(2));
+    if (itbms > 0 && total > 0) {
+      dispEl.style.display = '';
+      valEl.textContent = '$' + subtotal.toLocaleString('es-PA', {minimumFractionDigits:2});
+    } else {
+      dispEl.style.display = 'none';
+    }
   };
 
   window.st_guardarCotizacion = function() {
@@ -2257,6 +2282,10 @@
       var el = document.getElementById(id);
       if (el) el.value = (id === 'st-me-tipo') ? 'producto' : '';
     });
+    var cbAplica = document.getElementById('st-me-itbms-aplica');
+    if (cbAplica) cbAplica.checked = false;
+    var dispEl = document.getElementById('st-me-subtotal-disp');
+    if (dispEl) dispEl.style.display = 'none';
     document.getElementById('st-me-fecha').value = st_today();
     document.getElementById('st-me-file').value  = '';
     // Limpiar campos ocultos — sin egreso_id ni item_id = nuevo costo libre
@@ -2824,7 +2853,28 @@
       }
 
       Promise.all(promises)
-        .then(function() {
+        .then(function(results) {
+          // Extraer drive_url del comprobante subido (si se subió uno)
+          var driveUrlComp = '';
+          if (results) {
+            results.forEach(function(r) {
+              if (r && r.driveUrl) driveUrlComp = r.driveUrl;
+            });
+          }
+          // Confirmar el ingreso si el pago es completo (no abono)
+          if (st_pcContext.ingresoId && esCompleto) {
+            var cbConf = 'cb_conf_' + Date.now();
+            var urlConf = GAS_URL + '?action=confirmarIngreso&callback=' + cbConf +
+              '&ingreso_id=' + encodeURIComponent(st_pcContext.ingresoId) +
+              (driveUrlComp ? '&drive_url=' + encodeURIComponent(driveUrlComp) : '');
+            window[cbConf] = function(data) {
+              delete window[cbConf];
+              if (!data.success) Logger.log && Logger.log('confirmarIngreso error: ' + data.error);
+            };
+            var sConf = document.createElement('script');
+            sConf.src = urlConf;
+            document.head.appendChild(sConf);
+          }
           btn.disabled = false; btn.innerHTML = '💳 Registrar Pago';
           document.getElementById('st-modal-pago-cliente').style.display = 'none';
           if (esAbono) {
@@ -3032,6 +3082,10 @@
     document.getElementById('st-me-total').value = total;
     document.getElementById('st-me-itbms').value = itbms;
     document.getElementById('st-me-fecha').value = st_today();
+    // Sincronizar checkbox y subtotal al editar
+    var cbAplica2 = document.getElementById('st-me-itbms-aplica');
+    if (cbAplica2) cbAplica2.checked = parseFloat(itbms) > 0;
+    st_recalcEgreso();
     document.getElementById('st-me-notas').value = '';
     document.getElementById('st-me-file').value  = '';
 
