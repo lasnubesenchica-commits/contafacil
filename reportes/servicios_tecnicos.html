@@ -1738,22 +1738,13 @@
         html += '<table class="st-sub-tbl">';
         html += '<thead><tr>';
         html += '<th>Tipo</th><th>Descripción</th><th>Proveedor</th>';
-        html += '<th class="r">Cotizado</th><th class="r">Real</th><th>Estado</th>';
+        html += '<th class="r">Monto</th><th>Estado</th>';
         html += '</tr></thead><tbody>';
         var subTotal = 0;
         costItems.forEach(function(it) {
           var monto  = it.total_real > 0 ? it.total_real : (it.total_cotizado||0);
           var icon   = TIPO_ICON[it.tipo] || '📌';
           var tlabel = TIPO_LABEL[it.tipo] || it.tipo;
-          var isReal = it.total_real > 0;
-          var diff   = it.total_real > 0 && it.total_cotizado > 0
-            ? parseFloat((it.total_real - it.total_cotizado).toFixed(2)) : null;
-          var diffHtml = '';
-          if (diff !== null) {
-            var dColor = diff > 0 ? '#dc2626' : '#15803d';
-            var dSign  = diff > 0 ? '+' : '';
-            diffHtml = ' <span style="font-size:.62rem;color:'+dColor+';">('+dSign+st_fmt(diff)+')</span>';
-          }
           subTotal += monto;
           var estadoColor = it.estado_item === 'ejecutado' ? '#15803d'
             : it.estado_item === 'pendiente' ? '#d97706' : '#64748b';
@@ -1761,14 +1752,13 @@
           html += '<td style="white-space:nowrap"><span style="font-size:.78rem">'+icon+' '+st_esc(tlabel)+'</span></td>';
           html += '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+st_esc(it.descripcion||'')+'">'+st_esc((it.descripcion||'').substring(0,60))+'</td>';
           html += '<td style="color:#64748b;font-size:.7rem">'+st_esc(it.proveedor||'—')+'</td>';
-          html += '<td class="r" style="color:#94a3b8">'+(it.total_cotizado > 0 ? st_fmt(it.total_cotizado) : '—')+'</td>';
-          html += '<td class="r" style="font-weight:600;color:'+(isReal?'#1d4ed8':'#94a3b8')+'">'+st_fmt(monto)+diffHtml+'</td>';
+          html += '<td class="r" style="font-weight:600;color:#1d4ed8">'+st_fmt(monto)+'</td>';
           html += '<td><span style="font-size:.65rem;font-weight:600;color:'+estadoColor+'">'+st_esc(it.estado_item||'')+'</span></td>';
           html += '</tr>';
         });
         html += '</tbody>';
         html += '<tfoot><tr>';
-        html += '<td colspan="4" style="padding:5px 8px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8">Total costos</td>';
+        html += '<td colspan="3" style="padding:5px 8px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8">Total costos</td>';
         html += '<td class="r" style="font-weight:800;color:#1d4ed8;font-size:.78rem">'+st_fmt(subTotal)+'</td>';
         html += '<td></td>';
         html += '</tr></tfoot>';
