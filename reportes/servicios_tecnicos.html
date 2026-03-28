@@ -542,7 +542,74 @@
   </div>
 </div>
 
-<!-- MODAL SUBIR FACTURA DE COSTO -->
+<!-- MODAL DECISIÓN — ELIMINAR vs CANCELAR ST -->
+<div id="st-modal-decision" class="st-modal-overlay" style="display:none" onclick="if(event.target===this)st_cerrarModalDecision()">
+  <div class="st-modal" style="max-width:480px">
+    <h3 style="margin:0 0 4px;font-size:1rem;color:#1a2535">🗑️ ¿Qué deseas hacer con este ST?</h3>
+    <p id="st-dec-label" style="margin:0 0 18px;font-size:.82rem;color:#64748b;font-weight:600"></p>
+
+    <!-- Opción Cancelar -->
+    <div id="st-dec-opt-cancelar"
+         onclick="st_modalDecisionSelect('cancelar')"
+         style="border:2px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .15s;background:#fff"
+         onmouseover="this.style.borderColor='#f59e0b';this.style.background='#fffbeb'"
+         onmouseout="st_decOptionHoverOut(this,'cancelar')">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:1.1rem">⚛️</span>
+        <strong style="font-size:.88rem;color:#92400e">Cancelar ST</strong>
+        <span style="margin-left:auto;font-size:.72rem;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-weight:600">RECOMENDADO</span>
+      </div>
+      <p style="margin:0;font-size:.78rem;color:#78716c;line-height:1.5">
+        El ST <strong>permanece visible</strong> en el historial con estado <em>Cancelado</em>.
+        Sus egresos e ingresos quedan <strong>anulados pero rastreables</strong>. Ideal cuando el
+        servicio no se concretó pero quieres conservar el registro.
+      </p>
+    </div>
+
+    <!-- Opción Eliminar -->
+    <div id="st-dec-opt-eliminar"
+         onclick="st_modalDecisionSelect('eliminar')"
+         style="border:2px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:18px;cursor:pointer;transition:all .15s;background:#fff"
+         onmouseover="this.style.borderColor='#ef4444';this.style.background='#fef2f2'"
+         onmouseout="st_decOptionHoverOut(this,'eliminar')">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:1.1rem">🗑️</span>
+        <strong style="font-size:.88rem;color:#991b1b">Eliminar permanentemente</strong>
+      </div>
+      <p style="margin:0;font-size:.78rem;color:#78716c;line-height:1.5">
+        Borra <strong>todas las filas</strong> del ST, sus ítems, egresos e ingreso.
+        <strong>No queda rastro</strong> en el sistema. Usar solo si fue ingresado por error
+        o es un duplicado. <em>No se puede deshacer.</em>
+      </p>
+    </div>
+
+    <!-- Bloque de motivo (se muestra dinámicamente) -->
+    <div id="st-dec-motivo-wrap" style="display:none;margin-bottom:16px">
+      <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">
+        Motivo de cancelación <span style="font-weight:400;color:#9ca3af">(opcional)</span>
+      </label>
+      <input id="st-dec-motivo" class="st-input" placeholder="Ej: Cliente desistió, proyecto pospuesto…" style="width:100%">
+    </div>
+
+    <!-- Bloque de confirmación para eliminar -->
+    <div id="st-dec-confirm-wrap" style="display:none;margin-bottom:16px">
+      <label style="font-size:.78rem;font-weight:600;color:#991b1b;display:block;margin-bottom:4px">
+        Escribe el número de ST para confirmar el borrado permanente:
+      </label>
+      <input id="st-dec-confirm-input" class="st-input"
+             placeholder="" oninput="st_decCheckConfirm()"
+             style="width:100%;border-color:#fca5a5;font-family:monospace">
+      <p id="st-dec-confirm-err" style="display:none;margin:4px 0 0;font-size:.75rem;color:#dc2626">El texto no coincide</p>
+    </div>
+
+    <div class="st-modal-footer">
+      <button class="st-btn st-btn-ghost" onclick="st_cerrarModalDecision()">Cancelar</button>
+      <button id="st-dec-btn-ok" class="st-btn st-btn-primary" onclick="st_ejecutarDecision()" style="display:none">
+        Confirmar
+      </button>
+    </div>
+  </div>
+</div>
 <div id="st-modal-factura-costo" class="st-modal-overlay" style="display:none">
   <div class="st-modal" style="max-width:560px">
     <h3>📦 Subir Factura de Costo</h3>
@@ -1610,15 +1677,10 @@
   window.st_accionCancelar = function(idx) {
     var st = st_state.filtered[idx];
     if (!st) return;
-    var motivo = prompt('Motivo de cancelación (opcional):');
-    if (motivo === null) return;
-    gasJsonp('cancelarST', { id_st: st.id_st, motivo: motivo })
-      .then(function(r) {
-        if (!r.success) throw new Error(r.error);
-        st_toast('ST cancelado', 'success');
-        st_cargarDatos(true);
-      })
-      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+    // Redirige al modal unificado de decisión, pre-seleccionando cancelar
+    st_eliminarST(st.id_st);
+    // Pre-seleccionar la opción cancelar tras un tick para que el modal esté visible
+    setTimeout(function() { st_modalDecisionSelect('cancelar'); }, 30);
   };
 
   // ── COTIZADOR ────────────────────────────────────────────
@@ -2622,51 +2684,160 @@
     } else { doSave('','',''); }
   };
 
-  // ── ELIMINAR ST (borrado completo) ───────────────────────
+  // ── MODAL DECISIÓN — ELIMINAR vs CANCELAR ───────────────────
+  // Estado del modal
+  var _decState = { idST: null, accion: null };
 
   window.st_eliminarST = function(idST) {
-    // Find the ST data for the confirmation message
+    // Buscar referencia del ST para mostrar en el modal
     var stRef = null;
     for (var i = 0; i < st_state.data.length; i++) {
       if (st_state.data[i].id_st === idST) { stRef = st_state.data[i]; break; }
     }
-    var label = stRef ? (st_numFactura(stRef) + ' — ' + stRef.nombre_cliente) : idST;
+    _decState.idST  = idST;
+    _decState.accion = null;
+    _decState.stRef  = stRef;
 
-    // First confirmation
-    if (!confirm('⚠️ ¿Eliminar permanentemente el ST ' + label + '?\n\nEsto borrará:\n• La fila en Servicios_Tecnicos\n• Todos sus ítems en ST_Items\n• Sus egresos en Egresos\n• Su ingreso en Ingresos (si existe)\n\nEsta acción NO se puede deshacer.')) return;
+    var label = stRef ? (st_numFactura(stRef) + ' — ' + st_esc(stRef.nombre_cliente)) : idST;
+    document.getElementById('st-dec-label').textContent = label;
 
-    // Second confirmation — type-to-confirm style with the ST id
-    var confirm2 = prompt('Confirmación final.\n\nEscribe el número de cotización "' + (stRef ? st_numFactura(stRef) : idST) + '" para confirmar el borrado:');
-    if (confirm2 === null) return; // cancelled
-    var expected = stRef ? st_numFactura(stRef) : idST;
-    if (confirm2.trim() !== expected.trim()) {
-      st_toast('Cancelado — el texto no coincide', 'error');
+    // Mostrar/ocultar opción cancelar según estado
+    // STs cerrados no deberían llegar aquí (el GAS los bloquea igual)
+    var estado = stRef ? (stRef.estado || '') : '';
+    var canCancel = (estado !== 'cerrado' && estado !== 'cancelado');
+    document.getElementById('st-dec-opt-cancelar').style.display = canCancel ? '' : 'none';
+
+    // Reset UI
+    document.getElementById('st-dec-motivo-wrap').style.display   = 'none';
+    document.getElementById('st-dec-confirm-wrap').style.display  = 'none';
+    document.getElementById('st-dec-btn-ok').style.display        = 'none';
+    document.getElementById('st-dec-motivo').value                = '';
+    document.getElementById('st-dec-confirm-input').value         = '';
+    document.getElementById('st-dec-confirm-input').placeholder   = idST;
+    document.getElementById('st-dec-confirm-err').style.display   = 'none';
+    // Reset selection highlight
+    st_decResetHighlight();
+
+    document.getElementById('st-modal-decision').style.display = 'flex';
+  };
+
+  window.st_cerrarModalDecision = function() {
+    document.getElementById('st-modal-decision').style.display = 'none';
+    _decState.idST = null; _decState.accion = null; _decState.stRef = null;
+  };
+
+  window.st_decResetHighlight = function() {
+    var optC = document.getElementById('st-dec-opt-cancelar');
+    var optE = document.getElementById('st-dec-opt-eliminar');
+    if (optC) { optC.style.borderColor = '#e2e8f0'; optC.style.background = '#fff'; }
+    if (optE) { optE.style.borderColor = '#e2e8f0'; optE.style.background = '#fff'; }
+  };
+
+  window.st_decOptionHoverOut = function(el, tipo) {
+    // Mantener highlight si está seleccionado
+    if (_decState.accion === tipo) return;
+    el.style.borderColor = '#e2e8f0';
+    el.style.background  = '#fff';
+  };
+
+  window.st_modalDecisionSelect = function(accion) {
+    _decState.accion = accion;
+    st_decResetHighlight();
+
+    var optC = document.getElementById('st-dec-opt-cancelar');
+    var optE = document.getElementById('st-dec-opt-eliminar');
+    var motivoWrap  = document.getElementById('st-dec-motivo-wrap');
+    var confirmWrap = document.getElementById('st-dec-confirm-wrap');
+    var btnOk       = document.getElementById('st-dec-btn-ok');
+
+    if (accion === 'cancelar') {
+      if (optC) { optC.style.borderColor = '#f59e0b'; optC.style.background = '#fffbeb'; }
+      motivoWrap.style.display  = '';
+      confirmWrap.style.display = 'none';
+      btnOk.style.display       = '';
+      btnOk.textContent         = '⚛️ Cancelar ST';
+      btnOk.className           = 'st-btn st-btn-primary';
+      btnOk.style.background    = '#f59e0b';
+      btnOk.style.borderColor   = '#f59e0b';
+    } else {
+      if (optE) { optE.style.borderColor = '#ef4444'; optE.style.background = '#fef2f2'; }
+      motivoWrap.style.display  = 'none';
+      confirmWrap.style.display = '';
+      document.getElementById('st-dec-confirm-input').value = '';
+      document.getElementById('st-dec-confirm-err').style.display = 'none';
+      btnOk.style.display       = 'none';  // se activa solo tras confirmar texto
+      btnOk.textContent         = '🗑️ Eliminar permanentemente';
+      btnOk.className           = 'st-btn';
+      btnOk.style.background    = '#dc2626';
+      btnOk.style.borderColor   = '#dc2626';
+      btnOk.style.color         = '#fff';
+    }
+  };
+
+  window.st_decCheckConfirm = function() {
+    var input    = document.getElementById('st-dec-confirm-input');
+    var errEl    = document.getElementById('st-dec-confirm-err');
+    var btnOk    = document.getElementById('st-dec-btn-ok');
+    var expected = _decState.idST || '';
+    var typed    = (input.value || '').trim();
+
+    if (!typed) {
+      errEl.style.display   = 'none';
+      btnOk.style.display   = 'none';
       return;
     }
+    if (typed === expected) {
+      errEl.style.display   = 'none';
+      btnOk.style.display   = '';
+    } else {
+      errEl.style.display   = '';
+      btnOk.style.display   = 'none';
+    }
+  };
 
-    // Call backend
-    gasJsonp('eliminarST', { id_st: idST })
-      .then(function(res) {
-        if (!res.success) throw new Error(res.error || 'Error al eliminar');
-        var msg = '🗑️ ST eliminado';
-        if (res.items_eliminados)   msg += ' · ' + res.items_eliminados + ' ítem(s)';
-        if (res.egresos_anulados) msg += ' · ' + res.egresos_anulados + ' egreso(s)';
-        if (res.ingreso_anulado)    msg += ' · ingreso anulado';
-        st_toast(msg, 'success');
-        // Remove from local state immediately
-        st_state.data     = st_state.data.filter(function(s)     { return s.id_st !== idST; });
-        st_state.filtered = st_state.filtered.filter(function(s) { return s.id_st !== idST; });
-        if (st_state.expandedId === idST) { st_state.expandedId = null; st_state.stActual = null; }
-        st_computeKPIs();
-        if (st_state.vistaMode === 'tabla') {
-          st_renderTabla();
-        } else {
-          st_renderCards(st_state.filtered);
-          // Re-trigger detalle expand for remaining cards
-          setTimeout(function() { st_setVista('detalle'); }, 80);
-        }
-      })
-      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  window.st_ejecutarDecision = function() {
+    var idST  = _decState.idST;
+    var accion = _decState.accion;
+    if (!idST || !accion) return;
+
+    if (accion === 'cancelar') {
+      var motivo = (document.getElementById('st-dec-motivo').value || '').trim();
+      st_cerrarModalDecision();
+      gasJsonp('cancelarST', { id_st: idST, motivo: motivo })
+        .then(function(r) {
+          if (!r.success) throw new Error(r.error || 'Error al cancelar');
+          var msg = '⚛️ ST cancelado';
+          if (r.egresos_anulados) msg += ' · ' + r.egresos_anulados + ' egreso(s) anulado(s)';
+          if (r.ingreso_anulado)  msg += ' · ingreso anulado';
+          st_toast(msg, 'success');
+          st_cargarDatos(true);
+        })
+        .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+
+    } else if (accion === 'eliminar') {
+      st_cerrarModalDecision();
+      gasJsonp('eliminarST', { id_st: idST })
+        .then(function(res) {
+          if (!res.success) throw new Error(res.error || 'Error al eliminar');
+          var msg = '🗑️ ST eliminado';
+          if (res.items_eliminados) msg += ' · ' + res.items_eliminados + ' ítem(s)';
+          if (res.egresos_anulados) msg += ' · ' + res.egresos_anulados + ' egreso(s)';
+          if (res.ingreso_anulado)  msg += ' · ingreso anulado';
+          st_toast(msg, 'success');
+          // Quitar del estado local inmediatamente
+          st_state.data     = st_state.data.filter(function(s)     { return s.id_st !== idST; });
+          st_state.filtered = st_state.filtered.filter(function(s) { return s.id_st !== idST; });
+          if (st_state.expandedId === idST) { st_state.expandedId = null; st_state.stActual = null; }
+          st_computeKPIs();
+          if (st_state.vistaMode === 'tabla') {
+            st_renderTabla();
+          } else {
+            st_renderCards(st_state.filtered);
+            setTimeout(function() { st_setVista('detalle'); }, 80);
+          }
+        })
+        .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+    }
   };
 
 
