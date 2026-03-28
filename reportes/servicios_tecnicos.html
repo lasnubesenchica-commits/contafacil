@@ -513,6 +513,7 @@
           <option value="impuesto">🏛️ Impuesto</option>
           <option value="aduana">🛃 Aduana</option>
           <option value="shipping_handling">📮 Shipping &amp; Handling</option>
+          <option value="credito_fiscal">💳 Crédito Fiscal ITBM</option>
           <option value="otro">📌 Otro</option>
         </select>
       </div>
@@ -1247,7 +1248,7 @@
     var TIPO_LABEL_SHORT = {
       'producto':'Producto','mano_obra':'Mano de obra','flete':'Flete',
       'impuesto':'Impuesto','combustible':'Combustible','fianza':'Fianza',
-      'subcontrato':'Subcontrato','aduana':'Aduana',
+      'subcontrato':'Subcontrato','aduana':'Aduana','credito_fiscal':'Crédito Fiscal',
       'shipping_handling':'Shipping & Handling','otro':'Otro'
     };
     if (tipoKeys.length) {
@@ -1386,7 +1387,7 @@
       // ── Resumen por tipo ──────────────────────────────────────
       var TIPO_COLORS = {
         'producto':'#378ADD','shipping_handling':'#1D9E75','mano_obra':'#D85A30',
-        'flete':'#D85A30','impuesto':'#BA7517','aduana':'#BA7517',
+        'flete':'#D85A30','impuesto':'#BA7517','aduana':'#BA7517','credito_fiscal':'#534AB7',
         'combustible':'#E24B4A','fianza':'#888780','subcontrato':'#7F77DD','otro':'#888780'
       };
       var tipoTotales = {};
@@ -1670,12 +1671,13 @@
     var TIPO_ICON = {
       producto:'📦', shipping_handling:'✈️', impuesto:'🏛️',
       mano_obra:'🔧', flete:'🚛', subcontrato:'🤝',
-      combustible:'⛽', fianza:'🔒', aduana:'🛃', otro:'📌',
+      combustible:'⛽', fianza:'🔒', aduana:'🛃', credito_fiscal:'💳', otro:'📌',
     };
     var TIPO_LABEL = {
       producto:'Producto', shipping_handling:'S&H', impuesto:'Impuesto',
       mano_obra:'Mano obra', flete:'Flete', subcontrato:'Subcontrato',
-      combustible:'Combustible', fianza:'Fianza', aduana:'Aduana', otro:'Otro',
+      combustible:'Combustible', fianza:'Fianza', aduana:'Aduana',
+      credito_fiscal:'Crédito Fiscal', otro:'Otro',
     };
 
     items.forEach(function(st) {
