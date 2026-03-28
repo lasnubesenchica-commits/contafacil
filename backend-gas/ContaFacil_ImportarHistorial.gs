@@ -1,5 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-//  ContaFacil_ImportHistorial.gs  — v2.9g
+//  ContaFacil_ImportHistorial.gs  — v2.9h
+//  v2.9h — fix matching códigos TME/Weidmüller:
+//    1. _normalizarCodigo: strip prefijo "WM-" antes de normalizar,
+//       permite matching entre WM-1083230000 (TME) y 1083230000 (CEYCO).
+//    2. Prompt REGLA 1: instrucción explícita para facturas TME donde
+//       el código está como primera línea del bloque descripción,
+//       no en columna separada. Ej: WM-1083230000 → codigo="WM-1083230000".
 //  v2.9g — retry automático en llamadas Claude API:
 //    _claudeFetchConRetry: 3 intentos con backoff 15s para errores
 //    529 (Overloaded), 500, 503, 429. Aplica a parsear CEYCO y costo.
@@ -851,6 +857,14 @@ function _parsearFacturaCosto(archivo) {
     '   códigos numéricos de 7-10 dígitos como 1083239000, 1860720000, 3030462.\n' +
     '   Estos son referencias de catálogo válidas, NO números de orden ni de factura.\n' +
     '   Solo usar null si el ítem genuinamente no tiene ninguna columna de referencia.\n' +
+    '   CASO ESPECIAL TME (Transfer Multisort Elektronik): los ítems NO tienen\n' +
+    '   columna de código separada. El código aparece como PRIMERA LÍNEA del bloque\n' +
+    '   "Producto/Artykuł Descripción/Opis", con formato WM-XXXXXXXXXX o XXXXXXXXXX.\n' +
+    '   Ejemplo estructura TME:\n' +
+    '     Núm 1 | WM-1083230000                           ← primera línea = codigo\n' +
+    '           | Etiqueta;7÷40mm;poliámido 66;blanco...  ← resto = descripcion\n' +
+    '   → codigo="WM-1083230000", descripcion="Etiqueta;7÷40mm;poliámido 66;blanco..."\n' +
+    '   La línea "Transport / Koszty wysyłki" en TME es envío → codigo=null.\n' +
     '2. es_general = true ÚNICAMENTE si NINGÚN ítem tiene código de producto/parte.\n' +
     '   es_general=true SOLO para: flete puro sin ítems, derechos de aduana globales,\n' +
     '   servicio genérico sin referencia. Si hay columnas con códigos → es_general=false.\n' +
@@ -1257,6 +1271,9 @@ function _normalizarCodigo(codigo) {
   if (!codigo) return '';
   return String(codigo)
     .toUpperCase()
+    // Strip prefijos de catálogo de fabricante que no forman parte del código base:
+    // WM- = Weidmüller (usado por TME), permite matching entre WM-1083230000 y 1083230000
+    .replace(/^WM-/, '')
     .replace(/[\s\-\.\/]/g, '')  // strip espacios, guiones, puntos, barras
     // Normalizar caracteres ambiguos OCR → dígito canónico
     // Se aplica DESPUÉS de uppercase para ser consistente
@@ -2229,6 +2246,6 @@ function dryRunFACT514()     { limpiarYReimportarCarpeta('ENERO 2026', 'FACT514T
 function ejecutarFACT514()   { limpiarYReimportarCarpeta('ENERO 2026', 'FACT514TALLERES INDUSTRIALES', true); }
 function reimportarFACT514() { reimportarCarpeta('ENERO 2026', 'FACT514TALLERES INDUSTRIALES'); }
 
-function dryRunFACT515()     { limpiarYReimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICO INDUSTRIALES'); }
-function ejecutarFACT515()   { limpiarYReimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICO INDUSTRIALES', true); }
-function reimportarFACT515() { reimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICO INDUSTRIALES'); }
+function dryRunFACT515()     { limpiarYReimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICOS INDUSTRIALES'); }
+function ejecutarFACT515()   { limpiarYReimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICOS INDUSTRIALES', true); }
+function reimportarFACT515() { reimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICOS INDUSTRIALES'); }
