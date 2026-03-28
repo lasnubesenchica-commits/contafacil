@@ -1,5 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-//  ContaFacil_ImportHistorial.gs  — v2.9h
+//  ContaFacil_ImportHistorial.gs  — v2.9i
+//  v2.9i — fix ITBMS proveedores locales panameños:
+//    Prompt _parsearFacturaCosto: nueva REGLA 5 explícita para
+//    facturas DGI locales (es_extranjero=false). Instruye a Claude
+//    a extraer itbms a nivel de ítem Y raíz, con el invariante
+//    total = subtotal + itbms. Regla 3 ampliada para aclarar
+//    es_extranjero=false cuando proveedor tiene RUC panameño.
+//    Reglas 5→6 y 6→7 renumeradas. Sin cambios al pipeline.
 //  v2.9h — fix matching códigos TME/Weidmüller:
 //    1. _normalizarCodigo: strip prefijo "WM-" antes de normalizar,
 //       permite matching entre WM-1083230000 (TME) y 1083230000 (CEYCO).
@@ -869,6 +876,8 @@ function _parsearFacturaCosto(archivo) {
     '   es_general=true SOLO para: flete puro sin ítems, derechos de aduana globales,\n' +
     '   servicio genérico sin referencia. Si hay columnas con códigos → es_general=false.\n' +
     '3. es_extranjero = true si el proveedor es extranjero (TME, Mouser, Digi-Key, FedEx, etc.)\n' +
+    '   es_extranjero = false si el proveedor tiene RUC panameño (formato N-NNN-NNNNNN,\n' +
+    '   NNNNNN-N-NNNNNN, o similares con guiones y dígitos panameños).\n' +
     '4. Para facturas DHL/FedEx/aduana con sello DGI panameño → tipo_costo = "impuesto_importacion".\n' +
     '   Extraer:\n' +
     '   - total_bruto = el TOTAL final del documento (ej: "TOTAL DE CARGOS A PAGAR")\n' +
@@ -886,7 +895,18 @@ function _parsearFacturaCosto(archivo) {
     '   - total = total_bruto - itbm_mercancias\n' +
     '   Ejemplo DHL PC242424: total_bruto=46.61, itbm_mercancias=13.78 → total=32.83\n' +
     '   Si no hay ninguna línea ITBM/ITBMS, dejar itbm_mercancias=0.\n' +
-    '5. Extraer TODOS los ítems del documento, incluyendo líneas de envío y manejo:\n' +
+    '5. FACTURAS DGI DE PROVEEDORES LOCALES PANAMEÑOS (es_extranjero=false, excluye DHL/FedEx):\n' +
+    '   Estas facturas tienen ITBMS (7%) desglosado según la Ley panameña.\n' +
+    '   Extraer con precisión:\n' +
+    '   - itbms por ítem: monto exacto de ITBMS de cada línea (columna ITBMS o 7% del subtotal del ítem)\n' +
+    '   - itbms raíz: suma total de ITBMS de toda la factura\n' +
+    '   - subtotal raíz: monto antes de ITBMS (base imponible)\n' +
+    '   - total raíz: lo que aparece como "TOTAL" en la factura\n' +
+    '   INVARIANTE OBLIGATORIO: total = subtotal + itbms. Nunca poner itbms=0 si la\n' +
+    '   factura muestra una línea de ITBMS con valor positivo.\n' +
+    '   Excepción válida: si la venta es genuinamente exenta (medicamentos, canasta\n' +
+    '   básica, exportación), entonces itbms=0 es correcto.\n' +
+    '6. Extraer TODOS los ítems del documento, incluyendo líneas de envío y manejo:\n' +
     '   - SHIPPING COST, HANDLING FEE, FREIGHT, FLETE, TRANSPORT y similares\n' +
     '     deben extraerse como ítems separados con codigo=null.\n' +
     '   - TME (Transfer Multisort Elektronik): la línea "Transport" o\n' +
@@ -895,7 +915,7 @@ function _parsearFacturaCosto(archivo) {
     '   - Ejemplo Dimyeen: SHIPPING COST $165.00 → {codigo:null, descripcion:"SHIPPING COST", cantidad:1, precio_unitario:165, total:165}\n' +
     '   - Ejemplo Dimyeen: HANDLING FEE $296.34 → {codigo:null, descripcion:"HANDLING FEE", cantidad:1, precio_unitario:296.34, total:296.34}\n' +
     '   - NO omitir estas líneas aunque no tengan código de producto.\n' +
-    '6. Montos como números. null solo si realmente no es visible.';
+    '7. Montos como números. null solo si realmente no es visible.';
 
   var payload = {
     model: 'claude-sonnet-4-20250514', max_tokens: 2000,
