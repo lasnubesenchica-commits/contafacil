@@ -6254,7 +6254,7 @@ function openItbmsDetalle() {
     .map(e => ({
       tipo:    e.tipo_egreso === 'credito_fiscal' ? 'credito_fiscal' : 'impuesto',
       empresa: e.proveedor   || e.nombre         || '—',
-      num_doc: e.num_factura_ref || '—',
+      num_doc: e.num_factura || '—',
       fecha:   e.fecha_egreso    || '',
       cobrado: 0,
       pagado:  parseFloat(e.itbms) || 0
