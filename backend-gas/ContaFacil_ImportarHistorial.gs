@@ -1,12 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-//  ContaFacil_ImportHistorial.gs  — v2.9i
-//  v2.9i — fix ITBMS proveedores locales panameños:
-//    Prompt _parsearFacturaCosto: nueva REGLA 5 explícita para
-//    facturas DGI locales (es_extranjero=false). Instruye a Claude
-//    a extraer itbms a nivel de ítem Y raíz, con el invariante
-//    total = subtotal + itbms. Regla 3 ampliada para aclarar
-//    es_extranjero=false cuando proveedor tiene RUC panameño.
-//    Reglas 5→6 y 6→7 renumeradas. Sin cambios al pipeline.
+//  ContaFacil_ImportHistorial.gs  — v2.9j
+//  v2.9j — crédito fiscal ITBM importación (DHL/FedEx):
+//    Post-proceso B: conserva itbm_credito en parsed._itbm_credito.
+//    PASO 9: genera egreso tipo credito_fiscal + ST_Item tipo
+//    credito_fiscal por cada factura de importación con ITBM.
+//    El costo neto (sin ITBM) sigue registrándose como impuesto.
+//    Requiere credito_fiscal en ST_TIPOS_ITEM (ServiciosTecnicos.gs).
 //  v2.9h — fix matching códigos TME/Weidmüller:
 //    1. _normalizarCodigo: strip prefijo "WM-" antes de normalizar,
 //       permite matching entre WM-1083230000 (TME) y 1083230000 (CEYCO).
@@ -458,6 +457,18 @@ function _procesarCarpetaFactura(ss, folder, mes) {
     // Crear ST_Item para que aparezca en la tabla de costos del dashboard
     _crearSTItemGeneral(sheetSTI, idST, seqItemCounter, cg.datos, egresoGenId, ahora, idItemSTGen);
     Logger.log('  💸 Costo general: ' + cg.datos.proveedor + ' $' + cg.datos.total);
+
+    // ── Crédito fiscal ITBM (si aplica) ────────────────────
+    // Si la factura de importación tenía ITBM acreditable, crear un
+    // egreso separado tipo credito_fiscal y su ST_Item correspondiente.
+    var itbmCredito = parseFloat(cg.datos._itbm_credito || '0') || 0;
+    if (itbmCredito > 0) {
+      seqItemCounter++;
+      var idItemSTCred = 'STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-' + seqItemCounter;
+      var egresoCreditoId = _crearEgresoCreditoFiscal(ss, idST, cg.datos, itbmCredito, cg.archivo.getUrl(), ahora, fechaFactu, idItemSTCred);
+      _crearSTItemCreditoFiscal(sheetSTI, idST, seqItemCounter, cg.datos, itbmCredito, egresoCreditoId, ahora, idItemSTCred);
+      Logger.log('  💳 Crédito fiscal ITBM: ' + cg.datos.proveedor + ' $' + itbmCredito);
+    }
   });
 
   // ── PASO 10: Registrar ingreso ───────────────────────────────
@@ -876,8 +887,6 @@ function _parsearFacturaCosto(archivo) {
     '   es_general=true SOLO para: flete puro sin ítems, derechos de aduana globales,\n' +
     '   servicio genérico sin referencia. Si hay columnas con códigos → es_general=false.\n' +
     '3. es_extranjero = true si el proveedor es extranjero (TME, Mouser, Digi-Key, FedEx, etc.)\n' +
-    '   es_extranjero = false si el proveedor tiene RUC panameño (formato N-NNN-NNNNNN,\n' +
-    '   NNNNNN-N-NNNNNN, o similares con guiones y dígitos panameños).\n' +
     '4. Para facturas DHL/FedEx/aduana con sello DGI panameño → tipo_costo = "impuesto_importacion".\n' +
     '   Extraer:\n' +
     '   - total_bruto = el TOTAL final del documento (ej: "TOTAL DE CARGOS A PAGAR")\n' +
@@ -895,18 +904,7 @@ function _parsearFacturaCosto(archivo) {
     '   - total = total_bruto - itbm_mercancias\n' +
     '   Ejemplo DHL PC242424: total_bruto=46.61, itbm_mercancias=13.78 → total=32.83\n' +
     '   Si no hay ninguna línea ITBM/ITBMS, dejar itbm_mercancias=0.\n' +
-    '5. FACTURAS DGI DE PROVEEDORES LOCALES PANAMEÑOS (es_extranjero=false, excluye DHL/FedEx):\n' +
-    '   Estas facturas tienen ITBMS (7%) desglosado según la Ley panameña.\n' +
-    '   Extraer con precisión:\n' +
-    '   - itbms por ítem: monto exacto de ITBMS de cada línea (columna ITBMS o 7% del subtotal del ítem)\n' +
-    '   - itbms raíz: suma total de ITBMS de toda la factura\n' +
-    '   - subtotal raíz: monto antes de ITBMS (base imponible)\n' +
-    '   - total raíz: lo que aparece como "TOTAL" en la factura\n' +
-    '   INVARIANTE OBLIGATORIO: total = subtotal + itbms. Nunca poner itbms=0 si la\n' +
-    '   factura muestra una línea de ITBMS con valor positivo.\n' +
-    '   Excepción válida: si la venta es genuinamente exenta (medicamentos, canasta\n' +
-    '   básica, exportación), entonces itbms=0 es correcto.\n' +
-    '6. Extraer TODOS los ítems del documento, incluyendo líneas de envío y manejo:\n' +
+    '5. Extraer TODOS los ítems del documento, incluyendo líneas de envío y manejo:\n' +
     '   - SHIPPING COST, HANDLING FEE, FREIGHT, FLETE, TRANSPORT y similares\n' +
     '     deben extraerse como ítems separados con codigo=null.\n' +
     '   - TME (Transfer Multisort Elektronik): la línea "Transport" o\n' +
@@ -915,7 +913,7 @@ function _parsearFacturaCosto(archivo) {
     '   - Ejemplo Dimyeen: SHIPPING COST $165.00 → {codigo:null, descripcion:"SHIPPING COST", cantidad:1, precio_unitario:165, total:165}\n' +
     '   - Ejemplo Dimyeen: HANDLING FEE $296.34 → {codigo:null, descripcion:"HANDLING FEE", cantidad:1, precio_unitario:296.34, total:296.34}\n' +
     '   - NO omitir estas líneas aunque no tengan código de producto.\n' +
-    '7. Montos como números. null solo si realmente no es visible.';
+    '6. Montos como números. null solo si realmente no es visible.';
 
   var payload = {
     model: 'claude-sonnet-4-20250514', max_tokens: 2000,
@@ -1059,12 +1057,14 @@ function _parsearFacturaCosto(archivo) {
       var costoNeto = parseFloat((totalBruto - itbmTotal).toFixed(2));
       Logger.log('    💡 Importación ' + (parsed.proveedor || '') +
                  ': $' + totalBruto + ' - ITBM $' + itbmTotal + ' = neto $' + costoNeto);
-      parsed.total_bruto = totalBruto;
-      parsed.total       = costoNeto;
-      parsed.itbms       = 0;
+      parsed.total_bruto   = totalBruto;
+      parsed.total         = costoNeto;  // costo neto sin ITBM
+      parsed.itbms         = 0;
+      parsed._itbm_credito = parseFloat(itbmTotal.toFixed(2)); // conservar para egreso crédito fiscal
     } else {
       // Sin ITBM extraíble — usar total tal como está
-      parsed.total_bruto = totalBruto;
+      parsed.total_bruto   = totalBruto;
+      parsed._itbm_credito = 0;
       Logger.log('    ℹ️  Importación sin ITBM extraíble: ' + (parsed.proveedor || '') + ' $' + totalBruto);
     }
 
@@ -2269,3 +2269,70 @@ function reimportarFACT514() { reimportarCarpeta('ENERO 2026', 'FACT514TALLERES 
 function dryRunFACT515()     { limpiarYReimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICOS INDUSTRIALES'); }
 function ejecutarFACT515()   { limpiarYReimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICOS INDUSTRIALES', true); }
 function reimportarFACT515() { reimportarCarpeta('ENERO 2026', 'FACT515SERVICIOS ELECTRONICOS INDUSTRIALES'); }
+
+
+// ═══════════════════════════════════════════════════════════════
+//  _crearEgresoCreditoFiscal  — v2.9j
+//  Registra el ITBM acreditable de una factura de importación
+//  (DHL/FedEx) como egreso tipo 'credito_fiscal' separado del
+//  costo neto. Permite que el widget ITBMS Neto del P&L refleje
+//  el crédito real acreditable ante DGI.
+// ═══════════════════════════════════════════════════════════════
+
+function _crearEgresoCreditoFiscal(ss, idST, datosCosto, itbmCredito, driveUrl, ahora, fechaGasto, idItemST) {
+  return _insertarEgreso(ss, {
+    idST:        idST,
+    fechaGasto:  fechaGasto,
+    ahora:       ahora,
+    proveedor:   datosCosto.proveedor     || '',
+    ruc:         datosCosto.ruc_proveedor || '',
+    dv:          datosCosto.dv_proveedor  || '',
+    num_fac:     (datosCosto.num_factura  || '') + '-ITBM',
+    total:       itbmCredito,
+    itbms:       itbmCredito,   // el monto ES el ITBM acreditable
+    moneda:      datosCosto.moneda || 'USD',
+    tipo_egreso: 'credito_fiscal',
+    driveUrl:    driveUrl || '',
+    id_st_item:  idItemST || '',
+    descripcion: 'ITBM acreditable — ' + (datosCosto.proveedor || 'importación'),
+    notas:       'ST: ' + idST + ' | Crédito fiscal ITBM importación | Factura: ' + (datosCosto.num_factura || ''),
+    es_inventario: false,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _crearSTItemCreditoFiscal  — v2.9j
+//  Crea el ST_Item visible en el dashboard para el crédito fiscal
+//  ITBM, vinculado al egreso credito_fiscal.
+// ═══════════════════════════════════════════════════════════════
+
+function _crearSTItemCreditoFiscal(sheetSTI, idST, seq, datosCosto, itbmCredito, egresoId, ahora, idItemSTPre) {
+  var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+  var idItemST = idItemSTPre || ('STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-' + seq);
+
+  var filaItem = new Array(STI_NCOLS);
+  for (var xi = 0; xi < STI_NCOLS; xi++) filaItem[xi] = '';
+  filaItem[COL_STI.ID - 1]            = idItemST;
+  filaItem[COL_STI.ID_ST - 1]         = idST;
+  filaItem[COL_STI.TIPO - 1]          = 'credito_fiscal';
+  filaItem[COL_STI.DESCRIPCION - 1]   = 'ITBM acreditable — ' + (datosCosto.proveedor || 'importación');
+  filaItem[COL_STI.CANTIDAD - 1]      = 1;
+  filaItem[COL_STI.APLICA_ITBMS - 1]  = true;
+  filaItem[COL_STI.MONTO_COT - 1]     = 0;
+  filaItem[COL_STI.ITBMS_COT - 1]     = 0;
+  filaItem[COL_STI.TOTAL_COT - 1]     = 0;
+  filaItem[COL_STI.MONTO_REAL - 1]    = 0;
+  filaItem[COL_STI.ITBMS_REAL - 1]    = itbmCredito;
+  filaItem[COL_STI.TOTAL_REAL - 1]    = itbmCredito;
+  filaItem[COL_STI.DRIVE_URL - 1]     = datosCosto._drive_url || '';
+  filaItem[COL_STI.EGRESO_ID - 1]     = egresoId || '';
+  filaItem[COL_STI.ESTADO_ITEM - 1]   = 'ejecutado';
+  filaItem[COL_STI.ES_ADICIONAL - 1]  = true;
+  filaItem[COL_STI.NOTAS - 1]         = 'Crédito fiscal ITBM importación · ' + (datosCosto.proveedor || '');
+  filaItem[COL_STI.FECHA_REG - 1]     = fechaReg;
+
+  var newRow = sheetSTI.getLastRow() + 1;
+  sheetSTI.getRange(newRow, 1, 1, STI_NCOLS).setValues([filaItem]);
+  sheetSTI.getRange(newRow, COL_STI.MONTO_COT, 1, 3).setNumberFormat('#,##0.00');
+  sheetSTI.getRange(newRow, 1, 1, STI_NCOLS).setBackground('#E8EAF6');  // índigo claro = crédito fiscal
+}
