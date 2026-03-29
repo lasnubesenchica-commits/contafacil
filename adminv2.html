@@ -6253,7 +6253,9 @@ function openItbmsDetalle() {
   const pagadoRows = egresos
     .filter(e => parseFloat(e.itbms) > 0)
     .map(e => ({
-      tipo:      e.tipo_egreso === 'credito_fiscal' ? 'credito_fiscal' : 'impuesto',
+      tipo:      e.tipo_egreso === 'credito_fiscal' ? 'credito_fiscal'
+               : (e.tipo_egreso === 'costo_mercancia' || e.tipo_egreso === 'costo_servicio_tecnico') ? 'factura_local'
+               : 'impuesto',
       empresa:   e.proveedor   || e.nombre         || '—',
       num_doc:   e.num_fac_ref || '—',
       fecha:     e.fecha_egreso    || '',
@@ -6285,16 +6287,17 @@ function openItbmsDetalle() {
   const tbody = allRows.map(r => `
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:.55rem .7rem;font-size:.78rem">${tipoBadge(r.tipo)}</td>
-      <td style="padding:.55rem .7rem;font-size:.82rem;font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.empresa}</td>
-      <td style="padding:.55rem .7rem;font-size:.75rem;font-family:'DM Mono',monospace;color:var(--muted);word-break:break-all;line-height:1.3">
+      <td style="padding:.55rem .7rem;font-size:.82rem;font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
         ${r.drive_url
           ? `<a href="${r.drive_url}" target="_blank" rel="noopener"
-               style="color:#1565C0;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem;font-weight:600"
-               title="Abrir documento en Drive">
-               ${r.num_doc}<span style="font-size:.65rem;opacity:.7">↗</span>
+               style="color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:.3rem"
+               title="Ver documento en Drive">
+               <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.empresa}</span>
+               <span style="flex-shrink:0;font-size:.7rem;color:#1565C0;font-weight:700;background:#E3F2FD;padding:.1rem .3rem;border-radius:3px;line-height:1.4">↗ Drive</span>
              </a>`
-          : r.num_doc}
+          : r.empresa}
       </td>
+      <td style="padding:.55rem .7rem;font-size:.75rem;font-family:'DM Mono',monospace;color:var(--muted);word-break:break-all;line-height:1.3">${r.num_doc}</td>
       <td style="padding:.55rem .7rem;font-size:.75rem;color:var(--muted);white-space:nowrap">${fmtFecha(r.fecha)}</td>
       <td style="padding:.55rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.85rem;font-weight:600;color:#1565C0">${r.cobrado > 0 ? fmt(r.cobrado) : '<span style="color:var(--bg3)">—</span>'}</td>
       <td style="padding:.55rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.85rem;font-weight:600;color:#6A1B9A">${r.pagado > 0 ? fmt(r.pagado) : '<span style="color:var(--bg3)">—</span>'}</td>
