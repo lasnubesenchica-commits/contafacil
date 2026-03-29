@@ -5683,7 +5683,8 @@ function invFmt(n) {
   return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-PA', {minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
-var plIngresos  = [];
+var plIngresos         = [];
+var plIngresosAnulados = [];  // para pares de nota de crédito
 var plEgresos   = [];
 var plOpItems   = [];
 var plStItems   = [];   // ítems de ST_Items vía getCotizaciones — fuente de verdad para COGS
@@ -5748,6 +5749,8 @@ async function loadDashboard() {
     plIngresos = (ingRes.items || []).filter(i =>
       i.estado === 'confirmado' || i.estado === 'abono' || i.estado === 'pendiente'
     );
+    // Ingresos anulados — solo para detectar pares de nota de crédito (trazabilidad)
+    plIngresosAnulados = (ingRes.items || []).filter(i => i.estado === 'anulado');
     plEgresos  = egrRes.items  || [];
     plOpItems  = opRes.items   || [];
     // Aplanar todos los ítems de todos los STs (excluyendo cancelados)
@@ -6042,8 +6045,7 @@ function plRenderTblIngresos(q) {
   // Los ingresos de una NC tienen estado 'anulado' y sus IDs terminan en 'A'/'B'.
   // En lugar de filtrarlos, los agrupamos como fila de trazabilidad con total $0.
   const ncPares = {}; // base_id → { a: ing, b: ing }
-  plIngresos.forEach(i => {
-    if (String(i.estado||'').toLowerCase() !== 'anulado') return;
+  plIngresosAnulados.forEach(i => {
     const m = String(i.id_trans||'').match(/^(.+)(A|B)$/);
     if (!m) return;
     const base = m[1], sufijo = m[2];
