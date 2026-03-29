@@ -654,7 +654,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
 }
 .pl-month-pill:hover { border-color:var(--orange);color:var(--orange) }
 .pl-month-pill.active { background:var(--orange);border-color:var(--orange);color:#fff; }
-.pl-month-pill.has-data { border-color:rgba(224,90,0,.4) }
+.pl-month-pill.has-data { border-color:rgba(224,90,0,.4);color:var(--text) }
+.pl-month-pill:not(.has-data):not(.ytd-active)[data-m] { opacity:.35;cursor:default; }
+.pl-month-pill:not(.has-data):not(.ytd-active)[data-m]:hover { border-color:var(--border);color:var(--muted); }
 .pl-month-pill.ytd-active { background:var(--text);border-color:var(--text);color:#fff; }
 .pl-tipo-wrap { margin-left:auto;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap; }
 .pl-tipo-btn {
@@ -5757,6 +5759,8 @@ async function loadDashboard() {
     // para calcular COGS desde ST_Items — la misma fuente que usa la tabla ST
     plStItems  = [];
     (stRes.items || []).forEach(st => {
+      // Excluir STs cancelados (nota de crédito) — no tienen COGS reales
+      if (st.estado === 'cancelado') return;
       (st.items || []).forEach(it => {
         if (it.estado_item !== 'cancelado') {
           plStItems.push({ id_st: st.id_st, mes: st.mes, anio: st.anio, item: it });
@@ -5817,6 +5821,14 @@ function highlightMonthPills() {
   const monthsWithData = new Set(
     plIngresos.filter(i => parseInt(i.anio_fiscal) === plYear).map(i => parseInt(i.mes))
   );
+  // Incluir meses con pares de nota de crédito (ingresos anulados A+B)
+  plIngresosAnulados
+    .filter(i => parseInt(i.anio_fiscal) === plYear)
+    .forEach(i => monthsWithData.add(parseInt(i.mes)));
+  // Incluir meses con COGS (ST_Items activos)
+  plStItems
+    .filter(si => (parseInt(si.anio) || 0) === plYear)
+    .forEach(si => monthsWithData.add(parseInt(si.mes)));
   document.querySelectorAll('.pl-month-pill[data-m]').forEach(pill => {
     const m = parseInt(pill.dataset.m);
     pill.classList.toggle('has-data', monthsWithData.has(m));
@@ -5830,6 +5842,11 @@ function onPlYearChange() {
 }
 
 function selectPlMonth(m) {
+  // No permitir seleccionar meses sin data (excepto YTD)
+  if (m !== 'ytd') {
+    const pill = document.querySelector('.pl-month-pill[data-m="'+m+'"]');
+    if (pill && !pill.classList.contains('has-data')) return;
+  }
   plMonth = m;
   document.getElementById('plPillYTD').className = 'pl-month-pill' + (m === 'ytd' ? ' ytd-active' : '');
   document.querySelectorAll('.pl-month-pill[data-m]').forEach(pill => {
@@ -5985,7 +6002,7 @@ function renderDashboard() {
 var plTblMode = 'ingresos';   // 'ingresos' | 'egresos'
 
 // Sort state — tablas Ingresos y Costos
-var plIngSort = { col: 'fecha_ingreso', dir: 'desc' };
+var plIngSort = { col: 'num_factura', dir: 'desc' };
 var plEgrSort = { col: 'id_st',          dir: 'asc'  };
 
 // Inicializar click handlers de sort al cargar
@@ -6370,10 +6387,13 @@ function plRenderBarChart(year) {
 
   // COGS en gráfica: misma fuente que renderDashboard — ST_Items agrupados por mes
   // excluir credito_fiscal igual que el widget de COGS
+  // Si hay un mes seleccionado, solo mostrar COGS de ese mes (consistente con ingresos)
   const cogsData = new Array(12).fill(0);
   plStItems.filter(si => {
     if ((parseInt(si.anio) || 0) !== year) return false;
     if ((si.item.tipo || '') === 'credito_fiscal') return false;
+    // Respetar filtro de mes (igual que ingYear usa plFiltrarIngresos que filtra por plMonth)
+    if (year === plYear && plMonth !== 'ytd' && (parseInt(si.mes) || 0) !== plMonth) return false;
     return true;
   }).forEach(si => {
     const m = (parseInt(si.mes) || 0) - 1;
