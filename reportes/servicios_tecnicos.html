@@ -805,8 +805,8 @@
     itemsLocal: [],
     editMode:   false,
     editIdST:   null,
-    sortCol:    'id_st',     // columna activa de sort en vista tabla
-    sortDir:    'asc',       // 'asc' | 'desc'
+    sortCol:    'num_factura', // columna activa de sort en vista tabla
+    sortDir:    'asc',         // 'asc' | 'desc'
     expandedRows: {},        // { id_st: true } — filas expandidas en tabla
   };
 
@@ -979,11 +979,17 @@
       }
       return true;
     });
-    st_state.filtered = items;
+    // Ordenar siempre por num_factura asc — misma lógica que la tabla
+    st_state.filtered = items.slice().sort(function(a, b) {
+      var va = st_numFactura(a), vb = st_numFactura(b);
+      if (va < vb) return -1;
+      if (va > vb) return  1;
+      return 0;
+    });
     if (st_state.vistaMode === 'tabla') {
       st_renderTabla();
     } else {
-      st_renderCards(items);
+      st_renderCards(st_state.filtered);
     }
   };
 
