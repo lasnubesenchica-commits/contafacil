@@ -6254,8 +6254,8 @@ function openItbmsDetalle() {
     .map(e => ({
       tipo:    e.tipo_egreso === 'credito_fiscal' ? 'credito_fiscal' : 'impuesto',
       empresa: e.proveedor   || e.nombre         || '—',
-      num_doc: e.num_factura || e.num_doc         || '—',
-      fecha:   e.fecha_gasto || e.fecha           || '',
+      num_doc: e.num_factura_ref || '—',
+      fecha:   e.fecha_egreso    || '',
       cobrado: 0,
       pagado:  parseFloat(e.itbms) || 0
     }));
@@ -6283,7 +6283,7 @@ function openItbmsDetalle() {
   const tbody = allRows.map(r => `
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:.55rem .7rem;font-size:.78rem">${tipoBadge(r.tipo)}</td>
-      <td style="padding:.55rem .7rem;font-size:.82rem;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.empresa}</td>
+      <td style="padding:.55rem .7rem;font-size:.82rem;font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.empresa}</td>
       <td style="padding:.55rem .7rem;font-size:.75rem;font-family:'DM Mono',monospace;color:var(--muted)">${r.num_doc}</td>
       <td style="padding:.55rem .7rem;font-size:.75rem;color:var(--muted);white-space:nowrap">${fmtFecha(r.fecha)}</td>
       <td style="padding:.55rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.85rem;font-weight:600;color:#1565C0">${r.cobrado > 0 ? fmt(r.cobrado) : '<span style="color:var(--bg3)">—</span>'}</td>
@@ -6321,7 +6321,7 @@ function closeItbmsDetalle() {
 
 <!-- ═══════════ MODAL DESGLOSE ITBMS DGI ═══════════ -->
 <div class="modal-overlay" id="itbmsDetalleOverlay" onclick="if(event.target===this)closeItbmsDetalle()" style="z-index:350">
-  <div class="modal-box" style="max-width:780px">
+  <div class="modal-box" style="max-width:980px">
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:.75rem">
         <div class="modal-title">ITBMS · Desglose DGI</div>
@@ -6339,8 +6339,16 @@ function closeItbmsDetalle() {
       </div>
 
       <!-- Tabla -->
-      <div style="overflow-x:auto;max-height:55vh;overflow-y:auto">
-        <table style="width:100%;border-collapse:collapse">
+      <div style="max-height:55vh;overflow-y:auto">
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+<colgroup>
+  <col style="width:140px">
+  <col style="width:auto">
+  <col style="width:90px">
+  <col style="width:110px">
+  <col style="width:100px">
+  <col style="width:100px">
+</colgroup>
           <thead>
             <tr style="background:var(--bg);border-bottom:2px solid var(--border);position:sticky;top:0;z-index:2">
               <th style="padding:.6rem .7rem;text-align:left;font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap">Tipo</th>
