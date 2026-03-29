@@ -6037,6 +6037,28 @@ function plRenderTables() {
 function plRenderTblIngresos(q) {
   const tbody = document.getElementById('plTblIngBody');
   if (!tbody) return;
+
+  // ── Detectar pares de nota de crédito ───────────────────────
+  // Los ingresos de una NC tienen estado 'anulado' y sus IDs terminan en 'A'/'B'.
+  // En lugar de filtrarlos, los agrupamos como fila de trazabilidad con total $0.
+  const ncPares = {}; // base_id → { a: ing, b: ing }
+  plIngresos.forEach(i => {
+    if (String(i.estado||'').toLowerCase() !== 'anulado') return;
+    const m = String(i.id_trans||'').match(/^(.+)(A|B)$/);
+    if (!m) return;
+    const base = m[1], sufijo = m[2];
+    if (!ncPares[base]) ncPares[base] = {};
+    ncPares[base][sufijo] = i;
+  });
+  // Solo incluir pares completos (A+B) en el año/mes correcto
+  const ncFilas = Object.values(ncPares)
+    .filter(p => p.A && p.B)
+    .filter(p => {
+      if (parseInt(p.A.anio_fiscal) !== plYear) return false;
+      if (plMonth !== 'ytd' && parseInt(p.A.mes) !== plMonth) return false;
+      return true;
+    });
+
   let items = plIngresos.filter(i => {
     if (String(i.estado || '').toLowerCase() === 'anulado') return false;
     if (parseInt(i.anio_fiscal) !== plYear) return false;
@@ -6101,6 +6123,24 @@ function plRenderTblIngresos(q) {
   const totItbms    = items.reduce((s,i) => s+(parseFloat(i.itbms)||0), 0);
   const totTotal    = items.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
 
+  // ── Filas de nota de crédito (trazabilidad, neto $0) ────────
+  const ncRows = ncFilas.map(p => {
+    const ingA = p.A, ingB = p.B;
+    const driveA = ingA.drive_url ? `<a href="${esc(ingA.drive_url)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄 F${esc(ingA.num_factura||'')}</a>` : '';
+    const driveB = ingB.drive_url ? `<a href="${esc(ingB.drive_url)}" target="_blank" style="font-size:.75rem;color:#b91c1c">📄 NC${esc(ingB.num_factura||'')}</a>` : '';
+    return `<tr style="background:#fff5f5;opacity:.85">
+      <td style="white-space:nowrap;color:var(--muted);font-size:.8rem">${esc(String(ingA.fecha_ingreso||'').substring(0,10))}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600;color:#b91c1c">${esc(ingA.num_factura||'—')}</span></td>
+      <td><div style="font-weight:500">${esc(ingA.nombre_cliente||'—')}</div><div style="font-size:.65rem;color:var(--muted)">${esc(ingA.ruc_cliente||'')}</div></td>
+      <td><span style="background:#fee2e2;color:#b91c1c;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px">🔄 Anulado NC</span></td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;color:#94a3b8">$0.00</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;color:#94a3b8">—</td>
+      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#94a3b8">$0.00</td>
+      <td><span style="background:#fee2e2;color:#b91c1c;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px">✕ Anulado</span></td>
+      <td style="text-align:center;display:flex;gap:4px">${driveA}${driveB}</td>
+    </tr>`;
+  }).join('');
+
   tbody.innerHTML = items.map(item => {
     const subtotal = parseFloat(item.subtotal||'0')||0;
     const itbms    = parseFloat(item.itbms||'0')||0;
@@ -6121,7 +6161,7 @@ function plRenderTblIngresos(q) {
       <td>${estadoBadge(item.estado)}</td>
       <td style="text-align:center">${compLink}</td>
     </tr>`;
-  }).join('') +
+  }).join('') + ncRows +
   `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
     <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${items.length} registros</td>
     <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--text)">$${totSubtotal.toFixed(2)}</td>
