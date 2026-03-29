@@ -286,9 +286,11 @@
 <div class="st-inner">
 
   <!-- ── Navegación interna ── -->
-  <div class="st-nav">
+  <div class="st-nav" style="display:flex;justify-content:flex-end">
     <button class="st-nav-btn active" id="st-nav-lista"    onclick="st_showView('lista')" style="display:none">📋 Servicios Técnicos</button>
-    <button class="st-nav-btn"        id="st-nav-nuevo"    onclick="st_showView('nuevo')">➕ Nueva Cotización</button>
+    <button class="st-nav-btn"        id="st-nav-nuevo"    onclick="st_showView('nuevo')"
+      style="font-size:1.25rem;font-weight:700;padding:.3rem .85rem;line-height:1;min-width:0"
+      title="Nueva Cotización">+</button>
   </div>
 
   <!-- ════════════════════════════════════════════
@@ -330,7 +332,7 @@
       <button class="st-fbtn"        id="st-f-aprobado"    onclick="st_setFilter('aprobado')">Aprobados</button>
       <button class="st-fbtn"        id="st-f-en_ejecucion"onclick="st_setFilter('en_ejecucion')">En Ejecución</button>
       <button class="st-fbtn"        id="st-f-cerrado"     onclick="st_setFilter('cerrado')">Cerrados</button>
-      <button class="st-btn st-btn-primary" onclick="st_cargarDatos(true)" style="margin-left:auto">🔄 Actualizar</button>
+
     </div>
 
     <!-- ── Segunda barra: filtros de fecha + vista ── -->
@@ -803,8 +805,8 @@
     itemsLocal: [],
     editMode:   false,
     editIdST:   null,
-    sortCol:    'fecha_reg', // columna activa de sort en vista tabla
-    sortDir:    'desc',      // 'asc' | 'desc'
+    sortCol:    'id_st',     // columna activa de sort en vista tabla
+    sortDir:    'asc',       // 'asc' | 'desc'
     expandedRows: {},        // { id_st: true } — filas expandidas en tabla
   };
 
@@ -1392,6 +1394,7 @@
       };
       var tipoTotales = {};
       items.forEach(function(it) {
+        if ((it.tipo || '') === 'credito_fiscal') return; // no es costo real
         var t = it.tipo || 'otro';
         var m = it.total_real > 0 ? it.total_real : it.total_cotizado;
         tipoTotales[t] = (tipoTotales[t] || 0) + m;
