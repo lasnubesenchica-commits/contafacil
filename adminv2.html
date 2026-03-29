@@ -5807,21 +5807,15 @@ function plRenderBarChart(year) {
   const ingData = new Array(12).fill(0);
   const utilData= new Array(12).fill(0);
 
-  const ingYear = plIngresos.filter(i => {
-    if (String(i.estado || '').toLowerCase() === 'anulado') return false;
-    if (parseInt(i.anio_fiscal) !== year) return false;
-    if (plTipo === 'todos') return true;
-    const t = (i.tipo_ingreso || '').toLowerCase();
-    const c = (i.categoria_ingreso || '').toLowerCase();
-    const n = (i.notas_internas || i.notas || '').toLowerCase();
-    // FIX #2: mismo criterio que plFiltrarIngresos
-    if (plTipo === 'venta_producto')    return t.includes('venta') || c.includes('venta');
-    if (plTipo === 'servicio_tecnico')  return t.includes('tecnico') || t.includes('técnico') || n.includes('st:');
-    if (plTipo === 'servicio_asesoria') return t.includes('asesoria') || t.includes('asesor');
-    if (plTipo === 'comision')          return t.includes('comision');
-    if (plTipo === 'otro')              return t === 'otro';
-    return true;
-  });
+  // Usar exactamente la misma fuente que los widgets — plFiltrarIngresos()
+  // filtra por plYear, plMonth, plTipo y excluye anulados
+  const ingYear = (year === plYear)
+    ? plFiltrarIngresos()
+    : plIngresos.filter(i => {
+        if (String(i.estado || '').toLowerCase() === 'anulado') return false;
+        if (parseInt(i.anio_fiscal) !== year) return false;
+        return true;
+      });
 
   const egrYear = plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
@@ -5847,8 +5841,13 @@ function plRenderBarChart(year) {
   });
 
   // COGS en gráfica: misma fuente que renderDashboard — ST_Items agrupados por mes
+  // excluir credito_fiscal igual que el widget de COGS
   const cogsData = new Array(12).fill(0);
-  plStItems.filter(si => (parseInt(si.anio) || 0) === year).forEach(si => {
+  plStItems.filter(si => {
+    if ((parseInt(si.anio) || 0) !== year) return false;
+    if ((si.item.tipo || '') === 'credito_fiscal') return false;
+    return true;
+  }).forEach(si => {
     const m = (parseInt(si.mes) || 0) - 1;
     if (m >= 0 && m < 12) {
       const tr = parseFloat(si.item.total_real)     || 0;
