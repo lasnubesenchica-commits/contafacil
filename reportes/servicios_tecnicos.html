@@ -1309,7 +1309,10 @@
 
     // Calcular total de costos sumando ítems (fuente de verdad = tabla, no r.total_real que puede estar desactualizado)
     var totalCostoCalc = 0;
-    items.forEach(function(it) { totalCostoCalc += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0; });
+    items.forEach(function(it) {
+      if ((it.tipo || '') === 'credito_fiscal') return; // no es costo real
+      totalCostoCalc += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0;
+    });
     totalCostoCalc = parseFloat(totalCostoCalc.toFixed(2));
 
     // Facturado neto: usar subtotal_venta del resumen (calculado correctamente por el GAS
@@ -1388,9 +1391,17 @@
     if (items.length) {
       // ── Resumen por tipo ──────────────────────────────────────
       var TIPO_COLORS = {
-        'producto':'#378ADD','shipping_handling':'#1D9E75','mano_obra':'#D85A30',
-        'flete':'#D85A30','impuesto':'#BA7517','aduana':'#BA7517','credito_fiscal':'#534AB7',
-        'combustible':'#E24B4A','fianza':'#888780','subcontrato':'#7F77DD','otro':'#888780'
+        'producto':          '#1565C0',
+        'impuesto':          '#6A1B9A',
+        'shipping_handling': '#00695C',
+        'mano_obra':         '#E65100',
+        'flete':             '#4527A0',
+        'subcontrato':       '#558B2F',
+        'combustible':       '#827717',
+        'fianza':            '#78909C',
+        'aduana':            '#6A1B9A',
+        'credito_fiscal':    '#2E7D32',
+        'otro':              '#9E9E9E',
       };
       var tipoTotales = {};
       items.forEach(function(it) {
