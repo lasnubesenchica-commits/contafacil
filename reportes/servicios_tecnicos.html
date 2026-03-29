@@ -1290,7 +1290,17 @@
 
     // CELL 3: Pago del cliente
     html += '<div class="st-doc-cell"><div class="st-doc-lbl">💳 Pago del cliente</div>';
-    if (r.ingreso_id) {
+    if (esCancelado) {
+      // ST cancelado por nota de crédito — mostrar resumen de anulación en lugar del ingreso
+      var notasRef = String(st.notas || '');
+      var ncMatch  = notasRef.match(/NC\s+(\S+)/);
+      var ncNum    = ncMatch ? ncMatch[1] : 'NC';
+      html += '<div style="font-size:.76rem;line-height:1.5">';
+      html += '<span style="background:#fee2e2;color:#b91c1c;font-weight:700;padding:1px 6px;border-radius:6px;font-size:.68rem">ANULADO</span><br>';
+      html += '<span style="color:#64748b">Nota de crédito '+st_esc(ncNum)+'</span><br>';
+      html += '<span style="color:#64748b;font-size:.68rem">'+st_esc(r.ingreso_id||'')+'A · '+st_esc(r.ingreso_id||'')+'B</span>';
+      html += '</div>';
+    } else if (r.ingreso_id) {
       if (voucherUrl) {
         html += '<a href="'+st_esc(voucherUrl)+'" target="_blank" class="st-doc-a fp">'+st_esc(r.ingreso_id)+' ↗</a>';
       } else {
@@ -1729,7 +1739,6 @@
       var isExpanded = !!st_state.expandedRows[st.id_st];
       var hasItems   = st.items && st.items.filter(function(i){ return i.estado_item !== 'cancelado'; }).length > 0;
 
-      // Cancelado STs: neto=0, no contribuyen a totales de ingresos
       totNeto     += pvNeto;
       totItbms    += esExento ? 0 : pvItbms;
       totTotal    += pvTotal;
