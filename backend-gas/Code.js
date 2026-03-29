@@ -9,6 +9,18 @@
 //  v12.3 — confirmarIngreso: cambia estado ingreso → 'confirmado'
 //           al registrar pago completo del cliente en ST.
 //           Actualiza drive_url si viene comprobante.
+//  v12.5 — drive_url cross-reference desde Servicios_Tecnicos
+//           _buildStUrlMaps: mapa ST → drive_url (factura emitida)
+//                            mapa ST → drive_url (ítem impuesto DHL/FedEx)
+//           _handleGetEgresos: usa stMap para costo_mercancia sin URL
+//                              usa stImpMap para credito_fiscal sin URL
+//           _handleGetIngresos: prefiere ST.drive_url (factura emitida)
+//                               sobre drive_url del ingreso (puede ser voucher)
+//  v12.6 — cross-reference preciso para credito_fiscal con múltiples FedEx
+//           _buildStUrlMaps: mapa impMap = egreso_id → drive_url_factura courier
+//           _extractNumFacBase: extrae num_factura normalizado desde notas
+//           _handleGetEgresos: pre-índice "id_st|num_fac" → drive_url exacto
+//                              fallback a stMap si no hay match preciso
 // ═══════════════════════════════════════════════════════════════
 
 // ── CONFIG ────────────────────────────────────────────────────
@@ -1071,6 +1083,69 @@ function migrarEgresosDV() {
 //  del mismo ST — se busca por id_st extraído de las notas.
 // ═══════════════════════════════════════════════════════════════
 
+// ── Helper compartido v12.6: construye los mapas de URLs desde ST ───
+function _buildStUrlMaps(ss) {
+  var stMap    = {};  // id_st → ST.drive_url (factura emitida CEYCO)
+  var impMap   = {};  // egreso_id_impuesto → drive_url_factura (factura courier)
+
+  // Mapa desde Servicios_Tecnicos: id_st → drive_url
+  try {
+    var sheetST = ss.getSheetByName('Servicios_Tecnicos');
+    if (sheetST && sheetST.getLastRow() > 2) {
+      var headers   = sheetST.getRange(2, 1, 1, sheetST.getLastColumn()).getValues()[0];
+      var idxIdST   = headers.indexOf('id_st');
+      var idxDriveU = headers.indexOf('drive_url');
+      if (idxIdST >= 0 && idxDriveU >= 0) {
+        var stData = sheetST.getRange(3, 1, sheetST.getLastRow() - 2, sheetST.getLastColumn()).getValues();
+        for (var i = 0; i < stData.length; i++) {
+          var idST   = String(stData[i][idxIdST]   || '').trim();
+          var driveU = String(stData[i][idxDriveU] || '').trim();
+          if (idST && driveU) stMap[idST] = driveU;
+        }
+      }
+    }
+  } catch(e) { Logger.log('⚠️ _buildStUrlMaps ST: ' + e.message); }
+
+  // Mapa desde ST_Items tipo 'impuesto': egreso_id → drive_url_factura
+  // Cols (base 1): id_st=2, tipo=3, drive_url_factura=17, egreso_id=18
+  try {
+    var sheetSTI = ss.getSheetByName('ST_Items');
+    if (sheetSTI && sheetSTI.getLastRow() > 2) {
+      var stiData = sheetSTI.getRange(3, 1, sheetSTI.getLastRow() - 2, 18).getValues();
+      for (var j = 0; j < stiData.length; j++) {
+        var tipo    = String(stiData[j][2]  || '').trim();   // col 3
+        var driveI  = String(stiData[j][16] || '').trim();   // col 17
+        var egrId   = String(stiData[j][17] || '').trim();   // col 18
+        if (tipo === 'impuesto' && driveI && egrId) {
+          impMap[egrId] = driveI;
+        }
+      }
+    }
+  } catch(e) { Logger.log('⚠️ _buildStUrlMaps STI: ' + e.message); }
+
+  return { stMap: stMap, impMap: impMap };
+}
+
+// ── Extrae id_st desde el campo notas de un egreso/ingreso ────
+function _extractStId(notas) {
+  var m = String(notas || '').match(/ST:\s*(ST-RP-[\d-]+)/);
+  return m ? m[1] : null;
+}
+
+// ── Extrae num_factura normalizado desde notas de un credito_fiscal ──
+// "Factura FedEx: 0000091505" → "91505"  (strip leading zeros)
+// "Factura: PC238679"         → "PC238679"
+function _extractNumFacBase(notas) {
+  var m = String(notas || '').match(/Factura(?:\s+FedEx)?:\s*0*([A-Z0-9]+)/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleGetEgresos — v12.6
+//  Pre-índice "id_st|num_fac_normalizado" → drive_url exacto
+//  para resolver STs con múltiples facturas FedEx
+// ═══════════════════════════════════════════════════════════════
+
 function _handleGetEgresos(params, callback) {
   var result = { success: false, items: [], error: null };
   try {
@@ -1084,38 +1159,35 @@ function _handleGetEgresos(params, callback) {
       return ContentService.createTextOutput(json0).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // ── Cargar ST_Items para cross-reference de drive_url ──────
-    // Mapa: id_st → drive_url del primer ítem tipo 'impuesto' con URL
-    var stImgMap = {};
-    try {
-      var sheetST = ss.getSheetByName('ST_Items');
-      if (sheetST && sheetST.getLastRow() > 2) {
-        var stData = sheetST.getRange(3, 1, sheetST.getLastRow() - 2, sheetST.getLastColumn()).getValues();
-        // ST_Items cols (base 1): id_item_st=1, id_st=2, tipo=3, drive_url_factura=17
-        var STI_ID_ST   = 2;
-        var STI_TIPO    = 3;
-        var STI_DRIVE   = 17;
-        for (var si = 0; si < stData.length; si++) {
-          var sRow    = stData[si];
-          var idST    = String(sRow[STI_ID_ST - 1]  || '').trim();
-          var tipo    = String(sRow[STI_TIPO - 1]   || '').trim();
-          var driveU  = String(sRow[STI_DRIVE - 1]  || '').trim();
-          // Solo guardar impuesto con URL, primer match por ST gana
-          if (idST && tipo === 'impuesto' && driveU && !stImgMap[idST]) {
-            stImgMap[idST] = driveU;
-          }
-        }
-      }
-    } catch(stErr) {
-      Logger.log('⚠️ No se pudo cargar ST_Items para cross-ref: ' + stErr.message);
-    }
+    var maps   = _buildStUrlMaps(ss);
+    var stMap  = maps.stMap;
+    var impMap = maps.impMap;  // egreso_id_impuesto → drive_url
 
-    // ── Leer Egresos ───────────────────────────────────────────
+    // Leer todos los egresos para poder cruzar impuesto ↔ credito_fiscal
     var numDataRows = sheet.getLastRow() - 2;
     var ncols = Math.min(sheet.getLastColumn(), EGRESOS_NCOLS);
     var data  = sheet.getRange(3, 1, numDataRows, ncols).getValues();
-    var items = [];
 
+    // Pre-construir índice: id_st+num_fac_normalizado → egreso_id de tipo impuesto
+    // Para resolver ST-0022 con múltiples FedEx
+    var impEgresoIdx = {};  // "ST-RP-2026-0022|91505" → drive_url
+    for (var p = 0; p < data.length; p++) {
+      var rp = data[p];
+      if (!rp[COL_E.ID - 1]) continue;
+      var tipoP  = String(rp[COL_E.TIPO_EGRESO - 1] || '');
+      var eIdP   = String(rp[COL_E.ID - 1]          || '').trim();
+      if (tipoP !== 'impuesto' && tipoP !== 'costo_servicio_tecnico') continue;
+      var notasP = String(rp[COL_E.NOTAS - 1]      || '');
+      var stP    = _extractStId(notasP);
+      var nfP    = String(rp[COL_E.NFACTURA - 1]   || '').trim().toUpperCase();
+      // Normalizar: quitar ceros al frente para números puros
+      var nfNorm = nfP.replace(/^0+/, '') || nfP;
+      if (stP && nfNorm && impMap[eIdP]) {
+        impEgresoIdx[stP + '|' + nfNorm] = impMap[eIdP];
+      }
+    }
+
+    var items = [];
     for (var i = 0; i < data.length; i++) {
       var r = data[i];
       if (!r[COL_E.ID - 1]) continue;
@@ -1127,17 +1199,24 @@ function _handleGetEgresos(params, callback) {
         fechaGasto = String(fechaGasto || '').slice(0, 10);
       }
 
-      var driveUrl    = String(r[COL_E.DRIVE_URL - 1]  || '').trim();
-      var tipoEgreso  = String(r[COL_E.TIPO_EGRESO - 1] || '');
-      var notas       = String(r[COL_E.NOTAS - 1]       || '');
+      var driveUrl   = String(r[COL_E.DRIVE_URL - 1]   || '').trim();
+      var tipoEgreso = String(r[COL_E.TIPO_EGRESO - 1] || '');
+      var notas      = String(r[COL_E.NOTAS - 1]       || '');
+      var stId       = _extractStId(notas);
 
-      // Cross-reference: si no hay drive_url y es credito_fiscal,
-      // buscar el doc del ítem impuesto del mismo ST
-      if (!driveUrl && tipoEgreso === 'credito_fiscal') {
-        // Extraer ST id desde notas: "ST: ST-RP-2026-0010 | ..."
-        var stMatch = notas.match(/ST:\s*(ST-RP-[\d-]+)/);
-        if (stMatch && stImgMap[stMatch[1]]) {
-          driveUrl = stImgMap[stMatch[1]];
+      if (!driveUrl && stId) {
+        if (tipoEgreso === 'credito_fiscal') {
+          // Buscar el documento exacto del courier por num_factura
+          var numBase = _extractNumFacBase(notas);
+          if (numBase) {
+            var key = stId + '|' + numBase;
+            driveUrl = impEgresoIdx[key] || '';
+          }
+          // Fallback: primer impuesto del ST
+          if (!driveUrl) driveUrl = stMap[stId] || '';
+        } else {
+          // Miguelez, Electrisa, otros sin URL → factura emitida del ST
+          driveUrl = stMap[stId] || '';
         }
       }
 
@@ -1158,7 +1237,7 @@ function _handleGetEgresos(params, callback) {
         dv_prov:      r[COL_E.DV_PROV - 1]     || '',
         num_fac_ref:  r[COL_E.NFACTURA - 1]    || '',
         id_item_cv:   r[COL_E.ID_ITEM_CV - 1]  || '',
-        drive_url:    driveUrl,                  // ← ahora incluye cross-ref
+        drive_url:    driveUrl,
         descripcion:  r[COL_E.DESCRIPCION - 1] || '',
         notas:        notas,
         id_st_item:   (ncols >= COL_E.ID_ST_ITEM) ? (r[COL_E.ID_ST_ITEM - 1] || '') : '',
@@ -1403,6 +1482,11 @@ function _handleMoverAInventario(params, callback) {
 //  _handleGetIngresos
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+//  _handleGetIngresos — v12.6
+//  Usa ST.drive_url (factura emitida por CEYCO) como fuente principal
+// ═══════════════════════════════════════════════════════════════
+
 function _handleGetIngresos(params, callback) {
   var result = { success: false, items: [], error: null };
   try {
@@ -1415,6 +1499,10 @@ function _handleGetIngresos(params, callback) {
       if (callback) return ContentService.createTextOutput(callback + '(' + json0 + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
       return ContentService.createTextOutput(json0).setMimeType(ContentService.MimeType.JSON);
     }
+
+    // Construir mapa ST → drive_url (factura emitida)
+    var maps  = _buildStUrlMaps(ss);
+    var stMap = maps.stMap;
 
     var numIngRows = sheet.getLastRow() - 2;
     var data  = sheet.getRange(3, 1, numIngRows, INGRESOS_NCOLS).getValues();
@@ -1438,6 +1526,16 @@ function _handleGetIngresos(params, callback) {
         fechaReg = String(fechaReg || '');
       }
 
+      var notas    = String(r[COL_I.NOTAS_INT - 1] || '');
+      var driveUrl = String(r[COL_I.DRIVE_URL - 1] || '').trim();
+      var stId     = _extractStId(notas);
+
+      // Preferir ST.drive_url (factura emitida) sobre drive_url del ingreso
+      // que puede ser el voucher de pago del cliente
+      if (stId && stMap[stId]) {
+        driveUrl = stMap[stId];
+      }
+
       items.push({
         id_trans:          r[COL_I.ID_TRANS - 1],
         fecha_reg:         fechaReg,
@@ -1457,9 +1555,9 @@ function _handleGetIngresos(params, callback) {
         tipo_persona:      r[COL_I.TIPO_PERSONA - 1] || '',
         num_factura:       r[COL_I.NUM_FACTURA - 1]  || '',
         tipo_comprobante:  r[COL_I.TIPO_COMP - 1]    || '',
-        drive_url:         r[COL_I.DRIVE_URL - 1]    || '',
+        drive_url:         driveUrl,                  // ← ST.drive_url si existe
         descripcion:       r[COL_I.DESCRIPCION - 1]  || '',
-        notas:             r[COL_I.NOTAS_INT - 1]    || '',
+        notas:             notas,
         flag_revision:     r[COL_I.FLAG_REV - 1]     || false,
         _row:              i + 3,
       });
