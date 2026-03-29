@@ -6,6 +6,9 @@
 //  v12.2 — EGRESOS_NCOLS = 21, COL_E.ID_ST_ITEM = 21 (col U)
 //           _initEgresosSheet: cabecera col U = id_st_item
 //           _handleGetEgresos: expone id_st_item en respuestas
+//  v12.3 — confirmarIngreso: cambia estado ingreso → 'confirmado'
+//           al registrar pago completo del cliente en ST.
+//           Actualiza drive_url si viene comprobante.
 // ═══════════════════════════════════════════════════════════════
 
 // ── CONFIG ────────────────────────────────────────────────────
@@ -333,6 +336,7 @@ function doGet(e) {
     if (action === 'getIngresos')              return _handleGetIngresos(params, callback);
     if (action === 'registrarIngresoManual')   return _handleRegistrarIngresoManual(params, callback);
     if (action === 'actualizarNotasIngreso')   return _handleActualizarNotasIngreso(params, callback);
+    if (action === 'confirmarIngreso')         return _handleConfirmarIngreso(params, callback);
     // ── SERVICIOS TÉCNICOS ──────────────────────────────────────
     if (action === 'getCotizaciones')        return _handleGetCotizaciones(params, callback);
     if (action === 'aprobarCotizacion')      return _handleAprobarCotizacion(params, callback);
@@ -1059,6 +1063,14 @@ function migrarEgresosDV() {
 //  v12.2: expone id_st_item en la respuesta
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+//  _handleGetEgresos — v12.4 PATCH
+//  Cross-referencia drive_url desde ST_Items para egresos
+//  credito_fiscal que no tienen drive_url propio.
+//  La factura de DHL/FedEx vive en el ST_Item de tipo 'impuesto'
+//  del mismo ST — se busca por id_st extraído de las notas.
+// ═══════════════════════════════════════════════════════════════
+
 function _handleGetEgresos(params, callback) {
   var result = { success: false, items: [], error: null };
   try {
@@ -1072,8 +1084,34 @@ function _handleGetEgresos(params, callback) {
       return ContentService.createTextOutput(json0).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // ── Cargar ST_Items para cross-reference de drive_url ──────
+    // Mapa: id_st → drive_url del primer ítem tipo 'impuesto' con URL
+    var stImgMap = {};
+    try {
+      var sheetST = ss.getSheetByName('ST_Items');
+      if (sheetST && sheetST.getLastRow() > 2) {
+        var stData = sheetST.getRange(3, 1, sheetST.getLastRow() - 2, sheetST.getLastColumn()).getValues();
+        // ST_Items cols (base 1): id_item_st=1, id_st=2, tipo=3, drive_url_factura=17
+        var STI_ID_ST   = 2;
+        var STI_TIPO    = 3;
+        var STI_DRIVE   = 17;
+        for (var si = 0; si < stData.length; si++) {
+          var sRow    = stData[si];
+          var idST    = String(sRow[STI_ID_ST - 1]  || '').trim();
+          var tipo    = String(sRow[STI_TIPO - 1]   || '').trim();
+          var driveU  = String(sRow[STI_DRIVE - 1]  || '').trim();
+          // Solo guardar impuesto con URL, primer match por ST gana
+          if (idST && tipo === 'impuesto' && driveU && !stImgMap[idST]) {
+            stImgMap[idST] = driveU;
+          }
+        }
+      }
+    } catch(stErr) {
+      Logger.log('⚠️ No se pudo cargar ST_Items para cross-ref: ' + stErr.message);
+    }
+
+    // ── Leer Egresos ───────────────────────────────────────────
     var numDataRows = sheet.getLastRow() - 2;
-    // Leer hasta la col 21 (EGRESOS_NCOLS) — incluye id_st_item
     var ncols = Math.min(sheet.getLastColumn(), EGRESOS_NCOLS);
     var data  = sheet.getRange(3, 1, numDataRows, ncols).getValues();
     var items = [];
@@ -1081,12 +1119,28 @@ function _handleGetEgresos(params, callback) {
     for (var i = 0; i < data.length; i++) {
       var r = data[i];
       if (!r[COL_E.ID - 1]) continue;
+
       var fechaGasto = r[COL_E.FECHA_GASTO - 1];
       if (fechaGasto instanceof Date) {
         fechaGasto = Utilities.formatDate(fechaGasto, 'America/Panama', 'yyyy-MM-dd');
       } else {
         fechaGasto = String(fechaGasto || '').slice(0, 10);
       }
+
+      var driveUrl    = String(r[COL_E.DRIVE_URL - 1]  || '').trim();
+      var tipoEgreso  = String(r[COL_E.TIPO_EGRESO - 1] || '');
+      var notas       = String(r[COL_E.NOTAS - 1]       || '');
+
+      // Cross-reference: si no hay drive_url y es credito_fiscal,
+      // buscar el doc del ítem impuesto del mismo ST
+      if (!driveUrl && tipoEgreso === 'credito_fiscal') {
+        // Extraer ST id desde notas: "ST: ST-RP-2026-0010 | ..."
+        var stMatch = notas.match(/ST:\s*(ST-RP-[\d-]+)/);
+        if (stMatch && stImgMap[stMatch[1]]) {
+          driveUrl = stImgMap[stMatch[1]];
+        }
+      }
+
       items.push({
         id_egreso:    r[COL_E.ID - 1],
         fecha_reg:    r[COL_E.FECHA_REG - 1],
@@ -1094,7 +1148,7 @@ function _handleGetEgresos(params, callback) {
         fecha_egreso: fechaGasto,
         mes:          r[COL_E.MES - 1]          || '',
         anio:         r[COL_E.ANIO - 1]         || '',
-        tipo_egreso:  r[COL_E.TIPO_EGRESO - 1]  || '',
+        tipo_egreso:  tipoEgreso,
         categoria:    r[COL_E.CATEGORIA - 1]    || '',
         subtotal:     parseFloat(r[COL_E.SUBTOTAL - 1])  || 0,
         itbms:        parseFloat(r[COL_E.ITBMS - 1])     || 0,
@@ -1104,13 +1158,14 @@ function _handleGetEgresos(params, callback) {
         dv_prov:      r[COL_E.DV_PROV - 1]     || '',
         num_fac_ref:  r[COL_E.NFACTURA - 1]    || '',
         id_item_cv:   r[COL_E.ID_ITEM_CV - 1]  || '',
-        drive_url:    r[COL_E.DRIVE_URL - 1]   || '',
+        drive_url:    driveUrl,                  // ← ahora incluye cross-ref
         descripcion:  r[COL_E.DESCRIPCION - 1] || '',
-        notas:        r[COL_E.NOTAS - 1]       || '',
+        notas:        notas,
         id_st_item:   (ncols >= COL_E.ID_ST_ITEM) ? (r[COL_E.ID_ST_ITEM - 1] || '') : '',
         _row:         i + 3,
       });
     }
+
     result.success = true;
     result.items   = items;
   } catch(err) {
@@ -1942,5 +1997,72 @@ function _handleActualizarCategoria(params, callback) {
   }
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleConfirmarIngreso  ← v12.3
+//  Cambia el estado de un ingreso a 'confirmado' y opcionalmente
+//  actualiza drive_url con el comprobante de pago del cliente.
+//  Llamado desde servicios_tecnicos.html al registrar pago completo.
+// ═══════════════════════════════════════════════════════════════
+
+function _handleConfirmarIngreso(params, callback) {
+  var result = { success: false, error: null };
+  try {
+    var ingresoId = String(params.ingreso_id || '').trim();
+    var driveUrl  = String(params.drive_url  || '').trim();
+
+    if (!ingresoId) throw new Error('ingreso_id requerido');
+
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+    if (!sheet) throw new Error('Hoja Ingresos no encontrada');
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 2) throw new Error('Hoja Ingresos vacía');
+
+    var numRows = lastRow - 2;
+    var ids     = sheet.getRange(3, COL_I.ID_TRANS, numRows, 1).getValues();
+    var found   = false;
+
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0] || '').trim() !== ingresoId) continue;
+
+      var rowNum       = i + 3;
+      var estadoActual = String(sheet.getRange(rowNum, COL_I.ESTADO).getValue() || '');
+
+      if (estadoActual === 'anulado') {
+        throw new Error('No se puede confirmar un ingreso anulado');
+      }
+
+      sheet.getRange(rowNum, COL_I.ESTADO).setValue('confirmado');
+      sheet.getRange(rowNum, 1, 1, INGRESOS_NCOLS).setBackground('#F1F8E9');
+
+      if (driveUrl) {
+        sheet.getRange(rowNum, COL_I.DRIVE_URL).setValue(driveUrl);
+      }
+
+      var stamp   = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+      var notaAct = String(sheet.getRange(rowNum, COL_I.NOTAS_INT).getValue() || '');
+      sheet.getRange(rowNum, COL_I.NOTAS_INT).setValue(
+        notaAct + ' | Confirmado: ' + stamp +
+        (estadoActual !== 'confirmado' ? ' (era: ' + estadoActual + ')' : '')
+      );
+
+      found = true;
+      Logger.log('✅ Ingreso confirmado: ' + ingresoId + ' (era: ' + estadoActual + ')');
+      break;
+    }
+
+    if (!found) throw new Error('Ingreso no encontrado: ' + ingresoId);
+    result.success = true;
+
+  } catch(err) {
+    result.error = err.message;
+    Logger.log('Error _handleConfirmarIngreso: ' + err.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
