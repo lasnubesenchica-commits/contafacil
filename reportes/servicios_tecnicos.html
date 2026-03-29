@@ -979,11 +979,17 @@
       }
       return true;
     });
-    // Ordenar siempre por num_factura asc — misma lógica que la tabla
+    // Ordenar cards por fecha de emisión de factura (fecha_cierre) desc — más reciente primero.
+    // Fallback: fecha_registro desc si no hay fecha_cierre.
     st_state.filtered = items.slice().sort(function(a, b) {
-      var va = st_numFactura(a), vb = st_numFactura(b);
-      if (va < vb) return -1;
-      if (va > vb) return  1;
+      var fa = a.fecha_cierre || a.fecha_reg || '';
+      var fb = b.fecha_cierre || b.fecha_reg || '';
+      if (fa > fb) return -1;
+      if (fa < fb) return  1;
+      // Desempate: num_factura desc
+      var na = st_numFactura(a), nb = st_numFactura(b);
+      if (na > nb) return -1;
+      if (na < nb) return  1;
       return 0;
     });
     if (st_state.vistaMode === 'tabla') {
@@ -1137,6 +1143,7 @@
                   for (var i = 0; i < ri.items.length; i++) {
                     if (ri.items[i].id_trans === resumen.ingreso_id) {
                       var ing = ri.items[i];
+                      resumen.estado_ingreso = ing.estado || '';
                       // drive_url es el comprobante de pago (Yappy, ACH, etc.)
                       resumen.ingreso_drive_url = ing.drive_url || '';
                       // Si no hay drive_url, buscar patrón Voucher: en notas
@@ -1153,12 +1160,13 @@
           : Promise.resolve();
 
         Promise.all([p1, p2]).then(function() {
-          st_renderDrawer(idST, resumen);
-          // Find this ST's data by id (st_state.stActual may point to a different ST during staggered async load)
+          // Find this ST's data by id — stActual may point to a different ST
+          // during staggered async loads (parallel drawers). Pass stData explicitly.
           var stData = null;
           for (var _i = 0; _i < st_state.data.length; _i++) {
             if (st_state.data[_i].id_st === idST) { stData = st_state.data[_i]; break; }
           }
+          st_renderDrawer(idST, resumen, stData);
           if (stData) st_refreshCardHeader(idST, stData, resumen.total_real || 0);
         });
       })
@@ -1168,10 +1176,10 @@
       });
   }
 
-  function st_renderDrawer(idST, r) {
+  function st_renderDrawer(idST, r, stData) {
     var drawer = document.getElementById('stdrawer-' + idST);
     if (!drawer) return;
-    var st = st_state.stActual;
+    var st = stData || st_state.stActual;
     if (!st) return;
     var enEje = st.estado === 'en_ejecucion';
     var items = (r.items || []).filter(function(it) { return it.estado_item !== 'cancelado'; });
@@ -1184,7 +1192,9 @@
       var vm2 = String(r.notas).match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
       if (vm2) voucherUrl = vm2[1];
     }
-    if (!voucherUrl && r.ingreso_drive_url) voucherUrl = r.ingreso_drive_url;
+    // ingreso_drive_url en STs de historial sin voucher apunta a la factura CEYCO,
+    // no a un comprobante de pago. Solo usarlo si el ingreso está confirmado.
+    if (!voucherUrl && r.ingreso_drive_url && r.estado_ingreso === 'confirmado') voucherUrl = r.ingreso_drive_url;
 
     // Collect cost doc URLs:
     // - productCostUrls: drive_urls from producto-type items → shown in header cell
@@ -1498,7 +1508,7 @@
             'onchange="st_reclasificarTipo(this)">'+optsHtml+'</select>';
         } else {
           var tipoIcon = TIPO_LABEL[tipoActual] ? TIPO_LABEL[tipoActual].split(' ')[0] : '\ud83d\udccc';
-          tipoCell = '<span class="st-tipo-chip">'+tipoIcon+' '+(TIPO_LABEL[tipoActual]||tipoActual).replace(/^. /,'')+'</span>';
+          tipoCell = '<span class="st-tipo-chip">'+tipoIcon+' '+(TIPO_LABEL[tipoActual]||tipoActual).replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}]\uFE0F?\s/u,'')+'</span>';
         }
         var provText = it.proveedor || '';
         var provCell = provText
@@ -2301,7 +2311,7 @@
       .then(function(res) {
         if (!res) return;
         if (!res.success) throw new Error(res.error);
-        st_renderDrawer(idST, res.resumen);
+        st_renderDrawer(idST, res.resumen, st_state.stActual);
         st_refreshCardHeader(idST, st_state.stActual, res.resumen.total_real || 0);
         st_computeKPIs();
       })
