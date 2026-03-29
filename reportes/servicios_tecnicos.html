@@ -1031,9 +1031,12 @@
   function st_buildCard(st) {
     // pvNeto: usar subtotal_venta del resumen si existe (correcto para gravados y exentos),
     // fallback a /1.07 solo si no está disponible.
-    var pvNeto = st.subtotal_venta > 0
-      ? st.subtotal_venta
-      : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
+    // Para STs cancelados (nota de crédito), el neto es siempre $0.
+    var pvNeto = st.estado === 'cancelado'
+      ? 0
+      : (st.subtotal_venta > 0
+          ? st.subtotal_venta
+          : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0));
     var util = pvNeto - st_calcCostoReal(st);
     var uClr = util >= 0 ? '#15803d' : '#dc2626';
     var fecha = String(st.fecha_reg||'').slice(0,10);
@@ -1323,10 +1326,14 @@
 
     // Facturado neto: usar subtotal_venta del resumen (calculado correctamente por el GAS
     // tanto para gravados como exentos). Fallback a /1.07 si no está disponible.
+    // Para STs cancelados (nota de crédito), el neto es $0 — los dos ingresos se anulan.
     var esExento   = r.es_exento || false;
-    var pv         = r.subtotal_venta > 0
-      ? r.subtotal_venta
-      : (r.precio_venta > 0 ? parseFloat((r.precio_venta / 1.07).toFixed(2)) : 0);
+    var esCancelado = (st && st.estado === 'cancelado');
+    var pv         = esCancelado
+      ? 0
+      : (r.subtotal_venta > 0
+          ? r.subtotal_venta
+          : (r.precio_venta > 0 ? parseFloat((r.precio_venta / 1.07).toFixed(2)) : 0));
     var utilReal   = pv - totalCostoCalc;
     var margen     = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
     var pctCosto   = pv > 0 ? ((totalCostoCalc / pv) * 100).toFixed(1) : '—';
@@ -1360,6 +1367,8 @@
         '<div class="st-met-lbl">Neto' +
           (esExento ? ' <span style="background:#dcfce7;color:#15803d;font-size:.58rem;font-weight:700;' +
             'padding:1px 6px;border-radius:10px;vertical-align:middle;margin-left:4px">Exento</span>' : '') +
+          (esCancelado ? ' <span style="background:#fee2e2;color:#b91c1c;font-size:.58rem;font-weight:700;' +
+            'padding:1px 6px;border-radius:10px;vertical-align:middle;margin-left:4px">Anulado NC</span>' : '') +
         '</div>' +
         '<div class="st-met-val" style="color:#1A237E">'+st_fmt(pv)+'</div>' +
       '</div>' +
@@ -1641,7 +1650,7 @@
       if (col === 'num_factura')    { va = st_numFactura(a); vb = st_numFactura(b); }
       else if (col === 'cliente')   { va = (a.nombre_cliente||'').toLowerCase(); vb = (b.nombre_cliente||'').toLowerCase(); }
       else if (col === 'estado')    { va = a.estado||''; vb = b.estado||''; }
-      else if (col === 'neto')      { va = a.subtotal_venta > 0 ? a.subtotal_venta : parseFloat((a.precio_venta/1.07).toFixed(2)); vb = b.subtotal_venta > 0 ? b.subtotal_venta : parseFloat((b.precio_venta/1.07).toFixed(2)); }
+      else if (col === 'neto')      { va = a.estado==='cancelado' ? 0 : (a.subtotal_venta > 0 ? a.subtotal_venta : parseFloat((a.precio_venta/1.07).toFixed(2))); vb = b.estado==='cancelado' ? 0 : (b.subtotal_venta > 0 ? b.subtotal_venta : parseFloat((b.precio_venta/1.07).toFixed(2))); }
       else if (col === 'total')     { va = a.precio_venta||0; vb = b.precio_venta||0; }
       else if (col === 'costo')     { va = st_calcCostoReal(a); vb = st_calcCostoReal(b); }
       else if (col === 'utilidad')  {
@@ -1701,13 +1710,17 @@
     };
 
     items.forEach(function(st) {
-      var pvNeto   = st.subtotal_venta > 0
-        ? st.subtotal_venta
-        : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
-      var pvItbms  = st.precio_venta > 0
+      // Para STs cancelados (nota de crédito), neto = $0 — los dos ingresos se cancelan.
+      var esCancelado = st.estado === 'cancelado';
+      var pvNeto   = esCancelado
+        ? 0
+        : (st.subtotal_venta > 0
+            ? st.subtotal_venta
+            : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0));
+      var pvItbms  = (!esCancelado && st.precio_venta > 0)
         ? parseFloat((st.precio_venta - pvNeto).toFixed(2))
         : 0;
-      var pvTotal    = st.precio_venta || 0;
+      var pvTotal    = esCancelado ? 0 : (st.precio_venta || 0);
       var esExento   = pvNeto > 0 && pvItbms < 0.01;
       var totalCosto = st_calcCostoReal(st);
       var utilidad   = pvNeto - totalCosto;
@@ -1716,6 +1729,7 @@
       var isExpanded = !!st_state.expandedRows[st.id_st];
       var hasItems   = st.items && st.items.filter(function(i){ return i.estado_item !== 'cancelado'; }).length > 0;
 
+      // Cancelado STs: neto=0, no contribuyen a totales de ingresos
       totNeto     += pvNeto;
       totItbms    += esExento ? 0 : pvItbms;
       totTotal    += pvTotal;
