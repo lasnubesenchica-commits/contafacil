@@ -127,6 +127,7 @@ var IH_TIPO = {
   FACTURA_CEYCO:    'factura_ceyco',
   FACTURA_COSTO:    'factura_costo',    // cualquier factura de proveedor/aduana/flete
   VOUCHER:          'voucher',
+  NOTA_CREDITO:     'nota_credito',     // nota de crédito emitida por CEYCO que anula una factura
   IGNORAR:          'ignorar',
   DESCONOCIDO:      'desconocido',
 };
@@ -259,8 +260,18 @@ function _procesarCarpetaFactura(ss, folder, mes) {
   // ── PASO 2: Clasificar con Claude Haiku ──────────────────────
   var clasificados = _clasificarArchivos(archivos);
   Logger.log('  🏷️  ceyco=' + (clasificados.factura_ceyco ? '✅' : '❌') +
+             ' | nc=' + (clasificados.nota_credito ? '✅' : '❌') +
              ' | costos=' + clasificados.facturas_costo.length +
              ' | voucher=' + (clasificados.voucher ? '✅' : '❌'));
+
+  // ── DESVÍO: Nota de crédito detectada → Escenario 1 (anulación sin despacho) ──
+  // Si la carpeta tiene tanto factura CEYCO como nota de crédito que la anula,
+  // registrar ambos documentos en Ingresos (se cancelan entre sí) y crear
+  // el ST en estado 'cancelado'. Sin egresos, sin movimientos de inventario.
+  if (clasificados.factura_ceyco && clasificados.nota_credito) {
+    Logger.log('  📋 Nota de crédito detectada — procesando como anulación (Escenario 1)');
+    return _procesarNotaCredito(ss, clasificados, mes, resultado);
+  }
 
   if (!clasificados.factura_ceyco) {
     resultado.error_msg = 'No se encontró factura emitida por CEYCO';
@@ -547,7 +558,7 @@ function _procesarCarpetaFactura(ss, folder, mes) {
 // ═══════════════════════════════════════════════════════════════
 //  _clasificarArchivos
 //  Clasifica todos los archivos de una carpeta.
-//  Retorna: { factura_ceyco, facturas_costo[], voucher }
+//  Retorna: { factura_ceyco, facturas_costo[], voucher, nota_credito }
 // ═══════════════════════════════════════════════════════════════
 
 function _clasificarArchivos(archivos) {
@@ -555,6 +566,7 @@ function _clasificarArchivos(archivos) {
     factura_ceyco:   null,
     facturas_costo:  [],
     voucher:         null,
+    nota_credito:    null,   // nota de crédito emitida por CEYCO
   };
 
   var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
@@ -584,6 +596,9 @@ function _clasificarArchivos(archivos) {
       if      (tipo === IH_TIPO.FACTURA_CEYCO && !resultado.factura_ceyco) {
         resultado.factura_ceyco = archivo;
       }
+      else if (tipo === IH_TIPO.NOTA_CREDITO && !resultado.nota_credito) {
+        resultado.nota_credito = archivo;
+      }
       else if (tipo === IH_TIPO.FACTURA_COSTO) {
         resultado.facturas_costo.push(archivo);
       }
@@ -595,6 +610,7 @@ function _clasificarArchivos(archivos) {
       Logger.log('    ⚠️  Error clasificando "' + nombre + '": ' + err.message + ' — infiriendo por nombre');
       var tipoInf = _inferirTipoPorNombre(nombre);
       if      (tipoInf === IH_TIPO.FACTURA_CEYCO && !resultado.factura_ceyco) resultado.factura_ceyco = archivo;
+      else if (tipoInf === IH_TIPO.NOTA_CREDITO  && !resultado.nota_credito)  resultado.nota_credito  = archivo;
       else if (tipoInf === IH_TIPO.FACTURA_COSTO) resultado.facturas_costo.push(archivo);
       else if (tipoInf === IH_TIPO.VOUCHER && !resultado.voucher) resultado.voucher = archivo;
     }
@@ -637,6 +653,9 @@ function _clasificarArchivo(b64, mimeType, nombre, apiKey) {
     '                    El RUC aparece en la cabecera del documento junto al nombre CEYCO\n' +
     '                    como el que EMITE/VENDE. El receptor es el cliente.\n' +
     '                    El nombre del archivo puede ser cualquiera (no solo patrón DGI).\n' +
+    '  nota_credito    — nota de crédito DGI emitida por CEYCO (RUC 2470636-1-814806).\n' +
+    '                    El documento dice "Nota de crédito" o "Nota de crédito referenciada"\n' +
+    '                    en el encabezado. CEYCO es el EMISOR. Anula o revierte una factura.\n' +
     '  factura_costo   — factura de proveedor o courier cobrada A CEYCO:\n' +
     '                    facturas de proveedor local o extranjero (TME, Mouser, Dimyeen, etc.),\n' +
     '                    factura DHL/FedEx con cobro de flete + impuestos de importación.\n' +
@@ -667,7 +686,7 @@ function _clasificarArchivo(b64, mimeType, nombre, apiKey) {
   for (var i = 0; i < content.length; i++) {
     if (content[i].type === 'text') { text = content[i].text.trim().toLowerCase().replace(/[^a-z_]/g,''); break; }
   }
-  var validos = [IH_TIPO.FACTURA_CEYCO, IH_TIPO.FACTURA_COSTO, IH_TIPO.VOUCHER, IH_TIPO.DESCONOCIDO];
+  var validos = [IH_TIPO.FACTURA_CEYCO, IH_TIPO.NOTA_CREDITO, IH_TIPO.FACTURA_COSTO, IH_TIPO.VOUCHER, IH_TIPO.DESCONOCIDO];
   return validos.indexOf(text) !== -1 ? text : _inferirTipoPorNombre(nombre);
 }
 
@@ -675,7 +694,12 @@ function _inferirTipoPorNombre(nombre) {
   var n = nombre.toLowerCase();
   // Documentos que deben ignorarse
   if (/orden.de.compra|purchase.order|liquidacion|declaracion|aduana|formulario/.test(n)) return IH_TIPO.DESCONOCIDO;
-  // Patrones DGI: 01_01_0000000NNN_001_0000
+  // Nota de crédito — patrón CUFE FE04 (tipo 4 = nota de crédito DGI) o nombre explícito
+  if (/^fe04/.test(n) || /nota.de.credito|nota_credito|notacredito|credit.note/.test(n)) return IH_TIPO.NOTA_CREDITO;
+  // Patrón carpeta "NC NNN..." — nota de crédito por nombre de carpeta
+  if (/^nc[\s_\-]\d+/.test(n))                                                           return IH_TIPO.NOTA_CREDITO;
+  // Patrones DGI factura normal: FE01 o 01_01_0000000NNN_001_0000
+  if (/^fe01/.test(n))                                                                   return IH_TIPO.FACTURA_CEYCO;
   if (/^\d{2}_\d{2}_\d{7,}/.test(nombre))                                               return IH_TIPO.FACTURA_CEYCO;
   if (/deposito|transferencia|comprobante|banco|pago|voucher|yappy|ach/.test(n))         return IH_TIPO.VOUCHER;
   if (/dhl|fedex|ups|flete|proveedor|factura_prov|tme|mouser|digikey|dimyeen|phoenix|electrisa|miguelez|talleres/.test(n)) return IH_TIPO.FACTURA_COSTO;
@@ -1096,6 +1120,181 @@ function _parsearFacturaCosto(archivo) {
 //      costos_generales: [{ datos, archivo }]   ← para crear egresos
 //    }
 // ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+//  _procesarNotaCredito  — Escenario 1: anulación sin despacho
+//
+//  Flujo:
+//    1. Parsear factura CEYCO original para datos de cliente/montos
+//    2. Parsear nota de crédito para su número y fecha
+//    3. Crear ST en estado 'cancelado'
+//    4. Registrar Ingreso 1: factura original (positivo, estado 'anulado')
+//    5. Registrar Ingreso 2: nota de crédito (negativo, tipo_comp 'nota_credito')
+//    6. Sin egresos, sin ST_Items, sin movimientos de inventario
+// ═══════════════════════════════════════════════════════════════
+
+function _procesarNotaCredito(ss, clasificados, mes, resultado) {
+  var ahora    = new Date();
+  var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+
+  // Parsear factura CEYCO para datos del cliente y montos
+  var datosCeyco = _parsearFacturaCeyco(clasificados.factura_ceyco);
+  if (!datosCeyco || !datosCeyco.items || !datosCeyco.items.length) {
+    resultado.error_msg = 'No se pudieron extraer datos de la factura (nota de credito)';
+    return resultado;
+  }
+
+  var numFact    = datosCeyco.num_factura    || '';
+  var cliente    = datosCeyco.nombre_cliente || '';
+  var rucCli     = datosCeyco.ruc_cliente    || '';
+  var dvCli      = datosCeyco.dv_cliente     || '';
+  var totalVenta = parseFloat(datosCeyco.total || '0') || 0;
+  var tieneItbms = datosCeyco.tiene_itbms !== false;
+  // Usar mismo campo que el flujo normal: datosCeyco.fecha (no fecha_emision)
+  var fechaFactu = datosCeyco.fecha ||
+    Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd');
+  var fechaDate  = new Date(fechaFactu + 'T12:00:00');
+  var mesST      = isNaN(fechaDate.getTime()) ? ahora.getMonth()+1 : fechaDate.getMonth()+1;
+  var anioST     = isNaN(fechaDate.getTime()) ? ahora.getFullYear() : fechaDate.getFullYear();
+
+  var subtotalFact = tieneItbms ? parseFloat((totalVenta / 1.07).toFixed(2)) : totalVenta;
+  var itbmsFact    = tieneItbms ? parseFloat((totalVenta - subtotalFact).toFixed(2)) : 0;
+
+  // Parsear nota de credito para su numero y fecha
+  var datosNC = _parsearFacturaCeyco(clasificados.nota_credito);
+  var numNC   = (datosNC && datosNC.num_factura) ? datosNC.num_factura : 'NC';
+  var fechaNC = (datosNC && datosNC.fecha)       ? datosNC.fecha       : fechaFactu;
+
+  // Obtener secuencia ST (misma funcion que el flujo normal)
+  var seqData = _nextSTSeq(ss);
+  var idST    = 'ST-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+
+  // Crear ST en estado cancelado
+  var sheetST = ss.getSheetByName(SHEET_ST) || _initServiciosTecnicosSheet(ss);
+
+  var filaST = new Array(ST_NCOLS);
+  for (var xs = 0; xs < ST_NCOLS; xs++) filaST[xs] = '';
+  filaST[COL_ST.ID - 1]              = idST;
+  filaST[COL_ST.FECHA_REG - 1]       = fechaReg;
+  filaST[COL_ST.ESTADO - 1]          = 'cancelado';
+  filaST[COL_ST.NUM_COT - 1]         = 'COT-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+  filaST[COL_ST.NOMBRE_CLI - 1]      = cliente;
+  filaST[COL_ST.RUC_CLI - 1]         = rucCli;
+  filaST[COL_ST.DV_CLI - 1]          = dvCli;
+  filaST[COL_ST.DESCRIPCION - 1]     = (datosCeyco.descripcion || datosCeyco.items[0].descripcion || '') +
+                                        ' | ANULADO NC ' + numNC;
+  filaST[COL_ST.TOTAL_COSTO_COT - 1] = 0;
+  filaST[COL_ST.TOTAL_COSTO_REAL - 1]= 0;
+  filaST[COL_ST.MARGEN_PCT - 1]      = 0;
+  filaST[COL_ST.PRECIO_VENTA - 1]    = 0;
+  filaST[COL_ST.DRIVE_URL - 1]       = clasificados.factura_ceyco.getUrl();
+  filaST[COL_ST.FECHA_CIERRE - 1]    = fechaNC;
+  filaST[COL_ST.MES - 1]             = mesST;
+  filaST[COL_ST.ANIO - 1]            = anioST;
+  filaST[COL_ST.NOTAS - 1]           = 'Importado historial Drive | Mes: ' + mes +
+                                        ' | FACT ' + numFact + ' anulada por NC ' + numNC;
+
+  var newSTRow = sheetST.getLastRow() + 1;
+  sheetST.getRange(newSTRow, 1, 1, ST_NCOLS).setValues([filaST]);
+  sheetST.getRange(newSTRow, COL_ST.TOTAL_COSTO_COT, 1, 3).setNumberFormat('#,##0.00');
+  sheetST.getRange(newSTRow, 1, 1, ST_NCOLS).setBackground('#FFEBEE');
+  Logger.log('  ST cancelado: ' + idST + ' | ' + cliente +
+             ' | FACT ' + numFact + ' + NC ' + numNC);
+
+  // Ingresos
+  var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+  if (!sheetIng) { resultado.error_msg = 'Hoja Ingresos no encontrada'; return resultado; }
+
+  var idBase = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') +
+               '-IH-' + String(seqData.seq).padStart(4, '0');
+
+  // Ingreso 1: factura original — positivo, estado anulado
+  var idIng1   = idBase + 'A';
+  var filaIng1 = new Array(INGRESOS_NCOLS);
+  for (var xi = 0; xi < INGRESOS_NCOLS; xi++) filaIng1[xi] = '';
+  filaIng1[COL_I.ID_TRANS - 1]      = idIng1;
+  filaIng1[COL_I.FECHA_REG - 1]     = fechaReg;
+  filaIng1[COL_I.ESTADO - 1]        = 'anulado';
+  filaIng1[COL_I.CONFIANZA_IA - 1]  = 'ia_historial';
+  filaIng1[COL_I.FECHA_INGRESO - 1] = fechaFactu;
+  filaIng1[COL_I.MES - 1]           = mesST;
+  filaIng1[COL_I.ANIO_FISCAL - 1]   = anioST;
+  filaIng1[COL_I.SUBTOTAL - 1]      = subtotalFact;
+  filaIng1[COL_I.ITBMS - 1]         = itbmsFact;
+  filaIng1[COL_I.TOTAL - 1]         = totalVenta;
+  filaIng1[COL_I.MONEDA - 1]        = 'USD';
+  filaIng1[COL_I.TIPO_INGRESO - 1]  = 'venta_producto';
+  filaIng1[COL_I.CATEGORIA - 1]     = tieneItbms ? 'venta_producto_gravado' : 'venta_producto_exento';
+  filaIng1[COL_I.NOMBRE_CLI - 1]    = cliente;
+  filaIng1[COL_I.RUC_CLI - 1]       = rucCli;
+  filaIng1[COL_I.TIPO_PERSONA - 1]  = detectarTipoPersona(String(rucCli));
+  filaIng1[COL_I.NUM_FACTURA - 1]   = numFact;
+  filaIng1[COL_I.TIPO_COMP - 1]     = 'factura_emitida';
+  filaIng1[COL_I.DRIVE_URL - 1]     = clasificados.factura_ceyco.getUrl();
+  filaIng1[COL_I.DESCRIPCION - 1]   = 'FACT ' + numFact + ' anulada por NC ' + numNC;
+  filaIng1[COL_I.NOTAS_INT - 1]     = 'ST: ' + idST + ' | Historial ' + mes +
+                                       ' | Anulado por NC ' + numNC;
+  filaIng1[COL_I.FLAG_REV - 1]      = false;
+  filaIng1[COL_I.DV_CLI - 1]        = dvCli;
+
+  var newIng1Row = sheetIng.getLastRow() + 1;
+  sheetIng.getRange(newIng1Row, 1, 1, INGRESOS_NCOLS).setValues([filaIng1]);
+  sheetIng.getRange(newIng1Row, COL_I.SUBTOTAL, 1, 3).setNumberFormat('#,##0.00');
+  sheetIng.getRange(newIng1Row, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
+
+  // Ingreso 2: nota de credito — negativo, revierte la factura
+  var idIng2   = idBase + 'B';
+  var filaIng2 = new Array(INGRESOS_NCOLS);
+  for (var xj = 0; xj < INGRESOS_NCOLS; xj++) filaIng2[xj] = '';
+  filaIng2[COL_I.ID_TRANS - 1]      = idIng2;
+  filaIng2[COL_I.FECHA_REG - 1]     = fechaReg;
+  filaIng2[COL_I.ESTADO - 1]        = 'anulado';
+  filaIng2[COL_I.CONFIANZA_IA - 1]  = 'ia_historial';
+  filaIng2[COL_I.FECHA_INGRESO - 1] = fechaNC;
+  filaIng2[COL_I.MES - 1]           = mesST;
+  filaIng2[COL_I.ANIO_FISCAL - 1]   = anioST;
+  filaIng2[COL_I.SUBTOTAL - 1]      = -subtotalFact;
+  filaIng2[COL_I.ITBMS - 1]         = -itbmsFact;
+  filaIng2[COL_I.TOTAL - 1]         = -totalVenta;
+  filaIng2[COL_I.MONEDA - 1]        = 'USD';
+  filaIng2[COL_I.TIPO_INGRESO - 1]  = 'venta_producto';
+  filaIng2[COL_I.CATEGORIA - 1]     = tieneItbms ? 'venta_producto_gravado' : 'venta_producto_exento';
+  filaIng2[COL_I.NOMBRE_CLI - 1]    = cliente;
+  filaIng2[COL_I.RUC_CLI - 1]       = rucCli;
+  filaIng2[COL_I.TIPO_PERSONA - 1]  = detectarTipoPersona(String(rucCli));
+  filaIng2[COL_I.NUM_FACTURA - 1]   = numNC;
+  filaIng2[COL_I.TIPO_COMP - 1]     = 'nota_credito';
+  filaIng2[COL_I.DRIVE_URL - 1]     = clasificados.nota_credito.getUrl();
+  filaIng2[COL_I.DESCRIPCION - 1]   = 'NC ' + numNC + ' anula FACT ' + numFact;
+  filaIng2[COL_I.NOTAS_INT - 1]     = 'ST: ' + idST + ' | Historial ' + mes +
+                                       ' | NC anula FACT ' + numFact;
+  filaIng2[COL_I.FLAG_REV - 1]      = false;
+  filaIng2[COL_I.DV_CLI - 1]        = dvCli;
+
+  var newIng2Row = sheetIng.getLastRow() + 1;
+  sheetIng.getRange(newIng2Row, 1, 1, INGRESOS_NCOLS).setValues([filaIng2]);
+  sheetIng.getRange(newIng2Row, COL_I.SUBTOTAL, 1, 3).setNumberFormat('#,##0.00');
+  sheetIng.getRange(newIng2Row, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
+
+  // Vincular ingreso 1 al ST
+  sheetST.getRange(newSTRow, COL_ST.INGRESO_ID).setValue(idIng1);
+
+  Logger.log('  NC procesada: ST=' + idST +
+             ' | ING1=' + idIng1 + ' +$' + totalVenta +
+             ' | ING2=' + idIng2 + ' -$' + totalVenta + ' | Neto=$0');
+
+  resultado.id_st       = idST;
+  resultado.num_factura = numFact;
+  resultado.cliente     = cliente;
+  resultado.total_venta = 0;
+  resultado.total_costo = 0;
+  resultado.tipo_venta  = 'cancelado';
+  resultado.tipo_costo  = 'nota_credito';
+  resultado.estado      = 'completo';
+  resultado.ingreso_id  = idIng1;
+  return resultado;
+}
+
 
 function _matchearItems(itemsCeyco, facturasCostoParseadas, ss) {
 
@@ -2336,3 +2535,104 @@ function _crearSTItemCreditoFiscal(sheetSTI, idST, seq, datosCosto, itbmCredito,
   sheetSTI.getRange(newRow, COL_STI.MONTO_COT, 1, 3).setNumberFormat('#,##0.00');
   sheetSTI.getRange(newRow, 1, 1, STI_NCOLS).setBackground('#E8EAF6');  // índigo claro = crédito fiscal
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  WRAPPERS — FEBRERO 2026
+//  6 carpetas: FACT516–FACT521
+//
+//  Uso:
+//    dryRunFACTxxx()   → simula sin escribir, revisar log
+//    ejecutarFACTxxx() → importa y escribe en Sheet
+//    reimportarFACTxxx() → reimporta sin limpiar (si aún no existe el ST)
+// ═══════════════════════════════════════════════════════════════
+
+function dryRunFACT516()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT516TELECOM'); }
+function ejecutarFACT516()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT516TELECOM', true); }
+function reimportarFACT516() { reimportarCarpeta('FEBRERO 2026', 'FACT516TELECOM'); }
+
+function dryRunFACT517()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT517COCACOLA'); }
+function ejecutarFACT517()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT517COCACOLA', true); }
+function reimportarFACT517() { reimportarCarpeta('FEBRERO 2026', 'FACT517COCACOLA'); }
+
+function dryRunFACT518()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT518RSVPSOLUTION'); }
+function ejecutarFACT518()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT518RSVPSOLUTION', true); }
+function reimportarFACT518() { reimportarCarpeta('FEBRERO 2026', 'FACT518RSVPSOLUTION'); }
+
+function dryRunFACT519()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT519ERSIGROUP PANAMA'); }
+function ejecutarFACT519()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT519ERSIGROUP PANAMA', true); }
+function reimportarFACT519() { reimportarCarpeta('FEBRERO 2026', 'FACT519ERSIGROUP PANAMA'); }
+
+function dryRunFACT520()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT520HOSPITAL NACIONAL'); }
+function ejecutarFACT520()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT520HOSPITAL NACIONAL', true); }
+function reimportarFACT520() { reimportarCarpeta('FEBRERO 2026', 'FACT520HOSPITAL NACIONAL'); }
+
+function dryRunFACT521()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT521SOFRATESA'); }
+function ejecutarFACT521()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT521SOFRATESA', true); }
+function reimportarFACT521() { reimportarCarpeta('FEBRERO 2026', 'FACT521SOFRATESA'); }
+
+
+// ═══════════════════════════════════════════════════════════════
+//  WRAPPERS — MARZO 2026
+//  13 carpetas: FACT522–FACT534 + NC 114
+//
+//  ⚠️  Notas especiales:
+//    FACT 524 — nombre con espacio entre FACT y 524 (tal como está en Drive)
+//    NC 114   — nota de crédito, se importa igual que una carpeta normal
+// ═══════════════════════════════════════════════════════════════
+
+function dryRunFACT522()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT522DISTRIBUIDORA VIKINGO'); }
+function ejecutarFACT522()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT522DISTRIBUIDORA VIKINGO', true); }
+function reimportarFACT522() { reimportarCarpeta('MARZO 2026', 'FACT522DISTRIBUIDORA VIKINGO'); }
+
+function dryRunFACT523()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT523HOSPITAL NACIONAL'); }
+function ejecutarFACT523()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT523HOSPITAL NACIONAL', true); }
+function reimportarFACT523() { reimportarCarpeta('MARZO 2026', 'FACT523HOSPITAL NACIONAL'); }
+
+// ⚠️  Nombre con espacio: "FACT 524..." (no "FACT524...")
+function dryRunFACT524()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT 524EUSTORGIO GONZALEZ'); }
+function ejecutarFACT524()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT 524EUSTORGIO GONZALEZ', true); }
+function reimportarFACT524() { reimportarCarpeta('MARZO 2026', 'FACT 524EUSTORGIO GONZALEZ'); }
+
+function dryRunFACT525()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT525KRILL ENERGY'); }
+function ejecutarFACT525()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT525KRILL ENERGY', true); }
+function reimportarFACT525() { reimportarCarpeta('MARZO 2026', 'FACT525KRILL ENERGY'); }
+
+function dryRunFACT526()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT526TELECOM GROUP'); }
+function ejecutarFACT526()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT526TELECOM GROUP', true); }
+function reimportarFACT526() { reimportarCarpeta('MARZO 2026', 'FACT526TELECOM GROUP'); }
+
+function dryRunNC114()       { limpiarYReimportarCarpeta('MARZO 2026', 'NC 114TELECOM GROUP'); }
+function ejecutarNC114()     { limpiarYReimportarCarpeta('MARZO 2026', 'NC 114TELECOM GROUP', true); }
+function reimportarNC114()   { reimportarCarpeta('MARZO 2026', 'NC 114TELECOM GROUP'); }
+
+function dryRunFACT527()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT527TELECOM GROUP'); }
+function ejecutarFACT527()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT527TELECOM GROUP', true); }
+function reimportarFACT527() { reimportarCarpeta('MARZO 2026', 'FACT527TELECOM GROUP'); }
+
+function dryRunFACT528()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT528CLEMENTE ENERGY'); }
+function ejecutarFACT528()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT528CLEMENTE ENERGY', true); }
+function reimportarFACT528() { reimportarCarpeta('MARZO 2026', 'FACT528CLEMENTE ENERGY'); }
+
+function dryRunFACT529()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT529TUG SERVICES PANAMA'); }
+function ejecutarFACT529()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT529TUG SERVICES PANAMA', true); }
+function reimportarFACT529() { reimportarCarpeta('MARZO 2026', 'FACT529TUG SERVICES PANAMA'); }
+
+function dryRunFACT530()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT530RAFAEL BARRIOS'); }
+function ejecutarFACT530()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT530RAFAEL BARRIOS', true); }
+function reimportarFACT530() { reimportarCarpeta('MARZO 2026', 'FACT530RAFAEL BARRIOS'); }
+
+function dryRunFACT531()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT531EUSTORGIO GONZALEZ'); }
+function ejecutarFACT531()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT531EUSTORGIO GONZALEZ', true); }
+function reimportarFACT531() { reimportarCarpeta('MARZO 2026', 'FACT531EUSTORGIO GONZALEZ'); }
+
+function dryRunFACT532()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT532TELECOM GROUP'); }
+function ejecutarFACT532()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT532TELECOM GROUP', true); }
+function reimportarFACT532() { reimportarCarpeta('MARZO 2026', 'FACT532TELECOM GROUP'); }
+
+function dryRunFACT533()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT533COCACOLA'); }
+function ejecutarFACT533()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT533COCACOLA', true); }
+function reimportarFACT533() { reimportarCarpeta('MARZO 2026', 'FACT533COCACOLA'); }
+
+function dryRunFACT534()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT534TAMEK'); }
+function ejecutarFACT534()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT534TAMEK', true); }
+function reimportarFACT534() { reimportarCarpeta('MARZO 2026', 'FACT534TAMEK'); }
