@@ -1508,7 +1508,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 <!-- ── MODAL: AJUSTE DE INVENTARIO ── -->
 <div class="modal-overlay" id="adjModal" style="display:none">
-  <div class="modal-card" style="max-width:480px">
+  <div class="modal-box" style="max-width:480px">
     <div class="modal-header">
       <div class="modal-title">⚖️ Ajuste de Inventario</div>
       <button class="modal-close" onclick="closeAjusteModal()">✕</button>
@@ -5631,12 +5631,16 @@ function openAjusteModal() {
   document.getElementById('adjTipo').value     = 'entrada';
   document.getElementById('adjCantidad').value = '';
   document.getElementById('adjMotivo').value   = '';
-  document.getElementById('adjError').style.display  = 'none';
-  document.getElementById('adjModal').style.display   = 'flex';
+  document.getElementById('adjError').style.display = 'none';
+  var m = document.getElementById('adjModal');
+  m.style.display = 'flex';
+  requestAnimationFrame(function() { m.classList.add('open'); });
 }
 
 function closeAjusteModal() {
-  document.getElementById('adjModal').style.display = 'none';
+  var m = document.getElementById('adjModal');
+  m.classList.remove('open');
+  setTimeout(function() { m.style.display = 'none'; }, 300);
 }
 
 async function confirmarAjuste() {
