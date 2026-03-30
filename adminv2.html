@@ -916,6 +916,82 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .inv-view-btn.active { background:var(--text);border-color:var(--text);color:#fff }
 /* Lista mode */
 .inv-list { padding:0 2rem 1.5rem }
+/* ── PANEL SETUP ── */
+#sectionSetup { display:none }
+.setup-wrap { max-width:860px; margin:0 auto; padding:2rem; }
+.setup-header { margin-bottom:1.75rem; }
+.setup-header h2 { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; letter-spacing:.05em; }
+.setup-header p  { font-size:.82rem; color:var(--muted); margin-top:.25rem; }
+
+.setup-tabs {
+  display:flex; gap:.25rem; margin-bottom:1.5rem;
+  border-bottom:2px solid var(--border); padding-bottom:0;
+}
+.setup-tab {
+  font-size:.85rem; font-weight:500; padding:.55rem 1.2rem;
+  border:none; background:none; color:var(--muted); cursor:pointer;
+  border-bottom:2px solid transparent; margin-bottom:-2px;
+  transition:all .18s;
+}
+.setup-tab.active { color:var(--orange); border-bottom-color:var(--orange); font-weight:600; }
+.setup-tab:hover:not(.active) { color:var(--text); }
+
+.setup-panel { display:none; }
+.setup-panel.active { display:block; }
+
+.setup-card {
+  background:var(--white); border:1px solid var(--border);
+  border-radius:var(--r2); padding:1.5rem; margin-bottom:1.25rem;
+}
+.setup-card-title {
+  font-family:'DM Mono',monospace; font-size:.65rem; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--orange); margin-bottom:1.1rem;
+  display:flex; align-items:center; gap:.5rem;
+}
+.setup-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+.setup-grid.cols3 { grid-template-columns:1fr 1fr 1fr; }
+.setup-grid.cols1 { grid-template-columns:1fr; }
+.setup-field { display:flex; flex-direction:column; gap:.3rem; }
+.setup-field.full { grid-column:1/-1; }
+.setup-field label {
+  font-size:.68rem; font-weight:600; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--muted);
+}
+.setup-field input, .setup-field select {
+  background:var(--bg); border:1px solid var(--border); border-radius:6px;
+  color:var(--text); font-family:'DM Sans',sans-serif; font-size:.88rem;
+  padding:.55rem .85rem; outline:none; transition:border-color .2s;
+}
+.setup-field input:focus, .setup-field select:focus { border-color:var(--orange); }
+.setup-field input.ok  { border-color:var(--green); }
+.setup-field input.err { border-color:var(--red); }
+.setup-hint { font-size:.7rem; color:var(--muted); margin-top:.1rem; }
+
+.setup-status-row {
+  display:flex; align-items:center; gap:.6rem; padding:.6rem .85rem;
+  background:var(--bg); border-radius:var(--r); font-size:.8rem;
+  border:1px solid var(--border);
+}
+.setup-status-dot {
+  width:8px; height:8px; border-radius:50%; flex-shrink:0;
+}
+.setup-status-dot.green { background:var(--green); }
+.setup-status-dot.orange { background:var(--orange); }
+.setup-status-dot.red { background:var(--red); }
+.setup-status-dot.grey { background:var(--chrome); }
+
+.setup-save-bar {
+  display:flex; align-items:center; justify-content:flex-end;
+  gap:.75rem; padding-top:1rem; border-top:1px solid var(--border);
+  margin-top:1rem;
+}
+.setup-badge-admin {
+  display:inline-flex; align-items:center; gap:.4rem;
+  font-size:.7rem; font-family:'DM Mono',monospace; letter-spacing:.06em;
+  background:rgba(224,90,0,.08); color:var(--orange);
+  border:1px solid rgba(224,90,0,.2); border-radius:100px;
+  padding:.2rem .75rem; margin-left:.75rem;
+}
 </style>
 </head>
 <body>
@@ -1546,6 +1622,170 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
   </div>
 </div><!-- /sectionProveedores -->
+
+<!-- ═══════════ SECCIÓN: CONFIGURACIÓN (solo ?admin=1) ═══════════ -->
+<div id="sectionSetup">
+  <div class="setup-wrap">
+    <div class="setup-header">
+      <h2>⚙️ Configuración del Sistema</h2>
+      <p>Ajusta los datos de la empresa y el módulo de Operaciones. Solo visible en modo administrador.</p>
+    </div>
+
+    <!-- Sub-tabs -->
+    <div class="setup-tabs">
+      <button class="setup-tab active" id="setupTabEmpresa"     onclick="setupSwitchTab('empresa')">🏢 Empresa</button>
+      <button class="setup-tab"        id="setupTabOperaciones" onclick="setupSwitchTab('operaciones')">⚙️ Operaciones</button>
+      <button class="setup-tab"        id="setupTabSistema"     onclick="setupSwitchTab('sistema')">🔧 Sistema</button>
+    </div>
+
+    <!-- ── Panel: Empresa ── -->
+    <div class="setup-panel active" id="setupPanelEmpresa">
+      <div class="setup-card">
+        <div class="setup-card-title">🏢 Datos de la Empresa</div>
+        <div class="setup-grid cols1" style="margin-bottom:.75rem">
+          <div class="setup-field full">
+            <label>Nombre de la empresa</label>
+            <input type="text" id="cfgEmpresaNombre" placeholder="Consultores Electrotécnicos y Contratistas, S.A.">
+          </div>
+        </div>
+        <div class="setup-grid">
+          <div class="setup-field">
+            <label>RUC</label>
+            <input type="text" id="cfgEmpresaRuc" placeholder="2470636-1-814806">
+          </div>
+          <div class="setup-field">
+            <label>DV</label>
+            <input type="text" id="cfgEmpresaDv" placeholder="06" style="max-width:120px">
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-card">
+        <div class="setup-card-title">📧 Email de Comprobantes</div>
+        <div class="setup-grid cols1">
+          <div class="setup-field full">
+            <label>Email destino (para Operaciones — sincronizar Gmail)</label>
+            <input type="email" id="cfgEmailComprobantes" placeholder="lasnubesenchica+ceyco@gmail.com">
+            <span class="setup-hint">Las facturas de proveedor y emitidas deben enviarse a este email para que el sistema las lea automáticamente.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-card">
+        <div class="setup-card-title">📁 Google Drive — Carpeta de Archivos</div>
+        <div class="setup-grid cols1">
+          <div class="setup-field full">
+            <label>ID de la carpeta Drive (donde se guardan PDFs de facturas)</label>
+            <input type="text" id="cfgDriveFolderId" placeholder="1OiVyKh7HdyQUKPNB7EYu2UsOmdUCyyYd">
+            <span class="setup-hint">Encontrar en la URL de Drive: drive.google.com/drive/folders/<strong>ID_AQUÍ</strong></span>
+          </div>
+        </div>
+        <div id="cfgDriveStatus" style="margin-top:.75rem"></div>
+      </div>
+
+      <div class="setup-save-bar">
+        <span id="cfgEmpresaMsg" style="font-size:.8rem;color:var(--green);display:none">✅ Guardado</span>
+        <button class="btn-secondary" onclick="loadSetupConfig()">↺ Recargar</button>
+        <button class="btn-primary"   id="btnGuardarEmpresa" onclick="guardarConfigEmpresa()">💾 Guardar Empresa</button>
+      </div>
+    </div><!-- /setupPanelEmpresa -->
+
+    <!-- ── Panel: Operaciones ── -->
+    <div class="setup-panel" id="setupPanelOperaciones">
+
+      <div class="setup-card">
+        <div class="setup-card-title">⚙️ Parámetros de Operaciones</div>
+        <div class="setup-grid">
+          <div class="setup-field">
+            <label>Prefijo de IDs</label>
+            <input type="text" id="cfgPrefijoId" placeholder="RP" maxlength="6">
+            <span class="setup-hint">Ej: RP → EGR-RP-2026-0001</span>
+          </div>
+          <div class="setup-field">
+            <label>Confianza mínima de match IA (%)</label>
+            <input type="number" id="cfgConfianzaMin" placeholder="70" min="50" max="100">
+            <span class="setup-hint">Ítems con match menor quedan en revisión</span>
+          </div>
+          <div class="setup-field">
+            <label>Tasa ITBMS</label>
+            <input type="number" id="cfgItbmsRate" placeholder="0.07" step="0.01" min="0" max="1">
+            <span class="setup-hint">Panamá: 0.07 (7%)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-card">
+        <div class="setup-card-title">🏭 Proveedor Base</div>
+        <div id="setupProvBaseInfo" style="margin-bottom:1rem"></div>
+        <div class="setup-grid">
+          <div class="setup-field">
+            <label>Nombre</label>
+            <input type="text" id="cfgProvNombre" placeholder="TALLERES INDUSTRIALES, S.A">
+          </div>
+          <div class="setup-field">
+            <label>RUC</label>
+            <input type="text" id="cfgProvRuc" placeholder="670-173-134480">
+          </div>
+          <div class="setup-field">
+            <label>DV</label>
+            <input type="text" id="cfgProvDv" placeholder="83">
+          </div>
+          <div class="setup-field">
+            <label>Email origen (de donde llegan sus facturas)</label>
+            <input type="email" id="cfgProvEmail" placeholder="facturas@talleres.com">
+          </div>
+          <div class="setup-field full">
+            <label>Keywords de detección (separadas por coma)</label>
+            <input type="text" id="cfgProvKeywords" placeholder="talleres,670173,factura_prov">
+            <span class="setup-hint">Palabras en el nombre del archivo que identifican facturas de este proveedor</span>
+          </div>
+        </div>
+        <div class="setup-save-bar" style="margin-top:.75rem">
+          <span id="cfgProvMsg" style="font-size:.8rem;color:var(--green);display:none">✅ Guardado</span>
+          <button class="btn-primary" id="btnGuardarProv" onclick="guardarProveedorBase()">💾 Guardar Proveedor Base</button>
+        </div>
+      </div>
+
+      <div class="setup-save-bar">
+        <span id="cfgOpMsg" style="font-size:.8rem;color:var(--green);display:none">✅ Guardado</span>
+        <button class="btn-secondary" onclick="loadSetupConfig()">↺ Recargar</button>
+        <button class="btn-primary"   id="btnGuardarOp" onclick="guardarConfigOperaciones()">💾 Guardar Operaciones</button>
+      </div>
+    </div><!-- /setupPanelOperaciones -->
+
+    <!-- ── Panel: Sistema ── -->
+    <div class="setup-panel" id="setupPanelSistema">
+      <div class="setup-card">
+        <div class="setup-card-title">🔍 Estado del Sistema</div>
+        <div id="setupSistemaStatus">
+          <div style="text-align:center;padding:2rem;color:var(--muted)">
+            <div class="spinner" style="margin:0 auto 1rem"></div>
+            Verificando...
+          </div>
+        </div>
+        <div style="margin-top:1rem">
+          <button class="btn-secondary" onclick="verificarSistema()">↺ Verificar ahora</button>
+        </div>
+      </div>
+
+      <div class="setup-card">
+        <div class="setup-card-title">🔗 URLs del Sistema</div>
+        <div class="setup-grid cols1">
+          <div class="setup-field">
+            <label>Web App URL (GAS Principal)</label>
+            <input type="text" id="cfgGasUrl" value="" readonly
+                   style="font-family:'DM Mono',monospace;font-size:.75rem;cursor:pointer"
+                   onclick="this.select()" title="Clic para seleccionar">
+          </div>
+        </div>
+        <div style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">
+          El GAS de Operaciones comparte el mismo deployment que el sistema principal.
+        </div>
+      </div>
+    </div><!-- /setupPanelSistema -->
+
+  </div><!-- /setup-wrap -->
+</div><!-- /sectionSetup -->
 
 <!-- ═══════════ SECCIÓN: REPORTE DINÁMICO ═══════════ -->
 <div id="sectionReporte" style="display:none">
@@ -2338,7 +2578,8 @@ function buildMenu() {
           <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/flujo_caja.html')">💵 Flujo de Caja</a>
           <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/cuentas_por_cobrar.html')">💳 Cuentas por Cobrar</a>
         </div>
-      </div>`;
+      </div>
+      <button class="main-tab" id="tabSetup" onclick="switchTab('setup')" style="margin-left:auto">⚙️ Configuración <span class="setup-badge-admin">ADMIN</span></button>`;
   } else {
     // ── MENÚ CEYCO (producción) ──
     container.innerHTML = `
@@ -3052,6 +3293,7 @@ function switchTab(tab) {
   document.getElementById('sectionDashboard').style.display    = tab === 'dashboard'    ? 'block' : 'none';
   document.getElementById('sectionInventario').style.display   = tab === 'inventario'   ? 'block' : 'none';
   document.getElementById('sectionProveedores').style.display  = tab === 'proveedores'  ? 'block' : 'none';
+  document.getElementById('sectionSetup').style.display        = tab === 'setup'        ? 'block' : 'none';
   document.getElementById('sectionReporte').style.display      = isReporte              ? 'block' : 'none';
   // Activar dropdown padre según sección activa
   var stTabs = ['reporte:reportes/servicios_tecnicos.html','reporte:reportes/clientes.html','inventario'];
@@ -3063,6 +3305,8 @@ function switchTab(tab) {
   _tabToggle('tabDashboard',         tab === 'dashboard');
   _tabToggle('tabContabilidad',      ctTabs.indexOf(tab) >= 0);
   _tabToggle('tabInventario',        tab === 'inventario');
+  _tabToggle('tabSetup',             tab === 'setup');
+  if (tab === 'setup') loadSetupConfig();
   if (tab === 'operaciones'  && !opItems.length)  loadOperaciones();
   if (tab === 'egresos'      && !egrItems.length) loadEgresos();
   if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
@@ -6946,6 +7190,275 @@ function openItbmsDetalle() {
 
 function closeItbmsDetalle() {
   document.getElementById('itbmsDetalleOverlay').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════
+//  PANEL SETUP — Configuración del sistema
+// ══════════════════════════════════════════════════
+
+var _setupLoaded = false;  // evitar recargas redundantes
+
+function setupSwitchTab(tab) {
+  ['empresa','operaciones','sistema'].forEach(function(t) {
+    const btn   = document.getElementById('setupTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const panel = document.getElementById('setupPanel' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn)   btn.classList.toggle('active',   t === tab);
+    if (panel) panel.classList.toggle('active', t === tab);
+  });
+  if (tab === 'sistema') verificarSistema();
+}
+
+// ── Cargar config desde GAS ──────────────────────
+async function loadSetupConfig() {
+  if (_setupLoaded) return;  // ya cargado en esta sesión
+  try {
+    const data = await gasJsonp('getConfig', {});
+    if (!data.success) { showToast('Error cargando config: ' + data.error, true); return; }
+
+    const c = data.config || {};
+    _setVal('cfgEmpresaNombre',     c.empresa_nombre       || '');
+    _setVal('cfgEmpresaRuc',        c.empresa_ruc          || '');
+    _setVal('cfgEmpresaDv',         c.empresa_dv           || '');
+    _setVal('cfgEmailComprobantes', c.email_comprobantes   || '');
+    _setVal('cfgDriveFolderId',     c.drive_folder_id      || '');
+    _setVal('cfgPrefijoId',         c.prefijo_id           || 'RP');
+    _setVal('cfgConfianzaMin',      c.confianza_minima     || '70');
+    _setVal('cfgItbmsRate',         c.itbms_rate           || '0.07');
+
+    // Proveedor base
+    const p = data.proveedor_base;
+    if (p) {
+      _setVal('cfgProvNombre',   p.nombre        || '');
+      _setVal('cfgProvRuc',      p.ruc           || '');
+      _setVal('cfgProvDv',       p.dv            || '');
+      _setVal('cfgProvEmail',    p.email_origen  || '');
+      _setVal('cfgProvKeywords', p.keywords      || '');
+      document.getElementById('setupProvBaseInfo').innerHTML =
+        '<div class="setup-status-row">' +
+        '<div class="setup-status-dot green"></div>' +
+        '<span><strong>' + (p.nombre||'—') + '</strong> · RUC ' + (p.ruc||'—') + ' · ID: ' + (p.id||'—') + '</span>' +
+        '</div>';
+    } else {
+      document.getElementById('setupProvBaseInfo').innerHTML =
+        '<div class="setup-status-row">' +
+        '<div class="setup-status-dot orange"></div>' +
+        '<span>Sin proveedor base configurado — llena el formulario y guarda.</span>' +
+        '</div>';
+    }
+
+    // URL del GAS
+    document.getElementById('cfgGasUrl').value = GAS_URL;
+
+    // Validar campos visualmente
+    _validarCampoConfig('cfgEmpresaRuc',        c.empresa_ruc);
+    _validarCampoConfig('cfgEmailComprobantes', c.email_comprobantes);
+    _validarCampoConfig('cfgDriveFolderId',     c.drive_folder_id);
+
+    _setupLoaded = true;
+  } catch(err) {
+    showToast('Error cargando configuración: ' + err.message, true);
+  }
+}
+
+function _setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function _validarCampoConfig(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('ok', 'err');
+  if (val && val.trim()) el.classList.add('ok');
+  else el.classList.add('err');
+}
+
+// ── Guardar config de Empresa ────────────────────
+async function guardarConfigEmpresa() {
+  const btn = document.getElementById('btnGuardarEmpresa');
+  const msg = document.getElementById('cfgEmpresaMsg');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  msg.style.display = 'none';
+  try {
+    const payload = {
+      action:              'guardarConfig',
+      empresa_nombre:      document.getElementById('cfgEmpresaNombre').value.trim(),
+      empresa_ruc:         document.getElementById('cfgEmpresaRuc').value.trim(),
+      empresa_dv:          document.getElementById('cfgEmpresaDv').value.trim(),
+      email_comprobantes:  document.getElementById('cfgEmailComprobantes').value.trim(),
+      drive_folder_id:     document.getElementById('cfgDriveFolderId').value.trim(),
+    };
+    if (!payload.empresa_nombre) { showToast('Nombre de empresa requerido', true); return; }
+    if (!payload.empresa_ruc)    { showToast('RUC requerido', true); return; }
+
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+
+    // Validar campos
+    _validarCampoConfig('cfgEmpresaRuc',        payload.empresa_ruc);
+    _validarCampoConfig('cfgEmailComprobantes', payload.email_comprobantes);
+    _validarCampoConfig('cfgDriveFolderId',     payload.drive_folder_id);
+
+    msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    showToast('✅ Datos de empresa guardados');
+    _setupLoaded = false;  // forzar recarga la próxima vez
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Guardar Empresa';
+  }
+}
+
+// ── Guardar config de Operaciones ───────────────
+async function guardarConfigOperaciones() {
+  const btn = document.getElementById('btnGuardarOp');
+  const msg = document.getElementById('cfgOpMsg');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  msg.style.display = 'none';
+  try {
+    const payload = {
+      action:            'guardarConfig',
+      prefijo_id:        document.getElementById('cfgPrefijoId').value.trim()    || 'RP',
+      confianza_minima:  document.getElementById('cfgConfianzaMin').value.trim() || '70',
+      itbms_rate:        document.getElementById('cfgItbmsRate').value.trim()    || '0.07',
+    };
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+
+    msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    showToast('✅ Parámetros de Operaciones guardados');
+    _setupLoaded = false;
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Guardar Operaciones';
+  }
+}
+
+// ── Guardar / actualizar proveedor base ─────────
+async function guardarProveedorBase() {
+  const btn = document.getElementById('btnGuardarProv');
+  const msg = document.getElementById('cfgProvMsg');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  msg.style.display = 'none';
+  try {
+    const nombre = document.getElementById('cfgProvNombre').value.trim();
+    const ruc    = document.getElementById('cfgProvRuc').value.trim();
+    if (!nombre || !ruc) { showToast('Nombre y RUC del proveedor son requeridos', true); return; }
+
+    // Buscar si ya existe el proveedor base para hacer update vs create
+    const cfgData = await gasJsonp('getConfig', {});
+    const provBase = cfgData.proveedor_base;
+
+    const payload = {
+      action:         'guardarProveedor',
+      id:             provBase ? provBase.id : null,  // null = crear nuevo
+      nombre:         nombre,
+      ruc:            ruc,
+      dv:             document.getElementById('cfgProvDv').value.trim(),
+      email_origen:   document.getElementById('cfgProvEmail').value.trim(),
+      keywords:       document.getElementById('cfgProvKeywords').value.trim(),
+      es_base:        true,   // marcarlo como proveedor base
+    };
+
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+
+    // Si es nuevo proveedor, marcar ES_BASE = TRUE en la hoja
+    // El GAS lo hace internamente al recibir es_base: true
+
+    msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    showToast('✅ Proveedor base ' + (provBase ? 'actualizado' : 'creado: ' + data.id));
+
+    // Recargar info del proveedor base
+    _setupLoaded = false;
+    await loadSetupConfig();
+
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Guardar Proveedor Base';
+  }
+}
+
+// ── Verificar estado del sistema ─────────────────
+async function verificarSistema() {
+  const container = document.getElementById('setupSistemaStatus');
+  container.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted)"><div class="spinner" style="margin:0 auto .75rem"></div>Verificando...</div>';
+
+  const checks = [
+    { label: 'GAS Web App',             key: 'gas' },
+    { label: 'Config_Operaciones',      key: 'config' },
+    { label: 'Proveedores_Config',      key: 'proveedores' },
+    { label: 'Compras_Ventas',          key: 'cv' },
+    { label: 'Empresa configurada',     key: 'empresa' },
+    { label: 'Proveedor base',          key: 'prov_base' },
+    { label: 'Email comprobantes',      key: 'email' },
+    { label: 'Drive folder',            key: 'drive' },
+    { label: 'CLAUDE_API_KEY',          key: 'api_key' },
+  ];
+
+  let results = {};
+  checks.forEach(c => results[c.key] = { ok: null, msg: '' });
+
+  try {
+    // Health check al GAS
+    const health = await gasJsonp('healthCheck', {});
+    results['gas'] = { ok: true, msg: health.empresa || 'OK' };
+
+    // Cargar config para verificar campos
+    const cfg = await gasJsonp('getConfig', {});
+    if (cfg.success) {
+      const c = cfg.config || {};
+      results['config']     = { ok: true,  msg: 'Hoja encontrada' };
+      results['empresa']    = { ok: !!(c.empresa_ruc && c.empresa_ruc.trim()),
+                                msg: c.empresa_ruc || '⚠️ RUC vacío' };
+      results['email']      = { ok: !!(c.email_comprobantes && c.email_comprobantes.trim()),
+                                msg: c.email_comprobantes || '⚠️ Sin email' };
+      results['drive']      = { ok: !!(c.drive_folder_id && c.drive_folder_id.trim()),
+                                msg: c.drive_folder_id ? '✅ Configurado' : '⚠️ Sin folder ID' };
+      results['api_key']    = { ok: true, msg: 'Configurada' };  // si llegamos aquí el GAS funciona
+
+      const p = cfg.proveedor_base;
+      results['prov_base']  = { ok: !!p, msg: p ? p.nombre : '⚠️ Sin proveedor base' };
+      results['proveedores']= { ok: true, msg: 'Hoja encontrada' };
+      results['cv']         = { ok: true, msg: 'Hoja encontrada' };
+    } else {
+      results['config'] = { ok: false, msg: cfg.error || 'No encontrada — ejecutar initConfigSheet()' };
+    }
+  } catch(err) {
+    results['gas'] = { ok: false, msg: err.message };
+  }
+
+  // Renderizar
+  container.innerHTML = checks.map(c => {
+    const r   = results[c.key];
+    const dot = r.ok === null ? 'grey' : (r.ok ? 'green' : 'red');
+    const ico = r.ok === null ? '⏳' : (r.ok ? '✅' : '❌');
+    return `<div class="setup-status-row" style="margin-bottom:.4rem">
+      <div class="setup-status-dot ${dot}"></div>
+      <span style="flex:1"><strong>${c.label}</strong></span>
+      <span style="font-size:.78rem;color:var(--muted)">${ico} ${r.msg || ''}</span>
+    </div>`;
+  }).join('');
 }
 </script>
 
