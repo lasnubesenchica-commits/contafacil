@@ -950,47 +950,35 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   <!-- MAIN TABS -->
   <div class="main-tabs">
+    <button class="main-tab active" id="tabServiciosTecnicos" onclick="switchTab('reporte:reportes/servicios_tecnicos.html')">🔧 Servicios Técnicos</button>
+    <button class="main-tab" id="tabVentasWeb"   onclick="switchTab('ventasWeb')" style="display:none">🛒 Ventas Web</button>
 
-    <!-- 1. Servicios Técnicos dropdown -->
-    <div class="main-tab-group">
-      <button class="main-tab active" id="tabServiciosTecnicos">🔧 Servicios Técnicos <span class="main-tab-arrow">▾</span></button>
-      <div class="dropdown-menu">
-        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/servicios_tecnicos.html')">🔧 Servicios Técnicos</a>
-        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/clientes.html')">👥 Análisis de Clientes</a>
-        <a href="javascript:void(0)" onclick="switchTab('inventario')">📦 Inventario</a>
-      </div>
-    </div>
-
-    <!-- 2. Operaciones dropdown -->
-    <div class="main-tab-group">
-      <button class="main-tab" id="tabOperaciones">⚙️ Operaciones <span class="main-tab-arrow">▾</span></button>
-      <div class="dropdown-menu">
-        <a href="javascript:void(0)" onclick="switchTab('operaciones')">⚙️ Operaciones</a>
-        <a href="javascript:void(0)" onclick="switchTab('ventasWeb')">🛒 Ventas Web</a>
-        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/margenes.html')">📊 Márgenes por Producto</a>
-        <a href="javascript:void(0)" onclick="switchTab('proveedores')">🏭 Proveedores</a>
-      </div>
-    </div>
-
-    <!-- 3. Estado de Resultados -->
-    <button class="main-tab" id="tabDashboard" onclick="switchTab('dashboard')">📊 Estado de Resultados</button>
-
-    <!-- 4. Contabilidad dropdown -->
-    <div class="main-tab-group">
+    <!-- Contabilidad dropdown -->
+    <div class="main-tab-group" style="display:none">
       <button class="main-tab" id="tabContabilidad">📒 Contabilidad <span class="main-tab-arrow">▾</span></button>
       <div class="dropdown-menu">
-        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/flujo_caja.html')">💵 Flujo de Caja</a>
-        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/cuentas_por_cobrar.html')">💳 Cuentas por Cobrar</a>
+        <a onclick="switchTab('ingresos')"  style="cursor:pointer">💰 Ingresos</a>
+        <a onclick="switchTab('egresos')"   style="cursor:pointer">📤 Egresos</a>
       </div>
     </div>
 
-    <!-- Ingresos/Egresos: ocultos, accesibles via P&L -->
-    <button style="display:none" id="tabIngresos"    onclick="switchTab('ingresos')"></button>
-    <button style="display:none" id="tabEgresos"     onclick="switchTab('egresos')"></button>
-    <button style="display:none" id="tabInventario"  onclick="switchTab('inventario')"></button>
-    <button style="display:none" id="tabProveedores" onclick="switchTab('proveedores')"></button>
-    <button style="display:none" id="tabVentasWeb"   onclick="switchTab('ventasWeb')"></button>
+    <button class="main-tab" id="tabDashboard"   onclick="switchTab('dashboard')">📊 Estado de Resultados</button>
 
+    <!-- Reportes dropdown -->
+    <div class="main-tab-group">
+      <button class="main-tab" id="tabReportes">📈 Reportes <span class="main-tab-arrow">▾</span></button>
+      <div class="dropdown-menu">
+        <a href="javascript:void(0)" onclick="switchTab('operaciones')" style="display:none">⚙️ Operaciones</a>
+        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/clientes.html')">👥 Análisis de clientes</a>
+        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/margenes.html')">📊 Márgenes por producto</a>
+
+        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/cuentas_por_cobrar.html')">💳 Cuentas por cobrar</a>
+        <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/flujo_caja.html')">💵 Flujo de caja</a>
+      </div>
+    </div>
+
+    <button class="main-tab" id="tabInventario"  onclick="switchTab('inventario')">📦 Inventario</button>
+    <button class="main-tab" id="tabProveedores" onclick="switchTab('proveedores')" style="display:none">🏭 Proveedores</button>
   </div>
 
   <!-- ══════════ SECCIÓN: VENTAS WEB ══════════ -->
@@ -3030,14 +3018,13 @@ function switchTab(tab) {
   document.getElementById('sectionInventario').style.display   = tab === 'inventario'   ? 'block' : 'none';
   document.getElementById('sectionProveedores').style.display  = tab === 'proveedores'  ? 'block' : 'none';
   document.getElementById('sectionReporte').style.display      = isReporte              ? 'block' : 'none';
-  // Activar dropdown padre según sección activa
-  var stTabs = ['reporte:reportes/servicios_tecnicos.html','reporte:reportes/clientes.html','inventario'];
-  var opTabs = ['operaciones','ventasWeb','reporte:reportes/margenes.html','proveedores'];
-  var ctTabs = ['reporte:reportes/flujo_caja.html','reporte:reportes/cuentas_por_cobrar.html','ingresos','egresos'];
-  document.getElementById('tabServiciosTecnicos').classList.toggle('active', stTabs.indexOf(tab) >= 0);
-  document.getElementById('tabOperaciones').classList.toggle('active',       opTabs.indexOf(tab) >= 0);
-  document.getElementById('tabDashboard').classList.toggle('active',         tab === 'dashboard');
-  document.getElementById('tabContabilidad').classList.toggle('active',      ctTabs.indexOf(tab) >= 0);
+  document.getElementById('tabServiciosTecnicos').classList.toggle('active', tab === 'reporte:reportes/servicios_tecnicos.html');
+  document.getElementById('tabVentasWeb').classList.toggle('active',     tab === 'ventasWeb');
+  document.getElementById('tabDashboard').classList.toggle('active',     tab === 'dashboard');
+  document.getElementById('tabInventario').classList.toggle('active',    tab === 'inventario');
+  document.getElementById('tabProveedores').classList.toggle('active',   tab === 'proveedores');
+  document.getElementById('tabContabilidad').classList.toggle('active',  tab === 'ingresos' || tab === 'egresos');
+  document.getElementById('tabReportes').classList.toggle('active',      isReporte && tab !== 'reporte:reportes/servicios_tecnicos.html');
   if (tab === 'operaciones'  && !opItems.length)  loadOperaciones();
   if (tab === 'egresos'      && !egrItems.length) loadEgresos();
   if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
