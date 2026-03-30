@@ -201,25 +201,29 @@
   function ultimoDia(off){ var d=new Date(); d.setDate(1); d.setMonth(d.getMonth()+(off||0)+1); d.setDate(0); return d.toISOString().slice(0,10); }
   function el(id){ return document.getElementById(id); }
 
-  function clGas(action, params){
-    return new Promise(function(resolve,reject){
-      var cb='_clcb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-      window[cb]=function(r){ delete window[cb]; var s=document.getElementById('_cls_'+cb); if(s)s.remove(); resolve(r); };
-      var qs='?action='+encodeURIComponent(action)+'&callback='+cb;
-      Object.keys(params||{}).forEach(function(k){ qs+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k]); });
-      var s=document.createElement('script'); s.id='_cls_'+cb; s.src=GAS_URL+qs;
-      s.onerror=function(){ delete window[cb]; reject(new Error('Error de red')); };
-      document.body.appendChild(s);
-      setTimeout(function(){ if(window[cb]){ delete window[cb]; reject(new Error('Tiempo agotado')); } },60000);
-    });
-  }
-
   function cargar(){
-    Promise.all([clGas('getIngresos',{}), clGas('getSTItems',{}), clGas('getCotizaciones',{})]).then(function(res){
-      _cl.ingresos=((res[0].success?res[0].items:[])||[]).filter(function(i){ return i.estado!=='anulado'&&(parseFloat(i.total)||0)>0; });
-      _cl.stItems =(res[1].success?res[1].items:[])||[];
-      _cl.sts     =(res[2].success?res[2].items:[])||[];
-      _cl.loaded  =true;
+    // Usar gasJsonp del padre (adminv2) — ya existe en scope global y funciona
+    // getCotizaciones devuelve STs con items[] incluidos — fuente de ST_Items también
+    Promise.all([
+      gasJsonp('getIngresos',    {}),
+      gasJsonp('getCotizaciones',{}),
+    ]).then(function(res){
+      _cl.ingresos = ((res[0].success ? res[0].items : [])||[]).filter(function(i){
+        return i.estado !== 'anulado' && (parseFloat(i.total)||0) > 0;
+      });
+      var sts = (res[1].success ? res[1].items : [])||[];
+      _cl.sts = sts;
+      // Extraer ST_Items de los STs (getCotizaciones incluye items[] en cada ST)
+      var stItems = [];
+      sts.forEach(function(st){
+        (st.items||[]).forEach(function(it){
+          // Asegurar que el item tenga id_st para el cruce
+          if (!it.id_st) it.id_st = st.id_st;
+          stItems.push(it);
+        });
+      });
+      _cl.stItems = stItems;
+      _cl.loaded  = true;
       cl_renderAll();
     }).catch(function(e){
       ['cl-ranking','cl-conc','cl-prod-amt','cl-prod-qty'].forEach(function(id){
