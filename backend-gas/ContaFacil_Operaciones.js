@@ -6,9 +6,15 @@
 // ═══════════════════════════════════════════════════════════════
 
 var SHEET_CV           = 'Compras_Ventas';
-var EMAIL_COMPROBANTES = 'lasnubesenchica+comprobantes@gmail.com';
+var EMAIL_COMPROBANTES = 'lasnubesenchica+ceyco@gmail.com';
 var CONFIANZA_MINIMA   = 70;
-var RUC_CIRCULO        = '1753684';
+var RUC_EMPRESA        = '2470636-1-814806';
+var NOMBRE_EMPRESA     = 'CONSULTORES ELECTROTECNICOS Y CONTRATISTAS';
+
+// Proveedor principal
+var PROV_NOMBRE = 'TALLERES INDUSTRIALES, S.A';
+var PROV_RUC    = '670-173-134480';
+var PROV_DV     = '83';
 
 var COL_CV = {
   ID_ITEM:           1,
@@ -351,22 +357,8 @@ function _getOrCreateLabel(nombre) {
 // ═══════════════════════════════════════════════════════════════
 
 function _detectarTipoFactura(xmlStr, fileName, pdfB64) {
-  if (xmlStr) {
-    var emisorBlock = xmlStr.match(/<gEmis>([\s\S]*?)<\/gEmis>/);
-    if (emisorBlock) {
-      if (emisorBlock[1].indexOf('1080323-1-554308') !== -1) return 'carbone';
-      if (emisorBlock[1].indexOf('1753684-1-696883') !== -1) return 'emitida';
-    }
-    if (xmlStr.indexOf('EMPRESAS CARBONE') !== -1)   return 'carbone';
-    if (xmlStr.indexOf('CIRCULO FINANCIERO') !== -1) return 'emitida';
-  }
-
-  var fn = (fileName || '').toLowerCase();
-  if (fn.indexOf('1080323') !== -1 || fn.indexOf('fe01200001080323') !== -1) return 'carbone';
-  if (fn.indexOf('1753684') !== -1 || fn.indexOf('fe0820000155716383') !== -1) return 'emitida';
-
-  if (pdfB64) return _claudeClasificarFactura(pdfB64);
-  return 'desconocido';
+  var det = _detectarTipoFacturaDinamico(xmlStr, fileName, pdfB64);
+  return det.tipo;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -682,6 +674,7 @@ function _intentarCerrarCiclo(rowNum, sheet, pagoCtx) {
   var formaPago = (pagoCtx && pagoCtx.forma_pago) ? pagoCtx.forma_pago : 'Factura';
 
   // ── 1. Crear Ingreso ────────────────────────────────────────
+var esVentaDirecta = numFacEmitida === 'VENTA-DIRECTA';
   var ordenData = {
     orderNumber:    numFacEmitida,
     fecha:          rowData[COL_CV.FECHA_VENTA - 1],
@@ -699,6 +692,7 @@ function _intentarCerrarCiclo(rowNum, sheet, pagoCtx) {
     codigoTrans:    rowData[COL_CV.ID_ITEM - 1],
     pagador:        nombreCli,
     fechaPago:      rowData[COL_CV.FECHA_VENTA - 1],
+    tipoComprobante: esVentaDirecta ? 'venta_directa' : 'factura_emitida',
   };
 
   var ingresoId = crearIngreso(ordenData);
@@ -718,16 +712,32 @@ function _intentarCerrarCiclo(rowNum, sheet, pagoCtx) {
     var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
     if (!sheetEgr) sheetEgr = _initEgresosSheet(ss);
 
-    // Guard: verificar si ya existe un egreso con este id_item
+// Guard: verificar si ya existe un egreso con este id_item
     var lastEgrRow = sheetEgr.getLastRow();
     if (lastEgrRow > 2) {
-      var existingIds = sheetEgr
-        .getRange(3, COL_E.ID_ITEM_CV, lastEgrRow - 2, 1)
+      var existingEgr = sheetEgr
+        .getRange(3, 1, lastEgrRow - 2, EGRESOS_NCOLS)
         .getValues();
-      for (var d = 0; d < existingIds.length; d++) {
-        if (String(existingIds[d][0] || '') === idItem) {
-          Logger.log('ℹ️ Egreso costo_mercancia ya existe para ítem ' + idItem + ' — omitiendo');
-          return { ingresoId: ingresoId, egresoId: null };
+      for (var d = 0; d < existingEgr.length; d++) {
+        if (String(existingEgr[d][COL_E.ID_ITEM_CV - 1] || '') === idItem) {
+          var catExistente = String(existingEgr[d][COL_E.CATEGORIA - 1] || '');
+          if (catExistente === 'Inventario') {
+            // Reclasificar: inventario → costo_mercancia (la venta se concretó)
+            var egrRow = d + 3;
+            sheetEgr.getRange(egrRow, COL_E.TIPO_EGRESO).setValue('costo_mercancia');
+            sheetEgr.getRange(egrRow, COL_E.CATEGORIA).setValue('costo_mercancia');
+            var notaEgr = String(sheetEgr.getRange(egrRow, COL_E.NOTAS).getValue() || '');
+            var stampEgr = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+            sheetEgr.getRange(egrRow, COL_E.NOTAS).setValue(
+              notaEgr + ' | Reclasificado a costo_mercancia: ' + stampEgr +
+              ' · Fac emitida: ' + numFacEmitida + ' · Cliente: ' + nombreCli
+            );
+            sheetEgr.getRange(egrRow, 1, 1, EGRESOS_NCOLS).setBackground('#FFF3E0');
+            Logger.log('✅ Egreso reclasificado Inventario → costo_mercancia: ítem ' + idItem);
+          } else {
+            Logger.log('ℹ️ Egreso costo_mercancia ya existe para ítem ' + idItem + ' — omitiendo');
+          }
+          return { ingresoId: ingresoId, egresoId: String(existingEgr[d][COL_E.ID - 1] || '') };
         }
       }
     }
@@ -1175,48 +1185,88 @@ function _claudeClasificarFactura(pdfB64) {
 //  CLAUDE — MATCHING ÍTEMS
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+//  CLAUDE — MATCHING ÍTEMS
+//  v2 — Reglas de código excluyente + unicidad de match por ítem emitido
+// ═══════════════════════════════════════════════════════════════
+
 function _claudeMatchItems(parsedEmitida, pendientes) {
   var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
 
   var itemsEmitidos = JSON.stringify((parsedEmitida.items || []).map(function(it, idx) {
-    return { idx: idx, codigo: it.codigo || '', descripcion: it.descripcion || '',
-             cantidad: it.cantidad || 1, total_item: it.total_item || 0, itbms: it.itbms || 0 };
+    return {
+      idx:         idx,
+      codigo:      it.codigo      || '',
+      descripcion: it.descripcion || '',
+      cantidad:    it.cantidad    || 1,
+      total_item:  it.total_item  || 0,
+      itbms:       it.itbms       || 0,
+    };
   }), null, 2);
 
   var itemsCarbone = JSON.stringify(pendientes.map(function(p, idx) {
-    return { idx: idx, id: p.id, codigo: p.codigo || '', descripcion: p.descripcion || '',
-             costo_total: p.total, fecha_compra: p.fecha };
+    return {
+      idx:          idx,
+      id:           p.id,
+      codigo:       p.codigo      || '',
+      descripcion:  p.descripcion || '',
+      costo_total:  p.total,
+      fecha_compra: p.fecha,
+    };
   }), null, 2);
 
   var prompt =
-    'Eres un sistema de matching de facturas para una distribuidora en Panamá.\n\n' +
-    'FACTURA EMITIDA:\nNúmero: ' + (parsedEmitida.num_factura || '') +
-    '\nFecha: ' + (parsedEmitida.fecha_emision || '') +
-    '\nCliente: ' + (parsedEmitida.nombre_cliente || '') +
-    '\nTotal: $' + (parsedEmitida.total || 0) +
-    '\nÍtems:\n' + itemsEmitidos +
-    '\n\nÍTEMS PENDIENTES/INVENTARIO:\n' + itemsCarbone +
-    '\n\nREGLAS:\n' +
-    '1. Usa el código de producto como criterio principal.\n' +
-    '2. Ignora diferencias de hasta $0.10 en montos.\n' +
-    '3. UNA factura emitida puede corresponder a MÚLTIPLES ítems.\n' +
-    '4. Distribuye el ingreso PROPORCIONALMENTE al costo de cada ítem.\n' +
-    '5. Confianza: 95+=mismo código, 80-94=descripción muy similar, 60-79=similar.\n' +
-    '6. Solo incluye matches con confianza >= 60.\n\n' +
-    'Responde SOLO con JSON válido:\n' +
+    'Eres un sistema de matching de facturas para una distribuidora de equipos industriales en Panamá.\n\n' +
+
+    'CONTEXTO DEL NEGOCIO:\n' +
+    'Círculo Financiero compra productos a Carbone (facturas de compra) y los revende a clientes ' +
+    'emitiendo sus propias facturas. Una factura emitida puede tener MÚLTIPLES ítems, cada uno con ' +
+    'su código de producto. Cada ítem emitido debe matchear con el ítem Carbone que tiene el MISMO ' +
+    'código de producto.\n\n' +
+
+    'FACTURA EMITIDA:\n' +
+    'Número: ' + (parsedEmitida.num_factura   || '') + '\n' +
+    'Fecha: '  + (parsedEmitida.fecha_emision || '') + '\n' +
+    'Cliente: '+ (parsedEmitida.nombre_cliente || '') + '\n' +
+    'Total: $' + (parsedEmitida.total          || 0)  + '\n' +
+    'Ítems emitidos:\n' + itemsEmitidos + '\n\n' +
+
+    'ÍTEMS CARBONE PENDIENTES (candidatos):\n' + itemsCarbone + '\n\n' +
+
+    'REGLAS — aplica en este orden estricto:\n' +
+    '1. CÓDIGO EXCLUYENTE: Si el ítem emitido tiene un código de producto (campo "codigo" no vacío), ' +
+    '   ese código debe coincidir EXACTAMENTE con el código del ítem Carbone. ' +
+    '   Si los códigos no coinciden, la confianza es 0 y NO se incluye en el resultado, ' +
+    '   sin importar qué tan similar sea la descripción.\n' +
+    '2. UNICIDAD: Cada ítem emitido (idx_emitido) solo puede matchear con UN ítem Carbone. ' +
+    '   Si hay varios candidatos Carbone con el mismo código, elige el de fecha más reciente.\n' +
+    '3. UNICIDAD INVERSA: Cada ítem Carbone (idx_carbone) solo puede matchear con UN ítem emitido.\n' +
+    '4. CÓDIGO AUSENTE: Solo si el ítem emitido NO tiene código, se permite match por similitud ' +
+    '   de descripción. En ese caso aplica la escala de confianza:\n' +
+    '   - 95%+: descripción prácticamente idéntica\n' +
+    '   - 80-94%: descripción muy similar\n' +
+    '   - 60-79%: descripción similar\n' +
+    '   - <60%: descartar\n' +
+    '5. MONTOS: Ignora diferencias de hasta $0.10 en montos al validar.\n' +
+    '6. total_venta_asignado: Para cada match, usa el total_item del ítem EMITIDO (no del Carbone).\n' +
+    '7. Solo incluye en el resultado matches con confianza >= 60.\n\n' +
+
+    'Responde SOLO con JSON válido, sin markdown ni texto adicional:\n' +
     '{"matches":[{"idx_emitido":0,"idx_carbone":0,"confianza":95,' +
-    '"razon":"mismo código","total_venta_asignado":0,"itbms_venta_asignado":0}]}';
+    '"razon":"mismo código VK809","total_venta_asignado":230.50,"itbms_venta_asignado":15.08}]}';
 
   var payload = {
-    model: 'claude-sonnet-4-20250514', max_tokens: 1000,
-    messages: [{ role: 'user', content: prompt }]
+    model:      'claude-sonnet-4-20250514',
+    max_tokens: 1000,
+    messages:   [{ role: 'user', content: prompt }],
   };
 
   var options = {
-    method: 'post', contentType: 'application/json',
-    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify(payload),
+    method:             'post',
+    contentType:        'application/json',
+    headers:            { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    payload:            JSON.stringify(payload),
     muteHttpExceptions: true,
   };
 
@@ -1226,11 +1276,47 @@ function _claudeMatchItems(parsedEmitida, pendientes) {
   }
 
   var respData = JSON.parse(response.getContentText());
-  var text = '';
+  var text     = '';
   for (var i = 0; i < (respData.content || []).length; i++) {
     if (respData.content[i].type === 'text') { text = respData.content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  var parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+  // ── Guard post-IA: verificar unicidad y código excluyente ──
+  // Por si Claude alucinó y devolvió duplicados de todas formas
+  var usedEmitido = {};
+  var usedCarbone = {};
+  var matchesFiltrados = [];
+
+  for (var j = 0; j < (parsed.matches || []).length; j++) {
+    var m = parsed.matches[j];
+
+    // Descartar si idx ya fue usado
+    if (usedEmitido[m.idx_emitido] || usedCarbone[m.idx_carbone]) {
+      Logger.log('⚠️ Match duplicado descartado: idx_emitido=' + m.idx_emitido +
+                 ' idx_carbone=' + m.idx_carbone);
+      continue;
+    }
+
+    // Verificar código excluyente
+    var codigoEmitido = (((parsedEmitida.items || [])[m.idx_emitido]) || {}).codigo || '';
+    var codigoCarbone = ((pendientes[m.idx_carbone]) || {}).codigo || '';
+    if (codigoEmitido && codigoCarbone &&
+        codigoEmitido.trim().toUpperCase() !== codigoCarbone.trim().toUpperCase()) {
+      Logger.log('⚠️ Match rechazado por código: emitido=' + codigoEmitido +
+                 ' carbone=' + codigoCarbone + ' confianza=' + m.confianza);
+      continue;
+    }
+
+    usedEmitido[m.idx_emitido] = true;
+    usedCarbone[m.idx_carbone] = true;
+    matchesFiltrados.push(m);
+  }
+
+  Logger.log('Matches válidos: ' + matchesFiltrados.length +
+             ' de ' + (parsed.matches || []).length + ' devueltos por IA');
+
+  return { matches: matchesFiltrados };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1339,7 +1425,7 @@ function _handleRegistrarPagoOperacion(params, callback) {
       SpreadsheetApp.flush();
 
       // Llamar _intentarCerrarCiclo — hace ingreso + egreso + estado cerrado
-      _intentarCerrarCiclo(rowNum, sheet);
+      _intentarCerrarCiclo(rowNum, sheet, { forma_pago: formaPago, drive_url_pago: driveUrl });
 
       // Leer resultado: el ingreso_id ya fue escrito por _intentarCerrarCiclo
       SpreadsheetApp.flush();
