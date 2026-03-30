@@ -1004,7 +1004,7 @@
     var nc = String(st.num_cotizacion || '');
     if (/^\d{7,}$/.test(nc.trim())) return nc.trim();
     var notas = String(st.notas || '');
-    var m1 = notas.match(/Carpeta:\s*FACT(\d+)/i);
+    var m1 = notas.match(/Carpeta:\s*FACT\s*(\d+)/i);
     if (m1) return 'FACT ' + m1[1];
     return nc;
   }
