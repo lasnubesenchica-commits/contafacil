@@ -7653,8 +7653,8 @@ async function verificarSistema() {
                                 msg: c.drive_folder_id ? '✅ Configurado' : '⚠️ Sin folder ID' };
       results['api_key']    = { ok: true, msg: 'Configurada' };  // si llegamos aquí el GAS funciona
 
-      const p = cfg.proveedor_base;
-      results['prov_base']  = { ok: !!p, msg: p ? p.nombre : '⚠️ Sin proveedor base' };
+      const provs = cfg.proveedores || [];
+      results['prov_base']  = { ok: provs.length > 0, msg: provs.length > 0 ? provs.length + ' proveedor(es) configurado(s)' : '⚠️ Sin proveedores' };
       results['proveedores']= { ok: true, msg: 'Hoja encontrada' };
       results['cv']         = { ok: true, msg: 'Hoja encontrada' };
     } else {
