@@ -2,6 +2,7 @@
 //  ContaFacil_ServiciosTecnicos.gs
 //  Módulo: Servicios Técnicos — Ramon Pico / Círculo Financiero
 //  v1.3 — Cotizaciones + Ejecución + Comparativo
+//  v1.3.2 — credito_fiscal añadido a ST_TIPOS_ITEM y todos los tipoMap
 //         + proveedor/num_factura en ítems del resumen
 //         + _handleActualizarItemTipo (reclasificación desde UI)
 //         + _handleActualizarEgresoST (editar egreso existente)
@@ -108,7 +109,8 @@ var COL_E_ST_ITEM = 21;  // id_st_item
 // ── TIPOS DE ÍTEM VÁLIDOS ─────────────────────────────────────
 var ST_TIPOS_ITEM = [
   'producto', 'mano_obra', 'flete', 'impuesto',
-  'combustible', 'fianza', 'subcontrato', 'aduana', 'shipping_handling', 'otro'
+  'combustible', 'fianza', 'subcontrato', 'aduana', 'shipping_handling',
+  'credito_fiscal', 'otro'
 ];
 
 // ── ESTADOS DE ST ─────────────────────────────────────────────
@@ -723,6 +725,7 @@ function _handleActualizarItemTipo(data) {
       'impuesto':         'costo_servicio_tecnico',
       'aduana':           'costo_servicio_tecnico',
       'shipping_handling':'costo_servicio_tecnico',
+      'credito_fiscal':   'credito_fiscal',
       'otro':             'costo_servicio_tecnico',
     };
     var nuevoTipoEgreso = tipoMap[tipo] || 'costo_servicio_tecnico';
@@ -894,6 +897,7 @@ function _handleActualizarEgresoST(data) {
       'impuesto':          'costo_servicio_tecnico',
       'aduana':            'costo_servicio_tecnico',
       'shipping_handling': 'costo_servicio_tecnico',
+      'credito_fiscal':    'credito_fiscal',
       'otro':              'costo_servicio_tecnico',
     };
     var tipoItem   = data.tipo || 'otro';
@@ -1544,6 +1548,7 @@ function _handleRegistrarEgresoST(data) {
       'impuesto':          'costo_servicio_tecnico',
       'aduana':            'costo_servicio_tecnico',
       'shipping_handling': 'costo_servicio_tecnico',
+      'credito_fiscal':    'credito_fiscal',
       'otro':              'costo_servicio_tecnico',
     };
     var tipoItem   = data.tipo || 'otro';
