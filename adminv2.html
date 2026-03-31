@@ -7556,7 +7556,8 @@ async function guardarConfigEmpresa() {
     msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
     showToast('✅ Datos de empresa guardados');
-    _setupLoaded = false;  // forzar recarga la próxima vez
+    await new Promise(r => setTimeout(r, 800));
+    _setupLoaded = false;
   } catch(err) {
     showToast('Error: ' + err.message, true);
   } finally {
@@ -7588,6 +7589,7 @@ async function guardarConfigOperaciones() {
     msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
     showToast('✅ Parámetros de Operaciones guardados');
+    await new Promise(r => setTimeout(r, 800));
     _setupLoaded = false;
   } catch(err) {
     showToast('Error: ' + err.message, true);
@@ -7637,7 +7639,8 @@ async function guardarProveedorBase() {
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
     showToast('✅ Proveedor base ' + (provBase ? 'actualizado' : 'creado: ' + data.id));
 
-    // Recargar info del proveedor base
+    // Pequeño delay antes de recargar para asegurar que el GAS flush completó
+    await new Promise(r => setTimeout(r, 800));
     _setupLoaded = false;
     await loadSetupConfig();
 
