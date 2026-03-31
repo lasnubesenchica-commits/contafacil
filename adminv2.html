@@ -1812,30 +1812,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </div>
       </div>
 
-      <div class="setup-card">
-        <div class="setup-card-title">⏱ Sincronización automática — Retail</div>
-        <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
-          Sincroniza emails de facturas de proveedores automáticamente. Recomendado: cada 30 minutos.
-        </div>
-        <div id="setupOpTriggerStatus" style="margin-bottom:1rem">
-          <div class="setup-status-row">
-            <div class="setup-status-dot orange"></div>
-            <span style="font-size:.85rem">Verificando estado...</span>
-          </div>
-        </div>
-        <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-          <select id="cfgOpTriggerIntervalo" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.45rem .75rem;font-size:.85rem;color:var(--text)">
-            <option value="15">Cada 15 minutos</option>
-            <option value="30" selected>Cada 30 minutos</option>
-            <option value="60">Cada 1 hora</option>
-            <option value="120">Cada 2 horas</option>
-          </select>
-          <button class="btn-primary"   onclick="instalarTriggerOp()">▶ Instalar trigger</button>
-          <button class="btn-secondary" onclick="removerTriggerOp()">⏹ Remover</button>
-          <button class="btn-secondary" onclick="verificarTriggerOp()">↺ Estado</button>
-        </div>
-      </div>
-
       <div class="setup-save-bar">
         <span id="cfgOpMsg" style="font-size:.8rem;color:var(--green);display:none">✅ Guardado</span>
         <button class="btn-secondary" onclick="loadSetupConfig()">↺ Recargar</button>
@@ -1866,35 +1842,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </div>
       </div>
 
-      <div class="setup-card">
-        <div class="setup-card-title">⏱ Trigger automático</div>
-        <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
-          El trigger revisa el email de entrada cada 15 minutos. Instálalo una sola vez.
-        </div>
-        <div id="setupStTriggerStatus" style="margin-bottom:1rem">
-          <div class="setup-status-row">
-            <div class="setup-status-dot orange"></div>
-            <span style="font-size:.85rem">Verificando estado del trigger...</span>
-          </div>
-        </div>
-        <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-          <select id="cfgStTriggerIntervalo" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.45rem .75rem;font-size:.85rem;color:var(--text)">
-            <option value="15" selected>Cada 15 minutos</option>
-            <option value="30">Cada 30 minutos</option>
-            <option value="60">Cada 1 hora</option>
-          </select>
-          <button class="btn-primary"   onclick="instalarTriggerST()">▶ Instalar trigger</button>
-          <button class="btn-secondary" onclick="removerTriggerST()">⏹ Remover</button>
-          <button class="btn-secondary" onclick="verificarTriggerST()">↺ Estado</button>
-        </div>
-      </div>
 
-      <div class="setup-card">
-        <div class="setup-card-title">📊 Actividad reciente</div>
-        <div id="setupStLogReciente" style="font-size:.82rem;color:var(--muted)">
-          Cargando log...
-        </div>
-      </div>
 
     </div><!-- /setupPanelServiciosTec -->
 
@@ -7566,8 +7514,8 @@ function setupSwitchTab(tab) {
     if (panel) panel.classList.toggle('active', t === tab);
   });
   if (tab === 'sistema')     verificarSistema();
-  if (tab === 'operaciones') { _loadSetupProvGrid(); verificarTriggerOp(); }
-  if (tab === 'serviciosTec') { _cargarEmailST(); verificarTriggerST(); _cargarLogST(); }
+  if (tab === 'operaciones') _loadSetupProvGrid();
+  if (tab === 'serviciosTec') _cargarEmailST();
 }
 
 // ── Cargar config desde GAS ──────────────────────
@@ -7698,58 +7646,9 @@ async function guardarConfigOperaciones() {
 
 // ── Setup Operaciones — Trigger ──────────────────────────────
 
-async function instalarTriggerOp() {
-  const sel       = document.getElementById('cfgOpTriggerIntervalo');
-  const intervalo = sel ? parseInt(sel.value) : 30;
-  const label     = intervalo < 60 ? 'cada ' + intervalo + ' min' : 'cada ' + (intervalo/60) + ' hora(s)';
-  // Guardar el intervalo elegido en Config
-  try {
-    await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'guardarConfig', trigger_op_intervalo: String(intervalo) }),
-    });
-  } catch(e) {}
-  // ScriptApp.newTrigger no está disponible en contexto Web App POST.
-  // El trigger debe instalarse desde el GAS IDE ejecutando instalarTriggerOpManual()
-  _mostrarInstruccionTrigger('Op', intervalo, label);
-}
 
-function _mostrarInstruccionTrigger(tipo, intervalo, label) {
-  const fnName = tipo === 'Op' ? 'instalarTriggerOpManual' : 'instalarTriggerSTManual';
-  const msg = '⚠️ GAS requiere que los triggers se instalen desde el IDE una sola vez.\n\n' +
-    'En el GAS IDE:\n' +
-    '1. Selecciona la función: ' + fnName + '\n' +
-    '2. Click Ejecutar\n\n' +
-    'El intervalo elegido (' + label + ') quedó guardado.';
-  alert(msg);
-}
 
-async function removerTriggerOp() {
-  if (!confirm('¿Remover el trigger de Operaciones?\nDeberás ejecutar removerTriggerOpManual() en el GAS IDE.')) return;
-  alert('En el GAS IDE:\n1. Selecciona: removerTriggerOpManual\n2. Click Ejecutar\n\nO ve a GAS IDE → Triggers (ícono reloj) y elimínalo manualmente.');
-}
 
-function verificarTriggerOp() {
-  const el = document.getElementById('setupOpTriggerStatus');
-  if (!el) return;
-  el.innerHTML = '<div class="setup-status-row"><div class="spinner" style="width:14px;height:14px;border-width:2px"></div><span style="font-size:.85rem;margin-left:.5rem">Verificando...</span></div>';
-  gasJsonp('estadoTriggerOp', {}).then(data => {
-    if (!el) return;
-    if (data.activo) {
-      el.innerHTML = '<div class="setup-status-row">' +
-        '<div class="setup-status-dot green"></div>' +
-        '<span style="font-size:.85rem"><strong>Activo</strong> — sincronizando automáticamente</span></div>';
-    } else {
-      el.innerHTML = '<div class="setup-status-row">' +
-        '<div class="setup-status-dot orange"></div>' +
-        '<span style="font-size:.85rem">Sin trigger activo — solo sincronización manual</span></div>';
-    }
-  }).catch(() => {
-    if (el) el.innerHTML = '<div class="setup-status-row"><div class="setup-status-dot orange"></div>' +
-      '<span style="font-size:.85rem">No se pudo verificar</span></div>';
-  });
-}
 
 // ── Setup Servicios Técnicos ──────────────────────────────────
 
@@ -7791,82 +7690,9 @@ async function guardarConfigST() {
   }
 }
 
-async function instalarTriggerST() {
-  const sel       = document.getElementById('cfgStTriggerIntervalo');
-  const intervalo = sel ? parseInt(sel.value) : 15;
-  const label     = intervalo < 60 ? 'cada ' + intervalo + ' min' : 'cada ' + (intervalo/60) + ' hora(s)';
-  try {
-    await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'guardarConfig', trigger_st_intervalo: String(intervalo) }),
-    });
-  } catch(e) {}
-  _mostrarInstruccionTrigger('ST', intervalo, label);
-}
 
-async function removerTriggerST() {
-  if (!confirm('¿Remover el trigger? El sistema dejará de procesar emails automáticamente.')) return;
-  try {
-    const res  = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'removerTriggerST' }),
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error');
-    showToast('⏹ Trigger removido');
-    verificarTriggerST();
-  } catch(err) {
-    showToast('Error: ' + err.message, true);
-  }
-}
 
-function verificarTriggerST() {
-  const el = document.getElementById('setupStTriggerStatus');
-  if (!el) return;
-  el.innerHTML = '<div class="setup-status-row"><div class="spinner" style="width:14px;height:14px;border-width:2px"></div><span style="font-size:.85rem;margin-left:.5rem">Verificando...</span></div>';
-  gasJsonp('estadoTriggerST', {}).then(data => {
-    if (!el) return;
-    if (data.activo) {
-      el.innerHTML = '<div class="setup-status-row">' +
-        '<div class="setup-status-dot green"></div>' +
-        '<span style="font-size:.85rem"><strong>Activo</strong> — cada 15 min' +
-        (data.ultimo_run ? ' · Último run: ' + data.ultimo_run : '') + '</span></div>';
-    } else {
-      el.innerHTML = '<div class="setup-status-row">' +
-        '<div class="setup-status-dot orange"></div>' +
-        '<span style="font-size:.85rem">Sin trigger activo — el sistema <strong>no</strong> procesará emails automáticamente</span></div>';
-    }
-  }).catch(() => {
-    if (el) el.innerHTML = '<div class="setup-status-row"><div class="setup-status-dot orange"></div><span style="font-size:.85rem">No se pudo verificar</span></div>';
-  });
-}
 
-function _cargarLogST() {
-  const el = document.getElementById('setupStLogReciente');
-  if (!el) return;
-  gasJsonp('getEmailSTLog', {}).then(data => {
-    if (!el) return;
-    if (!data.success || !data.items || !data.items.length) {
-      el.innerHTML = '<span style="color:var(--muted)">Sin actividad registrada.</span>';
-      return;
-    }
-    const rows = data.items.slice(0, 5).map(r => {
-      const color = r.estado === 'ok' ? 'var(--green)' : r.estado === 'parcial' ? '#F9A825' : 'var(--red)';
-      const icon  = r.estado === 'ok' ? '✅' : r.estado === 'parcial' ? '⚠️' : '❌';
-      return '<div style="padding:.4rem 0;border-bottom:1px solid var(--border);display:flex;gap:.75rem;align-items:baseline">' +
-        '<span>' + icon + '</span>' +
-        '<span style="flex:1;font-size:.8rem">' + (r.asunto || '(sin asunto)').slice(0,50) + '</span>' +
-        '<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">' + (r.fecha_proc || '').slice(0,16) + '</span>' +
-        (r.id_st ? '<span style="font-size:.75rem;color:var(--orange)">' + r.id_st + '</span>' : '') +
-        '</div>';
-    }).join('');
-    el.innerHTML = rows;
-  }).catch(() => {
-    if (el) el.innerHTML = '<span style="color:var(--muted)">No se pudo cargar el log.</span>';
-  });
-}
 
 // ── Verificar estado del sistema ─────────────────
 async function verificarSistema() {
@@ -7874,59 +7700,85 @@ async function verificarSistema() {
   container.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted)"><div class="spinner" style="margin:0 auto .75rem"></div>Verificando...</div>';
 
   const checks = [
-    { label: 'GAS Web App',             key: 'gas' },
-    { label: 'Config_Operaciones',      key: 'config' },
-    { label: 'Proveedores_Config',      key: 'proveedores' },
-    { label: 'Compras_Ventas',          key: 'cv' },
-    { label: 'Empresa configurada',     key: 'empresa' },
-    { label: 'Proveedor base',          key: 'prov_base' },
-    { label: 'Email comprobantes',      key: 'email' },
-    { label: 'Drive folder',            key: 'drive' },
-    { label: 'CLAUDE_API_KEY',          key: 'api_key' },
+    { label: 'GAS Web App',                key: 'gas' },
+    { label: 'Empresa (RUC)',              key: 'empresa' },
+    { label: 'Email Retail',               key: 'email_op' },
+    { label: 'Email Servicios Técnicos',   key: 'email_st' },
+    { label: 'Drive folder',               key: 'drive' },
+    { label: 'CLAUDE_API_KEY',             key: 'api_key' },
+    { label: 'Proveedores configurados',   key: 'proveedores' },
+    { label: 'Trigger Operaciones',        key: 'trigger_op' },
+    { label: 'Trigger Servicios Técnicos', key: 'trigger_st' },
   ];
 
   let results = {};
   checks.forEach(c => results[c.key] = { ok: null, msg: '' });
 
   try {
-    // Health check al GAS
     const health = await gasJsonp('healthCheck', {});
     results['gas'] = { ok: true, msg: health.empresa || 'OK' };
 
-    // Cargar config para verificar campos
     const cfg = await gasJsonp('getConfig', {});
     if (cfg.success) {
       const c = cfg.config || {};
-      results['config']     = { ok: true,  msg: 'Hoja encontrada' };
-      results['empresa']    = { ok: !!(c.empresa_ruc && c.empresa_ruc.trim()),
-                                msg: c.empresa_ruc || '⚠️ RUC vacío' };
-      results['email']      = { ok: !!(c.email_comprobantes && c.email_comprobantes.trim()),
-                                msg: c.email_comprobantes || '⚠️ Sin email' };
-      results['drive']      = { ok: !!(c.drive_folder_id && c.drive_folder_id.trim()),
-                                msg: c.drive_folder_id ? '✅ Configurado' : '⚠️ Sin folder ID' };
-      results['api_key']    = { ok: true, msg: 'Configurada' };  // si llegamos aquí el GAS funciona
+      results['empresa']  = { ok: !!(c.empresa_ruc),
+                              msg: c.empresa_ruc ? c.empresa_nombre || c.empresa_ruc : '⚠️ RUC no configurado' };
+      results['email_op'] = { ok: !!(c.email_comprobantes),
+                              msg: c.email_comprobantes || '⚠️ Sin email — ir a Operaciones' };
+      results['email_st'] = { ok: !!(c.email_st_entrante),
+                              msg: c.email_st_entrante || '⚠️ Sin email — ir a Servicios Técnicos' };
+      results['drive']    = { ok: !!(c.drive_folder_id),
+                              msg: c.drive_folder_id ? '✅ Configurado' : '⚠️ Sin folder ID' };
+      results['api_key']  = { ok: true, msg: '✅ Configurada' };
 
       const provs = cfg.proveedores || [];
-      results['prov_base']  = { ok: provs.length > 0, msg: provs.length > 0 ? provs.length + ' proveedor(es) configurado(s)' : '⚠️ Sin proveedores' };
-      results['proveedores']= { ok: true, msg: 'Hoja encontrada' };
-      results['cv']         = { ok: true, msg: 'Hoja encontrada' };
+      const activos = provs.filter(p => p.activo).length;
+      results['proveedores'] = { ok: activos > 0,
+                                 msg: activos > 0 ? activos + ' activo(s) de ' + provs.length : '⚠️ Sin proveedores activos' };
     } else {
-      results['config'] = { ok: false, msg: cfg.error || 'No encontrada — ejecutar initConfigSheet()' };
+      results['config'] = { ok: false, msg: cfg.error || 'No encontrada' };
     }
   } catch(err) {
     results['gas'] = { ok: false, msg: err.message };
   }
 
+  // Verificar triggers en paralelo
+  try {
+    const tOp = await new Promise(resolve => {
+      gasJsonp('estadoTriggerOp', {}).then(resolve).catch(() => resolve({ activo: false }));
+    });
+    results['trigger_op'] = {
+      ok: tOp.activo,
+      msg: tOp.activo ? '✅ Activo' : '⚠️ Inactivo — ejecutar instalarTriggerOpManual() en GAS IDE'
+    };
+  } catch(e) {
+    results['trigger_op'] = { ok: false, msg: 'No verificado' };
+  }
+
+  try {
+    const tST = await new Promise(resolve => {
+      gasJsonp('estadoTriggerST', {}).then(resolve).catch(() => resolve({ activo: false }));
+    });
+    results['trigger_st'] = {
+      ok: tST.activo,
+      msg: tST.activo
+        ? '✅ Activo' + (tST.ultimo_run ? ' · Último run: ' + tST.ultimo_run : '')
+        : '⚠️ Inactivo — ejecutar instalarTriggerSTManual() en GAS IDE'
+    };
+  } catch(e) {
+    results['trigger_st'] = { ok: false, msg: 'No verificado' };
+  }
+
   // Renderizar
   container.innerHTML = checks.map(c => {
-    const r   = results[c.key];
-    const dot = r.ok === null ? 'grey' : (r.ok ? 'green' : 'red');
-    const ico = r.ok === null ? '⏳' : (r.ok ? '✅' : '❌');
-    return `<div class="setup-status-row" style="margin-bottom:.4rem">
-      <div class="setup-status-dot ${dot}"></div>
-      <span style="flex:1"><strong>${c.label}</strong></span>
-      <span style="font-size:.78rem;color:var(--muted)">${ico} ${r.msg || ''}</span>
-    </div>`;
+    const r   = results[c.key] || { ok: null, msg: '' };
+    const dot = r.ok === null ? 'grey' : (r.ok ? 'green' : 'orange');
+    const ico = r.ok === null ? '⏳' : (r.ok ? '✅' : '⚠️');
+    return '<div class="setup-status-row" style="margin-bottom:.5rem">' +
+      '<div class="setup-status-dot ' + dot + '"></div>' +
+      '<span style="flex:1;font-size:.85rem"><strong>' + c.label + '</strong></span>' +
+      '<span style="font-size:.78rem;color:var(--muted);text-align:right;max-width:55%">' + ico + ' ' + (r.msg || '') + '</span>' +
+      '</div>';
   }).join('');
 }
 </script>
