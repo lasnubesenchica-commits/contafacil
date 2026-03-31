@@ -1743,17 +1743,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
       </div>
 
       <div class="setup-card">
-        <div class="setup-card-title">📧 Email de Comprobantes</div>
-        <div class="setup-grid cols1">
-          <div class="setup-field full">
-            <label>Email destino (para Operaciones — sincronizar Gmail)</label>
-            <input type="email" id="cfgEmailComprobantes" placeholder="lasnubesenchica+ceyco@gmail.com">
-            <span class="setup-hint">Las facturas de proveedor y emitidas deben enviarse a este email para que el sistema las lea automáticamente.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="setup-card">
         <div class="setup-card-title">📁 Google Drive — Carpeta de Archivos</div>
         <div class="setup-grid cols1">
           <div class="setup-field full">
@@ -1774,6 +1763,17 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
     <!-- ── Panel: Operaciones ── -->
     <div class="setup-panel" id="setupPanelOperaciones">
+
+      <div class="setup-card">
+        <div class="setup-card-title">📧 Email de entrada — Retail</div>
+        <div class="setup-grid cols1">
+          <div class="setup-field full">
+            <label>Email destino (sincronizar facturas de proveedores)</label>
+            <input type="email" id="cfgEmailComprobantes" placeholder="lasnubesenchica+ceycoretail@gmail.com">
+            <span class="setup-hint">Las facturas de proveedor y emitidas deben enviarse aquí para que el sistema las lea automáticamente.</span>
+          </div>
+        </div>
+      </div>
 
       <div class="setup-card">
         <div class="setup-card-title">⚙️ Parámetros de Operaciones</div>
@@ -1809,6 +1809,30 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">
             <div class="spinner" style="margin:0 auto .75rem"></div>Cargando proveedores...
           </div>
+        </div>
+      </div>
+
+      <div class="setup-card">
+        <div class="setup-card-title">⏱ Sincronización automática — Retail</div>
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
+          Sincroniza emails de facturas de proveedores automáticamente. Recomendado: cada 30 minutos.
+        </div>
+        <div id="setupOpTriggerStatus" style="margin-bottom:1rem">
+          <div class="setup-status-row">
+            <div class="setup-status-dot orange"></div>
+            <span style="font-size:.85rem">Verificando estado...</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+          <select id="cfgOpTriggerIntervalo" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.45rem .75rem;font-size:.85rem;color:var(--text)">
+            <option value="15">Cada 15 minutos</option>
+            <option value="30" selected>Cada 30 minutos</option>
+            <option value="60">Cada 1 hora</option>
+            <option value="120">Cada 2 horas</option>
+          </select>
+          <button class="btn-primary"   onclick="instalarTriggerOp()">▶ Instalar trigger</button>
+          <button class="btn-secondary" onclick="removerTriggerOp()">⏹ Remover</button>
+          <button class="btn-secondary" onclick="verificarTriggerOp()">↺ Estado</button>
         </div>
       </div>
 
@@ -1853,10 +1877,15 @@ tr:hover td{background:rgba(0,0,0,.015)}
             <span style="font-size:.85rem">Verificando estado del trigger...</span>
           </div>
         </div>
-        <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-          <button class="btn-primary"   onclick="instalarTriggerST()">▶ Instalar trigger (15 min)</button>
-          <button class="btn-secondary" onclick="removerTriggerST()">⏹ Remover trigger</button>
-          <button class="btn-secondary" onclick="verificarTriggerST()">↺ Verificar estado</button>
+        <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+          <select id="cfgStTriggerIntervalo" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.45rem .75rem;font-size:.85rem;color:var(--text)">
+            <option value="15" selected>Cada 15 minutos</option>
+            <option value="30">Cada 30 minutos</option>
+            <option value="60">Cada 1 hora</option>
+          </select>
+          <button class="btn-primary"   onclick="instalarTriggerST()">▶ Instalar trigger</button>
+          <button class="btn-secondary" onclick="removerTriggerST()">⏹ Remover</button>
+          <button class="btn-secondary" onclick="verificarTriggerST()">↺ Estado</button>
         </div>
       </div>
 
@@ -7537,7 +7566,7 @@ function setupSwitchTab(tab) {
     if (panel) panel.classList.toggle('active', t === tab);
   });
   if (tab === 'sistema')     verificarSistema();
-  if (tab === 'operaciones') _loadSetupProvGrid();
+  if (tab === 'operaciones') { _loadSetupProvGrid(); verificarTriggerOp(); }
   if (tab === 'serviciosTec') { _cargarEmailST(); verificarTriggerST(); _cargarLogST(); }
 }
 
@@ -7602,7 +7631,6 @@ async function guardarConfigEmpresa() {
       empresa_nombre:      document.getElementById('cfgEmpresaNombre').value.trim(),
       empresa_ruc:         document.getElementById('cfgEmpresaRuc').value.trim(),
       empresa_dv:          document.getElementById('cfgEmpresaDv').value.trim(),
-      email_comprobantes:  document.getElementById('cfgEmailComprobantes').value.trim(),
       drive_folder_id:     document.getElementById('cfgDriveFolderId').value.trim(),
     };
     if (!payload.empresa_nombre) { showToast('Nombre de empresa requerido', true); return; }
@@ -7617,9 +7645,8 @@ async function guardarConfigEmpresa() {
     if (!data.success) throw new Error(data.error || 'Error al guardar');
 
     // Validar campos
-    _validarCampoConfig('cfgEmpresaRuc',        payload.empresa_ruc);
-    _validarCampoConfig('cfgEmailComprobantes', payload.email_comprobantes);
-    _validarCampoConfig('cfgDriveFolderId',     payload.drive_folder_id);
+    _validarCampoConfig('cfgEmpresaRuc',    payload.empresa_ruc);
+    _validarCampoConfig('cfgDriveFolderId', payload.drive_folder_id);
 
     msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
@@ -7642,6 +7669,7 @@ async function guardarConfigOperaciones() {
   try {
     const payload = {
       action:            'guardarConfig',
+      email_comprobantes: document.getElementById('cfgEmailComprobantes').value.trim(),
       prefijo_id:        document.getElementById('cfgPrefijoId').value.trim()    || 'RP',
       confianza_minima:  document.getElementById('cfgConfianzaMin').value.trim() || '70',
       itbms_rate:        document.getElementById('cfgItbmsRate').value.trim()    || '0.07',
@@ -7667,6 +7695,65 @@ async function guardarConfigOperaciones() {
 }
 
 // guardarProveedorBase eliminada — use el grid de proveedores en Config → Operaciones
+
+// ── Setup Operaciones — Trigger ──────────────────────────────
+
+async function instalarTriggerOp() {
+  const sel      = document.getElementById('cfgOpTriggerIntervalo');
+  const intervalo = sel ? parseInt(sel.value) : 30;
+  const label    = intervalo < 60 ? 'cada ' + intervalo + ' min' : 'cada ' + (intervalo/60) + ' hora(s)';
+  try {
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'instalarTriggerOp', intervalo: intervalo }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error');
+    showToast('✅ Trigger Operaciones instalado — ' + label);
+    verificarTriggerOp();
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  }
+}
+
+async function removerTriggerOp() {
+  if (!confirm('¿Remover el trigger de Operaciones? La sincronización de emails dejará de ser automática.')) return;
+  try {
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'removerTriggerOp' }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error');
+    showToast('⏹ Trigger Operaciones removido');
+    verificarTriggerOp();
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  }
+}
+
+function verificarTriggerOp() {
+  const el = document.getElementById('setupOpTriggerStatus');
+  if (!el) return;
+  el.innerHTML = '<div class="setup-status-row"><div class="spinner" style="width:14px;height:14px;border-width:2px"></div><span style="font-size:.85rem;margin-left:.5rem">Verificando...</span></div>';
+  gasJsonp('estadoTriggerOp', {}).then(data => {
+    if (!el) return;
+    if (data.activo) {
+      el.innerHTML = '<div class="setup-status-row">' +
+        '<div class="setup-status-dot green"></div>' +
+        '<span style="font-size:.85rem"><strong>Activo</strong> — sincronizando automáticamente</span></div>';
+    } else {
+      el.innerHTML = '<div class="setup-status-row">' +
+        '<div class="setup-status-dot orange"></div>' +
+        '<span style="font-size:.85rem">Sin trigger activo — solo sincronización manual</span></div>';
+    }
+  }).catch(() => {
+    if (el) el.innerHTML = '<div class="setup-status-row"><div class="setup-status-dot orange"></div>' +
+      '<span style="font-size:.85rem">No se pudo verificar</span></div>';
+  });
+}
 
 // ── Setup Servicios Técnicos ──────────────────────────────────
 
@@ -7709,15 +7796,18 @@ async function guardarConfigST() {
 }
 
 async function instalarTriggerST() {
+  const sel      = document.getElementById('cfgStTriggerIntervalo');
+  const intervalo = sel ? parseInt(sel.value) : 15;
+  const label    = intervalo < 60 ? 'cada ' + intervalo + ' min' : 'cada ' + (intervalo/60) + ' hora(s)';
   try {
     const res  = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'instalarTriggerST' }),
+      body: JSON.stringify({ action: 'instalarTriggerST', intervalo: intervalo }),
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Error');
-    showToast('✅ Trigger instalado — procesará emails cada 15 minutos');
+    showToast('✅ Trigger ST instalado — ' + label);
     verificarTriggerST();
   } catch(err) {
     showToast('Error: ' + err.message, true);
