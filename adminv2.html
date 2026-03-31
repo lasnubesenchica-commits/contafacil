@@ -916,6 +916,19 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .inv-view-btn.active { background:var(--text);border-color:var(--text);color:#fff }
 /* Lista mode */
 .inv-list { padding:0 2rem 1.5rem }
+
+/* ── MODAL DECISIÓN OPERACIONES ── */
+.op-dec-option {
+  border:2px solid var(--border); border-radius:10px; padding:14px 16px;
+  margin-bottom:10px; cursor:pointer; transition:all .15s; background:var(--white);
+}
+.op-dec-option:hover { border-color:var(--orange); background:rgba(224,90,0,.04); }
+.op-dec-option.selected-anular   { border-color:#f59e0b; background:#fffbeb; }
+.op-dec-option.selected-eliminar { border-color:#ef4444; background:#fef2f2; }
+.op-dec-option-title { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.op-dec-option-title strong { font-size:.88rem; }
+.op-dec-option p { margin:0; font-size:.78rem; color:var(--muted); line-height:1.5; }
+
 /* ── PANEL SETUP ── */
 #sectionSetup { display:none }
 .setup-wrap { max-width:860px; margin:0 auto; padding:2rem; }
@@ -1150,6 +1163,74 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </table>
   </div>
 </div><!-- /sectionOperaciones -->
+
+<!-- ═══════════ MODAL: ANULAR / ELIMINAR ÍTEM CV ═══════════ -->
+<div class="modal-overlay" id="opDecModalOverlay" onclick="if(event.target===this)opDecCerrar()" style="z-index:300">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">🗑️ ¿Qué deseas hacer?</div>
+      <button class="modal-close" onclick="opDecCerrar()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="opDecLabel" style="font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:1rem"></p>
+
+      <!-- Nota: ítem cerrado -->
+      <div id="opDecNotaCerrado" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:.78rem;color:#1e40af;line-height:1.5">
+        🔒 <strong>Este ítem ya está cerrado</strong> — tiene ingreso y egreso registrados.
+        La opción <em>Anular</em> marcará todos los registros como anulados pero los conservará visibles.
+        <em>Eliminar</em> los borrará permanentemente.
+      </div>
+
+      <!-- Opción Anular -->
+      <div id="opDecOptAnular" class="op-dec-option" onclick="opDecSeleccionar('anular')">
+        <div class="op-dec-option-title">
+          <span style="font-size:1.1rem">⚛️</span>
+          <strong style="color:#92400e">Anular registro</strong>
+          <span style="margin-left:auto;font-size:.72rem;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-weight:600">RECOMENDADO</span>
+        </div>
+        <p>El ítem <strong>permanece visible</strong> con estado <em>Anulado</em>.
+          Sus egresos e ingresos quedan <strong>anulados pero rastreables</strong>.
+          Ideal para devoluciones o registros incorrectos que quieres conservar como historial.</p>
+      </div>
+
+      <!-- Opción Eliminar -->
+      <div id="opDecOptEliminar" class="op-dec-option" onclick="opDecSeleccionar('eliminar')">
+        <div class="op-dec-option-title">
+          <span style="font-size:1.1rem">🗑️</span>
+          <strong style="color:#991b1b">Eliminar permanentemente</strong>
+        </div>
+        <p>Borra <strong>todas las filas</strong> — ítem CV, egreso e ingreso vinculados.
+          <strong>No queda rastro</strong>. Usar solo si fue ingresado por error o es un duplicado.
+          <em>No se puede deshacer.</em></p>
+      </div>
+
+      <!-- Motivo (anular) -->
+      <div id="opDecMotivoWrap" style="display:none;margin-top:1rem">
+        <div class="modal-field">
+          <label>Motivo de anulación <span style="font-weight:400;color:var(--chrome)">(opcional)</span></label>
+          <input type="text" id="opDecMotivo" class="modal-field input"
+                 placeholder="Ej: Devolución cliente, registro duplicado…"
+                 style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.85rem;width:100%;outline:none">
+        </div>
+      </div>
+
+      <!-- Confirmación (eliminar) -->
+      <div id="opDecConfirmWrap" style="display:none;margin-top:1rem">
+        <div class="modal-field">
+          <label style="color:var(--red)">Escribe el ID del ítem para confirmar el borrado permanente:</label>
+          <input type="text" id="opDecConfirmInput"
+                 placeholder="" oninput="opDecCheckConfirm()"
+                 style="background:var(--bg);border:1px solid #fca5a5;border-radius:6px;padding:.5rem .75rem;font-family:'DM Mono',monospace;font-size:.82rem;width:100%;outline:none">
+          <span id="opDecConfirmErr" style="display:none;font-size:.75rem;color:var(--red);margin-top:.25rem">El texto no coincide</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="opDecCerrar()">Cancelar</button>
+      <button id="opDecBtnOk" class="btn-primary" onclick="opDecEjecutar()" style="display:none">Confirmar</button>
+    </div>
+  </div>
+</div>
 
 <div id="sectionIngresos" style="display:none">
   <!-- Stats Ingresos -->
@@ -3534,6 +3615,7 @@ function renderOpTable(items) {
           ${(estado==='pendiente'&&!item.num_fac_emitida) ? `<button class="btn-xs btn-inventario" data-op-inv="${i}" title="Mover a inventario">📦</button>` : ''}
           ${(estado==='pendiente'&&!item.num_fac_emitida) ? `<button class="btn-xs" style="background:#7B1FA2;color:#fff" data-op-operativo="${i}" title="Registrar como costo operativo">⚙</button>` : ''}
           ${estado==='facturado' ? `<button class="btn-xs" style="background:#0288D1;color:#fff" data-op-pago="${i}" title="Registrar comprobante de pago">💳</button>` : ''}
+          <button class="btn-xs" style="background:none;border:none;color:var(--chrome);padding:3px 5px;font-size:.9rem" title="Anular / Eliminar" data-op-dec="${i}">🗑️</button>
         </div>
       </td>
     </tr>`;
@@ -3542,11 +3624,11 @@ function renderOpTable(items) {
 
 // ── Event delegation para acciones de Operaciones ──
 document.addEventListener('click', function(e) {
-  const btn = e.target.closest('[data-op-ver],[data-op-aprobar],[data-op-vincular],[data-op-inv],[data-op-orden],[data-op-pago],[data-op-operativo]');
+  const btn = e.target.closest('[data-op-ver],[data-op-aprobar],[data-op-vincular],[data-op-inv],[data-op-orden],[data-op-pago],[data-op-operativo],[data-op-dec]');
   if (!btn) return;
   if (!document.getElementById('opBody').contains(btn)) return;
   e.stopPropagation();
-  const idx = parseInt(btn.dataset.opVer ?? btn.dataset.opAprobar ?? btn.dataset.opVincular ?? btn.dataset.opInv ?? btn.dataset.opOrden ?? btn.dataset.opPago ?? btn.dataset.opOperativo);
+  const idx = parseInt(btn.dataset.opVer ?? btn.dataset.opAprobar ?? btn.dataset.opVincular ?? btn.dataset.opInv ?? btn.dataset.opOrden ?? btn.dataset.opPago ?? btn.dataset.opOperativo ?? btn.dataset.opDec);
   const item = opFiltered[idx];
   if (!item) return;
   if (btn.dataset.opVer       !== undefined) openOpModal(idx);
@@ -3556,7 +3638,126 @@ document.addEventListener('click', function(e) {
   if (btn.dataset.opOrden     !== undefined) buscarOrdenWeb(item.id_item);
   if (btn.dataset.opPago      !== undefined) abrirModalPagoOp(item);
   if (btn.dataset.opOperativo !== undefined) abrirModalCostoOperativo(item);
+  if (btn.dataset.opDec       !== undefined) opDecAbrir(item);
 });
+
+// ══════════════════════════════════════════════════
+//  MODAL DECISIÓN — ANULAR / ELIMINAR ÍTEM CV
+// ══════════════════════════════════════════════════
+
+var _opDecState = { item: null, accion: null };
+
+function opDecAbrir(item) {
+  _opDecState.item   = item;
+  _opDecState.accion = null;
+
+  const label = (item.num_fac_emitida || item.num_fac_carbone || item.id_item) +
+                ' — ' + (item.nombre_cliente || item.descripcion_prod || '');
+  document.getElementById('opDecLabel').textContent = label;
+
+  const esCerrado = item.estado === 'cerrado';
+  document.getElementById('opDecNotaCerrado').style.display = esCerrado ? '' : 'none';
+
+  // Reset
+  _opDecReset();
+  document.getElementById('opDecConfirmInput').placeholder = item.id_item;
+  document.getElementById('opDecModalOverlay').classList.add('open');
+}
+
+function opDecCerrar() {
+  document.getElementById('opDecModalOverlay').classList.remove('open');
+  _opDecState.item = null; _opDecState.accion = null;
+}
+
+function _opDecReset() {
+  ['opDecOptAnular','opDecOptEliminar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('selected-anular','selected-eliminar'); }
+  });
+  document.getElementById('opDecMotivoWrap').style.display  = 'none';
+  document.getElementById('opDecConfirmWrap').style.display = 'none';
+  document.getElementById('opDecBtnOk').style.display       = 'none';
+  document.getElementById('opDecMotivo').value              = '';
+  document.getElementById('opDecConfirmInput').value        = '';
+  document.getElementById('opDecConfirmErr').style.display  = 'none';
+}
+
+function opDecSeleccionar(accion) {
+  _opDecState.accion = accion;
+  _opDecReset();
+  const btnOk = document.getElementById('opDecBtnOk');
+  if (accion === 'anular') {
+    document.getElementById('opDecOptAnular').classList.add('selected-anular');
+    document.getElementById('opDecMotivoWrap').style.display = '';
+    btnOk.style.display    = '';
+    btnOk.textContent      = '⚛️ Anular registro';
+    btnOk.style.background = '#f59e0b';
+  } else {
+    document.getElementById('opDecOptEliminar').classList.add('selected-eliminar');
+    document.getElementById('opDecConfirmWrap').style.display = '';
+    // Se activa solo cuando el texto coincide
+    btnOk.style.display    = 'none';
+    btnOk.textContent      = '🗑️ Eliminar permanentemente';
+    btnOk.style.background = '#dc2626';
+  }
+}
+
+function opDecCheckConfirm() {
+  const input    = document.getElementById('opDecConfirmInput');
+  const errEl    = document.getElementById('opDecConfirmErr');
+  const btnOk    = document.getElementById('opDecBtnOk');
+  const expected = (_opDecState.item || {}).id_item || '';
+  const typed    = (input.value || '').trim();
+
+  if (!typed) { errEl.style.display = 'none'; btnOk.style.display = 'none'; return; }
+  if (typed === expected) {
+    errEl.style.display = 'none'; btnOk.style.display = '';
+  } else {
+    errEl.style.display = ''; btnOk.style.display = 'none';
+  }
+}
+
+async function opDecEjecutar() {
+  const item   = _opDecState.item;
+  const accion = _opDecState.accion;
+  if (!item || !accion) return;
+  opDecCerrar();
+
+  const btnSpinner = '<div class="spinner" style="width:18px;height:18px;border-width:2px;display:inline-block;margin-right:.4rem"></div>';
+
+  if (accion === 'anular') {
+    const motivo = (document.getElementById('opDecMotivo').value || '').trim();
+    showToast(btnSpinner + 'Anulando…');
+    try {
+      const data = await gasJsonp('anularItemCV', { id_item: item.id_item, motivo });
+      if (!data.success) throw new Error(data.error || 'Error al anular');
+      let msg = '⚛️ Registro anulado';
+      if (data.egreso_anulado)  msg += ' · egreso anulado';
+      if (data.ingreso_anulado) msg += ' · ingreso anulado';
+      showToast(msg);
+      // Actualizar estado en memoria
+      const idx = opItems.findIndex(i => i.id_item === item.id_item);
+      if (idx !== -1) opItems[idx].estado = 'anulado';
+      applyOpFilters();
+      updateOpStats(opItems);
+    } catch(err) { showToast('⚠️ ' + err.message, true); }
+
+  } else if (accion === 'eliminar') {
+    showToast(btnSpinner + 'Eliminando…');
+    try {
+      const data = await gasJsonp('eliminarItemCV', { id_item: item.id_item });
+      if (!data.success) throw new Error(data.error || 'Error al eliminar');
+      let msg = '🗑️ Registro eliminado';
+      if (data.egresos_borrados) msg += ' · ' + data.egresos_borrados + ' egreso(s)';
+      if (data.ingreso_borrado)  msg += ' · ingreso borrado';
+      showToast(msg);
+      // Quitar del estado local
+      opItems    = opItems.filter(i => i.id_item !== item.id_item);
+      applyOpFilters();
+      updateOpStats(opItems);
+    } catch(err) { showToast('⚠️ ' + err.message, true); }
+  }
+}
 
 // ── Sort Operaciones ──
 var opSortCol = 'fecha_venta';
