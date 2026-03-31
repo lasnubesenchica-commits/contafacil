@@ -5550,11 +5550,12 @@ async function actualizarCategoriaTabla(selectEl, tipo, id) {
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function showToast(msg) {
+function showToast(msg, isError) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  t.innerHTML = msg;
+  t.style.background = isError ? '#C62828' : '';
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+  setTimeout(() => { t.classList.remove('show'); t.style.background = ''; }, 3500);
 }
 
 // ══════════════════════════════════════════════════
