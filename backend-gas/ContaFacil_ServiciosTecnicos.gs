@@ -1,2442 +1,3268 @@
-// ═══════════════════════════════════════════════════════════════
-//  ContaFacil_ServiciosTecnicos.gs
-//  Módulo: Servicios Técnicos — Ramon Pico / Círculo Financiero
-//  v1.3 — Cotizaciones + Ejecución + Comparativo
-//  v1.3.2 — credito_fiscal añadido a ST_TIPOS_ITEM y todos los tipoMap
-//         + proveedor/num_factura en ítems del resumen
-//         + _handleActualizarItemTipo (reclasificación desde UI)
-//         + _handleActualizarEgresoST (editar egreso existente)
-//         + _handleEliminarItemCotizacion anula egreso automáticamente
-//
-//  HOJAS NUEVAS:
-//    Servicios_Tecnicos  — 1 fila por ST (cabecera doble, datos desde fila 3)
-//    ST_Items            — 1 fila por ítem cotizado/real (cabecera doble, datos desde fila 3)
-//
-//  MIGRACIÓN REQUERIDA en hoja Egresos:
-//    Ejecutar migrarEgresosST() UNA SOLA VEZ para agregar col id_st_item (col 21)
-//
-//  ACTIONS doGet:
-//    getCotizaciones | aprobarCotizacion | iniciarEjecucion | cerrarST
-//    getResumenST | enviarCotizacionEmail | eliminarItemCotizacion
-//    eliminarST | cancelarST
-//
-//  ACTIONS doPost:
-//    crearCotizacion | actualizarCotizacion | agregarItemCotizacion
-//    registrarIngresoST | registrarEgresoST | actualizarItemTipo
-//    actualizarEgresoST  ← NUEVO v1.3
-//
-//  REGISTRO EN doGet() — agregar ANTES del health check:
-//    if (action === 'getCotizaciones')        return _handleGetCotizaciones(params, callback);
-//    if (action === 'aprobarCotizacion')      return _handleAprobarCotizacion(params, callback);
-//    if (action === 'iniciarEjecucion')       return _handleIniciarEjecucion(params, callback);
-//    if (action === 'cerrarST')               return _handleCerrarST(params, callback);
-//    if (action === 'getResumenST')           return _handleGetResumenST(params, callback);
-//    if (action === 'enviarCotizacionEmail')  return _handleEnviarCotizacionEmail(params, callback);
-//    if (action === 'eliminarItemCotizacion') return _handleEliminarItemCotizacion(params, callback);
-//    if (action === 'cancelarST')             return _handleCancelarST(params, callback);
-//    if (action === 'eliminarST')             return _handleEliminarST(params, callback);
-//
-//  REGISTRO EN doPost() — agregar ANTES del bloque default:
-//    if (action === 'crearCotizacion')        return _handleCrearCotizacion(data);
-//    if (action === 'actualizarCotizacion')   return _handleActualizarCotizacion(data);
-//    if (action === 'agregarItemCotizacion')  return _handleAgregarItemCotizacion(data);
-//    if (action === 'registrarIngresoST')     return _handleRegistrarIngresoST(data);
-//    if (action === 'registrarEgresoST')      return _handleRegistrarEgresoST(data);
-//    if (action === 'actualizarItemTipo')     return _handleActualizarItemTipo(data);
-//    if (action === 'actualizarEgresoST')     return _handleActualizarEgresoST(data);  ← NUEVO v1.3
-// ═══════════════════════════════════════════════════════════════
+<!-- MÓDULO: Servicios Técnicos | Prefijo: st- | IIFE independiente -->
+<!-- Sin <html>/<head>/<body> — inyectable en #reporteContainer del admin -->
+<!-- v1.0 — Cotizador + Ejecución + Comparativo -->
+<style>
+  /* ── Reset & base ─────────────────────────────────────────── */
+  .st-wrap { font-family:'Segoe UI',system-ui,sans-serif; color:#1a2535; }
+  .st-inner { width:100%; padding:0 12px; box-sizing:border-box; }
 
-// ── CONSTANTES DE HOJAS ───────────────────────────────────────
-var SHEET_ST      = 'Servicios_Tecnicos';
-var SHEET_ST_ITEM = 'ST_Items';
+  /* ── Navegación interna ───────────────────────────────────── */
+  .st-nav { display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #e2e8f0; padding-bottom:0; flex-wrap:wrap; }
+  .st-nav-btn { padding:8px 18px; border:none; background:none; font-size:.84rem; font-weight:600; color:#64748b; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .15s; border-radius:6px 6px 0 0; }
+  .st-nav-btn:hover { color:#1A237E; background:#f1f5f9; }
+  .st-nav-btn.active { color:#1A237E; border-bottom-color:#1A237E; background:#f1f5f9; }
 
-// ── COLUMNAS Servicios_Tecnicos (base 1) ─────────────────────
-var COL_ST = {
-  ID:                   1,   // A  id_st
-  FECHA_REG:            2,   // B  fecha_registro
-  ESTADO:               3,   // C  estado
-  NUM_COT:              4,   // D  num_cotizacion
-  NOMBRE_CLI:           5,   // E  nombre_cliente
-  RUC_CLI:              6,   // F  ruc_cliente
-  DV_CLI:               7,   // G  dv_cliente
-  CONTACTO:             8,   // H  contacto (tel/email)
-  EMAIL_CLI:            9,   // I  email_cliente
-  DESCRIPCION:         10,   // J  descripcion_servicio
-  TOTAL_COSTO_COT:     11,   // K  total_costo_cotizado
-  MARGEN_PCT:          12,   // L  margen_pct
-  PRECIO_VENTA:        13,   // M  precio_venta
-  TOTAL_COSTO_REAL:    14,   // N  total_costo_real
-  FECHA_APROBACION:    15,   // O  fecha_aprobacion
-  FECHA_INICIO:        16,   // P  fecha_inicio_ejecucion
-  FECHA_CIERRE:        17,   // Q  fecha_cierre
-  INGRESO_ID:          18,   // R  ingreso_id
-  DRIVE_URL:           19,   // S  drive_url (cotizacion PDF si aplica)
-  NOTAS:               20,   // T  notas
-  MES:                 21,   // U  mes
-  ANIO:                22,   // V  anio
-};
-var ST_NCOLS = 22;
+  /* ── Header ───────────────────────────────────────────────── */
+  .st-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:18px; flex-wrap:wrap; gap:10px; }
+  .st-header h2 { margin:0; font-size:1.3rem; font-weight:700; color:#1a2535; display:flex; align-items:center; gap:8px; }
+  .st-ts { font-size:.73rem; color:#94a3b8; }
 
-// ── COLUMNAS ST_Items (base 1) ────────────────────────────────
-var COL_STI = {
-  ID:              1,   // A  id_item_st
-  ID_ST:           2,   // B  id_st (FK)
-  TIPO:            3,   // C  tipo (producto|mano_obra|flete|impuesto|combustible|fianza|subcontrato|otro)
-  DESCRIPCION:     4,   // D  descripcion
-  CANTIDAD:        5,   // E  cantidad
-  PRECIO_UNIT:     6,   // F  precio_unitario
-  APLICA_ITBMS:    7,   // G  aplica_itbms (TRUE/FALSE)
-  MONTO_COT:       8,   // H  monto_cotizado (subtotal sin ITBMS)
-  ITBMS_COT:       9,   // I  itbms_cotizado
-  TOTAL_COT:      10,   // J  total_cotizado
-  MARGEN_ITEM_PCT:11,   // K  margen_item_pct (override del ST, vacío = usa margen del ST)
-  PRECIO_VENTA_ITEM:12, // L  precio_venta_item
-  ES_ADICIONAL:   13,   // M  es_adicional (FALSE=cotizado, TRUE=surgió en ejecución)
-  MONTO_REAL:     14,   // N  monto_real (costo real ejecutado)
-  ITBMS_REAL:     15,   // O  itbms_real
-  TOTAL_REAL:     16,   // P  total_real
-  DRIVE_URL:      17,   // Q  drive_url_factura_real
-  EGRESO_ID:      18,   // R  egreso_id vinculado
-  ESTADO_ITEM:    19,   // S  estado (cotizado|ejecutado|pendiente|cancelado)
-  NOTAS:          20,   // T  notas
-  FECHA_REG:      21,   // U  fecha_registro
-};
-var STI_NCOLS = 21;
+  /* ── KPIs ─────────────────────────────────────────────────── */
+  .st-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:18px; }
+  .st-kpi { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; position:relative; overflow:hidden; }
+  .st-kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+  .st-kpi.k-total::before  { background:#1A237E; }
+  .st-kpi.k-cot::before    { background:#f59e0b; }
+  .st-kpi.k-eje::before    { background:#8b5cf6; }
+  .st-kpi.k-cerr::before   { background:#22c55e; }
+  .st-kpi-label { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:#64748b; margin-bottom:3px; font-weight:600; }
+  .st-kpi-value { font-size:1.3rem; font-weight:700; color:#1a2535; line-height:1.1; }
+  .st-kpi-sub   { font-size:.7rem; color:#94a3b8; margin-top:1px; }
 
-// ── COLUMNA NUEVA EN EGRESOS (requiere migrarEgresosST) ───────
-var COL_E_ST_ITEM = 21;  // id_st_item
+  /* ── Toolbar ──────────────────────────────────────────────── */
+  .st-toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+  .st-search { flex:1; min-width:180px; padding:7px 12px; border:1px solid #e2e8f0; border-radius:7px; font-size:.82rem; outline:none; background:#fff; }
+  .st-search:focus { border-color:#1A237E; }
+  .st-fbtn { padding:6px 14px; border-radius:7px; border:1.5px solid #e2e8f0; background:#fff; font-size:.78rem; font-weight:600; cursor:pointer; color:#475569; transition:all .15s; }
+  .st-fbtn:hover  { border-color:#94a3b8; background:#f8fafc; }
+  .st-fbtn.active { background:#1A237E; color:#fff; border-color:#1A237E; }
 
-// ── TIPOS DE ÍTEM VÁLIDOS ─────────────────────────────────────
-var ST_TIPOS_ITEM = [
-  'producto', 'mano_obra', 'flete', 'impuesto',
-  'combustible', 'fianza', 'subcontrato', 'aduana', 'shipping_handling',
-  'credito_fiscal', 'otro'
-];
+  /* ── Botones de acción ────────────────────────────────────── */
+  .st-btn { display:inline-flex; align-items:center; gap:5px; padding:7px 16px; border-radius:8px; border:none; font-size:.82rem; font-weight:600; cursor:pointer; transition:all .15s; }
+  .st-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .st-btn-primary  { background:#1A237E; color:#fff; }
+  .st-btn-primary:hover:not(:disabled)  { background:#283593; }
+  .st-btn-success  { background:#15803d; color:#fff; }
+  .st-btn-success:hover:not(:disabled)  { background:#166534; }
+  .st-btn-warning  { background:#d97706; color:#fff; }
+  .st-btn-warning:hover:not(:disabled)  { background:#b45309; }
+  .st-btn-danger   { background:#dc2626; color:#fff; }
+  .st-btn-danger:hover:not(:disabled)   { background:#b91c1c; }
+  .st-btn-ghost    { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+  .st-btn-ghost:hover:not(:disabled)    { background:#e2e8f0; }
+  .st-btn-sm { padding:4px 10px; font-size:.75rem; }
 
-// ── ESTADOS DE ST ─────────────────────────────────────────────
-var ST_ESTADOS = ['cotizado', 'aprobado', 'en_ejecucion', 'cerrado', 'cancelado'];
+  /* ── Tipo chip reclasificable ─────────────────────────────── */
+  .st-tipo-chip { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:10px;
+    background:#f1f5f9; border:1px solid #e2e8f0; font-size:.66rem; font-weight:600; color:#475569;
+    cursor:pointer; transition:all .15s; white-space:nowrap; }
+  .st-tipo-chip:hover { background:#e0e7ff; border-color:#818cf8; color:#3730a3; }
+  .st-tipo-select { font-size:.72rem; border:1px solid #818cf8; border-radius:6px; padding:2px 4px;
+    background:#fff; color:#3730a3; font-weight:600; outline:none; cursor:pointer; max-width:140px; }
+  .st-prov-cell { font-size:.72rem; color:#64748b; max-width:160px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  /* ── Resumen por tipo ─────────────────────────────────────── */
+  .st-res-wrap { padding:12px 14px 8px; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; }
+  .st-res-lbl  { font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; margin-bottom:9px; }
+  .st-res-row  { display:grid; grid-template-columns:100px 1fr 44px 58px; align-items:center; gap:8px; margin-bottom:8px; }
+  .st-res-row:last-of-type { margin-bottom:4px; }
+  .st-res-tipo { font-size:.72rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .st-res-track{ height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden; }
+  .st-res-fill { height:100%; border-radius:3px; }
+  .st-res-pct  { font-size:.68rem; color:#94a3b8; text-align:right; }
+  .st-res-amt  { font-size:.72rem; font-weight:600; color:#1a2535; text-align:right; }
+  .st-res-foot { display:flex; justify-content:space-between; padding:6px 0 2px; border-top:0.5px solid #e2e8f0; margin-top:5px; }
+  .st-res-ft-l { font-size:.7rem; color:#94a3b8; }
+  .st-res-ft-v { font-size:.72rem; font-weight:600; color:#1a2535; }
+  /* ── Acciones de ítem ─────────────────────────────────────── */
+  .st-item-btn { display:inline-flex; align-items:center; justify-content:center;
+    height:22px; padding:0 6px; min-width:22px;
+    border-radius:4px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; font-size:.68rem; font-weight:600; color:#475569;
+    transition:all .12s; text-decoration:none; white-space:nowrap; }
+  .st-item-btn:hover { background:#e2e8f0; color:#1e293b; }
+  .st-item-btn.del { border-color:#fecaca; background:#fff5f5; color:#dc2626; }
+  .st-item-btn.del:hover { background:#fee2e2; }
 
+  /* ── Cards — 2 col + drawer ─────────────────────────────── */
+  .st-cards-outer { display:flex; flex-direction:column; }
+  .st-cards-row { display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:10px; align-items:start; }
+  @media(max-width:860px){ .st-cards-row { grid-template-columns:1fr; } }
+  .st-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; border-left:4px solid #e2e8f0; }
+  .st-card.active { box-shadow:0 0 0 2px #1A237E; }
+  .st-card.s-cotizado    { border-left-color:#f59e0b; }
+  .st-card.s-aprobado    { border-left-color:#3b82f6; }
+  .st-card.s-en_ejecucion{ border-left-color:#8b5cf6; }
+  .st-card.s-cerrado     { border-left-color:#22c55e; }
+  .st-card.s-cancelado   { border-left-color:#ef4444; opacity:.7; }
+  .st-card-head { padding:13px 15px; cursor:pointer; }
+  .st-card-head:hover { background:#fafbff; }
+  .st-card.active .st-card-head { background:#f0f4ff; }
+  .st-card-row1 { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:5px; }
+  .st-card-row2 { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px; }
+  .st-card-row3 { font-size:.74rem; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .st-card-cli  { font-size:.95rem; font-weight:700; color:#1a2535; }
+  .st-card-right{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0; }
+  .st-card-monto{ font-size:1rem; font-weight:700; color:#1A237E; }
+  .st-card-util { font-size:.71rem; font-weight:600; }
+  .st-card-fnum { font-size:.71rem; font-weight:700; font-family:monospace; background:#EEF2FF; color:#3730A3; padding:2px 7px; border-radius:5px; }
+  .st-card-fecha{ font-size:.69rem; color:#94a3b8; }
+  .st-card-chev { font-size:.7rem; color:#94a3b8; transition:transform .2s; }
+  .st-card.active .st-card-chev { transform:rotate(180deg); color:#1A237E; }
+  .st-card-detail { border-top:1px solid #e2e8f0; display:none; }
+  .st-card.active .st-card-detail { display:block; }
+  .st-docs-row  { display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid #e2e8f0; }
+  .st-doc-cell  { padding:10px 14px; border-right:1px solid #e2e8f0; }
+  .st-doc-cell:last-child { border-right:none; }
+  .st-doc-lbl   { font-size:.6rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:600; margin-bottom:3px; }
+  .st-doc-a     { display:inline-flex; align-items:center; gap:4px; font-size:.78rem; font-weight:600; text-decoration:none; }
+  .st-doc-a:hover { text-decoration:underline; }
+  .st-doc-a.fl  { color:#3730A3; } .st-doc-a.fc { color:#92400E; } .st-doc-a.fp { color:#065F46; }
+  .st-doc-none  { font-size:.76rem; color:#94a3b8; font-style:italic; }
+  .st-met-row   { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #e2e8f0; }
+  .st-met-cell  { padding:10px 14px; border-right:1px solid #e2e8f0; }
+  .st-met-cell:last-child { border-right:none; }
+  .st-met-lbl   { font-size:.6rem; text-transform:uppercase; letter-spacing:.04em; color:#94a3b8; font-weight:600; margin-bottom:2px; }
+  .st-met-val   { font-size:.95rem; font-weight:700; }
+  .st-act-row   { display:flex; gap:6px; flex-wrap:wrap; padding:9px 14px; border-bottom:1px solid #e2e8f0; background:#fafbff; }
+  .st-cst-wrap  { padding:10px 14px; }
+  .st-cst-lbl   { font-size:.6rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:600; margin-bottom:7px; }
+  .st-cst-tbl   { width:100%; border-collapse:collapse; font-size:.78rem; }
+  .st-cst-tbl th{ padding:5px 9px; text-align:left; font-size:.63rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#64748b; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+  .st-cst-tbl th.r { text-align:right; }
+  .st-cst-tbl td{ padding:6px 9px; border-bottom:1px solid #f8fafc; color:#334155; vertical-align:middle; }
+  .st-cst-tbl td.r { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .st-cst-tbl tbody tr:last-child td { border-bottom:none; }
+  .st-cst-tbl tfoot td { background:#f8fafc; font-weight:700; border-top:1.5px solid #e2e8f0; }
 
-// ═══════════════════════════════════════════════════════════════
-//  INIT — ejecutar UNA SOLA VEZ
-// ═══════════════════════════════════════════════════════════════
+  /* ── Badges de estado ─────────────────────────────────────── */
+  .st-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.67rem; font-weight:700; white-space:nowrap; }
+  .st-badge.s-cotizado    { background:#fef9c3; color:#a16207; }
+  .st-badge.s-aprobado    { background:#dbeafe; color:#1d4ed8; }
+  .st-badge.s-en_ejecucion{ background:#ede9fe; color:#6d28d9; }
+  .st-badge.s-cerrado     { background:#dcfce7; color:#15803d; }
+  .st-badge.s-cancelado   { background:#fee2e2; color:#b91c1c; }
 
-function initSTSheets() {
-  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  _initServiciosTecnicosSheet(ss);
-  _initSTItemsSheet(ss);
-  Logger.log('✅ Hojas ST inicializadas.');
-}
+  /* ── Semáforo ─────────────────────────────────────────────── */
+  .st-sem-verde   { color:#15803d; font-weight:700; }
+  .st-sem-amarillo{ color:#d97706; font-weight:700; }
+  .st-sem-rojo    { color:#dc2626; font-weight:700; }
 
-function _initServiciosTecnicosSheet(ss) {
-  if (ss.getSheetByName(SHEET_ST)) {
-    Logger.log('⚠️ Hoja "' + SHEET_ST + '" ya existe.');
-    return ss.getSheetByName(SHEET_ST);
+  /* ── Formulario cotizador ─────────────────────────────────── */
+  .st-form-grid  { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .st-form-full  { grid-column:1/-1; }
+  .st-field      { display:flex; flex-direction:column; gap:4px; }
+  .st-label      { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#64748b; }
+  .st-input, .st-select, .st-textarea {
+    padding:8px 10px; border:1px solid #e2e8f0; border-radius:7px;
+    font-size:.84rem; outline:none; background:#fff; color:#1a2535;
+    transition:border-color .15s;
   }
-  var sheet = ss.insertSheet(SHEET_ST);
-  SpreadsheetApp.flush();
+  .st-input:focus, .st-select:focus, .st-textarea:focus { border-color:#1A237E; }
+  .st-textarea { resize:vertical; min-height:60px; }
 
-  var meta = [
-    'METADATA','','','',
-    'CLIENTE','','','','',
-    'COTIZACIÓN','','','',
-    'EJECUCIÓN','','','','',
-    'CIERRE','','','',
-  ];
-  var headers = [
-    'id_st','fecha_registro','estado','num_cotizacion',
-    'nombre_cliente','ruc_cliente','dv_cliente','contacto','email_cliente',
-    'descripcion_servicio','total_costo_cotizado','margen_pct','precio_venta',
-    'total_costo_real','fecha_aprobacion','fecha_inicio_ejecucion','fecha_cierre',
-    'ingreso_id','drive_url','notas','mes','anio',
-  ];
+  /* ── Tabla de ítems ───────────────────────────────────────── */
+  .st-items-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin:14px 0; }
+  .st-items-box h4 { margin:0 0 12px; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; color:#64748b; font-weight:600; }
+  .st-item-row { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:8px; display:grid; grid-template-columns:120px 1fr 80px 90px 80px 32px; gap:8px; align-items:center; }
+  .st-item-row:last-child { margin-bottom:0; }
+  .st-item-row .st-select, .st-item-row .st-input { padding:5px 8px; font-size:.8rem; }
+  .st-item-tipo-icon { font-size:.75rem; font-weight:600; color:#475569; }
+  .st-item-total-display { font-size:.88rem; font-weight:700; color:#1A237E; text-align:right; }
+  .st-item-del { background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1rem; padding:2px 4px; border-radius:4px; line-height:1; }
+  .st-item-del:hover { color:#dc2626; background:#fee2e2; }
+  .st-item-itbms-wrap { display:flex; align-items:center; gap:4px; font-size:.72rem; color:#64748b; }
+  .st-item-itbms-wrap input[type=checkbox] { accent-color:#1A237E; }
+  .st-add-item-row { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:4px; }
 
-  sheet.getRange(1, 1, 1, ST_NCOLS).setValues([meta]);
-  sheet.getRange(1, 1, 1, ST_NCOLS)
-    .setBackground('#1A237E').setFontColor('#FFFFFF').setFontWeight('bold');
-  sheet.getRange(2, 1, 1, ST_NCOLS).setValues([headers]);
-  sheet.getRange(2, 1, 1, ST_NCOLS)
-    .setBackground('#283593').setFontColor('#FFFFFF').setFontWeight('bold');
+  /* ── Totales flotantes ────────────────────────────────────── */
+  .st-totales { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; margin-top:10px; }
+  .st-totales-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:.84rem; }
+  .st-totales-row.divider { border-top:2px solid #1A237E; margin-top:6px; padding-top:8px; }
+  .st-totales-row.big { font-size:1rem; font-weight:700; color:#1A237E; }
+  .st-margen-inputs { display:flex; gap:10px; margin-top:8px; }
+  .st-margen-field { flex:1; display:flex; flex-direction:column; gap:3px; }
+  .st-margen-field label { font-size:.68rem; text-transform:uppercase; color:#64748b; font-weight:600; letter-spacing:.04em; }
+  .st-margen-field input { padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:.88rem; text-align:right; font-weight:600; outline:none; }
+  .st-margen-field input:focus { border-color:#1A237E; }
 
-  sheet.getRange(1, 1,  1, 4).setBackground('#1A237E');
-  sheet.getRange(1, 5,  1, 5).setBackground('#1B5E20');
-  sheet.getRange(1, 10, 1, 4).setBackground('#E65100');
-  sheet.getRange(1, 14, 1, 4).setBackground('#4A148C');
-  sheet.getRange(1, 18, 1, 5).setBackground('#880E4F');
+  /* ── Modal de egreso ──────────────────────────────────────── */
+  .st-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9000; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .st-modal { background:#fff; border-radius:14px; padding:24px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; overflow-x:hidden; box-shadow:0 20px 60px rgba(0,0,0,.2); box-sizing:border-box; }
+  .st-modal * { box-sizing:border-box; }
+  .st-modal .st-form-grid { grid-template-columns:1fr 1fr; width:100%; }
+  @media(max-width:560px) { .st-modal .st-form-grid { grid-template-columns:1fr; } }
+  .st-modal h3 { margin:0 0 16px; font-size:1rem; color:#1a2535; }
+  .st-modal-footer { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0; }
 
-  sheet.setFrozenRows(2);
+  /* ── Toast ────────────────────────────────────────────────── */
+  .st-toast { position:fixed; bottom:24px; right:24px; background:#1a2535; color:#fff; padding:10px 18px; border-radius:8px; font-size:.84rem; font-weight:600; z-index:9999; box-shadow:0 4px 20px rgba(0,0,0,.25); animation:st-toast-in .2s ease; max-width:340px; }
+  .st-toast.success { background:#15803d; }
+  .st-toast.error   { background:#dc2626; }
+  @keyframes st-toast-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
 
-  var ruleEstado = SpreadsheetApp.newDataValidation()
-    .requireValueInList(ST_ESTADOS, true)
-    .setAllowInvalid(false).build();
-  sheet.getRange('C3:C1000').setDataValidation(ruleEstado);
+  /* ── Spinner inline ───────────────────────────────────────── */
+  .st-spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
 
-  var widths = [160,140,110,130,180,110,60,130,180,280,100,80,100,100,120,120,110,150,250,250,50,70];
-  for (var i = 0; i < widths.length; i++) sheet.setColumnWidth(i + 1, widths[i]);
+  /* ── Empty state ──────────────────────────────────────────── */
+  .st-empty { padding:40px 20px; text-align:center; color:#94a3b8; font-size:.85rem; }
+  .st-empty-icon { font-size:2.4rem; margin-bottom:8px; }
 
-  sheet.getRange('K3:N1000').setNumberFormat('#,##0.00');
-  Logger.log('✅ Hoja "' + SHEET_ST + '" creada.');
-  return sheet;
-}
+  /* ── Sección con título ───────────────────────────────────── */
+  .st-section { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:14px; }
+  .st-section-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:#64748b; font-weight:600; margin:0 0 12px; }
 
-function _initSTItemsSheet(ss) {
-  if (ss.getSheetByName(SHEET_ST_ITEM)) {
-    Logger.log('⚠️ Hoja "' + SHEET_ST_ITEM + '" ya existe.');
-    return ss.getSheetByName(SHEET_ST_ITEM);
-  }
-  var sheet = ss.insertSheet(SHEET_ST_ITEM);
-  SpreadsheetApp.flush();
-
-  var meta = [
-    'ID','FK','TIPO','DESCRIPCIÓN','','',
-    'COTIZADO','','','',
-    'MARGEN/VENTA','',
-    'ADICIONAL','REAL','','',
-    'COMPROBANTE','','',
-    'ESTADO','FECHA',
-  ];
-  var headers = [
-    'id_item_st','id_st','tipo','descripcion','cantidad','precio_unitario',
-    'aplica_itbms','monto_cotizado','itbms_cotizado','total_cotizado',
-    'margen_item_pct','precio_venta_item',
-    'es_adicional','monto_real','itbms_real','total_real',
-    'drive_url_factura','egreso_id',
-    'estado_item','notas','fecha_registro',
-  ];
-
-  sheet.getRange(1, 1, 1, STI_NCOLS).setValues([meta]);
-  sheet.getRange(1, 1, 1, STI_NCOLS)
-    .setBackground('#37474F').setFontColor('#FFFFFF').setFontWeight('bold');
-  sheet.getRange(2, 1, 1, STI_NCOLS).setValues([headers]);
-  sheet.getRange(2, 1, 1, STI_NCOLS)
-    .setBackground('#546E7A').setFontColor('#FFFFFF').setFontWeight('bold');
-
-  sheet.getRange(1, 7,  1, 4).setBackground('#E65100');
-  sheet.getRange(1, 11, 1, 2).setBackground('#1B5E20');
-  sheet.getRange(1, 14, 1, 3).setBackground('#4A148C');
-
-  sheet.setFrozenRows(2);
-
-  var ruleTipo = SpreadsheetApp.newDataValidation()
-    .requireValueInList(ST_TIPOS_ITEM, true)
-    .setAllowInvalid(false).build();
-  sheet.getRange('C3:C1000').setDataValidation(ruleTipo);
-
-  var ruleEstadoItem = SpreadsheetApp.newDataValidation()
-    .requireValueInList(['cotizado', 'ejecutado', 'pendiente', 'cancelado'], true)
-    .setAllowInvalid(false).build();
-  sheet.getRange('S3:S1000').setDataValidation(ruleEstadoItem);
-
-  sheet.getRange('F3:F1000').setNumberFormat('#,##0.00');
-  sheet.getRange('H3:J1000').setNumberFormat('#,##0.00');
-  sheet.getRange('L3:L1000').setNumberFormat('#,##0.00');
-  sheet.getRange('N3:P1000').setNumberFormat('#,##0.00');
-
-  var widths = [160,140,110,280,70,100,80,100,80,100,90,100,80,100,80,100,250,150,100,200,140];
-  for (var i = 0; i < widths.length; i++) sheet.setColumnWidth(i + 1, widths[i]);
-
-  Logger.log('✅ Hoja "' + SHEET_ST_ITEM + '" creada.');
-  return sheet;
-}
-
-// ── Migración Egresos: agregar col id_st_item (col 21) ───────
-
-function migrarEgresosST() {
-  var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  var sheet = ss.getSheetByName(SHEET_EGRESOS);
-  if (!sheet) { Logger.log('❌ Hoja Egresos no encontrada'); return; }
-
-  var lastCol  = sheet.getLastColumn();
-  var headers  = sheet.getRange(2, 1, 1, lastCol).getValues()[0];
-  if (headers.indexOf('id_st_item') !== -1) {
-    Logger.log('⚠️ Columna id_st_item ya existe en col ' +
-               (headers.indexOf('id_st_item') + 1) + ' — migración cancelada');
-    return;
+  @media(max-width:600px) {
+    .st-form-grid { grid-template-columns:1fr; }
+    .st-item-row  { grid-template-columns:1fr 1fr; grid-template-rows:auto auto auto; }
   }
 
-  sheet.getRange(1, 21).setValue('');
-  sheet.getRange(2, 21).setValue('id_st_item');
-  sheet.getRange(2, 21)
-    .setBackground('#546E7A')
-    .setFontColor('#FFFFFF')
-    .setFontWeight('bold');
-  sheet.setColumnWidth(21, 150);
+  /* ── Tooltip inventario ───────────────────────────────────── */
+  .st-inv-tooltip-wrap { position:relative; display:inline-block; }
+  .st-inv-tooltip { display:none; position:absolute; left:0; top:100%; margin-top:4px; z-index:9990;
+    background:#fff; border:1px solid #e2e8f0; border-radius:9px; box-shadow:0 8px 24px rgba(0,0,0,.13);
+    padding:10px 13px; min-width:220px; max-width:280px; font-size:.75rem; line-height:1.5; color:#334155; }
+  .st-inv-tooltip::before { content:''; position:absolute; top:-6px; left:12px;
+    border:6px solid transparent; border-bottom-color:#e2e8f0; border-top:none; }
+  .st-inv-tooltip::after  { content:''; position:absolute; top:-5px; left:12px;
+    border:6px solid transparent; border-bottom-color:#fff; border-top:none; }
+  .st-inv-tooltip-wrap:hover .st-inv-tooltip { display:block; }
+  .st-inv-badge { display:inline-flex; align-items:center; gap:4px; font-size:.75rem; font-weight:700;
+    color:#1d4ed8; background:#dbeafe; border-radius:5px; padding:2px 8px; cursor:default; }
+  .st-inv-badge.pendiente { color:#92400e; background:#fef3c7; }
+  .st-inv-upload-link { font-size:.76rem; font-weight:600; color:#dc2626; text-decoration:underline; cursor:pointer; }
+  .st-inv-upload-link:hover { color:#b91c1c; }
 
-  Logger.log('✅ migrarEgresosST completada — columna id_st_item insertada en col 21');
-}
+  /* ── Tabla vista ──────────────────────────────────────────── */
+  .st-table-wrap { overflow-x:auto; border:1px solid #e2e8f0; border-radius:10px; margin-top:4px; background:#fff; }
+  .st-table { width:100%; border-collapse:collapse; font-size:.78rem; }
+  .st-table thead th { background:#f8fafc; color:#64748b; padding:10px 12px; text-align:left; font-weight:700; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; border-bottom:2px solid #e2e8f0; }
+  .st-table thead th.r { text-align:right; }
+  .st-table thead th.sortable { cursor:pointer; user-select:none; }
+  .st-table thead th.sortable:hover { background:#f1f5f9; }
+  .st-table thead th.sort-active { background:rgba(0,0,0,.045); }
+  .st-table thead th .st-sort-arrow { font-size:.6rem; margin-left:2px; opacity:.7; }
+  .st-table tbody tr { border-bottom:1px solid #f1f5f9; transition:background .1s; }
+  .st-table tbody tr.st-main-row { cursor:pointer; }
+  .st-table tbody tr.st-main-row:hover { background:#fafbff; }
+  .st-table tbody tr.st-main-row.expanded { background:#f8faff; }
+  .st-table tbody tr:last-child { border-bottom:none; }
+  .st-table td { padding:9px 12px; color:#334155; vertical-align:middle; }
+  .st-table td.r { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .st-table td.mono { font-family:monospace; font-size:.73rem; }
+  .st-table tfoot tr { border-top:2px solid #cbd5e1; }
+  .st-table tfoot td { font-variant-numeric:tabular-nums; }
+  /* Sub-fila de costos expandida */
+  .st-sub-row td { padding:0 !important; border-bottom:2px solid #e2e8f0 !important; }
+  .st-sub-inner { padding:10px 16px 14px 40px; background:#f8faff; }
+  .st-sub-title { font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; margin-bottom:6px; }
+  .st-sub-tbl { width:100%; border-collapse:collapse; font-size:.73rem; }
+  .st-sub-tbl th { color:#94a3b8; font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:4px 8px; text-align:left; border-bottom:1px solid #e2e8f0; }
+  .st-sub-tbl th.r { text-align:right; }
+  .st-sub-tbl td { padding:5px 8px; color:#475569; border-bottom:1px solid #f1f5f9; }
+  .st-sub-tbl td.r { text-align:right; font-variant-numeric:tabular-nums; }
+  .st-sub-tbl tr:last-child td { border-bottom:none; }
+  .st-sub-tbl tr:hover td { background:rgba(255,255,255,.7); }
+  .st-expand-chevron { display:inline-block; transition:transform .15s; font-style:normal; font-size:.7rem; color:#94a3b8; margin-right:4px; }
+  .st-tbl-actions { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+  .st-tbl-btn { padding:3px 8px; border-radius:5px; border:1px solid #e2e8f0; background:#fff; font-size:.7rem; font-weight:600; cursor:pointer; white-space:nowrap; transition:all .12s; }
+  .st-tbl-btn:hover { background:#f1f5f9; }
+  .st-tbl-btn.primary { background:#1A237E; color:#fff; border-color:#1A237E; }
+  .st-tbl-btn.primary:hover { background:#283593; }
+  .st-tbl-btn.success { background:#15803d; color:#fff; border-color:#15803d; }
+  .st-tbl-btn.warning { background:#d97706; color:#fff; border-color:#d97706; }
+  .st-tbl-btn.danger  { background:#dc2626; color:#fff; border-color:#dc2626; }
+
+  /* ── Modal pago cliente ───────────────────────────────────── */
+  .st-pago-modal .st-progress { height:6px; border-radius:3px; background:#e2e8f0; margin:8px 0; overflow:hidden; }
+  .st-pago-modal .st-progress-bar { height:100%; border-radius:3px; background:#1A237E; transition:width .3s; }
+  .st-pago-modal .st-pago-status { padding:8px 12px; border-radius:8px; font-size:.78rem; margin-top:8px; }
+  .st-pago-modal .st-pago-status.completo { background:#dcfce7; color:#15803d; }
+  .st-pago-modal .st-pago-status.parcial  { background:#fef9c3; color:#a16207; }
+  .st-pago-modal .st-pago-status.sinpago  { background:#fee2e2; color:#b91c1c; }
+</style>
+
+<div class="st-wrap" id="st-root">
+<div class="st-inner">
+
+  <!-- ── Navegación interna ── -->
+  <div class="st-nav" style="display:flex;justify-content:flex-end">
+    <button class="st-nav-btn active" id="st-nav-lista"    onclick="st_showView('lista')" style="display:none">📋 Servicios Técnicos</button>
+    <button class="st-nav-btn"        id="st-nav-nuevo"    onclick="st_showView('nuevo')"
+      style="font-size:1.25rem;font-weight:700;padding:.3rem .85rem;line-height:1;min-width:0"
+      title="Nueva Cotización">+</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       VISTA 1 — LISTA
+  ════════════════════════════════════════════ -->
+  <div id="st-view-lista">
+    <div class="st-header">
+      <h2>🔧 Servicios Técnicos</h2>
+      <span class="st-ts" id="st-ts"></span>
+    </div>
+
+    <div class="st-kpis">
+      <div class="st-kpi k-total">
+        <div class="st-kpi-label">Total STs</div>
+        <div class="st-kpi-value" id="st-kpi-total">0</div>
+        <div class="st-kpi-sub"  id="st-kpi-total-sub">todos los estados</div>
+      </div>
+      <div class="st-kpi k-cot">
+        <div class="st-kpi-label">Cotizados / Aprobados</div>
+        <div class="st-kpi-value" id="st-kpi-cot">0</div>
+        <div class="st-kpi-sub" id="st-kpi-cot-val">$0.00 presupuestado</div>
+      </div>
+      <div class="st-kpi k-eje">
+        <div class="st-kpi-label">En Ejecución</div>
+        <div class="st-kpi-value" id="st-kpi-eje">0</div>
+        <div class="st-kpi-sub" id="st-kpi-eje-val">$0.00 en curso</div>
+      </div>
+      <div class="st-kpi k-cerr">
+        <div class="st-kpi-label">Cerrados</div>
+        <div class="st-kpi-value" id="st-kpi-cerr">0</div>
+        <div class="st-kpi-sub" id="st-kpi-cerr-val">$0.00 facturado</div>
+      </div>
+    </div>
+
+    <div class="st-toolbar">
+      <input class="st-search" id="st-search" placeholder="Buscar por cliente, descripción, número…" oninput="st_applyFilters()">
+      <button class="st-fbtn active" id="st-f-all"         onclick="st_setFilter('all')">Todos</button>
+      <button class="st-fbtn"        id="st-f-cotizado"    onclick="st_setFilter('cotizado')">Cotizados</button>
+      <button class="st-fbtn"        id="st-f-aprobado"    onclick="st_setFilter('aprobado')">Aprobados</button>
+      <button class="st-fbtn"        id="st-f-en_ejecucion"onclick="st_setFilter('en_ejecucion')">En Ejecución</button>
+      <button class="st-fbtn"        id="st-f-cerrado"     onclick="st_setFilter('cerrado')">Cerrados</button>
+
+    </div>
+
+    <!-- ── Segunda barra: filtros de fecha + vista ── -->
+    <div class="st-toolbar" style="margin-top:-6px;margin-bottom:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;white-space:nowrap">Período</span>
+      <select id="st-f-mes" class="st-select" style="padding:5px 8px;font-size:.78rem;max-width:160px" onchange="st_setFiltroMes()">
+        <option value="">— Todos los meses —</option>
+      </select>
+      <span style="font-size:.72rem;color:#94a3b8">ó</span>
+      <input type="date" id="st-f-desde" class="st-input" style="padding:5px 8px;font-size:.78rem;max-width:130px" onchange="st_setFiltroRango()" title="Desde">
+      <span style="font-size:.72rem;color:#94a3b8">–</span>
+      <input type="date" id="st-f-hasta" class="st-input" style="padding:5px 8px;font-size:.78rem;max-width:130px" onchange="st_setFiltroRango()" title="Hasta">
+      <button onclick="st_limpiarFecha()" title="Limpiar filtro de fechas" style="padding:4px 9px;border:1.5px solid #e2e8f0;border-radius:6px;background:#fff;cursor:pointer;font-size:.9rem;color:#64748b;line-height:1" title="Limpiar fechas">✕</button>
+      <span style="flex:1"></span>
+      <span style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;white-space:nowrap">Vista</span>
+      <button id="st-v-tabla"   onclick="st_setVista('tabla')"   style="font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer">📊 Tabla</button>
+      <button id="st-v-detalle" onclick="st_setVista('detalle')" style="font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer">🃏 Detalle</button>
+    </div>
+
+    <div id="st-cards-container">
+      <div class="st-empty"><div class="st-empty-icon">📂</div>Cargando datos…</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       VISTA 2 — NUEVA COTIZACIÓN
+  ════════════════════════════════════════════ -->
+  <div id="st-view-nuevo" style="display:none">
+    <div class="st-header">
+      <h2 id="st-form-titulo">➕ Nueva Cotización</h2>
+    </div>
+
+    <!-- Datos del cliente y servicio -->
+    <div class="st-section">
+      <div class="st-section-title">Datos del Servicio</div>
+      <div class="st-form-grid">
+        <div class="st-field st-form-full">
+          <label class="st-label">Descripción del servicio *</label>
+          <input class="st-input" id="st-f-desc" placeholder="Ej: Instalación de sistema de bombeo industrial en planta XYZ" required>
+        </div>
+        <div class="st-field">
+          <label class="st-label">Cliente *</label>
+          <input class="st-input" id="st-f-cliente" placeholder="Nombre completo o razón social">
+        </div>
+        <div class="st-field">
+          <label class="st-label">Contacto (tel/email)</label>
+          <input class="st-input" id="st-f-contacto" placeholder="6000-0000 / email@cliente.com">
+        </div>
+        <div class="st-field">
+          <label class="st-label">RUC / Cédula</label>
+          <input class="st-input" id="st-f-ruc" placeholder="8-123-456">
+        </div>
+        <div class="st-field">
+          <label class="st-label">DV</label>
+          <input class="st-input" id="st-f-dv" placeholder="00" style="max-width:80px">
+        </div>
+        <div class="st-field">
+          <label class="st-label">Email cliente (para cotización)</label>
+          <input class="st-input" id="st-f-email" type="email" placeholder="cliente@empresa.com">
+        </div>
+        <div class="st-field st-form-full">
+          <label class="st-label">Notas internas</label>
+          <textarea class="st-textarea" id="st-f-notas" placeholder="Observaciones, condiciones especiales, alcance del servicio…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de ítems -->
+    <div class="st-items-box">
+      <h4>Ítems de costo estimado</h4>
+      <div id="st-items-list"></div>
+      <!-- Fila para agregar nuevo ítem -->
+      <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-top:8px">
+        <div style="display:grid;grid-template-columns:120px 1fr 80px 90px 80px auto 90px;gap:8px;align-items:end">
+          <div class="st-field">
+            <label class="st-label">Tipo</label>
+            <select class="st-select" id="st-ni-tipo">
+              <option value="producto">📦 Producto</option>
+              <option value="mano_obra">🔧 Mano de obra</option>
+              <option value="flete">🚛 Flete</option>
+              <option value="combustible">⛽ Combustible</option>
+              <option value="fianza">🔒 Fianza</option>
+              <option value="subcontrato">🤝 Subcontrato</option>
+              <option value="impuesto">🏛️ Impuesto</option>
+              <option value="otro">📌 Otro</option>
+            </select>
+          </div>
+          <div class="st-field">
+            <label class="st-label">Descripción *</label>
+            <input class="st-input" id="st-ni-desc" placeholder="Descripción del ítem">
+          </div>
+          <div class="st-field">
+            <label class="st-label">Cant.</label>
+            <input class="st-input" id="st-ni-cant" type="number" min="0" step="any" value="1" oninput="st_recalcNuevoItem()">
+          </div>
+          <div class="st-field">
+            <label class="st-label">Precio unit.</label>
+            <input class="st-input" id="st-ni-precio" type="number" min="0" step="0.01" placeholder="0.00" oninput="st_recalcNuevoItem()">
+          </div>
+          <div class="st-field">
+            <label class="st-label">Monto total</label>
+            <input class="st-input" id="st-ni-monto" type="number" min="0" step="0.01" placeholder="0.00" oninput="st_recalcNuevoItem()">
+          </div>
+          <div class="st-field" style="align-items:center;justify-content:center">
+            <label class="st-label" style="text-align:center">ITBMS</label>
+            <input type="checkbox" id="st-ni-itbms" style="width:18px;height:18px;accent-color:#1A237E;cursor:pointer" onchange="st_recalcNuevoItem()">
+          </div>
+          <div class="st-field">
+            <label class="st-label">Total c/ITBMS</label>
+            <div style="padding:7px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:7px;font-size:.85rem;font-weight:700;color:#1A237E;text-align:right" id="st-ni-total-display">$0.00</div>
+          </div>
+        </div>
+        <div style="margin-top:8px;display:flex;justify-content:flex-end">
+          <button class="st-btn st-btn-primary" onclick="st_agregarItemLocal()">＋ Agregar ítem</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Totales y margen -->
+    <div class="st-totales">
+      <div class="st-section-title" style="margin-bottom:8px">Totales y precio de venta</div>
+      <div class="st-totales-row">
+        <span>Costo total estimado</span>
+        <span id="st-tot-costo" style="font-weight:600">$0.00</span>
+      </div>
+      <div class="st-totales-row" id="st-tot-itbms-row">
+        <span style="color:#94a3b8">  del cual ITBMS</span>
+        <span id="st-tot-itbms" style="color:#94a3b8">$0.00</span>
+      </div>
+      <div class="st-margen-inputs">
+        <div class="st-margen-field">
+          <label>% Margen de ganancia</label>
+          <input type="number" id="st-margen-pct" min="0" step="0.1" placeholder="0.0" oninput="st_onMargenChange('pct')">
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:2px;color:#94a3b8;font-size:1.2rem">⇄</div>
+        <div class="st-margen-field">
+          <label>Precio de venta ($)</label>
+          <input type="number" id="st-precio-venta" min="0" step="0.01" placeholder="0.00" oninput="st_onMargenChange('precio')">
+        </div>
+      </div>
+      <div class="st-totales-row divider big">
+        <span>PRECIO DE VENTA</span>
+        <span id="st-tot-venta">$0.00</span>
+      </div>
+      <div class="st-totales-row" style="color:#15803d">
+        <span>Utilidad estimada</span>
+        <span id="st-tot-utilidad" style="font-weight:600">$0.00</span>
+      </div>
+    </div>
+
+    <!-- Acciones del formulario -->
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px">
+      <button class="st-btn st-btn-ghost" onclick="st_showView('lista')">Cancelar</button>
+      <button class="st-btn st-btn-warning" id="st-btn-send-email" onclick="st_enviarEmail()" style="display:none">
+        📧 Enviar cotización
+      </button>
+      <button class="st-btn st-btn-primary" id="st-btn-guardar" onclick="st_guardarCotizacion()">
+        💾 Guardar cotización
+      </button>
+    </div>
+  </div>
 
 
-// ═══════════════════════════════════════════════════════════════
-//  HELPERS INTERNOS ST
-// ═══════════════════════════════════════════════════════════════
+</div>
 
-function _nextSTSeq(ss) {
-  var sheet   = ss.getSheetByName(SHEET_ST);
-  var anio    = new Date().getFullYear();
-  var seq     = 1;
-  if (!sheet || sheet.getLastRow() <= 2) return { anio: anio, seq: seq };
-  var ids = sheet.getRange(3, COL_ST.ID, sheet.getLastRow() - 2, 1).getValues();
-  for (var k = ids.length - 1; k >= 0; k--) {
-    var v     = String(ids[k][0] || '');
-    var parts = v.split('-');
-    var n     = parseInt(parts[parts.length - 1], 10);
-    if (!isNaN(n)) { seq = n + 1; break; }
-  }
-  return { anio: anio, seq: seq };
-}
+<!-- MODAL EGRESO ST -->
+<div id="st-modal-egreso" class="st-modal-overlay" style="display:none">
+  <div class="st-modal">
+    <h3>💸 Registrar Costo Real</h3>
+    <div class="st-form-grid">
+      <div class="st-field st-form-full">
+        <label class="st-label">Tipo de costo</label>
+        <select class="st-select" id="st-me-tipo">
+          <option value="producto">📦 Producto</option>
+          <option value="mano_obra">🔧 Mano de obra</option>
+          <option value="flete">🚛 Flete</option>
+          <option value="combustible">⛽ Combustible</option>
+          <option value="fianza">🔒 Fianza</option>
+          <option value="subcontrato">🤝 Subcontrato</option>
+          <option value="impuesto">🏛️ Impuesto</option>
+          <option value="aduana">🛃 Aduana</option>
+          <option value="shipping_handling">📮 Shipping &amp; Handling</option>
+          <option value="credito_fiscal">💳 Crédito Fiscal ITBM</option>
+          <option value="otro">📌 Otro</option>
+        </select>
+      </div>
+      <div class="st-field st-form-full">
+        <label class="st-label" id="st-me-desc-lbl">Descripción *</label>
+        <input class="st-input" id="st-me-desc" placeholder="Descripción del costo">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Proveedor</label>
+        <input class="st-input" id="st-me-prov" placeholder="Nombre del proveedor">
+      </div>
+      <div class="st-field">
+        <label class="st-label">N° Factura</label>
+        <input class="st-input" id="st-me-nfac" placeholder="Referencia de factura">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Total pagado ($) *</label>
+        <input class="st-input" id="st-me-total" type="number" min="0" step="0.01" placeholder="0.00" oninput="st_recalcEgreso()">
+      </div>
+      <div class="st-field">
+        <label class="st-label" style="display:flex;align-items:center;gap:6px">
+          ITBMS incluido ($)
+          <label style="display:flex;align-items:center;gap:4px;font-weight:400;font-size:.72rem;color:#64748b;cursor:pointer;margin-left:auto">
+            <input type="checkbox" id="st-me-itbms-aplica" onchange="st_recalcEgreso()" style="accent-color:#1A237E">
+            Aplica 7%
+          </label>
+        </label>
+        <input class="st-input" id="st-me-itbms" type="number" min="0" step="0.01" placeholder="0.00" oninput="st_recalcEgreso()">
+        <div id="st-me-subtotal-disp" style="font-size:.71rem;color:#64748b;margin-top:3px;display:none">
+          Subtotal: <span id="st-me-subtotal-val">$0.00</span>
+        </div>
+      </div>
+      <div class="st-field">
+        <label class="st-label">Fecha del gasto</label>
+        <input class="st-input" id="st-me-fecha" type="date">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Factura / comprobante (imagen o PDF)</label>
+        <input type="file" id="st-me-file" accept="image/*,application/pdf" style="font-size:.78rem">
+      </div>
+      <div class="st-field st-form-full">
+        <label class="st-label">Notas</label>
+        <input class="st-input" id="st-me-notas" placeholder="Observaciones adicionales">
+      </div>
+    </div>
+    <input type="hidden" id="st-me-egreso-id" value="">
+    <input type="hidden" id="st-me-item-id-actual" value="">
+    <div class="st-modal-footer">
+      <button class="st-btn st-btn-ghost" onclick="st_cerrarModalEgreso()">Cancelar</button>
+      <button class="st-btn st-btn-primary" id="st-me-btn-guardar" onclick="st_guardarEgreso()">
+        💾 Registrar egreso
+      </button>
+    </div>
+  </div>
+</div>
 
-function _calcItemTotals(item) {
-  var cantidad     = parseFloat(item.cantidad      || '1') || 1;
-  var precioUnit   = parseFloat(item.precio_unitario || '0') || 0;
-  var aplicaITBMS  = item.aplica_itbms === true || item.aplica_itbms === 'true' || item.aplica_itbms === 'TRUE';
+<!-- MODAL DECISIÓN — ELIMINAR vs CANCELAR ST -->
+<div id="st-modal-decision" class="st-modal-overlay" style="display:none" onclick="if(event.target===this)st_cerrarModalDecision()">
+  <div class="st-modal" style="max-width:480px">
+    <h3 style="margin:0 0 4px;font-size:1rem;color:#1a2535">🗑️ ¿Qué deseas hacer con este ST?</h3>
+    <p id="st-dec-label" style="margin:0 0 18px;font-size:.82rem;color:#64748b;font-weight:600"></p>
 
-  var montoCot;
-  if (precioUnit > 0) {
-    montoCot = parseFloat((precioUnit * cantidad).toFixed(2));
-  } else {
-    montoCot = parseFloat(item.monto_cotizado || '0') || 0;
-  }
+    <!-- Nota: ST en ejecución (no aplica Eliminar directo) -->
+    <div id="st-dec-nota-ejecucion" style="display:none;background:#fdf4ff;border:1px solid #e9d5ff;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:1rem;margin-top:1px">⚠️</span>
+        <div>
+          <strong style="font-size:.82rem;color:#7c3aed;display:block;margin-bottom:3px">Este ST está en ejecución</strong>
+          <p style="margin:0;font-size:.77rem;color:#7c3aed;line-height:1.5">
+            Tiene egresos e ingreso registrados — <strong>primero cancélalo</strong> para anular su contabilidad.
+            Luego podrás eliminarlo permanentemente si lo necesitas.
+          </p>
+        </div>
+      </div>
+    </div>
 
-  var itbmsCot = aplicaITBMS ? parseFloat((montoCot * CONFIG.ITBMS_RATE).toFixed(2)) : 0;
-  var totalCot = parseFloat((montoCot + itbmsCot).toFixed(2));
+    <!-- Nota: ST cerrado (no aplica Cancelar) -->
+    <div id="st-dec-nota-cerrado" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:1rem;margin-top:1px">🔒</span>
+        <div>
+          <strong style="font-size:.82rem;color:#1e40af;display:block;margin-bottom:3px">Este ST ya está cerrado</strong>
+          <p style="margin:0;font-size:.77rem;color:#3b82f6;line-height:1.5">
+            Un ST cerrado tiene factura emitida y pago registrado — su ciclo contable es definitivo.
+            La opción <em>Cancelar</em> no está disponible para mantener la integridad del historial.<br>
+            Solo puedes <strong>eliminarlo permanentemente</strong> si fue cerrado por error.
+          </p>
+        </div>
+      </div>
+    </div>
 
-  return { montoCot: montoCot, itbmsCot: itbmsCot, totalCot: totalCot };
-}
+    <!-- Opción Cancelar -->
+    <div id="st-dec-opt-cancelar"
+         onclick="st_modalDecisionSelect('cancelar')"
+         style="border:2px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .15s;background:#fff"
+         onmouseover="this.style.borderColor='#f59e0b';this.style.background='#fffbeb'"
+         onmouseout="st_decOptionHoverOut(this,'cancelar')">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:1.1rem">⚛️</span>
+        <strong style="font-size:.88rem;color:#92400e">Cancelar ST</strong>
+        <span style="margin-left:auto;font-size:.72rem;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-weight:600">RECOMENDADO</span>
+      </div>
+      <p style="margin:0;font-size:.78rem;color:#78716c;line-height:1.5">
+        El ST <strong>permanece visible</strong> en el historial con estado <em>Cancelado</em>.
+        Sus egresos e ingresos quedan <strong>anulados pero rastreables</strong>. Ideal cuando el
+        servicio no se concretó pero quieres conservar el registro.
+      </p>
+    </div>
 
-function _calcSTTotals(sheetSTI, idST) {
-  if (!sheetSTI || sheetSTI.getLastRow() <= 2) return { totalCostoCot: 0, items: [] };
-  var numRows = sheetSTI.getLastRow() - 2;
-  var data    = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
-  var total   = 0;
-  var items   = [];
-  for (var i = 0; i < data.length; i++) {
-    var r = data[i];
-    if (String(r[COL_STI.ID_ST - 1]) !== String(idST)) continue;
-    if (String(r[COL_STI.ESTADO_ITEM - 1]) === 'cancelado') continue;
-    total += parseFloat(r[COL_STI.TOTAL_COT - 1] || '0') || 0;
-    items.push(r);
-  }
-  return { totalCostoCot: parseFloat(total.toFixed(2)), items: items };
-}
+    <!-- Opción Eliminar -->
+    <div id="st-dec-opt-eliminar"
+         onclick="st_modalDecisionSelect('eliminar')"
+         style="border:2px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:18px;cursor:pointer;transition:all .15s;background:#fff"
+         onmouseover="this.style.borderColor='#ef4444';this.style.background='#fef2f2'"
+         onmouseout="st_decOptionHoverOut(this,'eliminar')">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:1.1rem">🗑️</span>
+        <strong style="font-size:.88rem;color:#991b1b">Eliminar permanentemente</strong>
+      </div>
+      <p style="margin:0;font-size:.78rem;color:#78716c;line-height:1.5">
+        Borra <strong>todas las filas</strong> del ST, sus ítems, egresos e ingreso.
+        <strong>No queda rastro</strong> en el sistema. Usar solo si fue ingresado por error
+        o es un duplicado. <em>No se puede deshacer.</em>
+      </p>
+    </div>
 
-function _calcSTTotalsReal(sheetSTI, idST) {
-  if (!sheetSTI || sheetSTI.getLastRow() <= 2) return 0;
-  var numRows = sheetSTI.getLastRow() - 2;
-  var data    = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
-  var total   = 0;
-  for (var i = 0; i < data.length; i++) {
-    var r = data[i];
-    if (String(r[COL_STI.ID_ST - 1]) !== String(idST)) continue;
-    total += parseFloat(r[COL_STI.TOTAL_REAL - 1] || '0') || 0;
-  }
-  return parseFloat(total.toFixed(2));
-}
+    <!-- Bloque de motivo (se muestra dinámicamente) -->
+    <div id="st-dec-motivo-wrap" style="display:none;margin-bottom:16px">
+      <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">
+        Motivo de cancelación <span style="font-weight:400;color:#9ca3af">(opcional)</span>
+      </label>
+      <input id="st-dec-motivo" class="st-input" placeholder="Ej: Cliente desistió, proyecto pospuesto…" style="width:100%">
+    </div>
 
-function _getSTById(ss, idST) {
-  var sheet = ss.getSheetByName(SHEET_ST);
-  if (!sheet || sheet.getLastRow() <= 2) return null;
-  var numRows = sheet.getLastRow() - 2;
-  var data    = sheet.getRange(3, 1, numRows, ST_NCOLS).getValues();
-  for (var i = 0; i < data.length; i++) {
-    if (String(data[i][COL_ST.ID - 1]) === String(idST)) {
-      return { row: i + 3, data: data[i] };
-    }
-  }
-  return null;
-}
+    <!-- Bloque de confirmación para eliminar -->
+    <div id="st-dec-confirm-wrap" style="display:none;margin-bottom:16px">
+      <label style="font-size:.78rem;font-weight:600;color:#991b1b;display:block;margin-bottom:4px">
+        Escribe el número de ST para confirmar el borrado permanente:
+      </label>
+      <input id="st-dec-confirm-input" class="st-input"
+             placeholder="" oninput="st_decCheckConfirm()"
+             style="width:100%;border-color:#fca5a5;font-family:monospace">
+      <p id="st-dec-confirm-err" style="display:none;margin:4px 0 0;font-size:.75rem;color:#dc2626">El texto no coincide</p>
+    </div>
 
-function _serializeST(r) {
-  var fechaReg = r[COL_ST.FECHA_REG - 1];
-  if (fechaReg instanceof Date) {
-    fechaReg = Utilities.formatDate(fechaReg, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-  } else { fechaReg = String(fechaReg || ''); }
+    <div class="st-modal-footer">
+      <button class="st-btn st-btn-ghost" onclick="st_cerrarModalDecision()">Cancelar</button>
+      <button id="st-dec-btn-ok" class="st-btn st-btn-primary" onclick="st_ejecutarDecision()" style="display:none">
+        Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+<div id="st-modal-factura-costo" class="st-modal-overlay" style="display:none">
+  <div class="st-modal" style="max-width:560px">
+    <h3>📦 Subir Factura de Costo</h3>
+    <p style="font-size:.8rem;color:#64748b;margin:-4px 0 14px">La IA buscará los códigos de producto y asignará el costo a los ítems pendientes.</p>
+    <div class="st-form-grid">
+      <div class="st-field st-form-full">
+        <label class="st-label">Factura / Comprobante (imagen o PDF)</label>
+        <input type="file" id="st-fc-file" accept="image/*,application/pdf" style="font-size:.78rem">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Proveedor</label>
+        <input class="st-input" id="st-fc-prov" placeholder="Nombre del proveedor">
+      </div>
+      <div class="st-field">
+        <label class="st-label">N° Factura</label>
+        <input class="st-input" id="st-fc-nfac" placeholder="Número de factura">
+      </div>
+    </div>
+    <div id="st-fc-ia-result" style="display:none;margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:.78rem"></div>
+    <div class="st-modal-footer">
+      <button class="st-btn st-btn-ghost" onclick="document.getElementById('st-modal-factura-costo').style.display='none'">Cancelar</button>
+      <button class="st-btn st-btn-warning" id="st-fc-btn-analizar" onclick="st_analizarFacturaCosto()">🤖 Analizar con IA</button>
+      <button class="st-btn st-btn-primary" id="st-fc-btn-guardar" onclick="st_guardarFacturaCosto()" style="display:none">💾 Guardar y Asignar</button>
+    </div>
+  </div>
+</div>
 
-  return {
-    id_st:               r[COL_ST.ID - 1],
-    fecha_reg:           fechaReg,
-    estado:              r[COL_ST.ESTADO - 1]          || '',
-    num_cotizacion:      r[COL_ST.NUM_COT - 1]         || '',
-    nombre_cliente:      r[COL_ST.NOMBRE_CLI - 1]      || '',
-    ruc_cliente:         r[COL_ST.RUC_CLI - 1]         || '',
-    dv_cliente:          r[COL_ST.DV_CLI - 1]          || '',
-    contacto:            r[COL_ST.CONTACTO - 1]        || '',
-    email_cliente:       r[COL_ST.EMAIL_CLI - 1]       || '',
-    descripcion:         r[COL_ST.DESCRIPCION - 1]     || '',
-    total_costo_cotizado:parseFloat(r[COL_ST.TOTAL_COSTO_COT - 1] || '0') || 0,
-    margen_pct:          parseFloat(r[COL_ST.MARGEN_PCT - 1]      || '0') || 0,
-    precio_venta:        parseFloat(r[COL_ST.PRECIO_VENTA - 1]    || '0') || 0,
-    total_costo_real:    parseFloat(r[COL_ST.TOTAL_COSTO_REAL - 1]|| '0') || 0,
-    fecha_aprobacion:    r[COL_ST.FECHA_APROBACION - 1] || '',
-    fecha_inicio:        r[COL_ST.FECHA_INICIO - 1]    || '',
-    fecha_cierre:        r[COL_ST.FECHA_CIERRE - 1]    || '',
-    ingreso_id:          r[COL_ST.INGRESO_ID - 1]      || '',
-    drive_url:           r[COL_ST.DRIVE_URL - 1]       || '',
-    notas:               r[COL_ST.NOTAS - 1]           || '',
-    mes:                 r[COL_ST.MES - 1]             || '',
-    anio:                r[COL_ST.ANIO - 1]            || '',
+<!-- MODAL PAGO DEL CLIENTE -->
+<div id="st-modal-pago-cliente" class="st-modal-overlay st-pago-modal" style="display:none">
+  <div class="st-modal" style="max-width:560px">
+    <h3>💳 Registrar Pago del Cliente</h3>
+    <div id="st-pc-info" style="background:#f0f4ff;border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:.8rem;color:#1A237E;font-weight:600"></div>
+    <div class="st-form-grid">
+      <div class="st-field st-form-full">
+        <label class="st-label">Comprobante de Pago (opcional — Yappy, Transferencia, Factura)</label>
+        <input type="file" id="st-pc-file" accept="image/*,application/pdf" style="font-size:.78rem">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Monto Pagado ($)</label>
+        <input class="st-input" id="st-pc-monto" type="number" min="0" step="0.01" placeholder="0.00" oninput="st_calcPagoStatus()">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Fecha del Pago</label>
+        <input class="st-input" id="st-pc-fecha" type="date">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Tipo de Pago</label>
+        <select class="st-select" id="st-pc-tipo">
+          <option value="Yappy">Yappy</option>
+          <option value="transferencia">Transferencia bancaria</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="cheque">Cheque</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="st-field">
+        <label class="st-label">Código / Referencia</label>
+        <input class="st-input" id="st-pc-codigo" placeholder="Código de transacción">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Nombre del Pagador</label>
+        <input class="st-input" id="st-pc-pagador" placeholder="Nombre completo">
+      </div>
+    </div>
+    <div id="st-pc-ia-status" style="display:none;margin-top:8px">
+      <div style="font-size:.73rem;color:#1A237E;font-weight:600;margin-bottom:4px">📡 Analizando comprobante con IA…</div>
+      <div class="st-progress"><div class="st-progress-bar" id="st-pc-ia-bar" style="width:0%"></div></div>
+    </div>
+    <div id="st-pc-status-box" style="display:none;margin-top:10px"></div>
+    <div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:.78rem;cursor:pointer">
+        <input type="checkbox" id="st-pc-sin-voucher" onchange="st_toggleSinVoucher()" style="accent-color:#1A237E">
+        <span style="color:#64748b">Cerrar sin comprobante (el cliente ha pagado pero no hay voucher disponible)</span>
+      </label>
+    </div>
+    <div class="st-modal-footer">
+      <button class="st-btn st-btn-ghost" onclick="document.getElementById('st-modal-pago-cliente').style.display='none'">Cancelar</button>
+      <button class="st-btn st-btn-warning" id="st-pc-btn-ia" onclick="st_analizarPago()">🤖 Leer Comprobante</button>
+      <button class="st-btn st-btn-success" id="st-pc-btn-guardar" onclick="st_guardarPago()">💳 Registrar Pago</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INGRESO ST -->
+<div id="st-modal-ingreso" class="st-modal-overlay" style="display:none">
+  <div class="st-modal">
+    <h3>💰 Registrar Ingreso del Servicio</h3>
+    <div class="st-form-grid">
+      <div class="st-field">
+        <label class="st-label">N° Factura emitida</label>
+        <input class="st-input" id="st-mi-nfac" placeholder="Número de factura">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Fecha de cobro</label>
+        <input class="st-input" id="st-mi-fecha" type="date">
+      </div>
+      <div class="st-field">
+        <label class="st-label">Forma de pago</label>
+        <select class="st-select" id="st-mi-pago">
+          <option value="factura_emitida">Factura emitida</option>
+          <option value="Yappy">Yappy</option>
+          <option value="transferencia">Transferencia bancaria</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="cheque">Cheque</option>
+        </select>
+      </div>
+      <div class="st-field">
+        <label class="st-label">¿Servicio gravado con ITBMS?</label>
+        <select class="st-select" id="st-mi-gravado">
+          <option value="true">Sí — servicio gravado (7%)</option>
+          <option value="false">No — exento de ITBMS</option>
+        </select>
+      </div>
+      <div class="st-field st-form-full">
+        <label class="st-label">Descripción para el ingreso</label>
+        <input class="st-input" id="st-mi-desc" placeholder="Se llenará automáticamente del ST">
+      </div>
+      <div class="st-field st-form-full">
+        <label class="st-label">Comprobante de pago (opcional)</label>
+        <input type="file" id="st-mi-file" accept="image/*,application/pdf" style="font-size:.78rem">
+      </div>
+    </div>
+    <div class="st-modal-footer">
+      <button class="st-btn st-btn-ghost" onclick="st_cerrarModalIngreso()">Cancelar</button>
+      <button class="st-btn st-btn-success" id="st-mi-btn-guardar" onclick="st_guardarIngreso()">
+        💰 Registrar ingreso
+      </button>
+    </div>
+  </div>
+</div><!-- /st-inner -->
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Estado global del módulo ─────────────────────────────
+  var st_state = {
+    data:       [],
+    filtered:   [],
+    stFilter:   'all',
+    stActual:   null,
+    expandedId: null,
+    vistaMode:  'tabla',    // 'tabla' | 'detalle'
+    filtroMes:  '',         // 'YYYY-MM' or ''
+    filtroDesde:'',
+    filtroHasta:'',
+    itemsLocal: [],
+    editMode:   false,
+    editIdST:   null,
+    sortCol:    'num_factura', // columna activa de sort en vista tabla
+    sortDir:    'desc',        // 'asc' | 'desc'
+    expandedRows: {},        // { id_st: true } — filas expandidas en tabla
   };
-}
 
-function _serializeSTItem(r) {
-  return {
-    id_item_st:       r[COL_STI.ID - 1],
-    id_st:            r[COL_STI.ID_ST - 1],
-    tipo:             r[COL_STI.TIPO - 1]             || '',
-    descripcion:      r[COL_STI.DESCRIPCION - 1]      || '',
-    cantidad:         parseFloat(r[COL_STI.CANTIDAD - 1]   || '1') || 1,
-    precio_unitario:  parseFloat(r[COL_STI.PRECIO_UNIT - 1]|| '0') || 0,
-    aplica_itbms:     r[COL_STI.APLICA_ITBMS - 1] === true ||
-                      String(r[COL_STI.APLICA_ITBMS - 1]).toUpperCase() === 'TRUE',
-    monto_cotizado:   parseFloat(r[COL_STI.MONTO_COT - 1]      || '0') || 0,
-    itbms_cotizado:   parseFloat(r[COL_STI.ITBMS_COT - 1]      || '0') || 0,
-    total_cotizado:   parseFloat(r[COL_STI.TOTAL_COT - 1]      || '0') || 0,
-    margen_item_pct:  parseFloat(r[COL_STI.MARGEN_ITEM_PCT - 1]|| '0') || 0,
-    precio_venta_item:parseFloat(r[COL_STI.PRECIO_VENTA_ITEM - 1]|| '0') || 0,
-    es_adicional:     r[COL_STI.ES_ADICIONAL - 1] === true ||
-                      String(r[COL_STI.ES_ADICIONAL - 1]).toUpperCase() === 'TRUE',
-    monto_real:       parseFloat(r[COL_STI.MONTO_REAL - 1]  || '0') || 0,
-    itbms_real:       parseFloat(r[COL_STI.ITBMS_REAL - 1]  || '0') || 0,
-    total_real:       parseFloat(r[COL_STI.TOTAL_REAL - 1]  || '0') || 0,
-    drive_url:        r[COL_STI.DRIVE_URL - 1]   || '',
-    egreso_id:        r[COL_STI.EGRESO_ID - 1]   || '',
-    estado_item:      r[COL_STI.ESTADO_ITEM - 1] || 'cotizado',
-    notas:            r[COL_STI.NOTAS - 1]       || '',
-    fecha_reg:        r[COL_STI.FECHA_REG - 1]   || '',
-    // proveedor y num_factura se inyectan en _handleGetResumenST
-    // cruzando con el mapa de egresos — no viven en ST_Items
-    proveedor:   '',
-    num_factura: '',
-  };
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleCrearCotizacion  (doPost)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleCrearCotizacion(data) {
-  try {
-    var ss      = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var sheetST = _initServiciosTecnicosSheet(ss);
-    var sheetSTI = _initSTItemsSheet(ss);
-    var ahora   = new Date();
-    var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-    var mes      = ahora.getMonth() + 1;
-    var anio     = ahora.getFullYear();
-
-    var seqData    = _nextSTSeq(ss);
-    var idST       = 'ST-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
-    var numCot     = 'COT-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
-
-    var items = Array.isArray(data.items) ? data.items
-          : (typeof data.items === 'string' ? JSON.parse(data.items) : []);
-    var totalCostoCot  = 0;
-    var filasST        = [];
-
-    for (var j = 0; j < items.length; j++) {
-      var item     = items[j];
-      var totales  = _calcItemTotals(item);
-      totalCostoCot += totales.totalCot;
-
-      var idItem = 'STI-RP-' +
-        Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') +
-        '-' + String(j + 1);
-
-      var margenItemPct   = parseFloat(item.margen_item_pct || '0') || 0;
-      var precioVentaItem = 0;
-      if (margenItemPct > 0) {
-        precioVentaItem = parseFloat((totales.totalCot * (1 + margenItemPct / 100)).toFixed(2));
-      } else if (item.precio_venta_item) {
-        precioVentaItem = parseFloat(item.precio_venta_item || '0') || 0;
-        if (precioVentaItem > 0 && totales.totalCot > 0) {
-          margenItemPct = parseFloat(((precioVentaItem / totales.totalCot - 1) * 100).toFixed(2));
-        }
-      }
-
-      var filaItem = new Array(STI_NCOLS);
-      for (var xi = 0; xi < STI_NCOLS; xi++) filaItem[xi] = '';
-      filaItem[COL_STI.ID - 1]              = idItem;
-      filaItem[COL_STI.ID_ST - 1]           = idST;
-      filaItem[COL_STI.TIPO - 1]            = item.tipo        || 'otro';
-      filaItem[COL_STI.DESCRIPCION - 1]     = item.descripcion || '';
-      filaItem[COL_STI.CANTIDAD - 1]        = parseFloat(item.cantidad || '1') || 1;
-      filaItem[COL_STI.PRECIO_UNIT - 1]     = parseFloat(item.precio_unitario || '0') || '';
-      filaItem[COL_STI.APLICA_ITBMS - 1]    = totales.itbmsCot > 0;
-      filaItem[COL_STI.MONTO_COT - 1]       = totales.montoCot;
-      filaItem[COL_STI.ITBMS_COT - 1]       = totales.itbmsCot;
-      filaItem[COL_STI.TOTAL_COT - 1]       = totales.totalCot;
-      filaItem[COL_STI.MARGEN_ITEM_PCT - 1] = margenItemPct || '';
-      filaItem[COL_STI.PRECIO_VENTA_ITEM - 1] = precioVentaItem || '';
-      filaItem[COL_STI.ES_ADICIONAL - 1]    = false;
-      filaItem[COL_STI.ESTADO_ITEM - 1]     = 'cotizado';
-      filaItem[COL_STI.NOTAS - 1]           = item.notas || '';
-      filaItem[COL_STI.FECHA_REG - 1]       = fechaReg;
-      filasST.push(filaItem);
-    }
-
-    totalCostoCot = parseFloat(totalCostoCot.toFixed(2));
-
-    var margenPct   = parseFloat(data.margen_pct   || '0') || 0;
-    var precioVenta = parseFloat(data.precio_venta || '0') || 0;
-
-    if (precioVenta > 0 && totalCostoCot > 0 && margenPct === 0) {
-      margenPct = parseFloat(((precioVenta / totalCostoCot - 1) * 100).toFixed(2));
-    } else if (margenPct > 0 && totalCostoCot > 0 && precioVenta === 0) {
-      precioVenta = parseFloat((totalCostoCot * (1 + margenPct / 100)).toFixed(2));
-    }
-
-    var filaST = new Array(ST_NCOLS);
-    for (var xs = 0; xs < ST_NCOLS; xs++) filaST[xs] = '';
-    filaST[COL_ST.ID - 1]              = idST;
-    filaST[COL_ST.FECHA_REG - 1]       = fechaReg;
-    filaST[COL_ST.ESTADO - 1]          = 'cotizado';
-    filaST[COL_ST.NUM_COT - 1]         = numCot;
-    filaST[COL_ST.NOMBRE_CLI - 1]      = data.nombre_cliente || '';
-    filaST[COL_ST.RUC_CLI - 1]         = data.ruc_cliente    || '';
-    filaST[COL_ST.DV_CLI - 1]          = data.dv_cliente     || '';
-    filaST[COL_ST.CONTACTO - 1]        = data.contacto       || '';
-    filaST[COL_ST.EMAIL_CLI - 1]       = data.email_cliente  || '';
-    filaST[COL_ST.DESCRIPCION - 1]     = data.descripcion    || '';
-    filaST[COL_ST.TOTAL_COSTO_COT - 1] = totalCostoCot       || '';
-    filaST[COL_ST.MARGEN_PCT - 1]      = margenPct           || '';
-    filaST[COL_ST.PRECIO_VENTA - 1]    = precioVenta         || '';
-    filaST[COL_ST.NOTAS - 1]           = data.notas          || '';
-    filaST[COL_ST.MES - 1]             = mes;
-    filaST[COL_ST.ANIO - 1]            = anio;
-
-    var newSTRow = sheetST.getLastRow() + 1;
-    sheetST.getRange(newSTRow, 1, 1, ST_NCOLS).setValues([filaST]);
-    sheetST.getRange(newSTRow, COL_ST.TOTAL_COSTO_COT, 1, 3).setNumberFormat('#,##0.00');
-    sheetST.getRange(newSTRow, 1, 1, ST_NCOLS).setBackground('#FFF9C4');
-
-    if (filasST.length > 0) {
-      var newItemRow = sheetSTI.getLastRow() + 1;
-      sheetSTI.getRange(newItemRow, 1, filasST.length, STI_NCOLS).setValues(filasST);
-      sheetSTI.getRange(newItemRow, COL_STI.MONTO_COT, filasST.length, 3).setNumberFormat('#,##0.00');
-      sheetSTI.getRange(newItemRow, 1, filasST.length, STI_NCOLS).setBackground('#FFF9C4');
-    }
-
-    Logger.log('✅ Cotización creada: ' + idST + ' | ' + numCot + ' | ' +
-               items.length + ' ítems | Total costo: $' + totalCostoCot);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success:              true,
-        id_st:                idST,
-        num_cotizacion:       numCot,
-        total_costo_cotizado: totalCostoCot,
-        precio_venta:         precioVenta,
-        margen_pct:           margenPct,
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    Logger.log('Error _handleCrearCotizacion: ' + err.message);
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+  // ── Helpers ──────────────────────────────────────────────
+  function st_fmt(n) {
+    if (!n && n !== 0) return '—';
+    return '$' + parseFloat(n).toLocaleString('es-PA', { minimumFractionDigits:2, maximumFractionDigits:2 });
   }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleActualizarCotizacion  (doPost)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleActualizarCotizacion(data) {
-  try {
-    var idST = data.id_st || '';
-    if (!idST) throw new Error('id_st requerido');
-
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-
-    var rowNum = rec.row;
-    var sheet  = ss.getSheetByName(SHEET_ST);
-
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual === 'cerrado' || estadoActual === 'cancelado') {
-      throw new Error('No se puede editar un ST en estado "' + estadoActual + '"');
-    }
-
-    if (data.nombre_cliente !== undefined) sheet.getRange(rowNum, COL_ST.NOMBRE_CLI).setValue(data.nombre_cliente);
-    if (data.ruc_cliente    !== undefined) sheet.getRange(rowNum, COL_ST.RUC_CLI).setValue(data.ruc_cliente);
-    if (data.dv_cliente     !== undefined) sheet.getRange(rowNum, COL_ST.DV_CLI).setValue(data.dv_cliente);
-    if (data.contacto       !== undefined) sheet.getRange(rowNum, COL_ST.CONTACTO).setValue(data.contacto);
-    if (data.email_cliente  !== undefined) sheet.getRange(rowNum, COL_ST.EMAIL_CLI).setValue(data.email_cliente);
-    if (data.descripcion    !== undefined) sheet.getRange(rowNum, COL_ST.DESCRIPCION).setValue(data.descripcion);
-    if (data.notas          !== undefined) sheet.getRange(rowNum, COL_ST.NOTAS).setValue(data.notas);
-
-    var totalCostoCot = parseFloat(rec.data[COL_ST.TOTAL_COSTO_COT - 1] || '0') || 0;
-    var margenPct     = parseFloat(data.margen_pct   || rec.data[COL_ST.MARGEN_PCT - 1]   || '0') || 0;
-    var precioVenta   = parseFloat(data.precio_venta || rec.data[COL_ST.PRECIO_VENTA - 1] || '0') || 0;
-
-    if (data.precio_venta !== undefined && totalCostoCot > 0) {
-      precioVenta = parseFloat(data.precio_venta) || 0;
-      margenPct   = precioVenta > 0
-        ? parseFloat(((precioVenta / totalCostoCot - 1) * 100).toFixed(2))
-        : 0;
-    } else if (data.margen_pct !== undefined && totalCostoCot > 0) {
-      margenPct   = parseFloat(data.margen_pct) || 0;
-      precioVenta = parseFloat((totalCostoCot * (1 + margenPct / 100)).toFixed(2));
-    }
-
-    sheet.getRange(rowNum, COL_ST.MARGEN_PCT).setValue(margenPct   || '');
-    sheet.getRange(rowNum, COL_ST.PRECIO_VENTA).setValue(precioVenta || '');
-
-    Logger.log('✅ ST actualizado: ' + idST);
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: true, margen_pct: margenPct, precio_venta: precioVenta }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    Logger.log('Error _handleActualizarCotizacion: ' + err.message);
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+  function st_fmtPct(n) {
+    return (parseFloat(n)||0).toFixed(1) + '%';
   }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleAgregarItemCotizacion  (doPost)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleAgregarItemCotizacion(data) {
-  try {
-    var idST = data.id_st || '';
-    if (!idST) throw new Error('id_st requerido');
-
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual === 'cerrado' || estadoActual === 'cancelado') {
-      throw new Error('No se pueden agregar ítems a un ST en estado "' + estadoActual + '"');
-    }
-
-    var ahora    = new Date();
-    var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    if (!sheetSTI) sheetSTI = _initSTItemsSheet(ss);
-    var totalItemsST = 0;
-    if (sheetSTI.getLastRow() > 2) {
-      var allIds = sheetSTI.getRange(3, COL_STI.ID_ST, sheetSTI.getLastRow() - 2, 1).getValues();
-      for (var k = 0; k < allIds.length; k++) {
-        if (String(allIds[k][0]) === String(idST)) totalItemsST++;
-      }
-    }
-    var idItem = 'STI-RP-' +
-      Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') +
-      '-' + String(totalItemsST + 1);
-
-    var totales     = _calcItemTotals(data);
-    var esAdicional = data.es_adicional === true || data.es_adicional === 'true';
-
-    var margenItemPct    = parseFloat(data.margen_item_pct || '0') || 0;
-    var precioVentaItem  = parseFloat(data.precio_venta_item || '0') || 0;
-    if (margenItemPct > 0 && precioVentaItem === 0) {
-      precioVentaItem = parseFloat((totales.totalCot * (1 + margenItemPct / 100)).toFixed(2));
-    } else if (precioVentaItem > 0 && margenItemPct === 0 && totales.totalCot > 0) {
-      margenItemPct = parseFloat(((precioVentaItem / totales.totalCot - 1) * 100).toFixed(2));
-    }
-
-    var filaItem = new Array(STI_NCOLS);
-    for (var xi = 0; xi < STI_NCOLS; xi++) filaItem[xi] = '';
-    filaItem[COL_STI.ID - 1]              = idItem;
-    filaItem[COL_STI.ID_ST - 1]           = idST;
-    filaItem[COL_STI.TIPO - 1]            = data.tipo        || 'otro';
-    filaItem[COL_STI.DESCRIPCION - 1]     = data.descripcion || '';
-    filaItem[COL_STI.CANTIDAD - 1]        = parseFloat(data.cantidad || '1') || 1;
-    filaItem[COL_STI.PRECIO_UNIT - 1]     = parseFloat(data.precio_unitario || '0') || '';
-    filaItem[COL_STI.APLICA_ITBMS - 1]    = totales.itbmsCot > 0;
-    filaItem[COL_STI.MONTO_COT - 1]       = totales.montoCot;
-    filaItem[COL_STI.ITBMS_COT - 1]       = totales.itbmsCot;
-    filaItem[COL_STI.TOTAL_COT - 1]       = totales.totalCot;
-    filaItem[COL_STI.MARGEN_ITEM_PCT - 1] = margenItemPct   || '';
-    filaItem[COL_STI.PRECIO_VENTA_ITEM - 1] = precioVentaItem || '';
-    filaItem[COL_STI.ES_ADICIONAL - 1]    = esAdicional;
-    filaItem[COL_STI.ESTADO_ITEM - 1]     = esAdicional ? 'pendiente' : 'cotizado';
-    filaItem[COL_STI.NOTAS - 1]           = data.notas || '';
-    filaItem[COL_STI.FECHA_REG - 1]       = fechaReg;
-
-    var newRow = sheetSTI.getLastRow() + 1;
-    sheetSTI.getRange(newRow, 1, 1, STI_NCOLS).setValues([filaItem]);
-    sheetSTI.getRange(newRow, COL_STI.MONTO_COT, 1, 3).setNumberFormat('#,##0.00');
-    sheetSTI.getRange(newRow, 1, 1, STI_NCOLS).setBackground(esAdicional ? '#E8F5E9' : '#FFF9C4');
-
-    var totalesRecalc = _calcSTTotals(sheetSTI, idST);
-    var sheetST       = ss.getSheetByName(SHEET_ST);
-    sheetST.getRange(rec.row, COL_ST.TOTAL_COSTO_COT).setValue(totalesRecalc.totalCostoCot);
-
-    var margenST    = parseFloat(rec.data[COL_ST.MARGEN_PCT - 1] || '0') || 0;
-    var nuevoPrecio = 0;
-    if (margenST > 0) {
-      nuevoPrecio = parseFloat((totalesRecalc.totalCostoCot * (1 + margenST / 100)).toFixed(2));
-      sheetST.getRange(rec.row, COL_ST.PRECIO_VENTA).setValue(nuevoPrecio);
-    }
-
-    Logger.log('✅ Ítem agregado: ' + idItem + ' → ST: ' + idST +
-               ' | Nuevo total costo: $' + totalesRecalc.totalCostoCot);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success:              true,
-        id_item_st:           idItem,
-        total_costo_cotizado: totalesRecalc.totalCostoCot,
-        precio_venta:         nuevoPrecio || parseFloat(rec.data[COL_ST.PRECIO_VENTA - 1] || '0'),
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    Logger.log('Error _handleAgregarItemCotizacion: ' + err.message);
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+  function st_esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleActualizarItemTipo  (doPost)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleActualizarItemTipo(data) {
-  try {
-    var idItemST = String(data.id_item_st || '').trim();
-    var tipo     = String(data.tipo       || '').trim();
-
-    if (!idItemST) throw new Error('id_item_st requerido');
-    if (!tipo)     throw new Error('tipo requerido');
-    if (ST_TIPOS_ITEM.indexOf(tipo) === -1) {
-      throw new Error('Tipo inválido: "' + tipo + '". Valores permitidos: ' + ST_TIPOS_ITEM.join(', '));
-    }
-
-    var tipoMap = {
-      'mano_obra':        'costo_servicio_tecnico',
-      'flete':            'costo_servicio_tecnico',
-      'combustible':      'combustible',
-      'fianza':           'costo_servicio_tecnico',
-      'subcontrato':      'servicios_profesionales',
-      'producto':         'costo_mercancia',
-      'impuesto':         'costo_servicio_tecnico',
-      'aduana':           'costo_servicio_tecnico',
-      'shipping_handling':'costo_servicio_tecnico',
-      'credito_fiscal':   'credito_fiscal',
-      'otro':             'costo_servicio_tecnico',
-    };
-    var nuevoTipoEgreso = tipoMap[tipo] || 'costo_servicio_tecnico';
-
-    var ss       = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    if (!sheetSTI || sheetSTI.getLastRow() <= 2) throw new Error('Hoja ST_Items vacía');
-
-    var numRows  = sheetSTI.getLastRow() - 2;
-    var dataSTI  = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
-    var found    = false;
-    var egresoId = '';
-
-    for (var i = 0; i < dataSTI.length; i++) {
-      if (String(dataSTI[i][COL_STI.ID - 1]) !== idItemST) continue;
-      var rowSTI = i + 3;
-      sheetSTI.getRange(rowSTI, COL_STI.TIPO).setValue(tipo);
-      egresoId = String(dataSTI[i][COL_STI.EGRESO_ID - 1] || '').trim();
-      found = true;
-      Logger.log('✅ ST_Items tipo actualizado: ' + idItemST + ' → ' + tipo);
-      break;
-    }
-
-    if (!found) throw new Error('Ítem no encontrado: ' + idItemST);
-
-    var egresoActualizado = false;
-    if (egresoId) {
-      var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
-      if (sheetEgr && sheetEgr.getLastRow() > 2) {
-        var numEgr  = sheetEgr.getLastRow() - 2;
-        var idsEgr  = sheetEgr.getRange(3, COL_E.ID, numEgr, 1).getValues();
-        for (var e = 0; e < idsEgr.length; e++) {
-          if (String(idsEgr[e][0]) !== egresoId) continue;
-          var rowEgr = e + 3;
-          sheetEgr.getRange(rowEgr, 11).setValue(nuevoTipoEgreso);
-          sheetEgr.getRange(rowEgr, 12).setValue(nuevoTipoEgreso);
-          egresoActualizado = true;
-          Logger.log('✅ Egresos actualizado: ' + egresoId + ' tipo → ' + nuevoTipoEgreso);
-          break;
-        }
-      }
-    }
-
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success:            true,
-        tipo:               tipo,
-        tipo_egreso:        nuevoTipoEgreso,
-        egreso_actualizado: egresoActualizado,
-        egreso_id:          egresoId,
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    Logger.log('Error _handleActualizarItemTipo: ' + err.message);
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleActualizarEgresoST  (doPost)  ← NUEVO v1.3
-//
-//  Edita un egreso ya registrado vinculado a un ítem de ST.
-//  Flujo:
-//    1. Sube nuevo archivo a Drive (si viene)
-//    2. Anula el egreso viejo en Egresos
-//    3. Crea un egreso nuevo con los datos actualizados
-//    4. Actualiza ST_Items: montos reales, drive_url, egreso_id
-//    5. Recalcula total_costo_real en Servicios_Tecnicos
-//
-//  Payload: { id_st, id_item_st, egreso_id, tipo, descripcion,
-//             proveedor, num_factura, total, itbms, fecha, notas,
-//             imageBase64, imageMime, imageName }
-//  Respuesta: { success, egreso_id_nuevo, egreso_id_anulado, total, total_costo_real }
-// ═══════════════════════════════════════════════════════════════
-
-function _handleActualizarEgresoST(data) {
-  try {
-    var idST          = String(data.id_st       || '').trim();
-    var idItemST      = String(data.id_item_st  || '').trim();
-    var egresoIdViejo = String(data.egreso_id   || '').trim();
-
-    if (!idST)          throw new Error('id_st requerido');
-    if (!idItemST)      throw new Error('id_item_st requerido');
-    if (!egresoIdViejo) throw new Error('egreso_id requerido para actualizar');
-
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-
-    var total    = parseFloat(data.total)    || 0;
-    var itbms    = parseFloat(data.itbms)    || 0;
-    var subtotal = parseFloat(data.subtotal) || parseFloat((total - itbms).toFixed(2));
-    var ahora    = new Date();
-
-    // ── 1. Subir nuevo archivo a Drive (si viene) ─────────────
-    var driveUrl = '';
-    if (data.imageBase64 && data.imageName) {
-      try {
-        var folder  = DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID);
-        var mimeDoc = data.imageMime || 'image/jpeg';
-        var bytes   = Utilities.base64Decode(data.imageBase64);
-        var blob    = Utilities.newBlob(bytes, mimeDoc, data.imageName);
-        var file    = folder.createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        driveUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
-      } catch(driveErr) {
-        Logger.log('⚠️ Error subiendo archivo actualización ST: ' + driveErr.message);
-      }
-    }
-
-    // ── 2. Anular egreso viejo ────────────────────────────────
-    var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
-    if (!sheetEgr) throw new Error('Hoja Egresos no encontrada');
-
-    var stamp         = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm');
-    var driveUrlVieja = '';
-    var lastEgrRow    = sheetEgr.getLastRow();
-
-    if (lastEgrRow > 2) {
-      var numEgr  = lastEgrRow - 2;
-      var dataEgr = sheetEgr.getRange(3, COL_E.ID, numEgr, 1).getValues();
-      for (var e = 0; e < dataEgr.length; e++) {
-        if (String(dataEgr[e][0] || '').trim() !== egresoIdViejo) continue;
-        var rowEgr = e + 3;
-        driveUrlVieja = String(sheetEgr.getRange(rowEgr, COL_E.DRIVE_URL).getValue() || '');
-        sheetEgr.getRange(rowEgr, COL_E.ESTADO).setValue('anulado');
-        sheetEgr.getRange(rowEgr, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
-        var notaVieja = String(sheetEgr.getRange(rowEgr, COL_E.NOTAS).getValue() || '');
-        sheetEgr.getRange(rowEgr, COL_E.NOTAS).setValue(
-          notaVieja + ' | ANULADO por edición — ' + stamp + ' | Reemplazado por nuevo egreso'
-        );
-        Logger.log('✅ Egreso viejo anulado: ' + egresoIdViejo);
-        break;
-      }
-    }
-
-    // Conservar URL vieja si no viene archivo nuevo
-    if (!driveUrl) driveUrl = driveUrlVieja;
-
-    // ── 3. Crear egreso nuevo ─────────────────────────────────
-    var fechaGasto = data.fecha ||
-      Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd');
-    var yearEgr = new Date(fechaGasto + 'T12:00:00').getFullYear() || ahora.getFullYear();
-
-    var seqEgr      = 1;
-    var lastEgrRow2 = sheetEgr.getLastRow();
-    if (lastEgrRow2 > 2) {
-      var idsEgr2 = sheetEgr.getRange(3, 1, lastEgrRow2 - 2, 1).getValues();
-      for (var ke = idsEgr2.length - 1; ke >= 0; ke--) {
-        var ve     = String(idsEgr2[ke][0] || '');
-        var partsE = ve.split('-');
-        var ne     = parseInt(partsE[partsE.length - 1], 10);
-        if (!isNaN(ne)) { seqEgr = ne + 1; break; }
-      }
-    }
-    var egresoIdNuevo = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
-
-    var tipoMap = {
-      'mano_obra':         'costo_servicio_tecnico',
-      'flete':             'costo_servicio_tecnico',
-      'combustible':       'combustible',
-      'fianza':            'costo_servicio_tecnico',
-      'subcontrato':       'servicios_profesionales',
-      'producto':          'costo_mercancia',
-      'impuesto':          'costo_servicio_tecnico',
-      'aduana':            'costo_servicio_tecnico',
-      'shipping_handling': 'costo_servicio_tecnico',
-      'credito_fiscal':    'credito_fiscal',
-      'otro':              'costo_servicio_tecnico',
-    };
-    var tipoItem   = data.tipo || 'otro';
-    var tipoEgreso = tipoMap[tipoItem] || 'costo_servicio_tecnico';
-    var categoria  = data.categoria || tipoEgreso;
-    var proveedor  = data.proveedor  || '';
-    var numFactura = data.num_factura || '';
-
-    var fechaGastoDate = new Date(fechaGasto + 'T12:00:00');
-    var mesEgr  = isNaN(fechaGastoDate.getTime()) ? '' : (fechaGastoDate.getMonth() + 1);
-    var anioEgr = isNaN(fechaGastoDate.getTime()) ? yearEgr : fechaGastoDate.getFullYear();
-
-    var COL_COUNT = 21;
-    var filaEgr   = new Array(COL_COUNT);
-    for (var xe = 0; xe < COL_COUNT; xe++) filaEgr[xe] = '';
-
-    filaEgr[0]  = egresoIdNuevo;
-    filaEgr[1]  = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-    filaEgr[2]  = 'registrado';
-    filaEgr[3]  = fechaGasto;
-    filaEgr[4]  = mesEgr;
-    filaEgr[5]  = anioEgr;
-    filaEgr[6]  = subtotal || '';
-    filaEgr[7]  = itbms    || '';
-    filaEgr[8]  = total    || '';
-    filaEgr[9]  = 'USD';
-    filaEgr[10] = tipoEgreso;
-    filaEgr[11] = categoria;
-    filaEgr[12] = proveedor;
-    filaEgr[13] = data.ruc_prov || '';
-    filaEgr[14] = data.dv_prov  || '';
-    filaEgr[15] = numFactura;
-    filaEgr[16] = '';   // id_item_cv — vacío (exclusivo Compras_Ventas)
-    filaEgr[17] = driveUrl;
-    filaEgr[18] = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || '');
-    filaEgr[19] = 'ST: ' + idST + ' | Ítem: ' + idItemST +
-                  ' | Edición de: ' + egresoIdViejo +
-                  (data.notas ? ' | ' + data.notas : '');
-    filaEgr[20] = idItemST;
-
-    var newEgrRow = sheetEgr.getLastRow() + 1;
-    sheetEgr.getRange(newEgrRow, 1, 1, COL_COUNT).setValues([filaEgr]);
-    sheetEgr.getRange(newEgrRow, 7, 1, 3).setNumberFormat('#,##0.00');
-    sheetEgr.getRange(newEgrRow, 1, 1, COL_COUNT).setBackground('#E8F5E9');
-    Logger.log('✅ Egreso nuevo creado: ' + egresoIdNuevo + ' | Reemplaza: ' + egresoIdViejo);
-
-    // ── 4. Actualizar fila en ST_Items ────────────────────────
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    if (sheetSTI && sheetSTI.getLastRow() > 2) {
-      var numItemRows = sheetSTI.getLastRow() - 2;
-      var itemData    = sheetSTI.getRange(3, 1, numItemRows, STI_NCOLS).getValues();
-      for (var i = 0; i < itemData.length; i++) {
-        if (String(itemData[i][COL_STI.ID - 1]) !== idItemST) continue;
-        var itemRow = i + 3;
-        sheetSTI.getRange(itemRow, COL_STI.MONTO_REAL).setValue(subtotal || total);
-        sheetSTI.getRange(itemRow, COL_STI.ITBMS_REAL).setValue(itbms);
-        sheetSTI.getRange(itemRow, COL_STI.TOTAL_REAL).setValue(total);
-        if (driveUrl) sheetSTI.getRange(itemRow, COL_STI.DRIVE_URL).setValue(driveUrl);
-        sheetSTI.getRange(itemRow, COL_STI.EGRESO_ID).setValue(egresoIdNuevo);
-        sheetSTI.getRange(itemRow, COL_STI.ESTADO_ITEM).setValue('ejecutado');
-        if (tipoItem) sheetSTI.getRange(itemRow, COL_STI.TIPO).setValue(tipoItem);
-        sheetSTI.getRange(itemRow, 1, 1, STI_NCOLS).setBackground('#E8F5E9');
-        Logger.log('✅ ST_Items actualizado: ' + idItemST + ' → egreso: ' + egresoIdNuevo);
-        break;
-      }
-    }
-
-    // ── 5. Recalcular total_costo_real en Servicios_Tecnicos ──
-    var sheetSTI2 = ss.getSheetByName(SHEET_ST_ITEM);
-    var totalReal = _calcSTTotalsReal(sheetSTI2, idST);
-    var sheetST   = ss.getSheetByName(SHEET_ST);
-    sheetST.getRange(rec.row, COL_ST.TOTAL_COSTO_REAL).setValue(totalReal);
-
-    Logger.log('✅ actualizarEgresoST completo | ST: ' + idST +
-               ' | Item: ' + idItemST + ' | Nuevo: ' + egresoIdNuevo +
-               ' | Total real: $' + totalReal);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success:           true,
-        egreso_id_nuevo:   egresoIdNuevo,
-        egreso_id_anulado: egresoIdViejo,
-        total:             total,
-        total_costo_real:  totalReal,
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    Logger.log('Error _handleActualizarEgresoST: ' + err.message);
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleEliminarItemCotizacion  (doGet)  ← MODIFICADO v1.3
-//  Ya no bloquea si el ítem tiene egreso vinculado.
-//  Lo anula automáticamente antes de cancelar el ítem.
-// ═══════════════════════════════════════════════════════════════
-
-function _handleEliminarItemCotizacion(params, callback) {
-  var result = {
-    success:        false,
-    egreso_anulado: false,
-    egreso_id:      '',
-    error:          null,
-  };
-  try {
-    var idItemST = params.id_item_st || '';
-    var idST     = params.id_st      || '';
-    if (!idItemST) throw new Error('id_item_st requerido');
-
-    var ss       = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    if (!sheetSTI || sheetSTI.getLastRow() <= 2) throw new Error('Hoja ST_Items vacía');
-
-    var numRows = sheetSTI.getLastRow() - 2;
-    var data    = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
-    var found   = false;
-    var stamp   = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
-
-    for (var i = 0; i < data.length; i++) {
-      if (String(data[i][COL_STI.ID - 1]) !== String(idItemST)) continue;
-
-      var rowNum   = i + 3;
-      var egresoId = String(data[i][COL_STI.EGRESO_ID - 1] || '').trim();
-      idST = idST || String(data[i][COL_STI.ID_ST - 1]);
-
-      // ── Si tiene egreso vinculado, anularlo primero ──────────
-      if (egresoId) {
-        var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
-        if (sheetEgr && sheetEgr.getLastRow() > 2) {
-          var numEgr  = sheetEgr.getLastRow() - 2;
-          var idsEgr  = sheetEgr.getRange(3, COL_E.ID, numEgr, 1).getValues();
-          for (var e = 0; e < idsEgr.length; e++) {
-            if (String(idsEgr[e][0] || '').trim() !== egresoId) continue;
-            var rowEgr = e + 3;
-            sheetEgr.getRange(rowEgr, COL_E.ESTADO).setValue('anulado');
-            sheetEgr.getRange(rowEgr, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
-            var notaEgr = String(sheetEgr.getRange(rowEgr, COL_E.NOTAS).getValue() || '');
-            sheetEgr.getRange(rowEgr, COL_E.NOTAS).setValue(
-              notaEgr + ' | ANULADO — eliminación ítem ' + idItemST + ': ' + stamp
-            );
-            result.egreso_anulado = true;
-            result.egreso_id      = egresoId;
-            Logger.log('✅ Egreso anulado al borrar ítem: ' + egresoId);
-            break;
-          }
-        }
-      }
-
-      // ── Cancelar el ítem ─────────────────────────────────────
-      sheetSTI.getRange(rowNum, COL_STI.ESTADO_ITEM).setValue('cancelado');
-      sheetSTI.getRange(rowNum, 1, 1, STI_NCOLS).setBackground('#FFEBEE');
-      found = true;
-      break;
-    }
-
-    if (!found) throw new Error('Ítem no encontrado: ' + idItemST);
-
-    // ── Recalcular totales del ST ─────────────────────────────
-    if (idST) {
-      var totalesRecalc = _calcSTTotals(sheetSTI, idST);
-      var recST         = _getSTById(ss, idST);
-      if (recST) {
-        var sheetST = ss.getSheetByName(SHEET_ST);
-        sheetST.getRange(recST.row, COL_ST.TOTAL_COSTO_COT).setValue(totalesRecalc.totalCostoCot);
-        sheetST.getRange(recST.row, COL_ST.TOTAL_COSTO_REAL).setValue(_calcSTTotalsReal(sheetSTI, idST));
-        var margenST = parseFloat(recST.data[COL_ST.MARGEN_PCT - 1] || '0') || 0;
-        if (margenST > 0) {
-          sheetST.getRange(recST.row, COL_ST.PRECIO_VENTA).setValue(
-            parseFloat((totalesRecalc.totalCostoCot * (1 + margenST / 100)).toFixed(2))
-          );
-        }
-      }
-    }
-
-    result.success = true;
-    Logger.log('✅ Ítem cancelado: ' + idItemST +
-               (result.egreso_anulado ? ' | Egreso anulado: ' + result.egreso_id : ' | Sin egreso'));
-
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('Error _handleEliminarItemCotizacion v1.3: ' + err.message);
+  function st_today() {
+    var d = new Date();
+    return d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
   }
 
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleGetCotizaciones  (doGet)
-// ═══════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════
-//  PATCH ContaFacil_ServiciosTecnicos.gs → v1.3.1
-//
-//  FIX: columna "Proveedor" vacía en tabla Costos del P&L.
-//
-//  CAUSA: _handleGetCotizaciones llamaba a _serializeSTItem()
-//  directamente. Ese helper inicializa proveedor='' y num_factura=''
-//  por diseño (el comentario en el código dice explícitamente que
-//  "se inyectan en _handleGetResumenST cruzando con el mapa de
-//  egresos"). El handler getCotizaciones nunca hacía ese cruce,
-//  así que plStItems.filter(si => si.item.proveedor).length === 0.
-//
-//  SOLUCIÓN: construir el mismo mapa egreso_id → {proveedor,
-//  num_factura} que usa getResumenST, e inyectarlo en cada ítem
-//  al armar itemsMap. Un solo recorrido de la hoja Egresos cubre
-//  todos los STs de una vez (O(n) en vez de O(n×m)).
-//
-//  INSTRUCCIÓN: reemplazar la función _handleGetCotizaciones
-//  en ContaFacil_ServiciosTecnicos.gs con la versión de abajo.
-//  Sin más cambios. Redeploy después de guardar.
-// ═══════════════════════════════════════════════════════════════
-
-function _handleGetCotizaciones(params, callback) {
-  var result = { success: false, items: [], error: null };
-  try {
-    var ss      = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var sheetST = ss.getSheetByName(SHEET_ST);
-
-    if (!sheetST || sheetST.getLastRow() <= 2) {
-      result.success = true;
-      var json0 = JSON.stringify(result);
-      if (callback) return ContentService.createTextOutput(callback + '(' + json0 + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-      return ContentService.createTextOutput(json0).setMimeType(ContentService.MimeType.JSON);
+  // Calcula el costo real sumando los ítems del ST (excluyendo cancelados).
+  // Fuente de verdad: evita usar total_costo_real del Sheet que puede incluir
+  // egresos anulados y no se recalcula al anular un ítem individual.
+  function st_calcCostoReal(st) {
+    var items = st.items;
+    if (!items || !items.length) {
+      return st.total_costo_real > 0 ? st.total_costo_real : (st.total_costo_cotizado || 0);
     }
-
-    var filtroEstado = params.estado || '';
-    var filtroId     = params.id_st  || '';
-
-    var numSTRows = sheetST.getLastRow() - 2;
-    var stData    = sheetST.getRange(3, 1, numSTRows, ST_NCOLS).getValues();
-
-    // ── Mapa egreso_id → { proveedor, num_factura } ──────────────────────
-    // Necesario para inyectar el nombre del proveedor en cada ST_Item.
-    // _serializeSTItem los inicializa en '' por diseño — solo viven en Egresos.
-    var egresoMap = {};
-    var sheetEgr  = ss.getSheetByName(SHEET_EGRESOS);
-    if (sheetEgr && sheetEgr.getLastRow() > 2) {
-      var numEgrRows = sheetEgr.getLastRow() - 2;
-      var egrData    = sheetEgr.getRange(3, 1, numEgrRows, EGRESOS_NCOLS).getValues();
-      for (var e = 0; e < egrData.length; e++) {
-        var eid = String(egrData[e][COL_E.ID - 1] || '').trim();
-        if (!eid) continue;
-        egresoMap[eid] = {
-          proveedor:   String(egrData[e][COL_E.PROVEEDOR - 1] || ''),
-          num_factura: String(egrData[e][COL_E.NFACTURA  - 1] || ''),
-        };
-      }
-    }
-
-    // ── ST_Items → itemsMap con proveedor inyectado ──────────────────────
-    var sheetSTI   = ss.getSheetByName(SHEET_ST_ITEM);
-    var itemsMap   = {};
-    if (sheetSTI && sheetSTI.getLastRow() > 2) {
-      var numItemRows = sheetSTI.getLastRow() - 2;
-      var itemData    = sheetSTI.getRange(3, 1, numItemRows, STI_NCOLS).getValues();
-      for (var j = 0; j < itemData.length; j++) {
-        var r     = itemData[j];
-        var stKey = String(r[COL_STI.ID_ST - 1] || '');
-        if (!stKey) continue;
-        if (!itemsMap[stKey]) itemsMap[stKey] = [];
-        var item = _serializeSTItem(r);
-        // Inyectar proveedor/num_factura desde el mapa de egresos
-        if (item.egreso_id && egresoMap[item.egreso_id]) {
-          item.proveedor   = egresoMap[item.egreso_id].proveedor;
-          item.num_factura = egresoMap[item.egreso_id].num_factura;
-        }
-        itemsMap[stKey].push(item);
-      }
-    }
-
-    var sts = [];
-    for (var i = 0; i < stData.length; i++) {
-      var r = stData[i];
-      if (!r[COL_ST.ID - 1]) continue;
-      if (filtroEstado && String(r[COL_ST.ESTADO - 1]) !== filtroEstado) continue;
-      if (filtroId    && String(r[COL_ST.ID - 1])      !== filtroId)     continue;
-
-      var st   = _serializeST(r);
-      st.items = itemsMap[st.id_st] || [];
-      sts.push(st);
-    }
-
-    sts.sort(function(a, b) {
-      return String(b.fecha_reg).localeCompare(String(a.fecha_reg));
+    var total = 0;
+    items.forEach(function(it) {
+      if (it.estado_item === 'cancelado') return;
+      total += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0;
     });
-
-    // ── Enriquecer con subtotal_venta y es_exento desde Ingresos ─────────
-    try {
-      var sheetIngLst = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
-      if (sheetIngLst && sheetIngLst.getLastRow() > 2) {
-        var numIngLst  = sheetIngLst.getLastRow() - 2;
-        var ingLstData = sheetIngLst.getRange(3, 1, numIngLst, INGRESOS_NCOLS).getValues();
-        var ingMap = {};
-        for (var ii = 0; ii < ingLstData.length; ii++) {
-          var ingId = String(ingLstData[ii][COL_I.ID_TRANS - 1] || '').trim();
-          if (!ingId) continue;
-          var fechaIng = ingLstData[ii][COL_I.FECHA_INGRESO - 1];
-          if (fechaIng instanceof Date) {
-            fechaIng = Utilities.formatDate(fechaIng, 'America/Panama', 'yyyy-MM-dd');
-          } else {
-            fechaIng = String(fechaIng || '').slice(0, 10);
-          }
-          ingMap[ingId] = {
-            subtotal:      parseFloat(ingLstData[ii][COL_I.SUBTOTAL  - 1] || '0') || 0,
-            categoria:     String(ingLstData[ii][COL_I.CATEGORIA - 1] || ''),
-            fecha_ingreso: fechaIng,
-            mes:           ingLstData[ii][COL_I.MES - 1] || '',
-            anio:          ingLstData[ii][COL_I.ANIO_FISCAL - 1] || '',
-          };
-        }
-        for (var si = 0; si < sts.length; si++) {
-          var ingId2 = String(sts[si].ingreso_id || '').trim();
-          if (ingId2 && ingMap[ingId2]) {
-            sts[si].subtotal_venta = ingMap[ingId2].subtotal;
-            var cat = ingMap[ingId2].categoria;
-            sts[si].es_exento      = (cat === 'servicio_tecnico_exento' || cat === 'venta_producto_exento');
-            sts[si].fecha_ingreso  = ingMap[ingId2].fecha_ingreso;
-            sts[si].mes_ingreso    = ingMap[ingId2].mes;
-            sts[si].anio_ingreso   = ingMap[ingId2].anio;
-          } else {
-            sts[si].subtotal_venta = 0;
-            sts[si].es_exento      = false;
-            sts[si].fecha_ingreso  = '';
-            sts[si].mes_ingreso    = '';
-            sts[si].anio_ingreso   = '';
-          }
-        }
-      }
-    } catch(ingErr) {
-      Logger.log('⚠️ _handleGetCotizaciones: error enriqueciendo subtotal_venta: ' + ingErr.message);
-    }
-
-    result.success = true;
-    result.items   = sts;
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('Error _handleGetCotizaciones: ' + err.message);
+    return parseFloat(total.toFixed(2));
   }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
 
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleAprobarCotizacion  (doGet)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleAprobarCotizacion(params, callback) {
-  var result = { success: false, error: null };
-  try {
-    var idST = params.id_st || '';
-    if (!idST) throw new Error('id_st requerido');
-
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual !== 'cotizado') {
-      throw new Error('Solo se pueden aprobar STs en estado "cotizado". Estado actual: ' + estadoActual);
-    }
-
-    var fechaAprobacion = params.fecha_aprobacion ||
-      Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd');
-
-    var sheetST = ss.getSheetByName(SHEET_ST);
-    sheetST.getRange(rec.row, COL_ST.ESTADO).setValue('aprobado');
-    sheetST.getRange(rec.row, COL_ST.FECHA_APROBACION).setValue(fechaAprobacion);
-    sheetST.getRange(rec.row, 1, 1, ST_NCOLS).setBackground('#E3F2FD');
-
-    result.success = true;
-    Logger.log('✅ ST aprobado: ' + idST);
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('Error _handleAprobarCotizacion: ' + err.message);
+  function st_toast(msg, type) {
+    var t = document.createElement('div');
+    t.className = 'st-toast' + (type ? ' '+type : '');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 3500);
   }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
 
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleIniciarEjecucion  (doGet)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleIniciarEjecucion(params, callback) {
-  var result = { success: false, error: null };
-  try {
-    var idST = params.id_st || '';
-    if (!idST) throw new Error('id_st requerido');
-
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual !== 'aprobado') {
-      throw new Error('Solo se puede iniciar ejecución desde estado "aprobado". Estado actual: ' + estadoActual);
-    }
-
-    var fechaInicio = params.fecha_inicio ||
-      Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd');
-
-    var sheetST = ss.getSheetByName(SHEET_ST);
-    sheetST.getRange(rec.row, COL_ST.ESTADO).setValue('en_ejecucion');
-    sheetST.getRange(rec.row, COL_ST.FECHA_INICIO).setValue(fechaInicio);
-    sheetST.getRange(rec.row, 1, 1, ST_NCOLS).setBackground('#F3E5F5');
-
-    result.success = true;
-    Logger.log('✅ ST en ejecución: ' + idST);
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('Error _handleIniciarEjecucion: ' + err.message);
+  function st_setLoading(btnId, loading, label) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.innerHTML = loading
+      ? '<span class="st-spinner"></span> Procesando…'
+      : label;
   }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
 
+  var TIPO_LABEL = {
+    'producto':'📦 Producto','mano_obra':'🔧 Mano de obra','flete':'🚛 Flete',
+    'combustible':'⛽ Combustible','fianza':'🔒 Fianza','subcontrato':'🤝 Subcontrato',
+    'impuesto':'🏛️ Impuesto','aduana':'🛃 Aduana','shipping_handling':'📮 Shipping & Handling','otro':'📌 Otro'
+  };
+  var ESTADO_LABEL = {
+    'cotizado':'Cotizado','aprobado':'Aprobado',
+    'en_ejecucion':'En Ejecución','cerrado':'Cerrado','cancelado':'Cancelado'
+  };
 
-// ═══════════════════════════════════════════════════════════════
-//  _handleRegistrarIngresoST  (doPost)
-// ═══════════════════════════════════════════════════════════════
+  // ── Navegación interna ───────────────────────────────────
+  window.st_showView = function(view) {
+    ['lista','nuevo'].forEach(function(v) {
+      var el = document.getElementById('st-view-'+v);
+      var nb = document.getElementById('st-nav-'+v);
+      if (el) el.style.display = v === view ? '' : 'none';
+      if (nb) nb.classList.toggle('active', v === view);
+    });
+    if (view === 'nuevo' && !st_state.editMode) st_resetForm();
+  };
 
-function _handleRegistrarIngresoST(data) {
-  try {
-    var idST = data.id_st || '';
-    if (!idST) throw new Error('id_st requerido');
+  // ── VISTA LISTA ──────────────────────────────────────────
 
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
+  window.st_cargarDatos = function(force) {
+    var cont = document.getElementById('st-cards-container');
+    cont.innerHTML = '<div class="st-empty"><div class="st-spinner" style="width:24px;height:24px;border-width:3px;border-color:#e2e8f0;border-top-color:#1A237E"></div></div>';
 
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual !== 'aprobado' && estadoActual !== 'en_ejecucion') {
-      throw new Error('Solo se puede registrar ingreso en estado "aprobado" o "en_ejecucion". Estado actual: ' + estadoActual);
-    }
+    gasJsonp('getCotizaciones', {})
+      .then(function(res) {
+        if (!res.success) throw new Error(res.error || 'Error al cargar datos');
+        st_state.data = res.items || [];
+        st_state.expandedId = null;
+        st_poblarMeses();
+        st_computeKPIs();
+        st_applyFilters();
+        document.getElementById('st-ts').textContent =
+          'Actualizado: ' + new Date().toLocaleTimeString('es-PA',{hour:'2-digit',minute:'2-digit'});
+      })
+      .catch(function(e) {
+        cont.innerHTML = '<div class="st-empty"><div class="st-empty-icon">⚠️</div>' + st_esc(e.message) + '</div>';
+      });
+  };
 
-    var ingresoExistente = String(rec.data[COL_ST.INGRESO_ID - 1] || '').trim();
-    if (ingresoExistente) {
-      throw new Error('Este ST ya tiene un ingreso registrado: ' + ingresoExistente);
-    }
-
-    var precioVenta = parseFloat(rec.data[COL_ST.PRECIO_VENTA - 1] || '0') || 0;
-    if (!precioVenta) throw new Error('El ST no tiene precio de venta definido. Actualiza la cotización primero.');
-
-    var driveUrl = '';
-    if (data.imageBase64 && data.imageName) {
-      try {
-        var folder   = DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID);
-        var mimeComp = data.imageMime || 'image/jpeg';
-        var bytes    = Utilities.base64Decode(data.imageBase64);
-        var blob     = Utilities.newBlob(bytes, mimeComp, data.imageName);
-        var file     = folder.createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        driveUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
-      } catch(driveErr) {
-        Logger.log('⚠️ Error subiendo comprobante ST: ' + driveErr.message);
+  function st_computeKPIs() {
+    var d = st_state.data;
+    var tot = d.length;
+    var cot = 0, cotVal = 0, eje = 0, ejeVal = 0, cerr = 0, cerrVal = 0;
+    d.forEach(function(st) {
+      if (st.estado === 'cotizado' || st.estado === 'aprobado') { cot++; cotVal += st.precio_venta||0; }
+      if (st.estado === 'en_ejecucion') { eje++; ejeVal += st.precio_venta||0; }
+      if (st.estado === 'cerrado') {
+        cerr++;
+        var pvCerr = st.subtotal_venta > 0 ? st.subtotal_venta : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
+        cerrVal += pvCerr;
       }
-    }
-
-    var ahora = new Date();
-
-    var esGravado   = data.es_gravado !== false && data.es_gravado !== 'false';
-    var subtotal    = esGravado ? parseFloat((precioVenta / 1.07).toFixed(2)) : precioVenta;
-    var itbms       = esGravado ? parseFloat((precioVenta - subtotal).toFixed(2)) : 0;
-    var categoria   = esGravado ? 'servicio_tecnico_gravado' : 'servicio_tecnico_exento';
-
-    var fechaIngreso = data.fecha ||
-      Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd');
-    var mes  = new Date(fechaIngreso + 'T12:00:00').getMonth() + 1;
-    var anio = new Date(fechaIngreso + 'T12:00:00').getFullYear();
-
-    var id = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-ST';
-
-    var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
-    if (!sheetIng) throw new Error('Hoja Ingresos no encontrada. Ejecuta initSheets().');
-
-    var numFactura  = data.num_factura  || String(rec.data[COL_ST.NUM_COT - 1] || '');
-    var nombreCli   = String(rec.data[COL_ST.NOMBRE_CLI - 1] || '');
-    var lastIngRow  = sheetIng.getLastRow();
-    if (lastIngRow > 2 && numFactura) {
-      var existIng = sheetIng.getRange(3, 1, lastIngRow - 2, INGRESOS_NCOLS).getValues();
-      for (var d = 0; d < existIng.length; d++) {
-        if (String(existIng[d][COL_I.NUM_FACTURA - 1]) === numFactura &&
-            String(existIng[d][COL_I.NOMBRE_CLI - 1]).toLowerCase() === nombreCli.toLowerCase()) {
-          throw new Error('DUPLICADO: Ya existe un ingreso para el cliente "' + nombreCli +
-                          '" con referencia "' + numFactura + '"');
-        }
-      }
-    }
-
-    var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-
-    var fila = new Array(INGRESOS_NCOLS);
-    for (var xi = 0; xi < INGRESOS_NCOLS; xi++) fila[xi] = '';
-    fila[COL_I.ID_TRANS - 1]      = id;
-    fila[COL_I.FECHA_REG - 1]     = fechaReg;
-    fila[COL_I.ESTADO - 1]        = 'confirmado';
-    fila[COL_I.CONFIANZA_IA - 1]  = 'manual';
-    fila[COL_I.FECHA_INGRESO - 1] = fechaIngreso;
-    fila[COL_I.MES - 1]           = mes;
-    fila[COL_I.ANIO_FISCAL - 1]   = anio;
-    fila[COL_I.SUBTOTAL - 1]      = subtotal;
-    fila[COL_I.ITBMS - 1]         = itbms;
-    fila[COL_I.TOTAL - 1]         = precioVenta;
-    fila[COL_I.MONEDA - 1]        = 'USD';
-    fila[COL_I.TIPO_INGRESO - 1]  = 'servicio_tecnico';
-    fila[COL_I.CATEGORIA - 1]     = categoria;
-    fila[COL_I.NOMBRE_CLI - 1]    = nombreCli;
-    fila[COL_I.RUC_CLI - 1]       = String(rec.data[COL_ST.RUC_CLI - 1] || '');
-    fila[COL_I.TIPO_PERSONA - 1]  = detectarTipoPersona(String(rec.data[COL_ST.RUC_CLI - 1] || ''));
-    fila[COL_I.NUM_FACTURA - 1]   = numFactura;
-    fila[COL_I.TIPO_COMP - 1]     = data.forma_pago || 'factura_emitida';
-    fila[COL_I.DRIVE_URL - 1]     = driveUrl;
-    fila[COL_I.DESCRIPCION - 1]   = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || '');
-    fila[COL_I.NOTAS_INT - 1]     = 'ST: ' + idST + ' | Cotización: ' + String(rec.data[COL_ST.NUM_COT - 1] || '') +
-                                     (data.forma_pago ? ' | Pago: ' + data.forma_pago : '');
-    fila[COL_I.FLAG_REV - 1]      = false;
-    fila[COL_I.DV_CLI - 1]        = String(rec.data[COL_ST.DV_CLI - 1] || '');
-
-    var newIngRow = sheetIng.getLastRow() + 1;
-    sheetIng.getRange(newIngRow, 1, 1, INGRESOS_NCOLS).setValues([fila]);
-    sheetIng.getRange(newIngRow, COL_I.SUBTOTAL, 1, 3).setNumberFormat('#,##0.00');
-    sheetIng.getRange(newIngRow, 1, 1, INGRESOS_NCOLS).setBackground('#F1F8E9');
-
-    var sheetST = ss.getSheetByName(SHEET_ST);
-    sheetST.getRange(rec.row, COL_ST.INGRESO_ID).setValue(id);
-    if (driveUrl) sheetST.getRange(rec.row, COL_ST.DRIVE_URL).setValue(driveUrl);
-
-    Logger.log('✅ Ingreso ST: ' + id + ' | ST: ' + idST + ' | $' + precioVenta);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success:    true,
-        ingreso_id: id,
-        total:      precioVenta,
-        subtotal:   subtotal,
-        itbms:      itbms,
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    Logger.log('Error _handleRegistrarIngresoST: ' + err.message);
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    });
+    document.getElementById('st-kpi-total').textContent     = tot;
+    document.getElementById('st-kpi-cot').textContent       = cot;
+    document.getElementById('st-kpi-cot-val').textContent   = st_fmt(cotVal) + ' presupuestado';
+    document.getElementById('st-kpi-eje').textContent       = eje;
+    document.getElementById('st-kpi-eje-val').textContent   = st_fmt(ejeVal) + ' en curso';
+    document.getElementById('st-kpi-cerr').textContent      = cerr;
+    document.getElementById('st-kpi-cerr-val').textContent  = st_fmt(cerrVal) + ' neto s/ITBMS';
   }
-}
 
+  window.st_setFilter = function(f) {
+    st_state.stFilter = f;
+    document.querySelectorAll('[id^=st-f-]').forEach(function(b) {
+      b.classList.toggle('active', b.id === 'st-f-'+f);
+    });
+    st_applyFilters();
+  };
 
-// ═══════════════════════════════════════════════════════════════
-//  _handleRegistrarEgresoST  (doPost)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleRegistrarEgresoST(data) {
-  try {
-    var idST     = data.id_st     || '';
-    var idItemST = data.id_item_st || '';
-    if (!idST) throw new Error('id_st requerido');
-
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual !== 'en_ejecucion' && estadoActual !== 'aprobado') {
-      throw new Error('Solo se pueden registrar egresos en STs "aprobado" o "en_ejecucion". Estado: ' + estadoActual);
-    }
-
-    var driveUrl = '';
-    if (data.imageBase64 && data.imageName) {
-      try {
-        var folder   = DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID);
-        var mimeDoc  = data.imageMime || 'image/jpeg';
-        var bytes    = Utilities.base64Decode(data.imageBase64);
-        var blob     = Utilities.newBlob(bytes, mimeDoc, data.imageName);
-        var file     = folder.createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        driveUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
-      } catch(driveErr) {
-        Logger.log('⚠️ Error subiendo factura egreso ST: ' + driveErr.message);
+  window.st_applyFilters = function() {
+    var term   = (document.getElementById('st-search')||{value:''}).value.toLowerCase().trim();
+    var filt   = st_state.stFilter;
+    var mes    = st_state.filtroMes;
+    var desde  = st_state.filtroDesde;
+    var hasta  = st_state.filtroHasta;
+    var items  = st_state.data.filter(function(st) {
+      if (filt !== 'all' && st.estado !== filt) return false;
+      if (term) {
+        var hay = [st.nombre_cliente, st.descripcion, st.num_cotizacion, st.id_st].join(' ').toLowerCase();
+        if (hay.indexOf(term) === -1) return false;
       }
-    }
-
-    var total    = parseFloat(data.total)    || 0;
-    var itbms    = parseFloat(data.itbms)    || 0;
-    var subtotal = parseFloat(data.subtotal) || parseFloat((total - itbms).toFixed(2));
-
-    var ahora      = new Date();
-    var fechaGasto = data.fecha ||
-      Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd');
-
-    var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
-    if (!sheetEgr) throw new Error('Hoja Egresos no encontrada. Ejecuta initSheets().');
-
-    var yearEgr    = new Date(fechaGasto + 'T12:00:00').getFullYear() || ahora.getFullYear();
-    var seqEgr     = 1;
-    var lastEgrRow = sheetEgr.getLastRow();
-    if (lastEgrRow > 2) {
-      var idsEgr = sheetEgr.getRange(3, 1, lastEgrRow - 2, 1).getValues();
-      for (var ke = idsEgr.length - 1; ke >= 0; ke--) {
-        var ve     = String(idsEgr[ke][0] || '');
-        var partsE = ve.split('-');
-        var ne     = parseInt(partsE[partsE.length - 1], 10);
-        if (!isNaN(ne)) { seqEgr = ne + 1; break; }
-      }
-    }
-    var egresoId = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
-
-    var proveedor  = data.proveedor  || '';
-    var numFactura = data.num_factura || '';
-
-    if (proveedor && numFactura && lastEgrRow > 2) {
-      var EGRESOS_CHECK_NCOLS = Math.max(EGRESOS_NCOLS, 20);
-      var existEgr = sheetEgr.getRange(3, 1, lastEgrRow - 2, EGRESOS_CHECK_NCOLS).getValues();
-      for (var d = 0; d < existEgr.length; d++) {
-        var provExist = String(existEgr[d][12] || '').trim().toUpperCase();
-        var nfacExist = String(existEgr[d][15] || '').trim();
-        if (provExist === proveedor.trim().toUpperCase() && nfacExist && nfacExist === numFactura.trim()) {
-          throw new Error('DUPLICADO: Ya existe un egreso del proveedor "' + proveedor +
-                          '" con factura "' + numFactura + '"');
+      // Fecha efectiva para filtro: fecha_ingreso (factura emitida) si existe,
+      // si no extraer del ingreso_id (formato ING-RP-YYYYMMDD...), 
+      // si no fecha_cierre, si no fecha_reg
+      var fechaEfectiva;
+      if (st.fecha_ingreso && st.fecha_ingreso.length >= 7) {
+        fechaEfectiva = st.fecha_ingreso;
+      } else if (st.ingreso_id) {
+        // ingreso_id formato: ING-RP-20260129... → extraer YYYYMMDD
+        var mIngId = String(st.ingreso_id).match(/(\d{4})(\d{2})(\d{2})/);
+        if (mIngId) {
+          fechaEfectiva = mIngId[1] + '-' + mIngId[2] + '-' + mIngId[3];
+        } else if (st.fecha_cierre && String(st.fecha_cierre).length >= 7) {
+          fechaEfectiva = String(st.fecha_cierre).slice(0, 10);
+        } else {
+          fechaEfectiva = String(st.fecha_reg || '');
         }
+      } else if (st.fecha_cierre && String(st.fecha_cierre).length >= 7) {
+        fechaEfectiva = String(st.fecha_cierre).slice(0, 10);
+      } else {
+        fechaEfectiva = String(st.fecha_reg || '');
       }
-    }
-
-    var fechaGastoDate = new Date(fechaGasto + 'T12:00:00');
-    var mesEgr  = isNaN(fechaGastoDate.getTime()) ? '' : (fechaGastoDate.getMonth() + 1);
-    var anioEgr = isNaN(fechaGastoDate.getTime()) ? yearEgr : fechaGastoDate.getFullYear();
-
-    var tipoMap = {
-      'mano_obra':         'costo_servicio_tecnico',
-      'flete':             'costo_servicio_tecnico',
-      'combustible':       'combustible',
-      'fianza':            'costo_servicio_tecnico',
-      'subcontrato':       'servicios_profesionales',
-      'producto':          'costo_mercancia',
-      'impuesto':          'costo_servicio_tecnico',
-      'aduana':            'costo_servicio_tecnico',
-      'shipping_handling': 'costo_servicio_tecnico',
-      'credito_fiscal':    'credito_fiscal',
-      'otro':              'costo_servicio_tecnico',
-    };
-    var tipoItem   = data.tipo || 'otro';
-    var tipoEgreso = tipoMap[tipoItem] || 'costo_servicio_tecnico';
-    var categoria  = data.categoria || tipoEgreso;
-
-    var COL_COUNT = 21;
-    var filaEgr   = new Array(COL_COUNT);
-    for (var xe = 0; xe < COL_COUNT; xe++) filaEgr[xe] = '';
-
-    filaEgr[0]  = egresoId;
-    filaEgr[1]  = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-    filaEgr[2]  = 'registrado';
-    filaEgr[3]  = fechaGasto;
-    filaEgr[4]  = mesEgr;
-    filaEgr[5]  = anioEgr;
-    filaEgr[6]  = subtotal || '';
-    filaEgr[7]  = itbms    || '';
-    filaEgr[8]  = total    || '';
-    filaEgr[9]  = 'USD';
-    filaEgr[10] = tipoEgreso;
-    filaEgr[11] = categoria;
-    filaEgr[12] = proveedor;
-    filaEgr[13] = data.ruc_prov  || '';
-    filaEgr[14] = data.dv_prov   || '';
-    filaEgr[15] = numFactura;
-    filaEgr[16] = '';   // col 17 id_item_cv — VACÍO: exclusivo de Compras_Ventas
-    filaEgr[17] = driveUrl;
-    filaEgr[18] = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || '');
-    filaEgr[19] = 'ST: ' + idST + (idItemST ? ' | Ítem: ' + idItemST : ' | Costo adicional') +
-                  (data.notas ? ' | ' + data.notas : '');
-    filaEgr[20] = idItemST ? idItemST : idST;
-
-    var newEgrRow = sheetEgr.getLastRow() + 1;
-    sheetEgr.getRange(newEgrRow, 1, 1, COL_COUNT).setValues([filaEgr]);
-    sheetEgr.getRange(newEgrRow, 7, 1, 3).setNumberFormat('#,##0.00');
-    sheetEgr.getRange(newEgrRow, 1, 1, COL_COUNT).setBackground('#F3E5F5');
-
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    if (!sheetSTI) sheetSTI = _initSTItemsSheet(ss);
-
-    if (idItemST) {
-      if (sheetSTI.getLastRow() > 2) {
-        var numItemRows = sheetSTI.getLastRow() - 2;
-        var itemData    = sheetSTI.getRange(3, 1, numItemRows, STI_NCOLS).getValues();
-        for (var i = 0; i < itemData.length; i++) {
-          if (String(itemData[i][COL_STI.ID - 1]) !== String(idItemST)) continue;
-          var itemRow = i + 3;
-          sheetSTI.getRange(itemRow, COL_STI.MONTO_REAL).setValue(subtotal || total);
-          sheetSTI.getRange(itemRow, COL_STI.ITBMS_REAL).setValue(itbms);
-          sheetSTI.getRange(itemRow, COL_STI.TOTAL_REAL).setValue(total);
-          sheetSTI.getRange(itemRow, COL_STI.DRIVE_URL).setValue(driveUrl);
-          sheetSTI.getRange(itemRow, COL_STI.EGRESO_ID).setValue(egresoId);
-          sheetSTI.getRange(itemRow, COL_STI.ESTADO_ITEM).setValue('ejecutado');
-          sheetSTI.getRange(itemRow, 1, 1, STI_NCOLS).setBackground('#E8F5E9');
-          break;
-        }
+      // Filtro por mes (YYYY-MM)
+      if (mes) {
+        if (fechaEfectiva.slice(0, 7) !== mes) return false;
       }
+      // Filtro por rango desde/hasta
+      if (desde || hasta) {
+        var fechaDia = fechaEfectiva.slice(0, 10);
+        if (desde && fechaDia < desde) return false;
+        if (hasta && fechaDia > hasta) return false;
+      }
+      return true;
+    });
+    // Ordenar cards por fecha de emisión de factura (fecha_cierre) desc — más reciente primero.
+    // Fallback: fecha_registro desc si no hay fecha_cierre.
+    st_state.filtered = items.slice().sort(function(a, b) {
+      var fa = a.fecha_cierre || a.fecha_reg || '';
+      var fb = b.fecha_cierre || b.fecha_reg || '';
+      if (fa > fb) return -1;
+      if (fa < fb) return  1;
+      // Desempate: num_factura desc
+      var na = st_numFactura(a), nb = st_numFactura(b);
+      if (na > nb) return -1;
+      if (na < nb) return  1;
+      return 0;
+    });
+    if (st_state.vistaMode === 'tabla') {
+      st_renderTabla();
     } else {
-      var ahoraSTI    = new Date();
-      var idItemLib   = 'STI-RP-' + Utilities.formatDate(ahoraSTI, 'America/Panama', 'yyyyMMddHHmmss') + '-L';
-      var fechaRegSTI = Utilities.formatDate(ahoraSTI, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-      var descItem    = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || 'Costo adicional');
-      var aplicaITB   = itbms > 0;
-
-      var filaSTI = new Array(STI_NCOLS);
-      for (var xsi = 0; xsi < STI_NCOLS; xsi++) filaSTI[xsi] = '';
-      filaSTI[COL_STI.ID - 1]           = idItemLib;
-      filaSTI[COL_STI.ID_ST - 1]        = idST;
-      filaSTI[COL_STI.TIPO - 1]         = tipoItem;
-      filaSTI[COL_STI.DESCRIPCION - 1]  = descItem;
-      filaSTI[COL_STI.CANTIDAD - 1]     = 1;
-      filaSTI[COL_STI.PRECIO_UNIT - 1]  = total;
-      filaSTI[COL_STI.APLICA_ITBMS - 1] = aplicaITB;
-      filaSTI[COL_STI.MONTO_COT - 1]    = '';
-      filaSTI[COL_STI.ITBMS_COT - 1]    = '';
-      filaSTI[COL_STI.TOTAL_COT - 1]    = '';
-      filaSTI[COL_STI.ES_ADICIONAL - 1] = true;
-      filaSTI[COL_STI.MONTO_REAL - 1]   = subtotal || total;
-      filaSTI[COL_STI.ITBMS_REAL - 1]   = itbms;
-      filaSTI[COL_STI.TOTAL_REAL - 1]   = total;
-      filaSTI[COL_STI.DRIVE_URL - 1]    = driveUrl;
-      filaSTI[COL_STI.EGRESO_ID - 1]    = egresoId;
-      filaSTI[COL_STI.ESTADO_ITEM - 1]  = 'ejecutado';
-      filaSTI[COL_STI.NOTAS - 1]        = data.notas || '';
-      filaSTI[COL_STI.FECHA_REG - 1]    = fechaRegSTI;
-
-      var newSTIRow = sheetSTI.getLastRow() + 1;
-      sheetSTI.getRange(newSTIRow, 1, 1, STI_NCOLS).setValues([filaSTI]);
-      sheetSTI.getRange(newSTIRow, COL_STI.MONTO_REAL, 1, 3).setNumberFormat('#,##0.00');
-      sheetSTI.getRange(newSTIRow, 1, 1, STI_NCOLS).setBackground('#F3E5F5');
-      Logger.log('✅ ST_Items adicional creado: ' + idItemLib + ' | ' + tipoItem + ' | $' + total);
+      st_renderCards(st_state.filtered);
     }
+  };
 
-    var sheetSTI2 = ss.getSheetByName(SHEET_ST_ITEM);
-    var totalReal = _calcSTTotalsReal(sheetSTI2, idST);
-    var sheetST   = ss.getSheetByName(SHEET_ST);
-    sheetST.getRange(rec.row, COL_ST.TOTAL_COSTO_REAL).setValue(totalReal);
-
-    Logger.log('✅ Egreso ST: ' + egresoId + ' | ST: ' + idST +
-               (idItemST ? ' | Ítem: ' + idItemST : ' | libre') + ' | $' + total);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success:          true,
-        egreso_id:        egresoId,
-        total:            total,
-        total_costo_real: totalReal,
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    Logger.log('Error _handleRegistrarEgresoST: ' + err.message);
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+  // ── Helper: extract real invoice number ─────────────────
+  function st_numFactura(st) {
+    var nc = String(st.num_cotizacion || '');
+    if (/^\d{7,}$/.test(nc.trim())) return nc.trim();
+    var notas = String(st.notas || '');
+    var m1 = notas.match(/Carpeta:\s*FACT\s*(\d+)/i);
+    if (m1) return 'FACT ' + m1[1];
+    return nc;
   }
-}
+
+  function st_renderCards(items) {
+    var cont = document.getElementById('st-cards-container');
+    if (!items.length) {
+      cont.innerHTML = '<div class="st-empty"><div class="st-empty-icon">🔍</div>' +
+        (st_state.data.length === 0 ? 'No hay servicios técnicos registrados.' : 'Sin resultados.') +
+        '</div>';
+      return;
+    }
+    var outer = '<div class="st-cards-outer">';
+    for (var i = 0; i < items.length; i++) {
+      outer += '<div class="st-cards-row">';
+      outer += st_buildCard(items[i]);
+      outer += '</div>';
+    }
+    outer += '</div>';
+    cont.innerHTML = outer;
+    // Auto-load all drawers with stagger
+    items.forEach(function(stItem, i) {
+      setTimeout(function() {
+        st_state.stActual = stItem;
+        st_loadDrawerDetail(stItem.id_st, i);
+      }, i * 120);
+    });
+  }
+
+  function st_buildCard(st) {
+    // pvNeto: usar subtotal_venta del resumen si existe (correcto para gravados y exentos),
+    // fallback a /1.07 solo si no está disponible.
+    // Para STs cancelados (nota de crédito), el neto es siempre $0.
+    var pvNeto = st.estado === 'cancelado'
+      ? 0
+      : (st.subtotal_venta > 0
+          ? st.subtotal_venta
+          : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0));
+    var util = pvNeto - st_calcCostoReal(st);
+    var uClr = util >= 0 ? '#15803d' : '#dc2626';
+    var fecha = String(st.fecha_reg||'').slice(0,10);
+    var idEsc = st_esc(st.id_st);
+    var h = '';
+    h += '<div class="st-card s-' + st.estado + ' active" id="stcard-' + idEsc + '" style="position:relative">';
+    // Trash button — positioned top-right, stops propagation so it doesn't toggle the drawer
+    h += '<button onclick="event.stopPropagation();st_eliminarST(\''+idEsc+'\')" ' +
+         'title="Eliminar ST y todos sus registros" ' +
+         'style="position:absolute;top:8px;right:8px;z-index:10;background:none;border:none;cursor:pointer;' +
+         'padding:4px 6px;border-radius:5px;font-size:.85rem;color:#cbd5e1;line-height:1;transition:all .15s" ' +
+         'onmouseover="this.style.color=\'#dc2626\';this.style.background=\'#fee2e2\'" ' +
+         'onmouseout="this.style.color=\'#cbd5e1\';this.style.background=\'none\'">🗑️</button>';
+    h +=   '<div class="st-card-head" onclick="st_toggleCard(\'' + idEsc + '\')" style="padding-right:36px">';
+    h +=     '<div class="st-card-row1">';
+    h +=       '<div class="st-card-cli">' + st_esc(st.nombre_cliente) + '</div>';
+    h +=       '<div class="st-card-right">';
+    h +=         '<div class="st-card-monto" id="stcard-monto-' + idEsc + '">' + st_fmt(st.precio_venta) + '</div>';
+    h +=         '<div class="st-card-util" id="stcard-util-' + idEsc + '" style="color:' + uClr + '">' + (util>=0?'▲':'▼') + ' ' + st_fmt(Math.abs(util)) + '</div>';
+    h +=       '</div>';
+    h +=     '</div>';
+    h +=     '<div class="st-card-row2">';
+    h +=       '<span class="st-card-fnum">' + st_esc(st_numFactura(st)) + '</span>';
+    if (fecha) h += '<span class="st-card-fecha">' + fecha + '</span>';
+    h +=       '<span class="st-badge s-' + st.estado + '">' + st_esc(ESTADO_LABEL[st.estado]||st.estado) + '</span>';
+    h +=     '</div>';
+    h +=     '<div class="st-card-row3">' + st_esc(st.descripcion) + '</div>';
+    h +=   '</div>';
+    h += '<div class="st-card-detail" id="stdrawer-' + idEsc + '">';
+    h += '<div style="padding:20px;text-align:center;color:#94a3b8">' +
+         '<span class="st-spinner" style="border-color:#e2e8f0;border-top-color:#1A237E;width:18px;height:18px;border-width:2px"></span>' +
+         '</div>';
+    h += '</div>';
+    h += '</div>';
+    return h;
+  }
+
+  window.st_toggleCard = function(idST) {
+    // Cards are always open — clicking header sets stActual but doesn't collapse
+    st_state.expandedId = idST;
+    for (var n = 0; n < st_state.filtered.length; n++) {
+      if (st_state.filtered[n].id_st === idST) { st_state.stActual = st_state.filtered[n]; break; }
+    }
+    // If drawer is empty, load it
+    var drawEl = document.getElementById('stdrawer-' + idST);
+    if (drawEl && (!drawEl.innerHTML.trim() || drawEl.innerHTML.indexOf('st-spinner') !== -1)) {
+      var cardEl = document.getElementById('stcard-' + idST);
+      if (cardEl) cardEl.classList.add('active');
+      st_loadDrawerDetail(idST, 0);
+    }
+  };
 
 
-// ═══════════════════════════════════════════════════════════════
-//  _handleGetResumenST  (doGet)  — v1.3
-//  v1.3: agrega subtotal_venta y es_exento al resumen
-//    subtotal_venta = monto neto sin ITBMS (correcto para gravados y exentos)
-//    es_exento = true si categoria del ingreso es venta_producto_exento o servicio_tecnico_exento
-// ═══════════════════════════════════════════════════════════════
 
-function _handleGetResumenST(params, callback) {
-  var result = { success: false, resumen: null, error: null };
-  try {
-    var idST = params.id_st || '';
-    if (!idST) throw new Error('id_st requerido');
+  function st_loadDrawerDetail(idST, idx) {
+    gasJsonp('getResumenST', { id_st: idST })
+      .then(function(res) {
+        if (!res.success) throw new Error(res.error);
+        var resumen = res.resumen;
 
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-    var st = _serializeST(rec.data);
+        // Si hay ingreso pero sin drive_url, buscarlo en la hoja Ingresos
+        var needsIngresoUrl = resumen.ingreso_id && !resumen.ingreso_drive_url;
 
-    var sheetEgr     = ss.getSheetByName(SHEET_EGRESOS);
-    var egresosPorId = {};
-    var colsEgr = 20;
-    if (sheetEgr && sheetEgr.getLastRow() > 2) {
-      var numEgrPre  = sheetEgr.getLastRow() - 2;
-      var egrAllData = sheetEgr.getRange(3, 1, numEgrPre, colsEgr).getValues();
-      egrAllData.forEach(function(r) {
-        var eid = String(r[COL_E.ID - 1] || '').trim();
-        if (eid) egresosPorId[eid] = r;
+        var p1 = gasJsonp('getCotizaciones', { id_st: idST })
+          .then(function(r2) {
+            if (r2.success && r2.items && r2.items.length) {
+              st_state.stActual = r2.items[0];
+              // Merge resumen items into stActual so poblarSelectItems
+              // sees free egresos (EGR- prefix) that aren't in ST_Items
+              if (resumen.items && resumen.items.length) {
+                var sti_ids = {};
+                (st_state.stActual.items || []).forEach(function(it) {
+                  sti_ids[it.id_item_st] = true;
+                });
+                resumen.items.forEach(function(it) {
+                  if (!sti_ids[it.id_item_st]) {
+                    st_state.stActual.items = st_state.stActual.items || [];
+                    st_state.stActual.items.push(it);
+                  }
+                });
+              }
+              // Sync items back into st_state.data so refreshCardHeader can find them by idST
+              for (var _d = 0; _d < st_state.data.length; _d++) {
+                if (st_state.data[_d].id_st === idST) {
+                  st_state.data[_d].items = st_state.stActual.items;
+                  break;
+                }
+              }
+            }
+          })
+          .catch(function() {});
+
+        var p2 = needsIngresoUrl
+          ? gasJsonp('getIngresos', {})
+              .then(function(ri) {
+                if (ri.success && ri.items && ri.items.length) {
+                  // Buscar el ingreso que coincide con ingreso_id
+                  for (var i = 0; i < ri.items.length; i++) {
+                    if (ri.items[i].id_trans === resumen.ingreso_id) {
+                      var ing = ri.items[i];
+                      resumen.estado_ingreso = ing.estado || '';
+                      // drive_url es el comprobante de pago (Yappy, ACH, etc.)
+                      resumen.ingreso_drive_url = ing.drive_url || '';
+                      // Si no hay drive_url, buscar patrón Voucher: en notas
+                      if (!resumen.ingreso_drive_url && ing.notas) {
+                        var vm = String(ing.notas).match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
+                        if (vm) resumen.ingreso_drive_url = vm[1];
+                      }
+                      break;
+                    }
+                  }
+                }
+              })
+              .catch(function() {})
+          : Promise.resolve();
+
+        Promise.all([p1, p2]).then(function() {
+          // Find this ST's data by id — stActual may point to a different ST
+          // during staggered async loads (parallel drawers). Pass stData explicitly.
+          var stData = null;
+          for (var _i = 0; _i < st_state.data.length; _i++) {
+            if (st_state.data[_i].id_st === idST) { stData = st_state.data[_i]; break; }
+          }
+          st_renderDrawer(idST, resumen, stData);
+          if (stData) st_refreshCardHeader(idST, stData, resumen.total_real || 0);
+        });
+      })
+      .catch(function(e) {
+        var dr = document.getElementById('stdrawer-' + idST);
+        if (dr) dr.innerHTML = '<div class="st-empty"><div class="st-empty-icon">⚠️</div>' + st_esc(e.message) + '</div>';
+      });
+  }
+
+  function st_renderDrawer(idST, r, stData) {
+    var drawer = document.getElementById('stdrawer-' + idST);
+    if (!drawer) return;
+    var st = stData || st_state.stActual;
+    if (!st) return;
+    var enEje = st.estado === 'en_ejecucion';
+    var items = (r.items || []).filter(function(it) { return it.estado_item !== 'cancelado'; });
+    var notas = String(st.notas || '');
+    var html  = '';
+    var voucherUrl = '';
+    var vm = notas.match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
+    if (vm) voucherUrl = vm[1];
+    if (!voucherUrl && r.notas) {
+      var vm2 = String(r.notas).match(/Voucher:\s*(https?:\/\/[^\s|]+)/);
+      if (vm2) voucherUrl = vm2[1];
+    }
+    // ingreso_drive_url en STs de historial sin voucher apunta a la factura CEYCO,
+    // no a un comprobante de pago. Solo usarlo si el ingreso está confirmado.
+    if (!voucherUrl && r.ingreso_drive_url && r.estado_ingreso === 'confirmado') voucherUrl = r.ingreso_drive_url;
+
+    // Collect cost doc URLs:
+    // - productCostUrls: drive_urls from producto-type items → shown in header cell
+    // - All unique drive_urls across items → available for table column
+    var productCostUrls = [], seen = {};
+    var allItemUrls = {};  // item id → drive_url (including from egreso siblings)
+    // First pass: map egreso_id → drive_url (so non-producto items can inherit their egreso's URL)
+    var egresoUrlMap = {};
+    items.forEach(function(it) {
+      if (it.drive_url && it.egreso_id) egresoUrlMap[it.egreso_id] = it.drive_url;
+    });
+    items.forEach(function(it) {
+      // Build per-item url map for table Doc column
+      var url = it.drive_url || (it.egreso_id && egresoUrlMap[it.egreso_id] ? egresoUrlMap[it.egreso_id] : '');
+      if (url) allItemUrls[it.id_item_st] = url;
+      // Collect unique product-type cost docs for header cell
+      if (it.drive_url && it.tipo === 'producto' && !seen[it.drive_url]) {
+        seen[it.drive_url] = true;
+        productCostUrls.push({ url: it.drive_url, desc: it.descripcion || 'Factura costo' });
+      }
+    });
+    // Propagate shared product url only to non-inventory producto items
+    var sharedProductUrl = productCostUrls.length > 0 ? productCostUrls[0].url : '';
+    if (sharedProductUrl) {
+      items.forEach(function(it) {
+        if (it.tipo === 'producto' && !allItemUrls[it.id_item_st] && !it.from_inventory) {
+          allItemUrls[it.id_item_st] = sharedProductUrl;
+        }
       });
     }
 
-    function esDeInventario(egresoRow) {
-      if (!egresoRow) return false;
-      var notas = String(egresoRow[COL_E.NOTAS - 1] || '').toLowerCase();
-      return notas.indexOf('origen: inventario') !== -1;
-    }
-
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    var items = [];
-    var egresoIdsEnSTItems = {};
-
-    if (sheetSTI && sheetSTI.getLastRow() > 2) {
-      var numRows  = sheetSTI.getLastRow() - 2;
-      var itemData = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
-      for (var i = 0; i < itemData.length; i++) {
-        if (String(itemData[i][COL_STI.ID_ST - 1]) !== String(idST)) continue;
-        var item = _serializeSTItem(itemData[i]);
-
-        if (item.egreso_id && egresosPorId[item.egreso_id]) {
-          var eRow = egresosPorId[item.egreso_id];
-          item.proveedor   = String(eRow[COL_E.PROVEEDOR - 1] || '');
-          item.num_factura = String(eRow[COL_E.NFACTURA  - 1] || '');
+    // Per-item source classification for Estado column:
+    // 'fact' = has drive_url (own or shared), OR ejecutado sin doc (costo externo sin PDF)
+    // 'inv'  = from_inventory:true (señal explícita del backend: notas "Origen: inventario")
+    // 'pend' = producto pendiente sin fuente confirmada
+    // 'ok'   = tipos no-producto (mano_obra, flete, etc.)
+    function st_itemSource(it) {
+      if (it.drive_url || allItemUrls[it.id_item_st]) return 'fact';
+      if (it.tipo === 'producto') {
+        if (it.estado_item === 'ejecutado') {
+          if (it.from_inventory === true) return 'inv';  // señal explícita del backend
+          return 'fact';  // ejecutado sin doc = costo externo sin PDF adjunto (Fact*)
         }
-
-        item.from_inventory = false;
-        if (item.egreso_id) {
-          item.from_inventory = esDeInventario(egresosPorId[item.egreso_id]);
-        }
-
-        var varMonto = 0, varPct = 0;
-        if (item.total_cotizado > 0 && item.total_real > 0) {
-          varMonto = parseFloat((item.total_real - item.total_cotizado).toFixed(2));
-          varPct   = parseFloat(((varMonto / item.total_cotizado) * 100).toFixed(1));
-        }
-        item.variacion_monto = varMonto;
-        item.variacion_pct   = varPct;
-        item.semaforo = varPct <= 0 ? 'verde' : (varPct <= 10 ? 'amarillo' : 'rojo');
-
-        items.push(item);
-        if (item.egreso_id) egresoIdsEnSTItems[String(item.egreso_id).trim()] = true;
+        return 'pend';
       }
+      return 'ok';
     }
+    var hasPendingProduct = items.some(function(it) { return st_itemSource(it) === 'pend'; });
 
-    var stTag = 'ST: ' + idST;
-    if (sheetEgr && sheetEgr.getLastRow() > 2) {
-      var numEgr  = sheetEgr.getLastRow() - 2;
-      var egrData = sheetEgr.getRange(3, 1, numEgr, colsEgr).getValues();
+    html += '<div class="st-docs-row">';
 
-      for (var e = 0; e < egrData.length; e++) {
-        var row      = egrData[e];
-        var egresoId = String(row[COL_E.ID - 1] || '').trim();
-        if (!egresoId) continue;
-        if (String(row[COL_E.ESTADO - 1] || '').toLowerCase() === 'anulado') continue;
-        if (egresoIdsEnSTItems[egresoId]) continue;
+    // CELL 1: Factura emitida
+    html += '<div class="st-doc-cell"><div class="st-doc-lbl">🧾 Factura emitida</div>';
+    html += st.drive_url
+      ? '<a href="' + st_esc(st.drive_url) + '" target="_blank" class="st-doc-a fl">' + st_esc(st_numFactura(st)) + ' ↗</a>'
+      : '<span class="st-doc-none">' + st_esc(st_numFactura(st)) + '</span>';
+    html += '</div>';
 
-        var notasE    = String(row[COL_E.NOTAS - 1] || '');
-        var pertenece = notasE.indexOf(stTag) !== -1;
-        if (!pertenece) continue;
-
-        var fechaGasto = row[COL_E.FECHA_GASTO - 1];
-        if (fechaGasto instanceof Date) {
-          fechaGasto = Utilities.formatDate(fechaGasto, 'America/Panama', 'yyyy-MM-dd');
-        } else { fechaGasto = String(fechaGasto || '').slice(0, 10); }
-
-        var totalEgr    = parseFloat(row[COL_E.TOTAL - 1])    || 0;
-        var subtotalEgr = parseFloat(row[COL_E.SUBTOTAL - 1]) || 0;
-        var itbmsEgr    = parseFloat(row[COL_E.ITBMS - 1])    || 0;
-        var tipoEgr     = String(row[COL_E.TIPO_EGRESO - 1]   || 'otro');
-        var descEgr     = String(row[COL_E.DESCRIPCION - 1]   || '');
-        var provEgr     = String(row[COL_E.PROVEEDOR - 1]     || '');
-        var driveEgr    = String(row[COL_E.DRIVE_URL - 1]     || '');
-        var nfacEgr     = String(row[COL_E.NFACTURA - 1]      || '');
-        var fromInv     = esDeInventario(row);
-
-        var tipoItemMap = {
-          'costo_mercancia':        'producto',
-          'costo_servicio_tecnico': 'mano_obra',
-          'combustible':            'combustible',
-          'servicios_profesionales':'subcontrato',
-        };
-        if (!descEgr && provEgr) descEgr = provEgr + (nfacEgr ? ' — ' + nfacEgr : '');
-        if (!descEgr) descEgr = 'Costo adicional';
-
-        items.push({
-          id_item_st:       'EGR-' + egresoId,
-          id_st:            idST,
-          tipo:             tipoItemMap[tipoEgr] || 'otro',
-          descripcion:      descEgr,
-          cantidad:         1,
-          precio_unitario:  totalEgr,
-          aplica_itbms:     itbmsEgr > 0,
-          monto_cotizado:   0, itbms_cotizado: 0, total_cotizado: 0,
-          margen_item_pct:  0, precio_venta_item: 0,
-          es_adicional:     true,
-          monto_real:       subtotalEgr || totalEgr,
-          itbms_real:       itbmsEgr,
-          total_real:       totalEgr,
-          drive_url:        driveEgr,
-          egreso_id:        egresoId,
-          estado_item:      'ejecutado',
-          from_inventory:   fromInv,
-          notas:            notasE,
-          fecha_reg:        fechaGasto,
-          proveedor:        provEgr,
-          num_factura:      nfacEgr,
-          variacion_monto:  0, variacion_pct: 0, semaforo: 'verde',
-        });
-      }
-    }
-
-    var totalCotizado = st.total_costo_cotizado;
-    var totalReal = 0;
-    items.forEach(function(it) { totalReal += (it.total_real || 0); });
-    totalReal = parseFloat(totalReal.toFixed(2));
-
-    var precioVenta      = st.precio_venta;
-    var margenReal       = precioVenta > 0 ? parseFloat(((precioVenta - totalReal)     / precioVenta * 100).toFixed(2)) : 0;
-    var margenCotizado   = precioVenta > 0 ? parseFloat(((precioVenta - totalCotizado) / precioVenta * 100).toFixed(2)) : 0;
-    var utilidadReal     = parseFloat((precioVenta - totalReal).toFixed(2));
-    var utilidadCotizada = parseFloat((precioVenta - totalCotizado).toFixed(2));
-    var varTotalMonto    = parseFloat((totalReal - totalCotizado).toFixed(2));
-    var varTotalPct      = totalCotizado > 0
-      ? parseFloat(((varTotalMonto / totalCotizado) * 100).toFixed(1)) : 0;
-
-    var sheetST = ss.getSheetByName(SHEET_ST);
-    if (sheetST && Math.abs(totalReal - (st.total_costo_real || 0)) > 0.01) {
-      sheetST.getRange(rec.row, COL_ST.TOTAL_COSTO_REAL).setValue(totalReal);
-    }
-
-    // Buscar ingreso para obtener subtotal_venta y es_exento
-    // El subtotal ya está calculado correctamente en ambos casos:
-    //   gravado: total / 1.07  (precio sin ITBMS)
-    //   exento:  total          (precio ya es neto, no se descuenta nada)
-    var subtotalVenta = 0;
-    var esExento      = false;
-    if (st.ingreso_id) {
-      try {
-        var sheetIngRes = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
-        if (sheetIngRes && sheetIngRes.getLastRow() > 2) {
-          var numIngRes = sheetIngRes.getLastRow() - 2;
-          var ingResData = sheetIngRes.getRange(3, 1, numIngRes, INGRESOS_NCOLS).getValues();
-          for (var ir = 0; ir < ingResData.length; ir++) {
-            if (String(ingResData[ir][COL_I.ID_TRANS - 1]).trim() === String(st.ingreso_id).trim()) {
-              subtotalVenta = parseFloat(ingResData[ir][COL_I.SUBTOTAL - 1]) || 0;
-              var catIng    = String(ingResData[ir][COL_I.CATEGORIA - 1] || '');
-              esExento      = catIng === 'venta_producto_exento' || catIng === 'servicio_tecnico_exento';
-              break;
-            }
-          }
-        }
-      } catch(ingErr) {
-        Logger.log('⚠️  getResumenST: error buscando ingreso: ' + ingErr.message);
-      }
-    }
-    // Fallback: si no encontramos el ingreso, calcular desde precio_venta
-    if (subtotalVenta === 0 && precioVenta > 0) {
-      subtotalVenta = parseFloat((precioVenta / 1.07).toFixed(2));
-    }
-
-    result.success = true;
-    result.resumen = {
-      id_st: idST, estado: st.estado, num_cotizacion: st.num_cotizacion,
-      nombre_cliente: st.nombre_cliente, descripcion: st.descripcion,
-      precio_venta: precioVenta, total_cotizado: totalCotizado, total_real: totalReal,
-      variacion_monto: varTotalMonto, variacion_pct: varTotalPct,
-      utilidad_cotizada: utilidadCotizada, utilidad_real: utilidadReal,
-      margen_cotizado: margenCotizado, margen_real: margenReal,
-      semaforo_global: varTotalPct <= 0 ? 'verde' : (varTotalPct <= 10 ? 'amarillo' : 'rojo'),
-      items: items, ingreso_id: st.ingreso_id,
-      subtotal_venta: subtotalVenta,
-      es_exento:      esExento,
+    // CELL 2: Factura de costo — links agrupados por categoría
+    html += '<div class="st-doc-cell"><div class="st-doc-lbl">📦 Factura de costo</div>';
+    // Agrupar: tipo → array de {url, num_factura}
+    var costByTipo = {};
+    items.forEach(function(it) {
+      var url = it.drive_url || allItemUrls[it.id_item_st] || '';
+      if (!url) return;
+      var t = it.tipo || 'otro';
+      if (!costByTipo[t]) costByTipo[t] = [];
+      var alreadyHas = costByTipo[t].some(function(x) { return x.url === url; });
+      if (!alreadyHas) costByTipo[t].push({ url: url, num_factura: it.num_factura || '' });
+    });
+    var tipoKeys = Object.keys(costByTipo);
+    var TIPO_LABEL_SHORT = {
+      'producto':'Producto','mano_obra':'Mano de obra','flete':'Flete',
+      'impuesto':'Impuesto','combustible':'Combustible','fianza':'Fianza',
+      'subcontrato':'Subcontrato','aduana':'Aduana','credito_fiscal':'Crédito Fiscal',
+      'shipping_handling':'Shipping & Handling','otro':'Otro'
     };
-
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('Error _handleGetResumenST v1.2: ' + err.message);
-  }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleCerrarST  (doGet)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleCerrarST(params, callback) {
-  var result = { success: false, resumen: null, error: null };
-  try {
-    var idST = params.id_st || '';
-    if (!idST) throw new Error('id_st requerido');
-
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual !== 'en_ejecucion') {
-      throw new Error('Solo se puede cerrar un ST en estado "en_ejecucion". Estado actual: ' + estadoActual);
-    }
-
-    var ingresoId = String(rec.data[COL_ST.INGRESO_ID - 1] || '').trim();
-    if (!ingresoId) {
-      throw new Error('No se puede cerrar el ST sin un ingreso registrado. Registra el ingreso primero.');
-    }
-
-    var fechaCierre = params.fecha_cierre ||
-      Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd');
-
-    // FIX #4: mes/anio reflejan la fecha real de cierre, no la de creación
-    var fechaCierreDate = new Date(fechaCierre + 'T12:00:00');
-    var mesCierre  = isNaN(fechaCierreDate.getTime()) ? new Date().getMonth() + 1 : fechaCierreDate.getMonth() + 1;
-    var anioCierre = isNaN(fechaCierreDate.getTime()) ? new Date().getFullYear()  : fechaCierreDate.getFullYear();
-
-    var sheetST = ss.getSheetByName(SHEET_ST);
-    sheetST.getRange(rec.row, COL_ST.ESTADO).setValue('cerrado');
-    sheetST.getRange(rec.row, COL_ST.FECHA_CIERRE).setValue(fechaCierre);
-    sheetST.getRange(rec.row, COL_ST.MES).setValue(mesCierre);
-    sheetST.getRange(rec.row, COL_ST.ANIO).setValue(anioCierre);
-    sheetST.getRange(rec.row, 1, 1, ST_NCOLS).setBackground('#F1F8E9');
-
-    var sheetSTI   = ss.getSheetByName(SHEET_ST_ITEM);
-    var totalReal  = _calcSTTotalsReal(sheetSTI, idST);
-    sheetST.getRange(rec.row, COL_ST.TOTAL_COSTO_REAL).setValue(totalReal);
-
-    // FIX #1b: marcar el ingreso vinculado como 'confirmado' al cerrar el ST
-    // Esto asegura que el P&L lo incluya sin depender del estado 'pendiente'
-    var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
-    if (ingresoId && sheetIng && sheetIng.getLastRow() > 2) {
-      var numIng  = sheetIng.getLastRow() - 2;
-      var dataIng = sheetIng.getRange(3, 1, numIng, INGRESOS_NCOLS).getValues();
-      for (var ni = 0; ni < dataIng.length; ni++) {
-        if (String(dataIng[ni][COL_I.ID_TRANS - 1]) !== ingresoId) continue;
-        var estadoIng = String(dataIng[ni][COL_I.ESTADO - 1] || '');
-        if (estadoIng !== 'anulado') {
-          sheetIng.getRange(ni + 3, COL_I.ESTADO).setValue('confirmado');
-          Logger.log('✅ Ingreso confirmado al cerrar ST: ' + ingresoId);
+    if (tipoKeys.length) {
+      tipoKeys.forEach(function(t) {
+        var entries = costByTipo[t];
+        var lbl = TIPO_LABEL_SHORT[t] || t;
+        if (entries.length === 1) {
+          html += '<div style="margin-bottom:2px"><a href="'+st_esc(entries[0].url)+'" target="_blank" class="st-doc-a fc">'+st_esc(lbl)+' ↗</a></div>';
+        } else {
+          var linksHtml = entries.map(function(e, ei) {
+            var lt = e.num_factura || ('fact'+(ei+1));
+            return '<a href="'+st_esc(e.url)+'" target="_blank" class="st-doc-a fc" style="font-size:.72rem">'+st_esc(lt)+' ↗</a>';
+          }).join(' ');
+          html += '<div style="margin-bottom:2px"><span style="font-size:.73rem;color:#64748b;font-weight:600">'+st_esc(lbl)+'</span> <span style="font-size:.68rem;color:#94a3b8">('+linksHtml+')</span></div>';
         }
-        break;
+      });
+      if (hasPendingProduct && enEje) {
+        html += '<br><span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto(\''+idST+'\')" style="font-size:.71rem">📎 Subir otra factura</span>';
+      }
+    } else {
+      if (enEje) {
+        html += '<span class="st-inv-upload-link" onclick="st_abrirModalFacturaCosto(\''+idST+'\')">📎 Sin adjunto</span>';
+      } else {
+        html += '<span class="st-doc-none">Sin adjunto</span>';
       }
     }
+    html += '</div>';
 
-    Logger.log('✅ ST cerrado: ' + idST + ' | Costo real: $' + totalReal + ' | Mes cierre: ' + mesCierre + '/' + anioCierre);
+    // CELL 3: Pago del cliente
+    html += '<div class="st-doc-cell"><div class="st-doc-lbl">💳 Pago del cliente</div>';
+    if (esCancelado) {
+      // ST cancelado por nota de crédito — mostrar resumen de anulación en lugar del ingreso
+      var notasRef = String(st.notas || '');
+      var ncMatch  = notasRef.match(/NC\s+(\S+)/);
+      var ncNum    = ncMatch ? ncMatch[1] : 'NC';
+      html += '<div style="font-size:.76rem;line-height:1.5">';
+      html += '<span style="background:#fee2e2;color:#b91c1c;font-weight:700;padding:1px 6px;border-radius:6px;font-size:.68rem">ANULADO</span><br>';
+      html += '<span style="color:#64748b">Nota de crédito '+st_esc(ncNum)+'</span><br>';
+      html += '<span style="color:#64748b;font-size:.68rem">'+st_esc(r.ingreso_id||'')+'A · '+st_esc(r.ingreso_id||'')+'B</span>';
+      html += '</div>';
+    } else if (r.ingreso_id) {
+      if (voucherUrl) {
+        html += '<a href="'+st_esc(voucherUrl)+'" target="_blank" class="st-doc-a fp">'+st_esc(r.ingreso_id)+' ↗</a>';
+      } else {
+        html += '<div>';
+        html += '<span style="font-size:.76rem;font-weight:600;color:#065F46">'+st_esc(r.ingreso_id)+'</span>';
+        if (enEje || st.estado === 'cerrado') {
+          var _ing = st_esc(String(r.ingreso_id||'')), _pv = st_esc(String(r.precio_venta||0)), _tr = st_esc(String(r.total_real||0));
+          html += '<br><span class="st-inv-upload-link" style="color:#d97706"' +
+            ' data-ing="'+_ing+'" data-pv="'+_pv+'" data-tr="'+_tr+'" data-st="'+st_esc(idST)+'"' +
+            ' onclick="st_pagoClienteBtn(this)">📎 Sin comprobante — subir</span>';
+        }
+        html += '</div>';
+      }
+    } else {
+      if (enEje) {
+        var _pv2 = st_esc(String(r.precio_venta||0)), _tr2 = st_esc(String(r.total_real||0));
+        html += '<span class="st-inv-upload-link"' +
+          ' data-ing="" data-pv="'+_pv2+'" data-tr="'+_tr2+'" data-st="'+st_esc(idST)+'"' +
+          ' onclick="st_pagoClienteBtn(this)">⚠️ Sin pago — registrar</span>';
+      } else {
+        html += '<span class="st-doc-none">Pendiente</span>';
+      }
+    }
+    html += '</div></div>';
 
-    result.success = true;
-    result.resumen = {
-      id_st:          idST,
-      fecha_cierre:   fechaCierre,
-      ingreso_id:     ingresoId,
-      total_real:     totalReal,
-      total_cotizado: parseFloat(rec.data[COL_ST.TOTAL_COSTO_COT - 1] || '0') || 0,
-      precio_venta:   parseFloat(rec.data[COL_ST.PRECIO_VENTA - 1]    || '0') || 0,
-    };
+    // Calcular total de costos sumando ítems (fuente de verdad = tabla, no r.total_real que puede estar desactualizado)
+    var totalCostoCalc = 0;
+    items.forEach(function(it) {
+      if ((it.tipo || '') === 'credito_fiscal') return; // no es costo real
+      totalCostoCalc += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0;
+    });
+    totalCostoCalc = parseFloat(totalCostoCalc.toFixed(2));
 
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('Error _handleCerrarST: ' + err.message);
+    // Facturado neto: usar subtotal_venta del resumen (calculado correctamente por el GAS
+    // tanto para gravados como exentos). Fallback a /1.07 si no está disponible.
+    // Para STs cancelados (nota de crédito), el neto es $0 — los dos ingresos se anulan.
+    var esExento   = r.es_exento || false;
+    var esCancelado = (st && st.estado === 'cancelado');
+    var pv         = esCancelado
+      ? 0
+      : (r.subtotal_venta > 0
+          ? r.subtotal_venta
+          : (r.precio_venta > 0 ? parseFloat((r.precio_venta / 1.07).toFixed(2)) : 0));
+    var utilReal   = pv - totalCostoCalc;
+    var margen     = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
+    var pctCosto   = pv > 0 ? ((totalCostoCalc / pv) * 100).toFixed(1) : '—';
+    var pctUtil    = pv > 0 ? ((utilReal / pv) * 100).toFixed(1) : '—';
+    var margenNum  = parseFloat(margen) || 0;
+
+    // Margen range: Ceyco target 20–25%
+    var MARGEN_MIN = 20, MARGEN_MAX = 25;
+    var margenTag, margenTagColor, margenDisplay;
+    if (margen === '—') {
+      margenTag = ''; margenTagColor = ''; margenDisplay = '—';
+    } else if (margenNum < MARGEN_MIN) {
+      var diff = (MARGEN_MIN - margenNum).toFixed(1);
+      margenDisplay  = '-' + diff + '%';
+      margenTag      = '▼ ' + diff + '% debajo del rango (20–25%)';
+      margenTagColor = '#dc2626';
+    } else if (margenNum > MARGEN_MAX) {
+      var diff = (margenNum - MARGEN_MAX).toFixed(1);
+      margenDisplay  = '+' + diff + '%';
+      margenTag      = '▲ ' + diff + '% por encima del rango (20–25%)';
+      margenTagColor = '#d97706';
+    } else {
+      var diff = margenNum.toFixed(1);
+      margenDisplay  = margenNum + '%';
+      margenTag      = '✓ En rango (20–25%)';
+      margenTagColor = '#15803d';
+    }
+
+    html += '<div class="st-met-row">' +
+      '<div class="st-met-cell">' +
+        '<div class="st-met-lbl">Neto' +
+          (esExento ? ' <span style="background:#dcfce7;color:#15803d;font-size:.58rem;font-weight:700;' +
+            'padding:1px 6px;border-radius:10px;vertical-align:middle;margin-left:4px">Exento</span>' : '') +
+          (esCancelado ? ' <span style="background:#fee2e2;color:#b91c1c;font-size:.58rem;font-weight:700;' +
+            'padding:1px 6px;border-radius:10px;vertical-align:middle;margin-left:4px">Anulado NC</span>' : '') +
+        '</div>' +
+        '<div class="st-met-val" style="color:#1A237E">'+st_fmt(pv)+'</div>' +
+      '</div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Costo real</div>' +
+        '<div class="st-met-val" style="color:#8b5cf6">'+st_fmt(totalCostoCalc) +
+          (pctCosto !== '—' ? '<span style="font-size:.65rem;font-weight:500;color:#94a3b8;margin-left:4px">('+pctCosto+'%)</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Utilidad</div>' +
+        '<div class="st-met-val" style="color:'+(utilReal>=0?'#15803d':'#dc2626')+'">'+st_fmt(utilReal) +
+          (pctUtil !== '—' ? '<span style="font-size:.65rem;font-weight:500;color:#94a3b8;margin-left:4px">('+pctUtil+'%)</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="st-met-cell"><div class="st-met-lbl">Margen</div>' +
+        '<div class="st-met-val" style="color:'+(margenNum>=0?'#15803d':'#dc2626')+'">' +
+          margenDisplay +
+        '</div>' +
+        (margenTag ? '<div style="font-size:.62rem;font-weight:600;color:'+margenTagColor+';margin-top:2px;line-height:1.2">'+margenTag+'</div>' : '') +
+      '</div>' +
+    '</div>';
+    var hasBtns = enEje || st.estado==='cotizado' || st.estado==='aprobado';
+    if (hasBtns) {
+      html += '<div class="st-act-row">';
+      if (st.estado==='cotizado') {
+        html += '<button class="st-btn st-btn-warning st-btn-sm" onclick="st_accionEmail_st()">📧 Enviar</button>';
+        html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionAprobar_st()">✅ Aprobar</button>';
+      }
+      if (st.estado==='aprobado') html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_accionIniciar_st()">🚀 Iniciar</button>';
+      if (enEje && !r.ingreso_id) html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_abrirModalIngreso(\''+idST+'\')">💰 Registrar ingreso</button>';
+      if (enEje) html += '<button class="st-btn st-btn-primary st-btn-sm" onclick="st_abrirModalNuevoCosto(\''+idST+'\')">💸 Registrar costo</button>';
+
+      if (enEje && r.ingreso_id) html += '<button class="st-btn st-btn-success st-btn-sm" onclick="st_accionCerrar_st()">🔒 Cerrar ST</button>';
+      html += '</div>';
+    }
+    if (items.length) {
+      // ── Resumen por tipo ──────────────────────────────────────
+      var TIPO_COLORS = {
+        'producto':          '#1565C0',
+        'impuesto':          '#6A1B9A',
+        'shipping_handling': '#00695C',
+        'mano_obra':         '#E65100',
+        'flete':             '#4527A0',
+        'subcontrato':       '#558B2F',
+        'combustible':       '#827717',
+        'fianza':            '#78909C',
+        'aduana':            '#6A1B9A',
+        'credito_fiscal':    '#2E7D32',
+        'otro':              '#9E9E9E',
+      };
+      var tipoTotales = {};
+      items.forEach(function(it) {
+        if ((it.tipo || '') === 'credito_fiscal') return; // no es costo real
+        var t = it.tipo || 'otro';
+        var m = it.total_real > 0 ? it.total_real : it.total_cotizado;
+        tipoTotales[t] = (tipoTotales[t] || 0) + m;
+      });
+      var tipoEntries = Object.keys(tipoTotales).map(function(t) {
+        return { tipo: t, monto: tipoTotales[t] };
+      }).sort(function(a, b) { return b.monto - a.monto; });
+      var totalCostos = totalCostoCalc;
+      var maxMonto    = tipoEntries.length ? tipoEntries[0].monto : 1;
+
+      html += '<div class="st-res-wrap"><div class="st-res-lbl">Costos por tipo</div>';
+      tipoEntries.forEach(function(entry) {
+        var color    = TIPO_COLORS[entry.tipo] || '#888780';
+        var pctFact  = pv > 0 ? ((entry.monto / pv) * 100).toFixed(1) : '0';
+        var barWidth = maxMonto > 0 ? Math.round((entry.monto / maxMonto) * 100) : 0;
+        var tipoNom  = TIPO_LABEL[entry.tipo] ? TIPO_LABEL[entry.tipo].replace(/^\S+\s/,'') : entry.tipo;
+        html += '<div class="st-res-row">' +
+          '<div class="st-res-tipo">'+st_esc(tipoNom)+'</div>' +
+          '<div class="st-res-track"><div class="st-res-fill" style="width:'+barWidth+'%;background:'+color+'"></div></div>' +
+          '<div class="st-res-pct">'+pctFact+'%</div>' +
+          '<div class="st-res-amt">'+st_fmt(entry.monto)+'</div>' +
+        '</div>';
+      });
+      var pctTotal = pv > 0 ? ((totalCostos / pv) * 100).toFixed(1) : '\u2014';
+      html += '<div class="st-res-foot">' +
+        '<span class="st-res-ft-l">Total costos</span>' +
+        '<span class="st-res-ft-v">'+st_fmt(totalCostos)+
+          ' <span style="font-size:.68rem;font-weight:400;color:#94a3b8">\u2014 '+pctTotal+'% del facturado</span>' +
+        '</span>' +
+      '</div></div>';
+
+      // ── Tabla de costos ejecutados ────────────────────────────
+      html += '<div class="st-cst-wrap"><div class="st-cst-lbl">Costos ejecutados</div><table class="st-cst-tbl"><thead><tr>' +
+        '<th style="width:110px">Tipo</th><th>Descripci\u00f3n</th><th style="width:130px">Proveedor</th><th class="r">Monto</th><th>Estado</th>' +
+        '<th style="width:72px;text-align:center">Acciones</th>' +
+        '</tr></thead><tbody>';
+      items.forEach(function(it){
+        var src = st_itemSource(it);
+        var badge;
+        if (src === 'fact') {
+          badge = it.drive_url
+            ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Fact</span>'
+            : '<span style="background:#f0fdf4;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px" title="Sin documento adjunto">Fact*</span>';
+        } else if (src === 'inv') {
+          badge = '<span style="background:#dbeafe;color:#1d4ed8;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Inv</span>';
+        } else if (src === 'pend') {
+          badge = '<span style="background:#fef9c3;color:#a16207;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">Pend.</span>';
+        } else {
+          badge = it.estado_item === 'ejecutado'
+            ? '<span style="background:#dcfce7;color:#15803d;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">\u2713 OK</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;font-size:.63rem;font-weight:700;padding:1px 7px;border-radius:10px">\u2014</span>';
+        }
+        var itemDocUrl = it.drive_url || allItemUrls[it.id_item_st] || '';
+        var montoItem  = it.total_real > 0 ? it.total_real : it.total_cotizado;
+        var pctItem    = pv > 0 && montoItem > 0 ? ((montoItem / pv) * 100).toFixed(1) : '';
+        var itemId     = it.id_item_st;
+        var tipoActual = it.tipo || 'otro';
+        var tipoCell;
+        if (enEje) {
+          var optsHtml = Object.keys(TIPO_LABEL).map(function(k) {
+            return '<option value="'+k+'"'+(k===tipoActual?' selected':'')+'>'+TIPO_LABEL[k]+'</option>';
+          }).join('');
+          tipoCell = '<select class="st-tipo-select" title="Reclasificar tipo" ' +
+            'data-item-id="'+st_esc(itemId)+'" data-orig="'+st_esc(tipoActual)+'" data-st-id="'+st_esc(idST)+'" ' +
+            'onchange="st_reclasificarTipo(this)">'+optsHtml+'</select>';
+        } else {
+          var tipoIcon = TIPO_LABEL[tipoActual] ? TIPO_LABEL[tipoActual].split(' ')[0] : '\ud83d\udccc';
+          tipoCell = '<span class="st-tipo-chip">'+tipoIcon+' '+(TIPO_LABEL[tipoActual]||tipoActual).replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}]\uFE0F?\s/u,'')+'</span>';
+        }
+        var provText = it.proveedor || '';
+        var provCell = provText
+          ? '<span class="st-prov-cell" title="'+st_esc(provText)+'">'+st_esc(provText)+'</span>'
+          : '<span style="color:#d1d5db;font-size:.7rem">\u2014</span>';
+
+        // Doc btn — removed "Subir" button per client request
+        var docBtn = itemDocUrl
+          ? '<a href="'+st_esc(itemDocUrl)+'" target="_blank" class="st-item-btn" title="Ver documento">Doc</a>'
+          : '<span class="st-item-btn" style="opacity:.3;cursor:default">—</span>';
+
+        // Edit btn
+        var editBtn = '<span class="st-item-btn" title="Editar costo"' +
+          ' data-item-id="'+st_esc(itemId)+'" data-st-id="'+st_esc(idST)+'"' +
+          ' data-tipo="'+st_esc(tipoActual)+'" data-desc="'+st_esc(it.descripcion)+'"' +
+          ' data-prov="'+st_esc(it.proveedor||'')+'" data-nfac="'+st_esc(it.num_factura||'')+'"' +
+          ' data-total="'+st_esc(String(it.total_real||''))+'" data-itbms="'+st_esc(String(it.itbms_real||''))+'"' +
+          ' data-egreso="'+st_esc(it.egreso_id||'')+'"' +
+          ' onclick="st_editarItem(this)">Editar</span>';
+
+        // Del btn
+        var delBtn = '<span class="st-item-btn del" title="Eliminar \u00edtem" ' +
+          'data-item-id="'+st_esc(itemId)+'" data-st-id="'+st_esc(idST)+'" ' +
+          'onclick="st_eliminarItemBtn(this)">Borrar</span>';
+
+        html += '<tr><td style="white-space:nowrap">'+tipoCell+'</td>' +
+          '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">\u00d7'+it.cantidad+'</span>':'')+'</td>' +
+          '<td>'+provCell+'</td>' +
+          '<td class="r">'+st_fmt(montoItem)+
+            (pctItem ? '<span style="font-size:.63rem;font-weight:500;color:#94a3b8;margin-left:3px">('+pctItem+'%)</span>' : '')+
+          '</td>' +
+          '<td>'+badge+'</td>' +
+          '<td style="text-align:center;padding:4px 6px"><div style="display:inline-flex;gap:3px;align-items:center">'+docBtn+editBtn+delBtn+'</div></td>' +
+        '</tr>';
+      });
+      var totalCostosCalc = 0;
+      items.forEach(function(it) { totalCostosCalc += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0; });
+      html += '</tbody><tfoot><tr><td colspan="3" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(totalCostosCalc)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
+    } else {
+      html += '<div style="padding:12px 14px;font-size:.8rem;color:#94a3b8">Sin costos registrados</div>';
+    }
+    drawer.innerHTML = html;
   }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
 
 
-// ═══════════════════════════════════════════════════════════════
-//  _handleCancelarST  (doGet)  v2
-//  — Cancelación contable limpia:
-//    · cotizado/aprobado  → solo marca cancelado (no hay egresos/ingreso aún)
-//    · en_ejecucion       → anula egresos activos (por ID exacto desde ST_Items)
-//                           + anula ingreso si existe, marca items cancelado
-//    · cerrado / cancelado → bloqueado
-// ═══════════════════════════════════════════════════════════════
 
-function _handleCancelarST(params, callback) {
-  var result = {
-    success:         false,
-    id_st:           null,
-    egresos_anulados: 0,
-    ingreso_anulado: false,
-    error:           null,
+
+  // ── FILTROS DE FECHA ─────────────────────────────────────
+
+  function st_poblarMeses() {
+    var select = document.getElementById('st-f-mes');
+    if (!select) return;
+
+    // Generar meses fijos desde enero 2026 hasta el mes actual
+    var hoy     = new Date();
+    var año     = 2026;
+    var mesHoy  = hoy.getFullYear() * 12 + hoy.getMonth();
+    var mesIni  = año * 12 + 0; // enero 2026 = mes 0
+
+    select.innerHTML = '<option value="">— Todos los meses —</option>';
+    for (var m = mesHoy; m >= mesIni; m--) {
+      var y   = Math.floor(m / 12);
+      var mo  = m % 12;
+      var key = y + '-' + String(mo + 1).padStart(2, '0');
+      var opt = document.createElement('option');
+      opt.value = key;
+      var d = new Date(y, mo, 15);
+      opt.textContent = d.toLocaleDateString('es-PA', {month:'long', year:'numeric'});
+      select.appendChild(opt);
+    }
+
+    // Default: Todos los meses
+    select.value       = '';
+    st_state.filtroMes = '';
+  }
+
+  window.st_setFiltroMes = function() {
+    var mes = document.getElementById('st-f-mes').value;
+    st_state.filtroMes  = mes;
+    st_state.filtroDesde = '';
+    st_state.filtroHasta = '';
+    document.getElementById('st-f-desde').value = '';
+    document.getElementById('st-f-hasta').value = '';
+    st_applyFilters();
   };
-  try {
-    var idST   = String(params.id_st  || '').trim();
-    var motivo = String(params.motivo || '').trim();
-    if (!idST) throw new Error('id_st requerido');
 
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
+  window.st_setFiltroRango = function() {
+    st_state.filtroMes  = '';
+    st_state.filtroDesde = document.getElementById('st-f-desde').value;
+    st_state.filtroHasta = document.getElementById('st-f-hasta').value;
+    document.getElementById('st-f-mes').value = '';
+    st_applyFilters();
+  };
 
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    if (estadoActual === 'cerrado') {
-      throw new Error('Este ST ya está cerrado y no puede cancelarse. Los registros contables son definitivos.');
+  window.st_limpiarFecha = function() {
+    st_state.filtroMes   = '';
+    st_state.filtroDesde = '';
+    st_state.filtroHasta = '';
+    document.getElementById('st-f-mes').value   = '';
+    document.getElementById('st-f-desde').value = '';
+    document.getElementById('st-f-hasta').value = '';
+    st_applyFilters();
+  };
+
+  // ── VISTA SIMPLE / DETALLE ────────────────────────────────
+
+  window.st_setVista = function(modo, skipRender) {
+    st_state.vistaMode = modo;
+    var btnD = document.getElementById('st-v-detalle');
+    var btnT = document.getElementById('st-v-tabla');
+    var actStyle  = 'font-size:.72rem;padding:4px 10px;border:1px solid #1A237E;border-radius:6px;background:#1A237E;color:#fff;cursor:pointer';
+    var idleStyle = 'font-size:.72rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer';
+    if (btnD) btnD.style.cssText = modo === 'detalle' ? actStyle : idleStyle;
+    if (btnT) btnT.style.cssText = modo === 'tabla'   ? actStyle : idleStyle;
+    if (skipRender) return;
+    if (modo === 'tabla') {
+      st_renderTabla();
+    } else {
+      st_renderCards(st_state.filtered);
     }
-    if (estadoActual === 'cancelado') {
-      throw new Error('Este ST ya está cancelado.');
+  };
+
+  // ── Toggle expand/collapse de costos en tabla ───────────────
+  window.st_toggleExpand = function(idST, event) {
+    // Evitar que el click en botones de acciones propague al row
+    if (event && event.target && event.target.closest('.st-tbl-actions')) return;
+    if (st_state.expandedRows[idST]) {
+      delete st_state.expandedRows[idST];
+    } else {
+      st_state.expandedRows[idST] = true;
     }
+    st_renderTabla();
+  };
 
-    var stamp = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+  // ── Toggle sort de columna ───────────────────────────────────
+  window.st_sortTabla = function(col) {
+    if (st_state.sortCol === col) {
+      st_state.sortDir = st_state.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      st_state.sortCol = col;
+      st_state.sortDir = col === 'fecha_reg' ? 'desc' : 'asc';
+    }
+    st_renderTabla();
+  };
 
-    // ── Si está en ejecución: limpiar contabilidad antes de cancelar ──────
-    if (estadoActual === 'en_ejecucion') {
-
-      // 1. Recolectar egreso_ids exactos desde ST_Items
-      var egresoIdsSet = {};
-      var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-      if (sheetSTI && sheetSTI.getLastRow() > 2) {
-        var numSTI  = sheetSTI.getLastRow() - 2;
-        var dataSTI = sheetSTI.getRange(3, 1, numSTI, STI_NCOLS).getValues();
-        for (var i = 0; i < dataSTI.length; i++) {
-          if (String(dataSTI[i][COL_STI.ID_ST - 1]) !== idST) continue;
-          var eid = String(dataSTI[i][COL_STI.EGRESO_ID - 1] || '').trim();
-          if (eid) egresoIdsSet[eid] = true;
-          // Marcar item como cancelado (preserva historial, no borra fila)
-          sheetSTI.getRange(i + 3, COL_STI.ESTADO_ITEM).setValue('cancelado');
-          sheetSTI.getRange(i + 3, COL_STI.NOTAS).setValue(
-            String(dataSTI[i][COL_STI.NOTAS - 1] || '') +
-            ' | CANCELADO ST: ' + stamp + (motivo ? ' — ' + motivo : '')
-          );
-        }
-        SpreadsheetApp.flush();
-      }
-
-      // 2. Anular egresos por ID exacto
-      var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
-      if (sheetEgr && sheetEgr.getLastRow() > 2 && Object.keys(egresoIdsSet).length > 0) {
-        var numEgr  = sheetEgr.getLastRow() - 2;
-        var dataEgr = sheetEgr.getRange(3, 1, numEgr, EGRESOS_NCOLS).getValues();
-        for (var e = 0; e < dataEgr.length; e++) {
-          var egresoId = String(dataEgr[e][COL_E.ID - 1] || '').trim();
-          if (!egresoId || !egresoIdsSet[egresoId]) continue;
-          var estadoE = String(dataEgr[e][COL_E.ESTADO - 1] || '').toLowerCase();
-          if (estadoE === 'anulado') continue;
-          var rowEgr = e + 3;
-          sheetEgr.getRange(rowEgr, COL_E.ESTADO).setValue('anulado');
-          sheetEgr.getRange(rowEgr, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
-          var notaE = String(dataEgr[e][COL_E.NOTAS - 1] || '');
-          sheetEgr.getRange(rowEgr, COL_E.NOTAS).setValue(
-            notaE + ' | ANULADO — cancelación ST ' + idST + ': ' + stamp +
-            (motivo ? ' — ' + motivo : '')
-          );
-          result.egresos_anulados++;
-        }
-        SpreadsheetApp.flush();
-      }
-
-      // 3. Anular ingreso si existe
-      var ingresoId = String(rec.data[COL_ST.INGRESO_ID - 1] || '').trim();
-      if (ingresoId) {
-        var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
-        if (sheetIng && sheetIng.getLastRow() > 2) {
-          var numIng  = sheetIng.getLastRow() - 2;
-          var dataIng = sheetIng.getRange(3, 1, numIng, INGRESOS_NCOLS).getValues();
-          for (var n = 0; n < dataIng.length; n++) {
-            if (String(dataIng[n][COL_I.ID_TRANS - 1]) !== ingresoId) continue;
-            var rowIng = n + 3;
-            sheetIng.getRange(rowIng, COL_I.ESTADO).setValue('anulado');
-            sheetIng.getRange(rowIng, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
-            var notaIng = String(dataIng[n][COL_I.NOTAS_INT - 1] || '');
-            sheetIng.getRange(rowIng, COL_I.NOTAS_INT).setValue(
-              notaIng + ' | ANULADO — cancelación ST ' + idST + ': ' + stamp +
-              (motivo ? ' — ' + motivo : '')
-            );
-            result.ingreso_anulado = true;
-            break;
-          }
-          SpreadsheetApp.flush();
-        }
-      }
+  function st_renderTabla() {
+    var cont = document.getElementById('st-cards-container');
+    var rawItems = st_state.filtered;
+    if (!rawItems.length) {
+      cont.innerHTML = '<div class="st-empty"><div class="st-empty-icon">🔍</div>Sin resultados.</div>';
+      return;
     }
 
-    // ── Marcar el ST como cancelado ───────────────────────────────────────
-    var sheetST = ss.getSheetByName(SHEET_ST);
-    sheetST.getRange(rec.row, COL_ST.ESTADO).setValue('cancelado');
-    var notaAct = String(rec.data[COL_ST.NOTAS - 1] || '');
-    sheetST.getRange(rec.row, COL_ST.NOTAS).setValue(
-      notaAct + ' | CANCELADO: ' + stamp + (motivo ? ' — ' + motivo : '')
-    );
-    sheetST.getRange(rec.row, 1, 1, ST_NCOLS).setBackground('#FFEBEE');
-    SpreadsheetApp.flush();
-
-    result.success = true;
-    result.id_st   = idST;
-    Logger.log('✅ ST cancelado: ' + idST +
-               ' | Egresos anulados: ' + result.egresos_anulados +
-               ' | Ingreso anulado: '  + result.ingreso_anulado);
-
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('Error _handleCancelarST v2: ' + err.message);
-  }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleEnviarCotizacionEmail  (doGet)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleEnviarCotizacionEmail(params, callback) {
-  var result = { success: false, error: null };
-  try {
-    var idST       = params.id_st        || '';
-    var emailExtra = params.email_destino || '';
-    if (!idST) throw new Error('id_st requerido');
-
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
-
-    var st = _serializeST(rec.data);
-
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    var items    = [];
-    if (sheetSTI && sheetSTI.getLastRow() > 2) {
-      var numRows  = sheetSTI.getLastRow() - 2;
-      var itemData = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
-      for (var i = 0; i < itemData.length; i++) {
-        if (String(itemData[i][COL_STI.ID_ST - 1]) !== String(idST)) continue;
-        if (String(itemData[i][COL_STI.ESTADO_ITEM - 1]) === 'cancelado') continue;
-        items.push(_serializeSTItem(itemData[i]));
+    // ── Sort ────────────────────────────────────────────────────
+    var col = st_state.sortCol;
+    var dir = st_state.sortDir;
+    var items = rawItems.slice().sort(function(a, b) {
+      var va, vb;
+      if (col === 'num_factura')    { va = st_numFactura(a); vb = st_numFactura(b); }
+      else if (col === 'cliente')   { va = (a.nombre_cliente||'').toLowerCase(); vb = (b.nombre_cliente||'').toLowerCase(); }
+      else if (col === 'estado')    { va = a.estado||''; vb = b.estado||''; }
+      else if (col === 'neto')      { va = a.estado==='cancelado' ? 0 : (a.subtotal_venta > 0 ? a.subtotal_venta : parseFloat((a.precio_venta/1.07).toFixed(2))); vb = b.estado==='cancelado' ? 0 : (b.subtotal_venta > 0 ? b.subtotal_venta : parseFloat((b.precio_venta/1.07).toFixed(2))); }
+      else if (col === 'total')     { va = a.precio_venta||0; vb = b.precio_venta||0; }
+      else if (col === 'costo')     { va = st_calcCostoReal(a); vb = st_calcCostoReal(b); }
+      else if (col === 'utilidad')  {
+        var na = a.subtotal_venta > 0 ? a.subtotal_venta : parseFloat((a.precio_venta/1.07).toFixed(2));
+        var nb = b.subtotal_venta > 0 ? b.subtotal_venta : parseFloat((b.precio_venta/1.07).toFixed(2));
+        va = na - st_calcCostoReal(a); vb = nb - st_calcCostoReal(b);
       }
-    }
-
-    var emailDestino = emailExtra || st.email_cliente || CONFIG.ADMIN_EMAIL;
-    var html = _generarHtmlCotizacion(st, items);
-
-    MailApp.sendEmail({
-      to:       emailDestino,
-      cc:       CONFIG.ADMIN_EMAIL,
-      subject:  '📋 Cotización ' + st.num_cotizacion + ' — ' + CONFIG.NEGOCIO,
-      htmlBody: html,
+      else if (col === 'margen')    {
+        var na2 = a.subtotal_venta > 0 ? a.subtotal_venta : parseFloat((a.precio_venta/1.07).toFixed(2));
+        var nb2 = b.subtotal_venta > 0 ? b.subtotal_venta : parseFloat((b.precio_venta/1.07).toFixed(2));
+        va = na2 > 0 ? (na2 - st_calcCostoReal(a)) / na2 : 0;
+        vb = nb2 > 0 ? (nb2 - st_calcCostoReal(b)) / nb2 : 0;
+      }
+      else { va = String(a.fecha_reg||''); vb = String(b.fecha_reg||''); }
+      if (va < vb) return dir === 'asc' ? -1 : 1;
+      if (va > vb) return dir === 'asc' ?  1 : -1;
+      return 0;
     });
 
-    var stamp   = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
-    var sheetST = ss.getSheetByName(SHEET_ST);
-    var notaAct = String(rec.data[COL_ST.NOTAS - 1] || '');
-    sheetST.getRange(rec.row, COL_ST.NOTAS).setValue(
-      notaAct + ' | Email enviado a: ' + emailDestino + ' — ' + stamp
-    );
+    // ── Helper: header con sort ──────────────────────────────────
+    function th(label, colKey, extraClass, extraStyle) {
+      var isActive = col === colKey;
+      var arrow    = isActive ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
+      var bgActive = isActive ? 'rgba(0,0,0,.045)' : '';
+      var cls      = 'sortable' + (extraClass ? ' '+extraClass : '') + (isActive ? ' sort-active' : '');
+      var sty      = (extraStyle||'') + (bgActive ? 'background:'+bgActive+';' : '');
+      return '<th class="'+cls+'" style="'+sty+'" onclick="st_sortTabla(\''+colKey+'\')">'+label+'<span class="st-sort-arrow">'+arrow+'</span></th>';
+    }
 
-    result.success       = true;
-    result.email_destino = emailDestino;
-    Logger.log('✅ Cotización enviada: ' + st.num_cotizacion + ' → ' + emailDestino);
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('Error _handleEnviarCotizacionEmail: ' + err.message);
+    var html = '<div class="st-table-wrap"><table class="st-table">';
+    html += '<thead><tr>';
+    html += th('N° / ID',      'num_factura', '', '');
+    html += th('Cliente',      'cliente',     '', '');
+    html += th('Descripción',  'descripcion', '', '');
+    html += th('Estado',       'estado',      '', '');
+    html += th('Neto',         'neto',        'r', 'background:#f0fdf4;color:#15803d;');
+    html += '<th class="r" style="background:#f0fdf4;color:#15803d">ITBMS</th>';
+    html += th('Total',        'total',       'r', 'background:#f0fdf4;color:#15803d;');
+    html += th('Costo',        'costo',       'r', 'background:#eff6ff;color:#1d4ed8;');
+    html += th('Utilidad',     'utilidad',    'r', 'background:#eff6ff;color:#1d4ed8;');
+    html += th('Margen',       'margen',      'r', 'background:#eff6ff;color:#1d4ed8;');
+    html += '<th>Acciones</th>';
+    html += '</tr></thead><tbody>';
+
+    var totNeto = 0, totItbms = 0, totTotal = 0, totCosto = 0, totUtilidad = 0;
+
+    var TIPO_ICON = {
+      producto:'📦', shipping_handling:'✈️', impuesto:'🏛️',
+      mano_obra:'🔧', flete:'🚛', subcontrato:'🤝',
+      combustible:'⛽', fianza:'🔒', aduana:'🛃', credito_fiscal:'💳', otro:'📌',
+    };
+    var TIPO_LABEL = {
+      producto:'Producto', shipping_handling:'S&H', impuesto:'Impuesto',
+      mano_obra:'Mano obra', flete:'Flete', subcontrato:'Subcontrato',
+      combustible:'Combustible', fianza:'Fianza', aduana:'Aduana',
+      credito_fiscal:'Crédito Fiscal', otro:'Otro',
+    };
+
+    items.forEach(function(st) {
+      // Para STs cancelados (nota de crédito), neto = $0 — los dos ingresos se cancelan.
+      var esCancelado = st.estado === 'cancelado';
+      var pvNeto   = esCancelado
+        ? 0
+        : (st.subtotal_venta > 0
+            ? st.subtotal_venta
+            : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0));
+      var pvItbms  = (!esCancelado && st.precio_venta > 0)
+        ? parseFloat((st.precio_venta - pvNeto).toFixed(2))
+        : 0;
+      var pvTotal    = esCancelado ? 0 : (st.precio_venta || 0);
+      var esExento   = pvNeto > 0 && pvItbms < 0.01;
+      var totalCosto = st_calcCostoReal(st);
+      var utilidad   = pvNeto - totalCosto;
+      var margenPct  = pvNeto > 0 ? ((utilidad / pvNeto) * 100).toFixed(1) : '—';
+      var enEje      = st.estado === 'en_ejecucion';
+      var isExpanded = !!st_state.expandedRows[st.id_st];
+      var hasItems   = st.items && st.items.filter(function(i){ return i.estado_item !== 'cancelado'; }).length > 0;
+
+      totNeto     += pvNeto;
+      totItbms    += esExento ? 0 : pvItbms;
+      totTotal    += pvTotal;
+      totCosto    += totalCosto;
+      totUtilidad += utilidad;
+
+      var chevron = hasItems
+        ? '<i class="st-expand-chevron">'+(isExpanded ? '▼' : '▶')+'</i>'
+        : '<i class="st-expand-chevron" style="opacity:.2">▶</i>';
+
+      var rowCls = 'st-main-row' + (isExpanded ? ' expanded' : '');
+      var clickAttr = hasItems ? 'onclick="st_toggleExpand(\''+st_esc(st.id_st)+'\',event)"' : '';
+
+      html += '<tr class="'+rowCls+'" '+clickAttr+'>';
+      html += '<td class="mono">'+chevron+'<span><div>'+st_esc(st_numFactura(st))+'</div><div style="font-size:.65rem;color:#94a3b8">'+st_esc(st.id_st)+'</div></span></td>';
+      html += '<td style="font-weight:600;max-width:150px">'+st_esc(st.nombre_cliente)+'</td>';
+      html += '<td style="max-width:200px;color:#64748b;font-size:.73rem">'+st_esc(st.descripcion.length>60?st.descripcion.slice(0,60)+'…':st.descripcion)+'</td>';
+      html += '<td><span class="st-badge s-'+st_esc(st.estado)+'">'+st_esc(ESTADO_LABEL[st.estado]||st.estado)+'</span></td>';
+      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:600">'+st_fmt(pvNeto)+'</td>';
+      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:600">'+(esExento ? '<span style="font-size:.68rem;font-weight:600;color:#64748b">Exento</span>' : st_fmt(pvItbms))+'</td>';
+      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:700">'+(pvTotal > 0 ? st_fmt(pvTotal) : '—')+'</td>';
+      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+st_fmt(totalCosto)+'</td>';
+      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+st_fmt(utilidad)+'</td>';
+      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
+      html += '<td><div class="st-tbl-actions">';
+      if (st.estado === 'cotizado') {
+        html += '<button class="st-tbl-btn warning" onclick="st_accionEmailTabla(\''+st_esc(st.id_st)+'\',\''+st_esc(st.email_cliente||'')+'\')">📧</button>';
+        html += '<button class="st-tbl-btn primary" onclick="st_accionAprobarTabla(\''+st_esc(st.id_st)+'\',\''+st_esc(st.num_cotizacion)+'\')">✅ Aprobar</button>';
+      }
+      if (st.estado === 'aprobado') {
+        html += '<button class="st-tbl-btn primary" onclick="st_accionIniciarTabla(\''+st_esc(st.id_st)+'\')">🚀 Iniciar</button>';
+      }
+      if (enEje && !st.ingreso_id) {
+        html += '<button class="st-tbl-btn success" onclick="st_accionRegistrarIngresoTabla(\''+st_esc(st.id_st)+'\')">💰</button>';
+      }
+      if (enEje) {
+        html += '<button class="st-tbl-btn" style="background:none;border:none;padding:3px 5px;font-size:.9rem;cursor:pointer;color:#94a3b8" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST">🗑️</button>';
+        html += '<button class="st-tbl-btn" style="background:#f0fdf4;border-color:#86efac;color:#15803d;padding:3px 7px" onclick="st_accionCerrarTabla(\''+st_esc(st.id_st)+'\')" title="Cerrar ST">🔒</button>';
+      } else {
+        html += '<button class="st-tbl-btn" style="background:none;border:none;padding:3px 5px;font-size:.9rem;cursor:pointer;color:#94a3b8" onclick="st_eliminarST(\''+st_esc(st.id_st)+'\')" title="Eliminar ST">🗑️</button>';
+      }
+      html += '</div></td>';
+      html += '</tr>';
+
+      // ── Sub-fila de costos ─────────────────────────────────────
+      if (isExpanded && hasItems) {
+        var costItems = st.items.filter(function(i){ return i.estado_item !== 'cancelado'; });
+        html += '<tr class="st-sub-row"><td colspan="11">';
+        html += '<div class="st-sub-inner">';
+        html += '<div class="st-sub-title">Costos — '+costItems.length+' ítem'+(costItems.length!==1?'s':'')+'</div>';
+        html += '<table class="st-sub-tbl">';
+        html += '<thead><tr>';
+        html += '<th>Tipo</th><th>Descripción</th><th>Proveedor</th>';
+        html += '<th class="r">Neto</th><th class="r">ITBMS</th><th class="r">Total</th>';
+        html += '</tr></thead><tbody>';
+        var subTotNeto = 0, subTotItbms = 0, subTotTotal = 0;
+        costItems.forEach(function(it) {
+          var neto  = it.monto_real  > 0 ? it.monto_real  : (it.monto_cotizado  || 0);
+          var itbms = it.itbms_real  > 0 ? it.itbms_real  : (it.itbms_cotizado  || 0);
+          var total = it.total_real  > 0 ? it.total_real  : (it.total_cotizado  || 0);
+          // Si solo tenemos total (sin desglose), derivar neto e itbms
+          if (total > 0 && neto === 0) {
+            neto  = parseFloat((total / 1.07).toFixed(2));
+            itbms = parseFloat((total - neto).toFixed(2));
+          }
+          var icon   = TIPO_ICON[it.tipo] || '📌';
+          var tlabel = TIPO_LABEL[it.tipo] || it.tipo;
+          subTotNeto  += neto;
+          subTotItbms += itbms;
+          subTotTotal += total;
+          html += '<tr>';
+          html += '<td style="white-space:nowrap"><span style="font-size:.78rem">'+icon+' '+st_esc(tlabel)+'</span></td>';
+          html += '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+st_esc(it.descripcion||'')+'">'+st_esc((it.descripcion||'').substring(0,60))+'</td>';
+          html += '<td style="color:#64748b;font-size:.7rem">'+st_esc(it.proveedor||'—')+'</td>';
+          html += '<td class="r" style="color:#475569">'+st_fmt(neto)+'</td>';
+          html += '<td class="r" style="color:#94a3b8;font-size:.72rem">'+(itbms > 0 ? st_fmt(itbms) : '—')+'</td>';
+          html += '<td class="r" style="font-weight:600;color:#1d4ed8">'+st_fmt(total)+'</td>';
+          html += '</tr>';
+        });
+        html += '</tbody>';
+        html += '<tfoot><tr>';
+        html += '<td colspan="3" style="padding:5px 8px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8">Total costos</td>';
+        html += '<td class="r" style="font-weight:700;color:#475569;font-size:.78rem">'+st_fmt(subTotNeto)+'</td>';
+        html += '<td class="r" style="font-weight:700;color:#94a3b8;font-size:.78rem">'+st_fmt(subTotItbms)+'</td>';
+        html += '<td class="r" style="font-weight:800;color:#1d4ed8;font-size:.78rem">'+st_fmt(subTotTotal)+'</td>';
+        html += '</tr></tfoot>';
+        html += '</table></div></td></tr>';
+      }
+    });
+
+    var totMargenPct = totNeto > 0 ? ((totUtilidad / totNeto) * 100).toFixed(1) : '—';
+    var nItems = items.length;
+
+    html += '</tbody>';
+    html += '<tfoot>';
+    html += '<tr style="border-top:2px solid #cbd5e1">';
+    html += '<td colspan="4" style="padding:10px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b">';
+    html += '  ' + nItems + ' registro' + (nItems !== 1 ? 's' : '');
+    html += '</td>';
+    html += '<td class="r" style="background:#dcfce7;color:#15803d;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totNeto)+'</td>';
+    html += '<td class="r" style="background:#dcfce7;color:#15803d;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totItbms)+'</td>';
+    html += '<td class="r" style="background:#dcfce7;color:#15803d;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totTotal)+'</td>';
+    html += '<td class="r" style="background:#dbeafe;color:#1d4ed8;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totCosto)+'</td>';
+    html += '<td class="r" style="background:#dbeafe;color:#1d4ed8;font-weight:800;font-size:.82rem;padding:10px 12px">'+st_fmt(totUtilidad)+'</td>';
+    html += '<td class="r" style="background:#dbeafe;color:#1d4ed8;font-weight:800;font-size:.82rem;padding:10px 12px">'+(totMargenPct!=='—'?(parseFloat(totMargenPct)>0?'+':'')+totMargenPct+'%':'—')+'<span style="display:block;font-size:.6rem;font-weight:400;color:#94a3b8;margin-top:1px">avg.</span></td>';
+    html += '<td style="background:#f8fafc;padding:10px 12px"></td>';
+    html += '</tr>';
+    html += '</tfoot>';
+    html += '</table></div>';
+    html += '<div style="height:32px"></div>';
+    cont.innerHTML = html;
   }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
 
-// ── Generar HTML formal de cotización ────────────────────────
+  // ── ACCIONES RÁPIDAS DESDE CARDS ────────────────────────
 
-function _generarHtmlCotizacion(st, items) {
-  var fecha = Utilities.formatDate(new Date(), 'America/Panama', 'dd/MM/yyyy');
-
-  var tipoLabel = {
-    'producto':    '📦 Producto',
-    'mano_obra':   '🔧 Mano de obra',
-    'flete':       '🚛 Flete / transporte',
-    'impuesto':    '🏛️ Impuesto / tasa',
-    'combustible': '⛽ Combustible',
-    'fianza':      '🔒 Fianza',
-    'subcontrato': '🤝 Subcontrato',
-    'otro':        '📌 Otro',
+  window.st_accionAprobar = function(idx) {
+    var st = st_state.filtered[idx];
+    if (!st || !confirm('¿Aprobar la cotización ' + st.num_cotizacion + '?')) return;
+    gasJsonp('aprobarCotizacion', { id_st: st.id_st })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('✅ Cotización aprobada', 'success');
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   };
 
-  var rowsHtml = '';
-  for (var i = 0; i < items.length; i++) {
-    var item = items[i];
-    var bg   = i % 2 === 0 ? '#F5F5F7' : '#FFFFFF';
-    var cantLabel = item.precio_unitario > 0
-      ? item.cantidad + ' × $' + item.precio_unitario.toFixed(2)
-      : '—';
-    var itbmsLabel = item.aplica_itbms
-      ? '<span style="font-size:11px;color:#E65100">+ITBMS</span>'
-      : '';
-    rowsHtml +=
-      '<tr style="background:' + bg + '">' +
-        '<td style="padding:10px 14px;font-size:13px">' +
-          '<strong>' + _htmlEscape(item.descripcion) + '</strong><br>' +
-          '<span style="font-size:11px;color:#6C6C70">' + (tipoLabel[item.tipo] || item.tipo) + '</span>' +
-        '</td>' +
-        '<td style="padding:10px 14px;font-size:13px;text-align:center">' + _htmlEscape(cantLabel) + '</td>' +
-        '<td style="padding:10px 14px;font-size:13px;text-align:right">' +
-          '$' + item.monto_cotizado.toFixed(2) + ' ' + itbmsLabel +
-        '</td>' +
-        '<td style="padding:10px 14px;font-size:13px;text-align:right;font-weight:600">' +
-          '$' + item.total_cotizado.toFixed(2) +
-        '</td>' +
-      '</tr>';
-  }
-
-  var subtotalSinITBMS = 0;
-  var totalITBMS       = 0;
-  for (var j = 0; j < items.length; j++) {
-    subtotalSinITBMS += items[j].monto_cotizado;
-    totalITBMS       += items[j].itbms_cotizado;
-  }
-  subtotalSinITBMS = parseFloat(subtotalSinITBMS.toFixed(2));
-  totalITBMS       = parseFloat(totalITBMS.toFixed(2));
-  var totalCosto   = parseFloat((subtotalSinITBMS + totalITBMS).toFixed(2));
-  var precioVenta  = st.precio_venta > 0 ? st.precio_venta : totalCosto;
-  var margenPct    = st.margen_pct > 0 ? st.margen_pct : 0;
-
-  var validezBloque =
-    '<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:12px 16px;margin-top:16px;font-size:13px">' +
-      '✅ Esta cotización tiene una validez de <strong>30 días</strong> a partir de la fecha de emisión.' +
-    '</div>';
-
-  var html =
-    '<div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto">' +
-      '<div style="background:#1A237E;padding:28px 32px;border-radius:12px 12px 0 0">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
-          '<div>' +
-            '<div style="font-size:28px;color:#FFF;font-weight:700;letter-spacing:2px">RAMON.PICO</div>' +
-            '<div style="color:rgba(255,255,255,0.7);font-size:12px;margin-top:4px">Equipos Industriales · Círculo Financiero S.A.</div>' +
-          '</div>' +
-          '<div style="text-align:right">' +
-            '<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:8px 16px">' +
-              '<div style="font-size:11px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:1px">Cotización</div>' +
-              '<div style="font-size:20px;color:#FFF;font-weight:700">' + _htmlEscape(st.num_cotizacion) + '</div>' +
-              '<div style="font-size:11px;color:rgba(255,255,255,0.7)">' + fecha + '</div>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div style="background:#FFF;border:1px solid #E5E5E7;border-top:none;padding:32px;border-radius:0 0 12px 12px">' +
-        '<div style="display:flex;gap:24px;margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid #E5E5E7">' +
-          '<div style="flex:1">' +
-            '<div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#6C6C70;margin-bottom:8px;font-weight:600">CLIENTE</div>' +
-            '<div style="font-size:16px;font-weight:700">' + _htmlEscape(st.nombre_cliente) + '</div>' +
-            (st.ruc_cliente ? '<div style="font-size:13px;color:#6C6C70">RUC: ' + _htmlEscape(st.ruc_cliente) + (st.dv_cliente ? ' DV: ' + st.dv_cliente : '') + '</div>' : '') +
-            (st.contacto    ? '<div style="font-size:13px;color:#6C6C70">Tel: ' + _htmlEscape(st.contacto) + '</div>' : '') +
-          '</div>' +
-          '<div style="flex:1">' +
-            '<div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#6C6C70;margin-bottom:8px;font-weight:600">SERVICIO</div>' +
-            '<div style="font-size:14px;font-weight:600;line-height:1.5">' + _htmlEscape(st.descripcion) + '</div>' +
-          '</div>' +
-        '</div>' +
-        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px">' +
-          '<tr style="background:#1A237E;color:#FFF">' +
-            '<th style="padding:10px 14px;text-align:left;font-size:12px;font-weight:600">DESCRIPCIÓN</th>' +
-            '<th style="padding:10px 14px;text-align:center;font-size:12px;font-weight:600">CANTIDAD</th>' +
-            '<th style="padding:10px 14px;text-align:right;font-size:12px;font-weight:600">COSTO</th>' +
-            '<th style="padding:10px 14px;text-align:right;font-size:12px;font-weight:600">TOTAL</th>' +
-          '</tr>' +
-          rowsHtml +
-        '</table>' +
-        '<div style="margin-left:auto;width:280px">' +
-          (totalITBMS > 0 ?
-            '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#6C6C70">' +
-              '<span>Subtotal</span><span>$' + subtotalSinITBMS.toFixed(2) + '</span>' +
-            '</div>' +
-            '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#6C6C70">' +
-              '<span>ITBMS (7%)</span><span>$' + totalITBMS.toFixed(2) + '</span>' +
-            '</div>'
-          : '') +
-          '<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #1A237E;font-size:18px;font-weight:700;margin-top:4px">' +
-            '<span>PRECIO DE VENTA</span><span style="color:#1A237E">$' + precioVenta.toFixed(2) + '</span>' +
-          '</div>' +
-          (margenPct > 0 ?
-            '<div style="font-size:11px;color:#6C6C70;text-align:right">Margen incluido: ' + margenPct.toFixed(1) + '%</div>'
-          : '') +
-        '</div>' +
-        validezBloque +
-        (st.notas ?
-          '<div style="background:#F5F5F7;border-radius:8px;padding:14px 16px;margin-top:16px;font-size:13px;color:#6C6C70">' +
-            '<strong>Notas:</strong> ' + _htmlEscape(st.notas) +
-          '</div>'
-        : '') +
-        '<div style="margin-top:28px;padding-top:20px;border-top:1px solid #E5E5E7;text-align:center">' +
-          '<a href="https://wa.me/' + CONFIG.WA_NUM + '" style="display:inline-block;background:#25D366;color:#FFF;padding:10px 22px;border-radius:8px;font-weight:600;text-decoration:none;font-size:14px">📲 Contactar por WhatsApp</a>' +
-          '<div style="margin-top:12px;font-size:11px;color:#6C6C70">' + CONFIG.NEGOCIO + ' · RUC 1753684-1-696883</div>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-
-  return html;
-}
-
-function _htmlEscape(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  _handleEliminarST  v3  — FIX: usa solo IDs exactos desde ST_Items
-//  — Solo permite eliminar STs en estado: cotizado | aprobado | cancelado
-//  — Para en_ejecucion o cerrado: usar cancelarST primero
-//  — NO usa indexOf en notas para buscar egresos (era la fuente del bug
-//    de contaminación cruzada entre STs con IDs similares)
-// ═══════════════════════════════════════════════════════════════
-
-function _handleEliminarST(params, callback) {
-  var result = {
-    success:          false,
-    id_st:            null,
-    items_eliminados: 0,
-    egresos_anulados: 0,
-    ingreso_anulado:  false,
-    error:            null,
+  window.st_accionIniciar = function(idx) {
+    var st = st_state.filtered[idx];
+    if (!st || !confirm('¿Iniciar ejecución del ST ' + st.id_st + '?')) return;
+    gasJsonp('iniciarEjecucion', { id_st: st.id_st, fecha_inicio: st_today() })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('🚀 Ejecución iniciada', 'success');
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
   };
-  try {
-    var idST = String(params.id_st || '').trim();
-    if (!idST) throw new Error('id_st requerido');
 
-    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    var rec = _getSTById(ss, idST);
-    if (!rec) throw new Error('ST no encontrado: ' + idST);
+  window.st_accionEmail = function(idx) {
+    var st = st_state.filtered[idx];
+    if (!st) return;
+    var email = st.email_cliente || '';
+    var dest  = prompt('Email destinatario:', email);
+    if (dest === null) return;
+    gasJsonp('enviarCotizacionEmail', { id_st: st.id_st, email_destino: dest })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('📧 Cotización enviada a ' + r.email_destino, 'success');
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
 
-    // ── Guard de estado: solo permite eliminar estados sin impacto contable firme ──
-    var estadoActual = String(rec.data[COL_ST.ESTADO - 1] || '');
-    var estadosPermitidos = ['cotizado', 'aprobado', 'cancelado'];
-    if (estadosPermitidos.indexOf(estadoActual) === -1) {
-      throw new Error(
-        'No se puede eliminar un ST en estado "' + estadoActual + '". ' +
-        'Solo se permiten eliminar STs cotizados, aprobados o cancelados. ' +
-        'Para STs en ejecución, primero cancélalo desde el mismo botón.'
+  window.st_accionCancelar = function(idx) {
+    var st = st_state.filtered[idx];
+    if (!st) return;
+    // Redirige al modal unificado de decisión, pre-seleccionando cancelar
+    st_eliminarST(st.id_st);
+    // Pre-seleccionar la opción cancelar tras un tick para que el modal esté visible
+    setTimeout(function() { st_modalDecisionSelect('cancelar'); }, 30);
+  };
+
+  // ── COTIZADOR ────────────────────────────────────────────
+
+  function st_resetForm() {
+    st_state.itemsLocal = [];
+    st_state.editMode   = false;
+    st_state.editIdST   = null;
+    document.getElementById('st-form-titulo').textContent = '➕ Nueva Cotización';
+    document.getElementById('st-btn-send-email').style.display = 'none';
+    ['st-f-desc','st-f-cliente','st-f-contacto','st-f-ruc','st-f-dv',
+     'st-f-email','st-f-notas','st-ni-desc','st-ni-cant',
+     'st-ni-precio','st-ni-monto','st-margen-pct','st-precio-venta']
+      .forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.value = id === 'st-ni-cant' ? '1' : '';
+      });
+    document.getElementById('st-ni-itbms').checked = false;
+    st_renderItemsLocal();
+    st_recalcTotales();
+  }
+
+  window.st_editarCotizacion = function(idx) {
+    var st = st_state.filtered[idx];
+    if (!st) return;
+    st_state.editMode  = true;
+    st_state.editIdST  = st.id_st;
+    st_state.itemsLocal = (st.items||[]).filter(function(it) {
+      return it.estado_item !== 'cancelado';
+    }).map(function(it) {
+      return {
+        id:          it.id_item_st,
+        tipo:        it.tipo,
+        descripcion: it.descripcion,
+        cantidad:    it.cantidad,
+        precio_unit: it.precio_unitario,
+        aplica_itbms:it.aplica_itbms,
+        monto_cot:   it.monto_cotizado,
+        itbms_cot:   it.itbms_cotizado,
+        total_cot:   it.total_cotizado,
+      };
+    });
+
+    document.getElementById('st-form-titulo').textContent = '✏️ Editar ' + st.num_cotizacion;
+    document.getElementById('st-f-desc').value      = st.descripcion    || '';
+    document.getElementById('st-f-cliente').value   = st.nombre_cliente || '';
+    document.getElementById('st-f-contacto').value  = st.contacto       || '';
+    document.getElementById('st-f-ruc').value       = st.ruc_cliente    || '';
+    document.getElementById('st-f-dv').value        = st.dv_cliente     || '';
+    document.getElementById('st-f-email').value     = st.email_cliente  || '';
+    document.getElementById('st-f-notas').value     = st.notas          || '';
+    document.getElementById('st-margen-pct').value  = st.margen_pct     || '';
+    document.getElementById('st-precio-venta').value= st.precio_venta   || '';
+    document.getElementById('st-btn-send-email').style.display = '';
+
+    st_renderItemsLocal();
+    st_recalcTotales();
+    st_showView('nuevo');
+  };
+
+  window.st_agregarItemLocal = function() {
+    var desc  = document.getElementById('st-ni-desc').value.trim();
+    if (!desc) { st_toast('Ingresa una descripción para el ítem', 'error'); return; }
+
+    var tipo   = document.getElementById('st-ni-tipo').value;
+    var cant   = parseFloat(document.getElementById('st-ni-cant').value)  || 1;
+    var precio = parseFloat(document.getElementById('st-ni-precio').value) || 0;
+    var monto  = parseFloat(document.getElementById('st-ni-monto').value)  || 0;
+    var itbms  = document.getElementById('st-ni-itbms').checked;
+
+    // Si hay precio unitario, calcular monto; si no, usar monto directo
+    if (precio > 0) monto = parseFloat((precio * cant).toFixed(2));
+    var itbmsAmt  = itbms ? parseFloat((monto * 0.07).toFixed(2)) : 0;
+    var totalCot  = parseFloat((monto + itbmsAmt).toFixed(2));
+
+    st_state.itemsLocal.push({
+      id: null,
+      tipo: tipo, descripcion: desc,
+      cantidad: cant, precio_unit: precio > 0 ? precio : null,
+      aplica_itbms: itbms,
+      monto_cot: monto, itbms_cot: itbmsAmt, total_cot: totalCot,
+    });
+
+    // Limpiar campos de nuevo ítem
+    ['st-ni-desc','st-ni-cant','st-ni-precio','st-ni-monto'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = id === 'st-ni-cant' ? '1' : '';
+    });
+    document.getElementById('st-ni-itbms').checked = false;
+    document.getElementById('st-ni-total-display').textContent = '$0.00';
+
+    st_renderItemsLocal();
+    st_recalcTotales();
+  };
+
+  window.st_eliminarItemLocal = function(idx) {
+    st_state.itemsLocal.splice(idx, 1);
+    st_renderItemsLocal();
+    st_recalcTotales();
+  };
+
+  function st_renderItemsLocal() {
+    var cont = document.getElementById('st-items-list');
+    if (!st_state.itemsLocal.length) {
+      cont.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.8rem;padding:10px">Sin ítems — agrega el primero abajo</div>';
+      return;
+    }
+    var html = '';
+    st_state.itemsLocal.forEach(function(item, i) {
+      html += '<div class="st-item-row">' +
+        '<div class="st-item-tipo-icon">' + (TIPO_LABEL[item.tipo]||item.tipo) + '</div>' +
+        '<div style="font-size:.82rem;font-weight:600">' + st_esc(item.descripcion) +
+          (item.cantidad > 1 && item.precio_unit > 0
+            ? '<div style="font-size:.7rem;color:#94a3b8">×'+item.cantidad+' @ $'+(item.precio_unit||0).toFixed(2)+'</div>'
+            : '') +
+        '</div>' +
+        '<div style="font-size:.78rem;color:#94a3b8;text-align:center">' + (item.aplica_itbms ? '<span style="color:#E65100">+ITBMS</span>' : 'Sin ITBMS') + '</div>' +
+        '<div style="font-size:.78rem;color:#64748b;text-align:right">$' + (item.monto_cot||0).toFixed(2) + '</div>' +
+        '<div class="st-item-total-display">$' + (item.total_cot||0).toFixed(2) + '</div>' +
+        '<button class="st-item-del" onclick="st_eliminarItemLocal(' + i + ')" title="Eliminar">✕</button>' +
+      '</div>';
+    });
+    cont.innerHTML = html;
+  }
+
+  window.st_recalcNuevoItem = function() {
+    var cant   = parseFloat(document.getElementById('st-ni-cant').value)   || 1;
+    var precio = parseFloat(document.getElementById('st-ni-precio').value)  || 0;
+    var monto  = parseFloat(document.getElementById('st-ni-monto').value)   || 0;
+    var itbms  = document.getElementById('st-ni-itbms').checked;
+
+    if (precio > 0) monto = parseFloat((precio * cant).toFixed(2));
+    var itbmsAmt = itbms ? parseFloat((monto * 0.07).toFixed(2)) : 0;
+    var total    = parseFloat((monto + itbmsAmt).toFixed(2));
+    document.getElementById('st-ni-total-display').textContent = '$' + total.toFixed(2);
+  };
+
+  function st_recalcTotales() {
+    var totalCosto = 0, totalITBMS = 0;
+    st_state.itemsLocal.forEach(function(it) {
+      totalCosto += it.total_cot || 0;
+      totalITBMS += it.itbms_cot || 0;
+    });
+    totalCosto = parseFloat(totalCosto.toFixed(2));
+    totalITBMS = parseFloat(totalITBMS.toFixed(2));
+
+    document.getElementById('st-tot-costo').textContent = st_fmt(totalCosto);
+    document.getElementById('st-tot-itbms').textContent = st_fmt(totalITBMS);
+    document.getElementById('st-tot-itbms-row').style.display = totalITBMS > 0 ? '' : 'none';
+
+    var margenPct   = parseFloat(document.getElementById('st-margen-pct').value)   || 0;
+    var precioVenta = parseFloat(document.getElementById('st-precio-venta').value)  || 0;
+
+    if (margenPct > 0 && totalCosto > 0) {
+      precioVenta = parseFloat((totalCosto * (1 + margenPct / 100)).toFixed(2));
+      document.getElementById('st-precio-venta').value = precioVenta.toFixed(2);
+    } else if (precioVenta > 0 && totalCosto > 0 && margenPct === 0) {
+      // No sobreescribir si el usuario ingresó precio directo
+    }
+
+    var utilidad = parseFloat((precioVenta - totalCosto).toFixed(2));
+    document.getElementById('st-tot-venta').textContent    = st_fmt(precioVenta);
+    document.getElementById('st-tot-utilidad').textContent = st_fmt(utilidad);
+    document.getElementById('st-tot-utilidad').style.color = utilidad >= 0 ? '#15803d' : '#dc2626';
+  }
+
+  window.st_onMargenChange = function(source) {
+    var totalCosto = 0;
+    st_state.itemsLocal.forEach(function(it) { totalCosto += it.total_cot || 0; });
+    totalCosto = parseFloat(totalCosto.toFixed(2));
+    if (!totalCosto) { st_recalcTotales(); return; }
+
+    if (source === 'pct') {
+      var pct     = parseFloat(document.getElementById('st-margen-pct').value) || 0;
+      var precio  = parseFloat((totalCosto * (1 + pct / 100)).toFixed(2));
+      document.getElementById('st-precio-venta').value = precio > 0 ? precio.toFixed(2) : '';
+    } else {
+      var precio2 = parseFloat(document.getElementById('st-precio-venta').value) || 0;
+      var pct2    = precio2 > 0 ? parseFloat(((precio2 / totalCosto - 1) * 100).toFixed(2)) : 0;
+      document.getElementById('st-margen-pct').value = pct2 > 0 ? pct2.toFixed(1) : '';
+    }
+    st_recalcTotales();
+  };
+
+  window.st_recalcEgreso = function() {
+    var total   = parseFloat(document.getElementById('st-me-total').value) || 0;
+    var aplica  = document.getElementById('st-me-itbms-aplica').checked;
+    var itbmsEl = document.getElementById('st-me-itbms');
+    var dispEl  = document.getElementById('st-me-subtotal-disp');
+    var valEl   = document.getElementById('st-me-subtotal-val');
+    if (aplica && total > 0) {
+      // Auto-calcular ITBMS solo si el campo está vacío o fue autocompletado antes
+      // Si el usuario lo editó manualmente, respetar su valor
+      var itbmsAuto = parseFloat((total - total / 1.07).toFixed(2));
+      itbmsEl.value = itbmsAuto.toFixed(2);
+    }
+    var itbms    = parseFloat(itbmsEl.value) || 0;
+    var subtotal = parseFloat((total - itbms).toFixed(2));
+    if (itbms > 0 && total > 0) {
+      dispEl.style.display = '';
+      valEl.textContent = '$' + subtotal.toLocaleString('es-PA', {minimumFractionDigits:2});
+    } else {
+      dispEl.style.display = 'none';
+    }
+  };
+
+  window.st_guardarCotizacion = function() {
+    var desc    = document.getElementById('st-f-desc').value.trim();
+    var cliente = document.getElementById('st-f-cliente').value.trim();
+    if (!desc || !cliente) { st_toast('Completa descripción y cliente', 'error'); return; }
+    if (!st_state.itemsLocal.length) { st_toast('Agrega al menos un ítem', 'error'); return; }
+
+    var margenPct   = parseFloat(document.getElementById('st-margen-pct').value)   || 0;
+    var precioVenta = parseFloat(document.getElementById('st-precio-venta').value)  || 0;
+
+    var payload = {
+      action:          st_state.editMode ? 'actualizarCotizacion' : 'crearCotizacion',
+      nombre_cliente:  cliente,
+      ruc_cliente:     document.getElementById('st-f-ruc').value.trim(),
+      dv_cliente:      document.getElementById('st-f-dv').value.trim(),
+      contacto:        document.getElementById('st-f-contacto').value.trim(),
+      email_cliente:   document.getElementById('st-f-email').value.trim(),
+      descripcion:     desc,
+      margen_pct:      margenPct,
+      precio_venta:    precioVenta,
+      notas:           document.getElementById('st-f-notas').value.trim(),
+      items:           JSON.stringify(st_state.itemsLocal.map(function(it) {
+        return {
+          tipo:           it.tipo,
+          descripcion:    it.descripcion,
+          cantidad:       it.cantidad,
+          precio_unitario:it.precio_unit || 0,
+          monto_cotizado: it.monto_cot,
+          aplica_itbms:   it.aplica_itbms,
+        };
+      })),
+    };
+    if (st_state.editMode) payload.id_st = st_state.editIdST;
+
+    st_setLoading('st-btn-guardar', true, '💾 Guardar cotización');
+
+    // Para crearCotizacion usamos POST (items puede ser largo)
+    fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify(payload),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      st_setLoading('st-btn-guardar', false, '💾 Guardar cotización');
+      if (!res.success) throw new Error(res.error || 'Error al guardar');
+      st_toast(
+        st_state.editMode
+          ? '✅ Cotización actualizada'
+          : '✅ Cotización ' + res.num_cotizacion + ' creada — $' + (res.total_costo_cotizado||0).toFixed(2),
+        'success'
       );
-    }
+      st_state.editMode = false;
+      st_state.editIdST = null;
+      st_cargarDatos(true);
+      st_showView('lista');
+    })
+    .catch(function(e) {
+      st_setLoading('st-btn-guardar', false, '💾 Guardar cotización');
+      st_toast('⚠️ ' + e.message, 'error');
+    });
+  };
 
-    var ingresoId = String(rec.data[COL_ST.INGRESO_ID - 1] || '').trim();
-    var stamp     = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+  window.st_enviarEmail = function() {
+    if (!st_state.editIdST) return;
+    var email = document.getElementById('st-f-email').value.trim();
+    var dest  = prompt('Email destinatario:', email);
+    if (dest === null) return;
+    gasJsonp('enviarCotizacionEmail', { id_st: st_state.editIdST, email_destino: dest })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('📧 Enviado a ' + r.email_destino, 'success');
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
 
-    // ── 1. Recolectar egreso_ids EXACTOS desde ST_Items (único criterio confiable) ──
-    var egresoIdsDeItems = {};   // { egresoId: true }
-    var egresoIdStItemCol = {};  // { egresoId: true } — respaldo por col 21
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    var rowsSTI  = [];
 
-    if (sheetSTI && sheetSTI.getLastRow() > 2) {
-      var numSTI  = sheetSTI.getLastRow() - 2;
-      var dataSTI = sheetSTI.getRange(3, 1, numSTI, STI_NCOLS).getValues();
-      for (var i = 0; i < dataSTI.length; i++) {
-        if (String(dataSTI[i][COL_STI.ID_ST - 1]) !== idST) continue;
-        rowsSTI.push(i + 3);
-        var eid = String(dataSTI[i][COL_STI.EGRESO_ID - 1] || '').trim();
-        if (eid) egresoIdsDeItems[eid] = true;
-      }
-    }
+  // Acciones desde vista detalle
+  window.st_accionAprobar_st = function() {
+    var st = st_state.stActual;
+    if (!st || !confirm('¿Aprobar ' + st.num_cotizacion + '?')) return;
+    gasJsonp('aprobarCotizacion', { id_st: st.id_st })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('✅ Aprobada', 'success');
+        st_recargarDetalle();
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
 
-    // ── 2. Anular egresos por ID exacto ÚNICAMENTE ────────────────────────
-    var sheetEgr  = ss.getSheetByName(SHEET_EGRESOS);
-    var egresosAn = 0;
-    var colsRead  = Math.max(EGRESOS_NCOLS, 21);
+  window.st_accionIniciar_st = function() {
+    var st = st_state.stActual;
+    if (!st || !confirm('¿Iniciar ejecución?')) return;
+    gasJsonp('iniciarEjecucion', { id_st: st.id_st, fecha_inicio: st_today() })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('🚀 Ejecución iniciada', 'success');
+        st_recargarDetalle();
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
 
-    if (sheetEgr && sheetEgr.getLastRow() > 2 && Object.keys(egresoIdsDeItems).length > 0) {
-      var numEgr  = sheetEgr.getLastRow() - 2;
-      var dataEgr = sheetEgr.getRange(3, 1, numEgr, colsRead).getValues();
+  window.st_accionEmail_st = function() {
+    var st = st_state.stActual;
+    if (!st) return;
+    var dest = prompt('Email destinatario:', st.email_cliente||'');
+    if (dest === null) return;
+    gasJsonp('enviarCotizacionEmail', { id_st: st.id_st, email_destino: dest })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('📧 Enviado a ' + r.email_destino, 'success');
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
 
-      for (var e = 0; e < dataEgr.length; e++) {
-        var egresoId = String(dataEgr[e][COL_E.ID - 1] || '').trim();
-        if (!egresoId) continue;
+  window.st_accionCerrar_st = function() {
+    var st = st_state.stActual;
+    if (!st || !confirm('¿Cerrar el ST ' + st.id_st + '? Esta acción no se puede deshacer.')) return;
+    gasJsonp('cerrarST', { id_st: st.id_st, fecha_cierre: st_today() })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('🔒 ST cerrado exitosamente', 'success');
+        st_recargarDetalle();
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
 
-        var estadoE = String(dataEgr[e][COL_E.ESTADO - 1] || '').toLowerCase();
-        if (estadoE === 'anulado') continue;
-
-        // ⚠️  SOLO criterios basados en IDs exactos — NUNCA indexOf en notas
-        var idStItemCol = (colsRead >= 21) ? String(dataEgr[e][20] || '').trim() : '';
-        var pertenece   = egresoIdsDeItems[egresoId]
-                       || idStItemCol === idST;
-
-        if (!pertenece) continue;
-
-        var rowEgr = e + 3;
-        sheetEgr.getRange(rowEgr, COL_E.ESTADO).setValue('anulado');
-        sheetEgr.getRange(rowEgr, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
-        var notaActual = String(dataEgr[e][COL_E.NOTAS - 1] || '');
-        sheetEgr.getRange(rowEgr, COL_E.NOTAS).setValue(
-          notaActual + ' | ANULADO — eliminación ST ' + idST + ': ' + stamp
-        );
-        egresosAn++;
-      }
-      SpreadsheetApp.flush();
-    }
-
-    // ── 3. Anular ingreso por ID exacto ───────────────────────────────────
-    var ingresoAnulado = false;
-    if (ingresoId) {
-      var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
-      if (sheetIng && sheetIng.getLastRow() > 2) {
-        var numIng  = sheetIng.getLastRow() - 2;
-        var dataIng = sheetIng.getRange(3, 1, numIng, INGRESOS_NCOLS).getValues();
-        for (var n = 0; n < dataIng.length; n++) {
-          if (String(dataIng[n][COL_I.ID_TRANS - 1]) !== ingresoId) continue;
-          var rowIng = n + 3;
-          sheetIng.getRange(rowIng, COL_I.ESTADO).setValue('anulado');
-          sheetIng.getRange(rowIng, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
-          var notaIng = String(dataIng[n][COL_I.NOTAS_INT - 1] || '');
-          sheetIng.getRange(rowIng, COL_I.NOTAS_INT).setValue(
-            notaIng + ' | ANULADO — eliminación ST ' + idST + ': ' + stamp
-          );
-          ingresoAnulado = true;
-          break;
+  function st_refreshCardHeader(idST, st, totalCostoReal) {
+    if (!st) return;
+    // Recalculate from items if available (avoids stale r.total_real from backend)
+    if (st.items && st.items.length) {
+      totalCostoReal = 0;
+      st.items.forEach(function(it) {
+        if (it.estado_item !== 'cancelado') {
+          totalCostoReal += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0;
         }
-        SpreadsheetApp.flush();
+      });
+      totalCostoReal = parseFloat(totalCostoReal.toFixed(2));
+    }
+    var pvNeto = st.subtotal_venta > 0
+      ? st.subtotal_venta
+      : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0);
+    var util   = pvNeto - (totalCostoReal > 0 ? totalCostoReal : (parseFloat(st.total_costo_cotizado)||0));
+    var uClr   = util >= 0 ? '#15803d' : '#dc2626';
+    var montoEl = document.getElementById('stcard-monto-' + idST);
+    var utilEl  = document.getElementById('stcard-util-'  + idST);
+    if (montoEl) montoEl.textContent = st_fmt(st.precio_venta);
+    if (utilEl) {
+      utilEl.textContent = (util >= 0 ? '▲' : '▼') + ' ' + st_fmt(Math.abs(util));
+      utilEl.style.color = uClr;
+    }
+  }
+
+  function st_recargarDetalle() {
+    var st = st_state.stActual;
+    if (!st) { st_cargarDatos(true); return; }
+    var idST = st.id_st;
+    var resumenItems = [];  // capture resumen items for merge
+    gasJsonp('getResumenST', { id_st: idST })
+      .then(function(res) {
+        if (!res.success) throw new Error(res.error);
+        resumenItems = res.resumen.items || [];
+        return gasJsonp('getCotizaciones', { id_st: idST });
+      })
+      .then(function(res) {
+        if (res.success && res.items && res.items.length) {
+          st_state.stActual = res.items[0];
+          // Merge EGR- free egresos from resumen into stActual.items
+          if (resumenItems.length) {
+            var stiIds = {};
+            (st_state.stActual.items || []).forEach(function(it) { stiIds[it.id_item_st] = true; });
+            resumenItems.forEach(function(it) {
+              if (!stiIds[it.id_item_st]) {
+                st_state.stActual.items = st_state.stActual.items || [];
+                st_state.stActual.items.push(it);
+              }
+            });
+          }
+          for (var i = 0; i < st_state.data.length; i++) {
+            if (st_state.data[i].id_st === idST) { st_state.data[i] = st_state.stActual; break; }
+          }
+          for (var j = 0; j < st_state.filtered.length; j++) {
+            if (st_state.filtered[j].id_st === idST) { st_state.filtered[j] = st_state.stActual; break; }
+          }
+          if (st_state.vistaMode === 'tabla') {
+            st_renderTabla();
+            return null;
+          }
+          // Find the resumen from the already-fetched data
+          return gasJsonp('getResumenST', { id_st: idST });
+        }
+        throw new Error('ST no encontrado');
+      })
+      .then(function(res) {
+        if (!res) return;
+        if (!res.success) throw new Error(res.error);
+        st_renderDrawer(idST, res.resumen, st_state.stActual);
+        st_refreshCardHeader(idST, st_state.stActual, res.resumen.total_real || 0);
+        st_computeKPIs();
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  }
+
+  // ── MODAL EGRESO ─────────────────────────────────────────
+
+  function st_setActualById(idST) {
+    if (!idST) return;
+    for (var n = 0; n < st_state.data.length; n++) {
+      if (st_state.data[n].id_st === idST) { st_state.stActual = st_state.data[n]; return; }
+    }
+  }
+  window.st_setActualById = st_setActualById;
+
+  // Abre el modal para registrar un costo NUEVO (sin egreso previo)
+  // Solo se llama desde el boton "Registrar costo" del drawer
+  window.st_abrirModalNuevoCosto = function(idST) {
+    if (idST) st_setActualById(idST);
+    // Limpiar todo el modal
+    ['st-me-tipo','st-me-desc','st-me-prov','st-me-nfac','st-me-total','st-me-itbms','st-me-notas'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = (id === 'st-me-tipo') ? 'producto' : '';
+    });
+    var cbAplica = document.getElementById('st-me-itbms-aplica');
+    if (cbAplica) cbAplica.checked = false;
+    var dispEl = document.getElementById('st-me-subtotal-disp');
+    if (dispEl) dispEl.style.display = 'none';
+    document.getElementById('st-me-fecha').value = st_today();
+    document.getElementById('st-me-file').value  = '';
+    // Limpiar campos ocultos — sin egreso_id ni item_id = nuevo costo libre
+    var hidEgresoId = document.getElementById('st-me-egreso-id');
+    var hidItemId   = document.getElementById('st-me-item-id-actual');
+    hidEgresoId.value = '';
+    hidItemId.value   = '';
+    st_state.modalIdST = idST || '';
+    // Titulo y boton
+    var mt = document.querySelector('#st-modal-egreso h3');
+    var bg = document.getElementById('st-me-btn-guardar');
+    if (mt) mt.textContent = '💸 Registrar Costo';
+    if (bg) bg.textContent = '💾 Registrar';
+    document.getElementById('st-modal-egreso').style.display = 'flex';
+  };
+
+  window.st_cerrarModalEgreso = function() {
+    document.getElementById('st-modal-egreso').style.display = 'none';
+  };
+
+  // st_guardarEgreso — llamado solo desde botón Editar de cada ítem
+  // Lee egreso_id e item_id de campos ocultos seteados por st_editarItem
+  window.st_guardarEgreso = function() {
+    var idSTActivo    = st_state.modalIdST || '';
+    var idItemST      = document.getElementById('st-me-item-id-actual').value || '';
+    var egresoIdViejo = document.getElementById('st-me-egreso-id').value || '';
+
+    if (!idSTActivo) { st_toast('Error: no hay ST activo', 'error'); return; }
+
+    var total = parseFloat(document.getElementById('st-me-total').value) || 0;
+    if (!total) { st_toast('Ingresa el monto total', 'error'); return; }
+
+    var desc = document.getElementById('st-me-desc').value.trim();
+    if (!desc) { st_toast('Ingresa una descripción', 'error'); return; }
+
+    var esEdicion = !!egresoIdViejo;
+    var actionGAS = esEdicion ? 'actualizarEgresoST' : 'registrarEgresoST';
+    var btnLabel  = esEdicion ? 'Actualizar' : 'Registrar';
+
+    st_setLoading('st-me-btn-guardar', true, btnLabel);
+
+    var file = document.getElementById('st-me-file').files[0];
+    var doSave = function(b64, mime, nombre) {
+      var payload = {
+        action:       actionGAS,
+        id_st:        idSTActivo,
+        id_item_st:   idItemST,
+        egreso_id:    egresoIdViejo,
+        tipo:         document.getElementById('st-me-tipo').value,
+        descripcion:  desc,
+        proveedor:    document.getElementById('st-me-prov').value.trim(),
+        num_factura:  document.getElementById('st-me-nfac').value.trim(),
+        total:        total,
+        itbms:        parseFloat(document.getElementById('st-me-itbms').value) || 0,
+        fecha:        document.getElementById('st-me-fecha').value,
+        notas:        document.getElementById('st-me-notas').value.trim(),
+        imageBase64:  b64    || '',
+        imageMime:    mime   || '',
+        imageName:    nombre || '',
+      };
+      fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body:    JSON.stringify(payload),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        st_setLoading('st-me-btn-guardar', false, btnLabel);
+        if (!res.success) throw new Error(res.error);
+        var idMostrar = res.egreso_id_nuevo || res.egreso_id || '';
+        st_toast('✅ ' + (esEdicion ? 'Costo actualizado' : 'Costo registrado') + (idMostrar ? ' — ' + idMostrar : ''), 'success');
+        st_cerrarModalEgreso();
+        st_setActualById(idSTActivo);
+        st_recargarDetalle();
+      })
+      .catch(function(e) {
+        st_setLoading('st-me-btn-guardar', false, btnLabel);
+        st_toast('⚠️ ' + e.message, 'error');
+      });
+    };
+
+    if (file) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        doSave(ev.target.result.split(',')[1], file.type || 'image/jpeg', file.name);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      doSave('', '', '');
+    }
+  };
+
+  // ── MODAL INGRESO ─────────────────────────────────────────
+
+  window.st_abrirModalIngreso = function(idST) {
+    if (idST) st_setActualById(idST);
+    var st = st_state.stActual;
+    if (!st) return;
+    document.getElementById('st-mi-fecha').value = st_today();
+    document.getElementById('st-mi-nfac').value  = '';
+    document.getElementById('st-mi-desc').value  = st.descripcion || '';
+    document.getElementById('st-mi-file').value  = '';
+    document.getElementById('st-modal-ingreso').style.display = 'flex';
+  };
+
+  window.st_cerrarModalIngreso = function() {
+    document.getElementById('st-modal-ingreso').style.display = 'none';
+  };
+
+  window.st_guardarIngreso = function() {
+    var st = st_state.stActual;
+    if (!st) return;
+
+    st_setLoading('st-mi-btn-guardar', true, '💰 Registrar ingreso');
+
+    var file = document.getElementById('st-mi-file').files[0];
+    var doSave = function(b64, mime, nombre) {
+      var payload = {
+        action:       'registrarIngresoST',
+        id_st:        st.id_st,
+        fecha:        document.getElementById('st-mi-fecha').value,
+        num_factura:  document.getElementById('st-mi-nfac').value.trim(),
+        forma_pago:   document.getElementById('st-mi-pago').value,
+        es_gravado:   document.getElementById('st-mi-gravado').value,
+        descripcion:  document.getElementById('st-mi-desc').value.trim(),
+        imageBase64:  b64   || '',
+        imageMime:    mime  || '',
+        imageName:    nombre|| '',
+      };
+      fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body:    JSON.stringify(payload),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        st_setLoading('st-mi-btn-guardar', false, '💰 Registrar ingreso');
+        if (!res.success) throw new Error(res.error);
+        st_toast('✅ Ingreso registrado — ' + st_fmt(res.total), 'success');
+        st_cerrarModalIngreso();
+        st_recargarDetalle();
+      })
+      .catch(function(e) {
+        st_setLoading('st-mi-btn-guardar', false, '💰 Registrar ingreso');
+        st_toast('⚠️ ' + e.message, 'error');
+      });
+    };
+
+    if (file) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        doSave(ev.target.result.split(',')[1], file.type||'image/jpeg', file.name);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      doSave('','','');
+    }
+  };
+
+  // ── ACCIONES DESDE TABLA ─────────────────────────────────
+
+  window.st_accionEmailTabla = function(idST, email) {
+    var dest = prompt('Email destinatario:', email||'');
+    if (dest === null) return;
+    gasJsonp('enviarCotizacionEmail', { id_st: idST, email_destino: dest })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('📧 Cotización enviada a ' + r.email_destino, 'success');
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  window.st_accionAprobarTabla = function(idST, numCot) {
+    if (!confirm('¿Aprobar la cotización ' + numCot + '?')) return;
+    gasJsonp('aprobarCotizacion', { id_st: idST })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('✅ Cotización aprobada', 'success');
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  window.st_accionIniciarTabla = function(idST) {
+    if (!confirm('¿Iniciar ejecución del ST ' + idST + '?')) return;
+    gasJsonp('iniciarEjecucion', { id_st: idST, fecha_inicio: st_today() })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('🚀 Ejecución iniciada', 'success');
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  window.st_accionRegistrarIngresoTabla = function(idST) {
+    for (var i = 0; i < st_state.filtered.length; i++) {
+      if (st_state.filtered[i].id_st === idST) { st_state.stActual = st_state.filtered[i]; break; }
+    }
+    st_abrirModalIngreso();
+  };
+
+  window.st_accionCerrarTabla = function(idST) {
+    if (!confirm('¿Cerrar el ST ' + idST + '? Esta acción no se puede deshacer.')) return;
+    gasJsonp('cerrarST', { id_st: idST, fecha_cierre: st_today() })
+      .then(function(r) {
+        if (!r.success) throw new Error(r.error);
+        st_toast('🔒 ST cerrado exitosamente', 'success');
+        st_cargarDatos(true);
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
+
+  // ── MODAL FACTURA DE COSTO ───────────────────────────────
+
+  var st_fcContext = { idST: null, iaResult: null };
+
+  window.st_abrirModalFacturaCosto = function(idST) {
+    var stRef = idST ? null : st_state.stActual;
+    if (idST) {
+      for (var i = 0; i < st_state.filtered.length; i++) {
+        if (st_state.filtered[i].id_st === idST) { stRef = st_state.filtered[i]; break; }
       }
     }
+    if (!stRef) return;
+    st_state.stActual = stRef;
+    st_fcContext.idST = stRef.id_st;
+    st_fcContext.iaResult = null;
+    ['st-fc-file','st-fc-prov','st-fc-nfac'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    var iaRes = document.getElementById('st-fc-ia-result');
+    if (iaRes) { iaRes.style.display = 'none'; iaRes.innerHTML = ''; }
+    var btnG = document.getElementById('st-fc-btn-guardar');
+    if (btnG) btnG.style.display = 'none';
+    document.getElementById('st-modal-factura-costo').style.display = 'flex';
+  };
 
-    // ── 4. Borrar filas ST_Items (descendente para no desplazar índices) ──
-    if (sheetSTI && rowsSTI.length > 0) {
-      rowsSTI.sort(function(a, b) { return b - a; });
-      rowsSTI.forEach(function(rowNum) { sheetSTI.deleteRow(rowNum); });
-      SpreadsheetApp.flush();
+  window.st_abrirModalFacturaCostoTabla = window.st_abrirModalFacturaCosto;
+
+  window.st_analizarFacturaCosto = function() {
+    var file = document.getElementById('st-fc-file').files[0];
+    if (!file) { st_toast('Selecciona una imagen o PDF de la factura', 'error'); return; }
+
+    var btn = document.getElementById('st-fc-btn-analizar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="st-spinner"></span> Analizando…';
+
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var b64  = ev.target.result.split(',')[1];
+      var mime = file.type || 'image/jpeg';
+      fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action:      'parseFacturaEgreso',
+          imageBase64: b64,
+          mimeType:    mime,
+        }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = '🤖 Analizar con IA';
+        if (!res.success) throw new Error(res.error || 'Error en IA');
+
+        st_fcContext.iaResult = res;
+
+        // Auto-fill fields
+        if (res.proveedor) document.getElementById('st-fc-prov').value = res.proveedor;
+        if (res.num_factura) document.getElementById('st-fc-nfac').value = res.num_factura;
+
+        // Match IA items against pending ST items
+        var st = st_state.stActual;
+        var pendItems = (st && st.items || []).filter(function(it) {
+          return it.estado_item !== 'ejecutado' && it.tipo === 'producto';
+        });
+
+        var iaItems = res.items || [];
+        var matches = [];
+        var noMatch = [];
+
+        pendItems.forEach(function(pItem) {
+          var descNorm = String(pItem.descripcion).toUpperCase().replace(/[\[\]]/g,'').trim();
+          var best = null, bestScore = 0;
+          iaItems.forEach(function(iaItem) {
+            var iaDesc = String(iaItem.descripcion||'').toUpperCase();
+            // Check if ia description contains product code parts
+            var parts = descNorm.split(/[\s\-_]+/).filter(function(p){ return p.length > 2; });
+            var score = 0;
+            parts.forEach(function(p) { if (iaDesc.indexOf(p) !== -1) score++; });
+            if (score > bestScore) { bestScore = score; best = iaItem; }
+          });
+          if (bestScore > 0 && best) {
+            matches.push({ stItem: pItem, iaItem: best, score: bestScore });
+          } else {
+            noMatch.push(pItem);
+          }
+        });
+
+        var html = '';
+        if (matches.length) {
+          html += '<div style="font-weight:700;color:#15803d;margin-bottom:6px">✅ Coincidencias encontradas ('+matches.length+')</div>';
+          matches.forEach(function(m) {
+            html += '<div style="display:flex;justify-content:space-between;background:#f0fdf4;border-radius:6px;padding:6px 9px;margin-bottom:4px;font-size:.75rem">' +
+              '<span>'+st_esc(m.stItem.descripcion.slice(0,45))+'…</span>' +
+              '<span style="font-weight:700;color:#15803d">'+st_fmt(m.iaItem.total||m.iaItem.precio_unitario||0)+'</span>' +
+              '</div>';
+          });
+        }
+        if (noMatch.length) {
+          html += '<div style="font-weight:700;color:#d97706;margin-top:8px;margin-bottom:6px">⚠️ Sin coincidencia ('+noMatch.length+')</div>';
+          noMatch.forEach(function(it) {
+            html += '<div style="background:#fef9c3;border-radius:6px;padding:5px 8px;margin-bottom:3px;font-size:.73rem;color:#92400e">'+st_esc(it.descripcion)+'</div>';
+          });
+          if (matches.length === 0) {
+            html += '<div style="margin-top:8px;color:#dc2626;font-size:.73rem">❌ No se encontró ningún ítem coincidente. Verifica que subiste la factura correcta.</div>';
+          }
+        }
+        if (!pendItems.length) {
+          html += '<div style="color:#64748b;font-size:.78rem">No hay ítems pendientes de costo en este ST.</div>';
+          html += '<div style="margin-top:6px;color:#94a3b8;font-size:.73rem">Factura: '+st_esc(res.proveedor||'')+ ' · ' + st_esc(res.num_factura||'') + ' · '+st_fmt(res.total)+'</div>';
+        }
+
+        var iaRes = document.getElementById('st-fc-ia-result');
+        iaRes.innerHTML = html;
+        iaRes.style.display = 'block';
+
+        // Show save button if we have at least some matches or want to register as egreso anyway
+        var btnG = document.getElementById('st-fc-btn-guardar');
+        btnG.style.display = '';
+        if (noMatch.length > 0 && matches.length === 0) {
+          btnG.textContent = '⚠️ Registrar como egreso sin asignar';
+          btnG.className = 'st-btn st-btn-warning';
+        } else {
+          btnG.textContent = '💾 Guardar y Asignar (' + matches.length + ' ítem' + (matches.length!==1?'s':'') + ')';
+          btnG.className = 'st-btn st-btn-primary';
+        }
+        btnG.dataset.matches = JSON.stringify(matches.map(function(m){
+          return { idItemST: m.stItem.id_item_st, total: m.iaItem.total||m.iaItem.precio_unitario||0 };
+        }));
+      })
+      .catch(function(e) {
+        btn.disabled = false;
+        btn.innerHTML = '🤖 Analizar con IA';
+        st_toast('⚠️ ' + e.message, 'error');
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.st_guardarFacturaCosto = function() {
+    var st = st_state.stActual;
+    if (!st) return;
+    var res = st_fcContext.iaResult;
+    if (!res) { st_toast('Analiza la factura primero', 'error'); return; }
+
+    var prov = document.getElementById('st-fc-prov').value.trim() || res.proveedor || '';
+    var nfac = document.getElementById('st-fc-nfac').value.trim() || res.num_factura || '';
+    var file = document.getElementById('st-fc-file').files[0];
+    var btn  = document.getElementById('st-fc-btn-guardar');
+    btn.disabled = true; btn.innerHTML = '<span class="st-spinner"></span> Guardando…';
+
+    var doSave = function(b64, mime, nombre) {
+      var payload = {
+        action:      'registrarEgresoST',
+        id_st:       st.id_st,
+        id_item_st:  '',
+        tipo:        'producto',
+        descripcion: res.items && res.items.length ? res.items.map(function(i){return i.descripcion;}).join(' | ') : (prov + ' — factura costo'),
+        proveedor:   prov,
+        ruc_prov:    res.ruc_proveedor || '',
+        dv_prov:     res.dv_proveedor  || '',
+        num_factura: nfac,
+        total:       res.total    || 0,
+        itbms:       res.itbms    || 0,
+        subtotal:    res.subtotal || 0,
+        fecha:       res.fecha    || st_today(),
+        notas:       'Asignado por IA desde factura de costo',
+        imageBase64: b64,
+        imageMime:   mime,
+        imageName:   nombre,
+      };
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(r) {
+        btn.disabled = false; btn.innerHTML = '💾 Guardar y Asignar';
+        if (!r.success) throw new Error(r.error);
+        st_toast('✅ Factura de costo registrada — ' + r.egreso_id, 'success');
+        document.getElementById('st-modal-factura-costo').style.display = 'none';
+        st_recargarDetalle();
+        if (st_state.vistaMode === 'tabla') { setTimeout(st_renderTabla, 400); }
+      })
+      .catch(function(e) {
+        btn.disabled = false; btn.innerHTML = '💾 Guardar y Asignar';
+        st_toast('⚠️ ' + e.message, 'error');
+      });
+    };
+
+    if (file) {
+      var reader = new FileReader();
+      reader.onload = function(ev) { doSave(ev.target.result.split(',')[1], file.type||'image/jpeg', file.name); };
+      reader.readAsDataURL(file);
+    } else { doSave('','',''); }
+  };
+
+  // ── MODAL PAGO DEL CLIENTE ────────────────────────────────
+
+  var st_pcContext = { ingresoId: null, precioVenta: 0, sinVoucher: false };
+
+  window.st_abrirModalPagoCliente = function(ctx) {
+    if (typeof ctx === 'string') ctx = JSON.parse(ctx);
+    st_pcContext.ingresoId   = ctx.ingreso_id  || '';
+    st_pcContext.precioVenta = parseFloat(ctx.precio_venta) || 0;
+    st_pcContext.sinVoucher  = false;
+
+    var info = document.getElementById('st-pc-info');
+    if (info) info.innerHTML = 'Precio de venta: <strong>' + st_fmt(st_pcContext.precioVenta) + '</strong>' +
+      (st_pcContext.ingresoId ? ' · Ingreso: ' + st_esc(st_pcContext.ingresoId) : ' · Sin ingreso previo');
+
+    ['st-pc-monto','st-pc-codigo','st-pc-pagador'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('st-pc-fecha').value = st_today();
+    document.getElementById('st-pc-file').value  = '';
+    document.getElementById('st-pc-sin-voucher').checked = false;
+    document.getElementById('st-pc-ia-status').style.display = 'none';
+    document.getElementById('st-pc-status-box').style.display = 'none';
+    document.getElementById('st-pc-btn-ia').style.display = '';
+    document.getElementById('st-modal-pago-cliente').style.display = 'flex';
+  };
+
+  window.st_toggleSinVoucher = function() {
+    st_pcContext.sinVoucher = document.getElementById('st-pc-sin-voucher').checked;
+    document.getElementById('st-pc-btn-ia').style.display = st_pcContext.sinVoucher ? 'none' : '';
+  };
+
+  window.st_calcPagoStatus = function() {
+    var monto = parseFloat(document.getElementById('st-pc-monto').value) || 0;
+    var total = st_pcContext.precioVenta;
+    if (!monto || !total) { document.getElementById('st-pc-status-box').style.display='none'; return; }
+    var box = document.getElementById('st-pc-status-box');
+    var saldo = total - monto;
+    var cls, msg;
+    if (monto >= total) { cls = 'completo'; msg = '✅ Pago completo'; }
+    else if (monto > 0)  { cls = 'parcial';  msg = '⚠️ Pago parcial — Saldo pendiente: ' + st_fmt(saldo); }
+    else                 { cls = 'sinpago';  msg = '❌ Sin pago'; }
+    box.className = 'st-pago-status ' + cls;
+    box.textContent = msg;
+    box.style.display = 'block';
+  };
+
+  window.st_analizarPago = function() {
+    var file = document.getElementById('st-pc-file').files[0];
+    if (!file) { st_toast('Selecciona el comprobante de pago', 'error'); return; }
+    var btn = document.getElementById('st-pc-btn-ia');
+    btn.disabled = true; btn.innerHTML = '<span class="st-spinner"></span> Leyendo…';
+
+    var iaStatus = document.getElementById('st-pc-ia-status');
+    var iaBar    = document.getElementById('st-pc-ia-bar');
+    iaStatus.style.display = 'block';
+    var prog = 0;
+    var progIntvl = setInterval(function(){ prog = Math.min(prog + 15, 85); iaBar.style.width = prog + '%'; }, 300);
+
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action:      'parseComprobanteIngreso',
+          imageBase64: ev.target.result.split(',')[1],
+          mimeType:    file.type || 'image/jpeg',
+        }),
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(res) {
+        clearInterval(progIntvl); iaBar.style.width = '100%';
+        setTimeout(function(){ iaStatus.style.display='none'; iaBar.style.width='0%'; }, 600);
+        btn.disabled = false; btn.innerHTML = '🤖 Leer Comprobante';
+        if (!res.success) throw new Error(res.error);
+        if (res.monto)   document.getElementById('st-pc-monto').value   = parseFloat(res.monto)||0;
+        if (res.fecha)   document.getElementById('st-pc-fecha').value   = res.fecha.slice(0,10);
+        if (res.notas)   document.getElementById('st-pc-codigo').value  = res.notas.slice(0,60);
+        if (res.nombre_pagador) document.getElementById('st-pc-pagador').value = res.nombre_pagador;
+        if (res.tipo_comprobante) {
+          var tipMap = { 'yappy':'Yappy','transferencia':'transferencia','factura':'otro' };
+          var sel = document.getElementById('st-pc-tipo');
+          if (tipMap[res.tipo_comprobante] && sel) sel.value = tipMap[res.tipo_comprobante];
+        }
+        st_calcPagoStatus();
+        st_toast('✅ Comprobante leído con IA', 'success');
+      })
+      .catch(function(e) {
+        clearInterval(progIntvl); iaStatus.style.display='none';
+        btn.disabled = false; btn.innerHTML = '🤖 Leer Comprobante';
+        st_toast('⚠️ ' + e.message, 'error');
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.st_guardarPago = function() {
+    var st = st_state.stActual;
+    var monto = parseFloat(document.getElementById('st-pc-monto').value) || 0;
+    var sinVoucher = st_pcContext.sinVoucher;
+
+    if (!monto && !sinVoucher) { st_toast('Ingresa el monto pagado', 'error'); return; }
+
+    var total = st_pcContext.precioVenta;
+    var saldo = total - monto;
+    var esAbono = !sinVoucher && monto > 0 && monto < total;
+    var esCompleto = sinVoucher || monto >= total;
+
+    var btn = document.getElementById('st-pc-btn-guardar');
+    btn.disabled = true; btn.innerHTML = '<span class="st-spinner"></span> Registrando…';
+
+    var file = document.getElementById('st-pc-file').files[0];
+    var doSave = function(b64, mime, nombre) {
+      // Build notas string for actualizarNotasIngreso
+      var datosPago = 'Pago: ' + document.getElementById('st-pc-tipo').value +
+        ' | Monto: ' + (monto || 'Sin especificar') +
+        (document.getElementById('st-pc-codigo').value  ? ' | Ref: '+document.getElementById('st-pc-codigo').value : '') +
+        (document.getElementById('st-pc-pagador').value ? ' | Pagador: '+document.getElementById('st-pc-pagador').value : '') +
+        (document.getElementById('st-pc-fecha').value   ? ' | Fecha: '+document.getElementById('st-pc-fecha').value : '') +
+        (esAbono ? ' | ABONO — Saldo pendiente: '+st_fmt(saldo) : '') +
+        (sinVoucher ? ' | SIN VOUCHER' : '');
+
+      var promises = [];
+
+      // If we have an ingreso ID, update notes
+      if (st_pcContext.ingresoId) {
+        promises.push(
+          new Promise(function(resolve) {
+            var cb = 'cb_pago_' + Date.now();
+            var url = GAS_URL + '?action=actualizarNotasIngreso&callback=' + cb +
+              '&ingreso_id=' + encodeURIComponent(st_pcContext.ingresoId) +
+              '&datos_pago=' + encodeURIComponent(datosPago);
+            window[cb] = function(data) { delete window[cb]; resolve(data); };
+            var s = document.createElement('script'); s.src = url;
+            document.head.appendChild(s);
+          })
+        );
+      }
+
+      // If has file, upload as corregirComprobante or simple drive upload
+      if (b64 && st_pcContext.ingresoId) {
+        promises.push(
+          fetch(GAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action:      'corregirComprobante',
+              id_item:     st && st.id_st ? st.id_st : '',
+              ingreso_id:  st_pcContext.ingresoId,
+              imageBase64: b64,
+              imageMime:   mime,
+              imageName:   nombre,
+            }),
+          }).then(function(r){ return r.json(); })
+        );
+      }
+
+      Promise.all(promises)
+        .then(function(results) {
+          // Extraer drive_url del comprobante subido (si se subió uno)
+          var driveUrlComp = '';
+          if (results) {
+            results.forEach(function(r) {
+              if (r && r.driveUrl) driveUrlComp = r.driveUrl;
+            });
+          }
+          // Confirmar el ingreso si el pago es completo (no abono)
+          if (st_pcContext.ingresoId && esCompleto) {
+            var cbConf = 'cb_conf_' + Date.now();
+            var urlConf = GAS_URL + '?action=confirmarIngreso&callback=' + cbConf +
+              '&ingreso_id=' + encodeURIComponent(st_pcContext.ingresoId) +
+              (driveUrlComp ? '&drive_url=' + encodeURIComponent(driveUrlComp) : '');
+            window[cbConf] = function(data) {
+              delete window[cbConf];
+              if (!data.success) Logger.log && Logger.log('confirmarIngreso error: ' + data.error);
+            };
+            var sConf = document.createElement('script');
+            sConf.src = urlConf;
+            document.head.appendChild(sConf);
+          }
+          btn.disabled = false; btn.innerHTML = '💳 Registrar Pago';
+          document.getElementById('st-modal-pago-cliente').style.display = 'none';
+          if (esAbono) {
+            st_toast('⚠️ Abono registrado — Saldo pendiente: ' + st_fmt(saldo), 'success');
+          } else {
+            st_toast('✅ Pago registrado correctamente', 'success');
+          }
+          st_recargarDetalle();
+          if (st_state.vistaMode === 'tabla') { setTimeout(st_renderTabla, 400); }
+        })
+        .catch(function(e) {
+          btn.disabled = false; btn.innerHTML = '💳 Registrar Pago';
+          st_toast('⚠️ ' + e.message, 'error');
+        });
+    };
+
+    if (file && !sinVoucher) {
+      var reader = new FileReader();
+      reader.onload = function(ev) { doSave(ev.target.result.split(',')[1], file.type||'image/jpeg', file.name); };
+      reader.readAsDataURL(file);
+    } else { doSave('','',''); }
+  };
+
+  // ── MODAL DECISIÓN — ELIMINAR vs CANCELAR ───────────────────
+  // Estado del modal
+  var _decState = { idST: null, accion: null };
+
+  window.st_eliminarST = function(idST) {
+    // Buscar referencia del ST para mostrar en el modal
+    var stRef = null;
+    for (var i = 0; i < st_state.data.length; i++) {
+      if (st_state.data[i].id_st === idST) { stRef = st_state.data[i]; break; }
+    }
+    _decState.idST  = idST;
+    _decState.accion = null;
+    _decState.stRef  = stRef;
+
+    var label = stRef ? (st_numFactura(stRef) + ' — ' + st_esc(stRef.nombre_cliente)) : idST;
+    document.getElementById('st-dec-label').textContent = label;
+
+    // Mostrar/ocultar opciones según estado
+    var estado = stRef ? (stRef.estado || '') : '';
+    var esCerrado   = (estado === 'cerrado');
+    var esEjecucion = (estado === 'en_ejecucion');
+    var canCancel   = !esCerrado && (estado !== 'cancelado');
+    var canEliminar = !esEjecucion;  // en_ejecucion: cancelar primero
+
+    document.getElementById('st-dec-opt-cancelar').style.display    = canCancel   ? '' : 'none';
+    document.getElementById('st-dec-opt-eliminar').style.display    = canEliminar ? '' : 'none';
+    document.getElementById('st-dec-nota-cerrado').style.display    = esCerrado   ? '' : 'none';
+    document.getElementById('st-dec-nota-ejecucion').style.display  = esEjecucion ? '' : 'none';
+    // Sin margen extra en eliminar cuando es la única opción visible
+    document.getElementById('st-dec-opt-eliminar').style.marginBottom = canCancel ? '18px' : '6px';
+
+    // Reset UI
+    document.getElementById('st-dec-motivo-wrap').style.display   = 'none';
+    document.getElementById('st-dec-confirm-wrap').style.display  = 'none';
+    document.getElementById('st-dec-btn-ok').style.display        = 'none';
+    document.getElementById('st-dec-motivo').value                = '';
+    document.getElementById('st-dec-confirm-input').value         = '';
+    document.getElementById('st-dec-confirm-input').placeholder   = idST;
+    document.getElementById('st-dec-confirm-err').style.display   = 'none';
+    // Reset selection highlight
+    st_decResetHighlight();
+
+    document.getElementById('st-modal-decision').style.display = 'flex';
+  };
+
+  window.st_cerrarModalDecision = function() {
+    document.getElementById('st-modal-decision').style.display = 'none';
+    _decState.idST = null; _decState.accion = null; _decState.stRef = null;
+  };
+
+  window.st_decResetHighlight = function() {
+    var optC = document.getElementById('st-dec-opt-cancelar');
+    var optE = document.getElementById('st-dec-opt-eliminar');
+    if (optC) { optC.style.borderColor = '#e2e8f0'; optC.style.background = '#fff'; }
+    if (optE) { optE.style.borderColor = '#e2e8f0'; optE.style.background = '#fff'; }
+  };
+
+  window.st_decOptionHoverOut = function(el, tipo) {
+    // Mantener highlight si está seleccionado
+    if (_decState.accion === tipo) return;
+    el.style.borderColor = '#e2e8f0';
+    el.style.background  = '#fff';
+  };
+
+  window.st_modalDecisionSelect = function(accion) {
+    _decState.accion = accion;
+    st_decResetHighlight();
+
+    var optC = document.getElementById('st-dec-opt-cancelar');
+    var optE = document.getElementById('st-dec-opt-eliminar');
+    var motivoWrap  = document.getElementById('st-dec-motivo-wrap');
+    var confirmWrap = document.getElementById('st-dec-confirm-wrap');
+    var btnOk       = document.getElementById('st-dec-btn-ok');
+
+    if (accion === 'cancelar') {
+      if (optC) { optC.style.borderColor = '#f59e0b'; optC.style.background = '#fffbeb'; }
+      motivoWrap.style.display  = '';
+      confirmWrap.style.display = 'none';
+      btnOk.style.display       = '';
+      btnOk.textContent         = '⚛️ Cancelar ST';
+      btnOk.className           = 'st-btn st-btn-primary';
+      btnOk.style.background    = '#f59e0b';
+      btnOk.style.borderColor   = '#f59e0b';
+    } else {
+      if (optE) { optE.style.borderColor = '#ef4444'; optE.style.background = '#fef2f2'; }
+      motivoWrap.style.display  = 'none';
+      confirmWrap.style.display = '';
+      document.getElementById('st-dec-confirm-input').value = '';
+      document.getElementById('st-dec-confirm-err').style.display = 'none';
+      btnOk.style.display       = 'none';  // se activa solo tras confirmar texto
+      btnOk.textContent         = '🗑️ Eliminar permanentemente';
+      btnOk.className           = 'st-btn';
+      btnOk.style.background    = '#dc2626';
+      btnOk.style.borderColor   = '#dc2626';
+      btnOk.style.color         = '#fff';
+    }
+  };
+
+  window.st_decCheckConfirm = function() {
+    var input    = document.getElementById('st-dec-confirm-input');
+    var errEl    = document.getElementById('st-dec-confirm-err');
+    var btnOk    = document.getElementById('st-dec-btn-ok');
+    var expected = _decState.idST || '';
+    var typed    = (input.value || '').trim();
+
+    if (!typed) {
+      errEl.style.display   = 'none';
+      btnOk.style.display   = 'none';
+      return;
+    }
+    if (typed === expected) {
+      errEl.style.display   = 'none';
+      btnOk.style.display   = '';
+    } else {
+      errEl.style.display   = '';
+      btnOk.style.display   = 'none';
+    }
+  };
+
+  window.st_ejecutarDecision = function() {
+    var idST  = _decState.idST;
+    var accion = _decState.accion;
+    if (!idST || !accion) return;
+
+    if (accion === 'cancelar') {
+      var motivo = (document.getElementById('st-dec-motivo').value || '').trim();
+      st_cerrarModalDecision();
+      gasJsonp('cancelarST', { id_st: idST, motivo: motivo })
+        .then(function(r) {
+          if (!r.success) throw new Error(r.error || 'Error al cancelar');
+          var msg = '⚛️ ST cancelado';
+          if (r.egresos_anulados) msg += ' · ' + r.egresos_anulados + ' egreso(s) anulado(s)';
+          if (r.ingreso_anulado)  msg += ' · ingreso anulado';
+          st_toast(msg, 'success');
+          st_cargarDatos(true);
+        })
+        .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+
+    } else if (accion === 'eliminar') {
+      st_cerrarModalDecision();
+      gasJsonp('eliminarST', { id_st: idST })
+        .then(function(res) {
+          if (!res.success) throw new Error(res.error || 'Error al eliminar');
+          var msg = '🗑️ ST eliminado';
+          if (res.items_eliminados) msg += ' · ' + res.items_eliminados + ' ítem(s)';
+          if (res.egresos_anulados) msg += ' · ' + res.egresos_anulados + ' egreso(s)';
+          if (res.ingreso_anulado)  msg += ' · ingreso anulado';
+          st_toast(msg, 'success');
+          // Quitar del estado local inmediatamente
+          st_state.data     = st_state.data.filter(function(s)     { return s.id_st !== idST; });
+          st_state.filtered = st_state.filtered.filter(function(s) { return s.id_st !== idST; });
+          if (st_state.expandedId === idST) { st_state.expandedId = null; st_state.stActual = null; }
+          st_computeKPIs();
+          if (st_state.vistaMode === 'tabla') {
+            st_renderTabla();
+          } else {
+            st_renderCards(st_state.filtered);
+            setTimeout(function() { st_setVista('detalle'); }, 80);
+          }
+        })
+        .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+    }
+  };
+
+
+  // ── EDITAR ÍTEM ──────────────────────────────────────────────────────────
+  // Abre el modal pre-cargado con los datos del ítem.
+  // Todo viene de data-* attrs del botón — sin depender de stActual.items.
+  window.st_editarItem = function(el) {
+    var idST     = el.getAttribute('data-st-id')   || '';
+    var idItemST = el.getAttribute('data-item-id') || '';
+    var tipo     = el.getAttribute('data-tipo')    || 'otro';
+    var desc     = el.getAttribute('data-desc')    || '';
+    var prov     = el.getAttribute('data-prov')    || '';
+    var nfac     = el.getAttribute('data-nfac')    || '';
+    var total    = el.getAttribute('data-total')   || '';
+    var itbms    = el.getAttribute('data-itbms')   || '';
+    var egresoId = el.getAttribute('data-egreso')  || '';
+
+    if (idST) st_setActualById(idST);
+
+    // Cargar campos del modal
+    document.getElementById('st-me-tipo').value  = tipo;
+    document.getElementById('st-me-desc').value  = desc;
+    document.getElementById('st-me-prov').value  = prov;
+    document.getElementById('st-me-nfac').value  = nfac;
+    document.getElementById('st-me-total').value = total;
+    document.getElementById('st-me-itbms').value = itbms;
+    document.getElementById('st-me-fecha').value = st_today();
+    // Sincronizar checkbox y subtotal al editar
+    var cbAplica2 = document.getElementById('st-me-itbms-aplica');
+    if (cbAplica2) cbAplica2.checked = parseFloat(itbms) > 0;
+    st_recalcEgreso();
+    document.getElementById('st-me-notas').value = '';
+    document.getElementById('st-me-file').value  = '';
+
+    // Guardar IDs en campos ocultos para que st_guardarEgreso los lea
+    var hidEgresoId = document.getElementById('st-me-egreso-id');
+    var hidItemId   = document.getElementById('st-me-item-id-actual');
+    hidEgresoId.value = egresoId || '';
+    hidItemId.value   = idItemST || '';
+    st_state.modalIdST = idST || '';
+
+    // Título y botón
+    var mt = document.querySelector('#st-modal-egreso h3');
+    var bg = document.getElementById('st-me-btn-guardar');
+    if (egresoId) {
+      if (mt) mt.textContent = '✏️ Editar Costo';
+      if (bg) bg.textContent = '✅ Actualizar';
+    } else {
+      if (mt) mt.textContent = '💸 Registrar Costo';
+      if (bg) bg.textContent = '💾 Registrar';
     }
 
-    // ── 5. Borrar fila del ST ─────────────────────────────────────────────
-    var sheetST = ss.getSheetByName(SHEET_ST);
-    if (sheetST) {
-      sheetST.deleteRow(rec.row);
-      SpreadsheetApp.flush();
-    }
+    document.getElementById('st-modal-egreso').style.display = 'flex';
+  };
 
-    result.success          = true;
-    result.id_st            = idST;
-    result.items_eliminados = rowsSTI.length;
-    result.egresos_anulados = egresosAn;
-    result.ingreso_anulado  = ingresoAnulado;
+  // ── ELIMINAR ÍTEM ─────────────────────────────────────────────────────────
+  window.st_eliminarItem = function(idItemST, idST) {
+    if (!confirm('¿Eliminar este ítem?\n\nSi tiene un egreso registrado, será anulado automáticamente.')) return;
+    gasJsonp('eliminarItemCotizacion', { id_item_st: idItemST, id_st: idST })
+      .then(function(res) {
+        if (!res.success) throw new Error(res.error || 'Error al eliminar');
+        var msg = res.egreso_anulado
+          ? '✅ Ítem eliminado — egreso ' + res.egreso_id + ' anulado'
+          : '✅ Ítem eliminado';
+        st_toast(msg, 'success');
+        st_setActualById(idST);
+        st_recargarDetalle();
+      })
+      .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });
+  };
 
-    Logger.log('✅ ST eliminado: ' + idST +
-               ' | Items borrados: '   + rowsSTI.length +
-               ' | Egresos anulados: ' + egresosAn +
-               ' | Ingreso anulado: '  + ingresoAnulado);
+  window.st_pagoClienteBtn = function(el) {
+    var idST      = el.getAttribute('data-st')  || '';
+    var ingresoId = el.getAttribute('data-ing') || '';
+    var pv        = parseFloat(el.getAttribute('data-pv') || '0');
+    var tr        = parseFloat(el.getAttribute('data-tr') || '0');
+    if (idST) st_setActualById(idST);
+    st_abrirModalPagoCliente({ ingreso_id: ingresoId, precio_venta: pv, total_real: tr, id_st: idST });
+  };
 
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('❌ _handleEliminarST v3: ' + err.message);
-  }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
+  window.st_eliminarItemBtn = function(el) {
+    var idItemST = el.getAttribute('data-item-id') || '';
+    var idST     = el.getAttribute('data-st-id')   || '';
+    st_eliminarItem(idItemST, idST);
+  };
+
+  // ── RECLASIFICAR TIPO DE ÍTEM ────────────────────────────
+  window.st_reclasificarTipo = function(selectEl) {
+    var idItemST  = selectEl.getAttribute('data-item-id') || '';
+    var idST      = selectEl.getAttribute('data-st-id')   || '';
+    var nuevoTipo = selectEl.value;
+    var orig      = selectEl.getAttribute('data-orig') || nuevoTipo;
+    if (nuevoTipo === orig) return;
+    selectEl.disabled = true;
+    selectEl.style.opacity = '0.5';
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'actualizarItemTipo', id_item_st: idItemST, id_st: idST, tipo: nuevoTipo })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      selectEl.disabled = false;
+      selectEl.style.opacity = '1';
+      if (res.success) {
+        selectEl.setAttribute('data-orig', nuevoTipo);
+        st_toast('✅ Tipo actualizado a "' + (TIPO_LABEL[nuevoTipo]||nuevoTipo) + '"', 'success');
+        // Actualizar en memoria Y recargar el drawer para que refleje el cambio visualmente
+        var stObj = st_state.stActual;
+        if (stObj && stObj.items) {
+          stObj.items.forEach(function(it) {
+            if (it.id_item_st === idItemST) it.tipo = nuevoTipo;
+          });
+        }
+        st_recargarDetalle();
+      } else {
+        st_toast('⚠️ ' + (res.error || 'Error al reclasificar'), 'error');
+        selectEl.value = orig;
+        selectEl.setAttribute('data-orig', orig);
+      }
+    })
+    .catch(function(e) {
+      selectEl.disabled = false;
+      selectEl.style.opacity = '1';
+      selectEl.value = orig;
+      st_toast('⚠️ Error de red: ' + e.message, 'error');
+    });
+  };
+
+  // ── INIT ─────────────────────────────────────────────────
+  setTimeout(function() {
+    st_setVista('tabla', true);   // set mode + button styles, no render yet
+    st_cargarDatos(true);         // carga datos → applyFilters → renderTabla
+  }, 0);
+
+})();
+</script>
