@@ -7699,39 +7699,35 @@ async function guardarConfigOperaciones() {
 // ── Setup Operaciones — Trigger ──────────────────────────────
 
 async function instalarTriggerOp() {
-  const sel      = document.getElementById('cfgOpTriggerIntervalo');
+  const sel       = document.getElementById('cfgOpTriggerIntervalo');
   const intervalo = sel ? parseInt(sel.value) : 30;
-  const label    = intervalo < 60 ? 'cada ' + intervalo + ' min' : 'cada ' + (intervalo/60) + ' hora(s)';
+  const label     = intervalo < 60 ? 'cada ' + intervalo + ' min' : 'cada ' + (intervalo/60) + ' hora(s)';
+  // Guardar el intervalo elegido en Config
   try {
-    const res  = await fetch(GAS_URL, {
+    await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'instalarTriggerOp', intervalo: intervalo }),
+      body: JSON.stringify({ action: 'guardarConfig', trigger_op_intervalo: String(intervalo) }),
     });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error');
-    showToast('✅ Trigger Operaciones instalado — ' + label);
-    verificarTriggerOp();
-  } catch(err) {
-    showToast('Error: ' + err.message, true);
-  }
+  } catch(e) {}
+  // ScriptApp.newTrigger no está disponible en contexto Web App POST.
+  // El trigger debe instalarse desde el GAS IDE ejecutando instalarTriggerOpManual()
+  _mostrarInstruccionTrigger('Op', intervalo, label);
+}
+
+function _mostrarInstruccionTrigger(tipo, intervalo, label) {
+  const fnName = tipo === 'Op' ? 'instalarTriggerOpManual' : 'instalarTriggerSTManual';
+  const msg = '⚠️ GAS requiere que los triggers se instalen desde el IDE una sola vez.\n\n' +
+    'En el GAS IDE:\n' +
+    '1. Selecciona la función: ' + fnName + '\n' +
+    '2. Click Ejecutar\n\n' +
+    'El intervalo elegido (' + label + ') quedó guardado.';
+  alert(msg);
 }
 
 async function removerTriggerOp() {
-  if (!confirm('¿Remover el trigger de Operaciones? La sincronización de emails dejará de ser automática.')) return;
-  try {
-    const res  = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'removerTriggerOp' }),
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error');
-    showToast('⏹ Trigger Operaciones removido');
-    verificarTriggerOp();
-  } catch(err) {
-    showToast('Error: ' + err.message, true);
-  }
+  if (!confirm('¿Remover el trigger de Operaciones?\nDeberás ejecutar removerTriggerOpManual() en el GAS IDE.')) return;
+  alert('En el GAS IDE:\n1. Selecciona: removerTriggerOpManual\n2. Click Ejecutar\n\nO ve a GAS IDE → Triggers (ícono reloj) y elimínalo manualmente.');
 }
 
 function verificarTriggerOp() {
@@ -7796,22 +7792,17 @@ async function guardarConfigST() {
 }
 
 async function instalarTriggerST() {
-  const sel      = document.getElementById('cfgStTriggerIntervalo');
+  const sel       = document.getElementById('cfgStTriggerIntervalo');
   const intervalo = sel ? parseInt(sel.value) : 15;
-  const label    = intervalo < 60 ? 'cada ' + intervalo + ' min' : 'cada ' + (intervalo/60) + ' hora(s)';
+  const label     = intervalo < 60 ? 'cada ' + intervalo + ' min' : 'cada ' + (intervalo/60) + ' hora(s)';
   try {
-    const res  = await fetch(GAS_URL, {
+    await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'instalarTriggerST', intervalo: intervalo }),
+      body: JSON.stringify({ action: 'guardarConfig', trigger_st_intervalo: String(intervalo) }),
     });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error');
-    showToast('✅ Trigger ST instalado — ' + label);
-    verificarTriggerST();
-  } catch(err) {
-    showToast('Error: ' + err.message, true);
-  }
+  } catch(e) {}
+  _mostrarInstruccionTrigger('ST', intervalo, label);
 }
 
 async function removerTriggerST() {
