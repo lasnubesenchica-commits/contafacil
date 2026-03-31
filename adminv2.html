@@ -1795,35 +1795,19 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </div>
       </div>
 
-      <div class="setup-card">
-        <div class="setup-card-title">🏭 Proveedor Base</div>
-        <div id="setupProvBaseInfo" style="margin-bottom:1rem"></div>
-        <div class="setup-grid">
-          <div class="setup-field">
-            <label>Nombre</label>
-            <input type="text" id="cfgProvNombre" placeholder="TALLERES INDUSTRIALES, S.A">
+      <!-- Proveedores Retail — grid completo migrado desde dashboard -->
+      <div class="setup-card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--border)">
+          <div>
+            <div class="setup-card-title" style="margin:0">🏭 Proveedores Retail</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-top:.2rem">Proveedores cuyas facturas el sistema lee automáticamente desde Gmail</div>
           </div>
-          <div class="setup-field">
-            <label>RUC</label>
-            <input type="text" id="cfgProvRuc" placeholder="670-173-134480">
-          </div>
-          <div class="setup-field">
-            <label>DV</label>
-            <input type="text" id="cfgProvDv" placeholder="83">
-          </div>
-          <div class="setup-field">
-            <label>Email origen (de donde llegan sus facturas)</label>
-            <input type="email" id="cfgProvEmail" placeholder="facturas@talleres.com">
-          </div>
-          <div class="setup-field full">
-            <label>Keywords de detección (separadas por coma)</label>
-            <input type="text" id="cfgProvKeywords" placeholder="talleres,670173,factura_prov">
-            <span class="setup-hint">Palabras en el nombre del archivo que identifican facturas de este proveedor</span>
-          </div>
+          <button class="btn-primary" style="font-size:.8rem;padding:.4rem .85rem" onclick="abrirModalNuevoProveedor()">+ Agregar</button>
         </div>
-        <div class="setup-save-bar" style="margin-top:.75rem">
-          <span id="cfgProvMsg" style="font-size:.8rem;color:var(--green);display:none">✅ Guardado</span>
-          <button class="btn-primary" id="btnGuardarProv" onclick="guardarProveedorBase()">💾 Guardar Proveedor Base</button>
+        <div class="prov-grid" id="setupProvGrid" style="padding:1rem;gap:.85rem">
+          <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">
+            <div class="spinner" style="margin:0 auto .75rem"></div>Cargando proveedores...
+          </div>
         </div>
       </div>
 
@@ -1972,6 +1956,24 @@ tr:hover td{background:rgba(0,0,0,.015)}
             las facturas de este proveedor y las vinculará con las facturas de Círculo Financiero.
           </div>
         </div>
+        <div class="modal-section">
+          <div class="modal-section-label">🔀 Aplica para</div>
+          <div style="display:flex;gap:.75rem;margin-top:.5rem">
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer">
+              <input type="radio" name="provAplicaA" value="retail" checked> Retail (Operaciones)
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer">
+              <input type="radio" name="provAplicaA" value="st"> Servicios Técnicos
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer">
+              <input type="radio" name="provAplicaA" value="ambos"> Ambos
+            </label>
+          </div>
+          <span style="font-size:.75rem;color:var(--muted);margin-top:.35rem;display:block">
+            Define en qué módulo se usará este proveedor para el matching de facturas
+          </span>
+        </div>
+
         <div class="modal-section">
           <div class="modal-section-label">📋 Resumen</div>
           <div id="provResumenFinal" style="font-size:.82rem;color:var(--text);background:var(--bg2);padding:.75rem 1rem;border-radius:8px;line-height:1.9">—</div>
@@ -7064,7 +7066,8 @@ var provIaDatos     = null;
 var provCurrentStep = 1;
 
 async function loadProveedores() {
-  document.getElementById('provGrid').innerHTML =
+  const grid = document.getElementById('provGrid');
+  if (grid) grid.innerHTML =
     '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)">' +
     '<div class="spinner" style="margin:0 auto 1rem"></div>Cargando proveedores...</div>';
   return new Promise(resolve => {
@@ -7083,16 +7086,33 @@ async function loadProveedores() {
   });
 }
 
+// Carga el grid de proveedores dentro del tab Setup (Operaciones)
+async function _loadSetupProvGrid() {
+  const setupGrid = document.getElementById('setupProvGrid');
+  if (!setupGrid) return;
+  if (provItems.length) { _renderProvGridInto(setupGrid, true); return; }
+  setupGrid.innerHTML =
+    '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">' +
+    '<div class="spinner" style="margin:0 auto .75rem"></div>Cargando...</div>';
+  await loadProveedores();
+  _renderProvGridInto(setupGrid, true);
+}
+
 function renderProvGrid() {
   const grid = document.getElementById('provGrid');
+  if (grid) _renderProvGridInto(grid, false);
+  const setupGrid = document.getElementById('setupProvGrid');
+  if (setupGrid) _renderProvGridInto(setupGrid, true);
+}
+
+function _renderProvGridInto(grid, compact) {
   if (!provItems.length) {
     grid.innerHTML =
-      '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)">' +
-      'No hay proveedores configurados. Usa <strong>+ Agregar Proveedor</strong> para empezar.</div>';
+      '<div style="grid-column:1/-1;text-align:center;padding:' + (compact ? '2rem' : '3rem') + ';color:var(--muted);font-size:.85rem">' +
+      'Sin proveedores. Usa <strong>+ Agregar</strong> para añadir.</div>';
     return;
   }
-  grid.innerHTML = provItems.map((p, idx) => `
-    <div class="prov-card ${p.activo ? '' : 'inactive'}" id="provCard_${p.id}">
+  grid.innerHTML = provItems.map((p, idx) => `    <div class="prov-card ${p.activo ? '' : 'inactive'}" id="provCard_${p.id}">
       <div class="prov-card-header">
         <span class="prov-badge-id">${p.id}</span>
         <label title="${p.activo ? 'Activo' : 'Inactivo'}" style="cursor:pointer">
@@ -7107,7 +7127,8 @@ function renderProvGrid() {
         ${p.fecha_alta   ? `<span>📅 Alta: ${p.fecha_alta.slice(0,10)}</span>` : ''}
         ${p.drive_ejemplo? `<span><a href="${p.drive_ejemplo}" target="_blank" style="color:var(--orange)">📄 Ver factura ejemplo</a></span>` : ''}
       </div>
-      ${p.prompt_override ? `<div style="margin-top:.6rem;font-size:.72rem;color:var(--muted);font-style:italic">🤖 Nota de IA configurada</div>` : ''}
+      ${p.aplica_a ? `<div style="margin-top:.35rem;font-size:.72rem"><span style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.1rem .4rem;color:var(--muted)">${{retail:'🛒 Retail', st:'🔧 ST', ambos:'🔀 Ambos'}[p.aplica_a] || p.aplica_a}</span></div>` : ''}
+      ${p.prompt_override ? `<div style="margin-top:.35rem;font-size:.72rem;color:var(--muted);font-style:italic">🤖 Nota de IA configurada</div>` : ''}
       <div class="prov-actions">
         <button class="prov-btn primary" onclick="abrirModalEditarProveedor(${idx})">✏️ Editar</button>
         ${p.id !== 'PROV-001'
@@ -7160,6 +7181,10 @@ function abrirModalEditarProveedor(idx) {
   document.getElementById('provKeywords').value       = p.keywords        || '';
   document.getElementById('provPromptOverride').value = p.prompt_override || '';
   document.getElementById('provEmailOrigen').value    = p.email_origen    || '';
+  // Setear aplica_a
+  const aplicaVal = p.aplica_a || 'retail';
+  const radio = document.querySelector('input[name="provAplicaA"][value="' + aplicaVal + '"]');
+  if (radio) radio.checked = true;
   provGoStep(2);
   document.getElementById('provModalOverlay').classList.add('open');
 }
@@ -7260,10 +7285,13 @@ function _provActualizarResumen() {
   const email  = document.getElementById('provEmailOrigen').value.trim();
   const kw     = document.getElementById('provKeywords').value.trim();
   const prompt = document.getElementById('provPromptOverride').value.trim();
+  const aplicaA = (document.querySelector('input[name="provAplicaA"]:checked') || {value:'retail'}).value;
+  const aplicaLabel = {retail:'Retail (Operaciones)', st:'Servicios Técnicos', ambos:'Ambos módulos'}[aplicaA] || aplicaA;
   document.getElementById('provResumenFinal').innerHTML =
     `<strong>${nombre || '—'}</strong><br>` +
     `RUC: ${ruc || '—'}${dv ? ' DV ' + dv : ''}<br>` +
     `Email origen: ${email || '(no configurado)'}<br>` +
+    `Aplica para: <strong>${aplicaLabel}</strong><br>` +
     `Keywords: <code style="font-size:.75rem">${kw || '—'}</code><br>` +
     (prompt ? '✅ Nota de IA configurada' : '');
 }
@@ -7287,6 +7315,7 @@ async function provGuardar() {
       email_origen:    document.getElementById('provEmailOrigen').value.trim(),
       keywords:        document.getElementById('provKeywords').value.trim(),
       prompt_override: document.getElementById('provPromptOverride').value.trim(),
+      aplica_a:        (document.querySelector('input[name="provAplicaA"]:checked') || {value:'retail'}).value,
       activo:          true,
     };
     if (provFileBase64) {
@@ -7319,6 +7348,9 @@ async function provGuardar() {
     closeProvModal();
     provItems = [];
     await loadProveedores();
+    // Si estamos en el tab de configuración, refrescar también el setupGrid
+    const setupGrid = document.getElementById('setupProvGrid');
+    if (setupGrid) _renderProvGridInto(setupGrid, true);
   } catch(err) {
     showToast('Error guardando proveedor: ' + err.message, true);
   } finally {
@@ -7454,7 +7486,8 @@ function setupSwitchTab(tab) {
     if (btn)   btn.classList.toggle('active',   t === tab);
     if (panel) panel.classList.toggle('active', t === tab);
   });
-  if (tab === 'sistema') verificarSistema();
+  if (tab === 'sistema')     verificarSistema();
+  if (tab === 'operaciones') _loadSetupProvGrid();
 }
 
 // ── Cargar config desde GAS ──────────────────────
@@ -7474,26 +7507,8 @@ async function loadSetupConfig() {
     _setVal('cfgConfianzaMin',      c.confianza_minima     || '70');
     _setVal('cfgItbmsRate',         c.itbms_rate           || '0.07');
 
-    // Proveedor base
-    const p = data.proveedor_base;
-    if (p) {
-      _setVal('cfgProvNombre',   p.nombre        || '');
-      _setVal('cfgProvRuc',      p.ruc           || '');
-      _setVal('cfgProvDv',       p.dv            || '');
-      _setVal('cfgProvEmail',    p.email_origen  || '');
-      _setVal('cfgProvKeywords', p.keywords      || '');
-      document.getElementById('setupProvBaseInfo').innerHTML =
-        '<div class="setup-status-row">' +
-        '<div class="setup-status-dot green"></div>' +
-        '<span><strong>' + (p.nombre||'—') + '</strong> · RUC ' + (p.ruc||'—') + ' · ID: ' + (p.id||'—') + '</span>' +
-        '</div>';
-    } else {
-      document.getElementById('setupProvBaseInfo').innerHTML =
-        '<div class="setup-status-row">' +
-        '<div class="setup-status-dot orange"></div>' +
-        '<span>Sin proveedor base configurado — llena el formulario y guarda.</span>' +
-        '</div>';
-    }
+    // Cargar grid de proveedores en tab Operaciones
+    _loadSetupProvGrid();
 
     // URL del GAS
     document.getElementById('cfgGasUrl').value = GAS_URL;
@@ -7598,58 +7613,7 @@ async function guardarConfigOperaciones() {
   }
 }
 
-// ── Guardar / actualizar proveedor base ─────────
-async function guardarProveedorBase() {
-  const btn = document.getElementById('btnGuardarProv');
-  const msg = document.getElementById('cfgProvMsg');
-  btn.disabled = true; btn.textContent = '⏳ Guardando...';
-  msg.style.display = 'none';
-  try {
-    const nombre = document.getElementById('cfgProvNombre').value.trim();
-    const ruc    = document.getElementById('cfgProvRuc').value.trim();
-    if (!nombre || !ruc) { showToast('Nombre y RUC del proveedor son requeridos', true); return; }
-
-    // Buscar si ya existe el proveedor base para hacer update vs create
-    const cfgData = await gasJsonp('getConfig', {});
-    const provBase = cfgData.proveedor_base;
-
-    const payload = {
-      action:         'guardarProveedor',
-      id:             provBase ? provBase.id : null,  // null = crear nuevo
-      nombre:         nombre,
-      ruc:            ruc,
-      dv:             document.getElementById('cfgProvDv').value.trim(),
-      email_origen:   document.getElementById('cfgProvEmail').value.trim(),
-      keywords:       document.getElementById('cfgProvKeywords').value.trim(),
-      es_base:        true,   // marcarlo como proveedor base
-    };
-
-    const res  = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error al guardar');
-
-    // Si es nuevo proveedor, marcar ES_BASE = TRUE en la hoja
-    // El GAS lo hace internamente al recibir es_base: true
-
-    msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
-    setTimeout(() => { msg.style.display = 'none'; }, 3000);
-    showToast('✅ Proveedor base ' + (provBase ? 'actualizado' : 'creado: ' + data.id));
-
-    // Pequeño delay antes de recargar para asegurar que el GAS flush completó
-    await new Promise(r => setTimeout(r, 800));
-    _setupLoaded = false;
-    await loadSetupConfig();
-
-  } catch(err) {
-    showToast('Error: ' + err.message, true);
-  } finally {
-    btn.disabled = false; btn.textContent = '💾 Guardar Proveedor Base';
-  }
-}
+// guardarProveedorBase eliminada — use el grid de proveedores en Config → Operaciones
 
 // ── Verificar estado del sistema ─────────────────
 async function verificarSistema() {
