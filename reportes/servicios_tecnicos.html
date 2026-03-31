@@ -578,6 +578,20 @@
     <h3 style="margin:0 0 4px;font-size:1rem;color:#1a2535">🗑️ ¿Qué deseas hacer con este ST?</h3>
     <p id="st-dec-label" style="margin:0 0 18px;font-size:.82rem;color:#64748b;font-weight:600"></p>
 
+    <!-- Nota: ST en ejecución (no aplica Eliminar directo) -->
+    <div id="st-dec-nota-ejecucion" style="display:none;background:#fdf4ff;border:1px solid #e9d5ff;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:1rem;margin-top:1px">⚠️</span>
+        <div>
+          <strong style="font-size:.82rem;color:#7c3aed;display:block;margin-bottom:3px">Este ST está en ejecución</strong>
+          <p style="margin:0;font-size:.77rem;color:#7c3aed;line-height:1.5">
+            Tiene egresos e ingreso registrados — <strong>primero cancélalo</strong> para anular su contabilidad.
+            Luego podrás eliminarlo permanentemente si lo necesitas.
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- Nota: ST cerrado (no aplica Cancelar) -->
     <div id="st-dec-nota-cerrado" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px">
       <div style="display:flex;align-items:flex-start;gap:8px">
@@ -2970,12 +2984,17 @@
     var label = stRef ? (st_numFactura(stRef) + ' — ' + st_esc(stRef.nombre_cliente)) : idST;
     document.getElementById('st-dec-label').textContent = label;
 
-    // Mostrar/ocultar opción cancelar y nota según estado
+    // Mostrar/ocultar opciones según estado
     var estado = stRef ? (stRef.estado || '') : '';
-    var esCerrado = (estado === 'cerrado');
-    var canCancel = !esCerrado && (estado !== 'cancelado');
-    document.getElementById('st-dec-opt-cancelar').style.display  = canCancel ? '' : 'none';
-    document.getElementById('st-dec-nota-cerrado').style.display  = esCerrado ? '' : 'none';
+    var esCerrado   = (estado === 'cerrado');
+    var esEjecucion = (estado === 'en_ejecucion');
+    var canCancel   = !esCerrado && (estado !== 'cancelado');
+    var canEliminar = !esEjecucion;  // en_ejecucion: cancelar primero
+
+    document.getElementById('st-dec-opt-cancelar').style.display    = canCancel   ? '' : 'none';
+    document.getElementById('st-dec-opt-eliminar').style.display    = canEliminar ? '' : 'none';
+    document.getElementById('st-dec-nota-cerrado').style.display    = esCerrado   ? '' : 'none';
+    document.getElementById('st-dec-nota-ejecucion').style.display  = esEjecucion ? '' : 'none';
     // Sin margen extra en eliminar cuando es la única opción visible
     document.getElementById('st-dec-opt-eliminar').style.marginBottom = canCancel ? '18px' : '6px';
 
