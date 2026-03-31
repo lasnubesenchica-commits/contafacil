@@ -6208,12 +6208,20 @@ function renderDashboard() {
     const tc = parseFloat(si.item.total_cotizado) || 0;
     return s + (tr > 0 ? tr : tc);
   }, 0);
+
+  // COGS adicional desde egresos de Operaciones (CV-OP-...) — no pasan por ST_Items
+  const cogsOp = egresos.filter(e => {
+    const idCV = String(e.id_item_cv || '');
+    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+  }).reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  const cogsTotal = cogs + cogsOp;
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
   // Ingresos NETO = subtotal sin ITBMS (base imponible real)
   const totalIngNeto = ingresos.reduce((s,i) => s + (parseFloat(i.subtotal)||0), 0);
-  // Utilidad usa cogs (ST_Items) — misma fuente que la tabla ST
-  const utilNeta     = totalIngNeto - cogs;
+  // Utilidad usa cogsTotal (ST_Items + egresos Operaciones)
+  const utilNeta     = totalIngNeto - cogsTotal;
   const margenNeto   = totalIngNeto > 0 ? (utilNeta / totalIngNeto) * 100 : 0;
   const itbmsNeto    = itbmsIng - itbmsEgr;   // lo que hay que pagar a DGI
   const txCount      = ingresos.length;
@@ -6231,8 +6239,8 @@ function renderDashboard() {
     </div>
     <div class="pl-kpi" style="--kpi-accent:#E65100">
       <div class="pl-kpi-label">Costo mercancía</div>
-      <div class="pl-kpi-value" style="color:#E65100">${plFmtFull(cogs)}</div>
-      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogs/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
+      <div class="pl-kpi-value" style="color:#E65100">${plFmtFull(cogsTotal)}</div>
+      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
       <div class="pl-kpi-label">Utilidad neta</div>
@@ -6507,16 +6515,40 @@ function plRenderTblEgresos(q) {
   const tbody = document.getElementById('plTblEgrBody');
   if (!tbody) return;
 
+  // ── Ítems de ST (flujo Servicios Técnicos) ──
   let items = plStItems.filter(si => {
     const siAnio = parseInt(si.anio) || 0;
     const siMes  = parseInt(si.mes)  || 0;
     if (siAnio !== plYear) return false;
     if (plMonth !== 'ytd' && siMes !== plMonth) return false;
-    if ((si.item.tipo || '') === 'credito_fiscal') return false; // va al widget ITBMS, no a costos
+    if ((si.item.tipo || '') === 'credito_fiscal') return false;
     return true;
   });
 
-  if (q) items = items.filter(si =>
+  // ── Egresos de Operaciones (CV-OP-...) — convertir al mismo formato que plStItems ──
+  const egrOpFiltrados = plFiltrarEgresos().filter(e => {
+    const idCV = String(e.id_item_cv || '');
+    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+  });
+  const itemsOp = egrOpFiltrados.map(e => ({
+    id_st: String(e.id_item_cv || ''),
+    mes:   parseInt(e.mes)  || 0,
+    anio:  parseInt(e.anio) || 0,
+    _esOp: true,
+    item: {
+      tipo:           'producto',
+      descripcion:    String(e.descripcion || ''),
+      proveedor:      String(e.proveedor   || ''),
+      total_real:     parseFloat(e.total)  || 0,
+      total_cotizado: parseFloat(e.total)  || 0,
+      egreso_id:      String(e.id_egreso   || ''),
+      estado_item:    'ejecutado',
+    }
+  }));
+
+  let allItems = items.concat(itemsOp);
+
+  if (q) allItems = allItems.filter(si =>
     (si.item.descripcion||'').toLowerCase().includes(q) ||
     (si.item.proveedor||'').toLowerCase().includes(q)   ||
     (si.item.tipo||'').toLowerCase().includes(q)        ||
@@ -6525,7 +6557,7 @@ function plRenderTblEgresos(q) {
 
   // Sort
   const { col, dir } = plEgrSort;
-  items = [...items].sort((a, b) => {
+  allItems = [...allItems].sort((a, b) => {
     let va, vb;
     if (col === 'monto') {
       const getM = si => { const tr = parseFloat(si.item.total_real)||0; const tc = parseFloat(si.item.total_cotizado)||0; return tr > 0 ? tr : tc; };
@@ -6548,7 +6580,7 @@ function plRenderTblEgresos(q) {
     if (arrow) arrow.textContent = isActive ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
   });
 
-  if (!items.length) {
+  if (!allItems.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
     return;
   }
@@ -6571,13 +6603,13 @@ function plRenderTblEgresos(q) {
   const activeIdx = colIdx[col] ?? -1;
   const cellBg = 'background:rgba(0,0,0,.03)';
 
-  const totTotal = items.reduce((s, si) => {
+  const totTotal = allItems.reduce((s, si) => {
     const tr = parseFloat(si.item.total_real)||0;
     const tc = parseFloat(si.item.total_cotizado)||0;
     return s + (tr > 0 ? tr : tc);
   }, 0);
 
-  tbody.innerHTML = items.map(si => {
+  tbody.innerHTML = allItems.map(si => {
     const it    = si.item;
     const monto = (parseFloat(it.total_real)||0) > 0
       ? parseFloat(it.total_real)
@@ -6595,7 +6627,7 @@ function plRenderTblEgresos(q) {
     </tr>`;
   }).join('') +
   `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
-    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${items.length} ítems</td>
+    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${allItems.length} ítems</td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totTotal.toFixed(2)}</td>
   </tr>`;
 }
@@ -6616,6 +6648,13 @@ function plRenderCostRow(totalCogsRef) {
     const tr   = parseFloat(si.item.total_real)     || 0;
     const tc   = parseFloat(si.item.total_cotizado) || 0;
     byTipo[tipo] = (byTipo[tipo] || 0) + (tr > 0 ? tr : tc);
+  });
+  // Añadir egresos de Operaciones al desglose (tipo 'producto')
+  plFiltrarEgresos().filter(e => {
+    const idCV = String(e.id_item_cv || '');
+    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+  }).forEach(e => {
+    byTipo['producto'] = (byTipo['producto'] || 0) + (parseFloat(e.total) || 0);
   });
 
   const TIPO_CFG = {
