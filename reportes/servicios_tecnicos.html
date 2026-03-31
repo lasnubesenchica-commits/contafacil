@@ -1016,10 +1016,14 @@
   // ── Helper: extract real invoice number ─────────────────
   function st_numFactura(st) {
     var nc = String(st.num_cotizacion || '');
+    // FACT NNN directo (ya formateado por el GAS) → mostrar tal cual
+    if (/^FACT\s+\d+$/i.test(nc.trim())) return nc.trim();
+    // Número DGI puro (7+ dígitos) → mostrar directamente
     if (/^\d{7,}$/.test(nc.trim())) return nc.trim();
-    var notas = String(st.notas || '');
-    var m1 = notas.match(/Carpeta:\s*FACT\s*(\d+)/i);
+    // Histórico Drive: notas tienen "Carpeta: FACT522..." → FACT 522
+    var m1 = String(st.notas || '').match(/Carpeta:\s*FACT\s*(\d+)/i);
     if (m1) return 'FACT ' + m1[1];
+    // Fallback: mostrar num_cotizacion tal cual
     return nc;
   }
 
