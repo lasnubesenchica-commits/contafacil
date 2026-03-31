@@ -1714,9 +1714,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
     <!-- Sub-tabs -->
     <div class="setup-tabs">
-      <button class="setup-tab active" id="setupTabEmpresa"     onclick="setupSwitchTab('empresa')">🏢 Empresa</button>
-      <button class="setup-tab"        id="setupTabOperaciones" onclick="setupSwitchTab('operaciones')">⚙️ Operaciones</button>
-      <button class="setup-tab"        id="setupTabSistema"     onclick="setupSwitchTab('sistema')">🔧 Sistema</button>
+      <button class="setup-tab active" id="setupTabEmpresa"       onclick="setupSwitchTab('empresa')">🏢 Empresa</button>
+      <button class="setup-tab"        id="setupTabOperaciones"   onclick="setupSwitchTab('operaciones')">⚙️ Operaciones</button>
+      <button class="setup-tab"        id="setupTabServiciosTec"  onclick="setupSwitchTab('serviciosTec')">🔧 Servicios Técnicos</button>
+      <button class="setup-tab"        id="setupTabSistema"       onclick="setupSwitchTab('sistema')">⚙ Sistema</button>
     </div>
 
     <!-- ── Panel: Empresa ── -->
@@ -1819,6 +1820,55 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div><!-- /setupPanelOperaciones -->
 
     <!-- ── Panel: Sistema ── -->
+    <!-- ══ PANEL: SERVICIOS TÉCNICOS ══════════════════════════ -->
+    <div class="setup-panel" id="setupPanelServiciosTec">
+
+      <div class="setup-card">
+        <div class="setup-card-title">📧 Email de entrada de STs</div>
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
+          CEYCO reenvía los emails con facturas a esta dirección. El sistema las lee automáticamente cada 15 minutos.
+        </div>
+        <div class="setup-grid">
+          <div class="setup-field full">
+            <label>Email de destino</label>
+            <input type="email" id="cfgEmailStEntrante" placeholder="lasnubesenchica+ceyco@gmail.com">
+            <span class="setup-hint">Emails no leídos a esta dirección serán procesados como STs</span>
+          </div>
+        </div>
+        <div class="setup-save-bar" style="margin-top:.75rem">
+          <span id="cfgStEmailMsg" style="font-size:.8rem;color:var(--green);display:none">✅ Guardado</span>
+          <button class="btn-secondary" onclick="loadSetupConfig()">↺ Recargar</button>
+          <button class="btn-primary" id="btnGuardarStEmail" onclick="guardarConfigST()">💾 Guardar</button>
+        </div>
+      </div>
+
+      <div class="setup-card">
+        <div class="setup-card-title">⏱ Trigger automático</div>
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
+          El trigger revisa el email de entrada cada 15 minutos. Instálalo una sola vez.
+        </div>
+        <div id="setupStTriggerStatus" style="margin-bottom:1rem">
+          <div class="setup-status-row">
+            <div class="setup-status-dot orange"></div>
+            <span style="font-size:.85rem">Verificando estado del trigger...</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+          <button class="btn-primary"   onclick="instalarTriggerST()">▶ Instalar trigger (15 min)</button>
+          <button class="btn-secondary" onclick="removerTriggerST()">⏹ Remover trigger</button>
+          <button class="btn-secondary" onclick="verificarTriggerST()">↺ Verificar estado</button>
+        </div>
+      </div>
+
+      <div class="setup-card">
+        <div class="setup-card-title">📊 Actividad reciente</div>
+        <div id="setupStLogReciente" style="font-size:.82rem;color:var(--muted)">
+          Cargando log...
+        </div>
+      </div>
+
+    </div><!-- /setupPanelServiciosTec -->
+
     <div class="setup-panel" id="setupPanelSistema">
       <div class="setup-card">
         <div class="setup-card-title">🔍 Estado del Sistema</div>
@@ -7480,7 +7530,7 @@ function closeItbmsDetalle() {
 var _setupLoaded = false;  // evitar recargas redundantes
 
 function setupSwitchTab(tab) {
-  ['empresa','operaciones','sistema'].forEach(function(t) {
+  ['empresa','operaciones','serviciosTec','sistema'].forEach(function(t) {
     const btn   = document.getElementById('setupTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('setupPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (btn)   btn.classList.toggle('active',   t === tab);
@@ -7488,6 +7538,7 @@ function setupSwitchTab(tab) {
   });
   if (tab === 'sistema')     verificarSistema();
   if (tab === 'operaciones') _loadSetupProvGrid();
+  if (tab === 'serviciosTec') { _cargarEmailST(); verificarTriggerST(); _cargarLogST(); }
 }
 
 // ── Cargar config desde GAS ──────────────────────
@@ -7509,6 +7560,8 @@ async function loadSetupConfig() {
 
     // Cargar grid de proveedores en tab Operaciones
     _loadSetupProvGrid();
+    // Cargar email ST si el campo existe
+    _cargarEmailST();
 
     // URL del GAS
     document.getElementById('cfgGasUrl').value = GAS_URL;
@@ -7614,6 +7667,125 @@ async function guardarConfigOperaciones() {
 }
 
 // guardarProveedorBase eliminada — use el grid de proveedores en Config → Operaciones
+
+// ── Setup Servicios Técnicos ──────────────────────────────────
+
+function _cargarEmailST() {
+  const field = document.getElementById('cfgEmailStEntrante');
+  if (!field) return;
+  gasJsonp('getConfig', {}).then(data => {
+    if (data.success) {
+      const email = (data.config || {}).email_st_entrante || '';
+      field.value = email;
+    }
+  }).catch(() => {});
+}
+
+async function guardarConfigST() {
+  const btn = document.getElementById('btnGuardarStEmail');
+  const msg = document.getElementById('cfgStEmailMsg');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  msg.style.display = 'none';
+  try {
+    const email = document.getElementById('cfgEmailStEntrante').value.trim();
+    if (!email) { showToast('Email requerido', true); return; }
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'guardarConfig', email_st_entrante: email }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+    msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    showToast('✅ Email ST guardado — el próximo trigger usará: ' + email);
+    await new Promise(r => setTimeout(r, 800));
+    _setupLoaded = false;
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Guardar';
+  }
+}
+
+async function instalarTriggerST() {
+  try {
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'instalarTriggerST' }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error');
+    showToast('✅ Trigger instalado — procesará emails cada 15 minutos');
+    verificarTriggerST();
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  }
+}
+
+async function removerTriggerST() {
+  if (!confirm('¿Remover el trigger? El sistema dejará de procesar emails automáticamente.')) return;
+  try {
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'removerTriggerST' }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error');
+    showToast('⏹ Trigger removido');
+    verificarTriggerST();
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  }
+}
+
+function verificarTriggerST() {
+  const el = document.getElementById('setupStTriggerStatus');
+  if (!el) return;
+  el.innerHTML = '<div class="setup-status-row"><div class="spinner" style="width:14px;height:14px;border-width:2px"></div><span style="font-size:.85rem;margin-left:.5rem">Verificando...</span></div>';
+  gasJsonp('estadoTriggerST', {}).then(data => {
+    if (!el) return;
+    if (data.activo) {
+      el.innerHTML = '<div class="setup-status-row">' +
+        '<div class="setup-status-dot green"></div>' +
+        '<span style="font-size:.85rem"><strong>Activo</strong> — cada 15 min' +
+        (data.ultimo_run ? ' · Último run: ' + data.ultimo_run : '') + '</span></div>';
+    } else {
+      el.innerHTML = '<div class="setup-status-row">' +
+        '<div class="setup-status-dot orange"></div>' +
+        '<span style="font-size:.85rem">Sin trigger activo — el sistema <strong>no</strong> procesará emails automáticamente</span></div>';
+    }
+  }).catch(() => {
+    if (el) el.innerHTML = '<div class="setup-status-row"><div class="setup-status-dot orange"></div><span style="font-size:.85rem">No se pudo verificar</span></div>';
+  });
+}
+
+function _cargarLogST() {
+  const el = document.getElementById('setupStLogReciente');
+  if (!el) return;
+  gasJsonp('getEmailSTLog', {}).then(data => {
+    if (!el) return;
+    if (!data.success || !data.items || !data.items.length) {
+      el.innerHTML = '<span style="color:var(--muted)">Sin actividad registrada.</span>';
+      return;
+    }
+    const rows = data.items.slice(0, 5).map(r => {
+      const color = r.estado === 'ok' ? 'var(--green)' : r.estado === 'parcial' ? '#F9A825' : 'var(--red)';
+      const icon  = r.estado === 'ok' ? '✅' : r.estado === 'parcial' ? '⚠️' : '❌';
+      return '<div style="padding:.4rem 0;border-bottom:1px solid var(--border);display:flex;gap:.75rem;align-items:baseline">' +
+        '<span>' + icon + '</span>' +
+        '<span style="flex:1;font-size:.8rem">' + (r.asunto || '(sin asunto)').slice(0,50) + '</span>' +
+        '<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">' + (r.fecha_proc || '').slice(0,16) + '</span>' +
+        (r.id_st ? '<span style="font-size:.75rem;color:var(--orange)">' + r.id_st + '</span>' : '') +
+        '</div>';
+    }).join('');
+    el.innerHTML = rows;
+  }).catch(() => {
+    if (el) el.innerHTML = '<span style="color:var(--muted)">No se pudo cargar el log.</span>';
+  });
+}
 
 // ── Verificar estado del sistema ─────────────────
 async function verificarSistema() {
