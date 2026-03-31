@@ -6691,7 +6691,7 @@ function plRenderTblIngresos(q) {
       ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄</a>`
       : '—';
     const h = (i) => activeIdx === i ? cellBg : '';
-    const _notas = String(item.notas_internas||'');
+    const _notas = String(item.notas_internas || item.notas || '');
     const _esRetail = _notas.includes('CV:');
     const _modBadge = _esRetail
       ? '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E3F2FD;color:#1565C0;vertical-align:middle;margin-left:4px">RETAIL</span>'
