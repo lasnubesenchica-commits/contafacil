@@ -1,5 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-//  ContaFacil_ImportHistorial.gs  — v2.9j
+//  ContaFacil_ImportHistorial.gs  — v2.9k
+//  v2.9k — fallback de clasificación para archivos desconocidos:
+//    _clasificarArchivos: post-loop, si factura_ceyco ya está
+//    identificada, cualquier archivo no clasificado (JPEG, PDF con
+//    nombre sin keywords) se promueve automáticamente a factura_costo
+//    en vez de descartarse silenciosamente.
+//    Resuelve: "LOGIG TRADE DE PANAMA.jpeg" → desconocido (FACT518)
+//    y cualquier proveedor con nombre de archivo atípico en el futuro.
 //  v2.9j — crédito fiscal ITBM importación (DHL/FedEx):
 //    Post-proceso B: conserva itbm_credito en parsed._itbm_credito.
 //    PASO 9: genera egreso tipo credito_fiscal + ST_Item tipo
@@ -616,6 +623,34 @@ function _clasificarArchivos(archivos) {
     }
     Utilities.sleep(300);
   }
+
+  // ── FALLBACK FINAL: promover archivos desconocidos a factura_costo ──
+  // Si Haiku + _inferirTipoPorNombre no lograron clasificar un archivo
+  // pero la factura CEYCO ya está identificada (contexto confirmado),
+  // los archivos restantes sin clasificar son casi siempre facturas de
+  // proveedor con nombres atípicos (ej: "LOGIG TRADE DE PANAMA.jpeg",
+  // "AEMC.pdf"). Los promovemos a factura_costo en vez de descartar.
+  // EXCEPCIÓN: si no hay factura_ceyco, no asumimos nada.
+  if (resultado.factura_ceyco) {
+    for (var jf = 0; jf < archivos.length; jf++) {
+      var archFb = archivos[jf];
+      var yaClasificado =
+        (resultado.factura_ceyco  && resultado.factura_ceyco.getId()  === archFb.getId()) ||
+        (resultado.nota_credito   && resultado.nota_credito.getId()   === archFb.getId()) ||
+        (resultado.voucher        && resultado.voucher.getId()         === archFb.getId()) ||
+        resultado.facturas_costo.some(function(fc) { return fc.getId() === archFb.getId(); });
+
+      if (!yaClasificado) {
+        var nbFb = archFb.getName();
+        var mbFb = archFb.getMimeType() || '';
+        if (!_debeIgnorar(nbFb, mbFb)) {
+          Logger.log('    "' + nbFb + '" → factura_costo (fallback: desconocido promovido)');
+          resultado.facturas_costo.push(archFb);
+        }
+      }
+    }
+  }
+
   return resultado;
 }
 
@@ -2557,6 +2592,9 @@ function reimportarFACT517() { reimportarCarpeta('FEBRERO 2026', 'FACT517COCACOL
 function dryRunFACT518()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT518RSVPSOLUTION'); }
 function ejecutarFACT518()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT518RSVPSOLUTION', true); }
 function reimportarFACT518() { reimportarCarpeta('FEBRERO 2026', 'FACT518RSVPSOLUTION'); }
+function limpiarYReimportarFACT518() {
+  limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT518RSVPSOLUTION', true);
+}
 
 function dryRunFACT519()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT519ERSIGROUP PANAMA'); }
 function ejecutarFACT519()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT519ERSIGROUP PANAMA', true); }
