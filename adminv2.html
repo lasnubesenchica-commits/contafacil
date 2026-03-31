@@ -1437,7 +1437,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
             <th data-sort-egr="tipo" style="cursor:pointer;user-select:none">Tipo <span class="pl-sort-arrow"></span></th>
             <th data-sort-egr="descripcion" style="cursor:pointer;user-select:none">Descripción <span class="pl-sort-arrow"></span></th>
             <th data-sort-egr="proveedor" style="cursor:pointer;user-select:none">Proveedor <span class="pl-sort-arrow"></span></th>
-            <th data-sort-egr="id_st" style="cursor:pointer;user-select:none">ST <span class="pl-sort-arrow"></span></th>
+            <th data-sort-egr="id_st" style="cursor:pointer;user-select:none">Origen <span class="pl-sort-arrow"></span></th>
             <th data-sort-egr="monto" style="cursor:pointer;user-select:none;text-align:right">Monto <span class="pl-sort-arrow"></span></th>
           </tr></thead>
           <tbody id="plTblEgrBody"></tbody>
@@ -6691,9 +6691,14 @@ function plRenderTblIngresos(q) {
       ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄</a>`
       : '—';
     const h = (i) => activeIdx === i ? cellBg : '';
+    const _notas = String(item.notas_internas||'');
+    const _esRetail = _notas.includes('CV:');
+    const _modBadge = _esRetail
+      ? '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E3F2FD;color:#1565C0;vertical-align:middle;margin-left:4px">RETAIL</span>'
+      : '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8EAF6;color:#283593;vertical-align:middle;margin-left:4px">ST</span>';
     return `<tr>
       <td style="white-space:nowrap;color:var(--muted);font-size:.8rem;${h(0)}">${esc(String(item.fecha_ingreso||'').substring(0,10))}</td>
-      <td style="${h(1)}"><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(item.num_factura||'—')}</span></td>
+      <td style="${h(1)}"><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(item.num_factura||'—')}</span>${_modBadge}</td>
       <td style="${h(2)}"><div style="font-weight:500">${esc(item.nombre_cliente||'—')}</div><div style="font-size:.65rem;color:var(--muted)">${esc(item.ruc_cliente||'')}</div></td>
       <td>${catBadgeIng(item.categoria_ingreso)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;${h(4)}">$${subtotal.toFixed(2)}</td>
@@ -6819,11 +6824,14 @@ function plRenderTblEgresos(q) {
     const icon  = TIPO_ICON[tipo]  || '📌';
     const label = TIPO_LABEL_MAP[tipo] || tipo;
     const h = (i) => activeIdx === i ? cellBg : '';
+    const _origenBadge = si._esOp
+      ? '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:6px;background:#E3F2FD;color:#1565C0;display:inline-block;margin-top:2px">RETAIL</span>'
+      : '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:6px;background:#E8EAF6;color:#283593;display:inline-block;margin-top:2px">ST</span>';
     return `<tr>
       <td style="white-space:nowrap;${h(0)}"><span style="font-size:.8rem">${icon} ${esc(label)}</span></td>
       <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${h(1)}" title="${esc(it.descripcion||'')}">${esc((it.descripcion||'').substring(0,70))}</td>
       <td style="font-size:.8rem;${h(2)}">${esc(it.proveedor||'—')}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);${h(3)}">${esc(si.id_st||'')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);${h(3)}">${esc(si.id_st||'')} ${_origenBadge}</td>
       <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#C62828;${h(4)}">$${monto.toFixed(2)}</td>
     </tr>`;
   }).join('') +
