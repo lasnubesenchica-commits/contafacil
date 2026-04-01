@@ -1112,6 +1112,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
 <!-- ═══════════ SECCIÓN: OPERACIONES ═══════════ -->
 <div id="sectionOperaciones">
 
+  <!-- Título sección -->
+  <div style="padding:1.1rem 2rem .5rem;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
+    <span style="font-size:1.15rem">⚙️</span>
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text)">Comercialización</span>
+  </div>
+
   <!-- Stats Operaciones -->
   <div class="op-stats" id="opStatsBar">
     <div class="stat-pill"><div class="stat-pill-num orange" id="opStatTotal">—</div><div class="stat-pill-label">Total ítems</div></div>
@@ -6708,8 +6714,8 @@ function plRenderTblIngresos(q) {
     const _notas = String(item.notas_internas || item.notas || '');
     const _esRetail = _notas.includes('CV:');
     const _modBadge = _esRetail
-      ? '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E3F2FD;color:#1565C0;vertical-align:middle;margin-left:4px">RETAIL</span>'
-      : '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8EAF6;color:#283593;vertical-align:middle;margin-left:4px">ST</span>';
+      ? '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E3F2FD;color:#1565C0;vertical-align:middle;margin-left:4px">COM</span>'
+      : '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8EAF6;color:#283593;vertical-align:middle;margin-left:4px">PROY</span>';
     return `<tr>
       <td style="white-space:nowrap;color:var(--muted);font-size:.8rem;${h(0)}">${esc(String(item.fecha_ingreso||'').substring(0,10))}</td>
       <td style="${h(1)}"><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(item.num_factura||'—')}</span>${_modBadge}</td>
@@ -6839,8 +6845,8 @@ function plRenderTblEgresos(q) {
     const label = TIPO_LABEL_MAP[tipo] || tipo;
     const h = (i) => activeIdx === i ? cellBg : '';
     const _origenBadge = si._esOp
-      ? '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:6px;background:#E3F2FD;color:#1565C0;display:inline-block;margin-top:2px">RETAIL</span>'
-      : '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:6px;background:#E8EAF6;color:#283593;display:inline-block;margin-top:2px">ST</span>';
+      ? '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:6px;background:#E3F2FD;color:#1565C0;display:inline-block;margin-top:2px">COM</span>'
+      : '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:6px;background:#E8EAF6;color:#283593;display:inline-block;margin-top:2px">PROY</span>';
     return `<tr>
       <td style="white-space:nowrap;${h(0)}"><span style="font-size:.8rem">${icon} ${esc(label)}</span></td>
       <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${h(1)}" title="${esc(it.descripcion||'')}">${esc((it.descripcion||'').substring(0,70))}</td>
