@@ -521,6 +521,15 @@ async function fcLoad() {
     });
 
     fcLoaded = true;
+
+    // ── DEBUG ──────────────────────────────────────
+    console.log('[FC] Datos cargados:');
+    console.log('[FC] fc_ing total:', fc_ing.length, '| muestra[0]:', fc_ing[0] || null);
+    console.log('[FC] fc_egr total:', fc_egr.length, '| muestra[0]:', fc_egr[0] || null);
+    console.log('[FC] fc_op  total:', fc_op.length);
+    console.log('[FC] fc_sts total:', fc_sts.length, '| muestra[0]:', fc_sts[0] ? {id_st: fc_sts[0].id_st, estado: fc_sts[0].estado, ingreso_id: fc_sts[0].ingreso_id, anio: fc_sts[0].anio, items_count: (fc_sts[0].items||[]).length} : null);
+    // ──────────────────────────────────────────────
+
     fcPopulateYears();
     fcApply();
   } catch(err) {
@@ -576,6 +585,16 @@ function fcApply() {
       if (it.egreso_id) stEgresoIds.add(String(it.egreso_id).trim());
     });
   });
+
+  // ── DEBUG ──────────────────────────────────────
+  console.log('[FC] fcApply año:', fc_year);
+  console.log('[FC] ing filtrados:', ing.length, '| egr filtrados:', egr.length);
+  console.log('[FC] stIngresoIds:', [...stIngresoIds].slice(0,5));
+  console.log('[FC] stEgresoIds:', [...stEgresoIds].slice(0,5));
+  console.log('[FC] STs del año:', sts.length);
+  if (ing.length) console.log('[FC] ing[0].id_trans:', ing[0].id_trans, '| anio_fiscal:', ing[0].anio_fiscal);
+  if (egr.length) console.log('[FC] egr[0].id_egreso:', egr[0].id_egreso, '| anio:', egr[0].anio);
+  // ──────────────────────────────────────────────
 
   // Split por origen usando IDs exactos
   const ingOp = ing.filter(i => !stIngresoIds.has(String(i.id_trans || '').trim()));
