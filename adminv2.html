@@ -1005,6 +1005,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
   border:1px solid rgba(224,90,0,.2); border-radius:100px;
   padding:.2rem .75rem; margin-left:.75rem;
 }
+@media print {
+  .topnav, #mainTabs, .main-tabs { display: none !important; }
+  #app { padding-top: 0 !important; }
+  #sectionReporte { display: block !important; }
+}
 </style>
 </head>
 <body>
