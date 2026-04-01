@@ -715,22 +715,22 @@ function caRender() {
         <span class="ca-section-title">ITBMS — Resumen anual ${ca_year}</span>
         <span class="ca-section-subtitle">Declaraciones mensuales (Formulario DGI)</span>
       </div>
-      <div class="ca-itbms-grid">
-        <div class="ca-itbms-card">
-          <div class="ca-itbms-card-label">Total cobrado (año)</div>
-          <div class="ca-itbms-card-val" style="color:#1565C0">${fmt(d.totalITBMSCobrado)}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem">
+        <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:.75rem 1rem">
+          <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.25rem">Total cobrado (año)</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1" style="color:#1565C0">${fmt(d.totalITBMSCobrado)}</div>
         </div>
-        <div class="ca-itbms-card">
-          <div class="ca-itbms-card-label">Total pagado (año)</div>
-          <div class="ca-itbms-card-val" style="color:#6A1B9A">${fmt(d.totalITBMSPag)}</div>
+        <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:.75rem 1rem">
+          <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.25rem">Total pagado (año)</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1" style="color:#6A1B9A">${fmt(d.totalITBMSPag)}</div>
         </div>
-        <div class="ca-itbms-card">
-          <div class="ca-itbms-card-label">Crédito fiscal (año)</div>
-          <div class="ca-itbms-card-val" style="color:#00695C">${fmt(d.totalCredFisc)}</div>
+        <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:.75rem 1rem">
+          <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.25rem">Crédito fiscal (año)</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1" style="color:#00695C">${fmt(d.totalCredFisc)}</div>
         </div>
-        <div class="ca-itbms-card">
-          <div class="ca-itbms-card-label">Neto declarado a DGI</div>
-          <div class="ca-itbms-card-val" style="color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}">${fmt(Math.abs(d.itbmsNeto))}</div>
+        <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:.75rem 1rem">
+          <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.25rem">Neto declarado a DGI</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1" style="color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}">${fmt(Math.abs(d.itbmsNeto))}</div>
         </div>
       </div>
       <table class="ca-mes-table">
@@ -821,26 +821,26 @@ function caRender() {
         <span class="ca-section-title">Cuentas por cobrar al cierre del año</span>
         <span class="ca-section-subtitle">Facturas emitidas pendientes de cobro al 31 Dic ${ca_year}</span>
       </div>
-      <div class="ca-cxc-grid">
-        <div class="ca-cxc-card">
-          <div class="ca-cxc-label">📦 Operaciones (facturado)</div>
-          <div class="ca-cxc-val">${fmt(d.totalCxCOp)}</div>
-          <div class="ca-cxc-sub">${d.opPendCobro.length} ítem${d.opPendCobro.length!==1?'s':''} · factura emitida, cobro pendiente</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:1rem 1.25rem">
+          <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.35rem">📦 Operaciones (facturado)</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;color:#E65100">${fmt(d.totalCxCOp)}</div>
+          <div style="font-size:.7rem;color:var(--muted,#94a3b8);margin-top:.2rem">${d.opPendCobro.length} ítem${d.opPendCobro.length!==1?'s':''} · factura emitida, cobro pendiente</div>
         </div>
-        <div class="ca-cxc-card">
-          <div class="ca-cxc-label">🔧 Proyectos (cobro pendiente)</div>
-          <div class="ca-cxc-val">${fmt(d.totalCxCST)}</div>
-          <div class="ca-cxc-sub">${d.stPendCobro.length} ST${d.stPendCobro.length!==1?'s':''} · ingreso pendiente de confirmación</div>
+        <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:1rem 1.25rem">
+          <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.35rem">🔧 Proyectos (cobro pendiente)</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;color:#E65100">${fmt(d.totalCxCST)}</div>
+          <div style="font-size:.7rem;color:var(--muted,#94a3b8);margin-top:.2rem">${d.stPendCobro.length} ST${d.stPendCobro.length!==1?'s':''} · ingreso pendiente de confirmación</div>
         </div>
-        <div class="ca-cxc-card" style="border-color:#FFF9C4">
-          <div class="ca-cxc-label" style="color:#F57F17">🔧 Proyectos en ejecución</div>
-          <div class="ca-cxc-val" style="color:#F57F17">${fmt(d.totalEnEjec)}</div>
-          <div class="ca-cxc-sub">${d.stEnEjec.length} ST${d.stEnEjec.length!==1?'s':''} · estimado cotizado, aún no facturado</div>
+        <div style="background:var(--bg,#f8fafc);border:1px solid #FFF9C4;border-radius:8px;padding:1rem 1.25rem">
+          <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.35rem" style="color:#F57F17">🔧 Proyectos en ejecución</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;color:#E65100" style="color:#F57F17">${fmt(d.totalEnEjec)}</div>
+          <div style="font-size:.7rem;color:var(--muted,#94a3b8);margin-top:.2rem">${d.stEnEjec.length} ST${d.stEnEjec.length!==1?'s':''} · estimado cotizado, aún no facturado</div>
         </div>
-        <div class="ca-cxc-card" style="background:#F3E5F5;border-color:#E1BEE7">
-          <div class="ca-cxc-label" style="color:#6A1B9A">Total cartera</div>
-          <div class="ca-cxc-val" style="color:#6A1B9A">${fmt(d.totalCxCOp+d.totalCxCST)}</div>
-          <div class="ca-cxc-sub">Facturado pendiente · excluyendo en ejecución</div>
+        <div style="background:#F3E5F5;border:1px solid #E1BEE7;border-radius:8px;padding:1rem 1.25rem">
+          <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.35rem" style="color:#6A1B9A">Total cartera</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;color:#E65100" style="color:#6A1B9A">${fmt(d.totalCxCOp+d.totalCxCST)}</div>
+          <div style="font-size:.7rem;color:var(--muted,#94a3b8);margin-top:.2rem">Facturado pendiente · excluyendo en ejecución</div>
         </div>
       </div>
       <div style="margin-top:.75rem;font-size:.7rem;color:var(--muted);padding:.5rem .75rem;background:var(--bg);border-radius:6px">
