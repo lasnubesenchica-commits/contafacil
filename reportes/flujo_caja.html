@@ -1103,6 +1103,8 @@ window.fcApplyFilters     = fcApply;
 window.fcToggleInventario = fcToggleInventario;
 window.fcSetVista         = fcSetVista;
 window.fcLoad             = fcLoad;
+// DEBUG — exponer datos internos temporalmente
+window._fc = { get ing() { return fc_ing; }, get egr() { return fc_egr; }, get sts() { return fc_sts; }, get op() { return fc_op; } };
 Object.defineProperty(window, 'fcLoaded', {
   get: () => fcLoaded,
   set: v  => { fcLoaded = v; },
