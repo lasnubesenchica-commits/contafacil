@@ -557,14 +557,31 @@ function fcApply() {
     ? egrAll
     : egrAll.filter(i => i.tipo_egreso !== 'costo_mercancia' && i.categoria !== 'Inventario');
 
-  // STs del año (para KPIs y pendientes)
-  const sts = fc_sts.filter(st => Number(st.anio || st.anio_ingreso) === fc_year);
+  // STs del año — usar anio del ST o del ingreso vinculado
+  const sts = fc_sts.filter(st => {
+    const yST  = Number(st.anio || 0);
+    const yIng = Number(st.anio_ingreso || 0);
+    return yST === fc_year || yIng === fc_year;
+  });
 
-  // Split por origen para columnas comparativas
-  const ingOp  = ing.filter(i => !_esSTIngreso(i));
-  const ingST  = ing.filter(i => _esSTIngreso(i));
-  const egrOp  = egr.filter(e => !_esSTEgreso(e));
-  const egrST  = egr.filter(e => _esSTEgreso(e));
+  // ── Construir sets de IDs ST (fuente de verdad exacta) ──
+  // Ingreso ST: cualquier ingreso_id referenciado por un ST
+  const stIngresoIds = new Set();
+  // Egreso ST: cualquier egreso_id referenciado en ST_Items
+  const stEgresoIds  = new Set();
+
+  fc_sts.forEach(st => {
+    if (st.ingreso_id) stIngresoIds.add(String(st.ingreso_id).trim());
+    (st.items || []).forEach(it => {
+      if (it.egreso_id) stEgresoIds.add(String(it.egreso_id).trim());
+    });
+  });
+
+  // Split por origen usando IDs exactos
+  const ingOp = ing.filter(i => !stIngresoIds.has(String(i.id_trans || '').trim()));
+  const ingST = ing.filter(i =>  stIngresoIds.has(String(i.id_trans || '').trim()));
+  const egrOp = egr.filter(e => !stEgresoIds.has(String(e.id_egreso || '').trim()));
+  const egrST = egr.filter(e =>  stEgresoIds.has(String(e.id_egreso || '').trim()));
 
   fcRenderKpis(ing, egr, ingOp, ingST, egrOp, egrST);
   fcRenderChart(ing, egr);
@@ -574,24 +591,6 @@ function fcApply() {
   fcRenderEgrTipoCard('fcOpEgrTipoCard', egrOp);
   fcRenderEgrTipoCard('fcStEgrTipoCard', egrST);
   fcRenderPending(sts);
-}
-
-// ── Detectar origen de un ingreso/egreso ─────────
-// Los registros generados por ST tienen 'st:' en notas o id_st_item / id_item_cv con ST prefix
-function _esSTIngreso(i) {
-  const notas = String(i.notas || i.notas_internas || '').toLowerCase();
-  const tipo  = String(i.tipo_ingreso || '').toLowerCase();
-  return notas.includes('st:') || tipo.includes('tecnico') || tipo.includes('técnico');
-}
-function _esSTEgreso(e) {
-  const te   = String(e.tipo_egreso  || '').toLowerCase();
-  const notas = String(e.notas || '').toLowerCase();
-  const stItem = String(e.id_st_item || '');
-  return te === 'costo_servicio_tecnico'
-      || te === 'impuesto_importacion'
-      || te === 'credito_fiscal'
-      || notas.includes('st:')
-      || stItem !== '';
 }
 
 // ── Helpers numéricos ─────────────────────────────
