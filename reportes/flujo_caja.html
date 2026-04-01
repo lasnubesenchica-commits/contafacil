@@ -21,7 +21,7 @@
 .fc-controls {
   display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
   padding: 1rem 2rem; border-bottom: 1px solid var(--border);
-  background: var(--white); position: sticky; top: 60px; z-index: 50;
+  background: var(--white);
 }
 .fc-ctrl-label {
   font-family: 'DM Mono', monospace; font-size: .62rem;
@@ -355,7 +355,9 @@
         <div class="fc-modulo-kpi"><div class="fc-modulo-kpi-label">Cargando</div></div>
       </div>
       <!-- Egresos por tipo — Operaciones -->
-      <div class="fc-section-title" style="margin-top:.5rem">Egresos por tipo</div>
+      <div class="fc-section-title" style="margin-top:.5rem">Egresos por tipo
+        <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"> — solo costos CV-OP vinculados</span>
+      </div>
       <div class="fc-itbms-card" id="fcOpEgrTipoCard">
         <div class="fc-loading" style="padding:.75rem 0"><div class="spinner" style="width:18px;height:18px"></div></div>
       </div>
@@ -371,7 +373,9 @@
         <div class="fc-modulo-kpi"><div class="fc-modulo-kpi-label">Cargando</div></div>
       </div>
       <!-- Egresos por tipo — ST -->
-      <div class="fc-section-title" style="margin-top:.5rem">Egresos por tipo</div>
+      <div class="fc-section-title" style="margin-top:.5rem">Egresos por tipo
+        <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"> — facturas registradas en Egresos (distinto del COGS por ST_Items)</span>
+      </div>
       <div class="fc-itbms-card" id="fcStEgrTipoCard">
         <div class="fc-loading" style="padding:.75rem 0"><div class="spinner" style="width:18px;height:18px"></div></div>
       </div>
@@ -696,9 +700,9 @@ function fcRenderModuloKpis(ingOp, egrOp, ingST, egrST, sts) {
       <div class="fc-modulo-kpi-sub">${txOp} transacciones</div>
     </div>
     <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">Egresos</div>
+      <div class="fc-modulo-kpi-label">Costo mercancía</div>
       <div class="fc-modulo-kpi-val red">${fmtK(totEgrOp)}</div>
-      <div class="fc-modulo-kpi-sub">${egrOp.length} registros</div>
+      <div class="fc-modulo-kpi-sub">egresos CV-OP vinculados</div>
     </div>
     <div class="fc-modulo-kpi">
       <div class="fc-modulo-kpi-label">Neto</div>
@@ -738,9 +742,9 @@ function fcRenderModuloKpis(ingOp, egrOp, ingST, egrST, sts) {
       <div class="fc-modulo-kpi-sub">${ingST.length} transacciones</div>
     </div>
     <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">Costo (COGS)</div>
+      <div class="fc-modulo-kpi-label">COGS (ST_Items)</div>
       <div class="fc-modulo-kpi-val red">${fmtK(cogsST)}</div>
-      <div class="fc-modulo-kpi-sub">ST_Items reales/cotizados</div>
+      <div class="fc-modulo-kpi-sub">por ítem real/cotizado · excl. impuestos</div>
     </div>
     <div class="fc-modulo-kpi">
       <div class="fc-modulo-kpi-label">Margen bruto</div>
@@ -826,16 +830,15 @@ function fcRenderTable(ing, egr) {
     return;
   }
 
-  const rows = byM.map(r => {
-    const hasData  = r.ingresos>0||r.egresos>0;
+  const rows = byM.filter(r => r.ingresos>0||r.egresos>0).map(r => {
     const netoClass = r.neto>=0 ? 'fc-neto-pos' : 'fc-neto-neg';
     const acumClass = r.acum>=0 ? 'fc-saldo-pos' : 'fc-saldo-neg';
-    return `<tr style="${!hasData?'opacity:.35':''}">
+    return `<tr>
       <td>${MESES[r.m]}</td>
-      <td>${hasData ? fmtUSD(r.ingresos) : '—'}</td>
-      <td>${hasData ? fmtUSD(r.egresos)  : '—'}</td>
-      <td class="${netoClass}">${hasData ? fmtUSD(r.neto) : '—'}</td>
-      <td class="${acumClass}">${hasData ? fmtUSD(r.acum) : '—'}</td>
+      <td>${fmtUSD(r.ingresos)}</td>
+      <td>${fmtUSD(r.egresos)}</td>
+      <td class="${netoClass}">${fmtUSD(r.neto)}</td>
+      <td class="${acumClass}">${fmtUSD(r.acum)}</td>
     </tr>`;
   }).join('');
 
