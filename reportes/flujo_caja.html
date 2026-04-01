@@ -450,7 +450,9 @@
 <script>
 (function() {
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwsQ2Aob4xsRtHi8r-OoAuGhGH3LKdSPerT1o9SlotkO_0tWGUdHYasgCqjOMJsTYZu/exec';
+// Usar el GAS_URL del admin padre (CEYCO). Fallback al URL de CEYCO si se carga standalone.
+const GAS_URL = (typeof window.GAS_URL !== 'undefined' && window.GAS_URL)
+             || 'https://script.google.com/macros/s/AKfycbwLGTYAbIhEdbMIbKLZekngmMI62bGG9KprhtO-opQ2DoF8H5UOTCz6R2qBllf2FVBtOw/exec';
 
 // ── Estado ───────────────────────────────────────
 let fc_ing    = [];   // ingresos (confirmado | abono | pendiente)
