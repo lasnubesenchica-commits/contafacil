@@ -16,6 +16,7 @@
 //                              usa stImpMap para credito_fiscal sin URL
 //           _handleGetIngresos: prefiere ST.drive_url (factura emitida)
 //                               sobre drive_url del ingreso (puede ser voucher)
+//  v12.7 — getConfig / guardarConfig para panel Setup de Operaciones
 //  v12.6 — cross-reference preciso para credito_fiscal con múltiples FedEx
 //           _buildStUrlMaps: mapa impMap = egreso_id → drive_url_factura courier
 //           _extractNumFacBase: extrae num_factura normalizado desde notas
@@ -174,6 +175,8 @@ function doPost(e) {
     if (action === 'parseComprobanteIngreso') {
       return _handleParseComprobanteIngreso(data);
     }
+    // ── CONFIGURACIÓN OPERACIONES ──────────────────────────────
+    if (action === 'guardarConfig') return _handleGuardarConfig(data);
     // ── PROVEEDORES ────────────────────────────────────────────
     if (action === 'analizarFacturaEjemplo') return _handleAnalizarFacturaEjemplo(data);
     if (action === 'guardarProveedor')       return _handleGuardarProveedor(data);
@@ -360,6 +363,11 @@ function doGet(e) {
     if (action === 'eliminarItemCotizacion') return _handleEliminarItemCotizacion(params, callback);
     if (action === 'actualizarDatosST')      return _handleActualizarDatosST(params, callback);
     if (action === 'sincronizarEmailsST')    return _handleSincronizarEmailsST(params, callback);
+    // ── CONFIGURACIÓN OPERACIONES ──────────────────────────────
+    if (action === 'getConfig')      return _handleGetConfigPublic(params, callback);
+    if (action === 'healthCheck')    return _handleGetConfigPublic(params, callback);
+    if (action === 'anularItemCV')   return _handleAnularItemCV(params, callback);
+    if (action === 'eliminarItemCV') return _handleEliminarItemCV(params, callback);
     // ── PROVEEDORES ─────────────────────────────────────────────
     if (action === 'getProveedores')  return _handleGetProveedores(params, callback);
     if (action === 'toggleProveedor') return _handleToggleProveedor(params, callback);
