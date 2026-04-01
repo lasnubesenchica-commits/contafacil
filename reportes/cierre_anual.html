@@ -11,12 +11,17 @@
 @media print {
   .ca-no-print { display: none !important; }
   .ca-wrap { background: #fff !important; padding: 0 !important; }
-  .ca-page { box-shadow: none !important; border: none !important; margin: 0 !important; border-radius: 0 !important; }
+  .ca-page { box-shadow: none !important; border: none !important; margin: 0 !important; border-radius: 0 !important; max-width: 100% !important; }
   .ca-page-break { page-break-before: always; }
   .ca-section { break-inside: avoid; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .ca-dgi-row.highlight { background: #FFF8E1 !important; }
   .ca-dgi-total { background: #F5F5F5 !important; }
+  .ca-breakdown-table, .ca-mes-table { font-size: .68rem !important; }
+  .ca-breakdown-table th, .ca-mes-table th { font-size: .54rem !important; padding: .25rem .35rem !important; }
+  .ca-breakdown-table td, .ca-mes-table td { padding: .25rem .35rem !important; }
+  .ca-section { padding: .6rem 1rem !important; }
+  @page { size: letter; margin: 1.2cm 1.2cm; }
 }
 
 /* ═══════════ BASE ════════════════════════════════ */
@@ -60,14 +65,14 @@
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,.06);
-  max-width: 900px; margin: 0 auto;
+  max-width: 860px; margin: 0 auto;
   overflow: hidden;
 }
 
 /* ═══════════ LETTERHEAD ══════════════════════════ */
 .ca-letterhead {
   background: #1a2535; color: #fff;
-  padding: 1.5rem 2rem; display: flex;
+  padding: 1rem 1.5rem; color: #fff;
   justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;
 }
 .ca-letterhead-logo {
@@ -90,8 +95,8 @@
 
 /* ═══════════ SECTIONS ════════════════════════════ */
 .ca-section {
-  padding: 1.25rem 2rem;
-  border-bottom: 1px solid var(--border, #e2e8f0);
+.ca-section {
+  padding: 1rem 1.5rem;
 }
 .ca-section:last-child { border-bottom: none; }
 
@@ -168,19 +173,19 @@
 .ca-breakdown { margin-top: .75rem; }
 .ca-breakdown-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
 .ca-breakdown-table th {
-  font-family: 'DM Mono', monospace; font-size: .6rem; letter-spacing: .07em;
-  text-transform: uppercase; color: var(--muted, #64748b);
+.ca-breakdown-table th {
+  font-family: 'DM Mono', monospace; font-size: .57rem; letter-spacing: .04em;
   padding: .4rem .6rem; border-bottom: 1px solid var(--border, #e2e8f0);
-  text-align: left; font-weight: 600; background: var(--bg, #f8fafc);
-}
+  padding: .3rem .45rem; border-bottom: 1px solid var(--border, #e2e8f0);
+  text-align: left; font-weight: 600; background: var(--bg, #f8fafc); white-space: nowrap;
 .ca-breakdown-table th.num { text-align: right; }
 .ca-breakdown-table td {
-  padding: .45rem .6rem; border-bottom: 1px solid var(--bg, #f1f5f9);
-  vertical-align: middle;
-}
+.ca-breakdown-table td {
+  padding: .32rem .45rem; border-bottom: 1px solid var(--bg, #f1f5f9);
+  vertical-align: middle; font-size: .77rem;
 .ca-breakdown-table td.num {
   text-align: right; font-family: 'DM Mono', monospace;
-  font-weight: 600; font-variant-numeric: tabular-nums;
+  font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .ca-breakdown-table tbody tr:last-child td { border-bottom: none; }
 .ca-breakdown-table tfoot td {
@@ -218,16 +223,16 @@
 /* ═══════════ EGRESOS POR MES ═══════════════════ */
 .ca-mes-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
 .ca-mes-table th {
-  font-family: 'DM Mono', monospace; font-size: .6rem; letter-spacing: .07em;
+  font-family: 'DM Mono', monospace; font-size: .57rem; letter-spacing: .04em;
   text-transform: uppercase; color: var(--muted, #64748b);
-  padding: .4rem .6rem; border-bottom: 2px solid var(--border, #e2e8f0);
-  text-align: right; font-weight: 600; background: var(--bg, #f8fafc);
+  padding: .3rem .45rem; border-bottom: 2px solid var(--border, #e2e8f0);
+  text-align: right; font-weight: 600; background: var(--bg, #f8fafc); white-space: nowrap;
 }
 .ca-mes-table th:first-child { text-align: left; }
 .ca-mes-table td {
-  padding: .45rem .6rem; border-bottom: 1px solid var(--bg, #f1f5f9);
+  padding: .32rem .45rem; border-bottom: 1px solid var(--bg, #f1f5f9);
   text-align: right; font-family: 'DM Mono', monospace;
-  font-size: .78rem; font-variant-numeric: tabular-nums;
+  font-size: .76rem; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .ca-mes-table td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: .82rem; }
 .ca-mes-table tfoot td { font-weight: 700; border-top: 2px solid var(--border, #e2e8f0); padding: .5rem .6rem; }
