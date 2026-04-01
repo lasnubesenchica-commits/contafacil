@@ -40,7 +40,7 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;background:no
 #loginScreen{
   position:fixed;inset:0;z-index:1000;
   background:var(--bg);
-  display:flex;align-items:center;justify-content:center;
+  display:none;align-items:center;justify-content:center;
 }
 .login-card{
   background:var(--white);border:1px solid var(--border);
@@ -2714,11 +2714,7 @@ document.getElementById('loginPwd').addEventListener('keydown', e => {
 });
 
 // Auto-login en modo desarrollo
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", function() { if (AUTO_LOGIN) doLogin(); });
-} else {
-  if (AUTO_LOGIN) doLogin();
-}
+if (AUTO_LOGIN) doLogin();
 
 // ══════════════════════════════════════════════════
 //  CARGAR ÓRDENES DESDE CSV
