@@ -484,13 +484,16 @@ function caCalc() {
 const ING_LABELS = {
   venta_producto_gravado:   'Venta de productos (gravado)',
   venta_producto_exento:    'Venta de productos (exento)',
+  venta_producto:           'Venta de productos',
   servicio_tecnico_gravado: 'Servicios técnicos / proyectos (gravado)',
   servicio_tecnico_exento:  'Servicios técnicos / proyectos (exento)',
+  servicio_tecnico:         'Servicios técnicos / proyectos',
   asesoria_consultoria:     'Asesoría y consultoría',
   comision:                 'Comisiones',
   exportacion:              'Exportación',
   otro_gravado:             'Otros ingresos gravados',
   otro_exento:              'Otros ingresos exentos',
+  otro:                     'Otros ingresos',
 };
 const EGR_LABELS = {
   costo_mercancia:          'Costo de mercancía vendida',
@@ -507,6 +510,8 @@ const EGR_LABELS = {
   seguros:                  'Seguros',
   gastos_financieros:       'Gastos financieros',
   otros_deducibles:         'Otros gastos deducibles',
+  servicios_profesionales:  'Honorarios / Servicios profesionales',
+  costo_operativo:          'Costos operativos generales',
 };
 
 // ── RENDER ────────────────────────────────────────
@@ -638,7 +643,7 @@ function caRender() {
           <tbody>
             ${Object.entries(d.ingPorCat).sort((a,b)=>b[1].subtotal-a[1].subtotal).map(([k,v]) => `
             <tr>
-              <td>${ING_LABELS[k] || k}</td>
+              <td>${ING_LABELS[k] || k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</td>
               <td class="num">${v.n}</td>
               <td class="num">${fmt(v.subtotal)}</td>
               <td class="num" style="color:#1565C0">${v.itbms>0?fmt(v.itbms):'—'}</td>
@@ -681,7 +686,7 @@ function caRender() {
               const pct = d.totalEgr > 0 ? (v.total/d.totalEgr*100).toFixed(1) : '0.0';
               const esCosto = ['costo_mercancia','costo_servicio_tecnico','impuesto_importacion'].includes(k);
               return `<tr>
-                <td>${EGR_LABELS[k]||k}</td>
+                <td>${EGR_LABELS[k] || k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</td>
                 <td style="font-size:.72rem;color:var(--muted)">${esCosto?'Costo de ventas':'Gasto deducible'}</td>
                 <td class="num">${v.n}</td>
                 <td class="num">${fmt(v.total)}</td>
@@ -740,8 +745,7 @@ function caRender() {
             <th class="num">ITBMS cobrado</th>
             <th class="num">ITBMS pagado</th>
             <th class="num">Crédito fiscal</th>
-            <th class="num">Neto mes</th>
-            <th class="num">Posición</th>
+            <th class="num">Neto / Posición</th>
           </tr>
         </thead>
         <tbody>
@@ -752,8 +756,7 @@ function caRender() {
               <td>${r.cobrado>0?fmt(r.cobrado):'—'}</td>
               <td>${r.pagado>0?fmt(r.pagado):'—'}</td>
               <td>${r.credito>0?fmt(r.credito):'—'}</td>
-              <td style="font-weight:700;color:${n>0?'#E65100':n<0?'#2E7D32':'inherit'}">${fmt(Math.abs(n))}</td>
-              <td style="font-size:.72rem;font-weight:600;color:${n>0?'#E65100':n<0?'#2E7D32':'var(--muted)'}">${n>0?'▲ Pagar':n<0?'▼ Favor':'—'}</td>
+              <td style="font-weight:700;color:${n>0?'#E65100':n<0?'#2E7D32':'inherit'}">${fmt(Math.abs(n))} <span style="font-size:.65rem;font-weight:600">${n>0?'▲':n<0?'▼':''}</span></td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -763,8 +766,7 @@ function caRender() {
             <td><strong>${fmt(d.totalITBMSCobrado)}</strong></td>
             <td><strong>${fmt(d.totalITBMSPag)}</strong></td>
             <td><strong>${fmt(d.totalCredFisc)}</strong></td>
-            <td style="font-weight:700;color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}"><strong>${fmt(Math.abs(d.itbmsNeto))}</strong></td>
-            <td style="font-size:.72rem;font-weight:700;color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}">${d.itbmsNeto>=0?'▲ Pagar':'▼ Favor'}</td>
+            <td style="font-weight:700;color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}"><strong>${fmt(Math.abs(d.itbmsNeto))}</strong> <span style="font-size:.65rem">${d.itbmsNeto>=0?'▲ Pagar':'▼ Favor'}</span></td>
           </tr>
         </tfoot>
       </table>
@@ -782,10 +784,10 @@ function caRender() {
           <tr>
             <th>Mes</th>
             <th class="num">Costo ventas</th>
-            <th class="num">Gastos deducibles</th>
+            <th class="num">Gastos ded.</th>
             <th class="num">Total egresos</th>
-            <th class="num">Ingresos brutos</th>
-            <th class="num">Neto mes</th>
+            <th class="num">Ingresos</th>
+            <th class="num">Neto</th>
           </tr>
         </thead>
         <tbody>
