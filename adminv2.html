@@ -2660,32 +2660,31 @@ const IS_ADMIN = new URLSearchParams(window.location.search).get('admin') === '1
 
 function buildMenu() {
   const container = document.getElementById('mainTabs');
-  container.innerHTML = `
-      <div class="main-tab-group">
-        <button class="main-tab active" id="tabServiciosTecnicos" onclick="switchTab('reporte:reportes/servicios_tecnicos.html')">🔧 Proyectos <span class="main-tab-arrow">▾</span></button>
-        <div class="dropdown-menu">
-          <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/clientes.html')">👥 Análisis de Clientes</a>
-        </div>
-      </div>
-      <div class="main-tab-group">
-        <button class="main-tab" id="tabOperaciones" onclick="switchTab('operaciones')">⚙️ Comercialización <span class="main-tab-arrow">▾</span></button>
-        <div class="dropdown-menu">
-          <a href="javascript:void(0)" onclick="switchTab('ventasWeb')">🛒 Ventas Web</a>
-          <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/margenes.html')">📊 Márgenes por Producto</a>
-        </div>
-      </div>
-      <div class="main-tab-group">
-        <button class="main-tab" id="tabContabilidad">📒 Contabilidad <span class="main-tab-arrow">▾</span></button>
-        <div class="dropdown-menu">
-          <a href="javascript:void(0)" onclick="switchTab('dashboard')">📊 Estado de Resultados</a>
-          <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/flujo_caja.html')">💵 Flujo de Caja</a>
-          <a href="javascript:void(0)" onclick="switchTab('reporte:reportes/cuentas_por_cobrar.html')">💳 Cuentas por Cobrar</a>
-        </div>
-      </div>
-      <button class="main-tab" id="tabDashboard" style="display:none"></button>
-      <button class="main-tab" id="tabInventario" onclick="switchTab('inventario')">📦 Inventario</button>
-      ${IS_ADMIN ? '<button class="main-tab" id="tabSetup" onclick="switchTab('setup')" style="margin-left:auto">⚙️ Configuración <span class="setup-badge-admin">ADMIN</span></button>' : ''}
-  `;
+  container.innerHTML =
+    '<div class="main-tab-group">' +
+      '<button class="main-tab active" id="tabServiciosTecnicos" onclick="switchTab(&quot;reporte:reportes/servicios_tecnicos.html&quot;)">🔧 Proyectos <span class="main-tab-arrow">▾</span></button>' +
+      '<div class="dropdown-menu">' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/clientes.html&quot;)">👥 Análisis de Clientes</a>' +
+      '</div>' +
+    '</div>' +
+    '<div class="main-tab-group">' +
+      '<button class="main-tab" id="tabOperaciones" onclick="switchTab(&quot;operaciones&quot;)">⚙️ Comercialización <span class="main-tab-arrow">▾</span></button>' +
+      '<div class="dropdown-menu">' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;ventasWeb&quot;)">🛒 Ventas Web</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/margenes.html&quot;)">📊 Márgenes por Producto</a>' +
+      '</div>' +
+    '</div>' +
+    '<div class="main-tab-group">' +
+      '<button class="main-tab" id="tabContabilidad">📒 Contabilidad <span class="main-tab-arrow">▾</span></button>' +
+      '<div class="dropdown-menu">' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;dashboard&quot;)">📊 Estado de Resultados</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/flujo_caja.html&quot;)">💵 Flujo de Caja</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cuentas_por_cobrar.html&quot;)">💳 Cuentas por Cobrar</a>' +
+      '</div>' +
+    '</div>' +
+    '<button class="main-tab" id="tabDashboard" style="display:none"></button>' +
+    '<button class="main-tab" id="tabInventario" onclick="switchTab(&quot;inventario&quot;)">📦 Inventario</button>' +
+    (IS_ADMIN ? '<button class="main-tab" id="tabSetup" onclick="switchTab(&quot;setup&quot;)" style="margin-left:auto">⚙️ Configuración <span class="setup-badge-admin">ADMIN</span></button>' : '');
 }
 
 // ══════════════════════════════════════════════════
@@ -2709,12 +2708,12 @@ function logout() {
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginPwd').value = '';
 }
-document.getElementById('loginPwd').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doLogin();
+// Auto-login en modo desarrollo — esperar DOM
+document.addEventListener('DOMContentLoaded', function() {
+  var lp = document.getElementById('loginPwd');
+  if (lp) lp.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+  if (AUTO_LOGIN) doLogin();
 });
-
-// Auto-login en modo desarrollo
-if (AUTO_LOGIN) doLogin();
 
 // ══════════════════════════════════════════════════
 //  CARGAR ÓRDENES DESDE CSV
