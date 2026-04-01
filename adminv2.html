@@ -2687,6 +2687,7 @@ function buildMenu() {
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/flujo_caja.html&quot;)">💵 Flujo de Caja</a>' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cuentas_por_cobrar.html&quot;)">💳 Cuentas por Cobrar</a>' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)">🧾 Declaración ITBMS</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)">📁 Cierre Anual</a>' +
       '</div>' +
     '</div>' +
     '<button class="main-tab" id="tabDashboard" style="display:none"></button>' +
@@ -3397,7 +3398,7 @@ function switchTab(tab) {
   // Activar dropdown padre según sección activa
   var stTabs = ['reporte:reportes/servicios_tecnicos.html','reporte:reportes/clientes.html'];
   var opTabs = ['operaciones','ventasWeb','reporte:reportes/margenes.html'];
-  var ctTabs = ['reporte:reportes/flujo_caja.html','reporte:reportes/cuentas_por_cobrar.html','reporte:reportes/itbms_mensual.html','ingresos','egresos','dashboard'];
+  var ctTabs = ['reporte:reportes/flujo_caja.html','reporte:reportes/cuentas_por_cobrar.html','reporte:reportes/itbms_mensual.html','reporte:reportes/cierre_anual.html','ingresos','egresos','dashboard'];
   function _tabToggle(id, val) { var el = document.getElementById(id); if (el) el.classList.toggle('active', val); }
   _tabToggle('tabServiciosTecnicos', stTabs.indexOf(tab) >= 0);
   _tabToggle('tabOperaciones',       opTabs.indexOf(tab) >= 0);
