@@ -11,17 +11,54 @@
 @media print {
   .ca-no-print { display: none !important; }
   .ca-wrap { background: #fff !important; padding: 0 !important; }
-  .ca-page { box-shadow: none !important; border: none !important; margin: 0 !important; border-radius: 0 !important; max-width: 100% !important; }
+  .ca-page {
+    box-shadow: none !important; border: none !important;
+    margin: 0 !important; border-radius: 0 !important;
+    max-width: 100% !important; width: 100% !important;
+    overflow: visible !important;
+  }
   .ca-page-break { page-break-before: always; }
-  .ca-section { break-inside: avoid; }
+  .ca-section { break-inside: avoid; padding: .6rem 1rem !important; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .ca-dgi-row.highlight { background: #FFF8E1 !important; }
-  .ca-dgi-total { background: #F5F5F5 !important; }
-  .ca-breakdown-table, .ca-mes-table { font-size: .68rem !important; }
-  .ca-breakdown-table th, .ca-mes-table th { font-size: .54rem !important; padding: .25rem .35rem !important; }
-  .ca-breakdown-table td, .ca-mes-table td { padding: .25rem .35rem !important; }
-  .ca-section { padding: .6rem 1rem !important; }
-  @page { size: letter; margin: 1.2cm 1.2cm; }
+
+  /* Tablas: forzar que entren sin overflow */
+  .ca-breakdown-table,
+  .ca-mes-table,
+  .ca-anual-table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    font-size: .65rem !important;
+    word-break: break-word !important;
+  }
+  .ca-breakdown-table th,
+  .ca-mes-table th,
+  .ca-anual-table th {
+    font-size: .52rem !important;
+    padding: .22rem .3rem !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+  .ca-breakdown-table td,
+  .ca-mes-table td,
+  .ca-anual-table td {
+    font-size: .65rem !important;
+    padding: .22rem .3rem !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+  /* Eliminar overflow scroll en wrappers */
+  .ca-table-wrap,
+  div[style*="overflow-x"] {
+    overflow: visible !important;
+  }
+  /* Letterhead más compacto */
+  .ca-letterhead { padding: .6rem 1rem !important; }
+  .ca-report-title { padding: .4rem 1rem !important; }
+  .ca-letterhead-logo { font-size: 1.2rem !important; }
+  .ca-section-header { margin-bottom: .5rem !important; }
+
+  @page { size: letter portrait; margin: 1cm 1.2cm; }
 }
 
 /* ═══════════ BASE ════════════════════════════════ */
