@@ -2714,7 +2714,11 @@ document.getElementById('loginPwd').addEventListener('keydown', e => {
 });
 
 // Auto-login en modo desarrollo
-if (AUTO_LOGIN) doLogin();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", function() { if (AUTO_LOGIN) doLogin(); });
+} else {
+  if (AUTO_LOGIN) doLogin();
+}
 
 // ══════════════════════════════════════════════════
 //  CARGAR ÓRDENES DESDE CSV
