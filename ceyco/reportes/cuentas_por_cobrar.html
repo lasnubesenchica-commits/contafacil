@@ -1,0 +1,602 @@
+<!-- MÓDULO: Cuentas por Cobrar v3 — CEYCO
+     Prefijo: cc-  |  IIFE independiente
+     Fuentes:
+       opItems  → Compras_Ventas estado='facturado'       (Operaciones)
+       getCotizaciones + ingItems → STs cerrados con ingreso pendiente
+-->
+<style>
+.cc-wrap { font-family: 'DM Sans', sans-serif; padding: 0 4px; color: var(--text, #1a2535); }
+
+/* ── Header ─────────────────────────────────────── */
+.cc-header { display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid var(--border, #e2e8f0);
+  flex-wrap: wrap; gap: 12px; }
+.cc-header h2 { margin: 0; font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.cc-last-update { font-size: 0.75rem; color: var(--muted, #94a3b8); }
+
+/* ── KPIs ───────────────────────────────────────── */
+.cc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin-bottom: 22px; }
+.cc-kpi { background: var(--white, #fff); border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px; padding: 14px 16px; position: relative; overflow: hidden; }
+.cc-kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.cc-kpi.total::before  { background: #3b82f6; }
+.cc-kpi.op::before     { background: #1565C0; }
+.cc-kpi.st::before     { background: #7B1FA2; }
+.cc-kpi.rango0::before { background: #22c55e; }
+.cc-kpi.rango1::before { background: #f59e0b; }
+.cc-kpi.rango2::before { background: #ef4444; }
+.cc-kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted, #64748b); margin-bottom: 4px; font-weight: 600; }
+.cc-kpi-value { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem;
+  color: var(--text, #1a2535); line-height: 1.1; }
+.cc-kpi-sub   { font-size: 0.72rem; color: var(--muted, #94a3b8); margin-top: 2px; }
+
+/* ── Aging bar ──────────────────────────────────── */
+.cc-aging-bar-wrap { background: var(--bg, #f8fafc); border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px; padding: 14px 18px; margin-bottom: 22px; }
+.cc-aging-bar-wrap h3 { margin: 0 0 10px; font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted, #64748b); font-weight: 600; }
+.cc-aging-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px; margin-bottom: 8px; }
+.cc-aging-seg { transition: width .4s ease; min-width: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 0.65rem; font-weight: 700; color: #fff;
+  overflow: hidden; white-space: nowrap; }
+.cc-aging-seg.s0 { background: #22c55e; border-radius: 6px 0 0 6px; }
+.cc-aging-seg.s1 { background: #f59e0b; }
+.cc-aging-seg.s2 { background: #ef4444; border-radius: 0 6px 6px 0; }
+.cc-aging-legend { display: flex; gap: 16px; flex-wrap: wrap; }
+.cc-aging-leg-item { display: flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; color: var(--muted, #475569); }
+.cc-aging-leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cc-aging-leg-dot.s0 { background: #22c55e; }
+.cc-aging-leg-dot.s1 { background: #f59e0b; }
+.cc-aging-leg-dot.s2 { background: #ef4444; }
+
+/* ── Toolbar ────────────────────────────────────── */
+.cc-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.cc-search { flex: 1; min-width: 180px; padding: 7px 12px; border: 1px solid var(--border, #e2e8f0);
+  border-radius: 7px; font-size: 0.82rem; outline: none; transition: border-color .2s;
+  background: var(--white, #fff); color: var(--text, #1a2535); }
+.cc-search:focus { border-color: #3b82f6; }
+.cc-filter-btn { padding: 6px 14px; border-radius: 7px; border: 1.5px solid var(--border, #e2e8f0);
+  background: var(--white, #fff); font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  transition: all .15s; color: var(--muted, #475569); }
+.cc-filter-btn:hover  { border-color: #94a3b8; background: var(--bg, #f8fafc); }
+.cc-filter-btn.active { background: #1a2535; color: #fff; border-color: #1a2535; }
+
+/* ── Section headers ────────────────────────────── */
+.cc-section-header {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .75rem 1rem; border-radius: 8px 8px 0 0;
+  font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+  margin-top: 1.25rem;
+}
+.cc-section-header.op { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; border-bottom: none; }
+.cc-section-header.st { background: #F3E5F5; color: #6A1B9A; border: 1px solid #E1BEE7; border-bottom: none; }
+.cc-section-header-icon { font-size: 1rem; }
+.cc-section-total { margin-left: auto; font-family: 'DM Mono', monospace; font-size: .8rem; }
+
+/* ── Table ──────────────────────────────────────── */
+.cc-table-wrap { overflow-x: auto; border-radius: 0 0 10px 10px;
+  border: 1px solid var(--border, #e2e8f0); background: var(--white, #fff); }
+.cc-table-wrap.first { border-radius: 0 0 10px 10px; }
+.cc-table { width: 100%; border-collapse: collapse; font-size: 0.81rem; }
+.cc-table thead tr { background: var(--bg, #f1f5f9); }
+.cc-table th { padding: 10px 14px; text-align: left; font-weight: 600; font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: .05em; color: var(--muted, #64748b);
+  white-space: nowrap; border-bottom: 1px solid var(--border, #e2e8f0); }
+.cc-table th.num { text-align: right; }
+.cc-table td { padding: 9px 14px; border-bottom: 1px solid var(--bg, #f1f5f9);
+  color: var(--text, #334155); vertical-align: middle; }
+.cc-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.cc-table tbody tr:last-child td { border-bottom: none; }
+.cc-table tbody tr:hover td { background: var(--bg, #f8fafc); }
+.cc-badge { display: inline-block; padding: 2px 9px; border-radius: 20px;
+  font-size: 0.67rem; font-weight: 700; white-space: nowrap; }
+.cc-badge.s0 { background: #dcfce7; color: #15803d; }
+.cc-badge.s1 { background: #fef9c3; color: #a16207; }
+.cc-badge.s2 { background: #fee2e2; color: #b91c1c; }
+.cc-link { color: #3b82f6; text-decoration: none; font-size: 0.75rem; }
+.cc-link:hover { text-decoration: underline; }
+.cc-empty { padding: 32px 20px; text-align: center; color: var(--muted, #94a3b8); font-size: 0.85rem; }
+.cc-empty-icon { font-size: 2rem; margin-bottom: 8px; }
+.cc-table-footer { display: flex; justify-content: flex-end; align-items: center;
+  padding: 10px 14px; background: var(--bg, #f8fafc); border-top: 1px solid var(--border, #e2e8f0);
+  border-radius: 0 0 10px 10px; font-size: 0.78rem; color: var(--muted, #64748b);
+  gap: 20px; flex-wrap: wrap; }
+.cc-table-footer strong { color: var(--text, #1a2535); }
+</style>
+
+<div class="cc-wrap" id="cc-root">
+
+  <!-- Header -->
+  <div class="cc-header">
+    <h2>📋 Cuentas por Cobrar</h2>
+    <span class="cc-last-update" id="cc-update-ts"></span>
+  </div>
+
+  <!-- KPIs -->
+  <div class="cc-kpis">
+    <div class="cc-kpi total">
+      <div class="cc-kpi-label">Total por cobrar</div>
+      <div class="cc-kpi-value" id="cc-kpi-total">—</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-total-sub">cargando…</div>
+    </div>
+    <div class="cc-kpi op">
+      <div class="cc-kpi-label">📦 Operaciones</div>
+      <div class="cc-kpi-value" id="cc-kpi-op">—</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-op-sub"></div>
+    </div>
+    <div class="cc-kpi st">
+      <div class="cc-kpi-label">🔧 Serv. Técnicos</div>
+      <div class="cc-kpi-value" id="cc-kpi-st">—</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-st-sub"></div>
+    </div>
+    <div class="cc-kpi rango0">
+      <div class="cc-kpi-label">0–30 días</div>
+      <div class="cc-kpi-value" id="cc-kpi-r0">—</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-r0-sub"></div>
+    </div>
+    <div class="cc-kpi rango1">
+      <div class="cc-kpi-label">31–60 días</div>
+      <div class="cc-kpi-value" id="cc-kpi-r1">—</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-r1-sub"></div>
+    </div>
+    <div class="cc-kpi rango2">
+      <div class="cc-kpi-label">+60 días</div>
+      <div class="cc-kpi-value" id="cc-kpi-r2">—</div>
+      <div class="cc-kpi-sub"  id="cc-kpi-r2-sub"></div>
+    </div>
+  </div>
+
+  <!-- Aging bar (sobre el total combinado) -->
+  <div class="cc-aging-bar-wrap">
+    <h3>Distribución por antigüedad — total combinado</h3>
+    <div class="cc-aging-bar">
+      <div class="cc-aging-seg s0" id="cc-seg0" style="width:0%"></div>
+      <div class="cc-aging-seg s1" id="cc-seg1" style="width:0%"></div>
+      <div class="cc-aging-seg s2" id="cc-seg2" style="width:0%"></div>
+    </div>
+    <div class="cc-aging-legend">
+      <div class="cc-aging-leg-item"><div class="cc-aging-leg-dot s0"></div>0–30 días (corriente)</div>
+      <div class="cc-aging-leg-item"><div class="cc-aging-leg-dot s1"></div>31–60 días (atención)</div>
+      <div class="cc-aging-leg-item"><div class="cc-aging-leg-dot s2"></div>+60 días (vencido)</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="cc-toolbar">
+    <input type="text" class="cc-search" id="cc-search"
+      placeholder="Buscar por cliente, factura, ST…"
+      oninput="window.ccApplyFilters()">
+    <button class="cc-filter-btn active" id="cc-btn-all" onclick="window.ccSetRange('all')">Todas</button>
+    <button class="cc-filter-btn" id="cc-btn-r0"  onclick="window.ccSetRange('r0')">0–30 d</button>
+    <button class="cc-filter-btn" id="cc-btn-r1"  onclick="window.ccSetRange('r1')">31–60 d</button>
+    <button class="cc-filter-btn" id="cc-btn-r2"  onclick="window.ccSetRange('+60 d')">+60 d</button>
+  </div>
+
+  <!-- Sección Operaciones -->
+  <div class="cc-section-header op">
+    <span class="cc-section-header-icon">📦</span>
+    <span>Operaciones — Compras / Ventas</span>
+    <span class="cc-section-total" id="cc-op-section-total"></span>
+  </div>
+  <div class="cc-table-wrap">
+    <table class="cc-table">
+      <thead>
+        <tr>
+          <th>Fac. Emitida</th>
+          <th>Fecha Fac.</th>
+          <th>Cliente</th>
+          <th>Descripción</th>
+          <th>Fac. Carbone</th>
+          <th class="num">Costo</th>
+          <th class="num">Venta</th>
+          <th class="num">Margen</th>
+          <th>Antigüedad</th>
+          <th>Días</th>
+          <th>Docs</th>
+        </tr>
+      </thead>
+      <tbody id="cc-tbody-op"></tbody>
+    </table>
+    <div class="cc-table-footer" id="cc-footer-op" style="display:none">
+      <span>Mostrando <strong id="cc-op-showing">0</strong> de <strong id="cc-op-total">0</strong></span>
+      <span>Venta: <strong id="cc-op-venta">$0.00</strong></span>
+      <span>Costo: <strong id="cc-op-costo">$0.00</strong></span>
+    </div>
+  </div>
+
+  <!-- Sección Servicios Técnicos -->
+  <div class="cc-section-header st" style="margin-top:1.5rem">
+    <span class="cc-section-header-icon">🔧</span>
+    <span>Servicios Técnicos — cobro pendiente</span>
+    <span class="cc-section-total" id="cc-st-section-total"></span>
+  </div>
+  <div class="cc-table-wrap">
+    <table class="cc-table">
+      <thead>
+        <tr>
+          <th>ST</th>
+          <th>Fecha cierre</th>
+          <th>Cliente</th>
+          <th>Descripción</th>
+          <th class="num">Precio venta</th>
+          <th>Antigüedad</th>
+          <th>Días</th>
+          <th>Factura</th>
+        </tr>
+      </thead>
+      <tbody id="cc-tbody-st"></tbody>
+    </table>
+    <div class="cc-table-footer" id="cc-footer-st" style="display:none">
+      <span>Mostrando <strong id="cc-st-showing">0</strong> de <strong id="cc-st-total">0</strong></span>
+      <span>Venta: <strong id="cc-st-venta">$0.00</strong></span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Estado ───────────────────────────────────────
+  var cc = {
+    opAll:    [],   // todos los items Op procesados
+    stAll:    [],   // todos los items ST procesados
+    rangeFilter: 'all',
+  };
+
+  // ── Helpers ──────────────────────────────────────
+  function fmt(n) {
+    if (isNaN(n) || n == null) return '$0.00';
+    return '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function parseDate(str) {
+    if (!str) return null;
+    if (str instanceof Date) return isNaN(str) ? null : str;
+    var s = String(str).trim();
+    var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+    var m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) return new Date(+m2[1], +m2[2]-1, +m2[3]);
+    var d = new Date(s); return isNaN(d) ? null : d;
+  }
+  function diasDesde(fechaStr) {
+    var d = parseDate(fechaStr); if (!d) return null;
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+    return Math.floor((hoy - d) / 86400000);
+  }
+  function rango(dias) {
+    return dias === null ? 'r0' : dias <= 30 ? 'r0' : dias <= 60 ? 'r1' : 'r2';
+  }
+  function badge(dias) {
+    var r = rango(dias);
+    var cls   = { r0:'s0', r1:'s1', r2:'s2' }[r];
+    var icon  = r==='r0'?'✓ ':r==='r1'?'⚠ ':'🔴 ';
+    var label = dias===null?'?':dias===0?'Hoy':dias+' días';
+    return '<span class="cc-badge '+cls+'">'+icon+label+'</span>';
+  }
+  function fechaFmt(str) {
+    var d = parseDate(str); if (!d) return '—';
+    return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();
+  }
+  function esc(s) {
+    return String(s||'—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function gasJsonpLocal(action) {
+    var GAS = (typeof window.GAS_URL !== 'undefined' && window.GAS_URL)
+           || 'https://script.google.com/macros/s/AKfycbwLGTYAbIhEdbMIbKLZekngmMI62bGG9KprhtO-opQ2DoF8H5UOTCz6R2qBllf2FVBtOw/exec';
+    return new Promise(function(resolve, reject) {
+      var cb = 'ccCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      var script = document.createElement('script');
+      var done = false;
+      var t = setTimeout(function() {
+        if (!done) { done=true; cleanup(); reject(new Error('Timeout: '+action)); }
+      }, 30000);
+      window[cb] = function(d) { if (!done) { done=true; clearTimeout(t); cleanup(); resolve(d); } };
+      script.onerror = function() { if (!done) { done=true; clearTimeout(t); cleanup(); reject(new Error('Error red: '+action)); } };
+      script.src = GAS + '?action='+action+'&callback='+cb;
+      function cleanup() { delete window[cb]; if (script.parentNode) script.parentNode.removeChild(script); }
+      document.head.appendChild(script);
+    });
+  }
+
+  // ── Carga ────────────────────────────────────────
+  function ccLoad() {
+    // Op: desde opItems global si existe, si no fetch
+    var opPromise;
+    var rawOp = (typeof opItems !== 'undefined' && Array.isArray(opItems)) ? opItems
+              : (typeof window.opItems !== 'undefined' && Array.isArray(window.opItems)) ? window.opItems
+              : null;
+    opPromise = rawOp
+      ? Promise.resolve({ success: true, items: rawOp })
+      : gasJsonpLocal('getComprasVentas');
+
+    // Ingresos: desde ingItems global si existe
+    var rawIng = (typeof ingItems !== 'undefined' && Array.isArray(ingItems)) ? ingItems
+               : (typeof window.ingItems !== 'undefined' && Array.isArray(window.ingItems)) ? ingItems
+               : null;
+    var ingPromise = rawIng
+      ? Promise.resolve({ success: true, items: rawIng })
+      : gasJsonpLocal('getIngresos');
+
+    // STs: siempre fetch fresco (no hay global para STs en adminv2)
+    var stPromise = gasJsonpLocal('getCotizaciones');
+
+    Promise.all([opPromise, ingPromise, stPromise])
+      .then(function(results) {
+        var opRes  = results[0];
+        var ingRes = results[1];
+        var stRes  = results[2];
+
+        // ── Procesar Operaciones ──
+        var opRaw = opRes.items || [];
+        cc.opAll = [];
+        opRaw.forEach(function(row) {
+          if (String(row.estado||'').trim().toLowerCase() !== 'facturado') return;
+          var dias = diasDesde(row.fecha_venta||'');
+          cc.opAll.push({
+            origen:          'op',
+            num_fac_emitida: row.num_fac_emitida  || '—',
+            num_fac_carbone: row.num_fac_carbone  || '—',
+            fecha:           row.fecha_venta      || '',
+            nombre_cliente:  row.nombre_cliente   || '—',
+            ruc_cliente:     row.ruc_cliente      || '',
+            descripcion:     row.descripcion_prod || '—',
+            codigo:          row.codigo_prod      || '',
+            total_carbone:   parseFloat(row.total_carbone||'0')||0,
+            total_venta:     parseFloat(row.total_venta||'0')||0,
+            margen:          parseFloat(row.margen||'0')||0,
+            drive_url_emit:  row.drive_url_emit   || '',
+            drive_url_carb:  row.drive_url_carb   || '',
+            id_orden_web:    row.id_orden_web     || '',
+            dias:            dias,
+            rango:           rango(dias),
+          });
+        });
+        cc.opAll.sort(function(a,b){ return (b.dias||0)-(a.dias||0); });
+
+        // ── Procesar STs cerrados con ingreso pendiente ──
+        var ingMap = {};
+        (ingRes.items || []).forEach(function(i) {
+          ingMap[String(i.id_trans||'').trim()] = i;
+        });
+
+        var stRaw = (stRes.items || []).filter(function(st) {
+          return st.estado !== 'cancelado';
+        });
+
+        cc.stAll = [];
+        stRaw.forEach(function(st) {
+          if (st.estado !== 'cerrado') return;
+          if (!st.ingreso_id) return;
+          var ing = ingMap[String(st.ingreso_id).trim()];
+          if (!ing) return;
+          if (String(ing.estado||'').toLowerCase() !== 'pendiente') return;
+
+          // Fecha de referencia: fecha_ingreso (fecha factura emitida) o fecha_cierre
+          var fechaRef = ing.fecha_ingreso || st.fecha_cierre || st.fecha_reg || '';
+          var dias = diasDesde(fechaRef);
+
+          cc.stAll.push({
+            origen:         'st',
+            id_st:          st.id_st || '—',
+            fecha:          fechaRef,
+            nombre_cliente: st.nombre_cliente || '—',
+            ruc_cliente:    st.ruc_cliente    || '',
+            descripcion:    st.descripcion    || '—',
+            precio_venta:   parseFloat(st.subtotal_venta || st.precio_venta || ing.subtotal || 0),
+            drive_url:      st.drive_url      || ing.drive_url || '',
+            num_factura:    ing.num_factura   || '—',
+            dias:           dias,
+            rango:          rango(dias),
+          });
+        });
+        cc.stAll.sort(function(a,b){ return (b.dias||0)-(a.dias||0); });
+
+        document.getElementById('cc-update-ts').textContent =
+          'Actualizado: '+new Date().toLocaleTimeString('es-PA',{hour:'2-digit',minute:'2-digit'});
+
+        ccComputeKPIs();
+        ccRender();
+      })
+      .catch(function(err) {
+        document.getElementById('cc-tbody-op').innerHTML =
+          '<tr><td colspan="11" class="cc-empty"><div class="cc-empty-icon">⚠️</div>'+esc(err.message)+'</td></tr>';
+        document.getElementById('cc-tbody-st').innerHTML =
+          '<tr><td colspan="8" class="cc-empty"><div class="cc-empty-icon">⚠️</div>'+esc(err.message)+'</td></tr>';
+      });
+  }
+
+  // ── KPIs ─────────────────────────────────────────
+  function ccComputeKPIs() {
+    var all = cc.opAll.concat(cc.stAll);
+    var tot = { total:0, op:0, st:0, r0:0, r1:0, r2:0 };
+    var cnt = { total:0, op:0, st:0, r0:0, r1:0, r2:0 };
+
+    cc.opAll.forEach(function(r) {
+      tot.total += r.total_venta; tot.op += r.total_venta;
+      cnt.total++; cnt.op++;
+      tot[r.rango] += r.total_venta; cnt[r.rango]++;
+    });
+    cc.stAll.forEach(function(r) {
+      tot.total += r.precio_venta; tot.st += r.precio_venta;
+      cnt.total++; cnt.st++;
+      tot[r.rango] += r.precio_venta; cnt[r.rango]++;
+    });
+
+    document.getElementById('cc-kpi-total').textContent     = fmt(tot.total);
+    document.getElementById('cc-kpi-total-sub').textContent = cnt.total+' ítems en cartera';
+    document.getElementById('cc-kpi-op').textContent        = fmt(tot.op);
+    document.getElementById('cc-kpi-op-sub').textContent    = cnt.op+' ítem'+(cnt.op!==1?'s':'');
+    document.getElementById('cc-kpi-st').textContent        = fmt(tot.st);
+    document.getElementById('cc-kpi-st-sub').textContent    = cnt.st+' ST'+(cnt.st!==1?'s':'');
+    document.getElementById('cc-kpi-r0').textContent        = fmt(tot.r0);
+    document.getElementById('cc-kpi-r0-sub').textContent    = cnt.r0+' ítem'+(cnt.r0!==1?'s':'');
+    document.getElementById('cc-kpi-r1').textContent        = fmt(tot.r1);
+    document.getElementById('cc-kpi-r1-sub').textContent    = cnt.r1+' ítem'+(cnt.r1!==1?'s':'');
+    document.getElementById('cc-kpi-r2').textContent        = fmt(tot.r2);
+    document.getElementById('cc-kpi-r2-sub').textContent    = cnt.r2+' ítem'+(cnt.r2!==1?'s':'');
+
+    if (tot.total > 0) {
+      ['0','1','2'].forEach(function(n) {
+        var pct = (tot['r'+n]/tot.total*100).toFixed(1);
+        var seg = document.getElementById('cc-seg'+n);
+        seg.style.width = pct+'%';
+        if (parseFloat(pct) > 8) seg.textContent = pct+'%';
+      });
+    }
+  }
+
+  // ── Filtros y render ──────────────────────────────
+  window.ccSetRange = function(range) {
+    cc.rangeFilter = range;
+    ['all','r0','r1','r2'].forEach(function(k) {
+      var b = document.getElementById('cc-btn-'+k);
+      if (b) b.classList.toggle('active', k === range);
+    });
+    ccRender();
+  };
+
+  window.ccApplyFilters = function() { ccRender(); };
+
+  function ccFilter(items, montoField) {
+    var term = ((document.getElementById('cc-search')||{}).value||'').toLowerCase().trim();
+    return items.filter(function(r) {
+      if (cc.rangeFilter !== 'all' && r.rango !== cc.rangeFilter) return false;
+      if (term) {
+        var haystack = [
+          r.num_fac_emitida||'', r.num_fac_carbone||'', r.id_st||'',
+          r.nombre_cliente||'', r.descripcion||'', r.codigo||'',
+          r.num_factura||'',
+        ].join(' ').toLowerCase();
+        if (haystack.indexOf(term) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function ccRender() {
+    var opFilt = ccFilter(cc.opAll);
+    var stFilt = ccFilter(cc.stAll);
+    renderOpTable(opFilt);
+    renderStTable(stFilt);
+  }
+
+  // ── Tabla Operaciones ─────────────────────────────
+  function renderOpTable(rows) {
+    var tbody  = document.getElementById('cc-tbody-op');
+    var footer = document.getElementById('cc-footer-op');
+
+    // Section total (sin filtro)
+    var totSection = cc.opAll.reduce(function(s,r){ return s+r.total_venta; },0);
+    document.getElementById('cc-op-section-total').textContent =
+      cc.opAll.length ? fmt(totSection)+' · '+cc.opAll.length+' ítem'+(cc.opAll.length!==1?'s':'') : '';
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="11" class="cc-empty">'
+        + '<div class="cc-empty-icon">'+( cc.opAll.length===0?'📂':'🔍')+'</div>'
+        + (cc.opAll.length===0?'No hay operaciones facturadas pendientes de cobro.':'Sin resultados para los filtros.')
+        + '</td></tr>';
+      footer.style.display = 'none'; return;
+    }
+
+    var html = '';
+    rows.forEach(function(row) {
+      var mc = row.margen >= 0 ? '#16a34a' : '#dc2626';
+      var docs = '';
+      if (row.drive_url_emit) docs += '<a href="'+esc(row.drive_url_emit)+'" target="_blank" class="cc-link">📄 Fac</a> ';
+      if (row.drive_url_carb) docs += '<a href="'+esc(row.drive_url_carb)+'" target="_blank" class="cc-link">📦 Carb</a>';
+      if (!docs) docs = '—';
+      html += '<tr>';
+      html += '<td><span style="font-family:\'DM Mono\',monospace;font-size:.8rem;font-weight:600">'+esc(row.num_fac_emitida)+'</span>';
+      if (row.id_orden_web) html += '<div style="font-size:.65rem;color:#1565C0;margin-top:2px">🛒 '+esc(row.id_orden_web)+'</div>';
+      html += '</td>';
+      html += '<td>'+fechaFmt(row.fecha)+'</td>';
+      html += '<td><div style="font-weight:600">'+esc(row.nombre_cliente)+'</div>';
+      if (row.ruc_cliente) html += '<div style="font-size:.7rem;color:#94a3b8">'+esc(row.ruc_cliente)+'</div>';
+      html += '</td>';
+      html += '<td><div style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(row.descripcion)+'">'+esc(row.descripcion.substring(0,45))+'</div>';
+      if (row.codigo) html += '<div style="font-size:.7rem;color:#94a3b8">'+esc(row.codigo)+'</div>';
+      html += '</td>';
+      html += '<td style="font-size:.78rem;color:#94a3b8">'+esc(row.num_fac_carbone)+'</td>';
+      html += '<td class="num" style="color:#E65100">'+fmt(row.total_carbone)+'</td>';
+      html += '<td class="num" style="color:#15803d;font-size:.95rem">'+fmt(row.total_venta)+'</td>';
+      html += '<td class="num" style="color:'+mc+'">'+fmt(row.margen)+'</td>';
+      html += '<td>'+badge(row.dias)+'</td>';
+      html += '<td style="text-align:right;color:#64748b">'+(row.dias!==null?row.dias:'?')+'</td>';
+      html += '<td>'+docs+'</td>';
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
+
+    var vt = rows.reduce(function(s,r){ return s+r.total_venta;   },0);
+    var ct = rows.reduce(function(s,r){ return s+r.total_carbone; },0);
+    document.getElementById('cc-op-showing').textContent = rows.length;
+    document.getElementById('cc-op-total').textContent   = cc.opAll.length;
+    document.getElementById('cc-op-venta').textContent   = fmt(vt);
+    document.getElementById('cc-op-costo').textContent   = fmt(ct);
+    footer.style.display = 'flex';
+  }
+
+  // ── Tabla Servicios Técnicos ──────────────────────
+  function renderStTable(rows) {
+    var tbody  = document.getElementById('cc-tbody-st');
+    var footer = document.getElementById('cc-footer-st');
+
+    // Section total (sin filtro)
+    var totSection = cc.stAll.reduce(function(s,r){ return s+r.precio_venta; },0);
+    document.getElementById('cc-st-section-total').textContent =
+      cc.stAll.length ? fmt(totSection)+' · '+cc.stAll.length+' ST'+(cc.stAll.length!==1?'s':'') : '';
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="cc-empty">'
+        + '<div class="cc-empty-icon">'+(cc.stAll.length===0?'✅':'🔍')+'</div>'
+        + (cc.stAll.length===0?'No hay STs cerrados con cobro pendiente.':'Sin resultados para los filtros.')
+        + '</td></tr>';
+      footer.style.display = 'none'; return;
+    }
+
+    var html = '';
+    rows.forEach(function(row) {
+      html += '<tr>';
+      html += '<td><span style="font-family:\'DM Mono\',monospace;font-size:.8rem;font-weight:600;color:#6A1B9A">'+esc(row.id_st)+'</span>';
+      if (row.num_factura && row.num_factura !== '—') {
+        html += '<div style="font-size:.65rem;color:#94a3b8;margin-top:2px">'+esc(row.num_factura)+'</div>';
+      }
+      html += '</td>';
+      html += '<td>'+fechaFmt(row.fecha)+'</td>';
+      html += '<td><div style="font-weight:600">'+esc(row.nombre_cliente)+'</div>';
+      if (row.ruc_cliente) html += '<div style="font-size:.7rem;color:#94a3b8">'+esc(row.ruc_cliente)+'</div>';
+      html += '</td>';
+      html += '<td><div style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(row.descripcion)+'">'+esc(row.descripcion.substring(0,55))+'</div></td>';
+      html += '<td class="num" style="color:#15803d;font-size:.95rem">'+fmt(row.precio_venta)+'</td>';
+      html += '<td>'+badge(row.dias)+'</td>';
+      html += '<td style="text-align:right;color:#64748b">'+(row.dias!==null?row.dias:'?')+'</td>';
+      if (row.drive_url) {
+        html += '<td><a href="'+esc(row.drive_url)+'" target="_blank" class="cc-link">📄 Ver</a></td>';
+      } else {
+        html += '<td style="color:#94a3b8;font-size:.75rem">—</td>';
+      }
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
+
+    var vt = rows.reduce(function(s,r){ return s+r.precio_venta; },0);
+    document.getElementById('cc-st-showing').textContent = rows.length;
+    document.getElementById('cc-st-total').textContent   = cc.stAll.length;
+    document.getElementById('cc-st-venta').textContent   = fmt(vt);
+    footer.style.display = 'flex';
+  }
+
+  // ── Exponer para controles inline ─────────────────
+  window.cc_setRangeFilter = window.ccSetRange;  // backward compat
+  window.cc_applyFilters   = window.ccApplyFilters;
+
+  // ── Init ──────────────────────────────────────────
+  setTimeout(function(){ ccLoad(); }, 0);
+
+})();
+</script>

@@ -1,0 +1,408 @@
+<!-- ═══════════════════════════════════════════════
+     MÓDULO: Inventario Valorado
+     Cargado dinámicamente por admin_v10.html
+════════════════════════════════════════════════ -->
+<style>
+.iv-wrap        { font-family:'DM Sans',sans-serif; background:var(--bg); min-height:calc(100vh - 60px); }
+.iv-controls    {
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  padding:1rem 2rem; border-bottom:1px solid var(--border);
+  background:var(--white); position:sticky; top:60px; z-index:50;
+}
+.iv-ctrl-label  { font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.iv-filter-btn  {
+  font-size:.78rem; font-weight:500; padding:.35rem .9rem;
+  border-radius:100px; border:1px solid var(--border);
+  background:var(--bg); color:var(--muted); cursor:pointer; transition:all .2s;
+}
+.iv-filter-btn.active { background:var(--orange); border-color:var(--orange); color:#fff; font-weight:600; }
+.iv-search-wrap { position:relative; margin-left:auto; }
+.iv-search-icon { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); font-size:.78rem; pointer-events:none; }
+.iv-search {
+  background:var(--bg); border:1px solid var(--border); border-radius:100px;
+  padding:.4rem .9rem .4rem 2.2rem; font-family:'DM Sans',sans-serif;
+  font-size:.82rem; outline:none; width:220px; transition:border-color .2s;
+}
+.iv-search:focus { border-color:var(--orange); }
+
+.iv-kpi-row {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:1rem; padding:1.25rem 2rem;
+  background:var(--white); border-bottom:1px solid var(--border);
+}
+.iv-kpi         { background:var(--bg); border:1px solid var(--border); border-radius:var(--r2); padding:1rem 1.25rem; }
+.iv-kpi-label   { font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:.4rem; }
+.iv-kpi-value   { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; line-height:1; }
+.iv-kpi-value.orange { color:var(--orange); }
+.iv-kpi-value.blue   { color:#1565C0; }
+.iv-kpi-value.green  { color:var(--green); }
+.iv-kpi-sub     { font-size:.75rem; color:var(--muted); margin-top:.25rem; }
+
+.iv-chart-row {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:0; background:var(--white); border-bottom:1px solid var(--border);
+}
+.iv-chart-section { padding:1.5rem 2rem; }
+.iv-chart-section + .iv-chart-section { border-left:1px solid var(--border); }
+.iv-chart-title { font-family:'DM Mono',monospace; font-size:.65rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; font-weight:600; }
+.iv-chart-wrap  { position:relative; height:200px; }
+
+.iv-table-wrap  { padding:1.5rem 2rem; overflow-x:auto; }
+.iv-table       { width:100%; border-collapse:collapse; min-width:680px; }
+.iv-table thead th {
+  font-family:'DM Mono',monospace; font-size:.65rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); font-weight:600;
+  padding:.6rem 1rem; border-bottom:2px solid var(--border);
+  text-align:left; cursor:pointer; user-select:none; white-space:nowrap;
+}
+.iv-table thead th:hover { color:var(--text); }
+.iv-table tbody tr { border-bottom:1px solid var(--border); transition:background .15s; }
+.iv-table tbody tr:hover { background:var(--bg); }
+.iv-table tbody td { padding:.7rem 1rem; font-size:.83rem; vertical-align:middle; }
+
+.iv-antiguedad  { display:inline-block; padding:.2rem .55rem; border-radius:4px; font-size:.7rem; font-weight:600; }
+.iv-ant-fresh   { background:#E3F2FD; color:#1565C0; }
+.iv-ant-medium  { background:#FFF9C4; color:#795548; }
+.iv-ant-old     { background:var(--red-bg); color:var(--red); }
+
+.iv-empty  { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.75rem; padding:4rem; color:var(--muted); }
+.iv-loading{ display:flex; align-items:center; gap:.75rem; padding:3rem; color:var(--muted); justify-content:center; }
+.iv-sort-arrow    { font-size:.55rem; margin-left:.2rem; opacity:.5; }
+.iv-sort-arrow.on { opacity:1; color:var(--orange); }
+
+/* Responsive */
+@media(max-width:768px) {
+  .iv-chart-row { grid-template-columns:1fr; }
+  .iv-chart-section + .iv-chart-section { border-left:none; border-top:1px solid var(--border); }
+}
+</style>
+
+<div class="iv-wrap">
+
+  <!-- CONTROLS -->
+  <div class="iv-controls">
+    <span class="iv-ctrl-label">Antigüedad</span>
+    <button class="iv-filter-btn active" data-ivant="all"    onclick="ivSetAnt(this,'all')">Todos</button>
+    <button class="iv-filter-btn"        data-ivant="fresh"  onclick="ivSetAnt(this,'fresh')">≤30 días</button>
+    <button class="iv-filter-btn"        data-ivant="medium" onclick="ivSetAnt(this,'medium')">31–90 días</button>
+    <button class="iv-filter-btn"        data-ivant="old"    onclick="ivSetAnt(this,'old')">&gt;90 días</button>
+    <span class="iv-ctrl-label" style="margin-left:.5rem">Ordenar</span>
+    <button class="iv-filter-btn active" data-ivsort="costo"       onclick="ivSetSort(this,'costo')">Costo</button>
+    <button class="iv-filter-btn"        data-ivsort="dias"        onclick="ivSetSort(this,'dias')">Antigüedad</button>
+    <button class="iv-filter-btn"        data-ivsort="descripcion" onclick="ivSetSort(this,'descripcion')">Producto</button>
+    <div class="iv-search-wrap">
+      <span class="iv-search-icon">🔍</span>
+      <input type="text" class="iv-search" id="ivSearch"
+        placeholder="Buscar producto, código..." oninput="ivApplyFilters()">
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="iv-kpi-row" id="ivKpiRow">
+    <div class="iv-kpi"><div class="iv-kpi-label">Cargando...</div></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="iv-chart-row">
+    <div class="iv-chart-section">
+      <div class="iv-chart-title">Valor por producto (top 8)</div>
+      <div class="iv-chart-wrap"><canvas id="ivBarChart"></canvas></div>
+    </div>
+    <div class="iv-chart-section">
+      <div class="iv-chart-title">Distribución por antigüedad</div>
+      <div class="iv-chart-wrap"><canvas id="ivDonaChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="iv-table-wrap">
+    <table class="iv-table">
+      <thead>
+        <tr>
+          <th onclick="ivToggleSort('descripcion')">Producto <span class="iv-sort-arrow" id="ivarr-descripcion"></span></th>
+          <th onclick="ivToggleSort('codigo')">Código <span class="iv-sort-arrow" id="ivarr-codigo"></span></th>
+          <th onclick="ivToggleSort('cantidad')">Cant. <span class="iv-sort-arrow" id="ivarr-cantidad"></span></th>
+          <th onclick="ivToggleSort('costo')">Costo total <span class="iv-sort-arrow" id="ivarr-costo"></span></th>
+          <th onclick="ivToggleSort('costo_unit')">Costo unit. <span class="iv-sort-arrow" id="ivarr-costo_unit"></span></th>
+          <th onclick="ivToggleSort('fecha_compra')">Fecha compra <span class="iv-sort-arrow" id="ivarr-fecha_compra"></span></th>
+          <th onclick="ivToggleSort('dias')">Antigüedad <span class="iv-sort-arrow" id="ivarr-dias"></span></th>
+          <th>Factura Carbone</th>
+        </tr>
+      </thead>
+      <tbody id="ivTableBody">
+        <tr><td colspan="8"><div class="iv-loading"><div class="spinner"></div><span>Cargando inventario...</span></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /iv-wrap -->
+
+<script>
+(function() {
+
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwsQ2Aob4xsRtHi8r-OoAuGhGH3LKdSPerT1o9SlotkO_0tWGUdHYasgCqjOMJsTYZu/exec';
+
+let iv_raw      = [];
+let iv_filtered = [];
+let iv_sortCol  = 'costo';
+let iv_sortAsc  = false;
+let iv_ant      = 'all';
+let iv_bar      = null;
+let iv_dona     = null;
+
+// ── LOAD ────────────────────────────────────────────
+function ivGasJsonp(action) {
+  return new Promise(function(resolve, reject) {
+    var cb = 'ivCb_' + Date.now();
+    var script = document.createElement('script');
+    var done = false;
+    var t = setTimeout(function() {
+      if (!done) { done=true; cleanup(); reject(new Error('Timeout cargando datos')); }
+    }, 30000);
+    window[cb] = function(d) { if (!done) { done=true; clearTimeout(t); cleanup(); resolve(d); } };
+    script.onerror = function() { if (!done) { done=true; clearTimeout(t); cleanup(); reject(new Error('Error de red')); } };
+    script.src = GAS_URL + '?action=' + action + '&callback=' + cb;
+    function cleanup() { delete window[cb]; if (script.parentNode) script.parentNode.removeChild(script); }
+    document.head.appendChild(script);
+  });
+}
+
+async function ivLoadData() {
+  try {
+    var items;
+    // Reutilizar datos del admin si ya están en memoria
+    if (typeof opItems !== 'undefined' && opItems.length) {
+      items = opItems;
+    } else {
+      var data = await ivGasJsonp('getComprasVentas');
+      if (!data.success) throw new Error(data.error || 'Error GAS');
+      items = data.items || [];
+    }
+
+    var hoy = new Date();
+    iv_raw = items
+      .filter(function(i) { return i.estado === 'inventario'; })
+      .map(function(i) {
+        var cant      = parseInt(i.cantidad || 1) || 1;
+        var costo     = parseFloat(i.total_carbone || 0);
+        var costUnit  = cant > 0 ? costo / cant : costo;
+        var fechaStr  = i.fecha_compra ? String(i.fecha_compra).substring(0,10) : '';
+        var dias      = 0;
+        if (fechaStr) {
+          var diff = hoy - new Date(fechaStr + 'T12:00:00');
+          dias = Math.max(0, Math.floor(diff / (1000*60*60*24)));
+        }
+        return {
+          id:           i.id_item         || '',
+          descripcion:  i.descripcion_prod|| '—',
+          codigo:       i.codigo_prod     || '—',
+          cantidad:     cant,
+          costo:        costo,
+          costo_unit:   parseFloat(costUnit.toFixed(2)),
+          fecha_compra: fechaStr,
+          dias:         dias,
+          num_fac:      i.num_fac_carbone || '—',
+          drive_url:    i.drive_url_carb  || '',
+        };
+      });
+
+    ivApplyFilters();
+  } catch(err) {
+    var tbody = document.getElementById('ivTableBody');
+    if (tbody) tbody.innerHTML =
+      '<tr><td colspan="8"><div class="iv-empty">' +
+      '<span style="font-size:2rem">⚠️</span>' +
+      '<span>' + ivEsc(err.message) + '</span>' +
+      '<button onclick="ivLoadData()" style="margin-top:.5rem;padding:.45rem 1.1rem;background:var(--orange);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.83rem">Reintentar</button>' +
+      '</div></td></tr>';
+  }
+}
+
+// ── FILTERS + SORT ──────────────────────────────────
+function ivApplyFilters() {
+  var q = (document.getElementById('ivSearch') ? document.getElementById('ivSearch').value : '').toLowerCase().trim();
+
+  iv_filtered = iv_raw.filter(function(i) {
+    if (iv_ant === 'fresh'  && i.dias > 30)  return false;
+    if (iv_ant === 'medium' && (i.dias <= 30 || i.dias > 90)) return false;
+    if (iv_ant === 'old'    && i.dias <= 90) return false;
+    if (q && !(i.descripcion.toLowerCase().includes(q) || i.codigo.toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  iv_filtered.sort(function(a, b) {
+    var va = a[iv_sortCol] != null ? a[iv_sortCol] : '';
+    var vb = b[iv_sortCol] != null ? b[iv_sortCol] : '';
+    if (typeof va === 'string') return iv_sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    return iv_sortAsc ? va - vb : vb - va;
+  });
+
+  ivRenderKPIs();
+  ivRenderTable();
+  requestAnimationFrame(function() { ivRenderCharts(); });
+}
+window.ivApplyFilters = ivApplyFilters;
+
+function ivSetAnt(btn, val) {
+  iv_ant = val;
+  document.querySelectorAll('[data-ivant]').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  ivApplyFilters();
+}
+window.ivSetAnt = ivSetAnt;
+
+function ivSetSort(btn, col) {
+  iv_sortCol = col;
+  iv_sortAsc = false;
+  document.querySelectorAll('[data-ivsort]').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  ivApplyFilters();
+}
+window.ivSetSort = ivSetSort;
+
+function ivToggleSort(col) {
+  if (iv_sortCol === col) iv_sortAsc = !iv_sortAsc;
+  else { iv_sortCol = col; iv_sortAsc = false; }
+  document.querySelectorAll('[id^="ivarr-"]').forEach(function(el) { el.textContent=''; el.className='iv-sort-arrow'; });
+  var el = document.getElementById('ivarr-' + col);
+  if (el) { el.textContent = iv_sortAsc ? '▲' : '▼'; el.className = 'iv-sort-arrow on'; }
+  document.querySelectorAll('[data-ivsort]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.ivsort === col);
+  });
+  ivApplyFilters();
+}
+window.ivToggleSort = ivToggleSort;
+
+// ── KPIs ────────────────────────────────────────────
+function ivRenderKPIs() {
+  var el = document.getElementById('ivKpiRow');
+  if (!el) return;
+
+  var totalItems  = iv_filtered.length;
+  var totalUds    = iv_filtered.reduce(function(s,i) { return s+i.cantidad; }, 0);
+  var totalCosto  = iv_filtered.reduce(function(s,i) { return s+i.costo; }, 0);
+  var diasProm    = totalItems > 0
+    ? Math.round(iv_filtered.reduce(function(s,i) { return s+i.dias; }, 0) / totalItems)
+    : 0;
+  var viejos      = iv_filtered.filter(function(i) { return i.dias > 90; }).length;
+
+  el.innerHTML =
+    '<div class="iv-kpi">' +
+      '<div class="iv-kpi-label">Ítems en inventario</div>' +
+      '<div class="iv-kpi-value blue">' + totalItems + '</div>' +
+      '<div class="iv-kpi-sub">' + totalUds + ' unidades totales</div>' +
+    '</div>' +
+    '<div class="iv-kpi">' +
+      '<div class="iv-kpi-label">Valor total inventario</div>' +
+      '<div class="iv-kpi-value orange">' + ivFmt(totalCosto) + '</div>' +
+      '<div class="iv-kpi-sub">Costo de adquisición (Carbone)</div>' +
+    '</div>' +
+    '<div class="iv-kpi">' +
+      '<div class="iv-kpi-label">Antigüedad promedio</div>' +
+      '<div class="iv-kpi-value ' + (diasProm > 60 ? 'red' : 'green') + '">' + diasProm + ' días</div>' +
+      '<div class="iv-kpi-sub">Desde fecha de compra</div>' +
+    '</div>' +
+    '<div class="iv-kpi">' +
+      '<div class="iv-kpi-label">Con +90 días sin vender</div>' +
+      '<div class="iv-kpi-value ' + (viejos > 0 ? 'red' : 'green') + '">' + viejos + '</div>' +
+      '<div class="iv-kpi-sub">' + (viejos > 0 ? 'Requieren atención' : 'Todo reciente ✓') + '</div>' +
+    '</div>';
+}
+
+// ── CHARTS ──────────────────────────────────────────
+function ivRenderCharts() {
+  if (typeof Chart === 'undefined') return;
+
+  // Bar chart — top 8 por costo
+  var barCanvas = document.getElementById('ivBarChart');
+  if (barCanvas) {
+    var top8    = iv_filtered.slice().sort(function(a,b) { return b.costo-a.costo; }).slice(0,8);
+    var labels  = top8.map(function(i) { return i.descripcion.length > 20 ? i.descripcion.substring(0,20)+'…' : i.descripcion; });
+    var values  = top8.map(function(i) { return parseFloat(i.costo.toFixed(2)); });
+    if (iv_bar) { iv_bar.destroy(); iv_bar = null; }
+    iv_bar = new Chart(barCanvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ label:'Costo $', data:values, backgroundColor:'rgba(21,101,192,.7)', borderColor:'#1565C0', borderWidth:1, borderRadius:4 }] },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: function(c) { return ' ' + ivFmt(c.raw); } } } },
+        scales: {
+          x:{ grid:{display:false}, ticks:{font:{size:10},color:'#6C6C70'} },
+          y:{ grid:{color:'rgba(0,0,0,0.05)'}, ticks:{callback:function(v){return '$'+v;}, font:{size:10}, color:'#6C6C70'} }
+        }
+      }
+    });
+  }
+
+  // Dona chart — distribución por antigüedad
+  var donaCanvas = document.getElementById('ivDonaChart');
+  if (donaCanvas) {
+    var fresh  = iv_raw.filter(function(i){return i.dias<=30;}).reduce(function(s,i){return s+i.costo;},0);
+    var medium = iv_raw.filter(function(i){return i.dias>30&&i.dias<=90;}).reduce(function(s,i){return s+i.costo;},0);
+    var old    = iv_raw.filter(function(i){return i.dias>90;}).reduce(function(s,i){return s+i.costo;},0);
+    if (iv_dona) { iv_dona.destroy(); iv_dona = null; }
+    iv_dona = new Chart(donaCanvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['≤30 días','31–90 días','>90 días'],
+        datasets:[{ data:[parseFloat(fresh.toFixed(2)),parseFloat(medium.toFixed(2)),parseFloat(old.toFixed(2))],
+          backgroundColor:['rgba(21,101,192,.75)','rgba(249,168,37,.75)','rgba(198,40,40,.75)'],
+          borderColor:['#1565C0','#F9A825','#C62828'], borderWidth:2, hoverOffset:4 }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'65%',
+        plugins: {
+          legend:{ position:'bottom', labels:{ font:{size:11}, color:'#6C6C70', boxWidth:10, padding:12 } },
+          tooltip:{ callbacks:{ label: function(c) { return ' ' + ivFmt(c.raw); } } }
+        }
+      }
+    });
+  }
+}
+
+// ── TABLE ───────────────────────────────────────────
+function ivRenderTable() {
+  var tbody = document.getElementById('ivTableBody');
+  if (!tbody) return;
+  if (!iv_filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="iv-empty"><span style="font-size:2rem">📭</span><span>No hay ítems en inventario</span></div></td></tr>';
+    return;
+  }
+  var rows = '';
+  for (var i = 0; i < iv_filtered.length; i++) {
+    var item = iv_filtered[i];
+    var antClass = item.dias <= 30 ? 'iv-ant-fresh' : item.dias <= 90 ? 'iv-ant-medium' : 'iv-ant-old';
+    var antLabel = item.dias <= 30 ? item.dias + ' días' : item.dias <= 90 ? item.dias + ' días' : item.dias + ' días';
+    var facLink = item.drive_url
+      ? '<a href="' + ivEsc(item.drive_url) + '" target="_blank" style="font-size:.75rem;color:var(--orange);font-family:\'DM Mono\',monospace">' + ivEsc(item.num_fac) + ' →</a>'
+      : '<span style="font-family:\'DM Mono\',monospace;font-size:.75rem;color:var(--muted)">' + ivEsc(item.num_fac) + '</span>';
+    var descShort = item.descripcion.length > 40 ? item.descripcion.substring(0,40)+'…' : item.descripcion;
+    rows +=
+      '<tr>' +
+      '<td><div style="font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + ivEsc(item.descripcion) + '">' + ivEsc(descShort) + '</div></td>' +
+      '<td><span style="font-family:\'DM Mono\',monospace;font-size:.72rem;color:var(--muted)">' + ivEsc(item.codigo) + '</span></td>' +
+      '<td style="text-align:center;font-weight:600;color:#1565C0">' + item.cantidad + '</td>' +
+      '<td style="font-family:\'Bebas Neue\',sans-serif;font-size:1.1rem;color:var(--orange)">' + ivFmt(item.costo) + '</td>' +
+      '<td style="font-family:\'DM Mono\',monospace;font-size:.78rem;color:var(--muted)">' + ivFmt(item.costo_unit) + '</td>' +
+      '<td style="font-size:.8rem;color:var(--muted);white-space:nowrap">' + (item.fecha_compra || '—') + '</td>' +
+      '<td><span class="iv-antiguedad ' + antClass + '">' + antLabel + '</span></td>' +
+      '<td>' + facLink + '</td>' +
+      '</tr>';
+  }
+  tbody.innerHTML = rows;
+}
+
+// ── UTILS ───────────────────────────────────────────
+function ivFmt(n) {
+  var v = parseFloat(n) || 0;
+  return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-PA', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function ivEsc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ────────────────────────────────────────────
+ivLoadData();
+
+})();
+</script>
