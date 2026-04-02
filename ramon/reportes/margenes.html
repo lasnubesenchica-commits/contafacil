@@ -1,0 +1,394 @@
+<!-- ═══════════════════════════════════════════════
+     MÓDULO: Márgenes por Producto
+     Cargado dinámicamente por admin_v10.html
+════════════════════════════════════════════════ -->
+<style>
+.mg-wrap        { font-family:'DM Sans',sans-serif; background:var(--bg); min-height:calc(100vh - 60px); }
+.mg-controls    {
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  padding:1rem 2rem; border-bottom:1px solid var(--border);
+  background:var(--white); position:sticky; top:60px; z-index:50;
+}
+.mg-ctrl-label  { font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.mg-ctrl-select {
+  font-family:'DM Mono',monospace; font-size:.78rem; font-weight:600;
+  background:var(--bg); border:1px solid var(--border); border-radius:var(--r);
+  padding:.35rem .65rem; color:var(--text); outline:none; cursor:pointer;
+}
+.mg-filter-btn {
+  font-size:.78rem; font-weight:500; padding:.35rem .9rem;
+  border-radius:100px; border:1px solid var(--border);
+  background:var(--bg); color:var(--muted); cursor:pointer; transition:all .2s;
+}
+.mg-filter-btn.active { background:var(--orange); border-color:var(--orange); color:#fff; font-weight:600; }
+.mg-search-wrap { position:relative; margin-left:auto; }
+.mg-search-icon { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); font-size:.78rem; pointer-events:none; }
+.mg-search {
+  background:var(--bg); border:1px solid var(--border); border-radius:100px;
+  padding:.4rem .9rem .4rem 2.2rem; font-family:'DM Sans',sans-serif;
+  font-size:.82rem; outline:none; width:220px; transition:border-color .2s;
+}
+.mg-search:focus { border-color:var(--orange); }
+.mg-kpi-row {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:1rem; padding:1.25rem 2rem;
+  background:var(--white); border-bottom:1px solid var(--border);
+}
+.mg-kpi         { background:var(--bg); border:1px solid var(--border); border-radius:var(--r2); padding:1rem 1.25rem; }
+.mg-kpi-label   { font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:.4rem; }
+.mg-kpi-value   { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; line-height:1; }
+.mg-kpi-value.orange { color:var(--orange); }
+.mg-kpi-value.green  { color:var(--green); }
+.mg-kpi-value.red    { color:var(--red); }
+.mg-kpi-sub     { font-size:.75rem; color:var(--muted); margin-top:.25rem; }
+.mg-chart-section { padding:1.5rem 2rem; background:var(--white); border-bottom:1px solid var(--border); }
+.mg-chart-title { font-family:'DM Mono',monospace; font-size:.65rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; font-weight:600; }
+.mg-chart-wrap  { position:relative; height:220px; }
+.mg-table-wrap  { padding:1.5rem 2rem; overflow-x:auto; }
+.mg-table       { width:100%; border-collapse:collapse; min-width:700px; }
+.mg-table thead th {
+  font-family:'DM Mono',monospace; font-size:.65rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); font-weight:600;
+  padding:.6rem 1rem; border-bottom:2px solid var(--border);
+  text-align:left; cursor:pointer; user-select:none; white-space:nowrap;
+}
+.mg-table thead th:hover { color:var(--text); }
+.mg-table tbody tr { border-bottom:1px solid var(--border); transition:background .15s; }
+.mg-table tbody tr:hover { background:var(--bg); }
+.mg-table tbody td { padding:.7rem 1rem; font-size:.83rem; vertical-align:middle; }
+.mg-bar-wrap  { display:flex; align-items:center; gap:.5rem; min-width:130px; }
+.mg-bar-track { flex:1; height:5px; background:var(--bg2); border-radius:3px; }
+.mg-bar-fill  { height:100%; border-radius:3px; transition:width .4s; }
+.mg-badge     { display:inline-block; padding:.2rem .55rem; border-radius:4px; font-size:.7rem; font-weight:600; }
+.mg-badge.green  { background:var(--green-bg); color:var(--green); }
+.mg-badge.orange { background:#FFF3E0; color:#E65100; }
+.mg-badge.red    { background:var(--red-bg); color:var(--red); }
+.mg-empty   { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.75rem; padding:4rem; color:var(--muted); }
+.mg-loading { display:flex; align-items:center; gap:.75rem; padding:3rem; color:var(--muted); justify-content:center; }
+.mg-sort-arrow    { font-size:.55rem; margin-left:.2rem; opacity:.5; }
+.mg-sort-arrow.on { opacity:1; color:var(--orange); }
+</style>
+
+<div class="mg-wrap">
+
+  <div class="mg-controls">
+    <span class="mg-ctrl-label">Año</span>
+    <select class="mg-ctrl-select" id="mgSelAnio" onchange="mgApplyFilters()"></select>
+    <span class="mg-ctrl-label" style="margin-left:.5rem">Ordenar por</span>
+    <button class="mg-filter-btn active" data-mgsort="margen_pct" onclick="mgSetSort(this,'margen_pct')">% Margen</button>
+    <button class="mg-filter-btn"        data-mgsort="margen_abs" onclick="mgSetSort(this,'margen_abs')">$ Margen</button>
+    <button class="mg-filter-btn"        data-mgsort="venta"      onclick="mgSetSort(this,'venta')">Venta</button>
+    <button class="mg-filter-btn"        data-mgsort="costo"      onclick="mgSetSort(this,'costo')">Costo</button>
+    <button class="mg-filter-btn"        data-mgsort="unidades"   onclick="mgSetSort(this,'unidades')">Unidades</button>
+    <div class="mg-search-wrap">
+      <span class="mg-search-icon">🔍</span>
+      <input type="text" class="mg-search" id="mgSearch"
+        placeholder="Buscar producto, código..." oninput="mgApplyFilters()">
+    </div>
+  </div>
+
+  <div class="mg-kpi-row" id="mgKpiRow">
+    <div class="mg-kpi"><div class="mg-kpi-label">Cargando...</div></div>
+  </div>
+
+  <div class="mg-chart-section">
+    <div class="mg-chart-title">Top 10 productos — Margen bruto ($)</div>
+    <div class="mg-chart-wrap"><canvas id="mgBarChart"></canvas></div>
+  </div>
+
+  <div class="mg-table-wrap">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th onclick="mgToggleSort('producto')">Producto <span class="mg-sort-arrow" id="mgarr-producto"></span></th>
+          <th onclick="mgToggleSort('codigo')">Código <span class="mg-sort-arrow" id="mgarr-codigo"></span></th>
+          <th onclick="mgToggleSort('unidades')">Uds. <span class="mg-sort-arrow" id="mgarr-unidades"></span></th>
+          <th onclick="mgToggleSort('costo')">Costo total <span class="mg-sort-arrow" id="mgarr-costo"></span></th>
+          <th onclick="mgToggleSort('venta')">Venta total <span class="mg-sort-arrow" id="mgarr-venta"></span></th>
+          <th onclick="mgToggleSort('margen_abs')">Margen $ <span class="mg-sort-arrow" id="mgarr-margen_abs"></span></th>
+          <th onclick="mgToggleSort('margen_pct')" style="min-width:160px">Margen % <span class="mg-sort-arrow" id="mgarr-margen_pct"></span></th>
+          <th>Rango</th>
+        </tr>
+      </thead>
+      <tbody id="mgTableBody">
+        <tr><td colspan="8"><div class="mg-loading"><div class="spinner"></div><span>Cargando datos...</span></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+(function() {
+
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwsQ2Aob4xsRtHi8r-OoAuGhGH3LKdSPerT1o9SlotkO_0tWGUdHYasgCqjOMJsTYZu/exec';
+
+let mg_raw      = [];
+let mg_filtered = [];
+let mg_sortCol  = 'margen_pct';
+let mg_sortAsc  = false;
+let mg_chart    = null;
+
+// ── LOAD ────────────────────────────────────────────
+function mgGasJsonp(action) {
+  return new Promise((resolve, reject) => {
+    const cb = 'mgCb_' + Date.now();
+    const script = document.createElement('script');
+    let done = false;
+    const t = setTimeout(() => {
+      if (!done) { done=true; cleanup(); reject(new Error('Timeout cargando datos')); }
+    }, 30000);
+    window[cb] = d => { if (!done) { done=true; clearTimeout(t); cleanup(); resolve(d); } };
+    script.onerror = () => { if (!done) { done=true; clearTimeout(t); cleanup(); reject(new Error('Error de red')); } };
+    script.src = GAS_URL + '?action=' + action + '&callback=' + cb;
+    function cleanup() { delete window[cb]; if (script.parentNode) script.parentNode.removeChild(script); }
+    document.head.appendChild(script);
+  });
+}
+
+async function mgLoadData() {
+  try {
+    let items;
+    // Reutilizar datos del admin si ya están en memoria (evita llamada extra al GAS)
+    if (typeof opItems !== 'undefined' && opItems.length) {
+      items = opItems;
+    } else {
+      const data = await mgGasJsonp('getComprasVentas');
+      if (!data.success) throw new Error(data.error || 'Error GAS');
+      items = data.items || [];
+    }
+    mg_raw = items.filter(i =>
+      i.estado === 'cerrado' &&
+      parseFloat(i.total_venta   || 0) > 0 &&
+      parseFloat(i.total_carbone || 0) > 0
+    );
+    mgPopulateYears();
+    mgApplyFilters();
+  } catch(err) {
+    const tbody = document.getElementById('mgTableBody');
+    if (tbody) tbody.innerHTML =
+      '<tr><td colspan="8"><div class="mg-empty">' +
+      '<span style="font-size:2rem">⚠️</span>' +
+      '<span>' + mgEsc(err.message) + '</span>' +
+      '<button onclick="mgLoadData()" style="margin-top:.5rem;padding:.45rem 1.1rem;background:var(--orange);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.83rem">Reintentar</button>' +
+      '</div></td></tr>';
+  }
+}
+
+// ── AGGREGATE by producto key ────────────────────────
+function mgAggregate(items) {
+  const map = {};
+  items.forEach(item => {
+    const key = (item.codigo_prod || '').trim() ||
+                (item.descripcion_prod || '').trim().toUpperCase();
+    if (!key) return;
+    if (!map[key]) map[key] = {
+      key,
+      producto:  item.descripcion_prod || '—',
+      codigo:    item.codigo_prod      || '—',
+      unidades: 0, costo: 0, venta: 0, margen_abs: 0, margen_pct: 0,
+    };
+    map[key].unidades   += parseInt(item.cantidad || 1) || 1;
+    map[key].costo      += parseFloat(item.total_carbone || 0);
+    map[key].venta      += parseFloat(item.total_venta   || 0);
+    map[key].margen_abs  = map[key].venta - map[key].costo;
+    map[key].margen_pct  = map[key].venta > 0
+      ? (map[key].margen_abs / map[key].venta) * 100 : 0;
+  });
+  return Object.values(map);
+}
+
+// ── YEAR FILTER ─────────────────────────────────────
+function mgPopulateYears() {
+  const years = new Set();
+  mg_raw.forEach(i => {
+    const y = i.fecha_venta ? String(i.fecha_venta).substring(0,4) : null;
+    if (y && y.length === 4) years.add(y);
+  });
+  const sel = document.getElementById('mgSelAnio');
+  if (!sel) return;
+  const sorted = [...years].sort((a,b) => b.localeCompare(a));
+  sel.innerHTML = '<option value="todos">Todos los años</option>' +
+    sorted.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+  const cur = String(new Date().getFullYear());
+  if (years.has(cur)) sel.value = cur;
+}
+
+// ── APPLY FILTERS + SORT ────────────────────────────
+function mgApplyFilters() {
+  const anioEl = document.getElementById('mgSelAnio');
+  const searchEl = document.getElementById('mgSearch');
+  const anio = anioEl ? anioEl.value : 'todos';
+  const q    = searchEl ? searchEl.value.toLowerCase().trim() : '';
+
+  const subset = anio === 'todos'
+    ? mg_raw
+    : mg_raw.filter(i => {
+        const y = i.fecha_venta ? String(i.fecha_venta).substring(0,4) : null;
+        return y === anio;
+      });
+
+  let base = mgAggregate(subset);
+
+  if (q) base = base.filter(p =>
+    (p.producto||'').toLowerCase().includes(q) ||
+    (p.codigo||'').toLowerCase().includes(q)
+  );
+
+  base.sort((a, b) => {
+    const va = a[mg_sortCol] != null ? a[mg_sortCol] : 0;
+    const vb = b[mg_sortCol] != null ? b[mg_sortCol] : 0;
+    if (typeof va === 'string') return mg_sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    return mg_sortAsc ? va - vb : vb - va;
+  });
+
+  mg_filtered = base;
+  mgRenderKPIs();
+  mgRenderTable();
+  // Chart needs canvas to be in DOM — requestAnimationFrame guarantees it
+  requestAnimationFrame(function() { mgRenderChart(); });
+}
+window.mgApplyFilters = mgApplyFilters;
+
+function mgSetSort(btn, col) {
+  mg_sortCol = col;
+  mg_sortAsc = false;
+  document.querySelectorAll('[data-mgsort]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  mgApplyFilters();
+}
+window.mgSetSort = mgSetSort;
+
+function mgToggleSort(col) {
+  if (mg_sortCol === col) mg_sortAsc = !mg_sortAsc;
+  else { mg_sortCol = col; mg_sortAsc = false; }
+  document.querySelectorAll('[id^="mgarr-"]').forEach(el => { el.textContent=''; el.className='mg-sort-arrow'; });
+  const el = document.getElementById('mgarr-' + col);
+  if (el) { el.textContent = mg_sortAsc ? '▲' : '▼'; el.className = 'mg-sort-arrow on'; }
+  document.querySelectorAll('[data-mgsort]').forEach(b =>
+    b.classList.toggle('active', b.dataset.mgsort === col));
+  mgApplyFilters();
+}
+window.mgToggleSort = mgToggleSort;
+
+// ── KPIs ────────────────────────────────────────────
+function mgRenderKPIs() {
+  const el = document.getElementById('mgKpiRow');
+  if (!el) return;
+  const totalVenta = mg_filtered.reduce((s,p) => s + p.venta, 0);
+  const totalCosto = mg_filtered.reduce((s,p) => s + p.costo, 0);
+  const margen     = totalVenta - totalCosto;
+  const margenPct  = totalVenta > 0 ? (margen / totalVenta) * 100 : 0;
+  const totalUds   = mg_filtered.reduce((s,p) => s + p.unidades, 0);
+  const mejorPct   = mg_filtered.length ? Math.max(...mg_filtered.map(p => p.margen_pct)) : 0;
+  const mejorProd  = mg_filtered.find(p => p.margen_pct === mejorPct);
+
+  el.innerHTML =
+    '<div class="mg-kpi">' +
+      '<div class="mg-kpi-label">Productos únicos</div>' +
+      '<div class="mg-kpi-value orange">' + mg_filtered.length + '</div>' +
+      '<div class="mg-kpi-sub">' + totalUds + ' unidades vendidas</div>' +
+    '</div>' +
+    '<div class="mg-kpi">' +
+      '<div class="mg-kpi-label">Ventas totales</div>' +
+      '<div class="mg-kpi-value">' + mgFmt(totalVenta) + '</div>' +
+      '<div class="mg-kpi-sub">Costo: ' + mgFmt(totalCosto) + '</div>' +
+    '</div>' +
+    '<div class="mg-kpi">' +
+      '<div class="mg-kpi-label">Margen bruto</div>' +
+      '<div class="mg-kpi-value ' + (margen >= 0 ? 'green' : 'red') + '">' + mgFmt(margen) + '</div>' +
+      '<div class="mg-kpi-sub">' + margenPct.toFixed(1) + '% sobre ventas</div>' +
+    '</div>' +
+    '<div class="mg-kpi">' +
+      '<div class="mg-kpi-label">Mejor margen</div>' +
+      '<div class="mg-kpi-value green">' + mejorPct.toFixed(1) + '%</div>' +
+      '<div class="mg-kpi-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px" title="' + mgEsc(mejorProd ? mejorProd.producto : '—') + '">' +
+        mgEsc((mejorProd ? mejorProd.producto : '—').substring(0, 35)) +
+      '</div>' +
+    '</div>';
+}
+
+// ── CHART ───────────────────────────────────────────
+function mgRenderChart() {
+  if (typeof Chart === 'undefined') return;
+  const canvas = document.getElementById('mgBarChart');
+  if (!canvas) return;
+  const top10   = [...mg_filtered].sort((a,b) => b.margen_abs - a.margen_abs).slice(0, 10);
+  const labels  = top10.map(p => p.producto.length > 22 ? p.producto.substring(0,22)+'…' : p.producto);
+  const values  = top10.map(p => parseFloat(p.margen_abs.toFixed(2)));
+  const colors  = values.map(v => v >= 0 ? 'rgba(46,125,50,.75)'  : 'rgba(198,40,40,.75)');
+  const borders = values.map(v => v >= 0 ? '#2E7D32' : '#C62828');
+  if (mg_chart) { mg_chart.destroy(); mg_chart = null; }
+  mg_chart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label:'Margen $', data:values, backgroundColor:colors, borderColor:borders, borderWidth:1, borderRadius:4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ' ' + mgFmt(c.raw) + '  (' + (top10[c.dataIndex] ? top10[c.dataIndex].margen_pct.toFixed(1) : '0') + '%)' } }
+      },
+      scales: {
+        x: { grid:{display:false}, ticks:{font:{size:11},color:'#6C6C70'} },
+        y: { grid:{color:'rgba(0,0,0,0.05)'}, ticks:{callback:v=>'$'+v, font:{size:11}, color:'#6C6C70'} }
+      }
+    }
+  });
+}
+
+// ── TABLE ───────────────────────────────────────────
+function mgRenderTable() {
+  const tbody = document.getElementById('mgTableBody');
+  if (!tbody) return;
+  if (!mg_filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="mg-empty"><span style="font-size:2rem">📭</span><span>No hay datos para este filtro</span></div></td></tr>';
+    return;
+  }
+  const maxAbs = Math.max.apply(null, mg_filtered.map(p => Math.abs(p.margen_abs)).concat([1]));
+  var rows = '';
+  for (var i = 0; i < mg_filtered.length; i++) {
+    var p      = mg_filtered[i];
+    var barW   = Math.min(100, (Math.abs(p.margen_abs) / maxAbs) * 100);
+    var barC   = p.margen_abs >= 0 ? '#2E7D32' : '#C62828';
+    var pct    = p.margen_pct;
+    var pctBadge = pct >= 20
+      ? '<span class="mg-badge green">'  + pct.toFixed(1) + '%</span>'
+      : pct >= 10
+        ? '<span class="mg-badge orange">' + pct.toFixed(1) + '%</span>'
+        : '<span class="mg-badge red">'    + pct.toFixed(1) + '%</span>';
+    var rangoBadge = pct >= 20
+      ? '<span class="mg-badge green">Alto</span>'
+      : pct >= 10
+        ? '<span class="mg-badge orange">Medio</span>'
+        : '<span class="mg-badge red">Bajo</span>';
+    var margenColor = p.margen_abs >= 0 ? 'var(--green)' : 'var(--red)';
+    var prodShort   = p.producto.length > 40 ? p.producto.substring(0,40) + '…' : p.producto;
+    rows +=
+      '<tr>' +
+      '<td><div style="font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + mgEsc(p.producto) + '">' + mgEsc(prodShort) + '</div></td>' +
+      '<td><span style="font-family:\'DM Mono\',monospace;font-size:.72rem;color:var(--muted)">' + mgEsc(p.codigo) + '</span></td>' +
+      '<td style="text-align:center;font-weight:600">' + p.unidades + '</td>' +
+      '<td style="font-family:\'DM Mono\',monospace;font-size:.78rem;color:var(--muted)">' + mgFmt(p.costo) + '</td>' +
+      '<td style="font-family:\'Bebas Neue\',sans-serif;font-size:1.1rem;color:var(--orange)">' + mgFmt(p.venta) + '</td>' +
+      '<td style="font-family:\'Bebas Neue\',sans-serif;font-size:1.05rem;color:' + margenColor + '">' + mgFmt(p.margen_abs) + '</td>' +
+      '<td><div class="mg-bar-wrap">' + pctBadge + '<div class="mg-bar-track"><div class="mg-bar-fill" style="width:' + barW + '%;background:' + barC + '"></div></div></div></td>' +
+      '<td>' + rangoBadge + '</td>' +
+      '</tr>';
+  }
+  tbody.innerHTML = rows;
+}
+
+// ── UTILS ───────────────────────────────────────────
+function mgFmt(n) {
+  var v = parseFloat(n) || 0;
+  return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-PA', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function mgEsc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ────────────────────────────────────────────
+mgLoadData();
+
+})();
+</script>
