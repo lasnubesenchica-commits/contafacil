@@ -527,6 +527,56 @@ select.f-inp { appearance:none; }
 .tx-amt.ing { color:var(--green); }
 .tx-amt.egr { color:var(--red); }
 
+/* ═══════════════════════════════════════════════ LIGHTBOX DRIVE */
+#driveModal {
+  position:fixed; inset:0; z-index:500;
+  background:rgba(0,0,0,.88);
+  display:none; flex-direction:column;
+  -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px);
+}
+#driveModal.open { display:flex; }
+.drive-modal-top {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.75rem 1rem; flex-shrink:0;
+}
+.drive-modal-title {
+  font-size:.82rem; font-weight:600; color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60%;
+}
+.drive-modal-actions { display:flex; gap:.5rem; }
+.drive-modal-btn {
+  padding:.42rem .85rem; border-radius:var(--r);
+  font-size:.75rem; font-weight:600;
+  display:flex; align-items:center; gap:.3rem;
+}
+.drive-modal-btn.primary { background:var(--orange); color:#fff; }
+.drive-modal-btn.ghost   { background:rgba(255,255,255,.12); color:#fff; }
+.drive-modal-btn:active  { opacity:.8; }
+.drive-close {
+  width:32px; height:32px; border-radius:50%;
+  background:rgba(255,255,255,.12); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:.9rem; flex-shrink:0;
+}
+.drive-frame-wrap {
+  flex:1; overflow:hidden; position:relative;
+  display:flex; align-items:center; justify-content:center;
+}
+#driveFrame {
+  width:100%; height:100%; border:none;
+  background:#fff;
+}
+.drive-loading {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  color:rgba(255,255,255,.6); font-size:.82rem; gap:.75rem;
+}
+.drive-spinner {
+  width:32px; height:32px; border:3px solid rgba(255,255,255,.2);
+  border-top-color:#fff; border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+
 /* ═══════════════════════════════════════════════ REGISTROS */
 .reg-btn {
   width:100%; display:flex; align-items:center; gap:.88rem;
@@ -1183,7 +1233,7 @@ const ST = (() => {
     if (s.estado==='en_ejecucion') h += `<button class="act orange"  onclick="ST.openPago('${esc(s.id_st)}')">💰 Pago</button>`;
     if (s.estado==='en_ejecucion') h += `<button class="act ghost"   onclick="ST.openEgreso('${esc(s.id_st)}')">➕ Egreso</button>`;
     if (s.estado==='en_ejecucion') h += `<button class="act primary" onclick="ST.openEstado('${esc(s.id_st)}','cerrar')">🔒 Cerrar</button>`;
-    if (s.drive_url) h += `<button class="act ghost" onclick="window.open('${esc(s.drive_url)}','_blank')">📄 Factura</button>`;
+    if (s.drive_url) h += `<button class="act ghost" onclick="DRIVE.open('${esc(s.drive_url)}','Factura')">📄 Factura</button>`;
     h += '</div>';
     return h;
   }
@@ -1445,8 +1495,8 @@ const OP = (() => {
     if (it.estado === 'facturado' && it.ingreso_id) {
       h += `<button class="act ghost" style="cursor:default;opacity:.6">✅ Pago registrado</button>`;
     }
-    if (it.drive_url_carb) h += `<button class="act ghost" onclick="window.open('${esc(it.drive_url_carb)}','_blank')">📄 Fact. Carbone</button>`;
-    if (it.drive_url_emit) h += `<button class="act ghost" onclick="window.open('${esc(it.drive_url_emit)}','_blank')">📤 Fact. emitida</button>`;
+    if (it.drive_url_carb) h += `<button class="act ghost" onclick="DRIVE.open('${esc(it.drive_url_carb)}','Factura Carbone')">📄 Fact. Carbone</button>`;
+    if (it.drive_url_emit) h += `<button class="act ghost" onclick="DRIVE.open('${esc(it.drive_url_emit)}','Factura emitida')">📤 Fact. emitida</button>`;
     h += '</div>'; return h;
   }
 
@@ -1623,14 +1673,28 @@ const PL = (() => {
       }
       el.innerHTML = rows.map(row => {
         const desc     = row.nombre_cliente || row.descripcion || '—';
-        const baseMeta = row.num_factura || row.tipo_ingreso || '';
+        const nfac     = row.num_factura || '';
+        const baseMeta = nfac || row.tipo_ingreso || '';
         const mesMeta  = viewMode==='ytd' && row.mes ? (MESES[(parseInt(row.mes)||1)-1]||'') : '';
         const meta     = mesMeta ? (mesMeta+(baseMeta?' · '+baseMeta:'')) : baseMeta;
         const url      = row.drive_url || '';
         const monto    = parseFloat(row.subtotal) || parseFloat(row.total) || 0;
-        return `<div class="tx-item${url?' link':''}" ${url?`onclick="window.open('${esc(url)}','_blank')"`:''}>
+        // Badge COM si notas comienza con 'CV:', sino PROY
+        const notas    = row.notas || '';
+        const esCOM    = notas.startsWith('CV:');
+        const badge    = esCOM
+          ? `<span style="font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--blue-bg);color:var(--blue);margin-left:.3rem">COM</span>`
+          : `<span style="font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--indigo-bg);color:var(--indigo);margin-left:.3rem">PROY</span>`;
+        const facLabel = nfac ? `<span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(nfac)}</span>${badge}` : badge;
+        const onclk   = url ? `onclick="DRIVE.open('${esc(url)}','${esc(desc)} · ${esc(nfac)}')"` : '';
+        return `<div class="tx-item${url?' link':''}" ${onclk}>
           <div class="tx-dot ing"></div>
-          <div class="tx-body"><div class="tx-desc">${esc(desc)}</div><div class="tx-meta">${esc(meta)}</div></div>
+          <div class="tx-body">
+            <div class="tx-desc" style="display:flex;align-items:center;gap:.25rem;flex-wrap:wrap">
+              <span>${esc(desc)}</span>${facLabel}
+            </div>
+            <div class="tx-meta">${esc(meta)}</div>
+          </div>
           <div class="tx-amt ing">+${fmt(monto)}</div>
         </div>`;
       }).join('');
@@ -2207,6 +2271,32 @@ document.querySelectorAll('.overlay').forEach(el => {
               style="background:var(--green);margin:0">Guardar ingreso</button>
       <button class="sheet-footer-cancel" onclick="closeModal('mRegIngreso')">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX: Preview Google Drive -->
+<div id="driveModal">
+  <div class="drive-modal-top">
+    <div class="drive-modal-title" id="driveLbl">Documento</div>
+    <div class="drive-modal-actions">
+      <button class="drive-modal-btn primary" id="driveOpenBtn" onclick="DRIVE.openExternal()">
+        ↗ Drive
+      </button>
+      <button class="drive-modal-btn ghost" id="driveDownBtn" onclick="DRIVE.download()">
+        ↓ Descargar
+      </button>
+      <button class="drive-close" onclick="DRIVE.close()">✕</button>
+    </div>
+  </div>
+  <div class="drive-frame-wrap">
+    <div class="drive-loading" id="driveLoading">
+      <div class="drive-spinner"></div>
+      <div>Cargando documento…</div>
+    </div>
+    <iframe id="driveFrame" src="about:blank"
+            onload="DRIVE.onLoad()"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms">
+    </iframe>
   </div>
 </div>
 
