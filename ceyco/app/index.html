@@ -596,14 +596,14 @@ select.f-inp { appearance:none; }
         </div>
       </div>
       <div class="pl-widgets">
-        <div class="pl-widget"><div class="pl-w-lbl">Ingresos</div><div class="pl-w-val green"  id="pl-w-ing">—</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">Egresos</div><div class="pl-w-val red"    id="pl-w-egr">—</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">Margen neto</div><div class="pl-w-val indigo" id="pl-w-margen">—</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">ITBMS cobrado</div><div class="pl-w-val" id="pl-w-itbms">—</div></div>
+        <div class="pl-widget"><div class="pl-w-lbl">Ingresos neto</div><div class="pl-w-val green" id="pl-w-ing">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem">sin ITBMS</div></div>
+        <div class="pl-widget"><div class="pl-w-lbl">Costo mercancía</div><div class="pl-w-val red" id="pl-w-egr">—</div></div>
+        <div class="pl-widget"><div class="pl-w-lbl">Utilidad neta</div><div class="pl-w-val indigo" id="pl-w-margen">—</div></div>
+        <div class="pl-widget"><div class="pl-w-lbl">ITBMS neto DGI</div><div class="pl-w-val" id="pl-w-itbms">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-itbms-sub">cobrado — pagado</div></div>
       </div>
       <div class="pl-statement">
         <div class="pl-stmt-hdr">Estado de Resultados</div>
-        <div class="pl-stmt-row"><span class="pl-stmt-lbl">Ingresos por servicios</span><span class="pl-stmt-val green"  id="pl-s-ing">—</span></div>
+        <div class="pl-stmt-row"><span class="pl-stmt-lbl">Ingresos neto (sin ITBMS)</span><span class="pl-stmt-val green" id="pl-s-ing">—</span></div>
         <div class="pl-stmt-row"><span class="pl-stmt-lbl">Costo de servicios</span>   <span class="pl-stmt-val red"    id="pl-s-costo">—</span></div>
         <div class="pl-stmt-row subtotal"><span class="pl-stmt-lbl">Utilidad bruta</span><span class="pl-stmt-val"      id="pl-s-ubruta">—</span></div>
         <div class="pl-stmt-row"><span class="pl-stmt-lbl">Gastos operativos</span>    <span class="pl-stmt-val red"    id="pl-s-gastos">—</span></div>
@@ -825,6 +825,9 @@ function doLogin() {
     document.getElementById('loginErr').style.display = 'block';
   }
 }
+// LOGIN DESHABILITADO TEMPORALMENTE — restaurar: quitar las 3 líneas de abajo
+document.getElementById('loginScreen').style.display = 'none';
+document.getElementById('app').style.display = 'block';
 document.getElementById('loginPwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 // ── NAVEGACIÓN ────────────────────────────────
@@ -1396,27 +1399,43 @@ const PL = (() => {
       ? 'Año ' + año
       : MESES[mes-1] + ' ' + año;
 
-    const fi=fIng(), fe=fEgr();
-    const tIng = fi.reduce((a,i)=>a+(parseFloat(i.total)||0),0);
-    const tEgr = fe.reduce((a,e)=>a+(parseFloat(e.total)||0),0);
-    const tItb = fi.reduce((a,i)=>a+(parseFloat(i.itbms)||0),0);
-    const marg = tIng - tEgr;
+    const fi = fIng(), fe = fEgr();
 
-    document.getElementById('pl-w-ing').textContent    = fmt(tIng);
-    document.getElementById('pl-w-egr').textContent    = fmt(tEgr);
-    document.getElementById('pl-w-itbms').textContent  = fmt(tItb);
-    document.getElementById('pl-w-margen').textContent = fmt(marg);
-    document.getElementById('pl-w-margen').className   = 'pl-w-val '+(marg>=0?'indigo':'red');
+    // ── Ingresos: usar SUBTOTAL (sin ITBMS), igual que desktop ──────
+    const tIngNeto = fi.reduce((a,i)=>a+(parseFloat(i.subtotal)||0),0);
+    const tItbCob  = fi.reduce((a,i)=>a+(parseFloat(i.itbms)||0),0);
 
-    const TIPOS_COSTO = ['costo_servicio_tecnico','material','mano_obra','costo_mercancia','impuesto_importacion'];
-    const cst = fe.filter(e=>TIPOS_COSTO.includes(e.tipo_egreso)).reduce((a,e)=>a+(parseFloat(e.total)||0),0);
-    const gst = fe.filter(e=>!TIPOS_COSTO.includes(e.tipo_egreso)).reduce((a,e)=>a+(parseFloat(e.total)||0),0);
-    const ub  = tIng-cst, un = ub-gst;
+    // ── Egresos: excluir credito_fiscal del P&L (es partida DGI, no resultado) ──
+    const feRL = fe.filter(e=>e.tipo_egreso !== 'credito_fiscal');
+    // ITBMS pagado = columna 'itbms' de TODOS los egresos (costo_mercancia + credito_fiscal + otros)
+    const tItbPag   = fe.reduce((a,e)=>a+(parseFloat(e.itbms)||0),0);
+    const itbmsNeto = tItbCob - tItbPag;
 
-    document.getElementById('pl-s-ing').textContent    = fmt(tIng);
-    document.getElementById('pl-s-costo').textContent  = '('+fmt(cst)+')';
+    // ── COGS: costo_mercancia + costo_st + servicios_profesionales ──
+    const TIPOS_COGS = ['costo_servicio_tecnico','material','mano_obra','costo_mercancia',
+                        'impuesto_importacion','servicios_profesionales'];
+    const tCogs = feRL.filter(e=> TIPOS_COGS.includes(e.tipo_egreso))
+                      .reduce((a,e)=>a+(parseFloat(e.total)||0),0);
+    const tGast = feRL.filter(e=>!TIPOS_COGS.includes(e.tipo_egreso))
+                      .reduce((a,e)=>a+(parseFloat(e.total)||0),0);
+    const tEgrRL = tCogs + tGast;   // total egresos sin credito_fiscal
+
+    const ub = tIngNeto - tCogs;
+    const un = ub - tGast;
+
+    // ── Widgets ──────────────────────────────────────────────────────
+    document.getElementById('pl-w-ing').textContent      = fmt(tIngNeto);
+    document.getElementById('pl-w-egr').textContent      = fmt(tCogs);
+    document.getElementById('pl-w-itbms').textContent    = fmt(itbmsNeto);
+    document.getElementById('pl-w-itbms-sub').textContent= 'cobrado '+fmt(tItbCob)+' · pagado '+fmt(tItbPag);
+    document.getElementById('pl-w-margen').textContent   = fmt(un);
+    document.getElementById('pl-w-margen').className     = 'pl-w-val '+(un>=0?'indigo':'red');
+
+    // ── Estado de Resultados ─────────────────────────────────────────
+    document.getElementById('pl-s-ing').textContent    = fmt(tIngNeto);
+    document.getElementById('pl-s-costo').textContent  = '('+fmt(tCogs)+')';
     document.getElementById('pl-s-ubruta').textContent = fmt(ub);
-    document.getElementById('pl-s-gastos').textContent = '('+fmt(gst)+')';
+    document.getElementById('pl-s-gastos').textContent = tGast ? '('+fmt(tGast)+')' : '—';
     document.getElementById('pl-s-uneta').textContent  = fmt(un);
     document.getElementById('pl-s-ubruta').className   = 'pl-stmt-val '+(ub>=0?'green':'red');
     document.getElementById('pl-s-uneta').className    = 'pl-stmt-val indigo';
@@ -1427,7 +1446,8 @@ const PL = (() => {
   function renderTx() {
     const el   = document.getElementById('pl-tx-list');
     // En YTD ordenar por mes desc para contexto
-    let rows = txMode==='ing' ? fIng() : fEgr();
+    // Egresos en lista: excluir credito_fiscal (partida DGI, no resultado operativo)
+    let rows = txMode==='ing' ? fIng() : fEgr().filter(e=>e.tipo_egreso !== 'credito_fiscal');
     if (viewMode==='ytd') {
       rows = rows.slice().sort((a,b)=>{
         const ma = txMode==='ing' ? parseInt(a.mes)||0 : parseInt(a.mes)||0;
@@ -1444,15 +1464,18 @@ const PL = (() => {
 
     el.innerHTML = rows.map(row => {
       const desc = txMode==='ing' ? (row.nombre_cliente||row.descripcion||'—') : (row.proveedor||row.descripcion||'—');
-      // En YTD añadir mes como prefijo del meta para contexto
       const baseMeta = txMode==='ing' ? (row.num_factura||row.tipo_ingreso||'') : (row.categoria||row.tipo_egreso||'');
       const mesMeta  = viewMode==='ytd' && row.mes ? (MESES[(parseInt(row.mes)||1)-1] || '') : '';
       const meta     = mesMeta ? (mesMeta + (baseMeta ? ' · '+baseMeta : '')) : baseMeta;
       const url      = row.drive_url||'';
+      // Ingresos: mostrar subtotal (sin ITBMS) igual que desktop
+      const monto    = txMode==='ing'
+        ? (parseFloat(row.subtotal)||parseFloat(row.total)||0)
+        : (parseFloat(row.total)||0);
       return `<div class="tx-item${url?' link':''}" ${url?`onclick="window.open('${esc(url)}','_blank')"`:''}>
         <div class="tx-dot ${txMode}"></div>
         <div class="tx-body"><div class="tx-desc">${esc(desc)}</div><div class="tx-meta">${esc(meta)}</div></div>
-        <div class="tx-amt ${txMode}">${txMode==='ing'?'+':'-'}${fmt(parseFloat(row.total)||0)}</div>
+        <div class="tx-amt ${txMode}">${txMode==='ing'?'+':'-'}${fmt(monto)}</div>
       </div>`;
     }).join('');
   }
