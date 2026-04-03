@@ -219,6 +219,11 @@ function doPost(e) {
       return _handleRegistrarPagoOperacion(pagoParams, '');
     }
 
+    // ── PLANILLA ────────────────────────────────────────────────
+    if (action === 'guardarEmpleado')    return _handleGuardarEmpleado(data);
+    if (action === 'registrarPlanilla')  return _handleRegistrarPlanilla(data);
+    if (action === 'desactivarEmpleado') return _handleDesactivarEmpleado(data);
+
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';
     if (data.voucherBase64 && data.voucherName) {
@@ -378,6 +383,9 @@ function doGet(e) {
     if (action === 'ajustarInventario')   return _handleAjustarInventario(params, callback);
     // ── ELIMINAR ST ─────────────────────────────────────────────
     if (action === 'eliminarST') return _handleEliminarST(params, callback);
+    // ── PLANILLA ────────────────────────────────────────────────
+    if (action === 'getEmpleados')       return _handleGetEmpleados(params, callback);
+    if (action === 'getPlanillaPreview') return _handleGetPlanillaPreview(params, callback);
 
     // ── JSONP: uploadVoucher ─────────────────────────────────────
     if (action === 'uploadVoucher') {
