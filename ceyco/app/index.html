@@ -152,14 +152,15 @@ input,select,textarea { font-family:'DM Sans',sans-serif; }
 .nav-item.active { color:var(--orange); }
 .nav-icon { font-size:1.15rem; line-height:1; }
 .nav-pip {
-  position:absolute; bottom:calc(var(--safe-bot) + 3px);
+  position:absolute; top:3px;   /* indicador arriba del tab, no abajo */
   left:50%; transform:translateX(-50%);
-  width:14px; height:2px; border-radius:1px;
+  width:20px; height:2px; border-radius:1px;
   background:var(--orange); opacity:0; transition:opacity .15s;
 }
 .nav-item.active .nav-pip { opacity:1; }
 
-.app-content { padding-bottom:calc(80px + var(--safe-bot)); }
+.app-content { padding-bottom:calc(72px + var(--safe-bot)); }
+/* ↑ nav height ≈ 56px + 16px buffer. Safe-bot se suma aparte para iPhone home bar */
 
 /* ═══════════════════════════════════════════════ TOAST */
 #toast {
@@ -333,17 +334,16 @@ input,select,textarea { font-family:'DM Sans',sans-serif; }
 .overlay.open { display:flex; }
 .sheet {
   width:100%; background:var(--surface); border-radius:14px 14px 0 0;
-  max-height:90vh; overflow-y:auto;
-  padding-bottom:calc(1.2rem + var(--safe-bot));
+  max-height:90vh; overflow:hidden;
+  display:flex; flex-direction:column;
   animation:slideUp .22s cubic-bezier(.32,1.2,.7,1) both;
 }
 @keyframes slideUp { from { transform:translateY(100%); } }
-.sheet-handle { width:30px; height:3px; border-radius:2px; background:var(--bg3); margin:8px auto 2px; }
+.sheet-handle { width:30px; height:3px; border-radius:2px; background:var(--bg3); margin:8px auto 2px; flex-shrink:0; }
 .sheet-hdr {
   padding:.62rem 1rem .8rem; display:flex; align-items:center; justify-content:space-between;
   border-bottom:1px solid var(--border);
-  /* Sticky: siempre visible aunque el contenido sea largo */
-  position:sticky; top:0; z-index:10;
+  flex-shrink:0;  /* fijo — no participa en el scroll */
   background:var(--surface);
 }
 .sheet-title { font-size:.94rem; font-weight:600; }
@@ -351,14 +351,20 @@ input,select,textarea { font-family:'DM Sans',sans-serif; }
   width:26px; height:26px; border-radius:50%; background:var(--bg2); color:var(--muted);
   display:flex; align-items:center; justify-content:center; font-size:.78rem;
 }
-.sheet-body { padding:.88rem 1rem; }
+.sheet-body {
+  padding:.88rem 1rem;
+  overflow-y:auto; flex:1;          /* ocupa todo el espacio disponible y scrollea */
+  -webkit-overflow-scrolling:touch; /* scroll momentum en iOS */
+  padding-bottom:calc(.88rem + var(--safe-bot));
+}
 
 /* Footer con doble botón para modales de registro */
 .sheet-footer {
   display:grid; grid-template-columns:1fr auto; gap:.55rem;
   padding:.75rem 1rem calc(.75rem + var(--safe-bot));
   border-top:1px solid var(--border);
-  position:sticky; bottom:0; background:var(--surface); z-index:10;
+  flex-shrink:0;  /* fijo — no participa en el scroll */
+  background:var(--surface);
 }
 .sheet-footer-cancel {
   padding:.78rem 1.1rem; border-radius:var(--r);
