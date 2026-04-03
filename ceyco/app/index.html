@@ -825,11 +825,7 @@ function doLogin() {
     document.getElementById('loginErr').style.display = 'block';
   }
 }
-// LOGIN DESHABILITADO TEMPORALMENTE — restaurar: quitar las 4 líneas de abajo
-document.getElementById('loginScreen').style.display = 'none';
-document.getElementById('app').style.display = 'block';
-switchView('proyectos');
-loadAll();
+// LOGIN DESHABILITADO TEMPORALMENTE
 document.getElementById('loginPwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 // ── NAVEGACIÓN ────────────────────────────────
@@ -1502,7 +1498,14 @@ const PL = (() => {
 
 
 // ── INIT ──────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => switchView('proyectos'));
+document.addEventListener('DOMContentLoaded', () => {
+  // LOGIN DESHABILITADO TEMPORALMENTE — restaurar: quitar hasta el comentario "FIN LOGIN BYPASS"
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  // FIN LOGIN BYPASS
+  switchView('proyectos');
+  loadAll();
+});
 document.querySelectorAll('.overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
