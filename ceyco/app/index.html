@@ -549,22 +549,22 @@ select.f-inp { appearance:none; }
         <div class="kpi k-yellow">
           <div class="kpi-lbl">Pendientes</div>
           <div class="kpi-val" id="kpi-op-pend">—</div>
-          <div class="kpi-sub" id="kpi-op-pend-v"></div>
+          <div class="kpi-sub" id="kpi-op-pend-v">costo proveedor</div>
         </div>
         <div class="kpi k-blue">
+          <div class="kpi-lbl">Inventario</div>
+          <div class="kpi-val" id="kpi-op-inv">—</div>
+          <div class="kpi-sub" id="kpi-op-inv-v">valor en stock</div>
+        </div>
+        <div class="kpi k-purple">
           <div class="kpi-lbl">Facturados</div>
           <div class="kpi-val" id="kpi-op-fact">—</div>
-          <div class="kpi-sub" id="kpi-op-fact-v"></div>
+          <div class="kpi-sub" id="kpi-op-fact-v">por cobrar</div>
         </div>
         <div class="kpi k-green">
           <div class="kpi-lbl">Cerrados</div>
           <div class="kpi-val" id="kpi-op-cerr">—</div>
-          <div class="kpi-sub">este mes</div>
-        </div>
-        <div class="kpi k-indigo">
-          <div class="kpi-lbl">Inventario</div>
-          <div class="kpi-val" id="kpi-op-inv">—</div>
-          <div class="kpi-sub" id="kpi-op-inv-v"></div>
+          <div class="kpi-sub" id="kpi-op-cerr-v">neto s/ITBMS</div>
         </div>
       </div>
       <div class="toolbar">
@@ -1242,14 +1242,28 @@ const OP = (() => {
   const badge = e => { const [c,l] = BADGE[e]||['badge-pend',e]; return `<span class="badge ${c}">${l}</span>`; };
 
   function updateKPIs() {
-    const pend=items.filter(i=>i.estado==='pendiente'), inv=items.filter(i=>i.estado==='inventario');
-    const fact=items.filter(i=>i.estado==='facturado'), cerr=items.filter(i=>i.estado==='cerrado');
-    document.getElementById('kpi-op-pend').textContent = pend.length;
-    document.getElementById('kpi-op-inv').textContent  = inv.length;
-    document.getElementById('kpi-op-fact').textContent = fact.length;
-    document.getElementById('kpi-op-cerr').textContent = cerr.length;
-    const tf = fact.reduce((a,i)=>a+(parseFloat(i.total_carbone)||0),0);
-    document.getElementById('kpi-op-fact-v').textContent = tf ? fmt(tf) : '';
+    const pend = items.filter(i=>i.estado==='pendiente');
+    const inv  = items.filter(i=>i.estado==='inventario');
+    const fact = items.filter(i=>i.estado==='facturado');
+    const cerr = items.filter(i=>i.estado==='cerrado');
+
+    // Pendientes: costo proveedor en riesgo (total_carbone)
+    const pendCosto = pend.reduce((a,i)=>a+(parseFloat(i.total_carbone)||0),0);
+    // Inventario: valor en stock (total_carbone)
+    const invValor  = inv.reduce((a,i)=>a+(parseFloat(i.total_carbone)||0),0);
+    // Facturados: total venta pendiente de cobro (precio_venta neto s/ITBMS)
+    const factNeto  = fact.reduce((a,i)=>a+(parseFloat(i.precio_venta)||parseFloat(i.total_venta)||0),0);
+    // Cerrados: total venta neto s/ITBMS (precio_venta del item CV)
+    const cerrNeto  = cerr.reduce((a,i)=>a+(parseFloat(i.precio_venta)||parseFloat(i.total_venta)||0),0);
+
+    document.getElementById('kpi-op-pend').textContent   = pend.length;
+    document.getElementById('kpi-op-pend-v').textContent = pendCosto ? fmt(pendCosto) : 'sin ítems';
+    document.getElementById('kpi-op-inv').textContent    = inv.length;
+    document.getElementById('kpi-op-inv-v').textContent  = invValor  ? fmt(invValor)  : 'sin ítems';
+    document.getElementById('kpi-op-fact').textContent   = fact.length;
+    document.getElementById('kpi-op-fact-v').textContent = factNeto  ? fmt(factNeto)  : 'sin ítems';
+    document.getElementById('kpi-op-cerr').textContent   = cerr.length;
+    document.getElementById('kpi-op-cerr-v').textContent = cerrNeto  ? fmt(cerrNeto)  : 'sin ítems';
   }
 
   function setFilter(btn, f) {
