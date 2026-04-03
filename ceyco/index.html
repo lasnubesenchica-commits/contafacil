@@ -3,6 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+// ── Mobile redirect — must run before anything else ────────
+(function() {
+  var ua = navigator.userAgent || '';
+  var isMobile = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobile|mobile/i.test(ua);
+  // iPad en iOS 13+ reporta como Mac — detectar también por touch + pantalla pequeña
+  var isTouch  = navigator.maxTouchPoints > 1 && window.screen.width <= 1024;
+  if (isMobile || isTouch) {
+    window.location.replace('https://balanceclip.net/ceyco/app');
+  }
+})();
+</script>
+
 <title>Admin — CEYCO</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
