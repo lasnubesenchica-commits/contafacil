@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -561,10 +562,12 @@ select.f-inp { appearance:none; }
 .bottom-nav .nav-item { padding:.45rem .15rem .38rem; font-size:.55rem; }
 .bottom-nav .nav-icon  { font-size:1.05rem; }
 </style>
+
 </head>
 <body>
 
 <!-- LOGIN -->
+
 <div id="loginScreen">
   <div class="login-card">
     <div class="login-logo">CEY<span>CO</span></div>
@@ -577,6 +580,7 @@ select.f-inp { appearance:none; }
 </div>
 
 <!-- APP -->
+
 <div id="app">
 
   <header class="app-header">
@@ -592,152 +596,154 @@ select.f-inp { appearance:none; }
 
   <div class="app-content">
 
-    <!-- PROYECTOS -->
-    <div id="viewProyectos">
-      <div class="kpi-row">
-        <div class="kpi k-yellow">
-          <div class="kpi-lbl">Cotizados / Aprobados</div>
-          <div class="kpi-val" id="kpi-cot">—</div>
-          <div class="kpi-sub" id="kpi-cot-val">proyectos</div>
-        </div>
-        <div class="kpi k-purple">
-          <div class="kpi-lbl">En ejecución</div>
-          <div class="kpi-val" id="kpi-ejec">—</div>
-          <div class="kpi-sub" id="kpi-ejec-val">en curso</div>
-        </div>
-        <div class="kpi k-green">
-          <div class="kpi-lbl">Cerrados</div>
-          <div class="kpi-val" id="kpi-cerr">—</div>
-          <div class="kpi-sub" id="kpi-cerr-val">neto s/ITBMS</div>
-        </div>
-        <div class="kpi k-indigo">
-          <div class="kpi-lbl">Facturado año</div>
-          <div class="kpi-val" id="kpi-fact">—</div>
-          <div class="kpi-sub">neto s/ITBMS</div>
-        </div>
-      </div>
-      <div class="toolbar" id="st-toolbar">
-        <button class="ftab active" onclick="ST.setFilter(this,'todos')">Todos</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cotizacion')">Cotización</button>
-        <button class="ftab" onclick="ST.setFilter(this,'ejecucion')">Ejecución</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cerrado')">Cerrados</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cancelado')">Cancelados</button>
-      </div>
-      <div id="st-list"></div>
+```
+<!-- PROYECTOS -->
+<div id="viewProyectos">
+  <div class="kpi-row">
+    <div class="kpi k-yellow">
+      <div class="kpi-lbl">Cotizados / Aprobados</div>
+      <div class="kpi-val" id="kpi-cot">—</div>
+      <div class="kpi-sub" id="kpi-cot-val">proyectos</div>
     </div>
-
-    <!-- COMERCIALIZACIÓN -->
-    <div id="viewComercial">
-      <div class="kpi-row">
-        <div class="kpi k-yellow">
-          <div class="kpi-lbl">Pendientes</div>
-          <div class="kpi-val" id="kpi-op-pend">—</div>
-          <div class="kpi-sub" id="kpi-op-pend-v">costo proveedor</div>
-        </div>
-        <div class="kpi k-blue">
-          <div class="kpi-lbl">Inventario</div>
-          <div class="kpi-val" id="kpi-op-inv">—</div>
-          <div class="kpi-sub" id="kpi-op-inv-v">valor en stock</div>
-        </div>
-        <div class="kpi k-purple">
-          <div class="kpi-lbl">Facturados</div>
-          <div class="kpi-val" id="kpi-op-fact">—</div>
-          <div class="kpi-sub" id="kpi-op-fact-v">por cobrar</div>
-        </div>
-        <div class="kpi k-green">
-          <div class="kpi-lbl">Cerrados</div>
-          <div class="kpi-val" id="kpi-op-cerr">—</div>
-          <div class="kpi-sub" id="kpi-op-cerr-v">neto s/ITBMS</div>
-        </div>
-      </div>
-      <div class="toolbar">
-        <button class="ftab active" onclick="OP.setFilter(this,'todos')">Todos</button>
-        <button class="ftab" onclick="OP.setFilter(this,'pendiente')">Pendiente</button>
-        <button class="ftab" onclick="OP.setFilter(this,'inventario')">Inventario</button>
-        <button class="ftab" onclick="OP.setFilter(this,'facturado')">Facturado</button>
-        <button class="ftab" onclick="OP.setFilter(this,'cerrado')">Cerrado</button>
-      </div>
-      <div id="op-list"></div>
+    <div class="kpi k-purple">
+      <div class="kpi-lbl">En ejecución</div>
+      <div class="kpi-val" id="kpi-ejec">—</div>
+      <div class="kpi-sub" id="kpi-ejec-val">en curso</div>
     </div>
-
-    <!-- P&L -->
-    <div id="viewPL">
-      <div class="period-bar">
-        <div style="display:flex;align-items:center;gap:.5rem;min-width:0">
-          <div class="period-lbl" id="pl-period">—</div>
-          <span class="pl-ytd-badge" id="pl-ytd-badge">YTD</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:.45rem">
-          <div class="pl-mode-toggle">
-            <button class="pl-mode-btn active" id="pl-mode-mes" onclick="PL.setMode('mes')">Mes</button>
-            <button class="pl-mode-btn"        id="pl-mode-ytd" onclick="PL.setMode('ytd')">YTD</button>
-          </div>
-          <div class="period-nav" id="pl-period-nav">
-            <button class="period-btn" onclick="PL.prev()">‹</button>
-            <button class="period-btn" onclick="PL.next()">›</button>
-          </div>
-        </div>
-      </div>
-      <div class="pl-widgets">
-        <div class="pl-widget"><div class="pl-w-lbl">Ingresos neto</div><div class="pl-w-val green" id="pl-w-ing">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem">sin ITBMS</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">Costo mercancía</div><div class="pl-w-val red" id="pl-w-egr">—</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">Utilidad neta</div><div class="pl-w-val indigo" id="pl-w-margen">—</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">ITBMS neto DGI</div><div class="pl-w-val" id="pl-w-itbms">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-itbms-sub">cobrado — pagado</div></div>
-      </div>
-      <div class="pl-statement">
-        <div class="pl-stmt-hdr">Estado de Resultados</div>
-        <div class="pl-stmt-row"><span class="pl-stmt-lbl">Ingresos neto (sin ITBMS)</span><span class="pl-stmt-val green" id="pl-s-ing">—</span></div>
-        <div class="pl-stmt-row"><span class="pl-stmt-lbl">Costo de servicios</span>   <span class="pl-stmt-val red"    id="pl-s-costo">—</span></div>
-        <div class="pl-stmt-row subtotal"><span class="pl-stmt-lbl">Utilidad bruta</span><span class="pl-stmt-val"      id="pl-s-ubruta">—</span></div>
-        <div class="pl-stmt-row"><span class="pl-stmt-lbl">Gastos operativos</span>    <span class="pl-stmt-val red"    id="pl-s-gastos">—</span></div>
-        <div class="pl-stmt-row total-final"><span class="pl-stmt-lbl">Utilidad neta</span><span class="pl-stmt-val indigo" id="pl-s-uneta">—</span></div>
-      </div>
-      <div class="pl-toggle">
-        <button class="pl-tbtn active" id="pl-tab-ing" onclick="PL.showTable('ing')">Ingresos</button>
-        <button class="pl-tbtn"        id="pl-tab-egr" onclick="PL.showTable('egr')">Egresos</button>
-      </div>
-      <div class="tx-list" id="pl-tx-list"></div>
+    <div class="kpi k-green">
+      <div class="kpi-lbl">Cerrados</div>
+      <div class="kpi-val" id="kpi-cerr">—</div>
+      <div class="kpi-sub" id="kpi-cerr-val">neto s/ITBMS</div>
     </div>
+    <div class="kpi k-indigo">
+      <div class="kpi-lbl">Facturado año</div>
+      <div class="kpi-val" id="kpi-fact">—</div>
+      <div class="kpi-sub">neto s/ITBMS</div>
+    </div>
+  </div>
+  <div class="toolbar" id="st-toolbar">
+    <button class="ftab active" onclick="ST.setFilter(this,'todos')">Todos</button>
+    <button class="ftab" onclick="ST.setFilter(this,'cotizacion')">Cotización</button>
+    <button class="ftab" onclick="ST.setFilter(this,'ejecucion')">Ejecución</button>
+    <button class="ftab" onclick="ST.setFilter(this,'cerrado')">Cerrados</button>
+    <button class="ftab" onclick="ST.setFilter(this,'cancelado')">Cancelados</button>
+  </div>
+  <div id="st-list"></div>
+</div>
 
-    <!-- REGISTROS -->
-    <div id="viewRegistros" style="display:none">
-      <div style="padding:.85rem .85rem .38rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem">Ingresos y egresos misceláneos · desde cámara o galería</div>
+<!-- COMERCIALIZACIÓN -->
+<div id="viewComercial">
+  <div class="kpi-row">
+    <div class="kpi k-yellow">
+      <div class="kpi-lbl">Pendientes</div>
+      <div class="kpi-val" id="kpi-op-pend">—</div>
+      <div class="kpi-sub" id="kpi-op-pend-v">costo proveedor</div>
+    </div>
+    <div class="kpi k-blue">
+      <div class="kpi-lbl">Inventario</div>
+      <div class="kpi-val" id="kpi-op-inv">—</div>
+      <div class="kpi-sub" id="kpi-op-inv-v">valor en stock</div>
+    </div>
+    <div class="kpi k-purple">
+      <div class="kpi-lbl">Facturados</div>
+      <div class="kpi-val" id="kpi-op-fact">—</div>
+      <div class="kpi-sub" id="kpi-op-fact-v">por cobrar</div>
+    </div>
+    <div class="kpi k-green">
+      <div class="kpi-lbl">Cerrados</div>
+      <div class="kpi-val" id="kpi-op-cerr">—</div>
+      <div class="kpi-sub" id="kpi-op-cerr-v">neto s/ITBMS</div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <button class="ftab active" onclick="OP.setFilter(this,'todos')">Todos</button>
+    <button class="ftab" onclick="OP.setFilter(this,'pendiente')">Pendiente</button>
+    <button class="ftab" onclick="OP.setFilter(this,'inventario')">Inventario</button>
+    <button class="ftab" onclick="OP.setFilter(this,'facturado')">Facturado</button>
+    <button class="ftab" onclick="OP.setFilter(this,'cerrado')">Cerrado</button>
+  </div>
+  <div id="op-list"></div>
+</div>
+
+<!-- P&L -->
+<div id="viewPL">
+  <div class="period-bar">
+    <div style="display:flex;align-items:center;gap:.5rem;min-width:0">
+      <div class="period-lbl" id="pl-period">—</div>
+      <span class="pl-ytd-badge" id="pl-ytd-badge">YTD</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:.45rem">
+      <div class="pl-mode-toggle">
+        <button class="pl-mode-btn active" id="pl-mode-mes" onclick="PL.setMode('mes')">Mes</button>
+        <button class="pl-mode-btn"        id="pl-mode-ytd" onclick="PL.setMode('ytd')">YTD</button>
       </div>
-
-      <!-- Botón Egreso -->
-      <div style="padding:.38rem .85rem">
-        <button class="reg-btn reg-btn-egr" onclick="REG.openEgreso()">
-          <div class="reg-btn-icon">📤</div>
-          <div class="reg-btn-body">
-            <div class="reg-btn-title">Registrar egreso</div>
-            <div class="reg-btn-sub">Combustible, insumos, servicios, facturas de proveedores…</div>
-          </div>
-          <div class="reg-btn-chev">›</div>
-        </button>
-      </div>
-
-      <!-- Botón Ingreso -->
-      <div style="padding:.38rem .85rem .85rem">
-        <button class="reg-btn reg-btn-ing" onclick="REG.openIngreso()">
-          <div class="reg-btn-icon">💰</div>
-          <div class="reg-btn-body">
-            <div class="reg-btn-title">Registrar ingreso</div>
-            <div class="reg-btn-sub">Pagos de clientes, transferencias, vouchers Yappy…</div>
-          </div>
-          <div class="reg-btn-chev">›</div>
-        </button>
-      </div>
-
-      <!-- Tip IA -->
-      <div style="margin:.2rem .85rem;background:var(--indigo-bg);border-radius:var(--r);padding:.72rem .88rem;display:flex;gap:.62rem;align-items:flex-start">
-        <span style="font-size:1.1rem;flex-shrink:0">✨</span>
-        <div style="font-size:.73rem;color:var(--indigo);line-height:1.5">
-          <strong>Lector IA:</strong> adjunta una foto de la factura o voucher y los campos se llenan automáticamente. Revisa y confirma.
-        </div>
+      <div class="period-nav" id="pl-period-nav">
+        <button class="period-btn" onclick="PL.prev()">‹</button>
+        <button class="period-btn" onclick="PL.next()">›</button>
       </div>
     </div>
+  </div>
+  <div class="pl-widgets">
+    <div class="pl-widget"><div class="pl-w-lbl">Ingresos neto</div><div class="pl-w-val green" id="pl-w-ing">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem">sin ITBMS</div></div>
+    <div class="pl-widget"><div class="pl-w-lbl">Costo mercancía</div><div class="pl-w-val red" id="pl-w-egr">—</div></div>
+    <div class="pl-widget"><div class="pl-w-lbl">Utilidad neta</div><div class="pl-w-val indigo" id="pl-w-margen">—</div></div>
+    <div class="pl-widget"><div class="pl-w-lbl">ITBMS neto DGI</div><div class="pl-w-val" id="pl-w-itbms">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-itbms-sub">cobrado — pagado</div></div>
+  </div>
+  <div class="pl-statement">
+    <div class="pl-stmt-hdr">Estado de Resultados</div>
+    <div class="pl-stmt-row"><span class="pl-stmt-lbl">Ingresos neto (sin ITBMS)</span><span class="pl-stmt-val green" id="pl-s-ing">—</span></div>
+    <div class="pl-stmt-row"><span class="pl-stmt-lbl">Costo de servicios</span>   <span class="pl-stmt-val red"    id="pl-s-costo">—</span></div>
+    <div class="pl-stmt-row subtotal"><span class="pl-stmt-lbl">Utilidad bruta</span><span class="pl-stmt-val"      id="pl-s-ubruta">—</span></div>
+    <div class="pl-stmt-row"><span class="pl-stmt-lbl">Gastos operativos</span>    <span class="pl-stmt-val red"    id="pl-s-gastos">—</span></div>
+    <div class="pl-stmt-row total-final"><span class="pl-stmt-lbl">Utilidad neta</span><span class="pl-stmt-val indigo" id="pl-s-uneta">—</span></div>
+  </div>
+  <div class="pl-toggle">
+    <button class="pl-tbtn active" id="pl-tab-ing" onclick="PL.showTable('ing')">Ingresos</button>
+    <button class="pl-tbtn"        id="pl-tab-egr" onclick="PL.showTable('egr')">Egresos</button>
+  </div>
+  <div class="tx-list" id="pl-tx-list"></div>
+</div>
+
+<!-- REGISTROS -->
+<div id="viewRegistros" style="display:none">
+  <div style="padding:.85rem .85rem .38rem">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem">Ingresos y egresos misceláneos · desde cámara o galería</div>
+  </div>
+
+  <!-- Botón Egreso -->
+  <div style="padding:.38rem .85rem">
+    <button class="reg-btn reg-btn-egr" onclick="REG.openEgreso()">
+      <div class="reg-btn-icon">📤</div>
+      <div class="reg-btn-body">
+        <div class="reg-btn-title">Registrar egreso</div>
+        <div class="reg-btn-sub">Combustible, insumos, servicios, facturas de proveedores…</div>
+      </div>
+      <div class="reg-btn-chev">›</div>
+    </button>
+  </div>
+
+  <!-- Botón Ingreso -->
+  <div style="padding:.38rem .85rem .85rem">
+    <button class="reg-btn reg-btn-ing" onclick="REG.openIngreso()">
+      <div class="reg-btn-icon">💰</div>
+      <div class="reg-btn-body">
+        <div class="reg-btn-title">Registrar ingreso</div>
+        <div class="reg-btn-sub">Pagos de clientes, transferencias, vouchers Yappy…</div>
+      </div>
+      <div class="reg-btn-chev">›</div>
+    </button>
+  </div>
+
+  <!-- Tip IA -->
+  <div style="margin:.2rem .85rem;background:var(--indigo-bg);border-radius:var(--r);padding:.72rem .88rem;display:flex;gap:.62rem;align-items:flex-start">
+    <span style="font-size:1.1rem;flex-shrink:0">✨</span>
+    <div style="font-size:.73rem;color:var(--indigo);line-height:1.5">
+      <strong>Lector IA:</strong> adjunta una foto de la factura o voucher y los campos se llenan automáticamente. Revisa y confirma.
+    </div>
+  </div>
+</div>
+```
 
   </div>
 
@@ -760,6 +766,7 @@ select.f-inp { appearance:none; }
 <div id="toast"></div>
 
 <!-- MODAL: Resumen ST -->
+
 <div class="overlay" id="mResumen">
   <div class="sheet">
     <div class="sheet-top"><div class="sheet-handle"></div>
@@ -772,6 +779,7 @@ select.f-inp { appearance:none; }
 </div>
 
 <!-- MODAL: Pago cliente ST -->
+
 <div class="overlay" id="mPago">
   <div class="sheet">
     <div class="sheet-top"><div class="sheet-handle"></div>
@@ -819,6 +827,7 @@ select.f-inp { appearance:none; }
 </div>
 
 <!-- MODAL: Egreso ST -->
+
 <div class="overlay" id="mEgreso">
   <div class="sheet">
     <div class="sheet-top"><div class="sheet-handle"></div>
@@ -868,6 +877,7 @@ select.f-inp { appearance:none; }
 </div>
 
 <!-- MODAL: Cambiar estado ST -->
+
 <div class="overlay" id="mEstado">
   <div class="sheet">
     <div class="sheet-top"><div class="sheet-handle"></div>
@@ -879,8 +889,8 @@ select.f-inp { appearance:none; }
   </div>
 </div>
 
-
 <!-- MODAL: Pago cliente Comercialización -->
+
 <div class="overlay" id="mOpPago">
   <div class="sheet">
     <div class="sheet-top"><div class="sheet-handle"></div>
@@ -1609,38 +1619,80 @@ const PL = (() => {
 
   // ── Render lista transacciones ───────────────────────────────
   function renderTx() {
-    const el  = document.getElementById('pl-tx-list');
-    const d   = _getData();
-    let rows  = txMode === 'ing' ? (d.ingresos || []) : (d.egresos_gasto || []);
+    const el = document.getElementById('pl-tx-list');
+    const d  = _getData();
 
-    // En YTD ordenar por mes desc
-    if (viewMode === 'ytd') {
-      rows = rows.slice().sort((a,b) => (parseInt(b.mes)||0) - (parseInt(a.mes)||0));
+    if (txMode === 'ing') {
+      // ── Ingresos ────────────────────────────────────────
+      let rows = (d.ingresos || []).slice();
+      if (viewMode === 'ytd') rows.sort((a,b)=>(parseInt(b.mes)||0)-(parseInt(a.mes)||0));
+      if (!rows.length) {
+        el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">💰</div><div class="empty-title">Sin ingresos ${viewMode==='ytd'?'este año':'este mes'}</div></div>`;
+        return;
+      }
+      el.innerHTML = rows.map(row => {
+        const desc     = row.nombre_cliente || row.descripcion || '—';
+        const baseMeta = row.num_factura || row.tipo_ingreso || '';
+        const mesMeta  = viewMode==='ytd' && row.mes ? (MESES[(parseInt(row.mes)||1)-1]||'') : '';
+        const meta     = mesMeta ? (mesMeta+(baseMeta?' · '+baseMeta:'')) : baseMeta;
+        const url      = row.drive_url || '';
+        const monto    = parseFloat(row.subtotal) || parseFloat(row.total) || 0;
+        return `<div class="tx-item${url?' link':''}" ${url?`onclick="window.open('${esc(url)}','_blank')"`:''}>
+          <div class="tx-dot ing"></div>
+          <div class="tx-body"><div class="tx-desc">${esc(desc)}</div><div class="tx-meta">${esc(meta)}</div></div>
+          <div class="tx-amt ing">+${fmt(monto)}</div>
+        </div>`;
+      }).join('');
+
+    } else {
+      // ── Costos COGS ──────────────────────────────────────
+      if (viewMode === 'ytd') {
+        // Breakdown de COGS por mes
+        const keys = Object.keys(periodos)
+          .filter(k => periodos[k].anio === año && periodos[k].cogs > 0)
+          .sort((a,b) => periodos[b].mes - periodos[a].mes);
+        if (!keys.length) {
+          el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">📊</div><div class="empty-title">Sin costos registrados este año</div></div>`;
+          return;
+        }
+        el.innerHTML = keys.map(k => {
+          const p  = periodos[k];
+          const lbl = MESES[(p.mes||1)-1] + ' ' + p.anio;
+          const mg  = p.subtotal > 0 ? (((p.subtotal-p.cogs)/p.subtotal)*100).toFixed(1) : '—';
+          return `<div class="tx-item">
+            <div class="tx-dot egr"></div>
+            <div class="tx-body">
+              <div class="tx-desc">${lbl}</div>
+              <div class="tx-meta">Ingresos ${fmt(p.subtotal)} · Margen ${mg}%</div>
+            </div>
+            <div class="tx-amt egr">-${fmt(p.cogs)}</div>
+          </div>`;
+        }).join('');
+      } else {
+        // Mes individual: gastos operativos o resumen COGS
+        const gastRows = d.egresos_gasto || [];
+        if (gastRows.length) {
+          el.innerHTML = gastRows.map(row => {
+            const url = row.drive_url || '';
+            return `<div class="tx-item${url?' link':''}" ${url?`onclick="window.open('${esc(url)}','_blank')"`:''}>
+              <div class="tx-dot egr"></div>
+              <div class="tx-body"><div class="tx-desc">${esc(row.proveedor||row.descripcion||'—')}</div><div class="tx-meta">${esc(row.tipo_egreso||'')}</div></div>
+              <div class="tx-amt egr">-${fmt(parseFloat(row.total)||0)}</div>
+            </div>`;
+          }).join('');
+        } else {
+          const cogs = d.cogs || 0;
+          const mg   = d.subtotal > 0 ? (((d.subtotal-cogs)/d.subtotal)*100).toFixed(1) : '—';
+          el.innerHTML = cogs > 0
+            ? `<div class="tx-item">
+                <div class="tx-dot egr"></div>
+                <div class="tx-body"><div class="tx-desc">Costo de servicios</div><div class="tx-meta">Margen bruto ${mg}% · sobre ${fmt(d.subtotal)}</div></div>
+                <div class="tx-amt egr">-${fmt(cogs)}</div>
+              </div>`
+            : `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">📊</div><div class="empty-title">Sin costos este mes</div></div>`;
+        }
+      }
     }
-
-    if (!rows.length) {
-      const periodo = viewMode==='ytd' ? 'este año' : 'este mes';
-      el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem">
-        <div class="empty-icon">${txMode==='ing'?'💰':'📤'}</div>
-        <div class="empty-title">Sin ${txMode==='ing'?'ingresos':'egresos'} ${periodo}</div></div>`;
-      return;
-    }
-
-    el.innerHTML = rows.map(row => {
-      const isIng  = txMode === 'ing';
-      const desc   = isIng ? (row.nombre_cliente||row.descripcion||'—') : (row.proveedor||row.descripcion||'—');
-      const baseMeta = isIng ? (row.num_factura||row.tipo_ingreso||'') : (row.tipo_egreso||'');
-      const mesMeta  = viewMode==='ytd' && row.mes
-        ? (MESES[(parseInt(row.mes)||1)-1]||'') : '';
-      const meta   = mesMeta ? (mesMeta + (baseMeta ? ' · '+baseMeta : '')) : baseMeta;
-      const url    = row.drive_url||'';
-      const monto  = isIng ? (parseFloat(row.subtotal)||parseFloat(row.total)||0) : (parseFloat(row.total)||0);
-      return `<div class="tx-item${url?' link':''}" ${url?`onclick="window.open('${esc(url)}','_blank')"`:''}>
-        <div class="tx-dot ${txMode}"></div>
-        <div class="tx-body"><div class="tx-desc">${esc(desc)}</div><div class="tx-meta">${esc(meta)}</div></div>
-        <div class="tx-amt ${txMode}">${isIng?'+':'-'}${fmt(monto)}</div>
-      </div>`;
-    }).join('');
   }
 
   // ── Load — una sola llamada getPL ────────────────────────────
@@ -1964,6 +2016,7 @@ document.querySelectorAll('.overlay').forEach(el => {
 </script>
 
 <!-- MODAL REGISTROS: Egreso general -->
+
 <div class="overlay" id="mRegEgreso">
   <div class="sheet">
     <div class="sheet-top"><div class="sheet-handle"></div>
@@ -1973,92 +2026,96 @@ document.querySelectorAll('.overlay').forEach(el => {
     </div></div>
     <div class="sheet-body">
 
-      <!-- Zona IA — cámara / galería -->
-      <div class="reg-upload-zone" id="regEgrZone" onclick="document.getElementById('regEgrFile').click()">
-        <input type="file" id="regEgrFile" accept="image/*,application/pdf"
-               style="display:none" onchange="REG.onEgrFile(this)">
-        <div class="reg-upload-icon">📎</div>
-        <div id="regEgrZoneLbl">Adjuntar factura — foto o PDF</div>
-        <div style="font-size:.65rem;color:var(--chrome);margin-top:.22rem">Cámara · Galería · PDF</div>
-        <div id="regEgrAIStatus" style="display:none;margin-top:.38rem;font-size:.72rem"></div>
-      </div>
+```
+  <!-- Zona IA — cámara / galería -->
+  <div class="reg-upload-zone" id="regEgrZone" onclick="document.getElementById('regEgrFile').click()">
+    <input type="file" id="regEgrFile" accept="image/*,application/pdf"
+           style="display:none" onchange="REG.onEgrFile(this)">
+    <div class="reg-upload-icon">📎</div>
+    <div id="regEgrZoneLbl">Adjuntar factura — foto o PDF</div>
+    <div style="font-size:.65rem;color:var(--chrome);margin-top:.22rem">Cámara · Galería · PDF</div>
+    <div id="regEgrAIStatus" style="display:none;margin-top:.38rem;font-size:.72rem"></div>
+  </div>
 
-      <div class="f-grp">
-        <label class="f-lbl">Categoría</label>
-        <select class="f-inp" id="regEgrCat" onchange="REG.inferTipoEgr()">
-          <option value="combustible_transporte">⛽ Combustible / Transporte</option>
-          <option value="gastos_personal">👤 Nómina / Personal</option>
-          <option value="alquileres">🏠 Alquileres</option>
-          <option value="servicios_publicos">💡 Servicios públicos</option>
-          <option value="publicidad_mercadeo">📣 Publicidad / Mercadeo</option>
-          <option value="honorarios_profesionales">📋 Honorarios profesionales</option>
-          <option value="mantenimiento_reparacion">🔧 Mantenimiento / Reparación</option>
-          <option value="seguros">🛡️ Seguros</option>
-          <option value="gastos_financieros">🏦 Gastos financieros</option>
-          <option value="otros_deducibles">📂 Otros deducibles</option>
-        </select>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Descripción</label>
-        <input type="text" class="f-inp" id="regEgrDesc" placeholder="Ej: Gasolina visita clientes…">
-      </div>
-      <div class="f-grid">
-        <div class="f-grp">
-          <label class="f-lbl">Fecha *</label>
-          <input type="date" class="f-inp" id="regEgrFecha">
-        </div>
-        <div class="f-grp">
-          <label class="f-lbl">N° Factura</label>
-          <input type="text" class="f-inp" id="regEgrNfac" placeholder="Opcional">
-        </div>
-      </div>
-      <div class="f-grp" style="background:var(--bg2);border-radius:var(--r);padding:.62rem .82rem;display:flex;align-items:center;gap:.6rem">
-        <input type="checkbox" id="regEgrItbms" onchange="REG.recalcEgr()"
-               style="width:16px;height:16px;accent-color:var(--orange);cursor:pointer;flex-shrink:0">
-        <label for="regEgrItbms" style="font-size:.82rem;font-weight:600;cursor:pointer;margin:0">Aplica ITBMS (7%)</label>
-        <span id="regEgrItbmsTag" style="display:none;font-size:.68rem;background:var(--orange);color:#fff;padding:.1rem .42rem;border-radius:4px;font-weight:700;margin-left:auto">+7%</span>
-      </div>
-      <div class="f-grid">
-        <div class="f-grp">
-          <label class="f-lbl">Total (USD) *</label>
-          <input type="number" class="f-inp" id="regEgrTotal" placeholder="0.00" step="0.01"
-                 oninput="REG.recalcEgr()" style="font-weight:700;font-size:1rem">
-        </div>
-        <div class="f-grp">
-          <label class="f-lbl">Proveedor</label>
-          <input type="text" class="f-inp" id="regEgrProv" placeholder="Nombre">
-        </div>
-      </div>
-      <div id="regEgrDesglose" style="display:none;background:var(--bg2);border-radius:var(--r);padding:.52rem .82rem;font-size:.77rem;margin-bottom:.82rem;display:none">
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Subtotal:</span><span id="regEgrSubDisp">$0.00</span></div>
-        <div style="display:flex;justify-content:space-between;margin-top:.2rem"><span style="color:var(--muted)">ITBMS 7%:</span><span id="regEgrItbmsDisp">$0.00</span></div>
-      </div>
-      <div class="f-grid">
-        <div class="f-grp">
-          <label class="f-lbl">RUC proveedor</label>
-          <input type="text" class="f-inp" id="regEgrRuc" placeholder="Opcional">
-        </div>
-        <div class="f-grp">
-          <label class="f-lbl">DV</label>
-          <input type="text" class="f-inp" id="regEgrDv" placeholder="Opcional">
-        </div>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Notas internas</label>
-        <input type="text" class="f-inp" id="regEgrNotas" placeholder="Opcional">
-      </div>
-      <input type="hidden" id="regEgrSubtotal">
-      <input type="hidden" id="regEgrItbmsVal">
+  <div class="f-grp">
+    <label class="f-lbl">Categoría</label>
+    <select class="f-inp" id="regEgrCat" onchange="REG.inferTipoEgr()">
+      <option value="combustible_transporte">⛽ Combustible / Transporte</option>
+      <option value="gastos_personal">👤 Nómina / Personal</option>
+      <option value="alquileres">🏠 Alquileres</option>
+      <option value="servicios_publicos">💡 Servicios públicos</option>
+      <option value="publicidad_mercadeo">📣 Publicidad / Mercadeo</option>
+      <option value="honorarios_profesionales">📋 Honorarios profesionales</option>
+      <option value="mantenimiento_reparacion">🔧 Mantenimiento / Reparación</option>
+      <option value="seguros">🛡️ Seguros</option>
+      <option value="gastos_financieros">🏦 Gastos financieros</option>
+      <option value="otros_deducibles">📂 Otros deducibles</option>
+    </select>
+  </div>
+  <div class="f-grp">
+    <label class="f-lbl">Descripción</label>
+    <input type="text" class="f-inp" id="regEgrDesc" placeholder="Ej: Gasolina visita clientes…">
+  </div>
+  <div class="f-grid">
+    <div class="f-grp">
+      <label class="f-lbl">Fecha *</label>
+      <input type="date" class="f-inp" id="regEgrFecha">
     </div>
-    <div class="sheet-footer">
-      <button class="sheet-submit" id="regEgrSubmit" onclick="REG.submitEgreso()"
-              style="background:var(--red);margin:0">Guardar egreso</button>
-      <button class="sheet-footer-cancel" onclick="closeModal('mRegEgreso')">Cancelar</button>
+    <div class="f-grp">
+      <label class="f-lbl">N° Factura</label>
+      <input type="text" class="f-inp" id="regEgrNfac" placeholder="Opcional">
     </div>
+  </div>
+  <div class="f-grp" style="background:var(--bg2);border-radius:var(--r);padding:.62rem .82rem;display:flex;align-items:center;gap:.6rem">
+    <input type="checkbox" id="regEgrItbms" onchange="REG.recalcEgr()"
+           style="width:16px;height:16px;accent-color:var(--orange);cursor:pointer;flex-shrink:0">
+    <label for="regEgrItbms" style="font-size:.82rem;font-weight:600;cursor:pointer;margin:0">Aplica ITBMS (7%)</label>
+    <span id="regEgrItbmsTag" style="display:none;font-size:.68rem;background:var(--orange);color:#fff;padding:.1rem .42rem;border-radius:4px;font-weight:700;margin-left:auto">+7%</span>
+  </div>
+  <div class="f-grid">
+    <div class="f-grp">
+      <label class="f-lbl">Total (USD) *</label>
+      <input type="number" class="f-inp" id="regEgrTotal" placeholder="0.00" step="0.01"
+             oninput="REG.recalcEgr()" style="font-weight:700;font-size:1rem">
+    </div>
+    <div class="f-grp">
+      <label class="f-lbl">Proveedor</label>
+      <input type="text" class="f-inp" id="regEgrProv" placeholder="Nombre">
+    </div>
+  </div>
+  <div id="regEgrDesglose" style="display:none;background:var(--bg2);border-radius:var(--r);padding:.52rem .82rem;font-size:.77rem;margin-bottom:.82rem;display:none">
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Subtotal:</span><span id="regEgrSubDisp">$0.00</span></div>
+    <div style="display:flex;justify-content:space-between;margin-top:.2rem"><span style="color:var(--muted)">ITBMS 7%:</span><span id="regEgrItbmsDisp">$0.00</span></div>
+  </div>
+  <div class="f-grid">
+    <div class="f-grp">
+      <label class="f-lbl">RUC proveedor</label>
+      <input type="text" class="f-inp" id="regEgrRuc" placeholder="Opcional">
+    </div>
+    <div class="f-grp">
+      <label class="f-lbl">DV</label>
+      <input type="text" class="f-inp" id="regEgrDv" placeholder="Opcional">
+    </div>
+  </div>
+  <div class="f-grp">
+    <label class="f-lbl">Notas internas</label>
+    <input type="text" class="f-inp" id="regEgrNotas" placeholder="Opcional">
+  </div>
+  <input type="hidden" id="regEgrSubtotal">
+  <input type="hidden" id="regEgrItbmsVal">
+</div>
+<div class="sheet-footer">
+  <button class="sheet-submit" id="regEgrSubmit" onclick="REG.submitEgreso()"
+          style="background:var(--red);margin:0">Guardar egreso</button>
+  <button class="sheet-footer-cancel" onclick="closeModal('mRegEgreso')">Cancelar</button>
+</div>
+```
+
   </div>
 </div>
 
 <!-- MODAL REGISTROS: Ingreso general -->
+
 <div class="overlay" id="mRegIngreso">
   <div class="sheet">
     <div class="sheet-top"><div class="sheet-handle"></div>
@@ -2068,84 +2125,87 @@ document.querySelectorAll('.overlay').forEach(el => {
     </div></div>
     <div class="sheet-body">
 
-      <!-- Zona IA -->
-      <div class="reg-upload-zone" id="regIngZone" onclick="document.getElementById('regIngFile').click()">
-        <input type="file" id="regIngFile" accept="image/*,application/pdf"
-               style="display:none" onchange="REG.onIngFile(this)">
-        <div class="reg-upload-icon">📎</div>
-        <div id="regIngZoneLbl">Adjuntar comprobante — Yappy, transferencia o factura</div>
-        <div style="font-size:.65rem;color:var(--chrome);margin-top:.22rem">Cámara · Galería · PDF</div>
-        <div id="regIngAIStatus" style="display:none;margin-top:.38rem;font-size:.72rem"></div>
-      </div>
+```
+  <!-- Zona IA -->
+  <div class="reg-upload-zone" id="regIngZone" onclick="document.getElementById('regIngFile').click()">
+    <input type="file" id="regIngFile" accept="image/*,application/pdf"
+           style="display:none" onchange="REG.onIngFile(this)">
+    <div class="reg-upload-icon">📎</div>
+    <div id="regIngZoneLbl">Adjuntar comprobante — Yappy, transferencia o factura</div>
+    <div style="font-size:.65rem;color:var(--chrome);margin-top:.22rem">Cámara · Galería · PDF</div>
+    <div id="regIngAIStatus" style="display:none;margin-top:.38rem;font-size:.72rem"></div>
+  </div>
 
-      <div class="f-grp">
-        <label class="f-lbl">Categoría</label>
-        <select class="f-inp" id="regIngCat" onchange="REG.inferItbmsIng()">
-          <option value="venta_producto_gravado">📦 Venta de producto (con ITBMS)</option>
-          <option value="venta_producto_exento">📦 Venta de producto (exento)</option>
-          <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
-          <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
-          <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
-          <option value="comision">💳 Comisión</option>
-          <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
-          <option value="otro_exento">📋 Otro ingreso (exento)</option>
-        </select>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Descripción</label>
-        <input type="text" class="f-inp" id="regIngDesc" placeholder="Opcional">
-      </div>
-      <div class="f-grid">
-        <div class="f-grp">
-          <label class="f-lbl">Fecha *</label>
-          <input type="date" class="f-inp" id="regIngFecha">
-        </div>
-        <div class="f-grp">
-          <label class="f-lbl">N° Factura</label>
-          <input type="text" class="f-inp" id="regIngNfac" placeholder="Opcional">
-        </div>
-      </div>
-      <div class="f-grp" style="background:var(--bg2);border-radius:var(--r);padding:.62rem .82rem;display:flex;align-items:center;gap:.6rem">
-        <input type="checkbox" id="regIngItbms" onchange="REG.recalcIng()"
-               style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
-        <label for="regIngItbms" style="font-size:.82rem;font-weight:600;cursor:pointer;margin:0">Aplica ITBMS (7%)</label>
-        <span id="regIngItbmsTag" style="display:none;font-size:.68rem;background:var(--green);color:#fff;padding:.1rem .42rem;border-radius:4px;font-weight:700;margin-left:auto">+7%</span>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Total (USD) *</label>
-        <input type="number" class="f-inp" id="regIngTotal" placeholder="0.00" step="0.01"
-               oninput="REG.recalcIng()" style="font-weight:700;font-size:1rem">
-      </div>
-      <div id="regIngDesglose" style="display:none;background:var(--bg2);border-radius:var(--r);padding:.52rem .82rem;font-size:.77rem;margin-bottom:.82rem">
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Subtotal:</span><span id="regIngSubDisp">$0.00</span></div>
-        <div style="display:flex;justify-content:space-between;margin-top:.2rem"><span style="color:var(--muted)">ITBMS 7%:</span><span id="regIngItbmsDisp">$0.00</span></div>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Nombre cliente *</label>
-        <input type="text" class="f-inp" id="regIngNombre" placeholder="Nombre completo">
-      </div>
-      <div class="f-grid">
-        <div class="f-grp">
-          <label class="f-lbl">RUC cliente</label>
-          <input type="text" class="f-inp" id="regIngRuc" placeholder="Opcional">
-        </div>
-        <div class="f-grp">
-          <label class="f-lbl">DV</label>
-          <input type="text" class="f-inp" id="regIngDv" placeholder="Opcional">
-        </div>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Notas internas</label>
-        <input type="text" class="f-inp" id="regIngNotas" placeholder="Opcional">
-      </div>
-      <input type="hidden" id="regIngSubtotal">
-      <input type="hidden" id="regIngItbmsVal">
+  <div class="f-grp">
+    <label class="f-lbl">Categoría</label>
+    <select class="f-inp" id="regIngCat" onchange="REG.inferItbmsIng()">
+      <option value="venta_producto_gravado">📦 Venta de producto (con ITBMS)</option>
+      <option value="venta_producto_exento">📦 Venta de producto (exento)</option>
+      <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
+      <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
+      <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
+      <option value="comision">💳 Comisión</option>
+      <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
+      <option value="otro_exento">📋 Otro ingreso (exento)</option>
+    </select>
+  </div>
+  <div class="f-grp">
+    <label class="f-lbl">Descripción</label>
+    <input type="text" class="f-inp" id="regIngDesc" placeholder="Opcional">
+  </div>
+  <div class="f-grid">
+    <div class="f-grp">
+      <label class="f-lbl">Fecha *</label>
+      <input type="date" class="f-inp" id="regIngFecha">
     </div>
-    <div class="sheet-footer">
-      <button class="sheet-submit" id="regIngSubmit" onclick="REG.submitIngreso()"
-              style="background:var(--green);margin:0">Guardar ingreso</button>
-      <button class="sheet-footer-cancel" onclick="closeModal('mRegIngreso')">Cancelar</button>
+    <div class="f-grp">
+      <label class="f-lbl">N° Factura</label>
+      <input type="text" class="f-inp" id="regIngNfac" placeholder="Opcional">
     </div>
+  </div>
+  <div class="f-grp" style="background:var(--bg2);border-radius:var(--r);padding:.62rem .82rem;display:flex;align-items:center;gap:.6rem">
+    <input type="checkbox" id="regIngItbms" onchange="REG.recalcIng()"
+           style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
+    <label for="regIngItbms" style="font-size:.82rem;font-weight:600;cursor:pointer;margin:0">Aplica ITBMS (7%)</label>
+    <span id="regIngItbmsTag" style="display:none;font-size:.68rem;background:var(--green);color:#fff;padding:.1rem .42rem;border-radius:4px;font-weight:700;margin-left:auto">+7%</span>
+  </div>
+  <div class="f-grp">
+    <label class="f-lbl">Total (USD) *</label>
+    <input type="number" class="f-inp" id="regIngTotal" placeholder="0.00" step="0.01"
+           oninput="REG.recalcIng()" style="font-weight:700;font-size:1rem">
+  </div>
+  <div id="regIngDesglose" style="display:none;background:var(--bg2);border-radius:var(--r);padding:.52rem .82rem;font-size:.77rem;margin-bottom:.82rem">
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Subtotal:</span><span id="regIngSubDisp">$0.00</span></div>
+    <div style="display:flex;justify-content:space-between;margin-top:.2rem"><span style="color:var(--muted)">ITBMS 7%:</span><span id="regIngItbmsDisp">$0.00</span></div>
+  </div>
+  <div class="f-grp">
+    <label class="f-lbl">Nombre cliente *</label>
+    <input type="text" class="f-inp" id="regIngNombre" placeholder="Nombre completo">
+  </div>
+  <div class="f-grid">
+    <div class="f-grp">
+      <label class="f-lbl">RUC cliente</label>
+      <input type="text" class="f-inp" id="regIngRuc" placeholder="Opcional">
+    </div>
+    <div class="f-grp">
+      <label class="f-lbl">DV</label>
+      <input type="text" class="f-inp" id="regIngDv" placeholder="Opcional">
+    </div>
+  </div>
+  <div class="f-grp">
+    <label class="f-lbl">Notas internas</label>
+    <input type="text" class="f-inp" id="regIngNotas" placeholder="Opcional">
+  </div>
+  <input type="hidden" id="regIngSubtotal">
+  <input type="hidden" id="regIngItbmsVal">
+</div>
+<div class="sheet-footer">
+  <button class="sheet-submit" id="regIngSubmit" onclick="REG.submitIngreso()"
+          style="background:var(--green);margin:0">Guardar ingreso</button>
+  <button class="sheet-footer-cancel" onclick="closeModal('mRegIngreso')">Cancelar</button>
+</div>
+```
+
   </div>
 </div>
 
