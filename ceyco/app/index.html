@@ -446,6 +446,25 @@ select.f-inp { appearance:none; }
 .pl-tbtn { flex:1; padding:.4rem; border-radius:6px; font-size:.75rem; font-weight:600; color:var(--muted); transition:all .15s; text-align:center; }
 .pl-tbtn.active { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.1); }
 
+.pl-mode-toggle { display:flex; background:var(--bg2); border-radius:20px; padding:2px; gap:2px; }
+.pl-mode-btn {
+  padding:.26rem .72rem; border-radius:20px;
+  font-size:.68rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--muted); transition:all .15s; white-space:nowrap;
+}
+.pl-mode-btn.active {
+  background:var(--indigo); color:#fff;
+  box-shadow:0 1px 4px rgba(26,35,126,.35);
+}
+.pl-ytd-badge {
+  font-family:'DM Mono',monospace; font-size:.58rem; font-weight:700;
+  letter-spacing:.07em; text-transform:uppercase;
+  background:var(--indigo-bg); color:var(--indigo);
+  padding:.12rem .38rem; border-radius:4px; margin-left:.4rem;
+  vertical-align:middle; display:none;
+}
+.pl-ytd-badge.show { display:inline; }
+
 .tx-list { padding:0 .85rem .85rem; display:flex; flex-direction:column; gap:.33rem; }
 .tx-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:.62rem .78rem; display:flex; align-items:center; gap:.62rem; }
 .tx-item.link { cursor:pointer; }
@@ -561,10 +580,19 @@ select.f-inp { appearance:none; }
     <!-- P&L -->
     <div id="viewPL">
       <div class="period-bar">
-        <div class="period-lbl" id="pl-period">—</div>
-        <div class="period-nav">
-          <button class="period-btn" onclick="PL.prev()">‹</button>
-          <button class="period-btn" onclick="PL.next()">›</button>
+        <div style="display:flex;align-items:center;gap:.5rem;min-width:0">
+          <div class="period-lbl" id="pl-period">—</div>
+          <span class="pl-ytd-badge" id="pl-ytd-badge">YTD</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.45rem">
+          <div class="pl-mode-toggle">
+            <button class="pl-mode-btn active" id="pl-mode-mes" onclick="PL.setMode('mes')">Mes</button>
+            <button class="pl-mode-btn"        id="pl-mode-ytd" onclick="PL.setMode('ytd')">YTD</button>
+          </div>
+          <div class="period-nav" id="pl-period-nav">
+            <button class="period-btn" onclick="PL.prev()">‹</button>
+            <button class="period-btn" onclick="PL.next()">›</button>
+          </div>
         </div>
       </div>
       <div class="pl-widgets">
@@ -1324,28 +1352,55 @@ const OP = (() => {
 // ════════════════════════════════════════════════════════
 const PL = (() => {
   let _loaded = false, ing = [], egr = [];
-  let año = new Date().getFullYear(), mes = new Date().getMonth()+1, mode = 'ing';
+  let año = new Date().getFullYear(), mes = new Date().getMonth()+1;
+  let txMode = 'ing';   // tabla inferior: 'ing' | 'egr'
+  let viewMode = 'mes'; // 'mes' | 'ytd'
 
-  const prev = () => { mes--; if(mes<1){mes=12;año--;} renderAll(); };
-  const next = () => { mes++; if(mes>12){mes=1;año++;} renderAll(); };
+  // ── Navegación mes (solo actúa en modo mes) ─────────────────
+  const prev = () => { if(viewMode!=='mes') return; mes--; if(mes<1){mes=12;año--;} renderAll(); };
+  const next = () => { if(viewMode!=='mes') return; mes++; if(mes>12){mes=1;año++;} renderAll(); };
 
+  // ── Cambio modo MES ↔ YTD ───────────────────────────────────
+  function setMode(m) {
+    viewMode = m;
+    document.getElementById('pl-mode-mes').classList.toggle('active', m==='mes');
+    document.getElementById('pl-mode-ytd').classList.toggle('active', m==='ytd');
+    // Nav ‹ › solo visible en modo mes
+    document.getElementById('pl-period-nav').style.display = m==='mes' ? 'flex' : 'none';
+    // Badge YTD
+    document.getElementById('pl-ytd-badge').classList.toggle('show', m==='ytd');
+    renderAll();
+  }
+
+  // ── Tabla inferior: Ingresos / Egresos ───────────────────────
   function showTable(m) {
-    mode = m;
+    txMode = m;
     document.getElementById('pl-tab-ing').classList.toggle('active',m==='ing');
     document.getElementById('pl-tab-egr').classList.toggle('active',m==='egr');
     renderTx();
   }
 
-  const fIng = () => ing.filter(i=>parseInt(i.mes)===mes && parseInt(i.anio_fiscal)===año && i.estado!=='anulado');
-  const fEgr = () => egr.filter(e=>parseInt(e.mes)===mes && parseInt(e.anio)===año && e.estado!=='anulado');
+  // ── Filtros de datos ─────────────────────────────────────────
+  const fIng = () => viewMode==='ytd'
+    ? ing.filter(i=>parseInt(i.anio_fiscal)===año && i.estado!=='anulado')
+    : ing.filter(i=>parseInt(i.mes)===mes && parseInt(i.anio_fiscal)===año && i.estado!=='anulado');
 
+  const fEgr = () => viewMode==='ytd'
+    ? egr.filter(e=>parseInt(e.anio)===año && e.estado!=='anulado')
+    : egr.filter(e=>parseInt(e.mes)===mes && parseInt(e.anio)===año && e.estado!=='anulado');
+
+  // ── Render principal ─────────────────────────────────────────
   function renderAll() {
-    document.getElementById('pl-period').textContent = MESES[mes-1]+' '+año;
+    // Etiqueta de período
+    document.getElementById('pl-period').textContent = viewMode==='ytd'
+      ? 'Año ' + año
+      : MESES[mes-1] + ' ' + año;
+
     const fi=fIng(), fe=fEgr();
-    const tIng=fi.reduce((a,i)=>a+(parseFloat(i.total)||0),0);
-    const tEgr=fe.reduce((a,e)=>a+(parseFloat(e.total)||0),0);
-    const tItb=fi.reduce((a,i)=>a+(parseFloat(i.itbms)||0),0);
-    const marg=tIng-tEgr;
+    const tIng = fi.reduce((a,i)=>a+(parseFloat(i.total)||0),0);
+    const tEgr = fe.reduce((a,e)=>a+(parseFloat(e.total)||0),0);
+    const tItb = fi.reduce((a,i)=>a+(parseFloat(i.itbms)||0),0);
+    const marg = tIng - tEgr;
 
     document.getElementById('pl-w-ing').textContent    = fmt(tIng);
     document.getElementById('pl-w-egr').textContent    = fmt(tEgr);
@@ -1353,8 +1408,9 @@ const PL = (() => {
     document.getElementById('pl-w-margen').textContent = fmt(marg);
     document.getElementById('pl-w-margen').className   = 'pl-w-val '+(marg>=0?'indigo':'red');
 
-    const cst = fe.filter(e=>['costo_servicio_tecnico','material','mano_obra'].includes(e.tipo_egreso)).reduce((a,e)=>a+(parseFloat(e.total)||0),0);
-    const gst = fe.filter(e=>!['costo_servicio_tecnico','material','mano_obra'].includes(e.tipo_egreso)).reduce((a,e)=>a+(parseFloat(e.total)||0),0);
+    const TIPOS_COSTO = ['costo_servicio_tecnico','material','mano_obra','costo_mercancia','impuesto_importacion'];
+    const cst = fe.filter(e=>TIPOS_COSTO.includes(e.tipo_egreso)).reduce((a,e)=>a+(parseFloat(e.total)||0),0);
+    const gst = fe.filter(e=>!TIPOS_COSTO.includes(e.tipo_egreso)).reduce((a,e)=>a+(parseFloat(e.total)||0),0);
     const ub  = tIng-cst, un = ub-gst;
 
     document.getElementById('pl-s-ing').textContent    = fmt(tIng);
@@ -1362,30 +1418,46 @@ const PL = (() => {
     document.getElementById('pl-s-ubruta').textContent = fmt(ub);
     document.getElementById('pl-s-gastos').textContent = '('+fmt(gst)+')';
     document.getElementById('pl-s-uneta').textContent  = fmt(un);
-    document.getElementById('pl-s-ubruta').className = 'pl-stmt-val '+(ub>=0?'green':'red');
-    document.getElementById('pl-s-uneta').className  = 'pl-stmt-val indigo';
+    document.getElementById('pl-s-ubruta').className   = 'pl-stmt-val '+(ub>=0?'green':'red');
+    document.getElementById('pl-s-uneta').className    = 'pl-stmt-val indigo';
     renderTx();
   }
 
+  // ── Render lista de transacciones ────────────────────────────
   function renderTx() {
     const el   = document.getElementById('pl-tx-list');
-    const rows = mode==='ing' ? fIng() : fEgr();
+    // En YTD ordenar por mes desc para contexto
+    let rows = txMode==='ing' ? fIng() : fEgr();
+    if (viewMode==='ytd') {
+      rows = rows.slice().sort((a,b)=>{
+        const ma = txMode==='ing' ? parseInt(a.mes)||0 : parseInt(a.mes)||0;
+        const mb = txMode==='ing' ? parseInt(b.mes)||0 : parseInt(b.mes)||0;
+        return mb - ma;
+      });
+    }
+
     if (!rows.length) {
-      el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">${mode==='ing'?'💰':'📤'}</div><div class="empty-title">Sin ${mode==='ing'?'ingresos':'egresos'} este mes</div></div>`;
+      const periodo = viewMode==='ytd' ? 'este año' : 'este mes';
+      el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">${txMode==='ing'?'💰':'📤'}</div><div class="empty-title">Sin ${txMode==='ing'?'ingresos':'egresos'} ${periodo}</div></div>`;
       return;
     }
+
     el.innerHTML = rows.map(row => {
-      const desc = mode==='ing' ? (row.nombre_cliente||row.descripcion||'—') : (row.proveedor||row.descripcion||'—');
-      const meta = mode==='ing' ? (row.num_factura||row.tipo_ingreso||'') : (row.categoria||row.tipo_egreso||'');
-      const url  = row.drive_url||'';
+      const desc = txMode==='ing' ? (row.nombre_cliente||row.descripcion||'—') : (row.proveedor||row.descripcion||'—');
+      // En YTD añadir mes como prefijo del meta para contexto
+      const baseMeta = txMode==='ing' ? (row.num_factura||row.tipo_ingreso||'') : (row.categoria||row.tipo_egreso||'');
+      const mesMeta  = viewMode==='ytd' && row.mes ? (MESES[(parseInt(row.mes)||1)-1] || '') : '';
+      const meta     = mesMeta ? (mesMeta + (baseMeta ? ' · '+baseMeta : '')) : baseMeta;
+      const url      = row.drive_url||'';
       return `<div class="tx-item${url?' link':''}" ${url?`onclick="window.open('${esc(url)}','_blank')"`:''}>
-        <div class="tx-dot ${mode}"></div>
+        <div class="tx-dot ${txMode}"></div>
         <div class="tx-body"><div class="tx-desc">${esc(desc)}</div><div class="tx-meta">${esc(meta)}</div></div>
-        <div class="tx-amt ${mode}">${mode==='ing'?'+':'-'}${fmt(parseFloat(row.total)||0)}</div>
+        <div class="tx-amt ${txMode}">${txMode==='ing'?'+':'-'}${fmt(parseFloat(row.total)||0)}</div>
       </div>`;
     }).join('');
   }
 
+  // ── Load ─────────────────────────────────────────────────────
   async function load() {
     document.getElementById('pl-tx-list').innerHTML='<div class="empty-sub" style="padding:2rem;text-align:center">Cargando…</div>';
     try {
@@ -1400,7 +1472,7 @@ const PL = (() => {
     return Promise.resolve();
   }
 
-  return { load, prev, next, showTable, get loaded(){ return _loaded; } };
+  return { load, prev, next, setMode, showTable, get loaded(){ return _loaded; } };
 })();
 
 
