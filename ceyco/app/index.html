@@ -513,24 +513,24 @@ select.f-inp { appearance:none; }
     <div id="viewProyectos">
       <div class="kpi-row">
         <div class="kpi k-yellow">
-          <div class="kpi-lbl">Cotización</div>
+          <div class="kpi-lbl">Cotizados / Aprobados</div>
           <div class="kpi-val" id="kpi-cot">—</div>
-          <div class="kpi-sub">proyectos</div>
+          <div class="kpi-sub" id="kpi-cot-val">proyectos</div>
         </div>
         <div class="kpi k-purple">
           <div class="kpi-lbl">En ejecución</div>
           <div class="kpi-val" id="kpi-ejec">—</div>
-          <div class="kpi-sub">proyectos</div>
+          <div class="kpi-sub" id="kpi-ejec-val">en curso</div>
         </div>
         <div class="kpi k-green">
           <div class="kpi-lbl">Cerrados</div>
           <div class="kpi-val" id="kpi-cerr">—</div>
-          <div class="kpi-sub" id="kpi-cerr-val">este año</div>
+          <div class="kpi-sub" id="kpi-cerr-val">neto s/ITBMS</div>
         </div>
         <div class="kpi k-indigo">
-          <div class="kpi-lbl">Facturado</div>
+          <div class="kpi-lbl">Facturado año</div>
           <div class="kpi-val" id="kpi-fact">—</div>
-          <div class="kpi-sub">este año</div>
+          <div class="kpi-sub">neto s/ITBMS</div>
         </div>
       </div>
       <div class="toolbar" id="st-toolbar">
@@ -955,12 +955,30 @@ const ST = (() => {
     const cot  = items.filter(s=>['cotizado','aprobado'].includes(s.estado));
     const ejec = items.filter(s=>s.estado==='en_ejecucion');
     const cerr = items.filter(s=>s.estado==='cerrado');
-    const fact = cerr.filter(s=>s.anio==yr).reduce((a,s)=>a+(parseFloat(s.precio_venta)||0),0);
+    const cerrYr = cerr.filter(s=>s.anio==yr);
+
+    // Monto en curso: precio_venta de STs en ejecución (igual que desktop)
+    const montoEjec = ejec.reduce((a,s)=>a+(parseFloat(s.precio_venta)||0),0);
+
+    // Facturado: usar subtotal_venta (neto s/ITBMS) que el backend cruza con Ingresos.
+    // Fallback: precio_venta / 1.07 si el ingreso aún no está registrado
+    const netoFn = s => {
+      const sub = parseFloat(s.subtotal_venta||0);
+      return sub > 0 ? sub : (parseFloat(s.precio_venta)||0) / 1.07;
+    };
+    const cerrNeto   = cerr.reduce((a,s)=>a+netoFn(s),0);
+    const cerrYrNeto = cerrYr.reduce((a,s)=>a+netoFn(s),0);
+
+    // Cotización: mostrar monto presupuestado si hay
+    const cotMonto = cot.reduce((a,s)=>a+(parseFloat(s.precio_venta)||0),0);
+
     document.getElementById('kpi-cot').textContent      = cot.length;
+    document.getElementById('kpi-cot-val').textContent  = cotMonto ? fmt(cotMonto)+' presup.' : 'proyectos';
     document.getElementById('kpi-ejec').textContent     = ejec.length;
+    document.getElementById('kpi-ejec-val').textContent = montoEjec ? fmt(montoEjec)+' en curso' : 'proyectos';
     document.getElementById('kpi-cerr').textContent     = cerr.length;
-    document.getElementById('kpi-cerr-val').textContent = fmt(cerr.reduce((a,s)=>a+(parseFloat(s.precio_venta)||0),0));
-    document.getElementById('kpi-fact').textContent     = fmt(fact);
+    document.getElementById('kpi-cerr-val').textContent = fmt(cerrNeto);
+    document.getElementById('kpi-fact').textContent     = fmt(cerrYrNeto);
   }
 
   function setFilter(btn, f) {
