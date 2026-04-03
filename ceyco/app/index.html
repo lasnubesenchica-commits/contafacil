@@ -477,6 +477,40 @@ select.f-inp { appearance:none; }
 .tx-amt { font-family:'DM Mono',monospace; font-size:.79rem; font-weight:500; white-space:nowrap; flex-shrink:0; }
 .tx-amt.ing { color:var(--green); }
 .tx-amt.egr { color:var(--red); }
+
+/* ═══════════════════════════════════════════════ REGISTROS */
+.reg-btn {
+  width:100%; display:flex; align-items:center; gap:.88rem;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r2); padding:.92rem 1rem;
+  text-align:left; transition:opacity .15s, transform .1s;
+  border-left:4px solid transparent;
+}
+.reg-btn:active { transform:scale(.98); opacity:.88; }
+.reg-btn-egr { border-left-color:var(--red); }
+.reg-btn-ing { border-left-color:var(--green); }
+.reg-btn-icon { font-size:1.6rem; flex-shrink:0; line-height:1; }
+.reg-btn-body { flex:1; min-width:0; }
+.reg-btn-title { font-size:.9rem; font-weight:700; color:var(--text); margin-bottom:.18rem; }
+.reg-btn-sub   { font-size:.72rem; color:var(--muted); line-height:1.4; }
+.reg-btn-chev  { font-size:1.2rem; color:var(--chrome); flex-shrink:0; }
+.reg-btn-egr .reg-btn-title { color:var(--red); }
+.reg-btn-ing .reg-btn-title { color:var(--green); }
+
+.reg-upload-zone {
+  border:2px dashed var(--bg3); border-radius:var(--r);
+  padding:1rem; text-align:center; color:var(--chrome);
+  font-size:.77rem; cursor:pointer; transition:border-color .15s;
+  margin-bottom:.82rem;
+}
+.reg-upload-zone:active { border-color:var(--orange); }
+.reg-upload-zone.has-file { border-color:var(--green); background:var(--green-bg); color:var(--green); }
+.reg-upload-zone.analyzing { border-color:var(--indigo); background:var(--indigo-bg); }
+.reg-upload-icon { font-size:1.35rem; margin-bottom:.28rem; }
+
+/* 4 tabs — reducir padding */
+.bottom-nav .nav-item { padding:.45rem .15rem .38rem; font-size:.55rem; }
+.bottom-nav .nav-icon  { font-size:1.05rem; }
 </style>
 </head>
 <body>
@@ -616,6 +650,46 @@ select.f-inp { appearance:none; }
       <div class="tx-list" id="pl-tx-list"></div>
     </div>
 
+    <!-- REGISTROS -->
+    <div id="viewRegistros" style="display:none">
+      <div style="padding:.85rem .85rem .38rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem">Ingresos y egresos misceláneos · desde cámara o galería</div>
+      </div>
+
+      <!-- Botón Egreso -->
+      <div style="padding:.38rem .85rem">
+        <button class="reg-btn reg-btn-egr" onclick="REG.openEgreso()">
+          <div class="reg-btn-icon">📤</div>
+          <div class="reg-btn-body">
+            <div class="reg-btn-title">Registrar egreso</div>
+            <div class="reg-btn-sub">Combustible, insumos, servicios, facturas de proveedores…</div>
+          </div>
+          <div class="reg-btn-chev">›</div>
+        </button>
+      </div>
+
+      <!-- Botón Ingreso -->
+      <div style="padding:.38rem .85rem .85rem">
+        <button class="reg-btn reg-btn-ing" onclick="REG.openIngreso()">
+          <div class="reg-btn-icon">💰</div>
+          <div class="reg-btn-body">
+            <div class="reg-btn-title">Registrar ingreso</div>
+            <div class="reg-btn-sub">Pagos de clientes, transferencias, vouchers Yappy…</div>
+          </div>
+          <div class="reg-btn-chev">›</div>
+        </button>
+      </div>
+
+      <!-- Tip IA -->
+      <div style="margin:.2rem .85rem;background:var(--indigo-bg);border-radius:var(--r);padding:.72rem .88rem;display:flex;gap:.62rem;align-items:flex-start">
+        <span style="font-size:1.1rem;flex-shrink:0">✨</span>
+        <div style="font-size:.73rem;color:var(--indigo);line-height:1.5">
+          <strong>Lector IA:</strong> adjunta una foto de la factura o voucher y los campos se llenan automáticamente. Revisa y confirma.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <nav class="bottom-nav">
@@ -627,6 +701,9 @@ select.f-inp { appearance:none; }
     </button>
     <button class="nav-item" id="nav-pl" onclick="switchView('pl')">
       <span class="nav-icon">📊</span><span>P&amp;L</span><span class="nav-pip"></span>
+    </button>
+    <button class="nav-item" id="nav-reg" onclick="switchView('registros')">
+      <span class="nav-icon">📋</span><span>Registros</span><span class="nav-pip"></span>
     </button>
   </nav>
 
@@ -832,10 +909,10 @@ document.getElementById('loginPwd').addEventListener('keydown', e => { if (e.key
 let currentView = '';
 function switchView(v) {
   currentView = v;
-  ['viewProyectos','viewComercial','viewPL'].forEach(id => document.getElementById(id).style.display = 'none');
-  document.getElementById({ proyectos:'viewProyectos', comercial:'viewComercial', pl:'viewPL' }[v]).style.display = 'block';
-  ['nav-proy','nav-com','nav-pl'].forEach(id => document.getElementById(id).classList.remove('active'));
-  document.getElementById({ proyectos:'nav-proy', comercial:'nav-com', pl:'nav-pl' }[v]).classList.add('active');
+  ['viewProyectos','viewComercial','viewPL','viewRegistros'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById({ proyectos:'viewProyectos', comercial:'viewComercial', pl:'viewPL', registros:'viewRegistros' }[v]).style.display = 'block';
+  ['nav-proy','nav-com','nav-pl','nav-reg'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById({ proyectos:'nav-proy', comercial:'nav-com', pl:'nav-pl', registros:'nav-reg' }[v]).classList.add('active');
   document.getElementById('btnSync').style.display = v === 'comercial' ? 'flex' : 'none';
   if (v === 'pl' && !PL.loaded) PL.load();
 }
@@ -1540,6 +1617,289 @@ const PL = (() => {
 })();
 
 
+
+// ════════════════════════════════════════════════════════
+//  MÓDULO REG — Registros generales (egreso + ingreso)
+// ════════════════════════════════════════════════════════
+const REG = (() => {
+  const CATS_GRAVADAS_ING = new Set([
+    'venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria','comision','otro_gravado'
+  ]);
+
+  // ── Helpers recalc ────────────────────────────────────
+  function recalcEgr() {
+    const total  = parseFloat(document.getElementById('regEgrTotal').value) || 0;
+    const aplica = document.getElementById('regEgrItbms').checked;
+    const des    = document.getElementById('regEgrDesglose');
+    const tag    = document.getElementById('regEgrItbmsTag');
+    if (aplica && total > 0) {
+      const sub = parseFloat((total / 1.07).toFixed(2));
+      const itb = parseFloat((total - sub).toFixed(2));
+      document.getElementById('regEgrSubtotal').value  = sub;
+      document.getElementById('regEgrItbmsVal').value  = itb;
+      document.getElementById('regEgrSubDisp').textContent   = fmt(sub);
+      document.getElementById('regEgrItbmsDisp').textContent = fmt(itb);
+      des.style.display = 'block'; tag.style.display = 'inline';
+    } else {
+      document.getElementById('regEgrSubtotal').value = total > 0 ? total.toFixed(2) : '';
+      document.getElementById('regEgrItbmsVal').value = '0';
+      des.style.display = 'none'; tag.style.display = 'none';
+    }
+  }
+
+  function recalcIng() {
+    const total  = parseFloat(document.getElementById('regIngTotal').value) || 0;
+    const aplica = document.getElementById('regIngItbms').checked;
+    const des    = document.getElementById('regIngDesglose');
+    const tag    = document.getElementById('regIngItbmsTag');
+    if (aplica && total > 0) {
+      const sub = parseFloat((total / 1.07).toFixed(2));
+      const itb = parseFloat((total - sub).toFixed(2));
+      document.getElementById('regIngSubtotal').value  = sub;
+      document.getElementById('regIngItbmsVal').value  = itb;
+      document.getElementById('regIngSubDisp').textContent   = fmt(sub);
+      document.getElementById('regIngItbmsDisp').textContent = fmt(itb);
+      des.style.display = 'block'; tag.style.display = 'inline';
+    } else {
+      document.getElementById('regIngSubtotal').value = total > 0 ? total.toFixed(2) : '';
+      document.getElementById('regIngItbmsVal').value = '0';
+      des.style.display = 'none'; tag.style.display = 'none';
+    }
+  }
+
+  function inferTipoEgr() { /* categoría mapea directamente */ }
+
+  function inferItbmsIng() {
+    const cat = document.getElementById('regIngCat').value;
+    document.getElementById('regIngItbms').checked = CATS_GRAVADAS_ING.has(cat);
+    recalcIng();
+  }
+
+  // ── Comprimir imagen para móvil ───────────────────────
+  function _comprimirImg(dataUrl, maxPx) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width  = Math.round(img.width  * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        res(c.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = rej;
+      img.src = dataUrl;
+    });
+  }
+
+  // ── Procesar archivo egreso ───────────────────────────
+  async function _procesarArchivoEgr(file) {
+    const zone   = document.getElementById('regEgrZone');
+    const lbl    = document.getElementById('regEgrZoneLbl');
+    const status = document.getElementById('regEgrAIStatus');
+    zone.classList.add('analyzing');
+    lbl.textContent = `📎 ${file.name} — analizando con IA…`;
+    status.style.display = 'block';
+    status.style.color   = 'var(--indigo)';
+    status.textContent   = '⏳ Extrayendo datos de la factura…';
+
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      let b64  = ev.target.result.split(',')[1];
+      let mime = file.type || 'image/jpeg';
+      if (mime !== 'application/pdf' && ev.target.result.length > 900_000) {
+        try { const r = await _comprimirImg(ev.target.result, 1200); b64 = r.split(',')[1]; mime = 'image/jpeg'; }
+        catch(e) {}
+      }
+      try {
+        const r = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action:'parseFacturaEgreso', imageBase64:b64, mimeType:mime }),
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'No se pudo analizar');
+        // Llenar campos
+        if (d.num_factura) document.getElementById('regEgrNfac').value  = d.num_factura;
+        if (d.fecha)       document.getElementById('regEgrFecha').value = d.fecha;
+        if (d.proveedor)   document.getElementById('regEgrProv').value  = d.proveedor;
+        if (d.ruc_proveedor) document.getElementById('regEgrRuc').value = d.ruc_proveedor;
+        if (d.dv_proveedor)  document.getElementById('regEgrDv').value  = d.dv_proveedor;
+        if (d.total) {
+          document.getElementById('regEgrTotal').value = d.total;
+          if (d.itbms && parseFloat(d.itbms) > 0) document.getElementById('regEgrItbms').checked = true;
+          recalcEgr();
+        }
+        zone.classList.remove('analyzing'); zone.classList.add('has-file');
+        status.style.color = 'var(--green)';
+        status.textContent = '✅ Datos extraídos — revisa y confirma';
+      } catch(err) {
+        zone.classList.remove('analyzing');
+        status.style.color = 'var(--red)';
+        status.textContent = '⚠️ ' + err.message;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── Procesar archivo ingreso ──────────────────────────
+  async function _procesarArchivoIng(file) {
+    const zone   = document.getElementById('regIngZone');
+    const lbl    = document.getElementById('regIngZoneLbl');
+    const status = document.getElementById('regIngAIStatus');
+    zone.classList.add('analyzing');
+    lbl.textContent = `📎 ${file.name} — analizando con IA…`;
+    status.style.display = 'block';
+    status.style.color   = 'var(--indigo)';
+    status.textContent   = '⏳ Extrayendo datos del comprobante…';
+
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      let b64  = ev.target.result.split(',')[1];
+      let mime = file.type || 'image/jpeg';
+      if (mime !== 'application/pdf' && ev.target.result.length > 900_000) {
+        try { const r = await _comprimirImg(ev.target.result, 1200); b64 = r.split(',')[1]; mime = 'image/jpeg'; }
+        catch(e) {}
+      }
+      try {
+        const r = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action:'parseComprobanteIngreso', imageBase64:b64, mimeType:mime }),
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'No se pudo analizar');
+        if (d.monto)          { document.getElementById('regIngTotal').value  = d.monto; recalcIng(); }
+        if (d.fecha)            document.getElementById('regIngFecha').value  = d.fecha;
+        if (d.num_factura)      document.getElementById('regIngNfac').value   = d.num_factura;
+        if (d.nombre_pagador)   document.getElementById('regIngNombre').value = d.nombre_pagador;
+        if (d.ruc_pagador)      document.getElementById('regIngRuc').value    = d.ruc_pagador;
+        if (d.dv_pagador)       document.getElementById('regIngDv').value     = d.dv_pagador;
+        if (d.descripcion)      document.getElementById('regIngDesc').value   = d.descripcion;
+        // Inferir categoría
+        if (d.tipo_comprobante && ['yappy','transferencia','efectivo'].includes(d.tipo_comprobante)) {
+          document.getElementById('regIngCat').value = 'venta_producto_gravado';
+        } else if (d.tiene_itbms) {
+          document.getElementById('regIngCat').value = 'venta_producto_gravado';
+        }
+        inferItbmsIng();
+        zone.classList.remove('analyzing'); zone.classList.add('has-file');
+        status.style.color = 'var(--green)';
+        status.textContent = '✅ Datos extraídos — revisa y confirma';
+      } catch(err) {
+        zone.classList.remove('analyzing');
+        status.style.color = 'var(--red)';
+        status.textContent = '⚠️ ' + err.message;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── Abrir modales ─────────────────────────────────────
+  function openEgreso() {
+    ['regEgrNfac','regEgrDesc','regEgrTotal','regEgrProv','regEgrRuc','regEgrDv','regEgrNotas']
+      .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('regEgrCat').value          = 'combustible_transporte';
+    document.getElementById('regEgrFecha').value        = new Date().toISOString().slice(0,10);
+    document.getElementById('regEgrItbms').checked      = false;
+    document.getElementById('regEgrDesglose').style.display = 'none';
+    document.getElementById('regEgrItbmsTag').style.display = 'none';
+    document.getElementById('regEgrSubtotal').value     = '';
+    document.getElementById('regEgrItbmsVal').value     = '';
+    document.getElementById('regEgrZone').className     = 'reg-upload-zone';
+    document.getElementById('regEgrZoneLbl').textContent = 'Adjuntar factura — foto o PDF';
+    document.getElementById('regEgrAIStatus').style.display = 'none';
+    document.getElementById('regEgrFile').value         = '';
+    openModal('mRegEgreso');
+  }
+
+  function openIngreso() {
+    ['regIngNfac','regIngDesc','regIngTotal','regIngNombre','regIngRuc','regIngDv','regIngNotas']
+      .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('regIngCat').value          = 'venta_producto_gravado';
+    document.getElementById('regIngFecha').value        = new Date().toISOString().slice(0,10);
+    document.getElementById('regIngItbms').checked      = true;
+    document.getElementById('regIngDesglose').style.display = 'none';
+    document.getElementById('regIngItbmsTag').style.display = 'none';
+    document.getElementById('regIngSubtotal').value     = '';
+    document.getElementById('regIngItbmsVal').value     = '';
+    document.getElementById('regIngZone').className     = 'reg-upload-zone';
+    document.getElementById('regIngZoneLbl').textContent = 'Adjuntar comprobante — Yappy, transferencia o factura';
+    document.getElementById('regIngAIStatus').style.display = 'none';
+    document.getElementById('regIngFile').value         = '';
+    openModal('mRegIngreso');
+  }
+
+  // ── File handlers ─────────────────────────────────────
+  function onEgrFile(input) { if (input.files[0]) _procesarArchivoEgr(input.files[0]); }
+  function onIngFile(input) { if (input.files[0]) _procesarArchivoIng(input.files[0]); }
+
+  // ── Submit egreso ─────────────────────────────────────
+  async function submitEgreso() {
+    const total = parseFloat(document.getElementById('regEgrTotal').value) || 0;
+    const fecha = document.getElementById('regEgrFecha').value;
+    if (!total) { toast('Ingresa el total', 'err'); return; }
+    if (!fecha) { toast('Ingresa la fecha', 'err'); return; }
+    const btn = document.getElementById('regEgrSubmit');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      const r = await jsonpGet('registrarEgresoOperativo', {
+        fecha,
+        tipo:        'costo_operativo',
+        categoria:   document.getElementById('regEgrCat').value,
+        proveedor:   document.getElementById('regEgrProv').value.trim(),
+        ruc_prov:    document.getElementById('regEgrRuc').value.trim(),
+        dv_prov:     document.getElementById('regEgrDv').value.trim(),
+        num_fac:     document.getElementById('regEgrNfac').value.trim(),
+        subtotal:    document.getElementById('regEgrSubtotal').value || '',
+        itbms:       document.getElementById('regEgrItbmsVal').value || '',
+        total,
+        descripcion: document.getElementById('regEgrDesc').value.trim(),
+        notas:       document.getElementById('regEgrNotas').value.trim(),
+      });
+      if (!r.success) throw new Error(r.error || 'Error al guardar');
+      toast('Egreso registrado ✓', 'ok');
+      closeModal('mRegEgreso');
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+    btn.disabled = false; btn.textContent = 'Guardar egreso';
+  }
+
+  // ── Submit ingreso ────────────────────────────────────
+  async function submitIngreso() {
+    const total  = parseFloat(document.getElementById('regIngTotal').value) || 0;
+    const fecha  = document.getElementById('regIngFecha').value;
+    const nombre = document.getElementById('regIngNombre').value.trim();
+    if (!total)  { toast('Ingresa el total', 'err');           return; }
+    if (!fecha)  { toast('Ingresa la fecha', 'err');           return; }
+    if (!nombre) { toast('Ingresa el nombre del cliente', 'err'); return; }
+    const btn = document.getElementById('regIngSubmit');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      const r = await jsonpGet('registrarIngresoManual', {
+        fecha,
+        categoria:   document.getElementById('regIngCat').value,
+        descripcion: document.getElementById('regIngDesc').value.trim(),
+        num_factura: document.getElementById('regIngNfac').value.trim(),
+        subtotal:    document.getElementById('regIngSubtotal').value || '',
+        itbms:       document.getElementById('regIngItbmsVal').value || '',
+        total,
+        nombre,
+        ruc:         document.getElementById('regIngRuc').value.trim(),
+        dv:          document.getElementById('regIngDv').value.trim(),
+        notas:       document.getElementById('regIngNotas').value.trim(),
+      });
+      if (!r.success) throw new Error(r.error || 'Error al guardar');
+      toast('Ingreso registrado ✓', 'ok');
+      closeModal('mRegIngreso');
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+    btn.disabled = false; btn.textContent = 'Guardar ingreso';
+  }
+
+  return { openEgreso, openIngreso, onEgrFile, onIngFile,
+           recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng };
+})();
+
+
 // ── INIT ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   // LOGIN DESHABILITADO TEMPORALMENTE — restaurar: quitar hasta el comentario "FIN LOGIN BYPASS"
@@ -1553,5 +1913,186 @@ document.querySelectorAll('.overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
 </script>
+
+<!-- MODAL REGISTROS: Egreso general -->
+<div class="overlay" id="mRegEgreso">
+  <div class="sheet" style="max-height:95vh">
+    <div class="sheet-handle"></div>
+    <div class="sheet-hdr">
+      <span class="sheet-title">📤 Registrar egreso</span>
+      <button class="sheet-close" onclick="closeModal('mRegEgreso')">✕</button>
+    </div>
+    <div class="sheet-body">
+
+      <!-- Zona IA — cámara / galería -->
+      <div class="reg-upload-zone" id="regEgrZone" onclick="document.getElementById('regEgrFile').click()">
+        <input type="file" id="regEgrFile" accept="image/*,application/pdf" capture="environment"
+               style="display:none" onchange="REG.onEgrFile(this)">
+        <div class="reg-upload-icon">📎</div>
+        <div id="regEgrZoneLbl">Adjuntar factura — foto o PDF</div>
+        <div style="font-size:.65rem;color:var(--chrome);margin-top:.22rem">Cámara · Galería · PDF</div>
+        <div id="regEgrAIStatus" style="display:none;margin-top:.38rem;font-size:.72rem"></div>
+      </div>
+
+      <div class="f-grp">
+        <label class="f-lbl">Categoría</label>
+        <select class="f-inp" id="regEgrCat" onchange="REG.inferTipoEgr()">
+          <option value="combustible_transporte">⛽ Combustible / Transporte</option>
+          <option value="gastos_personal">👤 Nómina / Personal</option>
+          <option value="alquileres">🏠 Alquileres</option>
+          <option value="servicios_publicos">💡 Servicios públicos</option>
+          <option value="publicidad_mercadeo">📣 Publicidad / Mercadeo</option>
+          <option value="honorarios_profesionales">📋 Honorarios profesionales</option>
+          <option value="mantenimiento_reparacion">🔧 Mantenimiento / Reparación</option>
+          <option value="seguros">🛡️ Seguros</option>
+          <option value="gastos_financieros">🏦 Gastos financieros</option>
+          <option value="otros_deducibles">📂 Otros deducibles</option>
+        </select>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Descripción</label>
+        <input type="text" class="f-inp" id="regEgrDesc" placeholder="Ej: Gasolina visita clientes…">
+      </div>
+      <div class="f-grid">
+        <div class="f-grp">
+          <label class="f-lbl">Fecha *</label>
+          <input type="date" class="f-inp" id="regEgrFecha">
+        </div>
+        <div class="f-grp">
+          <label class="f-lbl">N° Factura</label>
+          <input type="text" class="f-inp" id="regEgrNfac" placeholder="Opcional">
+        </div>
+      </div>
+      <div class="f-grp" style="background:var(--bg2);border-radius:var(--r);padding:.62rem .82rem;display:flex;align-items:center;gap:.6rem">
+        <input type="checkbox" id="regEgrItbms" onchange="REG.recalcEgr()"
+               style="width:16px;height:16px;accent-color:var(--orange);cursor:pointer;flex-shrink:0">
+        <label for="regEgrItbms" style="font-size:.82rem;font-weight:600;cursor:pointer;margin:0">Aplica ITBMS (7%)</label>
+        <span id="regEgrItbmsTag" style="display:none;font-size:.68rem;background:var(--orange);color:#fff;padding:.1rem .42rem;border-radius:4px;font-weight:700;margin-left:auto">+7%</span>
+      </div>
+      <div class="f-grid">
+        <div class="f-grp">
+          <label class="f-lbl">Total (USD) *</label>
+          <input type="number" class="f-inp" id="regEgrTotal" placeholder="0.00" step="0.01"
+                 oninput="REG.recalcEgr()" style="font-weight:700;font-size:1rem">
+        </div>
+        <div class="f-grp">
+          <label class="f-lbl">Proveedor</label>
+          <input type="text" class="f-inp" id="regEgrProv" placeholder="Nombre">
+        </div>
+      </div>
+      <div id="regEgrDesglose" style="display:none;background:var(--bg2);border-radius:var(--r);padding:.52rem .82rem;font-size:.77rem;margin-bottom:.82rem;display:none">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Subtotal:</span><span id="regEgrSubDisp">$0.00</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:.2rem"><span style="color:var(--muted)">ITBMS 7%:</span><span id="regEgrItbmsDisp">$0.00</span></div>
+      </div>
+      <div class="f-grid">
+        <div class="f-grp">
+          <label class="f-lbl">RUC proveedor</label>
+          <input type="text" class="f-inp" id="regEgrRuc" placeholder="Opcional">
+        </div>
+        <div class="f-grp">
+          <label class="f-lbl">DV</label>
+          <input type="text" class="f-inp" id="regEgrDv" placeholder="Opcional">
+        </div>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Notas internas</label>
+        <input type="text" class="f-inp" id="regEgrNotas" placeholder="Opcional">
+      </div>
+      <input type="hidden" id="regEgrSubtotal">
+      <input type="hidden" id="regEgrItbmsVal">
+      <button class="sheet-submit" id="regEgrSubmit" onclick="REG.submitEgreso()"
+              style="background:var(--red)">Guardar egreso</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REGISTROS: Ingreso general -->
+<div class="overlay" id="mRegIngreso">
+  <div class="sheet" style="max-height:95vh">
+    <div class="sheet-handle"></div>
+    <div class="sheet-hdr">
+      <span class="sheet-title">💰 Registrar ingreso</span>
+      <button class="sheet-close" onclick="closeModal('mRegIngreso')">✕</button>
+    </div>
+    <div class="sheet-body">
+
+      <!-- Zona IA -->
+      <div class="reg-upload-zone" id="regIngZone" onclick="document.getElementById('regIngFile').click()">
+        <input type="file" id="regIngFile" accept="image/*,application/pdf" capture="environment"
+               style="display:none" onchange="REG.onIngFile(this)">
+        <div class="reg-upload-icon">📎</div>
+        <div id="regIngZoneLbl">Adjuntar comprobante — Yappy, transferencia o factura</div>
+        <div style="font-size:.65rem;color:var(--chrome);margin-top:.22rem">Cámara · Galería · PDF</div>
+        <div id="regIngAIStatus" style="display:none;margin-top:.38rem;font-size:.72rem"></div>
+      </div>
+
+      <div class="f-grp">
+        <label class="f-lbl">Categoría</label>
+        <select class="f-inp" id="regIngCat" onchange="REG.inferItbmsIng()">
+          <option value="venta_producto_gravado">📦 Venta de producto (con ITBMS)</option>
+          <option value="venta_producto_exento">📦 Venta de producto (exento)</option>
+          <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
+          <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
+          <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
+          <option value="comision">💳 Comisión</option>
+          <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
+          <option value="otro_exento">📋 Otro ingreso (exento)</option>
+        </select>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Descripción</label>
+        <input type="text" class="f-inp" id="regIngDesc" placeholder="Opcional">
+      </div>
+      <div class="f-grid">
+        <div class="f-grp">
+          <label class="f-lbl">Fecha *</label>
+          <input type="date" class="f-inp" id="regIngFecha">
+        </div>
+        <div class="f-grp">
+          <label class="f-lbl">N° Factura</label>
+          <input type="text" class="f-inp" id="regIngNfac" placeholder="Opcional">
+        </div>
+      </div>
+      <div class="f-grp" style="background:var(--bg2);border-radius:var(--r);padding:.62rem .82rem;display:flex;align-items:center;gap:.6rem">
+        <input type="checkbox" id="regIngItbms" onchange="REG.recalcIng()"
+               style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
+        <label for="regIngItbms" style="font-size:.82rem;font-weight:600;cursor:pointer;margin:0">Aplica ITBMS (7%)</label>
+        <span id="regIngItbmsTag" style="display:none;font-size:.68rem;background:var(--green);color:#fff;padding:.1rem .42rem;border-radius:4px;font-weight:700;margin-left:auto">+7%</span>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Total (USD) *</label>
+        <input type="number" class="f-inp" id="regIngTotal" placeholder="0.00" step="0.01"
+               oninput="REG.recalcIng()" style="font-weight:700;font-size:1rem">
+      </div>
+      <div id="regIngDesglose" style="display:none;background:var(--bg2);border-radius:var(--r);padding:.52rem .82rem;font-size:.77rem;margin-bottom:.82rem">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Subtotal:</span><span id="regIngSubDisp">$0.00</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:.2rem"><span style="color:var(--muted)">ITBMS 7%:</span><span id="regIngItbmsDisp">$0.00</span></div>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Nombre cliente *</label>
+        <input type="text" class="f-inp" id="regIngNombre" placeholder="Nombre completo">
+      </div>
+      <div class="f-grid">
+        <div class="f-grp">
+          <label class="f-lbl">RUC cliente</label>
+          <input type="text" class="f-inp" id="regIngRuc" placeholder="Opcional">
+        </div>
+        <div class="f-grp">
+          <label class="f-lbl">DV</label>
+          <input type="text" class="f-inp" id="regIngDv" placeholder="Opcional">
+        </div>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Notas internas</label>
+        <input type="text" class="f-inp" id="regIngNotas" placeholder="Opcional">
+      </div>
+      <input type="hidden" id="regIngSubtotal">
+      <input type="hidden" id="regIngItbmsVal">
+      <button class="sheet-submit" id="regIngSubmit" onclick="REG.submitIngreso()"
+              style="background:var(--green)">Guardar ingreso</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
