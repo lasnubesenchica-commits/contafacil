@@ -338,17 +338,33 @@ input,select,textarea { font-family:'DM Sans',sans-serif; }
 .overlay.open { display:flex; }
 .sheet {
   width:100%; background:var(--surface); border-radius:14px 14px 0 0;
-  max-height:90vh; overflow:hidden;
-  display:flex; flex-direction:column;
+  /* Grid de 3 filas: cabecera fija | cuerpo scrolleable | footer fijo */
+  /* Compatible con Safari y Chrome iOS */
+  display:grid;
+  grid-template-rows: auto 1fr auto;
+  max-height:90vh; min-height:0;
+  /* Chrome iOS: necesita width explícito para calcular grid rows correctamente */
+  width:100%;
   animation:slideUp .22s cubic-bezier(.32,1.2,.7,1) both;
 }
 @keyframes slideUp { from { transform:translateY(100%); } }
-.sheet-handle { width:30px; height:3px; border-radius:2px; background:var(--bg3); margin:8px auto 2px; flex-shrink:0; }
-.sheet-hdr {
-  padding:.62rem 1rem .8rem; display:flex; align-items:center; justify-content:space-between;
-  border-bottom:1px solid var(--border);
-  flex-shrink:0;  /* fijo — no participa en el scroll */
+.sheet-top {
+  /* Primera fila del grid: handle + header juntos, nunca scrollea */
+  border-radius:14px 14px 0 0;
   background:var(--surface);
+  position:sticky; top:0; z-index:2;  /* failsafe para browsers que no soporten grid bien */
+}
+.sheet-handle {
+  width:30px; height:3px; border-radius:2px; background:var(--bg3);
+  margin:8px auto 0;
+  /* handle vive dentro del header grid-area para no añadir fila extra */
+}
+.sheet-hdr {
+  padding:.38rem 1rem .8rem; display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+  border-radius:14px 14px 0 0;
+  /* Primera fila del grid — tamaño automático, nunca scrollea */
 }
 .sheet-title { font-size:.94rem; font-weight:600; }
 .sheet-close {
@@ -357,8 +373,10 @@ input,select,textarea { font-family:'DM Sans',sans-serif; }
 }
 .sheet-body {
   padding:.88rem 1rem;
-  overflow-y:auto; flex:1;          /* ocupa todo el espacio disponible y scrollea */
-  -webkit-overflow-scrolling:touch; /* scroll momentum en iOS */
+  overflow-y:auto;                  /* segunda fila del grid — única que scrollea */
+  -webkit-overflow-scrolling:touch; /* momentum scroll en iOS */
+  overscroll-behavior:contain;      /* evita que el scroll "escape" al body */
+  min-height:0;                     /* Chrome iOS: permite que 1fr se contraiga */
   padding-bottom:calc(.88rem + var(--safe-bot));
 }
 
@@ -367,8 +385,9 @@ input,select,textarea { font-family:'DM Sans',sans-serif; }
   display:grid; grid-template-columns:1fr auto; gap:.55rem;
   padding:.75rem 1rem calc(.75rem + var(--safe-bot));
   border-top:1px solid var(--border);
-  flex-shrink:0;  /* fijo — no participa en el scroll */
   background:var(--surface);
+  /* Tercera fila del grid — siempre visible */
+  position:sticky; bottom:0; z-index:2;
 }
 .sheet-footer-cancel {
   padding:.78rem 1.1rem; border-radius:var(--r);
@@ -743,11 +762,11 @@ select.f-inp { appearance:none; }
 <!-- MODAL: Resumen ST -->
 <div class="overlay" id="mResumen">
   <div class="sheet">
-    <div class="sheet-handle"></div>
+    <div class="sheet-top"><div class="sheet-handle"></div>
     <div class="sheet-hdr">
       <span class="sheet-title" id="mResumen-title">Resumen</span>
       <button class="sheet-close" onclick="closeModal('mResumen')">✕</button>
-    </div>
+    </div></div>
     <div class="sheet-body" id="mResumen-body"></div>
   </div>
 </div>
@@ -755,11 +774,11 @@ select.f-inp { appearance:none; }
 <!-- MODAL: Pago cliente ST -->
 <div class="overlay" id="mPago">
   <div class="sheet">
-    <div class="sheet-handle"></div>
+    <div class="sheet-top"><div class="sheet-handle"></div>
     <div class="sheet-hdr">
       <span class="sheet-title">Registrar pago cliente</span>
       <button class="sheet-close" onclick="closeModal('mPago')">✕</button>
-    </div>
+    </div></div>
     <div class="sheet-body">
       <div class="f-grp">
         <label class="f-lbl">Número de factura emitida</label>
@@ -802,11 +821,11 @@ select.f-inp { appearance:none; }
 <!-- MODAL: Egreso ST -->
 <div class="overlay" id="mEgreso">
   <div class="sheet">
-    <div class="sheet-handle"></div>
+    <div class="sheet-top"><div class="sheet-handle"></div>
     <div class="sheet-hdr">
       <span class="sheet-title">Registrar egreso</span>
       <button class="sheet-close" onclick="closeModal('mEgreso')">✕</button>
-    </div>
+    </div></div>
     <div class="sheet-body">
       <div class="f-grp">
         <label class="f-lbl">Tipo de ítem</label>
@@ -851,11 +870,11 @@ select.f-inp { appearance:none; }
 <!-- MODAL: Cambiar estado ST -->
 <div class="overlay" id="mEstado">
   <div class="sheet">
-    <div class="sheet-handle"></div>
+    <div class="sheet-top"><div class="sheet-handle"></div>
     <div class="sheet-hdr">
       <span class="sheet-title" id="mEstado-title">Cambiar estado</span>
       <button class="sheet-close" onclick="closeModal('mEstado')">✕</button>
-    </div>
+    </div></div>
     <div class="sheet-body" id="mEstado-body"></div>
   </div>
 </div>
@@ -864,11 +883,11 @@ select.f-inp { appearance:none; }
 <!-- MODAL: Pago cliente Comercialización -->
 <div class="overlay" id="mOpPago">
   <div class="sheet">
-    <div class="sheet-handle"></div>
+    <div class="sheet-top"><div class="sheet-handle"></div>
     <div class="sheet-hdr">
       <span class="sheet-title">Registrar pago cliente</span>
       <button class="sheet-close" onclick="closeModal('mOpPago')">✕</button>
-    </div>
+    </div></div>
     <div class="sheet-body">
       <input type="hidden" id="op-pago-id">
       <div class="f-grp">
@@ -1946,12 +1965,12 @@ document.querySelectorAll('.overlay').forEach(el => {
 
 <!-- MODAL REGISTROS: Egreso general -->
 <div class="overlay" id="mRegEgreso">
-  <div class="sheet" style="max-height:95vh">
-    <div class="sheet-handle"></div>
+  <div class="sheet">
+    <div class="sheet-top"><div class="sheet-handle"></div>
     <div class="sheet-hdr">
       <span class="sheet-title">📤 Registrar egreso</span>
       <button class="sheet-close" onclick="closeModal('mRegEgreso')">✕</button>
-    </div>
+    </div></div>
     <div class="sheet-body">
 
       <!-- Zona IA — cámara / galería -->
@@ -2041,12 +2060,12 @@ document.querySelectorAll('.overlay').forEach(el => {
 
 <!-- MODAL REGISTROS: Ingreso general -->
 <div class="overlay" id="mRegIngreso">
-  <div class="sheet" style="max-height:95vh">
-    <div class="sheet-handle"></div>
+  <div class="sheet">
+    <div class="sheet-top"><div class="sheet-handle"></div>
     <div class="sheet-hdr">
       <span class="sheet-title">💰 Registrar ingreso</span>
       <button class="sheet-close" onclick="closeModal('mRegIngreso')">✕</button>
-    </div>
+    </div></div>
     <div class="sheet-body">
 
       <!-- Zona IA -->
