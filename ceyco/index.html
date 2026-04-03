@@ -345,6 +345,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 #sectionOperaciones{display:none}
 #sectionVentasWeb{display:none}
 #sectionIngresos{display:none}
+#sectionRegistroGeneral{display:none}
 
 /* ── OPERACIONES STATS ── */
 .op-stats{
@@ -1051,6 +1052,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <button id="tabOperaciones"></button>
     <button id="tabDashboard"></button>
     <button id="tabContabilidad"></button>
+    <button id="tabRegistroGeneral"></button>
     <button id="tabIngresos"></button>
     <button id="tabEgresos"></button>
     <button id="tabInventario"></button>
@@ -1347,6 +1349,130 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </table>
   </div>
 </div><!-- /sectionEgresos -->
+
+<!-- ═══════════ SECCIÓN: REGISTRO GENERAL ═══════════ -->
+<div id="sectionRegistroGeneral" style="display:none">
+
+  <!-- Título -->
+  <div style="padding:1rem 2rem .5rem;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
+    <span style="font-size:1.15rem">📒</span>
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text)">Registro General</span>
+    <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">— Ingresos y egresos misceláneos no vinculados a Proyectos ni Comercialización</span>
+  </div>
+
+  <!-- Tabs internos -->
+  <div style="display:flex;gap:0;background:var(--white);border-bottom:2px solid var(--border);padding:0 2rem">
+    <button id="rgTabEgrBtn" onclick="rgShowTab('egr')"
+      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--orange);color:var(--orange);margin-bottom:-2px;transition:all .15s">
+      📤 Egresos misceláneos
+    </button>
+    <button id="rgTabIngBtn" onclick="rgShowTab('ing')"
+      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
+      💰 Ingresos misceláneos
+    </button>
+  </div>
+
+  <!-- TAB: EGRESOS -->
+  <div id="rgTabEgr">
+    <!-- Stats -->
+    <div class="op-stats" id="rgEgrStats" style="padding:1rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
+      <div class="stat-pill"><span class="stat-pill-num orange" id="rgEStatTotal">—</span><span class="stat-pill-label">Total registros</span></div>
+      <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="rgEStatMonto">—</span><span class="stat-pill-label">Total gastado</span></div>
+      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgEStatItbms">—</span><span class="stat-pill-label">ITBMS pagado</span></div>
+    </div>
+    <!-- Toolbar -->
+    <div class="op-toolbar" style="padding:.75rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <button class="op-filter-btn active" data-rge-filter="all" onclick="rgApplyEgrFilter(this,'all')">Todos</button>
+      <button class="op-filter-btn" data-rge-filter="nomina"                    onclick="rgApplyEgrFilter(this,'nomina')">👤 Planilla</button>
+      <button class="op-filter-btn" data-rge-filter="alquileres"                onclick="rgApplyEgrFilter(this,'alquileres')">🏢 Alquiler</button>
+      <button class="op-filter-btn" data-rge-filter="servicios_publicos"        onclick="rgApplyEgrFilter(this,'servicios_publicos')">⚡ Servicios públ.</button>
+      <button class="op-filter-btn" data-rge-filter="combustible_transporte"    onclick="rgApplyEgrFilter(this,'combustible_transporte')">⛽ Combustible</button>
+      <button class="op-filter-btn" data-rge-filter="honorarios_profesionales"  onclick="rgApplyEgrFilter(this,'honorarios_profesionales')">💼 Honorarios</button>
+      <button class="op-filter-btn" data-rge-filter="otros_deducibles"          onclick="rgApplyEgrFilter(this,'otros_deducibles')">📋 Otros</button>
+      <div class="search-wrap" style="margin-left:auto">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso..." oninput="rgRenderEgr()">
+      </div>
+      <button class="btn-sync" onclick="rgRefresh()">↻ Actualizar</button>
+    </div>
+    <!-- Header + botón nuevo -->
+    <div class="section-hdr-row">
+      <span class="section-hdr-lbl">Egresos generales</span>
+      <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
+    </div>
+    <!-- Tabla -->
+    <div class="op-table-wrap">
+      <table class="op-table" id="rgEgrTable">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Categoría DGI</th>
+            <th>Descripción</th>
+            <th>Proveedor</th>
+            <th>Factura</th>
+            <th style="text-align:right">Subtotal</th>
+            <th style="text-align:right">ITBMS</th>
+            <th style="text-align:right">Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rgEgrBody">
+          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div><!-- /rgTabEgr -->
+
+  <!-- TAB: INGRESOS -->
+  <div id="rgTabIng" style="display:none">
+    <!-- Stats -->
+    <div class="op-stats" id="rgIngStats" style="padding:1rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
+      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatTotal">—</span><span class="stat-pill-label">Total registros</span></div>
+      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatMonto">—</span><span class="stat-pill-label">Total ingresos</span></div>
+      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgIStatItbms">—</span><span class="stat-pill-label">ITBMS cobrado</span></div>
+    </div>
+    <!-- Toolbar -->
+    <div class="op-toolbar" style="padding:.75rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <button class="op-filter-btn active" data-rgi-filter="all" onclick="rgApplyIngFilter(this,'all')">Todos</button>
+      <button class="op-filter-btn" data-rgi-filter="alquiler_cobrado"  onclick="rgApplyIngFilter(this,'alquiler_cobrado')">🏢 Alquiler cobrado</button>
+      <button class="op-filter-btn" data-rgi-filter="intereses"         onclick="rgApplyIngFilter(this,'intereses')">🏦 Intereses</button>
+      <button class="op-filter-btn" data-rgi-filter="otro_gravado"      onclick="rgApplyIngFilter(this,'otro_gravado')">📋 Otro gravado</button>
+      <button class="op-filter-btn" data-rgi-filter="otro_exento"       onclick="rgApplyIngFilter(this,'otro_exento')">📋 Otro exento</button>
+      <div class="search-wrap" style="margin-left:auto">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="rgSearchIng" class="filter-search" placeholder="Buscar ingreso..." oninput="rgRenderIng()">
+      </div>
+      <button class="btn-sync" onclick="rgRefresh()">↻ Actualizar</button>
+    </div>
+    <!-- Header + botón nuevo -->
+    <div class="section-hdr-row">
+      <span class="section-hdr-lbl">Ingresos generales</span>
+      <button class="section-hdr-add ing" onclick="rgAbrirNuevoIngreso()" title="Registrar ingreso">+</button>
+    </div>
+    <!-- Tabla -->
+    <div class="op-table-wrap">
+      <table class="op-table" id="rgIngTable">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Categoría DGI</th>
+            <th>Descripción</th>
+            <th>Cliente / Fuente</th>
+            <th>Factura</th>
+            <th style="text-align:right">Subtotal</th>
+            <th style="text-align:right">ITBMS</th>
+            <th style="text-align:right">Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rgIngBody">
+          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div><!-- /rgTabIng -->
+
+</div><!-- /sectionRegistroGeneral -->
 
 <!-- ══════════ SECCIÓN: DASHBOARD P&L ══════════ -->
 <div id="sectionDashboard">
@@ -2350,6 +2476,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
               <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
               <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
               <option value="comision">💳 Comisión</option>
+              <option value="alquiler_cobrado">🏢 Alquiler cobrado</option>
+              <option value="intereses">🏦 Intereses ganados</option>
+              <option value="dividendos">📈 Dividendos recibidos</option>
               <option value="exportacion">📦 Exportación</option>
               <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
               <option value="otro_exento">📋 Otro ingreso (exento)</option>
@@ -2685,6 +2814,7 @@ function buildMenu() {
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/margenes.html&quot;)">📊 Márgenes por Producto</a>' +
       '</div>' +
     '</div>' +
+    '<button class="main-tab" id="tabRegistroGeneral" onclick="switchTab(&quot;registroGeneral&quot;)">📒 Registro General</button>' +
     '<div class="main-tab-group">' +
       '<button class="main-tab" id="tabContabilidad">📒 Contabilidad <span class="main-tab-arrow">▾</span></button>' +
       '<div class="dropdown-menu">' +
@@ -3393,8 +3523,10 @@ function switchTab(tab) {
   const isReporte = tab.startsWith('reporte:');
   document.getElementById('sectionVentasWeb').style.display    = tab === 'ventasWeb'    ? 'block' : 'none';
   document.getElementById('sectionOperaciones').style.display  = tab === 'operaciones'  ? 'block' : 'none';
-  document.getElementById('sectionEgresos').style.display      = tab === 'egresos'      ? 'block' : 'none';
-  document.getElementById('sectionIngresos').style.display     = tab === 'ingresos'     ? 'block' : 'none';
+  document.getElementById('sectionEgresos').style.display         = tab === 'egresos'         ? 'block' : 'none';
+  document.getElementById('sectionIngresos').style.display        = tab === 'ingresos'        ? 'block' : 'none';
+  document.getElementById('sectionRegistroGeneral').style.display = tab === 'registroGeneral' ? 'block' : 'none';
+  if (tab === 'registroGeneral') rgInit();
   document.getElementById('sectionDashboard').style.display    = tab === 'dashboard'    ? 'block' : 'none';
   document.getElementById('sectionInventario').style.display   = tab === 'inventario'   ? 'block' : 'none';
   document.getElementById('sectionProveedores').style.display  = tab === 'proveedores'  ? 'block' : 'none';
@@ -3410,6 +3542,7 @@ function switchTab(tab) {
   _tabToggle('tabDashboard',         tab === 'dashboard');
   _tabToggle('tabContabilidad',      ctTabs.indexOf(tab) >= 0);
   _tabToggle('tabInventario',        tab === 'inventario');
+  _tabToggle('tabRegistroGeneral',   tab === 'registroGeneral');
   _tabToggle('tabSetup',             tab === 'setup');
   // tabServiciosTecnicos also active when on the ST module itself
   if (tab === 'reporte:reportes/servicios_tecnicos.html') _tabToggle('tabServiciosTecnicos', true);
@@ -5626,6 +5759,238 @@ var invMovLoaded = false;
 // LEGACY stubs para que referencias externas no rompan
 var invItems    = [];
 var invFiltered = [];
+
+
+// ══════════════════════════════════════════════════
+//  REGISTRO GENERAL — misceláneos
+//  Filtra ingItems/egrItems por registros sin origen
+//  en ST (id_st_item vacío) ni CV (id_item_cv vacío)
+// ══════════════════════════════════════════════════
+
+var rg_initialized = false;
+var rg_egr_filter  = 'all';
+var rg_ing_filter  = 'all';
+
+// Categorías DGI → label legible
+const RG_EGR_CAT_LABELS = {
+  costo_mercancia:          '📦 Costo mercancía',
+  costo_servicio_tecnico:   '🔧 Costo ST',
+  impuesto_importacion:     '🛃 Impuesto importación',
+  costo_operativo:          '🏢 Operativo',
+  nomina:                   '👤 Planilla / Nómina',
+  alquileres:               '🏢 Alquiler local',
+  servicios:                '⚡ Servicios',
+  servicios_publicos:       '💡 Servicios públicos',
+  combustible_transporte:   '⛽ Combustible',
+  publicidad_mercadeo:      '📣 Publicidad',
+  honorarios_profesionales: '💼 Honorarios',
+  mantenimiento_reparacion: '🔧 Mantenimiento',
+  seguros:                  '🛡️ Seguros',
+  gastos_financieros:       '🏦 Gastos financieros',
+  otros_deducibles:         '📋 Otros deducibles',
+  credito_fiscal:           '🏛️ Crédito fiscal',
+};
+const RG_ING_CAT_LABELS = {
+  venta_producto_gravado:   '📦 Venta producto (+ITBMS)',
+  venta_producto_exento:    '📦 Venta producto (exento)',
+  servicio_tecnico_gravado: '🔧 Serv. técnico (+ITBMS)',
+  servicio_tecnico_exento:  '🔧 Serv. técnico (exento)',
+  asesoria_consultoria:     '💼 Asesoría',
+  comision:                 '💳 Comisión',
+  alquiler_cobrado:         '🏢 Alquiler cobrado',
+  intereses:                '🏦 Intereses',
+  dividendos:               '📈 Dividendos',
+  otro_gravado:             '📋 Otro (+ITBMS)',
+  otro_exento:              '📋 Otro (exento)',
+};
+
+function rgInit() {
+  if (!rg_initialized) {
+    // Cargar datos si aún no están en memoria
+    if (!egrItems.length) loadEgresos().then(() => rgRender());
+    else rgRender();
+    if (!ingItems.length) loadIngresos().then(() => rgRenderIng());
+    else rgRenderIng();
+    rg_initialized = true;
+  } else {
+    rgRender();
+  }
+}
+
+// ── Identificar registros misceláneos ─────────────
+// Son registros SIN id_item_cv (CV-OP-...) y SIN id_st_item
+function rgEsMiscelaneoEgr(e) {
+  const cv  = String(e.id_item_cv  || '').trim();
+  const sti = String(e.id_st_item  || '').trim();
+  const notas = String(e.notas || '').toUpperCase();
+  return !cv && !sti && !notas.includes('ST:');
+}
+function rgEsMiscelaneoIng(i) {
+  // Ingresos sin referencia a ST en notas y sin tipo tecnico vinculado a ST
+  const notas = String(i.notas || '').toUpperCase();
+  const tipo  = String(i.tipo_ingreso || '').toLowerCase();
+  // Ingresos de Proyectos tienen 'ST:' en notas
+  return !notas.includes('ST:') &&
+         // Ingresos de Operaciones tienen referencia CV: en notas o son venta_producto generados por cierre de CV
+         !notas.includes('CV:') &&
+         // Excluir si hay id de operación web vinculado (venta Comercializacion)
+         !String(i.id_orden_web || '').trim();
+}
+
+// ── Tabs internos ─────────────────────────────────
+function rgShowTab(tab) {
+  document.getElementById('rgTabEgr').style.display = tab === 'egr' ? 'block' : 'none';
+  document.getElementById('rgTabIng').style.display = tab === 'ing' ? 'block' : 'none';
+  const btnEgr = document.getElementById('rgTabEgrBtn');
+  const btnIng = document.getElementById('rgTabIngBtn');
+  if (tab === 'egr') {
+    btnEgr.style.borderBottomColor = 'var(--orange)'; btnEgr.style.color = 'var(--orange)';
+    btnIng.style.borderBottomColor = 'transparent';   btnIng.style.color = 'var(--muted)';
+  } else {
+    btnIng.style.borderBottomColor = 'var(--green)';  btnIng.style.color = 'var(--green)';
+    btnEgr.style.borderBottomColor = 'transparent';   btnEgr.style.color = 'var(--muted)';
+  }
+}
+window.rgShowTab = rgShowTab;
+
+// ── Filtros ───────────────────────────────────────
+function rgApplyEgrFilter(btn, filter) {
+  document.querySelectorAll('[data-rge-filter]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  rg_egr_filter = filter;
+  rgRenderEgr();
+}
+function rgApplyIngFilter(btn, filter) {
+  document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  rg_ing_filter = filter;
+  rgRenderIng();
+}
+window.rgApplyEgrFilter = rgApplyEgrFilter;
+window.rgApplyIngFilter = rgApplyIngFilter;
+
+function rgRefresh() {
+  rg_initialized = false;
+  egrItems = []; ingItems = [];
+  plLoaded = false;
+  rgInit();
+}
+window.rgRefresh = rgRefresh;
+
+// ── Render ────────────────────────────────────────
+function rgRender() { rgRenderEgr(); rgRenderIng(); }
+
+function rgRenderEgr() {
+  const q    = (document.getElementById('rgSearchEgr') || {value:''}).value.toLowerCase().trim();
+  let items  = egrItems.filter(rgEsMiscelaneoEgr)
+    .filter(e => String(e.estado||'').toLowerCase() !== 'anulado');
+  if (rg_egr_filter !== 'all') items = items.filter(e => e.tipo_egreso === rg_egr_filter || e.categoria === rg_egr_filter);
+  if (q) items = items.filter(e => [e.proveedor,e.descripcion,e.num_fac_ref,e.tipo_egreso].join(' ').toLowerCase().includes(q));
+  items.sort((a,b) => String(b.fecha_egreso||'').localeCompare(String(a.fecha_egreso||'')));
+
+  // Stats
+  const totMonto = items.reduce((s,e)=>s+Number(e.total||0),0);
+  const totItbms = items.reduce((s,e)=>s+Number(e.itbms||0),0);
+  document.getElementById('rgEStatTotal').textContent = items.length;
+  document.getElementById('rgEStatMonto').textContent = items.length ? '$'+totMonto.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  document.getElementById('rgEStatItbms').textContent = totItbms>0 ? '$'+totItbms.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+
+  const tbody = document.getElementById('rgEgrBody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="table-empty"><span style="font-size:2rem">📭</span><span>Sin egresos misceláneos registrados</span></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(e => {
+    const catLabel = RG_EGR_CAT_LABELS[e.tipo_egreso] || RG_EGR_CAT_LABELS[e.categoria] || e.tipo_egreso || '—';
+    const docLink  = e.drive_url ? `<a href="${esc(e.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
+    return `<tr>
+      <td style="font-size:.78rem;color:var(--muted)">${e.fecha_egreso||'—'}</td>
+      <td><span style="font-size:.72rem">${esc(catLabel)}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.descripcion||'')}">${esc((e.descripcion||'—').substring(0,50))}</td>
+      <td style="font-size:.78rem">${esc(e.proveedor||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${esc(e.num_fac_ref||'—')}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted)">${e.subtotal>0?'$'+Number(e.subtotal).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:#1565C0">${e.itbms>0?'$'+Number(e.itbms).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#C62828">$${Number(e.total||0).toFixed(2)}</td>
+      <td>${docLink}</td>
+    </tr>`;
+  }).join('');
+}
+
+function rgRenderIng() {
+  const q    = (document.getElementById('rgSearchIng') || {value:''}).value.toLowerCase().trim();
+  let items  = ingItems.filter(rgEsMiscelaneoIng)
+    .filter(i => String(i.estado||'').toLowerCase() !== 'anulado');
+  if (rg_ing_filter !== 'all') items = items.filter(i => i.categoria_ingreso === rg_ing_filter || i.tipo_ingreso === rg_ing_filter);
+  if (q) items = items.filter(i => [i.nombre_cliente,i.descripcion,i.num_factura,i.tipo_ingreso].join(' ').toLowerCase().includes(q));
+  items.sort((a,b) => String(b.fecha_ingreso||'').localeCompare(String(a.fecha_ingreso||'')));
+
+  // Stats
+  const totMonto = items.reduce((s,i)=>s+Number(i.total||0),0);
+  const totItbms = items.reduce((s,i)=>s+Number(i.itbms||0),0);
+  document.getElementById('rgIStatTotal').textContent = items.length;
+  document.getElementById('rgIStatMonto').textContent = items.length ? '$'+totMonto.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  document.getElementById('rgIStatItbms').textContent = totItbms>0 ? '$'+totItbms.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+
+  const tbody = document.getElementById('rgIngBody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="table-empty"><span style="font-size:2rem">💰</span><span>Sin ingresos misceláneos registrados</span></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(i => {
+    const catLabel = RG_ING_CAT_LABELS[i.categoria_ingreso] || RG_ING_CAT_LABELS[i.tipo_ingreso] || i.tipo_ingreso || '—';
+    const docLink  = i.drive_url ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
+    const estadoBadge = i.estado === 'confirmado'
+      ? '<span style="font-size:.68rem;font-weight:600;color:#2E7D32">✓ Confirmado</span>'
+      : '<span style="font-size:.68rem;font-weight:600;color:#E65100">⏳ Pendiente</span>';
+    return `<tr>
+      <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso||'—'}</td>
+      <td><span style="font-size:.72rem">${esc(catLabel)}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.descripcion||'')}">${esc((i.descripcion||'—').substring(0,50))}</td>
+      <td style="font-size:.78rem">${esc(i.nombre_cliente||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${esc(i.num_factura||'—')}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted)">${i.subtotal>0?'$'+Number(i.subtotal).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:#1565C0">${i.itbms>0?'$'+Number(i.itbms).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#2E7D32">$${Number(i.total||0).toFixed(2)}</td>
+      <td>${docLink}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Abrir modales reutilizando los existentes ─────
+function rgAbrirNuevoEgreso() {
+  // Setear categoría default a "otros_deducibles" y abrir el modal existente
+  abrirModalNuevoEgreso();
+  document.getElementById('eCategoria').value = 'otros_deducibles';
+  inferirTipoEgreso();
+  // Cambiar el título para contexto claro
+  document.querySelector('#egresoModalOverlay .modal-title').textContent = '📤 Registrar Egreso General';
+}
+function rgAbrirNuevoIngreso() {
+  abrirModalNuevoIngreso();
+  document.getElementById('iCategoria').value = 'otro_gravado';
+  // Cambiar el título para contexto claro
+  document.querySelector('#ingresoModalOverlay .modal-title').textContent = '💰 Registrar Ingreso General';
+}
+window.rgAbrirNuevoEgreso  = rgAbrirNuevoEgreso;
+window.rgAbrirNuevoIngreso = rgAbrirNuevoIngreso;
+
+// Al cerrar cualquier modal estando en Registro General, refrescar la vista
+const _origCloseEgr = window.closeEgresoModal;
+window.closeEgresoModal = function() {
+  _origCloseEgr && _origCloseEgr();
+  if (activeTab === 'registroGeneral') { setTimeout(rgRenderEgr, 300); }
+  // Restaurar título original
+  const t = document.querySelector('#egresoModalOverlay .modal-title');
+  if (t) t.textContent = '📤 Registrar Egreso';
+};
+const _origCloseIng = window.closeIngresoModal;
+window.closeIngresoModal = function() {
+  _origCloseIng && _origCloseIng();
+  if (activeTab === 'registroGeneral') { setTimeout(rgRenderIng, 300); }
+  const t = document.querySelector('#ingresoModalOverlay .modal-title');
+  if (t) t.textContent = '💰 Registrar Ingreso';
+};
 
 // ══════════════════════════════════════════════════
 //  ENTRY POINT — llamado desde switchTab('inventario')
