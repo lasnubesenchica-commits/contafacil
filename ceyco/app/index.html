@@ -2096,18 +2096,62 @@ const REG = (() => {
 // ════════════════════════════════════════════════════════
 const DRIVE = (() => {
   let _url = '', _label = '';
+  let _loadTime = 0, _timer = null;
 
+  function _fileId(url) {
+    const m = url.match(/\/file\/d\/([^/?]+)/);
+    return m ? m[1] : null;
+  }
   function _previewUrl(url) {
-    const m = url.match(/\/file\/d\/([^/]+)/);
-    if (m) return 'https://drive.google.com/file/d/' + m[1] + '/preview';
-    if (url.includes('/preview')) return url;
-    return url;
+    const id = _fileId(url);
+    return id ? 'https://drive.google.com/file/d/' + id + '/preview' : url;
+  }
+  function _downloadUrl(url) {
+    const id = _fileId(url);
+    return id ? 'https://drive.google.com/uc?export=download&id=' + id : url;
   }
 
-  function _downloadUrl(url) {
-    const m = url.match(/\/file\/d\/([^/]+)/);
-    if (m) return 'https://drive.google.com/uc?export=download&id=' + m[1];
-    return url;
+  function _showFallback() {
+    const wrap = document.getElementById('driveFrameWrap');
+    if (!wrap) return;
+    wrap.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+      'height:100%;gap:1.1rem;padding:2rem;text-align:center">' +
+        '<div style="font-size:3rem">📄</div>' +
+        '<div style="color:#fff;font-size:.88rem;font-weight:600;max-width:260px;line-height:1.4">' +
+          esc(_label) +
+        '</div>' +
+        '<div style="color:rgba(255,255,255,.5);font-size:.74rem;max-width:260px;line-height:1.5">' +
+          'La vista previa requiere sesión de Google.<br>Abre el documento directamente:' +
+        '</div>' +
+        '<button onclick="DRIVE.openExternal()" ' +
+          'style="background:var(--orange);color:#fff;border-radius:var(--r);' +
+          'padding:.78rem 1.4rem;font-size:.88rem;font-weight:700;' +
+          'width:100%;max-width:240px">' +
+          '↗ Abrir en Google Drive' +
+        '</button>' +
+        '<button onclick="DRIVE.download()" ' +
+          'style="background:rgba(255,255,255,.12);color:#fff;border-radius:var(--r);' +
+          'padding:.78rem 1.4rem;font-size:.88rem;font-weight:600;' +
+          'width:100%;max-width:240px">' +
+          '↓ Descargar documento' +
+        '</button>' +
+      '</div>';
+  }
+
+  function _buildFrame() {
+    const wrap = document.getElementById('driveFrameWrap');
+    if (!wrap) return;
+    wrap.innerHTML =
+      '<div class="drive-loading" id="driveLoading">' +
+        '<div class="drive-spinner"></div>' +
+        '<div>Cargando documento\u2026</div>' +
+      '</div>' +
+      '<iframe id="driveFrame" src="about:blank" ' +
+        'style="width:100%;height:100%;border:none;background:#fff" ' +
+        'onload="DRIVE.onLoad()" ' +
+        'sandbox="allow-scripts allow-same-origin allow-popups allow-forms">' +
+      '</iframe>';
   }
 
   function open(url, label) {
@@ -2115,19 +2159,38 @@ const DRIVE = (() => {
     _url   = url;
     _label = label || 'Documento';
     document.getElementById('driveLbl').textContent = _label;
-    document.getElementById('driveLoading').style.display = 'flex';
-    document.getElementById('driveFrame').src = _previewUrl(url);
     document.getElementById('driveModal').classList.add('open');
     document.body.style.overflow = 'hidden';
+    _buildFrame();
+    _loadTime = Date.now();
+    // Timeout: si en 7s sigue el spinner → fallback
+    clearTimeout(_timer);
+    _timer = setTimeout(function() {
+      const loading = document.getElementById('driveLoading');
+      if (loading && loading.style.display !== 'none') _showFallback();
+    }, 7000);
+    setTimeout(function() {
+      const f = document.getElementById('driveFrame');
+      if (f) f.src = _previewUrl(url);
+    }, 80);
   }
 
   function onLoad() {
-    document.getElementById('driveLoading').style.display = 'none';
+    clearTimeout(_timer);
+    const elapsed = Date.now() - _loadTime;
+    const loading  = document.getElementById('driveLoading');
+    if (loading) loading.style.display = 'none';
+    // Si cargó en menos de 1.2s probablemente es la página de error de cookies
+    if (elapsed < 1200) {
+      setTimeout(_showFallback, 200);
+    }
   }
 
   function close() {
+    clearTimeout(_timer);
     document.getElementById('driveModal').classList.remove('open');
-    document.getElementById('driveFrame').src = 'about:blank';
+    const wrap = document.getElementById('driveFrameWrap');
+    if (wrap) wrap.innerHTML = '';
     document.body.style.overflow = '';
   }
 
@@ -2351,15 +2414,8 @@ document.querySelectorAll('.overlay').forEach(el => {
       <button class="drive-close" onclick="DRIVE.close()">✕</button>
     </div>
   </div>
-  <div class="drive-frame-wrap">
-    <div class="drive-loading" id="driveLoading">
-      <div class="drive-spinner"></div>
-      <div>Cargando documento…</div>
-    </div>
-    <iframe id="driveFrame" src="about:blank"
-            onload="DRIVE.onLoad()"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms">
-    </iframe>
+  <div class="drive-frame-wrap" id="driveFrameWrap">
+    <!-- contenido inyectado dinámicamente por DRIVE.open() -->
   </div>
 </div>
 
