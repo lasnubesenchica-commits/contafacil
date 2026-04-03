@@ -2404,9 +2404,11 @@ function renderDashboard() {
   const totalEgrPrev = egrPrev.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
   const profitPrev   = totalIngPrev - totalEgrPrev;
 
+  const utilidadNeta   = totalIng - totalEgr;
+
   const ingDelta    = totalIngPrev > 0 ? ((totalIng - totalIngPrev) / totalIngPrev * 100).toFixed(0) : null;
   const egrDelta    = totalEgrPrev > 0 ? ((totalEgr - totalEgrPrev) / totalEgrPrev * 100).toFixed(0) : null;
-  const profitDelta = profitPrev !== 0 ? ((profit - profitPrev) / Math.abs(profitPrev) * 100).toFixed(0) : null;
+  const profitDelta = profitPrev !== 0 ? ((utilidadNeta - profitPrev) / Math.abs(profitPrev) * 100).toFixed(0) : null;
 
   function deltaTag(delta) {
     if (delta === null) return '<span style="color:var(--chrome);font-size:.72rem">— sin datos prev.</span>';
@@ -2422,7 +2424,6 @@ function renderDashboard() {
 
   const margenBruto    = totalIng - totalCosto;
   const margenBrutoPct = totalIng > 0 ? (margenBruto / totalIng * 100) : 0;
-  const utilidadNeta   = totalIng - totalEgr;
   const utilidadPct    = totalIng > 0 ? (utilidadNeta / totalIng * 100) : 0;
 
   function pctBadge(pct) {
