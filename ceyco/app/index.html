@@ -1766,11 +1766,12 @@ const PL = (() => {
           ? '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--purple-bg);color:var(--purple)">OP</span>'
           : '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--indigo-bg);color:var(--indigo)">ST</span>';
         const mesMeta = viewMode==='ytd' && it.mes ? MESES[(parseInt(it.mes)||1)-1]+' · ' : '';
-        return `<div class="tx-item">
+        const driveUrl = it.drive_url || '';
+        return `<div class="tx-item${driveUrl?' link':''}" ${driveUrl?`onclick="DRIVE.open('${esc(driveUrl)}','${esc(desc.substring(0,40))}')"`:''}>
           <div class="tx-dot egr"></div>
           <div class="tx-body">
             <div class="tx-desc">${icon} ${esc(desc.substring(0,50))}</div>
-            <div class="tx-meta">${mesMeta}${esc(lbl)}${prov?' · '+esc(prov):''} ${orig}</div>
+            <div class="tx-meta">${mesMeta}${esc(lbl)}${prov?' · '+esc(prov):''} ${orig}${driveUrl?' 📎':''}</div>
           </div>
           <div class="tx-amt egr">-${fmt(parseFloat(it.monto)||0)}</div>
         </div>`;
