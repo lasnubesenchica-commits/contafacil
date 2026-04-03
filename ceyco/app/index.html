@@ -665,16 +665,16 @@ select.f-inp { appearance:none; }
       <div class="period-bar">
         <div style="display:flex;align-items:center;gap:.5rem;min-width:0">
           <div class="period-lbl" id="pl-period">—</div>
-          <span class="pl-ytd-badge" id="pl-ytd-badge">YTD</span>
+          <span class="pl-ytd-badge show" id="pl-ytd-badge">YTD</span>
         </div>
         <div style="display:flex;align-items:center;gap:.45rem">
-          <div class="pl-mode-toggle">
-            <button class="pl-mode-btn active" id="pl-mode-mes" onclick="PL.setMode('mes')">Mes</button>
-            <button class="pl-mode-btn"        id="pl-mode-ytd" onclick="PL.setMode('ytd')">YTD</button>
-          </div>
-          <div class="period-nav" id="pl-period-nav">
+          <div class="period-nav" id="pl-period-nav" style="display:none">
             <button class="period-btn" onclick="PL.prev()">‹</button>
             <button class="period-btn" onclick="PL.next()">›</button>
+          </div>
+          <div class="pl-mode-toggle">
+            <button class="pl-mode-btn"        id="pl-mode-mes" onclick="PL.setMode('mes')">Mes</button>
+            <button class="pl-mode-btn active" id="pl-mode-ytd" onclick="PL.setMode('ytd')">YTD</button>
           </div>
         </div>
       </div>
@@ -1514,7 +1514,7 @@ const PL = (() => {
   let periodos = {};   // key "anio-mes" → objeto período del backend
   let año = new Date().getFullYear(), mes = new Date().getMonth()+1;
   let txMode  = 'ing'; // 'ing' | 'egr'
-  let viewMode = 'mes'; // 'mes' | 'ytd'
+  let viewMode = 'ytd'; // 'mes' | 'ytd'  ← YTD por defecto
 
   // ── Navegación mes ───────────────────────────────────────────
   const prev = () => { if(viewMode!=='mes') return; mes--; if(mes<1){mes=12;año--;} renderAll(); };
