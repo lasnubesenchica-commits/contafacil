@@ -1352,143 +1352,149 @@ const OP = (() => {
 //  MÓDULO PL — Estado de Resultados
 // ════════════════════════════════════════════════════════
 const PL = (() => {
-  let _loaded = false, ing = [], egr = [];
+  let _loaded = false;
+  let periodos = {};   // key "anio-mes" → objeto período del backend
   let año = new Date().getFullYear(), mes = new Date().getMonth()+1;
-  let txMode = 'ing';   // tabla inferior: 'ing' | 'egr'
+  let txMode  = 'ing'; // 'ing' | 'egr'
   let viewMode = 'mes'; // 'mes' | 'ytd'
 
-  // ── Navegación mes (solo actúa en modo mes) ─────────────────
+  // ── Navegación mes ───────────────────────────────────────────
   const prev = () => { if(viewMode!=='mes') return; mes--; if(mes<1){mes=12;año--;} renderAll(); };
   const next = () => { if(viewMode!=='mes') return; mes++; if(mes>12){mes=1;año++;} renderAll(); };
 
-  // ── Cambio modo MES ↔ YTD ───────────────────────────────────
+  // ── Modo MES ↔ YTD ───────────────────────────────────────────
   function setMode(m) {
     viewMode = m;
     document.getElementById('pl-mode-mes').classList.toggle('active', m==='mes');
     document.getElementById('pl-mode-ytd').classList.toggle('active', m==='ytd');
-    // Nav ‹ › solo visible en modo mes
     document.getElementById('pl-period-nav').style.display = m==='mes' ? 'flex' : 'none';
-    // Badge YTD
     document.getElementById('pl-ytd-badge').classList.toggle('show', m==='ytd');
     renderAll();
   }
 
-  // ── Tabla inferior: Ingresos / Egresos ───────────────────────
+  // ── Toggle tabla Ingresos / Egresos ─────────────────────────
   function showTable(m) {
     txMode = m;
-    document.getElementById('pl-tab-ing').classList.toggle('active',m==='ing');
-    document.getElementById('pl-tab-egr').classList.toggle('active',m==='egr');
+    document.getElementById('pl-tab-ing').classList.toggle('active', m==='ing');
+    document.getElementById('pl-tab-egr').classList.toggle('active', m==='egr');
     renderTx();
   }
 
-  // ── Filtros de datos ─────────────────────────────────────────
-  const fIng = () => viewMode==='ytd'
-    ? ing.filter(i=>parseInt(i.anio_fiscal)===año && i.estado!=='anulado')
-    : ing.filter(i=>parseInt(i.mes)===mes && parseInt(i.anio_fiscal)===año && i.estado!=='anulado');
+  // ── Agregar períodos para acumular YTD ───────────────────────
+  function _acumular(keys) {
+    const acc = {
+      subtotal:0, itbms_cobrado:0, ing:0,
+      cogs:0, gastos:0, itbms_pagado:0,
+      ub:0, un:0, itbms_neto:0,
+      ingresos:[], egresos_gasto:[],
+    };
+    keys.forEach(k => {
+      const p = periodos[k];
+      if (!p) return;
+      acc.subtotal      += p.subtotal      || 0;
+      acc.itbms_cobrado += p.itbms_cobrado || 0;
+      acc.ing           += p.ing           || 0;
+      acc.cogs          += p.cogs          || 0;
+      acc.gastos        += p.gastos        || 0;
+      acc.itbms_pagado  += p.itbms_pagado  || 0;
+      (p.ingresos      ||[]).forEach(i => acc.ingresos.push(i));
+      (p.egresos_gasto ||[]).forEach(e => acc.egresos_gasto.push(e));
+    });
+    acc.ub         = acc.subtotal - acc.cogs;
+    acc.un         = acc.ub - acc.gastos;
+    acc.itbms_neto = acc.itbms_cobrado - acc.itbms_pagado;
+    return acc;
+  }
 
-  const fEgr = () => viewMode==='ytd'
-    ? egr.filter(e=>parseInt(e.anio)===año && e.estado!=='anulado')
-    : egr.filter(e=>parseInt(e.mes)===mes && parseInt(e.anio)===año && e.estado!=='anulado');
+  // ── Obtener data del período activo ──────────────────────────
+  function _getData() {
+    if (viewMode === 'ytd') {
+      const keys = Object.keys(periodos).filter(k => periodos[k].anio === año);
+      return _acumular(keys);
+    }
+    const key = año + '-' + mes;
+    return periodos[key] || { subtotal:0, itbms_cobrado:0, cogs:0, gastos:0,
+                               itbms_pagado:0, ub:0, un:0, itbms_neto:0,
+                               ingresos:[], egresos_gasto:[] };
+  }
 
   // ── Render principal ─────────────────────────────────────────
   function renderAll() {
-    // Etiqueta de período
     document.getElementById('pl-period').textContent = viewMode==='ytd'
-      ? 'Año ' + año
-      : MESES[mes-1] + ' ' + año;
+      ? 'Año ' + año : MESES[mes-1] + ' ' + año;
 
-    const fi = fIng(), fe = fEgr();
+    const d = _getData();
 
-    // ── Ingresos: usar SUBTOTAL (sin ITBMS), igual que desktop ──────
-    const tIngNeto = fi.reduce((a,i)=>a+(parseFloat(i.subtotal)||0),0);
-    const tItbCob  = fi.reduce((a,i)=>a+(parseFloat(i.itbms)||0),0);
+    // Widgets
+    document.getElementById('pl-w-ing').textContent       = fmt(d.subtotal);
+    document.getElementById('pl-w-egr').textContent       = fmt(d.cogs);
+    document.getElementById('pl-w-itbms').textContent     = fmt(d.itbms_neto);
+    document.getElementById('pl-w-itbms-sub').textContent = 'cobrado '+fmt(d.itbms_cobrado)+' · pagado '+fmt(d.itbms_pagado);
+    document.getElementById('pl-w-margen').textContent    = fmt(d.un);
+    document.getElementById('pl-w-margen').className      = 'pl-w-val '+(d.un>=0?'indigo':'red');
 
-    // ── Egresos: excluir credito_fiscal del P&L (es partida DGI, no resultado) ──
-    const feRL = fe.filter(e=>e.tipo_egreso !== 'credito_fiscal');
-    // ITBMS pagado = columna 'itbms' de TODOS los egresos (costo_mercancia + credito_fiscal + otros)
-    const tItbPag   = fe.reduce((a,e)=>a+(parseFloat(e.itbms)||0),0);
-    const itbmsNeto = tItbCob - tItbPag;
-
-    // ── COGS: costo_mercancia + costo_st + servicios_profesionales ──
-    const TIPOS_COGS = ['costo_servicio_tecnico','material','mano_obra','costo_mercancia',
-                        'impuesto_importacion','servicios_profesionales'];
-    const tCogs = feRL.filter(e=> TIPOS_COGS.includes(e.tipo_egreso))
-                      .reduce((a,e)=>a+(parseFloat(e.total)||0),0);
-    const tGast = feRL.filter(e=>!TIPOS_COGS.includes(e.tipo_egreso))
-                      .reduce((a,e)=>a+(parseFloat(e.total)||0),0);
-    const tEgrRL = tCogs + tGast;   // total egresos sin credito_fiscal
-
-    const ub = tIngNeto - tCogs;
-    const un = ub - tGast;
-
-    // ── Widgets ──────────────────────────────────────────────────────
-    document.getElementById('pl-w-ing').textContent      = fmt(tIngNeto);
-    document.getElementById('pl-w-egr').textContent      = fmt(tCogs);
-    document.getElementById('pl-w-itbms').textContent    = fmt(itbmsNeto);
-    document.getElementById('pl-w-itbms-sub').textContent= 'cobrado '+fmt(tItbCob)+' · pagado '+fmt(tItbPag);
-    document.getElementById('pl-w-margen').textContent   = fmt(un);
-    document.getElementById('pl-w-margen').className     = 'pl-w-val '+(un>=0?'indigo':'red');
-
-    // ── Estado de Resultados ─────────────────────────────────────────
-    document.getElementById('pl-s-ing').textContent    = fmt(tIngNeto);
-    document.getElementById('pl-s-costo').textContent  = '('+fmt(tCogs)+')';
-    document.getElementById('pl-s-ubruta').textContent = fmt(ub);
-    document.getElementById('pl-s-gastos').textContent = tGast ? '('+fmt(tGast)+')' : '—';
-    document.getElementById('pl-s-uneta').textContent  = fmt(un);
-    document.getElementById('pl-s-ubruta').className   = 'pl-stmt-val '+(ub>=0?'green':'red');
+    // Estado de Resultados
+    document.getElementById('pl-s-ing').textContent    = fmt(d.subtotal);
+    document.getElementById('pl-s-costo').textContent  = '(' + fmt(d.cogs) + ')';
+    document.getElementById('pl-s-ubruta').textContent = fmt(d.ub);
+    document.getElementById('pl-s-gastos').textContent = d.gastos ? '(' + fmt(d.gastos) + ')' : '—';
+    document.getElementById('pl-s-uneta').textContent  = fmt(d.un);
+    document.getElementById('pl-s-ubruta').className   = 'pl-stmt-val ' + (d.ub >= 0 ? 'green' : 'red');
     document.getElementById('pl-s-uneta').className    = 'pl-stmt-val indigo';
     renderTx();
   }
 
-  // ── Render lista de transacciones ────────────────────────────
+  // ── Render lista transacciones ───────────────────────────────
   function renderTx() {
-    const el   = document.getElementById('pl-tx-list');
-    // En YTD ordenar por mes desc para contexto
-    // Egresos en lista: excluir credito_fiscal (partida DGI, no resultado operativo)
-    let rows = txMode==='ing' ? fIng() : fEgr().filter(e=>e.tipo_egreso !== 'credito_fiscal');
-    if (viewMode==='ytd') {
-      rows = rows.slice().sort((a,b)=>{
-        const ma = txMode==='ing' ? parseInt(a.mes)||0 : parseInt(a.mes)||0;
-        const mb = txMode==='ing' ? parseInt(b.mes)||0 : parseInt(b.mes)||0;
-        return mb - ma;
-      });
+    const el  = document.getElementById('pl-tx-list');
+    const d   = _getData();
+    let rows  = txMode === 'ing' ? (d.ingresos || []) : (d.egresos_gasto || []);
+
+    // En YTD ordenar por mes desc
+    if (viewMode === 'ytd') {
+      rows = rows.slice().sort((a,b) => (parseInt(b.mes)||0) - (parseInt(a.mes)||0));
     }
 
     if (!rows.length) {
       const periodo = viewMode==='ytd' ? 'este año' : 'este mes';
-      el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">${txMode==='ing'?'💰':'📤'}</div><div class="empty-title">Sin ${txMode==='ing'?'ingresos':'egresos'} ${periodo}</div></div>`;
+      el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem">
+        <div class="empty-icon">${txMode==='ing'?'💰':'📤'}</div>
+        <div class="empty-title">Sin ${txMode==='ing'?'ingresos':'egresos'} ${periodo}</div></div>`;
       return;
     }
 
     el.innerHTML = rows.map(row => {
-      const desc = txMode==='ing' ? (row.nombre_cliente||row.descripcion||'—') : (row.proveedor||row.descripcion||'—');
-      const baseMeta = txMode==='ing' ? (row.num_factura||row.tipo_ingreso||'') : (row.categoria||row.tipo_egreso||'');
-      const mesMeta  = viewMode==='ytd' && row.mes ? (MESES[(parseInt(row.mes)||1)-1] || '') : '';
-      const meta     = mesMeta ? (mesMeta + (baseMeta ? ' · '+baseMeta : '')) : baseMeta;
-      const url      = row.drive_url||'';
-      // Ingresos: mostrar subtotal (sin ITBMS) igual que desktop
-      const monto    = txMode==='ing'
-        ? (parseFloat(row.subtotal)||parseFloat(row.total)||0)
-        : (parseFloat(row.total)||0);
+      const isIng  = txMode === 'ing';
+      const desc   = isIng ? (row.nombre_cliente||row.descripcion||'—') : (row.proveedor||row.descripcion||'—');
+      const baseMeta = isIng ? (row.num_factura||row.tipo_ingreso||'') : (row.tipo_egreso||'');
+      const mesMeta  = viewMode==='ytd' && row.mes
+        ? (MESES[(parseInt(row.mes)||1)-1]||'') : '';
+      const meta   = mesMeta ? (mesMeta + (baseMeta ? ' · '+baseMeta : '')) : baseMeta;
+      const url    = row.drive_url||'';
+      const monto  = isIng ? (parseFloat(row.subtotal)||parseFloat(row.total)||0) : (parseFloat(row.total)||0);
       return `<div class="tx-item${url?' link':''}" ${url?`onclick="window.open('${esc(url)}','_blank')"`:''}>
         <div class="tx-dot ${txMode}"></div>
         <div class="tx-body"><div class="tx-desc">${esc(desc)}</div><div class="tx-meta">${esc(meta)}</div></div>
-        <div class="tx-amt ${txMode}">${txMode==='ing'?'+':'-'}${fmt(monto)}</div>
+        <div class="tx-amt ${txMode}">${isIng?'+':'-'}${fmt(monto)}</div>
       </div>`;
     }).join('');
   }
 
-  // ── Load ─────────────────────────────────────────────────────
+  // ── Load — una sola llamada getPL ────────────────────────────
   async function load() {
-    document.getElementById('pl-tx-list').innerHTML='<div class="empty-sub" style="padding:2rem;text-align:center">Cargando…</div>';
+    document.getElementById('pl-tx-list').innerHTML =
+      '<div class="empty-sub" style="padding:2rem;text-align:center">Cargando…</div>';
     try {
-      const [ri,re] = await Promise.all([jsonpGet('getIngresos'), jsonpGet('getEgresos')]);
-      if (!ri.success) throw new Error(ri.error);
-      if (!re.success) throw new Error(re.error);
-      ing=ri.items||[]; egr=re.items||[]; _loaded=true; renderAll();
+      const r = await jsonpGet('getPL');
+      if (!r.success) throw new Error(r.error);
+      periodos = r.periodos || {};
+      _loaded  = true;
+      renderAll();
     } catch(e) {
-      document.getElementById('pl-tx-list').innerHTML=
-        `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Error al cargar</div><div class="empty-sub">${esc(e.message)}</div></div>`;
+      document.getElementById('pl-tx-list').innerHTML =
+        `<div class="empty"><div class="empty-icon">⚠️</div>
+         <div class="empty-title">Error al cargar</div>
+         <div class="empty-sub">${esc(e.message)}</div></div>`;
     }
     return Promise.resolve();
   }
