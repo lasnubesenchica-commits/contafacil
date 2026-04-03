@@ -825,9 +825,11 @@ function doLogin() {
     document.getElementById('loginErr').style.display = 'block';
   }
 }
-// LOGIN DESHABILITADO TEMPORALMENTE — restaurar: quitar las 3 líneas de abajo
+// LOGIN DESHABILITADO TEMPORALMENTE — restaurar: quitar las 4 líneas de abajo
 document.getElementById('loginScreen').style.display = 'none';
 document.getElementById('app').style.display = 'block';
+switchView('proyectos');
+loadAll();
 document.getElementById('loginPwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 // ── NAVEGACIÓN ────────────────────────────────
