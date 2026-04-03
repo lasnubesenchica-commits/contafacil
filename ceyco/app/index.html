@@ -1666,7 +1666,17 @@ const PL = (() => {
     if (txMode === 'ing') {
       // ── Ingresos ────────────────────────────────────────
       let rows = (d.ingresos || []).slice();
-      if (viewMode === 'ytd') rows.sort((a,b)=>(parseInt(b.mes)||0)-(parseInt(a.mes)||0));
+      // Ordenar por num_factura desc (igual que desktop) — más reciente arriba
+      rows.sort((a, b) => {
+        const fa = String(a.num_factura || '').toLowerCase();
+        const fb = String(b.num_factura || '').toLowerCase();
+        // Extraer número si el formato es FACT-NNN o NNN
+        const na = parseInt(fa.replace(/\D/g, '')) || 0;
+        const nb = parseInt(fb.replace(/\D/g, '')) || 0;
+        if (na !== nb) return nb - na;           // desc numérico
+        return fb.localeCompare(fa);             // fallback string desc
+      });
+      // En YTD añadir prefijo de mes en meta (ya manejado más abajo)
       if (!rows.length) {
         el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">💰</div><div class="empty-title">Sin ingresos ${viewMode==='ytd'?'este año':'este mes'}</div></div>`;
         return;
@@ -1726,10 +1736,15 @@ const PL = (() => {
         });
       });
 
-      // En YTD ordenar por mes desc
-      if (viewMode === 'ytd') {
-        items.sort((a,b) => (parseInt(b.mes)||0) - (parseInt(a.mes)||0));
-      }
+      // Ordenar por id_st asc (igual que desktop) — agrupa por proyecto
+      items.sort((a, b) => {
+        const sa = String(a.id_st || '').toLowerCase();
+        const sb = String(b.id_st || '').toLowerCase();
+        if (sa !== sb) return sa.localeCompare(sb);
+        // Dentro del mismo ST: por tipo (producto → shipping → impuesto)
+        const ORDEN = { producto:0, shipping_handling:1, impuesto:2, mano_obra:3, otro:9 };
+        return (ORDEN[a.tipo]??9) - (ORDEN[b.tipo]??9);
+      });
 
       if (!items.length) {
         el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">📊</div><div class="empty-title">Sin costos ${viewMode==='ytd'?'este año':'este mes'}</div></div>`;
@@ -2073,6 +2088,53 @@ const REG = (() => {
            recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng };
 })();
 
+
+
+// ════════════════════════════════════════════════════════
+//  MÓDULO DRIVE — Lightbox preview Google Drive
+// ════════════════════════════════════════════════════════
+const DRIVE = (() => {
+  let _url = '', _label = '';
+
+  function _previewUrl(url) {
+    const m = url.match(/\/file\/d\/([^/]+)/);
+    if (m) return 'https://drive.google.com/file/d/' + m[1] + '/preview';
+    if (url.includes('/preview')) return url;
+    return url;
+  }
+
+  function _downloadUrl(url) {
+    const m = url.match(/\/file\/d\/([^/]+)/);
+    if (m) return 'https://drive.google.com/uc?export=download&id=' + m[1];
+    return url;
+  }
+
+  function open(url, label) {
+    if (!url) return;
+    _url   = url;
+    _label = label || 'Documento';
+    document.getElementById('driveLbl').textContent = _label;
+    document.getElementById('driveLoading').style.display = 'flex';
+    document.getElementById('driveFrame').src = _previewUrl(url);
+    document.getElementById('driveModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function onLoad() {
+    document.getElementById('driveLoading').style.display = 'none';
+  }
+
+  function close() {
+    document.getElementById('driveModal').classList.remove('open');
+    document.getElementById('driveFrame').src = 'about:blank';
+    document.body.style.overflow = '';
+  }
+
+  function openExternal() { window.open(_url, '_blank'); }
+  function download()     { window.open(_downloadUrl(_url), '_blank'); }
+
+  return { open, close, onLoad, openExternal, download };
+})();
 
 // ── INIT ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
