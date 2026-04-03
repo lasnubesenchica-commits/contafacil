@@ -1428,8 +1428,13 @@ const PL = (() => {
     // Widgets
     document.getElementById('pl-w-ing').textContent       = fmt(d.subtotal);
     document.getElementById('pl-w-egr').textContent       = fmt(d.cogs);
-    document.getElementById('pl-w-itbms').textContent     = fmt(d.itbms_neto);
-    document.getElementById('pl-w-itbms-sub').textContent = 'cobrado '+fmt(d.itbms_cobrado)+' · pagado '+fmt(d.itbms_pagado);
+    const itbmsAbs   = Math.abs(d.itbms_neto);
+    const itbmsAFavor = d.itbms_neto < 0;
+    document.getElementById('pl-w-itbms').textContent      = fmt(itbmsAbs);
+    document.getElementById('pl-w-itbms').style.color      = itbmsAFavor ? 'var(--green)' : '';
+    document.getElementById('pl-w-itbms-sub').textContent  = itbmsAFavor
+      ? '↓ crédito fiscal a favor DGI'
+      : 'cobrado '+fmt(d.itbms_cobrado)+' · pagado '+fmt(d.itbms_pagado);
     document.getElementById('pl-w-margen').textContent    = fmt(d.un);
     document.getElementById('pl-w-margen').className      = 'pl-w-val '+(d.un>=0?'indigo':'red');
 
