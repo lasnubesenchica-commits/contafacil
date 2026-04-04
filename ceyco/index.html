@@ -8894,11 +8894,23 @@ async function acrAprobar() {
 
 async function acrRechazar() {
   if (!_acrSelected) return;
-  if (!confirm('¿Rechazar esta factura? Se ocultará de la lista.')) return;
+  if (!confirm('¿Rechazar esta factura? Quedará marcada como rechazada pero se conserva en el historial.')) return;
   try {
     const data = await gasJsonp('rechazarAcreedor', { id: _acrSelected.id });
     if (!data.success) throw new Error(data.error);
     showToast('Factura rechazada');
+    acrCerrarModal();
+    acrCargarPendientes();
+  } catch(err) { showToast('Error: ' + err.message, true); }
+}
+
+async function acrEliminar() {
+  if (!_acrSelected) return;
+  if (!confirm('¿Eliminar permanentemente este registro? Esta acción no se puede deshacer.')) return;
+  try {
+    const data = await gasJsonp('eliminarPendienteAcr', { id: _acrSelected.id });
+    if (!data.success) throw new Error(data.error);
+    showToast('Registro eliminado');
     acrCerrarModal();
     acrCargarPendientes();
   } catch(err) { showToast('Error: ' + err.message, true); }
@@ -9352,8 +9364,11 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
 
       <!-- Botones -->
       <div id="acrDetalleAcciones" style="display:flex;gap:.75rem;justify-content:flex-end">
-        <button onclick="acrRechazar()" style="padding:.5rem 1.25rem;background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer">
-          🗑 Rechazar
+        <button onclick="acrEliminar()" style="padding:.5rem 1.1rem;background:#fff;color:#B71C1C;border:1px solid #FFCDD2;border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer" title="Elimina permanentemente del sistema">
+          🗑 Eliminar
+        </button>
+        <button onclick="acrRechazar()" style="padding:.5rem 1.1rem;background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer" title="Marca como rechazado pero conserva el registro">
+          ✕ Rechazar
         </button>
         <button onclick="acrAprobar()" style="padding:.5rem 1.5rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
           ✅ Aprobar y registrar egreso
