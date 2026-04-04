@@ -3808,11 +3808,10 @@ async function loadReporte(path, forceReload) {
     if (!res.ok) throw new Error('No se pudo cargar el reporte (' + res.status + ')');
     const html = await res.text();
 
-    // Separar estilos y scripts del HTML
-    const parser   = new DOMParser();
-    const doc      = parser.parseFromString(html, 'text/html');
+    const parser = new DOMParser();
+    const doc    = parser.parseFromString(html, 'text/html');
 
-    // Inyectar estilos en <head> (solo una vez por path)
+    // Inyectar estilos una sola vez
     const styleKey = 'reporte-style-' + path.replace(/[^a-z0-9]/gi,'_');
     if (!document.getElementById(styleKey)) {
       const allStyles = Array.from(doc.querySelectorAll('style'));
@@ -3824,50 +3823,29 @@ async function loadReporte(path, forceReload) {
       }
     }
 
-    // Poner solo el HTML (sin script/style) en el contenedor
-    const bodyHTML = doc.body ? doc.body.innerHTML : html;
-    // Limpiar scripts del HTML antes de insertar
+    // Inyectar HTML sin scripts
     const tmp = document.createElement('div');
-    tmp.innerHTML = bodyHTML;
+    tmp.innerHTML = doc.body ? doc.body.innerHTML : html;
     tmp.querySelectorAll('script, style').forEach(el => el.remove());
     container.innerHTML = tmp.innerHTML;
 
-    // Ejecutar scripts DESPUÉS de que el DOM esté listo
-    // Usar timestamp en el ID para forzar re-ejecución cada vez
-    const scriptKey = 'reporte-script-' + path.replace(/[^a-z0-9]/gi,'_') + '_' + Date.now();
-
-    // Eliminar scripts anteriores de este módulo
-    document.querySelectorAll('[data-reporte-path]').forEach(el => {
-      if (el.getAttribute('data-reporte-path') === path) el.remove();
+    // Eliminar script anterior de este módulo
+    const scriptKey = 'reporte-script-' + path.replace(/[^a-z0-9]/gi,'_');
+    document.querySelectorAll('[data-reporte-script]').forEach(el => {
+      if (el.getAttribute('data-reporte-script') === scriptKey) el.remove();
     });
 
-    setTimeout(() => {
-      // Inyectar scripts externos (src) en orden
-      doc.querySelectorAll('script[src]').forEach((oldScript, i) => {
-        const newScript = document.createElement('script');
-        newScript.setAttribute('data-reporte-path', path);
-        newScript.src   = oldScript.src;
-        newScript.async = false;
-        document.head.appendChild(newScript);
-      });
-      // Scripts inline con ID único por carga
-      const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
-      if (inlineScripts.length) {
-        const code = inlineScripts.map(s => s.textContent).join('\n');
-        const combined = document.createElement('script');
-        combined.id = scriptKey;
-        combined.setAttribute('data-reporte-path', path);
-        combined.textContent = code;
-        document.body.appendChild(combined);
-        // Llamar init del módulo manualmente tras inyección
-        setTimeout(() => {
-          if (typeof st_cargarDatos === 'function') {
-            if (typeof st_setVista === 'function') st_setVista('tabla', true);
-            st_cargarDatos(true);
-          }
-        }, 200);
-      }
-    }, 100);
+    // Inyectar scripts con ID único para forzar re-ejecución
+    const uid = scriptKey + '_' + Date.now();
+    const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
+    if (inlineScripts.length) {
+      const combined = document.createElement('script');
+      combined.id = uid;
+      combined.setAttribute('data-reporte-script', scriptKey);
+      combined.textContent = inlineScripts.map(s => s.textContent).join('\n');
+      // Agregar al BODY para que el script vea el DOM completo
+      document.body.appendChild(combined);
+    }
 
   } catch(err) {
     container.innerHTML =
@@ -3879,6 +3857,7 @@ async function loadReporte(path, forceReload) {
       '</div>';
   }
 }
+
 
 // ══════════════════════════════════════════════════
 //  OPERACIONES STATE
