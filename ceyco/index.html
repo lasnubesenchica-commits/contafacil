@@ -3850,14 +3850,22 @@ async function loadReporte(path, forceReload) {
         newScript.async = false;
         document.head.appendChild(newScript);
       });
-      // Scripts inline: inyectar en body (no head) con ID único
+      // Scripts inline con ID único por carga
       const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
       if (inlineScripts.length) {
+        const code = inlineScripts.map(s => s.textContent).join('\n');
         const combined = document.createElement('script');
         combined.id = scriptKey;
         combined.setAttribute('data-reporte-path', path);
-        combined.textContent = inlineScripts.map(s => s.textContent).join('\n');
+        combined.textContent = code;
         document.body.appendChild(combined);
+        // Llamar init del módulo manualmente tras inyección
+        setTimeout(() => {
+          if (typeof st_cargarDatos === 'function') {
+            if (typeof st_setVista === 'function') st_setVista('tabla', true);
+            st_cargarDatos(true);
+          }
+        }, 200);
       }
     }, 100);
 
