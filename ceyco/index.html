@@ -7219,35 +7219,46 @@ async function loadDashboard() {
   document.getElementById('plKpiRow').innerHTML =
     '<div class="pl-loading" style="grid-column:1/-1"><div class="spinner"></div><span>Cargando datos...</span></div>';
   try {
-    const [ingRes, egrRes, opRes, stRes] = await Promise.all([
+    const [ingRes, egrRes, opRes, stRes] = await Promise.allSettled([
       plGasGet('getIngresos'),
       plGasGet('getEgresos'),
       plGasGet('getComprasVentas'),
-      plGasGet('getCotizaciones'),   // para COGS desde ST_Items (fuente de verdad)
+      plGasGet('getCotizaciones'),
     ]);
-    // FIX #1: incluir 'pendiente' — los STs cerrados con historial importado
-    // quedan en estado 'pendiente' (sin comprobante de pago físico aún),
-    // pero representan ventas reales. Se excluyen anulados en plFiltrarIngresos.
-    plIngresos = (ingRes.items || []).filter(i =>
+
+    // Extraer valores — si alguna llamada falló, usar array vacío
+    const ing = ingRes.status === 'fulfilled' ? ingRes.value : { items: [] };
+    const egr = egrRes.status === 'fulfilled' ? egrRes.value : { items: [] };
+    const op  = opRes.status  === 'fulfilled' ? opRes.value  : { items: [] };
+    const st  = stRes.status  === 'fulfilled' ? stRes.value  : { items: [] };
+
+    // Advertir si getCotizaciones falló (Proyectos sin COGS)
+    if (stRes.status === 'rejected') {
+      console.warn('getCotizaciones falló:', stRes.reason?.message);
+    }
+
+    plIngresos = (ing.items || []).filter(i =>
       i.estado === 'confirmado' || i.estado === 'abono' || i.estado === 'pendiente'
     );
-    // Ingresos anulados — solo para detectar pares de nota de crédito (trazabilidad)
-    plIngresosAnulados = (ingRes.items || []).filter(i => i.estado === 'anulado');
-    plEgresos  = egrRes.items  || [];
-    plOpItems  = opRes.items   || [];
-    // Aplanar todos los ítems de todos los STs (excluyendo cancelados)
-    // para calcular COGS desde ST_Items — la misma fuente que usa la tabla ST
+    plIngresosAnulados = (ing.items || []).filter(i => i.estado === 'anulado');
+    plEgresos  = egr.items || [];
+    plOpItems  = op.items  || [];
     plStItems  = [];
-    (stRes.items || []).forEach(st => {
-      // Excluir STs cancelados (nota de crédito) — no tienen COGS reales
-      if (st.estado === 'cancelado') return;
-      (st.items || []).forEach(it => {
+    (st.items || []).forEach(s => {
+      if (s.estado === 'cancelado') return;
+      (s.items || []).forEach(it => {
         if (it.estado_item !== 'cancelado') {
-          plStItems.push({ id_st: st.id_st, mes: st.mes, anio: st.anio, item: it });
+          plStItems.push({ id_st: s.id_st, mes: s.mes, anio: s.anio, item: it });
         }
       });
     });
-    plLoaded   = true;
+
+    // Solo marcar como cargado si los datos principales llegaron
+    if (ingRes.status === 'rejected' && egrRes.status === 'rejected') {
+      throw new Error('No se pudieron cargar ingresos ni egresos');
+    }
+
+    plLoaded = true;
     initPlYearSelector();
     renderDashboard();
   } catch(err) {
