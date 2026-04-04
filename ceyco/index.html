@@ -3833,34 +3833,33 @@ async function loadReporte(path, forceReload) {
     container.innerHTML = tmp.innerHTML;
 
     // Ejecutar scripts DESPUÉS de que el DOM esté listo
-    const scriptKey = 'reporte-script-' + path.replace(/[^a-z0-9]/gi,'_');
-    const prevScript = document.getElementById(scriptKey);
-    if (prevScript) prevScript.remove();
+    // Usar timestamp en el ID para forzar re-ejecución cada vez
+    const scriptKey = 'reporte-script-' + path.replace(/[^a-z0-9]/gi,'_') + '_' + Date.now();
+
+    // Eliminar scripts anteriores de este módulo
+    document.querySelectorAll('[data-reporte-path]').forEach(el => {
+      if (el.getAttribute('data-reporte-path') === path) el.remove();
+    });
 
     setTimeout(() => {
       // Inyectar scripts externos (src) en orden
       doc.querySelectorAll('script[src]').forEach((oldScript, i) => {
         const newScript = document.createElement('script');
-        newScript.id    = scriptKey + '-ext-' + i;
+        newScript.setAttribute('data-reporte-path', path);
         newScript.src   = oldScript.src;
         newScript.async = false;
         document.head.appendChild(newScript);
       });
-      // Ejecutar scripts inline directamente para garantizar re-ejecución
+      // Scripts inline: inyectar en body (no head) con ID único
       const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
       if (inlineScripts.length) {
-        const code = inlineScripts.map(s => s.textContent).join('\n');
-        try {
-          const fn = new Function(code);
-          fn();
-        } catch(e) {
-          const combined = document.createElement('script');
-          combined.id = scriptKey;
-          combined.textContent = code;
-          document.head.appendChild(combined);
-        }
+        const combined = document.createElement('script');
+        combined.id = scriptKey;
+        combined.setAttribute('data-reporte-path', path);
+        combined.textContent = inlineScripts.map(s => s.textContent).join('\n');
+        document.body.appendChild(combined);
       }
-    }, 50);
+    }, 100);
 
   } catch(err) {
     container.innerHTML =
