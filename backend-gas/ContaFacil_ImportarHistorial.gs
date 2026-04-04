@@ -411,7 +411,11 @@ function _procesarCarpetaFactura(ss, folder, mes) {
   filaST[COL_ST.ID - 1]              = idST;
   filaST[COL_ST.FECHA_REG - 1]       = fechaReg;
   filaST[COL_ST.ESTADO - 1]          = clasificados.voucher ? 'cerrado' : 'en_ejecucion';
-  filaST[COL_ST.NUM_COT - 1]         = 'COT-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+  // NUM_COT: número de factura real si existe, sino correlativo
+  var numCotST = resultado.num_factura
+    ? 'FACT ' + String(resultado.num_factura).replace(/^0+/, '')
+    : 'COT-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+  filaST[COL_ST.NUM_COT - 1]         = numCotST;
   filaST[COL_ST.NOMBRE_CLI - 1]      = datosCeyco.nombre_cliente || '';
   filaST[COL_ST.RUC_CLI - 1]         = datosCeyco.ruc_cliente    || '';
   filaST[COL_ST.DV_CLI - 1]          = datosCeyco.dv_cliente     || '';
@@ -1212,7 +1216,11 @@ function _procesarNotaCredito(ss, clasificados, mes, resultado) {
   filaST[COL_ST.ID - 1]              = idST;
   filaST[COL_ST.FECHA_REG - 1]       = fechaReg;
   filaST[COL_ST.ESTADO - 1]          = 'cancelado';
-  filaST[COL_ST.NUM_COT - 1]         = 'COT-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+  // NUM_COT: factura original + nota de crédito
+  var numCotST = (numFact ? 'FACT ' + String(numFact).replace(/^0+/, '') : '')
+    + (numFact && numNC && numNC !== 'NC' ? ' / NC ' + String(numNC).replace(/^0+/, '') : '')
+    || 'COT-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+  filaST[COL_ST.NUM_COT - 1]         = numCotST;
   filaST[COL_ST.NOMBRE_CLI - 1]      = cliente;
   filaST[COL_ST.RUC_CLI - 1]         = rucCli;
   filaST[COL_ST.DV_CLI - 1]          = dvCli;
@@ -2674,3 +2682,319 @@ function reimportarFACT533() { reimportarCarpeta('MARZO 2026', 'FACT533COCACOLA'
 function dryRunFACT534()     { limpiarYReimportarCarpeta('MARZO 2026', 'FACT534TAMEK'); }
 function ejecutarFACT534()   { limpiarYReimportarCarpeta('MARZO 2026', 'FACT534TAMEK', true); }
 function reimportarFACT534() { reimportarCarpeta('MARZO 2026', 'FACT534TAMEK'); }
+
+
+// ═══════════════════════════════════════════════════════════════
+//  _wrapAttachment  — v2.9L
+//  Convierte un GmailAttachment en un objeto con la misma
+//  interfaz que los DriveFile usados por el motor histórico:
+//    .getUrl()       → url ya subida a Drive (pasada como parámetro)
+//    .getBlob()      → blob del adjunto
+//    .getMimeType()  → mime type
+//    .getName()      → nombre del archivo
+//    .getId()        → id único (generado internamente)
+//
+//  Esto permite que _clasificarArchivos, _parsearFacturaCeyco,
+//  _parsearFacturaCosto y todo el motor funcionen sin cambios
+//  cuando la fuente es un email en vez de una carpeta Drive.
+// ═══════════════════════════════════════════════════════════════
+
+function _wrapAttachment(att, driveUrl, index) {
+  var blob     = Utilities.newBlob(att.getBytes(), att.getContentType(), att.getName());
+  var nombre   = att.getName() || ('adjunto_' + index + '.pdf');
+  var mime     = att.getContentType() || 'application/pdf';
+  var fakeId   = 'EMAIL-ATT-' + index + '-' + Utilities.getUuid().replace(/-/g,'').slice(0,8);
+  var url      = driveUrl || '';
+
+  return {
+    getUrl:      function() { return url; },
+    getBlob:     function() { return blob; },
+    getMimeType: function() { return mime; },
+    getName:     function() { return nombre; },
+    getId:       function() { return fakeId; },
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _procesarDesdeBlobs  — v2.9L
+//  Motor compartido entre Drive (histórico) y Gmail (email ST).
+//  Recibe la misma estructura que _procesarCarpetaFactura pero
+//  con objetos ya wrapeados — sin acceso a DriveFolder.
+//
+//  Parámetros:
+//    ss       — SpreadsheetApp.openById(...)
+//    archivos — array de wrappers creados con _wrapAttachment()
+//    mes      — string ej 'MARZO 2026' (para log)
+//    contexto — string ej nombre de carpeta o asunto email (para notas ST)
+//
+//  Retorna el mismo objeto resultado que _procesarCarpetaFactura.
+// ═══════════════════════════════════════════════════════════════
+
+function _procesarDesdeBlobs(ss, archivos, mes, contexto) {
+  var resultado = {
+    id_st: '', num_factura: '', cliente: '',
+    total_venta: 0, total_costo: 0,
+    tipo_venta: '', tipo_costo: '',
+    estado: 'error', ingreso_id: '',
+    items_warning: '', error_msg: '',
+  };
+
+  if (!archivos || archivos.length === 0) {
+    resultado.error_msg = 'Sin archivos procesables';
+    return resultado;
+  }
+
+  // ── PASO 2: Clasificar con Claude Haiku ──────────────────────
+  var clasificados = _clasificarArchivos(archivos);
+  Logger.log('  🏷️  ceyco=' + (clasificados.factura_ceyco ? '✅' : '❌') +
+             ' | nc=' + (clasificados.nota_credito ? '✅' : '❌') +
+             ' | costos=' + clasificados.facturas_costo.length +
+             ' | voucher=' + (clasificados.voucher ? '✅' : '❌'));
+
+  // Desvío: nota de crédito
+  if (clasificados.factura_ceyco && clasificados.nota_credito) {
+    Logger.log('  📋 Nota de crédito detectada — procesando como anulación (Escenario 1)');
+    return _procesarNotaCredito(ss, clasificados, mes, resultado);
+  }
+
+  if (!clasificados.factura_ceyco) {
+    resultado.error_msg = 'No se encontró factura emitida por CEYCO';
+    return resultado;
+  }
+
+  // ── PASO 3: Parsear factura CEYCO ────────────────────────────
+  var datosCeyco = _parsearFacturaCeyco(clasificados.factura_ceyco);
+  if (!datosCeyco || !datosCeyco.items || !datosCeyco.items.length) {
+    resultado.error_msg = 'No se pudieron extraer ítems de la factura CEYCO';
+    return resultado;
+  }
+
+  resultado.num_factura = datosCeyco.num_factura || '';
+  resultado.cliente     = datosCeyco.nombre_cliente || '';
+  resultado.total_venta = parseFloat(datosCeyco.total || '0') || 0;
+
+  Logger.log('  📋 Factura: ' + resultado.num_factura + ' | ' + resultado.cliente +
+             ' | $' + resultado.total_venta + ' | ' + datosCeyco.items.length + ' ítem(s)');
+
+  if (_ingresoYaExiste(ss, resultado.num_factura, resultado.cliente)) {
+    resultado.error_msg = 'DUPLICADO: Ingreso con factura "' + resultado.num_factura + '" ya existe';
+    return resultado;
+  }
+
+  // ── PASO 4: Parsear facturas de costo ────────────────────────
+  var facturasCostoParseadas = [];
+  var _fVistos = {};
+  for (var fc = 0; fc < clasificados.facturas_costo.length; fc++) {
+    try {
+      var datosCosto = _parsearFacturaCosto(clasificados.facturas_costo[fc]);
+      if (datosCosto) {
+        var _fProv = String(datosCosto.proveedor || '').trim().toUpperCase();
+        var _fNum  = String(datosCosto.num_factura || '').trim();
+        var _fKey  = _fProv + '||' + _fNum;
+        if (_fNum && _fVistos[_fKey]) {
+          Logger.log('  ⏭️  Factura duplicada omitida: ' + datosCosto.proveedor + ' | ' + _fNum);
+        } else {
+          if (_fNum) _fVistos[_fKey] = true;
+          datosCosto._drive_url = clasificados.facturas_costo[fc].getUrl();
+          facturasCostoParseadas.push({
+            archivo: clasificados.facturas_costo[fc],
+            datos:   datosCosto,
+          });
+          Logger.log('  💰 Costo: ' + datosCosto.proveedor + ' | $' + datosCosto.total +
+                     ' | ' + (datosCosto.items || []).length + ' ítem(s)' +
+                     (datosCosto.es_general ? ' [GENERAL]' : ''));
+        }
+      }
+    } catch (parseErr) {
+      Logger.log('  ⚠️  Error parseando factura de costo: ' + parseErr.message);
+    }
+    Utilities.sleep(500);
+  }
+
+  // ── PASO 5: Matching ítem-a-ítem ─────────────────────────────
+  var matchResults = _matchearItems(datosCeyco.items, facturasCostoParseadas, ss);
+
+  // ── PASO 6: Totales y tipo de venta ──────────────────────────
+  var totalCostoItems = 0;
+  var tiposVenta = {};
+  var codigosWarning = [];
+  matchResults.items.forEach(function(item) {
+    totalCostoItems += item.costo_total || 0;
+    tiposVenta[item.tipo_costo] = true;
+    if (item.tipo_costo === 'warning') codigosWarning.push(item.codigo || item.descripcion);
+  });
+  resultado.total_costo = parseFloat(totalCostoItems.toFixed(2));
+  matchResults.costos_generales.forEach(function(cg) {
+    resultado.total_costo += parseFloat(cg.datos.total || '0') || 0;
+  });
+  resultado.total_costo = parseFloat(resultado.total_costo.toFixed(2));
+
+  if (tiposVenta['warning'] && !tiposVenta['venta_directa'] && !tiposVenta['venta_inventario']) {
+    resultado.tipo_venta = 'warning';
+  } else if (tiposVenta['venta_directa'] && !tiposVenta['venta_inventario']) {
+    resultado.tipo_venta = 'venta_directa';
+  } else if (tiposVenta['venta_inventario'] && !tiposVenta['venta_directa']) {
+    resultado.tipo_venta = 'venta_inventario';
+  } else {
+    resultado.tipo_venta = tiposVenta['warning'] ? 'warning' : 'mixta';
+  }
+  resultado.tipo_costo    = facturasCostoParseadas.map(function(f){ return f.datos.proveedor; }).join(', ') || 'inventario';
+  resultado.items_warning = codigosWarning.join(', ');
+
+  // ── PASO 7: Crear ST ─────────────────────────────────────────
+  var ahora      = new Date();
+  var fechaFactu = datosCeyco.fecha ||
+    Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd');
+  var fechaDate  = new Date(fechaFactu + 'T12:00:00');
+  var mesST      = isNaN(fechaDate.getTime()) ? ahora.getMonth()+1 : fechaDate.getMonth()+1;
+  var anioST     = isNaN(fechaDate.getTime()) ? ahora.getFullYear() : fechaDate.getFullYear();
+
+  var sheetST    = ss.getSheetByName(SHEET_ST)    || _initServiciosTecnicosSheet(ss);
+  var sheetSTI   = ss.getSheetByName(SHEET_ST_ITEM)|| _initSTItemsSheet(ss);
+  var seqData    = _nextSTSeq(ss);
+  var idST       = 'ST-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+  var driveUrlFact = clasificados.factura_ceyco.getUrl();
+  var margenCalc   = (resultado.total_venta > 0 && resultado.total_costo > 0)
+    ? parseFloat(((resultado.total_venta / resultado.total_costo - 1) * 100).toFixed(2)) : 0;
+  var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+
+  var notaST = 'Procesado desde email | Mes: ' + mes + ' | ' + contexto +
+               ' | Tipo venta: ' + resultado.tipo_venta;
+  if (codigosWarning.length) notaST += ' | ⚠️ SIN COSTO: ' + resultado.items_warning;
+
+  var tieneVoucher = !!clasificados.voucher;
+
+  var filaST = new Array(ST_NCOLS);
+  for (var xs = 0; xs < ST_NCOLS; xs++) filaST[xs] = '';
+  filaST[COL_ST.ID - 1]              = idST;
+  filaST[COL_ST.FECHA_REG - 1]       = fechaReg;
+  filaST[COL_ST.ESTADO - 1]          = tieneVoucher ? 'cerrado' : 'en_ejecucion';
+  // NUM_COT: número de factura real si existe, sino correlativo
+  var numCotST = resultado.num_factura
+    ? 'FACT ' + String(resultado.num_factura).replace(/^0+/, '')
+    : 'COT-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+  filaST[COL_ST.NUM_COT - 1]         = numCotST;
+  filaST[COL_ST.NOMBRE_CLI - 1]      = datosCeyco.nombre_cliente || '';
+  filaST[COL_ST.RUC_CLI - 1]         = datosCeyco.ruc_cliente    || '';
+  filaST[COL_ST.DV_CLI - 1]          = datosCeyco.dv_cliente     || '';
+  filaST[COL_ST.DESCRIPCION - 1]     = datosCeyco.descripcion    || datosCeyco.items[0].descripcion || '';
+  filaST[COL_ST.TOTAL_COSTO_COT - 1] = resultado.total_costo || '';
+  filaST[COL_ST.TOTAL_COSTO_REAL - 1]= resultado.total_costo || '';
+  filaST[COL_ST.MARGEN_PCT - 1]      = margenCalc || '';
+  filaST[COL_ST.PRECIO_VENTA - 1]    = resultado.total_venta || '';
+  filaST[COL_ST.DRIVE_URL - 1]       = driveUrlFact;
+  filaST[COL_ST.FECHA_CIERRE - 1]    = tieneVoucher ? fechaFactu : '';
+  filaST[COL_ST.MES - 1]             = mesST;
+  filaST[COL_ST.ANIO - 1]            = anioST;
+  filaST[COL_ST.NOTAS - 1]           = notaST;
+
+  var newSTRow = sheetST.getLastRow() + 1;
+  sheetST.getRange(newSTRow, 1, 1, ST_NCOLS).setValues([filaST]);
+  sheetST.getRange(newSTRow, COL_ST.TOTAL_COSTO_COT, 1, 3).setNumberFormat('#,##0.00');
+  var bgST = resultado.tipo_venta === 'warning'          ? '#FFEBEE' :
+             resultado.tipo_venta === 'venta_inventario' ? '#E3F2FD' :
+             tieneVoucher                                ? '#F1F8E9' : '#F3E5F5';
+  sheetST.getRange(newSTRow, 1, 1, ST_NCOLS).setBackground(bgST);
+  resultado.id_st = idST;
+
+  // ── PASO 8: Egresos y ST_Items por ítem ──────────────────────
+  var seqItemCounter = 0;
+  matchResults.items.forEach(function(itemMatch) {
+    seqItemCounter++;
+    var egresoId = null;
+    var idItemST = 'STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-' + seqItemCounter;
+    itemMatch._id_st_item = idItemST;
+    if (itemMatch.tipo_costo === 'venta_directa' && itemMatch.factura_costo_datos) {
+      if (itemMatch.es_envio) {
+        egresoId = _crearEgresoEnvio(ss, idST, itemMatch, ahora, fechaFactu);
+      } else {
+        egresoId = _crearEgresoItem(ss, idST, itemMatch, ahora, fechaFactu);
+      }
+    } else if (itemMatch.tipo_costo === 'venta_inventario' && itemMatch.inv_item) {
+      egresoId = _crearEgresoInventario(ss, idST, itemMatch, ahora, fechaFactu, resultado.num_factura);
+    }
+    _crearSTItem(sheetSTI, idST, seqItemCounter, itemMatch, egresoId, ahora, idItemST);
+  });
+
+  // ── PASO 9: Costos generales + crédito fiscal ─────────────────
+  matchResults.costos_generales.forEach(function(cg) {
+    seqItemCounter++;
+    var idItemSTGen = 'STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-' + seqItemCounter;
+    var egresoGenId = _crearEgresoGeneral(ss, idST, cg.datos, cg.archivo.getUrl(), ahora, fechaFactu, idItemSTGen);
+    _crearSTItemGeneral(sheetSTI, idST, seqItemCounter, cg.datos, egresoGenId, ahora, idItemSTGen);
+    Logger.log('  💸 Costo general: ' + cg.datos.proveedor + ' $' + cg.datos.total);
+    var itbmCredito = parseFloat(cg.datos._itbm_credito || '0') || 0;
+    if (itbmCredito > 0) {
+      seqItemCounter++;
+      var idItemSTCred = 'STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-' + seqItemCounter;
+      var egresoCreditoId = _crearEgresoCreditoFiscal(ss, idST, cg.datos, itbmCredito, cg.archivo.getUrl(), ahora, fechaFactu, idItemSTCred);
+      _crearSTItemCreditoFiscal(sheetSTI, idST, seqItemCounter, cg.datos, itbmCredito, egresoCreditoId, ahora, idItemSTCred);
+      Logger.log('  💳 Crédito fiscal ITBM: ' + cg.datos.proveedor + ' $' + itbmCredito);
+    }
+  });
+
+  // ── PASO 10: Ingreso ──────────────────────────────────────────
+  var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+  if (!sheetIng) throw new Error('Hoja Ingresos no encontrada');
+
+  var precioVenta = resultado.total_venta;
+  var tieneItbms  = datosCeyco.tiene_itbms !== false;
+  var subtotalIng = tieneItbms ? parseFloat((precioVenta / 1.07).toFixed(2)) : precioVenta;
+  var itbmsIng    = tieneItbms ? parseFloat((precioVenta - subtotalIng).toFixed(2)) : 0;
+
+  var idIng = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') +
+              '-ST-' + String(seqData.seq).padStart(4, '0');
+  var estadoIng = tieneVoucher ? 'confirmado' : 'pendiente';
+
+  var filaIng = new Array(INGRESOS_NCOLS);
+  for (var xi = 0; xi < INGRESOS_NCOLS; xi++) filaIng[xi] = '';
+  filaIng[COL_I.ID_TRANS - 1]      = idIng;
+  filaIng[COL_I.FECHA_REG - 1]     = fechaReg;
+  filaIng[COL_I.ESTADO - 1]        = estadoIng;
+  filaIng[COL_I.CONFIANZA_IA - 1]  = 'ia_email';
+  filaIng[COL_I.FECHA_INGRESO - 1] = fechaFactu;
+  filaIng[COL_I.MES - 1]           = mesST;
+  filaIng[COL_I.ANIO_FISCAL - 1]   = anioST;
+  filaIng[COL_I.SUBTOTAL - 1]      = subtotalIng;
+  filaIng[COL_I.ITBMS - 1]         = itbmsIng;
+  filaIng[COL_I.TOTAL - 1]         = precioVenta;
+  filaIng[COL_I.MONEDA - 1]        = 'USD';
+  filaIng[COL_I.TIPO_INGRESO - 1]  = 'venta_producto';
+  filaIng[COL_I.CATEGORIA - 1]     = tieneItbms ? 'venta_producto_gravado' : 'venta_producto_exento';
+  filaIng[COL_I.NOMBRE_CLI - 1]    = datosCeyco.nombre_cliente || '';
+  filaIng[COL_I.RUC_CLI - 1]       = datosCeyco.ruc_cliente    || '';
+  filaIng[COL_I.TIPO_PERSONA - 1]  = detectarTipoPersona(String(datosCeyco.ruc_cliente || ''));
+  filaIng[COL_I.NUM_FACTURA - 1]   = datosCeyco.num_factura    || '';
+  filaIng[COL_I.TIPO_COMP - 1]     = 'factura_emitida';
+  filaIng[COL_I.DRIVE_URL - 1]     = driveUrlFact;
+  filaIng[COL_I.DESCRIPCION - 1]   = datosCeyco.descripcion    || datosCeyco.items[0].descripcion || '';
+  filaIng[COL_I.NOTAS_INT - 1]     = 'ST: ' + idST + ' | Email: ' + mes + ' | ' + contexto +
+                                      ' | Tipo: ' + resultado.tipo_venta +
+                                      (codigosWarning.length ? ' | ⚠️ ' + resultado.items_warning : '');
+  filaIng[COL_I.FLAG_REV - 1]      = resultado.tipo_venta === 'warning';
+  filaIng[COL_I.DV_CLI - 1]        = datosCeyco.dv_cliente || '';
+
+  var newIngRow = sheetIng.getLastRow() + 1;
+  sheetIng.getRange(newIngRow, 1, 1, INGRESOS_NCOLS).setValues([filaIng]);
+  sheetIng.getRange(newIngRow, COL_I.SUBTOTAL, 1, 3).setNumberFormat('#,##0.00');
+  var bgIng = resultado.tipo_venta === 'warning' ? '#FFEBEE' :
+              estadoIng === 'confirmado'          ? '#F1F8E9' : '#FFF3E0';
+  sheetIng.getRange(newIngRow, 1, 1, INGRESOS_NCOLS).setBackground(bgIng);
+  resultado.ingreso_id = idIng;
+
+  sheetST.getRange(newSTRow, COL_ST.INGRESO_ID).setValue(idIng);
+
+  // Voucher: anotar en notas del ST e ingreso
+  if (tieneVoucher) {
+    var driveUrlVoucher = clasificados.voucher.getUrl();
+    sheetIng.getRange(newIngRow, COL_I.DRIVE_URL).setValue(driveUrlVoucher);
+    var notaActST = String(sheetST.getRange(newSTRow, COL_ST.NOTAS).getValue() || '');
+    sheetST.getRange(newSTRow, COL_ST.NOTAS).setValue(notaActST + ' | Voucher: ' + driveUrlVoucher);
+    resultado.estado = codigosWarning.length ? 'warning' : 'completo';
+  } else {
+    resultado.estado = codigosWarning.length ? 'warning' : 'sin_voucher';
+  }
+
+  Logger.log('  ✅ ST: ' + idST + ' | ING: ' + idIng + ' | tipo: ' + resultado.tipo_venta);
+  return resultado;
+}
