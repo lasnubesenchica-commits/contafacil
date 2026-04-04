@@ -354,6 +354,7 @@ function doGet(e) {
     if (action === 'registrarPagoOperacion')   return _handleRegistrarPagoOperacion(params, callback);
     if (action === 'getEgresos')               return _handleGetEgresos(params, callback);
     if (action === 'getIngresos')              return _handleGetIngresos(params, callback);
+    if (action === 'getPL')                    return _handleGetPL(params, callback);
     if (action === 'registrarIngresoManual')   return _handleRegistrarIngresoManual(params, callback);
     if (action === 'actualizarNotasIngreso')   return _handleActualizarNotasIngreso(params, callback);
     if (action === 'confirmarIngreso')         return _handleConfirmarIngreso(params, callback);
@@ -2175,6 +2176,256 @@ function _handleConfirmarIngreso(params, callback) {
   } catch(err) {
     result.error = err.message;
     Logger.log('Error _handleConfirmarIngreso: ' + err.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleGetPL  — Estado de Resultados server-side
+//  Fuente canónica de COGS: ST_Items (agrupado por ST.mes/anio)
+//  + egresos "Costo venta" de Compras_Ventas
+//  Parámetros opcionales: mes (1-12), anio (ej 2026)
+//  Sin parámetros → devuelve todos los períodos disponibles
+//  Respuesta:
+//    { success, periodos: { "2026-3": { mes, anio, ing, cogs, gastos, itbms_cobrado,
+//                                       itbms_pagado, ub, un, ingresos:[], egresos:[] } } }
+// ═══════════════════════════════════════════════════════════════
+function _handleGetPL(params, callback) {
+  var result = { success: false, periodos: {}, error: null };
+  try {
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+    // ── Leer Ingresos ─────────────────────────────────────────
+    var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+    var ingRows  = sheetIng && sheetIng.getLastRow() > 2
+      ? sheetIng.getRange(3, 1, sheetIng.getLastRow() - 2, INGRESOS_NCOLS).getValues()
+      : [];
+
+    // Mapa de drive_url del ST (factura emitida) para ingresos
+    var maps  = _buildStUrlMaps(ss);
+    var stMap = maps.stMap;
+
+    // ── Leer ST (para mapa id_st → mes/anio) ─────────────────
+    var sheetST  = ss.getSheetByName(SHEET_ST);
+    var stMesMap = {};   // id_st → { mes, anio }
+    if (sheetST && sheetST.getLastRow() > 2) {
+      var stData = sheetST.getRange(3, 1, sheetST.getLastRow() - 2, ST_NCOLS).getValues();
+      for (var s = 0; s < stData.length; s++) {
+        var sr   = stData[s];
+        var stId = String(sr[COL_ST.ID - 1] || '').trim();
+        if (!stId) continue;
+        stMesMap[stId] = {
+          mes:  parseInt(sr[COL_ST.MES  - 1]) || 0,
+          anio: parseInt(sr[COL_ST.ANIO - 1]) || 0,
+        };
+      }
+    }
+
+    // ── Leer ST_Items ─────────────────────────────────────────
+    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
+    var stiRows  = sheetSTI && sheetSTI.getLastRow() > 2
+      ? sheetSTI.getRange(3, 1, sheetSTI.getLastRow() - 2, STI_NCOLS).getValues()
+      : [];
+
+    // ── Leer Egresos (solo para itbms_pagado y egresos CV) ────
+    var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
+    var egrRows  = sheetEgr && sheetEgr.getLastRow() > 2
+      ? sheetEgr.getRange(3, 1, sheetEgr.getLastRow() - 2, EGRESOS_NCOLS).getValues()
+      : [];
+
+    // Tipos de STI que van a COGS
+    var TIPOS_COGS_STI = { producto: true, shipping_handling: true, impuesto: true };
+
+    var periodos = {};
+
+    function getPeriodo(mes, anio) {
+      var key = anio + '-' + mes;
+      if (!periodos[key]) {
+        periodos[key] = {
+          mes: mes, anio: anio,
+          ing: 0, subtotal: 0, itbms_cobrado: 0,
+          cogs: 0, gastos: 0, itbms_pagado: 0,
+          ingresos: [], egresos_gasto: [], cogs_items: [],
+        };
+      }
+      return periodos[key];
+    }
+
+    // ── Procesar Ingresos ─────────────────────────────────────
+    for (var i = 0; i < ingRows.length; i++) {
+      var r   = ingRows[i];
+      if (!r[COL_I.ID_TRANS - 1]) continue;
+      if (String(r[COL_I.ESTADO - 1]).toLowerCase() === 'anulado') continue;
+
+      var mes  = parseInt(r[COL_I.MES        - 1]) || 0;
+      var anio = parseInt(r[COL_I.ANIO_FISCAL - 1]) || 0;
+      if (!mes || !anio) continue;
+
+      var subtotal = parseFloat(r[COL_I.SUBTOTAL - 1]) || 0;
+      var itbms    = parseFloat(r[COL_I.ITBMS    - 1]) || 0;
+      var total    = parseFloat(r[COL_I.TOTAL     - 1]) || 0;
+
+      var notas    = String(r[COL_I.NOTAS_INT - 1] || '');
+      var driveUrl = String(r[COL_I.DRIVE_URL  - 1] || '').trim();
+      var stId     = _extractStId(notas);
+      if (stId && stMap[stId]) driveUrl = stMap[stId];
+
+      var p = getPeriodo(mes, anio);
+      p.subtotal     += subtotal;
+      p.itbms_cobrado+= itbms;
+      p.ing          += total;
+
+      var fechaIng = r[COL_I.FECHA_INGRESO - 1];
+      if (fechaIng instanceof Date) {
+        fechaIng = Utilities.formatDate(fechaIng, 'America/Panama', 'yyyy-MM-dd');
+      } else {
+        fechaIng = String(fechaIng || '').slice(0, 10);
+      }
+
+      p.ingresos.push({
+        id:             r[COL_I.ID_TRANS    - 1],
+        nombre_cliente: r[COL_I.NOMBRE_CLI  - 1] || '',
+        num_factura:    r[COL_I.NUM_FACTURA  - 1] || '',
+        tipo_ingreso:   r[COL_I.TIPO_INGRESO - 1] || '',
+        subtotal:       subtotal,
+        itbms:          itbms,
+        total:          total,
+        fecha:          fechaIng,
+        drive_url:      driveUrl,
+        estado:         String(r[COL_I.ESTADO - 1] || '').toLowerCase(),
+        notas:          String(r[COL_I.NOTAS_INT  - 1] || ''),
+      });
+    }
+
+    // ── Procesar ST_Items → COGS por período ─────────────────
+    for (var j = 0; j < stiRows.length; j++) {
+      var sr = stiRows[j];
+      if (!sr[COL_STI.ID - 1]) continue;
+      if (String(sr[COL_STI.ESTADO_ITEM - 1]).toLowerCase() === 'cancelado') continue;
+
+      var tipo      = String(sr[COL_STI.TIPO - 1] || '').toLowerCase();
+      if (!TIPOS_COGS_STI[tipo]) continue;   // solo producto/shipping_handling/impuesto
+
+      var idST = String(sr[COL_STI.ID_ST - 1] || '').trim();
+      var stPeriodo = stMesMap[idST];
+      if (!stPeriodo || !stPeriodo.mes || !stPeriodo.anio) continue;
+
+      var totalReal = parseFloat(sr[COL_STI.TOTAL_REAL - 1]) || 0;
+      var totalCot  = parseFloat(sr[COL_STI.TOTAL_COT  - 1]) || 0;
+      var monto     = totalReal > 0 ? totalReal : totalCot;
+      var per = getPeriodo(stPeriodo.mes, stPeriodo.anio);
+      per.cogs += monto;
+      per.cogs_items.push({
+        id_st:       idST,
+        tipo:        tipo,
+        descripcion: String(sr[COL_STI.DESCRIPCION - 1] || ''),
+        proveedor:   '',   // se enriquece desde egresoMap abajo si hay egreso_id
+        egreso_id:   String(sr[COL_STI.EGRESO_ID   - 1] || '').trim(),
+        drive_url:   String(sr[COL_STI.DRIVE_URL   - 1] || '').trim(),
+        monto:       monto,
+        origen:      'ST',
+      });
+    }
+
+    // ── Procesar Egresos: itbms_pagado + gastos op + CV costo ─
+    for (var k = 0; k < egrRows.length; k++) {
+      var er = egrRows[k];
+      if (!er[COL_E.ID - 1]) continue;
+      if (String(er[COL_E.ESTADO - 1]).toLowerCase() === 'anulado') continue;
+
+      var eMes  = parseInt(er[COL_E.MES  - 1]) || 0;
+      var eAnio = parseInt(er[COL_E.ANIO - 1]) || 0;
+      if (!eMes || !eAnio) continue;
+
+      var eTipo  = String(er[COL_E.TIPO_EGRESO - 1] || '').toLowerCase();
+      var eTotal = parseFloat(er[COL_E.TOTAL   - 1]) || 0;
+      var eItbms = parseFloat(er[COL_E.ITBMS   - 1]) || 0;
+      var eNotas = String(er[COL_E.NOTAS - 1] || '');
+      var p      = getPeriodo(eMes, eAnio);
+
+      // ITBMS pagado = columna itbms de TODOS los egresos
+      p.itbms_pagado += eItbms;
+
+      // Egresos de Compras_Ventas (costo_mercancia con nota "Costo venta") → COGS
+      if (eTipo === 'costo_mercancia' && eNotas.indexOf('Costo venta') !== -1) {
+        p.cogs += eTotal;
+        p.cogs_items.push({
+          id_st:       String(er[COL_E.ID_ITEM_CV - 1] || ''),
+          tipo:        'producto',
+          descripcion: String(er[COL_E.DESCRIPCION - 1] || ''),
+          proveedor:   String(er[COL_E.PROVEEDOR   - 1] || ''),
+          egreso_id:   String(er[COL_E.ID          - 1] || ''),
+          drive_url:   String(er[COL_E.DRIVE_URL   - 1] || '').trim(),
+          monto:       eTotal,
+          origen:      'COM',
+        });
+        continue;
+      }
+
+      // credito_fiscal se excluye del P&L (es partida DGI)
+      if (eTipo === 'credito_fiscal') continue;
+      // costo_mercancia y costo_servicio_tecnico ya están en ST_Items → saltar
+      if (eTipo === 'costo_mercancia' || eTipo === 'costo_servicio_tecnico') continue;
+      // impuesto_importacion cubierto por ST_Items → saltar
+      if (eTipo === 'impuesto_importacion') continue;
+      // Cualquier egreso con id_st_item ya está contabilizado en ST_Items → saltar
+      var eStItem = String(er[COL_E_ST_ITEM - 1] || '').trim();
+      if (eStItem) continue;
+
+      // Lo que queda son gastos operativos reales sin vínculo a ST
+      p.gastos += eTotal;
+      p.egresos_gasto.push({
+        id:          er[COL_E.ID         - 1],
+        proveedor:   er[COL_E.PROVEEDOR  - 1] || '',
+        descripcion: er[COL_E.DESCRIPCION- 1] || '',
+        tipo_egreso: eTipo,
+        total:       eTotal,
+        itbms:       eItbms,
+        drive_url:   String(er[COL_E.DRIVE_URL - 1] || '').trim(),
+      });
+    }
+
+    // ── Enriquecer proveedor en cogs_items desde egresoMap ───
+    // egresoMap fue construido en _handleGetCotizaciones — reusarlo aquí
+    // Lo reconstruimos desde los egrRows que ya leímos
+    var eMap = {};
+    for (var em = 0; em < egrRows.length; em++) {
+      var eid = String(egrRows[em][COL_E.ID - 1] || '').trim();
+      if (!eid) continue;
+      eMap[eid] = {
+        proveedor: String(egrRows[em][COL_E.PROVEEDOR - 1] || ''),
+        drive_url: String(egrRows[em][COL_E.DRIVE_URL - 1] || '').trim(),
+      };
+    }
+
+    // ── Calcular UB / UN por período ──────────────────────────
+    for (var key in periodos) {
+      var p      = periodos[key];
+      p.ub       = p.subtotal - p.cogs;
+      p.un       = p.ub - p.gastos;
+      p.itbms_neto = p.itbms_cobrado - p.itbms_pagado;
+      // Enriquecer proveedor en cogs_items
+      for (var ci = 0; ci < p.cogs_items.length; ci++) {
+        var item = p.cogs_items[ci];
+        if (item.egreso_id && eMap[item.egreso_id]) {
+          if (!item.proveedor)  item.proveedor  = eMap[item.egreso_id].proveedor;
+          if (!item.drive_url)  item.drive_url  = eMap[item.egreso_id].drive_url;
+        }
+      }
+      // Ordenar ingresos por fecha desc
+      p.ingresos.sort(function(a, b) {
+        return String(b.fecha).localeCompare(String(a.fecha));
+      });
+    }
+
+    result.success  = true;
+    result.periodos = periodos;
+
+  } catch(err) {
+    result.error = err.message;
+    Logger.log('Error _handleGetPL: ' + err.message);
   }
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
