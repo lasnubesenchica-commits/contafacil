@@ -1387,6 +1387,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
       style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
       👤 Planilla
     </button>
+    <button id="rgTabAcrBtn" onclick="rgShowTab('acr')"
+      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
+      🏦 Acreedores
+    </button>
   </div>
 
   <!-- TAB: EGRESOS -->
@@ -1612,7 +1616,162 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   </div><!-- /rgTabPl -->
 
-</div><!-- /sectionRegistroGeneral -->
+  <!-- TAB: ACREEDORES ════════════════════════════════════════ -->
+  <div id="rgTabAcr" style="display:none">
+
+    <!-- Toolbar -->
+    <div class="op-toolbar" style="padding:.75rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <button class="op-filter-btn active" data-acr-filter="borrador" onclick="acrApplyFilter(this,'borrador')">⏳ Pendientes</button>
+      <button class="op-filter-btn" data-acr-filter="aprobado"        onclick="acrApplyFilter(this,'aprobado')">✅ Aprobados</button>
+      <button class="op-filter-btn" data-acr-filter="all"             onclick="acrApplyFilter(this,'all')">Todos</button>
+      <div class="search-wrap" style="margin-left:auto">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="acrSearch" class="filter-search" placeholder="Buscar acreedor..." oninput="acrRender()">
+      </div>
+      <button class="btn-sync" onclick="acrSincronizar()" id="btnAcrSync">↻ Sincronizar emails</button>
+    </div>
+
+    <!-- Stats -->
+    <div style="padding:.75rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
+      <div class="stat-pill"><span class="stat-pill-num orange" id="acrStatPend">—</span><span class="stat-pill-label">Pendientes</span></div>
+      <div class="stat-pill"><span class="stat-pill-num green"  id="acrStatApro">—</span><span class="stat-pill-label">Aprobados</span></div>
+      <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="acrStatMonto">—</span><span class="stat-pill-label">Total aprobado</span></div>
+    </div>
+
+    <!-- Tabla de pendientes -->
+    <div class="section-hdr-row">
+      <span class="section-hdr-lbl">Facturas de acreedores</span>
+    </div>
+    <div class="op-table-wrap">
+      <table class="op-table" id="acrTable">
+        <thead>
+          <tr>
+            <th>Acreedor</th>
+            <th>Fecha factura</th>
+            <th>N° factura</th>
+            <th>Categoría</th>
+            <th style="text-align:right">Subtotal</th>
+            <th style="text-align:right">ITBMS</th>
+            <th style="text-align:right">Total</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="acrBody">
+          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /rgTabAcr -->
+
+  <!-- Modal Detalle / Aprobar Acreedor -->
+  <div id="modalAcrDetalle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:center;justify-content:center">
+    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,560px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em">Detalle de factura</div>
+        <button onclick="acrCerrarModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
+      </div>
+
+      <!-- Info de solo lectura -->
+      <div id="acrDetalleInfo" style="background:var(--bg);border-radius:8px;padding:1rem;margin-bottom:1.25rem;font-size:.83rem;line-height:1.9"></div>
+
+      <!-- Link a factura -->
+      <div id="acrDetalleLink" style="margin-bottom:1rem"></div>
+
+      <!-- Campos editables antes de aprobar -->
+      <div style="display:grid;gap:.75rem;margin-bottom:1.25rem">
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">CATEGORÍA DE GASTO <span style="color:var(--orange)">*</span></label>
+          <select id="acrDetCat" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none"></select>
+          <span id="acrCatSugerida" style="font-size:.72rem;color:#6A1B9A;margin-top:.2rem;display:block"></span>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">DESCRIPCIÓN</label>
+          <input type="text" id="acrDetDesc" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem">
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">SUBTOTAL</label>
+            <input type="number" id="acrDetSub" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">ITBMS</label>
+            <input type="number" id="acrDetItbms" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">TOTAL</label>
+            <input type="number" id="acrDetTotal" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+        </div>
+      </div>
+
+      <!-- Botones -->
+      <div id="acrDetalleAcciones" style="display:flex;gap:.75rem;justify-content:flex-end">
+        <button onclick="acrRechazar()" style="padding:.5rem 1.25rem;background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer">
+          🗑 Rechazar
+        </button>
+        <button onclick="acrAprobar()" style="padding:.5rem 1.5rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+          ✅ Aprobar y registrar egreso
+        </button>
+      </div>
+      <div id="acrModalMsg" style="display:none;margin-top:.75rem;font-size:.8rem;text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- Modal Nuevo Acreedor (en Configuración) — también usado desde el tab -->
+  <div id="modalNuevoAcreedor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:center;justify-content:center">
+    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,540px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em" id="modalAcrTitulo">Nuevo acreedor</div>
+        <button onclick="acrCerrarModalNuevo()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
+      </div>
+
+      <!-- Upload factura ejemplo -->
+      <div style="border:2px dashed var(--border);border-radius:8px;padding:1.25rem;text-align:center;margin-bottom:1.25rem;cursor:pointer" onclick="document.getElementById('acrFileInput').click()">
+        <div id="acrFileLabel" style="font-size:.83rem;color:var(--muted)">📄 Subir factura ejemplo (PDF) — la IA extraerá los datos</div>
+        <input type="file" id="acrFileInput" accept=".pdf,image/*" style="display:none" onchange="acrAnalizarFactura(this)">
+      </div>
+      <div id="acrAnalisisStatus" style="display:none;font-size:.78rem;color:#6A1B9A;margin-bottom:.75rem;text-align:center">⏳ Analizando con IA...</div>
+
+      <div style="display:grid;gap:.75rem">
+        <input type="hidden" id="acrEditId">
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">NOMBRE DEL ACREEDOR <span style="color:var(--orange)">*</span></label>
+          <input type="text" id="acrNombre" placeholder="Ej: Inmobiliaria Las Brisas S.A." style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:.5rem">
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">RUC</label>
+            <input type="text" id="acrRuc" placeholder="Ej: 8-123-456" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+          <div style="width:70px">
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">DV</label>
+            <input type="text" id="acrDv" placeholder="99" maxlength="3" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">CATEGORÍA DE GASTO POR DEFECTO <span style="color:var(--orange)">*</span></label>
+          <select id="acrCategoriaDef" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none"></select>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">KEYWORDS DE DETECCIÓN</label>
+          <input type="text" id="acrKeywords" placeholder="Ej: INMOBILIARIA BRISAS,8123456" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          <span style="font-size:.7rem;color:var(--muted)">Separadas por coma — se usan para identificar la factura por nombre de archivo</span>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">NOTA PARA IA (opcional)</label>
+          <textarea id="acrPromptOverride" rows="2" placeholder="Ej: Factura mensual de alquiler, siempre llega el 1 del mes..." style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem">
+        <button onclick="acrCerrarModalNuevo()" style="padding:.5rem 1.25rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:.83rem;cursor:pointer">Cancelar</button>
+        <button id="btnGuardarAcreedor" onclick="acrGuardar()" style="padding:.5rem 1.5rem;background:#6A1B9A;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">💾 Guardar acreedor</button>
+      </div>
+      <div id="acrGuardarMsg" style="display:none;margin-top:.5rem;font-size:.78rem;text-align:center"></div>
+    </div>
+  </div>
 
 <!-- ══════════ SECCIÓN: DASHBOARD P&L ══════════ -->
 <div id="sectionDashboard">
@@ -1994,6 +2153,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="setup-tab active" id="setupTabEmpresa"       onclick="setupSwitchTab('empresa')">🏢 Empresa</button>
       <button class="setup-tab"        id="setupTabOperaciones"   onclick="setupSwitchTab('operaciones')">⚙️ Operaciones</button>
       <button class="setup-tab"        id="setupTabServiciosTec"  onclick="setupSwitchTab('serviciosTec')">🔧 Servicios Técnicos</button>
+      <button class="setup-tab"        id="setupTabAcreedores"    onclick="setupSwitchTab('acreedores')">🏦 Acreedores</button>
       <button class="setup-tab"        id="setupTabSistema"       onclick="setupSwitchTab('sistema')">⚙ Sistema</button>
     </div>
 
@@ -2045,14 +2205,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <div class="setup-card-title">📧 Email de entrada — Retail</div>
         <div class="setup-grid cols1">
           <div class="setup-field full">
-            <label>Email de destino (To:)</label>
-            <input type="email" id="cfgEmailOpDestino" placeholder="facturas@balanceclip.net">
-            <span class="setup-hint">Dirección fija que recibe las facturas — igual para todos los clientes</span>
-          </div>
-          <div class="setup-field full" style="margin-top:.75rem">
-            <label>Remitente permitido (From: del proveedor/cliente)</label>
-            <input type="email" id="cfgEmailOpRemitente" placeholder="proveedor@empresa.com">
-            <span class="setup-hint">Solo se procesarán facturas de este remitente — identifica al cliente/empresa</span>
+            <label>Email destino (sincronizar facturas de proveedores)</label>
+            <input type="email" id="cfgEmailComprobantes" placeholder="lasnubesenchica+ceycoretail@gmail.com">
+            <span class="setup-hint">Las facturas de proveedor y emitidas deben enviarse aquí para que el sistema las lea automáticamente.</span>
           </div>
         </div>
       </div>
@@ -2112,14 +2267,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </div>
         <div class="setup-grid">
           <div class="setup-field full">
-            <label>Email de destino (To:)</label>
-            <input type="email" id="cfgEmailStDestino" placeholder="facturas@balanceclip.net">
-            <span class="setup-hint">Dirección fija que recibe las facturas — igual para todos los clientes</span>
-          </div>
-          <div class="setup-field full" style="margin-top:.75rem">
-            <label>Remitente permitido (From: del cliente)</label>
-            <input type="email" id="cfgEmailStRemitente" placeholder="cliente@gmail.com">
-            <span class="setup-hint">Solo se procesarán emails de este remitente — identifica al cliente</span>
+            <label>Email de destino</label>
+            <input type="email" id="cfgEmailStEntrante" placeholder="lasnubesenchica+ceyco@gmail.com">
+            <span class="setup-hint">Emails no leídos a esta dirección serán procesados como STs</span>
           </div>
         </div>
         <div class="setup-save-bar" style="margin-top:.75rem">
@@ -2133,7 +2283,26 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
     </div><!-- /setupPanelServiciosTec -->
 
-    <div class="setup-panel" id="setupPanelSistema">
+    <!-- ══ PANEL: ACREEDORES ══════════════════════════════════ -->
+    <div class="setup-panel" id="setupPanelAcreedores">
+
+      <div class="setup-card">
+        <div class="setup-card-title">🏦 Acreedores configurados</div>
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
+          Acreedores cuyas facturas el sistema detecta y procesa automáticamente desde email.
+          Solo se procesarán facturas de acreedores activos.
+        </div>
+        <div class="prov-grid" id="setupAcrGrid" style="padding:0;gap:.85rem">
+          <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">
+            <div class="spinner" style="margin:0 auto .75rem"></div>Cargando acreedores...
+          </div>
+        </div>
+        <div style="margin-top:1rem">
+          <button class="btn-primary" style="font-size:.8rem;padding:.4rem .85rem" onclick="acrAbrirModalNuevo()">+ Agregar acreedor</button>
+        </div>
+      </div>
+
+    </div><!-- /setupPanelAcreedores -->
       <div class="setup-card">
         <div class="setup-card-title">🔍 Estado del Sistema</div>
         <div id="setupSistemaStatus">
@@ -5992,16 +6161,21 @@ function rgShowTab(tab) {
   document.getElementById('rgTabEgr').style.display = tab === 'egr' ? 'block' : 'none';
   document.getElementById('rgTabIng').style.display = tab === 'ing' ? 'block' : 'none';
   document.getElementById('rgTabPl').style.display  = tab === 'pl'  ? 'block' : 'none';
-  if (tab === 'pl') plInit();
+  document.getElementById('rgTabAcr').style.display = tab === 'acr' ? 'block' : 'none';
+  if (tab === 'pl')  plInit();
+  if (tab === 'acr') acrInit();
   const btnEgr = document.getElementById('rgTabEgrBtn');
   const btnIng = document.getElementById('rgTabIngBtn');
   var btnPl  = document.getElementById('rgTabPlBtn');
+  var btnAcr = document.getElementById('rgTabAcrBtn');
   btnEgr.style.borderBottomColor = 'transparent'; btnEgr.style.color = 'var(--muted)';
   btnIng.style.borderBottomColor = 'transparent'; btnIng.style.color = 'var(--muted)';
-  if (btnPl) { btnPl.style.borderBottomColor = 'transparent'; btnPl.style.color = 'var(--muted)'; }
+  if (btnPl)  { btnPl.style.borderBottomColor  = 'transparent'; btnPl.style.color  = 'var(--muted)'; }
+  if (btnAcr) { btnAcr.style.borderBottomColor = 'transparent'; btnAcr.style.color = 'var(--muted)'; }
   if (tab === 'egr') { btnEgr.style.borderBottomColor = 'var(--orange)'; btnEgr.style.color = 'var(--orange)'; }
   else if (tab === 'ing') { btnIng.style.borderBottomColor = 'var(--green)';  btnIng.style.color = 'var(--green)'; }
-  else if (tab === 'pl' && btnPl) { btnPl.style.borderBottomColor = '#6A1B9A'; btnPl.style.color = '#6A1B9A'; }
+  else if (tab === 'pl'  && btnPl)  { btnPl.style.borderBottomColor  = '#6A1B9A'; btnPl.style.color  = '#6A1B9A'; }
+  else if (tab === 'acr' && btnAcr) { btnAcr.style.borderBottomColor = '#4A148C'; btnAcr.style.color = '#4A148C'; }
 }
 window.rgShowTab = rgShowTab;
 
@@ -8395,15 +8569,16 @@ function closeItbmsDetalle() {
 var _setupLoaded = false;  // evitar recargas redundantes
 
 function setupSwitchTab(tab) {
-  ['empresa','operaciones','serviciosTec','sistema'].forEach(function(t) {
+  ['empresa','operaciones','serviciosTec','acreedores','sistema'].forEach(function(t) {
     const btn   = document.getElementById('setupTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('setupPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (btn)   btn.classList.toggle('active',   t === tab);
     if (panel) panel.classList.toggle('active', t === tab);
   });
-  if (tab === 'sistema')     verificarSistema();
-  if (tab === 'operaciones') _loadSetupProvGrid();
+  if (tab === 'sistema')      verificarSistema();
+  if (tab === 'operaciones')  _loadSetupProvGrid();
   if (tab === 'serviciosTec') _cargarEmailST();
+  if (tab === 'acreedores')   _loadSetupAcrGrid();
 }
 
 // ── Cargar config desde GAS ──────────────────────
@@ -8417,8 +8592,7 @@ async function loadSetupConfig() {
     _setVal('cfgEmpresaNombre',     c.empresa_nombre       || '');
     _setVal('cfgEmpresaRuc',        c.empresa_ruc          || '');
     _setVal('cfgEmpresaDv',         c.empresa_dv           || '');
-    _setVal('cfgEmailOpDestino',    c.email_op_destino     || '');
-    _setVal('cfgEmailOpRemitente',  c.email_op_remitente   || '');
+    _setVal('cfgEmailComprobantes', c.email_comprobantes   || '');
     _setVal('cfgDriveFolderId',     c.drive_folder_id      || '');
     _setVal('cfgPrefijoId',         c.prefijo_id           || 'RP');
     _setVal('cfgConfianzaMin',      c.confianza_minima     || '70');
@@ -8433,10 +8607,9 @@ async function loadSetupConfig() {
     document.getElementById('cfgGasUrl').value = GAS_URL;
 
     // Validar campos visualmente
-    _validarCampoConfig('cfgEmpresaRuc',       c.empresa_ruc);
-    _validarCampoConfig('cfgEmailOpDestino',   c.email_op_destino);
-    _validarCampoConfig('cfgEmailOpRemitente', c.email_op_remitente);
-    _validarCampoConfig('cfgDriveFolderId',    c.drive_folder_id);
+    _validarCampoConfig('cfgEmpresaRuc',        c.empresa_ruc);
+    _validarCampoConfig('cfgEmailComprobantes', c.email_comprobantes);
+    _validarCampoConfig('cfgDriveFolderId',     c.drive_folder_id);
 
     _setupLoaded = true;
   } catch(err) {
@@ -8507,8 +8680,7 @@ async function guardarConfigOperaciones() {
   try {
     const payload = {
       action:            'guardarConfig',
-      email_op_destino:   document.getElementById('cfgEmailOpDestino').value.trim(),
-      email_op_remitente: document.getElementById('cfgEmailOpRemitente').value.trim(),
+      email_comprobantes: document.getElementById('cfgEmailComprobantes').value.trim(),
       prefijo_id:        document.getElementById('cfgPrefijoId').value.trim()    || 'RP',
       confianza_minima:  document.getElementById('cfgConfianzaMin').value.trim() || '70',
       itbms_rate:        document.getElementById('cfgItbmsRate').value.trim()    || '0.07',
@@ -8544,42 +8716,34 @@ async function guardarConfigOperaciones() {
 // ── Setup Servicios Técnicos ──────────────────────────────────
 
 function _cargarEmailST() {
-  const fDest = document.getElementById('cfgEmailStDestino');
-  const fRem  = document.getElementById('cfgEmailStRemitente');
-  if (!fDest && !fRem) return;
+  const field = document.getElementById('cfgEmailStEntrante');
+  if (!field) return;
   gasJsonp('getConfig', {}).then(data => {
     if (data.success) {
-      const c = data.config || {};
-      if (fDest) fDest.value = c.email_st_destino   || '';
-      if (fRem)  fRem.value  = c.email_st_remitente || '';
+      const email = (data.config || {}).email_st_entrante || '';
+      field.value = email;
     }
   }).catch(() => {});
 }
 
 async function guardarConfigST() {
-  const btn  = document.getElementById('btnGuardarStEmail');
-  const msg  = document.getElementById('cfgStEmailMsg');
+  const btn = document.getElementById('btnGuardarStEmail');
+  const msg = document.getElementById('cfgStEmailMsg');
   btn.disabled = true; btn.textContent = '⏳ Guardando...';
   msg.style.display = 'none';
   try {
-    const destino   = document.getElementById('cfgEmailStDestino').value.trim();
-    const remitente = document.getElementById('cfgEmailStRemitente').value.trim();
-    if (!destino)   { showToast('Email de destino (To:) requerido', true); return; }
-    if (!remitente) { showToast('Remitente permitido (From:) requerido', true); return; }
+    const email = document.getElementById('cfgEmailStEntrante').value.trim();
+    if (!email) { showToast('Email requerido', true); return; }
     const res  = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        action:             'guardarConfig',
-        email_st_destino:   destino,
-        email_st_remitente: remitente,
-      }),
+      body: JSON.stringify({ action: 'guardarConfig', email_st_entrante: email }),
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Error al guardar');
     msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
-    showToast('✅ Config ST guardada — procesando emails de ' + remitente + ' → ' + destino);
+    showToast('✅ Email ST guardado — el próximo trigger usará: ' + email);
     await new Promise(r => setTimeout(r, 800));
     _setupLoaded = false;
   } catch(err) {
@@ -8591,6 +8755,418 @@ async function guardarConfigST() {
 
 
 
+
+
+async function guardarConfigST() {
+  const btn = document.getElementById('btnGuardarStEmail');
+  const msg = document.getElementById('cfgStEmailMsg');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  msg.style.display = 'none';
+  try {
+    const email = document.getElementById('cfgEmailStEntrante').value.trim();
+    if (!email) { showToast('Email requerido', true); return; }
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'guardarConfig', email_st_entrante: email }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+    msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    showToast('✅ Email ST guardado — el próximo trigger usará: ' + email);
+    await new Promise(r => setTimeout(r, 800));
+    _setupLoaded = false;
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Guardar';
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  MÓDULO ACREEDORES — JS completo
+// ════════════════════════════════════════════════════════════════
+
+// ── Estado del módulo ────────────────────────────────────────
+var _acrData       = [];      // todos los pendientes cargados
+var _acrCategorias = [];      // lista de categorías
+var _acrFilter     = 'borrador';
+var _acrSelected   = null;    // pendiente actualmente en el modal
+var _acrFileB64    = null;    // base64 de la factura ejemplo en el modal de nuevo acreedor
+
+const CATEG_ACREEDOR = [
+  { valor: 'alquiler_local',              label: 'Alquiler de local / oficina' },
+  { valor: 'servicios_publicos',          label: 'Servicios públicos (agua, luz)' },
+  { valor: 'internet_telecomunicaciones', label: 'Internet y telecomunicaciones' },
+  { valor: 'seguros',                     label: 'Seguros' },
+  { valor: 'mantenimiento_reparacion',    label: 'Mantenimiento y reparaciones' },
+  { valor: 'servicios_profesionales',     label: 'Servicios profesionales (legal, contable)' },
+  { valor: 'publicidad_marketing',        label: 'Publicidad y marketing' },
+  { valor: 'transporte_combustible',      label: 'Transporte y combustible' },
+  { valor: 'suministros_oficina',         label: 'Suministros de oficina' },
+  { valor: 'planilla_empleados',          label: 'Planilla y cargas sociales' },
+  { valor: 'financiero_bancario',         label: 'Gastos financieros y bancarios' },
+  { valor: 'capacitacion',               label: 'Capacitación y formación' },
+  { valor: 'tecnologia_software',         label: 'Tecnología y software' },
+  { valor: 'otros_gastos_generales',      label: 'Otros gastos generales' },
+];
+
+function _acrBuildCatOptions(selectId, selected) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  sel.innerHTML = CATEG_ACREEDOR.map(c =>
+    `<option value="${c.valor}" ${c.valor === selected ? 'selected' : ''}>${c.label}</option>`
+  ).join('');
+}
+
+// ── Inicialización del tab ───────────────────────────────────
+async function acrInit() {
+  _acrBuildCatOptions('acrDetCat', '');
+  await acrCargarPendientes();
+}
+
+async function acrCargarPendientes() {
+  try {
+    document.getElementById('acrBody').innerHTML =
+      '<tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>';
+    const data = await gasJsonp('getPendientesAcreedor', {});
+    if (!data.success) throw new Error(data.error || 'Error cargando acreedores');
+    _acrData = data.items || [];
+    acrRenderStats();
+    acrRender();
+  } catch(err) {
+    document.getElementById('acrBody').innerHTML =
+      `<tr><td colspan="9" style="text-align:center;color:var(--danger);padding:1.5rem">${err.message}</td></tr>`;
+  }
+}
+
+function acrRenderStats() {
+  const pendientes = _acrData.filter(i => i.estado === 'borrador');
+  const aprobados  = _acrData.filter(i => i.estado === 'aprobado');
+  const totalApr   = aprobados.reduce((s, i) => s + (i.total || 0), 0);
+  const s = n => n !== undefined ? String(n) : '—';
+  const el = id => document.getElementById(id);
+  if (el('acrStatPend'))  el('acrStatPend').textContent  = pendientes.length;
+  if (el('acrStatApro'))  el('acrStatApro').textContent  = aprobados.length;
+  if (el('acrStatMonto')) el('acrStatMonto').textContent = '$' + totalApr.toFixed(2);
+}
+
+function acrApplyFilter(btn, filter) {
+  document.querySelectorAll('[data-acr-filter]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _acrFilter = filter;
+  acrRender();
+}
+
+function acrRender() {
+  const q     = (document.getElementById('acrSearch')?.value || '').toLowerCase();
+  const body  = document.getElementById('acrBody');
+  if (!body) return;
+
+  let items = _acrData.filter(i => {
+    if (_acrFilter === 'borrador'  && i.estado !== 'borrador')  return false;
+    if (_acrFilter === 'aprobado'  && i.estado !== 'aprobado')  return false;
+    if (q && !(
+      (i.acreedor_nom || '').toLowerCase().includes(q) ||
+      (i.num_fac      || '').toLowerCase().includes(q) ||
+      (i.descripcion  || '').toLowerCase().includes(q)
+    )) return false;
+    return true;
+  });
+
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
+    return;
+  }
+
+  const catLabel = v => (CATEG_ACREEDOR.find(c => c.valor === v) || {}).label || v || '—';
+  const fmt = n => '$' + (parseFloat(n)||0).toFixed(2);
+
+  body.innerHTML = items.map(i => {
+    const estadoBadge = i.estado === 'borrador'
+      ? '<span style="background:#FFF9C4;color:#F57F17;padding:.2rem .55rem;border-radius:12px;font-size:.72rem;font-weight:700">⏳ PENDIENTE</span>'
+      : '<span style="background:#E8F5E9;color:#2E7D32;padding:.2rem .55rem;border-radius:12px;font-size:.72rem;font-weight:700">✅ APROBADO</span>';
+    const acciones = i.estado === 'borrador'
+      ? `<button onclick='acrAbrirDetalle(${JSON.stringify(i)})' style="padding:.3rem .7rem;background:#6A1B9A;color:#fff;border:none;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer">Ver / Aprobar</button>`
+      : (i.drive_url ? `<a href="${i.drive_url}" target="_blank" style="font-size:.76rem;color:var(--orange)">📄 Factura</a>` : '—');
+    return `<tr>
+      <td style="font-weight:600">${i.acreedor_nom || '—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.8rem">${i.fecha_fac || '—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.8rem">${i.num_fac || '—'}</td>
+      <td style="font-size:.78rem">${catLabel(i.categoria)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace">${fmt(i.subtotal)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace">${fmt(i.itbms)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmt(i.total)}</td>
+      <td>${estadoBadge}</td>
+      <td>${acciones}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Modal Detalle / Aprobar ──────────────────────────────────
+function acrAbrirDetalle(item) {
+  _acrSelected = item;
+  const modal = document.getElementById('modalAcrDetalle');
+
+  // Info de solo lectura
+  document.getElementById('acrDetalleInfo').innerHTML = `
+    <strong>Acreedor:</strong> ${item.acreedor_nom || '—'}<br>
+    <strong>Fecha factura:</strong> ${item.fecha_fac || '—'}&nbsp;&nbsp;
+    <strong>N° factura:</strong> ${item.num_fac || '—'}<br>
+    <strong>Fecha registro:</strong> ${item.fecha_reg || '—'}<br>
+    ${item.notas ? '<strong>Nota IA:</strong> ' + item.notas : ''}
+  `;
+
+  // Link a factura
+  document.getElementById('acrDetalleLink').innerHTML = item.drive_url
+    ? `<a href="${item.drive_url}" target="_blank" style="font-size:.82rem;color:var(--orange);font-weight:600">📄 Ver factura en Drive</a>`
+    : '';
+
+  // Categoría sugerida
+  _acrBuildCatOptions('acrDetCat', item.categoria || '');
+  const conf = (item.notas || '').match(/(\d+)%/);
+  const confNum = conf ? parseInt(conf[1]) : null;
+  const confColor = confNum >= 80 ? '#2E7D32' : confNum >= 60 ? '#F57F17' : '#C62828';
+  document.getElementById('acrCatSugerida').innerHTML = confNum !== null
+    ? `<span style="color:${confColor}">IA confianza: ${confNum}%</span>`
+    : '';
+
+  // Campos editables
+  document.getElementById('acrDetDesc').value  = item.descripcion || '';
+  document.getElementById('acrDetSub').value   = item.subtotal    || '';
+  document.getElementById('acrDetItbms').value = item.itbms       || '';
+  document.getElementById('acrDetTotal').value = item.total       || '';
+
+  // Mostrar/ocultar botones según estado
+  const acc = document.getElementById('acrDetalleAcciones');
+  acc.style.display = item.estado === 'borrador' ? 'flex' : 'none';
+
+  document.getElementById('acrModalMsg').style.display = 'none';
+  modal.style.display = 'flex';
+}
+
+function acrCerrarModal() {
+  document.getElementById('modalAcrDetalle').style.display = 'none';
+  _acrSelected = null;
+}
+
+async function acrAprobar() {
+  if (!_acrSelected) return;
+  const categoria   = document.getElementById('acrDetCat').value;
+  const descripcion = document.getElementById('acrDetDesc').value.trim();
+  const subtotal    = document.getElementById('acrDetSub').value;
+  const itbms       = document.getElementById('acrDetItbms').value;
+  const total       = document.getElementById('acrDetTotal').value;
+  if (!categoria) { showToast('Selecciona una categoría', true); return; }
+
+  const msg = document.getElementById('acrModalMsg');
+  msg.style.display = 'block'; msg.style.color = 'var(--muted)';
+  msg.textContent = '⏳ Guardando cambios...';
+
+  try {
+    // Actualizar campos editados primero
+    if (descripcion || subtotal || itbms || total) {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'actualizarPendienteAcr',
+          id: _acrSelected.id,
+          categoria, descripcion,
+          subtotal: subtotal || undefined,
+          itbms: itbms || undefined,
+          total: total || undefined,
+        }),
+      });
+    }
+
+    msg.textContent = '⏳ Registrando egreso...';
+    const data = await gasJsonp('aprobarAcreedor', { id: _acrSelected.id, categoria });
+    if (!data.success) throw new Error(data.error || 'Error al aprobar');
+
+    msg.style.color = 'var(--green)';
+    msg.textContent = '✅ Egreso registrado: ' + data.egresoId;
+    showToast('✅ Egreso registrado: ' + data.egresoId);
+    setTimeout(() => { acrCerrarModal(); acrCargarPendientes(); }, 1200);
+  } catch(err) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = '❌ ' + err.message;
+  }
+}
+
+async function acrRechazar() {
+  if (!_acrSelected) return;
+  if (!confirm('¿Rechazar esta factura? Se ocultará de la lista.')) return;
+  try {
+    const data = await gasJsonp('rechazarAcreedor', { id: _acrSelected.id });
+    if (!data.success) throw new Error(data.error);
+    showToast('Factura rechazada');
+    acrCerrarModal();
+    acrCargarPendientes();
+  } catch(err) { showToast('Error: ' + err.message, true); }
+}
+
+async function acrSincronizar() {
+  const btn = document.getElementById('btnAcrSync');
+  btn.disabled = true; btn.textContent = '⏳ Sincronizando...';
+  try {
+    const data = await gasJsonp('sincronizarAcreedores', {});
+    if (!data.success) throw new Error(data.error || 'Error');
+    showToast(`✅ Sincronizado — ${data.nuevos} nuevos, ${data.ignorados} ignorados`);
+    if (data.nuevos > 0) await acrCargarPendientes();
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '↻ Sincronizar emails';
+  }
+}
+
+// ── Modal Nuevo Acreedor ──────────────────────────────────────
+function acrAbrirModalNuevo() {
+  document.getElementById('acrEditId').value       = '';
+  document.getElementById('acrNombre').value       = '';
+  document.getElementById('acrRuc').value          = '';
+  document.getElementById('acrDv').value           = '';
+  document.getElementById('acrKeywords').value     = '';
+  document.getElementById('acrPromptOverride').value = '';
+  document.getElementById('acrFileLabel').textContent = '📄 Subir factura ejemplo (PDF) — la IA extraerá los datos';
+  document.getElementById('acrAnalisisStatus').style.display = 'none';
+  document.getElementById('modalAcrTitulo').textContent = 'Nuevo acreedor';
+  document.getElementById('acrGuardarMsg').style.display = 'none';
+  _acrBuildCatOptions('acrCategoriaDef', '');
+  _acrFileB64 = null;
+  document.getElementById('modalNuevoAcreedor').style.display = 'flex';
+}
+
+function acrCerrarModalNuevo() {
+  document.getElementById('modalNuevoAcreedor').style.display = 'none';
+  _acrFileB64 = null;
+}
+
+async function acrAnalizarFactura(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('acrFileLabel').textContent = '📄 ' + file.name;
+  document.getElementById('acrAnalisisStatus').style.display = 'block';
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const b64 = e.target.result.split(',')[1];
+    _acrFileB64 = b64;
+    try {
+      const res  = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'analizarFacturaAcreedor', imageBase64: b64, mimeType: file.type || 'application/pdf' }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      // Pre-rellenar formulario con datos de la IA
+      if (data.nombre_acreedor) document.getElementById('acrNombre').value   = data.nombre_acreedor;
+      if (data.ruc)             document.getElementById('acrRuc').value       = data.ruc;
+      if (data.dv)              document.getElementById('acrDv').value        = data.dv;
+      if (data.keywords)        document.getElementById('acrKeywords').value  = data.keywords;
+      if (data.notas_formato)   document.getElementById('acrPromptOverride').value = data.notas_formato;
+      if (data.categoria_sugerida) _acrBuildCatOptions('acrCategoriaDef', data.categoria_sugerida);
+      document.getElementById('acrAnalisisStatus').textContent =
+        `✅ Datos extraídos${data.confianza_categoria ? ' — categoría con ' + data.confianza_categoria + '% confianza' : ''}`;
+      document.getElementById('acrAnalisisStatus').style.color = 'var(--green)';
+    } catch(err) {
+      document.getElementById('acrAnalisisStatus').textContent = '⚠️ No se pudo analizar: ' + err.message;
+      document.getElementById('acrAnalisisStatus').style.color = 'var(--danger)';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function acrGuardar() {
+  const btn   = document.getElementById('btnGuardarAcreedor');
+  const msg   = document.getElementById('acrGuardarMsg');
+  const nombre = document.getElementById('acrNombre').value.trim();
+  const cat    = document.getElementById('acrCategoriaDef').value;
+  if (!nombre) { showToast('Nombre del acreedor requerido', true); return; }
+  if (!cat)    { showToast('Selecciona una categoría por defecto', true); return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  msg.style.display = 'none';
+  try {
+    const payload = {
+      action:          'guardarAcreedor',
+      id:              document.getElementById('acrEditId').value || undefined,
+      nombre:          nombre,
+      ruc:             document.getElementById('acrRuc').value.trim(),
+      dv:              document.getElementById('acrDv').value.trim(),
+      keywords:        document.getElementById('acrKeywords').value.trim(),
+      categoria_def:   cat,
+      prompt_override: document.getElementById('acrPromptOverride').value.trim(),
+      imageBase64:     _acrFileB64 || undefined,
+      mimeType:        _acrFileB64 ? 'application/pdf' : undefined,
+    };
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+    msg.style.display = 'block'; msg.style.color = 'var(--green)';
+    msg.textContent = '✅ Acreedor guardado: ' + data.id;
+    showToast('✅ Acreedor guardado: ' + data.id);
+    setTimeout(() => { acrCerrarModalNuevo(); _loadSetupAcrGrid(); }, 1000);
+  } catch(err) {
+    msg.style.display = 'block'; msg.style.color = 'var(--danger)';
+    msg.textContent = '❌ ' + err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Guardar acreedor';
+  }
+}
+
+// ── Grid de Acreedores en Configuración ──────────────────────
+async function _loadSetupAcrGrid() {
+  const grid = document.getElementById('setupAcrGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--muted)"><div class="spinner" style="margin:0 auto .75rem"></div>Cargando...</div>';
+  try {
+    const data = await gasJsonp('getAcreedores', {});
+    if (!data.success) throw new Error(data.error);
+    const items = data.items || [];
+    if (!items.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--muted);font-size:.83rem">Sin acreedores configurados. Agrega el primero con el botón de abajo.</div>';
+      return;
+    }
+    const catLabel = v => (CATEG_ACREEDOR.find(c => c.valor === v) || {}).label || v || '—';
+    grid.innerHTML = items.map(acr => `
+      <div class="prov-card" style="border-left:3px solid ${acr.activo ? '#4A148C' : '#ccc'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+          <span class="prov-id-badge" style="background:#EDE7F6;color:#4A148C">${acr.id}</span>
+          <label class="toggle-switch">
+            <input type="checkbox" ${acr.activo ? 'checked' : ''} onchange="acrToggle('${acr.id}', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="prov-nombre">${acr.nombre}</div>
+        <div class="prov-ruc">RUC ${acr.ruc || '—'}${acr.dv ? ' DV ' + acr.dv : ''}</div>
+        <div style="font-size:.72rem;color:#6A1B9A;margin-top:.25rem">${catLabel(acr.categoria_def)}</div>
+        ${acr.drive_ejemplo ? `<a href="${acr.drive_ejemplo}" target="_blank" style="font-size:.72rem;color:var(--orange);margin-top:.25rem;display:block">📄 Ver factura ejemplo</a>` : ''}
+      </div>
+    `).join('');
+  } catch(err) {
+    grid.innerHTML = `<div style="grid-column:1/-1;color:var(--danger);text-align:center;padding:1rem">${err.message}</div>`;
+  }
+}
+
+async function acrToggle(id, activo) {
+  try {
+    const data = await gasJsonp('toggleAcreedor', { id, activo: String(activo) });
+    if (!data.success) throw new Error(data.error);
+    showToast('Acreedor ' + (activo ? 'activado' : 'desactivado'));
+  } catch(err) { showToast('Error: ' + err.message, true); }
+}
+
+
+// ── FIN MÓDULO ACREEDORES ────────────────────────────────────
 
 
 // ── Verificar estado del sistema ─────────────────
@@ -8622,14 +9198,10 @@ async function verificarSistema() {
       const c = cfg.config || {};
       results['empresa']  = { ok: !!(c.empresa_ruc),
                               msg: c.empresa_ruc ? c.empresa_nombre || c.empresa_ruc : '⚠️ RUC no configurado' };
-      results['email_op'] = { ok: !!(c.email_op_destino && c.email_op_remitente),
-                              msg: (c.email_op_destino && c.email_op_remitente)
-                                   ? c.email_op_remitente + ' → ' + c.email_op_destino
-                                   : (c.email_comprobantes || '⚠️ Sin email — ir a Operaciones') };
-      results['email_st'] = { ok: !!(c.email_st_destino && c.email_st_remitente),
-                              msg: (c.email_st_destino && c.email_st_remitente)
-                                   ? c.email_st_remitente + ' → ' + c.email_st_destino
-                                   : (c.email_st_entrante || '⚠️ Sin email — ir a Servicios Técnicos') };
+      results['email_op'] = { ok: !!(c.email_comprobantes),
+                              msg: c.email_comprobantes || '⚠️ Sin email — ir a Operaciones' };
+      results['email_st'] = { ok: !!(c.email_st_entrante),
+                              msg: c.email_st_entrante || '⚠️ Sin email — ir a Servicios Técnicos' };
       results['drive']    = { ok: !!(c.drive_folder_id),
                               msg: c.drive_folder_id ? '✅ Configurado' : '⚠️ Sin folder ID' };
       results['api_key']  = { ok: true, msg: '✅ Configurada' };
