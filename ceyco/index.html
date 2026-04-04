@@ -2096,12 +2096,17 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <div class="setup-panel" id="setupPanelOperaciones">
 
       <div class="setup-card">
-        <div class="setup-card-title">📧 Email de entrada — Retail</div>
+        <div class="setup-card-title">📧 Email de entrada — Comercialización</div>
         <div class="setup-grid cols1">
           <div class="setup-field full">
-            <label>Email destino (sincronizar facturas de proveedores)</label>
-            <input type="email" id="cfgEmailComprobantes" placeholder="lasnubesenchica+ceycoretail@gmail.com">
-            <span class="setup-hint">Las facturas de proveedor y emitidas deben enviarse aquí para que el sistema las lea automáticamente.</span>
+            <label>Email de destino (To:)</label>
+            <input type="email" id="cfgEmailOpDestino" placeholder="facturas@balanceclip.net">
+            <span class="setup-hint">Dirección fija que recibe las facturas — igual para todos los clientes</span>
+          </div>
+          <div class="setup-field full" style="margin-top:.75rem">
+            <label>Remitente permitido (From: del proveedor/cliente)</label>
+            <input type="email" id="cfgEmailOpRemitente" placeholder="proveedor@empresa.com">
+            <span class="setup-hint">Solo se procesarán facturas de este remitente — identifica al cliente/empresa</span>
           </div>
         </div>
       </div>
@@ -2161,9 +2166,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </div>
         <div class="setup-grid">
           <div class="setup-field full">
-            <label>Email de destino</label>
-            <input type="email" id="cfgEmailStEntrante" placeholder="lasnubesenchica+ceyco@gmail.com">
-            <span class="setup-hint">Emails no leídos a esta dirección serán procesados como STs</span>
+            <label>Email de destino (To:)</label>
+            <input type="email" id="cfgEmailStDestino" placeholder="facturas@balanceclip.net">
+            <span class="setup-hint">Dirección fija que recibe las facturas — igual para todos los clientes</span>
+          </div>
+          <div class="setup-field full" style="margin-top:.75rem">
+            <label>Remitente permitido (From: del cliente)</label>
+            <input type="email" id="cfgEmailStRemitente" placeholder="cliente@gmail.com">
+            <span class="setup-hint">Solo se procesarán emails de este remitente — identifica al cliente</span>
           </div>
         </div>
         <div class="setup-save-bar" style="margin-top:.75rem">
@@ -8488,7 +8498,8 @@ async function loadSetupConfig() {
     _setVal('cfgEmpresaNombre',     c.empresa_nombre       || '');
     _setVal('cfgEmpresaRuc',        c.empresa_ruc          || '');
     _setVal('cfgEmpresaDv',         c.empresa_dv           || '');
-    _setVal('cfgEmailComprobantes', c.email_comprobantes   || '');
+    _setVal('cfgEmailOpDestino',    c.email_op_destino     || '');
+    _setVal('cfgEmailOpRemitente',  c.email_op_remitente   || '');
     _setVal('cfgDriveFolderId',     c.drive_folder_id      || '');
     _setVal('cfgPrefijoId',         c.prefijo_id           || 'RP');
     _setVal('cfgConfianzaMin',      c.confianza_minima     || '70');
@@ -8503,9 +8514,10 @@ async function loadSetupConfig() {
     document.getElementById('cfgGasUrl').value = GAS_URL;
 
     // Validar campos visualmente
-    _validarCampoConfig('cfgEmpresaRuc',        c.empresa_ruc);
-    _validarCampoConfig('cfgEmailComprobantes', c.email_comprobantes);
-    _validarCampoConfig('cfgDriveFolderId',     c.drive_folder_id);
+    _validarCampoConfig('cfgEmpresaRuc',       c.empresa_ruc);
+    _validarCampoConfig('cfgEmailOpDestino',   c.email_op_destino);
+    _validarCampoConfig('cfgEmailOpRemitente', c.email_op_remitente);
+    _validarCampoConfig('cfgDriveFolderId',    c.drive_folder_id);
 
     _setupLoaded = true;
   } catch(err) {
@@ -8575,8 +8587,9 @@ async function guardarConfigOperaciones() {
   msg.style.display = 'none';
   try {
     const payload = {
-      action:            'guardarConfig',
-      email_comprobantes: document.getElementById('cfgEmailComprobantes').value.trim(),
+      action:             'guardarConfig',
+      email_op_destino:   document.getElementById('cfgEmailOpDestino').value.trim(),
+      email_op_remitente: document.getElementById('cfgEmailOpRemitente').value.trim(),
       prefijo_id:        document.getElementById('cfgPrefijoId').value.trim()    || 'RP',
       confianza_minima:  document.getElementById('cfgConfianzaMin').value.trim() || '70',
       itbms_rate:        document.getElementById('cfgItbmsRate').value.trim()    || '0.07',
@@ -8612,34 +8625,42 @@ async function guardarConfigOperaciones() {
 // ── Setup Servicios Técnicos ──────────────────────────────────
 
 function _cargarEmailST() {
-  const field = document.getElementById('cfgEmailStEntrante');
-  if (!field) return;
+  const fDest = document.getElementById('cfgEmailStDestino');
+  const fRem  = document.getElementById('cfgEmailStRemitente');
+  if (!fDest && !fRem) return;
   gasJsonp('getConfig', {}).then(data => {
     if (data.success) {
-      const email = (data.config || {}).email_st_entrante || '';
-      field.value = email;
+      const c = data.config || {};
+      if (fDest) fDest.value = c.email_st_destino   || '';
+      if (fRem)  fRem.value  = c.email_st_remitente || '';
     }
   }).catch(() => {});
 }
 
 async function guardarConfigST() {
-  const btn = document.getElementById('btnGuardarStEmail');
-  const msg = document.getElementById('cfgStEmailMsg');
+  const btn  = document.getElementById('btnGuardarStEmail');
+  const msg  = document.getElementById('cfgStEmailMsg');
   btn.disabled = true; btn.textContent = '⏳ Guardando...';
   msg.style.display = 'none';
   try {
-    const email = document.getElementById('cfgEmailStEntrante').value.trim();
-    if (!email) { showToast('Email requerido', true); return; }
+    const destino   = document.getElementById('cfgEmailStDestino').value.trim();
+    const remitente = document.getElementById('cfgEmailStRemitente').value.trim();
+    if (!destino)   { showToast('Email de destino (To:) requerido', true); return; }
+    if (!remitente) { showToast('Remitente permitido (From:) requerido', true); return; }
     const res  = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'guardarConfig', email_st_entrante: email }),
+      body: JSON.stringify({
+        action:             'guardarConfig',
+        email_st_destino:   destino,
+        email_st_remitente: remitente,
+      }),
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Error al guardar');
     msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
-    showToast('✅ Email ST guardado — el próximo trigger usará: ' + email);
+    showToast('✅ Config ST guardada — procesando emails de ' + remitente + ' → ' + destino);
     await new Promise(r => setTimeout(r, 800));
     _setupLoaded = false;
   } catch(err) {
@@ -8650,35 +8671,6 @@ async function guardarConfigST() {
 }
 
 
-
-
-
-async function guardarConfigST() {
-  const btn = document.getElementById('btnGuardarStEmail');
-  const msg = document.getElementById('cfgStEmailMsg');
-  btn.disabled = true; btn.textContent = '⏳ Guardando...';
-  msg.style.display = 'none';
-  try {
-    const email = document.getElementById('cfgEmailStEntrante').value.trim();
-    if (!email) { showToast('Email requerido', true); return; }
-    const res  = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'guardarConfig', email_st_entrante: email }),
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error al guardar');
-    msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
-    setTimeout(() => { msg.style.display = 'none'; }, 3000);
-    showToast('✅ Email ST guardado — el próximo trigger usará: ' + email);
-    await new Promise(r => setTimeout(r, 800));
-    _setupLoaded = false;
-  } catch(err) {
-    showToast('Error: ' + err.message, true);
-  } finally {
-    btn.disabled = false; btn.textContent = '💾 Guardar';
-  }
-}
 
 
 // ════════════════════════════════════════════════════════════════
@@ -9106,10 +9098,14 @@ async function verificarSistema() {
       const c = cfg.config || {};
       results['empresa']  = { ok: !!(c.empresa_ruc),
                               msg: c.empresa_ruc ? c.empresa_nombre || c.empresa_ruc : '⚠️ RUC no configurado' };
-      results['email_op'] = { ok: !!(c.email_comprobantes),
-                              msg: c.email_comprobantes || '⚠️ Sin email — ir a Operaciones' };
-      results['email_st'] = { ok: !!(c.email_st_entrante),
-                              msg: c.email_st_entrante || '⚠️ Sin email — ir a Servicios Técnicos' };
+      results['email_op'] = { ok: !!(c.email_op_destino && c.email_op_remitente),
+                              msg: (c.email_op_destino && c.email_op_remitente)
+                                   ? c.email_op_remitente + ' → ' + c.email_op_destino
+                                   : (c.email_comprobantes || '⚠️ Sin email — ir a Operaciones') };
+      results['email_st'] = { ok: !!(c.email_st_destino && c.email_st_remitente),
+                              msg: (c.email_st_destino && c.email_st_remitente)
+                                   ? c.email_st_remitente + ' → ' + c.email_st_destino
+                                   : (c.email_st_entrante || '⚠️ Sin email — ir a Servicios Técnicos') };
       results['drive']    = { ok: !!(c.drive_folder_id),
                               msg: c.drive_folder_id ? '✅ Configurado' : '⚠️ Sin folder ID' };
       results['api_key']  = { ok: true, msg: '✅ Configurada' };
