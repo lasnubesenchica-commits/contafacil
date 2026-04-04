@@ -1665,113 +1665,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   </div><!-- /rgTabAcr -->
 
-  <!-- Modal Detalle / Aprobar Acreedor -->
-  <div id="modalAcrDetalle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:center;justify-content:center">
-    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,560px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em">Detalle de factura</div>
-        <button onclick="acrCerrarModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
-      </div>
 
-      <!-- Info de solo lectura -->
-      <div id="acrDetalleInfo" style="background:var(--bg);border-radius:8px;padding:1rem;margin-bottom:1.25rem;font-size:.83rem;line-height:1.9"></div>
-
-      <!-- Link a factura -->
-      <div id="acrDetalleLink" style="margin-bottom:1rem"></div>
-
-      <!-- Campos editables antes de aprobar -->
-      <div style="display:grid;gap:.75rem;margin-bottom:1.25rem">
-        <div>
-          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">CATEGORÍA DE GASTO <span style="color:var(--orange)">*</span></label>
-          <select id="acrDetCat" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none"></select>
-          <span id="acrCatSugerida" style="font-size:.72rem;color:#6A1B9A;margin-top:.2rem;display:block"></span>
-        </div>
-        <div>
-          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">DESCRIPCIÓN</label>
-          <input type="text" id="acrDetDesc" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem">
-          <div>
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">SUBTOTAL</label>
-            <input type="number" id="acrDetSub" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
-          </div>
-          <div>
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">ITBMS</label>
-            <input type="number" id="acrDetItbms" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
-          </div>
-          <div>
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">TOTAL</label>
-            <input type="number" id="acrDetTotal" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
-          </div>
-        </div>
-      </div>
-
-      <!-- Botones -->
-      <div id="acrDetalleAcciones" style="display:flex;gap:.75rem;justify-content:flex-end">
-        <button onclick="acrRechazar()" style="padding:.5rem 1.25rem;background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer">
-          🗑 Rechazar
-        </button>
-        <button onclick="acrAprobar()" style="padding:.5rem 1.5rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
-          ✅ Aprobar y registrar egreso
-        </button>
-      </div>
-      <div id="acrModalMsg" style="display:none;margin-top:.75rem;font-size:.8rem;text-align:center"></div>
-    </div>
-  </div>
-
-  <!-- Modal Nuevo Acreedor (en Configuración) — también usado desde el tab -->
-  <div id="modalNuevoAcreedor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:center;justify-content:center">
-    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,540px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em" id="modalAcrTitulo">Nuevo acreedor</div>
-        <button onclick="acrCerrarModalNuevo()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
-      </div>
-
-      <!-- Upload factura ejemplo -->
-      <div style="border:2px dashed var(--border);border-radius:8px;padding:1.25rem;text-align:center;margin-bottom:1.25rem;cursor:pointer" onclick="document.getElementById('acrFileInput').click()">
-        <div id="acrFileLabel" style="font-size:.83rem;color:var(--muted)">📄 Subir factura ejemplo (PDF) — la IA extraerá los datos</div>
-        <input type="file" id="acrFileInput" accept=".pdf,image/*" style="display:none" onchange="acrAnalizarFactura(this)">
-      </div>
-      <div id="acrAnalisisStatus" style="display:none;font-size:.78rem;color:#6A1B9A;margin-bottom:.75rem;text-align:center">⏳ Analizando con IA...</div>
-
-      <div style="display:grid;gap:.75rem">
-        <input type="hidden" id="acrEditId">
-        <div>
-          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">NOMBRE DEL ACREEDOR <span style="color:var(--orange)">*</span></label>
-          <input type="text" id="acrNombre" placeholder="Ej: Inmobiliaria Las Brisas S.A." style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:.5rem">
-          <div>
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">RUC</label>
-            <input type="text" id="acrRuc" placeholder="Ej: 8-123-456" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
-          </div>
-          <div style="width:70px">
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">DV</label>
-            <input type="text" id="acrDv" placeholder="99" maxlength="3" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
-          </div>
-        </div>
-        <div>
-          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">CATEGORÍA DE GASTO POR DEFECTO <span style="color:var(--orange)">*</span></label>
-          <select id="acrCategoriaDef" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none"></select>
-        </div>
-        <div>
-          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">KEYWORDS DE DETECCIÓN</label>
-          <input type="text" id="acrKeywords" placeholder="Ej: INMOBILIARIA BRISAS,8123456" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
-          <span style="font-size:.7rem;color:var(--muted)">Separadas por coma — se usan para identificar la factura por nombre de archivo</span>
-        </div>
-        <div>
-          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">NOTA PARA IA (opcional)</label>
-          <textarea id="acrPromptOverride" rows="2" placeholder="Ej: Factura mensual de alquiler, siempre llega el 1 del mes..." style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none;resize:vertical"></textarea>
-        </div>
-      </div>
-
-      <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem">
-        <button onclick="acrCerrarModalNuevo()" style="padding:.5rem 1.25rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:.83rem;cursor:pointer">Cancelar</button>
-        <button id="btnGuardarAcreedor" onclick="acrGuardar()" style="padding:.5rem 1.5rem;background:#6A1B9A;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">💾 Guardar acreedor</button>
-      </div>
-      <div id="acrGuardarMsg" style="display:none;margin-top:.5rem;font-size:.78rem;text-align:center"></div>
-    </div>
-  </div>
 
 <!-- ══════════ SECCIÓN: DASHBOARD P&L ══════════ -->
 <div id="sectionDashboard">
@@ -9412,5 +9306,116 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
   document.getElementById('plEmpSalario').dispatchEvent(new Event('input'));
 });
 </script>
+
+
+<!-- Modales Acreedores (globales) -->
+<!-- Modal Detalle / Aprobar Acreedor -->
+  <div id="modalAcrDetalle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:center;justify-content:center">
+    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,560px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em">Detalle de factura</div>
+        <button onclick="acrCerrarModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
+      </div>
+
+      <!-- Info de solo lectura -->
+      <div id="acrDetalleInfo" style="background:var(--bg);border-radius:8px;padding:1rem;margin-bottom:1.25rem;font-size:.83rem;line-height:1.9"></div>
+
+      <!-- Link a factura -->
+      <div id="acrDetalleLink" style="margin-bottom:1rem"></div>
+
+      <!-- Campos editables antes de aprobar -->
+      <div style="display:grid;gap:.75rem;margin-bottom:1.25rem">
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">CATEGORÍA DE GASTO <span style="color:var(--orange)">*</span></label>
+          <select id="acrDetCat" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none"></select>
+          <span id="acrCatSugerida" style="font-size:.72rem;color:#6A1B9A;margin-top:.2rem;display:block"></span>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">DESCRIPCIÓN</label>
+          <input type="text" id="acrDetDesc" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem">
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">SUBTOTAL</label>
+            <input type="number" id="acrDetSub" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">ITBMS</label>
+            <input type="number" id="acrDetItbms" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">TOTAL</label>
+            <input type="number" id="acrDetTotal" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+        </div>
+      </div>
+
+      <!-- Botones -->
+      <div id="acrDetalleAcciones" style="display:flex;gap:.75rem;justify-content:flex-end">
+        <button onclick="acrRechazar()" style="padding:.5rem 1.25rem;background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer">
+          🗑 Rechazar
+        </button>
+        <button onclick="acrAprobar()" style="padding:.5rem 1.5rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+          ✅ Aprobar y registrar egreso
+        </button>
+      </div>
+      <div id="acrModalMsg" style="display:none;margin-top:.75rem;font-size:.8rem;text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- Modal Nuevo Acreedor (en Configuración) — también usado desde el tab -->
+  <div id="modalNuevoAcreedor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:center;justify-content:center">
+    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,540px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em" id="modalAcrTitulo">Nuevo acreedor</div>
+        <button onclick="acrCerrarModalNuevo()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
+      </div>
+
+      <!-- Upload factura ejemplo -->
+      <div style="border:2px dashed var(--border);border-radius:8px;padding:1.25rem;text-align:center;margin-bottom:1.25rem;cursor:pointer" onclick="document.getElementById('acrFileInput').click()">
+        <div id="acrFileLabel" style="font-size:.83rem;color:var(--muted)">📄 Subir factura ejemplo (PDF) — la IA extraerá los datos</div>
+        <input type="file" id="acrFileInput" accept=".pdf,image/*" style="display:none" onchange="acrAnalizarFactura(this)">
+      </div>
+      <div id="acrAnalisisStatus" style="display:none;font-size:.78rem;color:#6A1B9A;margin-bottom:.75rem;text-align:center">⏳ Analizando con IA...</div>
+
+      <div style="display:grid;gap:.75rem">
+        <input type="hidden" id="acrEditId">
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">NOMBRE DEL ACREEDOR <span style="color:var(--orange)">*</span></label>
+          <input type="text" id="acrNombre" placeholder="Ej: Inmobiliaria Las Brisas S.A." style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:.5rem">
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">RUC</label>
+            <input type="text" id="acrRuc" placeholder="Ej: 8-123-456" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+          <div style="width:70px">
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">DV</label>
+            <input type="text" id="acrDv" placeholder="99" maxlength="3" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">CATEGORÍA DE GASTO POR DEFECTO <span style="color:var(--orange)">*</span></label>
+          <select id="acrCategoriaDef" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none"></select>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">KEYWORDS DE DETECCIÓN</label>
+          <input type="text" id="acrKeywords" placeholder="Ej: INMOBILIARIA BRISAS,8123456" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+          <span style="font-size:.7rem;color:var(--muted)">Separadas por coma — se usan para identificar la factura por nombre de archivo</span>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">NOTA PARA IA (opcional)</label>
+          <textarea id="acrPromptOverride" rows="2" placeholder="Ej: Factura mensual de alquiler, siempre llega el 1 del mes..." style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem">
+        <button onclick="acrCerrarModalNuevo()" style="padding:.5rem 1.25rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:.83rem;cursor:pointer">Cancelar</button>
+        <button id="btnGuardarAcreedor" onclick="acrGuardar()" style="padding:.5rem 1.5rem;background:#6A1B9A;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">💾 Guardar acreedor</button>
+      </div>
+      <div id="acrGuardarMsg" style="display:none;margin-top:.5rem;font-size:.78rem;text-align:center"></div>
+    </div>
+  </div>
+
 </body>
 </html>
