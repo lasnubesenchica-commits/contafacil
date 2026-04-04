@@ -3838,29 +3838,21 @@ async function loadReporte(path, forceReload) {
     if (prevScript) prevScript.remove();
 
     setTimeout(() => {
-      try {
-        // Primero inyectar scripts externos (src) en orden
-        doc.querySelectorAll('script[src]').forEach((oldScript, i) => {
-          const newScript = document.createElement('script');\n          newScript.id    = scriptKey + '-ext-' + i;
-          newScript.src   = oldScript.src;
-          newScript.async = false;
-          document.head.appendChild(newScript);
-        });
-        // Concatenar todos los scripts inline en uno solo para evitar ID duplicado
-        const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
-        if (inlineScripts.length) {
-          const combined = document.createElement('script');
-          combined.id = scriptKey;
-          combined.textContent = inlineScripts.map(s => s.textContent).join('\n');
-          combined.onerror = (e) => {
-            console.error('Error en script de reporte:', path, e);
-            container.innerHTML = '<div style="padding:2rem;color:#C62828;text-align:center">⚠️ Error al ejecutar el módulo.<br><small>' + path + '</small></div>';
-          };
-          document.head.appendChild(combined);
-        }
-      } catch(scriptErr) {
-        console.error('Error inyectando script de reporte:', scriptErr);
-        container.innerHTML = '<div style="padding:2rem;color:#C62828;text-align:center">⚠️ ' + esc(scriptErr.message) + '</div>';
+      // Primero inyectar scripts externos (src) en orden
+      doc.querySelectorAll('script[src]').forEach((oldScript, i) => {
+        const newScript = document.createElement('script');
+        newScript.id    = scriptKey + '-ext-' + i;
+        newScript.src   = oldScript.src;
+        newScript.async = false;
+        document.head.appendChild(newScript);
+      });
+      // Concatenar todos los scripts inline en uno solo para evitar ID duplicado
+      const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
+      if (inlineScripts.length) {
+        const combined = document.createElement('script');
+        combined.id = scriptKey;
+        combined.textContent = inlineScripts.map(s => s.textContent).join('\n');
+        document.head.appendChild(combined);
       }
     }, 0);
 
@@ -4680,10 +4672,15 @@ async function buscarOrdenWebModal() {
 function gasJsonp(action, params, timeoutMs) {
   return new Promise((resolve, reject) => {
     const cb = '_op_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    window[cb] = result => {
+      delete window[cb];
+      const el = document.getElementById('_s_' + cb);
+      if (el) el.remove();
+      resolve(result);
+    };
     let qs = '?action=' + encodeURIComponent(action) + '&callback=' + cb;
-
-    // Para payloads con pdfBase64 usar POST directamente
     if (params && params.pdfBase64) {
+      delete window[cb];
       fetch(GAS_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -4694,44 +4691,18 @@ function gasJsonp(action, params, timeoutMs) {
       .catch(reject);
       return;
     }
-
     if (params) {
       Object.keys(params).forEach(k => {
         qs += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
       });
     }
-
-    const _timeout = timeoutMs || 60000;
-    const timer = setTimeout(() => {
-      delete window[cb];
-      reject(new Error('Tiempo agotado (' + (_timeout/1000) + 's)'));
-    }, _timeout);
-
-    // Usar fetch para seguir redirects 302 que script tags no pueden seguir cross-origin
-    window[cb] = (result) => {
-      delete window[cb];
-      clearTimeout(timer);
-      resolve(result);
-    };
-
-    fetch(GAS_URL + qs, { redirect: 'follow' })
-      .then(r => r.text())
-      .then(text => {
-        try {
-          // El texto es: callback({...}) — evaluarlo
-          // eslint-disable-next-line no-eval
-          eval(text);
-        } catch(e) {
-          delete window[cb];
-          clearTimeout(timer);
-          reject(new Error('Error al parsear respuesta GAS: ' + e.message));
-        }
-      })
-      .catch(err => {
-        delete window[cb];
-        clearTimeout(timer);
-        reject(new Error('Error de red: ' + err.message));
-      });
+    const script = document.createElement('script');
+    script.id    = '_s_' + cb;
+    script.src   = GAS_URL + qs;
+    script.onerror = () => { delete window[cb]; reject(new Error('Error de red')); };
+    document.body.appendChild(script);
+    var _timeout = timeoutMs || 60000;
+    setTimeout(() => { if (window[cb]) { delete window[cb]; reject(new Error('Tiempo agotado (' + (_timeout/1000) + 's)')); } }, _timeout);
   });
 }
 
@@ -7302,23 +7273,20 @@ async function loadDashboard() {
 function plGasGet(action) {
   return new Promise((resolve, reject) => {
     const cb = 'plCb_' + action + '_' + Date.now();
+    const script = document.createElement('script');
     let done = false;
     const timeout = setTimeout(() => {
-      if (!done) { done = true; delete window[cb]; reject(new Error('Timeout: ' + action)); }
+      if (!done) { done = true; cleanup(); reject(new Error('Timeout: ' + action)); }
     }, 30000);
     window[cb] = (data) => {
-      if (!done) { done = true; clearTimeout(timeout); delete window[cb]; resolve(data); }
+      if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(data); }
     };
-    fetch(GAS_URL + '?action=' + action + '&callback=' + cb, { redirect: 'follow' })
-      .then(r => r.text())
-      .then(text => {
-        try { eval(text); } catch(e) {
-          if (!done) { done = true; clearTimeout(timeout); delete window[cb]; reject(new Error('Parse error: ' + action)); }
-        }
-      })
-      .catch(err => {
-        if (!done) { done = true; clearTimeout(timeout); delete window[cb]; reject(err); }
-      });
+    script.onerror = () => {
+      if (!done) { done = true; clearTimeout(timeout); cleanup(); reject(new Error('Script error: ' + action)); }
+    };
+    script.src = GAS_URL + '?action=' + action + '&callback=' + cb;
+    function cleanup() { delete window[cb]; if (script.parentNode) script.parentNode.removeChild(script); }
+    document.head.appendChild(script);
   });
 }
 
