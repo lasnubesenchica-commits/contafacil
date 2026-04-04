@@ -3838,7 +3838,7 @@ async function loadReporte(path, forceReload) {
     if (prevScript) prevScript.remove();
 
     setTimeout(() => {
-      // Primero inyectar scripts externos (src) en orden
+      // Inyectar scripts externos (src) en orden
       doc.querySelectorAll('script[src]').forEach((oldScript, i) => {
         const newScript = document.createElement('script');
         newScript.id    = scriptKey + '-ext-' + i;
@@ -3846,15 +3846,21 @@ async function loadReporte(path, forceReload) {
         newScript.async = false;
         document.head.appendChild(newScript);
       });
-      // Concatenar todos los scripts inline en uno solo para evitar ID duplicado
+      // Ejecutar scripts inline directamente para garantizar re-ejecución
       const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
       if (inlineScripts.length) {
-        const combined = document.createElement('script');
-        combined.id = scriptKey;
-        combined.textContent = inlineScripts.map(s => s.textContent).join('\n');
-        document.head.appendChild(combined);
+        const code = inlineScripts.map(s => s.textContent).join('\n');
+        try {
+          const fn = new Function(code);
+          fn();
+        } catch(e) {
+          const combined = document.createElement('script');
+          combined.id = scriptKey;
+          combined.textContent = code;
+          document.head.appendChild(combined);
+        }
       }
-    }, 0);
+    }, 50);
 
   } catch(err) {
     container.innerHTML =
