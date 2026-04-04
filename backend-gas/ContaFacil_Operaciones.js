@@ -108,13 +108,17 @@ function _getConfig() {
     empresa_nombre:       'Mi Empresa S.A.',
     empresa_ruc:          '',
     empresa_dv:           '',
-    email_comprobantes:   '',
+    email_comprobantes:   '',   // legado — plus-address anterior (Retail)
+    email_op_destino:     '',   // nuevo: To: fijo (ej: facturas@balanceclip.net)
+    email_op_remitente:   '',   // nuevo: From: del cliente permitido
     drive_folder_id:      '',
     confianza_minima:     '70',
     itbms_rate:           '0.07',
     prefijo_id:           'RP',
     modulo_activo:        'true',
-    email_st_entrante:    'lasnubesenchica+ceyco@gmail.com',  // email desde donde llegan los STs
+    email_st_entrante:    'lasnubesenchica+ceyco@gmail.com',  // legado — plus-address anterior
+    email_st_destino:     '',   // dirección To: fija (ej: facturas@balanceclip.net)
+    email_st_remitente:   '',   // From: del cliente permitido (ej: mediarank.io@gmail.com)
   };
 
   if (!sheet) {
@@ -318,9 +322,14 @@ function _handleGuardarConfig(data) {
 
     var claves = [
       'empresa_nombre', 'empresa_ruc', 'empresa_dv',
-      'email_comprobantes', 'drive_folder_id',
+      'email_comprobantes',   // legado — mantener para no romper instancias existentes
+      'email_op_destino',     // nuevo: To: fijo (facturas@balanceclip.net)
+      'email_op_remitente',   // nuevo: From: del cliente permitido
+      'drive_folder_id',
       'confianza_minima', 'itbms_rate', 'prefijo_id',
       'email_st_entrante',
+      'email_st_destino',    // nuevo: To: fijo ST
+      'email_st_remitente',  // nuevo: From: del cliente ST
       'trigger_op_intervalo',
       'trigger_st_intervalo',
     ];
@@ -603,10 +612,23 @@ function sincronizarEmails() {
   var stats = { procesados: 0, nuevos: 0, vinculados: 0, errores: [] };
   var pendientesEmitidas = [];
 
-  var emailDest = cfg.email_comprobantes;
-  if (!emailDest) throw new Error('email_comprobantes no configurado. Ir a Configuración → Operaciones.');
-
-  var query   = 'to:' + emailDest + ' has:attachment -label:procesado_cf_op';
+  // Construir query Gmail — mismo patrón de cascada que ST (v2.1)
+  var query;
+  if (cfg.email_op_destino && cfg.email_op_remitente) {
+    // Modo nuevo: destino fijo + remitente del cliente
+    query = 'to:' + cfg.email_op_destino + ' from:' + cfg.email_op_remitente + ' has:attachment -label:procesado_cf_op';
+    Logger.log('📧 Query Retail: to:' + cfg.email_op_destino + ' from:' + cfg.email_op_remitente);
+  } else if (cfg.email_op_destino) {
+    // Solo destino configurado (migración parcial)
+    query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op';
+    Logger.log('📧 Query Retail (sin remitente): to:' + cfg.email_op_destino);
+  } else if (cfg.email_comprobantes) {
+    // Legado: plus-address anterior
+    query = 'to:' + cfg.email_comprobantes + ' has:attachment -label:procesado_cf_op';
+    Logger.log('📧 Query Retail (legado): to:' + cfg.email_comprobantes);
+  } else {
+    throw new Error('Email de entrada Retail no configurado. Ir a Configuración → Operaciones.');
+  }
   var threads = GmailApp.search(query, 0, 50);
   var label   = _getOrCreateLabel('procesado_cf_op');
 
