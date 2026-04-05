@@ -758,11 +758,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .pl-tipo-btn:hover { border-color:rgba(0,0,0,.25);color:var(--text) }
 .pl-tipo-btn.active { background:var(--orange);border-color:var(--orange);color:#fff;font-weight:600; }
 .pl-kpi-row {
-  display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;
+  display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;
   padding:1.25rem 2rem;background:var(--white);border-bottom:1px solid var(--border);
 }
-@media(max-width:900px){ .pl-kpi-row{ grid-template-columns:repeat(2,1fr) } }
-@media(max-width:500px){ .pl-kpi-row{ grid-template-columns:1fr } }
+@media(max-width:1100px){ .pl-kpi-row{ grid-template-columns:repeat(3,1fr) } }
+@media(max-width:700px) { .pl-kpi-row{ grid-template-columns:repeat(2,1fr) } }
+@media(max-width:500px) { .pl-kpi-row{ grid-template-columns:1fr } }
 .pl-kpi {
   background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);
   padding:1rem 1.25rem;position:relative;overflow:hidden;
@@ -1775,6 +1776,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
             style="font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">
             Costos
           </button>
+          <button id="plTblBtnGas" onclick="plSwitchTable('gastos')"
+            style="font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">
+            Gastos
+          </button>
         </div>
         <div style="margin-left:auto">
           <input type="text" id="plTblSearch" placeholder="Buscar..." oninput="plFilterTable()"
@@ -1809,6 +1814,19 @@ tr:hover td{background:rgba(0,0,0,.015)}
             <th data-sort-egr="monto" style="cursor:pointer;user-select:none;text-align:right">Monto <span class="pl-sort-arrow"></span></th>
           </tr></thead>
           <tbody id="plTblEgrBody"></tbody>
+        </table>
+      </div>
+      <!-- Tabla Gastos operativos (Registro General) -->
+      <div id="plTblGastos" style="overflow-x:auto;display:none">
+        <table class="op-table" style="min-width:640px">
+          <thead><tr>
+            <th>Categoría</th>
+            <th>Descripción</th>
+            <th>Proveedor</th>
+            <th style="font-family:'DM Mono',monospace;font-size:.62rem">Ref.</th>
+            <th style="text-align:right">Monto</th>
+          </tr></thead>
+          <tbody id="plTblGasBody"></tbody>
         </table>
       </div>
     </div>
@@ -7682,6 +7700,7 @@ function renderDashboard() {
   // General    → todos los egresos misceláneos (plFiltrarEgresos)
   // Todo       → suma de los tres
 
+  // ── COGS: costos directos Proyectos + Comercialización ──────────
   let cogsTotal = 0;
 
   if (plTipo === 'todos' || plTipo === 'proyectos') {
@@ -7708,38 +7727,38 @@ function renderDashboard() {
     cogsTotal += cogsOp;
   }
 
-  if (plTipo === 'general' || plTipo === 'todos') {
-    // Egresos misceláneos (Registro General) — siempre suman al resultado consolidado
-    // En modo 'general' son el único costo; en 'todos' se suman a COGS de Proy + COM
-    const egresosGral = plEgresos.filter(e => {
-      if (String(e.estado || '').toLowerCase() === 'anulado') return false;
-      const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
-      if (!eAnio || eAnio !== plYear) return false;
-      if (plMonth !== 'ytd') {
-        const eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
-        if (eMes !== plMonth) return false;
-      }
-      return _plClasifEgreso(e) === 'general';
-    });
-    cogsTotal += egresosGral.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
-  }
+  // ── GASTOS OPERATIVOS: Registro General (separados de COGS) ─────
+  const _egresosGralFiltrados = plEgresos.filter(e => {
+    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== plYear) return false;
+    if (plMonth !== 'ytd') {
+      const eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
+      if (eMes !== plMonth) return false;
+    }
+    return _plClasifEgreso(e) === 'general';
+  });
+  const gastosGral = _egresosGralFiltrados.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
   // Ingresos NETO = subtotal sin ITBMS (base imponible real)
   const totalIngNeto = ingresos.reduce((s,i) => s + (parseFloat(i.subtotal)||0), 0);
-  // Utilidad usa cogsTotal (ST_Items + egresos Operaciones)
-  const utilNeta     = totalIngNeto - cogsTotal;
-  const margenNeto   = totalIngNeto > 0 ? (utilNeta / totalIngNeto) * 100 : 0;
-  const itbmsNeto    = itbmsIng - itbmsEgr;   // lo que hay que pagar a DGI
-  const txCount      = ingresos.length;
-  const ticket       = txCount > 0 ? totalIngNeto / txCount : 0;
 
-  const _cogsLabel = plTipo === 'general' ? 'Gastos generales'
-                   : plTipo === 'todos'   ? 'Costos totales'
-                   : 'Costo mercancía';
-  const _utilLabel = plTipo === 'general' ? 'Resultado neto' : 'Utilidad neta';
+  // Utilidad Bruta = Ingresos Neto − Costos directos (COGS)
+  // Utilidad Neta  = Utilidad Bruta − Gastos operativos generales
+  const utilBruta   = totalIngNeto - cogsTotal;
+  const utilNeta    = utilBruta - gastosGral;
+  const margenBruto = totalIngNeto > 0 ? (utilBruta / totalIngNeto) * 100 : 0;
+  const margenNeto  = totalIngNeto > 0 ? (utilNeta  / totalIngNeto) * 100 : 0;
+  const itbmsNeto   = itbmsIng - itbmsEgr;
+  const txCount     = ingresos.length;
+  const ticket      = txCount > 0 ? totalIngNeto / txCount : 0;
 
-  // KPIs — 4 widgets: Ingresos Neto | Costo Mercancía | Utilidad Neta | ITBMS DGI
+  const _cogsLabel = plTipo === 'general' ? 'Gastos operativos'
+                   : 'Costos directos';
+
+  // KPIs — 5 widgets: Ingresos Neto | Costos Directos | Util.Bruta | Util.Neta | ITBMS DGI
   document.getElementById('plKpiRow').innerHTML = `
     <div class="pl-kpi" style="--kpi-accent:var(--orange)">
       <div class="pl-kpi-label">Ingresos neto</div>
@@ -7752,14 +7771,22 @@ function renderDashboard() {
     <div class="pl-kpi" style="--kpi-accent:#E65100">
       <div class="pl-kpi-label">${_cogsLabel}</div>
       <div class="pl-kpi-value" style="color:#E65100">${plFmtFull(cogsTotal)}</div>
-      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : plTipo === 'general' ? 'egresos del período' : '—'}</div>
+      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
+    </div>
+    <div class="pl-kpi" style="--kpi-accent:${utilBruta >= 0 ? '#2E7D32' : 'var(--red)'}">
+      <div class="pl-kpi-label">Utilidad bruta</div>
+      <div class="pl-kpi-value ${utilBruta >= 0 ? 'green' : 'red'}">${plFmt(utilBruta)}</div>
+      <div class="pl-kpi-sub">
+        <span class="pl-kpi-tag ${margenBruto >= 0 ? 'pos' : 'neg'}">${margenBruto >= 0 ? '+' : ''}${margenBruto.toFixed(1)}%</span>
+        <span style="margin-left:.25rem">sobre ingresos neto</span>
+      </div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
-      <div class="pl-kpi-label">${_utilLabel}</div>
+      <div class="pl-kpi-label">Utilidad neta</div>
       <div class="pl-kpi-value ${utilNeta >= 0 ? 'green' : 'red'}">${plFmt(utilNeta)}</div>
       <div class="pl-kpi-sub">
         <span class="pl-kpi-tag ${margenNeto >= 0 ? 'pos' : 'neg'}">${margenNeto >= 0 ? '+' : ''}${margenNeto.toFixed(1)}%</span>
-        sobre ingresos neto
+        <span style="margin-left:.25rem">tras gastos operativos</span>
       </div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${itbmsNeto >= 0 ? '#1565C0' : 'var(--green)'};cursor:pointer;transition:box-shadow .2s" onclick="openItbmsDetalle()" title="Ver desglose ITBMS · DGI">
@@ -7803,7 +7830,7 @@ function renderDashboard() {
 
 // ── Tablas detalle del P&L ─────────────────────────────────────
 
-var plTblMode = 'ingresos';   // 'ingresos' | 'egresos'
+var plTblMode = 'ingresos';   // 'ingresos' | 'egresos' | 'gastos'
 
 // Sort state — tablas Ingresos y Costos
 var plIngSort = { col: 'num_factura', dir: 'desc' };
@@ -7835,27 +7862,28 @@ var plEgrSort = { col: 'id_st',          dir: 'asc'  };
 
 function plSwitchTable(mode) {
   plTblMode = mode;
-  const isIng = mode === 'ingresos';
-  document.getElementById('plTblIngresos').style.display = isIng  ? ''     : 'none';
-  document.getElementById('plTblEgresos').style.display  = !isIng ? ''     : 'none';
-  const btnIng = document.getElementById('plTblBtnIng');
-  const btnEgr = document.getElementById('plTblBtnEgr');
+  document.getElementById('plTblIngresos').style.display = mode === 'ingresos' ? '' : 'none';
+  document.getElementById('plTblEgresos').style.display  = mode === 'egresos'  ? '' : 'none';
+  document.getElementById('plTblGastos').style.display   = mode === 'gastos'   ? '' : 'none';
   const activeStyle = 'font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid #1A237E;background:#1A237E;color:#fff;cursor:pointer;font-weight:600';
   const idleStyle   = 'font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer';
-  btnIng.style.cssText = isIng  ? activeStyle : idleStyle;
-  btnEgr.style.cssText = !isIng ? activeStyle : idleStyle;
+  document.getElementById('plTblBtnIng').style.cssText = mode === 'ingresos' ? activeStyle : idleStyle;
+  document.getElementById('plTblBtnEgr').style.cssText = mode === 'egresos'  ? activeStyle : idleStyle;
+  document.getElementById('plTblBtnGas').style.cssText = mode === 'gastos'   ? activeStyle : idleStyle;
   plFilterTable();
 }
 
 function plFilterTable() {
   const q = (document.getElementById('plTblSearch') ? document.getElementById('plTblSearch').value : '').toLowerCase().trim();
-  if (plTblMode === 'ingresos') plRenderTblIngresos(q);
-  else                          plRenderTblEgresos(q);
+  if (plTblMode === 'ingresos')      plRenderTblIngresos(q);
+  else if (plTblMode === 'egresos')  plRenderTblEgresos(q);
+  else                               plRenderTblGastos(q);
 }
 
 function plRenderTables() {
   plRenderTblIngresos('');
   plRenderTblEgresos('');
+  plRenderTblGastos('');
 }
 
 function plRenderTblIngresos(q) {
@@ -8187,6 +8215,52 @@ function plRenderTblEgresos(q) {
   `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
     <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${allItems.length} ítems</td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totTotal.toFixed(2)}</td>
+  </tr>`;
+}
+
+function plRenderTblGastos(q) {
+  const tbody = document.getElementById('plTblGasBody');
+  if (!tbody) return;
+
+  // Gastos operativos del período — mismos que _egresosGralFiltrados en renderDashboard
+  let items = plEgresos.filter(e => {
+    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== plYear) return false;
+    if (plMonth !== 'ytd') {
+      const eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
+      if (eMes !== plMonth) return false;
+    }
+    return _plClasifEgreso(e) === 'general';
+  });
+
+  if (q) items = items.filter(e =>
+    (e.proveedor   || '').toLowerCase().includes(q) ||
+    (e.descripcion || '').toLowerCase().includes(q) ||
+    (e.tipo_egreso || '').toLowerCase().includes(q)
+  );
+
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">Sin gastos operativos en este período</td></tr>';
+    return;
+  }
+
+  const totGas = items.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  tbody.innerHTML = items.map(e => {
+    const cat   = catChipLabel(e.tipo_egreso || e.categoria || '');
+    const monto = parseFloat(e.total || 0);
+    return `<tr>
+      <td><span style="font-size:.72rem">${cat}</span></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.descripcion||'')}">${esc(e.descripcion || '—')}</td>
+      <td style="font-size:.78rem">${esc(e.proveedor || '—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)">${esc(e.num_fac_ref || e.id_egreso || '—')}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#C62828">$${monto.toFixed(2)}</td>
+    </tr>`;
+  }).join('') +
+  `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
+    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--muted)">${items.length} registros</td>
+    <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totGas.toFixed(2)}</td>
   </tr>`;
 }
 
