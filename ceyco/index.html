@@ -6397,6 +6397,33 @@ let _catDropTipo = null;
 
 let _catDropJustOpened = false;
 
+// Posiciona el dropdown inteligentemente: abajo del trigger si hay espacio,
+// arriba si no, y ajustado horizontalmente para no salir de la pantalla.
+function _positionDrop(drop, rect) {
+  const dropH   = 320;  // max-height del dropdown
+  const dropW   = 270;
+  const margin  = 8;
+  const vw      = window.innerWidth;
+  const vh      = window.innerHeight;
+
+  // Horizontal: alineado con el trigger, sin salirse por la derecha
+  const left = Math.min(rect.left + window.scrollX, window.scrollX + vw - dropW - margin);
+  drop.style.left = Math.max(margin, left) + 'px';
+
+  // Vertical: abajo si cabe, arriba si no
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  if (spaceBelow >= dropH || spaceBelow >= spaceAbove) {
+    // Abrir hacia abajo
+    drop.style.top    = (rect.bottom + window.scrollY + 4) + 'px';
+    drop.style.bottom = 'auto';
+  } else {
+    // Abrir hacia arriba
+    drop.style.top    = 'auto';
+    drop.style.bottom = (vh - rect.top + window.scrollY + 4) + 'px';
+  }
+}
+
 function _getCatDropEl() {
   if (_catDropEl) return _catDropEl;
   const el = document.createElement('div');
@@ -6427,8 +6454,7 @@ function catChipOpen(e, id, tipo, catActual) {
   _catDropTipo = tipo;
 
   // Posicionar
-  drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 260) + 'px';
+  _positionDrop(drop, rect);
 
   // Construir opciones
   drop.innerHTML = `<div class="cat-chip-dropdown-title">Reclasificar categoría</div>` +
@@ -6523,8 +6549,7 @@ function catChipOpenPL(e, triggerEl, id, tipo, catActual) {
   _catDropId   = id;
   _catDropTipo = tipo;
 
-  drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 270) + 'px';
+  _positionDrop(drop, rect);
 
   if (tipo === 'pl_gasto') {
     drop.innerHTML =
@@ -8525,8 +8550,7 @@ function plRenderTblEgresos(q) {
     const dgiVal = chip.dataset.dgiVal || '';
     const cat    = TIPOS_COSTO_DIRECTO.find(c => c.valor === dgiVal);
     const drop   = _getCatDropEl();
-    drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-    drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 270) + 'px';
+    _positionDrop(drop, rect);
     drop.innerHTML  =
       `<div class="cat-chip-dropdown-title">Clasificación DGI · Costo directo</div>
        <div style="font-size:.78rem;padding:.5rem .6rem;color:var(--muted);line-height:1.6">
@@ -8612,8 +8636,7 @@ function plRenderTblGastos(q) {
     _catDropId   = chip.dataset.id;
     _catDropTipo = chip.dataset.tipo;
     const catActual = chip.dataset.cat || '';
-    drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-    drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 270) + 'px';
+    _positionDrop(drop, rect);
     drop.innerHTML =
       `<div class="cat-chip-dropdown-title">Reclasificar · DGI</div>` +
       CATEGORIAS_GASTO_DGI.map(c =>
