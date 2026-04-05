@@ -224,6 +224,11 @@ function doPost(e) {
     if (action === 'registrarPlanilla')  return _handleRegistrarPlanilla(data);
     if (action === 'desactivarEmpleado') return _handleDesactivarEmpleado(data);
 
+    // ── ACREEDORES ───────────────────────────────────────────────
+    if (action === 'guardarAcreedor')         return _handleGuardarAcreedor(data);
+    if (action === 'analizarFacturaAcreedor') return _handleAnalizarFacturaAcreedor(data);
+    if (action === 'actualizarPendienteAcr')  return _handleActualizarPendienteAcr(data);
+
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';
     if (data.voucherBase64 && data.voucherName) {
@@ -506,6 +511,16 @@ function doGet(e) {
       if (callback) return ContentService.createTextOutput(callback + '(' + jsonStr3 + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
       return ContentService.createTextOutput(jsonStr3).setMimeType(ContentService.MimeType.JSON);
     }
+
+    // ── ACREEDORES ───────────────────────────────────────────────
+    if (action === 'getAcreedores')         return _handleGetAcreedores(params, callback);
+    if (action === 'toggleAcreedor')        return _handleToggleAcreedor(params, callback);
+    if (action === 'getPendientesAcreedor') return _handleGetPendientesAcreedor(params, callback);
+    if (action === 'aprobarAcreedor')       return _handleAprobarAcreedor(params, callback);
+    if (action === 'rechazarAcreedor')      return _handleRechazarAcreedor(params, callback);
+    if (action === 'eliminarPendienteAcr')  return _handleEliminarPendienteAcr(params, callback);
+    if (action === 'sincronizarAcreedores') return _handleSincronizarAcreedores(params, callback);
+    if (action === 'getCategorias')         return _handleGetCategorias(params, callback);
 
     // ── Default: health check ───────────────────────────────────
     return ContentService
