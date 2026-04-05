@@ -1731,12 +1731,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
     <div class="pl-tipo-wrap">
       <span class="pl-control-label">Tipo</span>
-      <button class="pl-tipo-btn active" data-tipo="todos"              onclick="selectPlTipo(this)">Todos</button>
-      <button class="pl-tipo-btn" data-tipo="venta_producto"            onclick="selectPlTipo(this)">Venta producto</button>
-      <button class="pl-tipo-btn" data-tipo="servicio_tecnico"          onclick="selectPlTipo(this)">Serv. técnico</button>
-      <button class="pl-tipo-btn" data-tipo="servicio_asesoria"         onclick="selectPlTipo(this)">Asesoría</button>
-      <button class="pl-tipo-btn" data-tipo="comision"                  onclick="selectPlTipo(this)">Comisión</button>
-      <button class="pl-tipo-btn" data-tipo="otro"                      onclick="selectPlTipo(this)">Otro</button>
+      <button class="pl-tipo-btn active" data-tipo="todos"           onclick="selectPlTipo(this)">Todo</button>
+      <button class="pl-tipo-btn"        data-tipo="proyectos"       onclick="selectPlTipo(this)">🔧 Proyectos</button>
+      <button class="pl-tipo-btn"        data-tipo="comercializacion" onclick="selectPlTipo(this)">🛒 Comercialización</button>
+      <button class="pl-tipo-btn"        data-tipo="general"         onclick="selectPlTipo(this)">📒 General</button>
     </div>
   </div>
 
@@ -7628,22 +7626,38 @@ function selectPlTipo(btn) {
   renderDashboard();
 }
 
+// ── Helpers de clasificación por dimensión ─────────────────────
+// Cada ingreso/egreso pertenece a exactamente una de las 3 dimensiones.
+// Las mismas reglas que usa rgEsMiscelaneoEgr/Ing, en sentido positivo.
+
+function _plClasifIngreso(i) {
+  const notas = (i.notas_internas || i.notas || '').toUpperCase();
+  const tipo  = (i.tipo_ingreso || '').toLowerCase();
+  if (notas.includes('ST:') || tipo.includes('tecnico') || tipo.includes('técnico'))
+    return 'proyectos';
+  if (notas.includes('CV:') || String(i.id_orden_web || '').trim())
+    return 'comercializacion';
+  return 'general';
+}
+
+function _plClasifEgreso(e) {
+  const notas  = (e.notas || '').toUpperCase();
+  const idCV   = String(e.id_item_cv  || '').trim();
+  const idST   = String(e.id_st_item  || '').trim();
+  if (idST || notas.includes('ST:'))
+    return 'proyectos';
+  if (idCV || notas.includes('CV:'))
+    return 'comercializacion';
+  return 'general';
+}
+
 function plFiltrarIngresos() {
   return plIngresos.filter(i => {
     if (String(i.estado || '').toLowerCase() === 'anulado') return false;
     if (parseInt(i.anio_fiscal) !== plYear) return false;
     if (plMonth !== 'ytd' && parseInt(i.mes) !== plMonth) return false;
     if (plTipo !== 'todos') {
-      const t = (i.tipo_ingreso || '').toLowerCase();
-      const c = (i.categoria_ingreso || '').toLowerCase();
-      const n = (i.notas_internas || i.notas || '').toLowerCase();
-      // FIX #2: 'servicio_tecnico' captura ingresos tipo servicio_tecnico Y
-      // cualquier venta_producto que haya sido generada por un ST (nota contiene 'st:')
-      if (plTipo === 'venta_producto'    && !t.includes('venta')   && !c.includes('venta'))   return false;
-      if (plTipo === 'servicio_tecnico'  && !t.includes('tecnico') && !t.includes('técnico') && !n.includes('st:')) return false;
-      if (plTipo === 'servicio_asesoria' && !t.includes('asesoria')&& !t.includes('asesor'))  return false;
-      if (plTipo === 'comision'          && !t.includes('comision'))                          return false;
-      if (plTipo === 'otro'              && t !== 'otro')                                     return false;
+      if (_plClasifIngreso(i) !== plTipo) return false;
     }
     return true;
   });
@@ -7652,14 +7666,12 @@ function plFiltrarIngresos() {
 function plFiltrarEgresos() {
   return plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
-    // Usar mes/anio explícitos (igual que web app) — más confiable que re-parsear fecha string
     const eMes  = parseInt(e.mes)  || _mesDesfecha(e.fecha_egreso);
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== plYear) return false;
     if (plMonth !== 'ytd' && eMes !== plMonth) return false;
-    // NO excluir 'Inventario' — son costos reales aunque el ítem esté en stock
-    if (plTipo !== 'todos' && plTipo !== 'venta_producto') {
-      if ((e.tipo_egreso || '') === 'costo_mercancia') return false;
+    if (plTipo !== 'todos') {
+      if (_plClasifEgreso(e) !== plTipo) return false;
     }
     // credito_fiscal siempre incluido — necesario para cálculo ITBMS neto DGI
     return true;
@@ -7672,30 +7684,43 @@ function renderDashboard() {
 
   const totalIng    = ingresos.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
   const itbmsIng    = ingresos.reduce((s,i) => s + (parseFloat(i.itbms)||0), 0);
-  // COGS desde ST_Items (misma fuente que la tabla de Servicios Técnicos).
-  // Suma total_real si existe, total_cotizado si no, excluyendo cancelados.
-  // Filtra por mes/año igual que los ingresos para consistencia de período.
-  const cogsItems = plStItems.filter(si => {
-    const siAnio = parseInt(si.anio) || 0;
-    const siMes  = parseInt(si.mes)  || 0;
-    if (siAnio !== plYear) return false;
-    if (plMonth !== 'ytd' && siMes !== plMonth) return false;
-    if ((si.item.tipo || '') === 'credito_fiscal') return false; // no es costo, es crédito
-    return true;
-  });
-  const cogs = cogsItems.reduce((s, si) => {
-    const tr = parseFloat(si.item.total_real)     || 0;
-    const tc = parseFloat(si.item.total_cotizado) || 0;
-    return s + (tr > 0 ? tr : tc);
-  }, 0);
 
-  // COGS adicional desde egresos de Operaciones (CV-OP-...) — no pasan por ST_Items
-  const cogsOp = egresos.filter(e => {
-    const idCV = String(e.id_item_cv || '');
-    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
-  }).reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  // ── COGS según dimensión ─────────────────────────────────────
+  // Proyectos  → ST_Items (fuente de verdad de costos de proyectos)
+  // Comercializ→ egresos CV-OP costo_mercancia
+  // General    → todos los egresos misceláneos (plFiltrarEgresos)
+  // Todo       → suma de los tres
 
-  const cogsTotal = cogs + cogsOp;
+  let cogsTotal = 0;
+
+  if (plTipo === 'todos' || plTipo === 'proyectos') {
+    const cogsItems = plStItems.filter(si => {
+      const siAnio = parseInt(si.anio) || 0;
+      const siMes  = parseInt(si.mes)  || 0;
+      if (siAnio !== plYear) return false;
+      if (plMonth !== 'ytd' && siMes !== plMonth) return false;
+      if ((si.item.tipo || '') === 'credito_fiscal') return false;
+      return true;
+    });
+    cogsTotal += cogsItems.reduce((s, si) => {
+      const tr = parseFloat(si.item.total_real)     || 0;
+      const tc = parseFloat(si.item.total_cotizado) || 0;
+      return s + (tr > 0 ? tr : tc);
+    }, 0);
+  }
+
+  if (plTipo === 'todos' || plTipo === 'comercializacion') {
+    const cogsOp = egresos.filter(e => {
+      const idCV = String(e.id_item_cv || '');
+      return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+    }).reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+    cogsTotal += cogsOp;
+  }
+
+  if (plTipo === 'general') {
+    // Para Registro General, el "costo" es el total de egresos misceláneos
+    cogsTotal = egresos.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  }
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
   // Ingresos NETO = subtotal sin ITBMS (base imponible real)
@@ -7706,6 +7731,9 @@ function renderDashboard() {
   const itbmsNeto    = itbmsIng - itbmsEgr;   // lo que hay que pagar a DGI
   const txCount      = ingresos.length;
   const ticket       = txCount > 0 ? totalIngNeto / txCount : 0;
+
+  const _cogsLabel = plTipo === 'general' ? 'Gastos generales' : 'Costo mercancía';
+  const _utilLabel = plTipo === 'general' ? 'Resultado neto' : 'Utilidad neta';
 
   // KPIs — 4 widgets: Ingresos Neto | Costo Mercancía | Utilidad Neta | ITBMS DGI
   document.getElementById('plKpiRow').innerHTML = `
@@ -7718,12 +7746,12 @@ function renderDashboard() {
       </div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:#E65100">
-      <div class="pl-kpi-label">Costo mercancía</div>
+      <div class="pl-kpi-label">${_cogsLabel}</div>
       <div class="pl-kpi-value" style="color:#E65100">${plFmtFull(cogsTotal)}</div>
-      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
+      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : plTipo === 'general' ? 'egresos del período' : '—'}</div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
-      <div class="pl-kpi-label">Utilidad neta</div>
+      <div class="pl-kpi-label">${_utilLabel}</div>
       <div class="pl-kpi-value ${utilNeta >= 0 ? 'green' : 'red'}">${plFmt(utilNeta)}</div>
       <div class="pl-kpi-sub">
         <span class="pl-kpi-tag ${margenNeto >= 0 ? 'pos' : 'neg'}">${margenNeto >= 0 ? '+' : ''}${margenNeto.toFixed(1)}%</span>
@@ -7746,7 +7774,7 @@ function renderDashboard() {
   plRenderBarChart(plYear);
 
   // Desglose costos por tipo
-  plRenderCostRow(cogs);
+  plRenderCostRow(cogsTotal);
 
   // Tablas detalle (ingresos / costos)
   plRenderTables();
@@ -7854,6 +7882,7 @@ function plRenderTblIngresos(q) {
     if (String(i.estado || '').toLowerCase() === 'anulado') return false;
     if (parseInt(i.anio_fiscal) !== plYear) return false;
     if (plMonth !== 'ytd' && parseInt(i.mes) !== plMonth) return false;
+    if (plTipo !== 'todos' && _plClasifIngreso(i) !== plTipo) return false;
     return true;
   });
   if (q) items = items.filter(i =>
@@ -7970,11 +7999,12 @@ function plRenderTblIngresos(q) {
       ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄</a>`
       : '—';
     const h = (i) => activeIdx === i ? cellBg : '';
-    const _notas = String(item.notas_internas || item.notas || '');
-    const _esRetail = _notas.includes('CV:');
-    const _modBadge = _esRetail
+    const _dim = _plClasifIngreso(item);
+    const _modBadge = _dim === 'comercializacion'
       ? '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E3F2FD;color:#1565C0;vertical-align:middle;margin-left:4px">COM</span>'
-      : '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8EAF6;color:#283593;vertical-align:middle;margin-left:4px">PROY</span>';
+      : _dim === 'proyectos'
+      ? '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8EAF6;color:#283593;vertical-align:middle;margin-left:4px">PROY</span>'
+      : '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8F5E9;color:#2E7D32;vertical-align:middle;margin-left:4px">GEN</span>';
     return `<tr>
       <td style="white-space:nowrap;color:var(--muted);font-size:.8rem;${h(0)}">${esc(String(item.fecha_ingreso||'').substring(0,10))}</td>
       <td style="${h(1)}"><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(item.num_factura||'—')}</span>${_modBadge}</td>
@@ -8000,6 +8030,39 @@ function plRenderTblEgresos(q) {
   const tbody = document.getElementById('plTblEgrBody');
   if (!tbody) return;
 
+  // ── Modo GENERAL: mostrar egresos misceláneos directamente ──
+  if (plTipo === 'general') {
+    const egrs = plFiltrarEgresos(); // ya filtrados por año/mes/dimensión
+    let egrsQ = egrs;
+    if (q) egrsQ = egrs.filter(e =>
+      (e.proveedor   || '').toLowerCase().includes(q) ||
+      (e.descripcion || '').toLowerCase().includes(q) ||
+      (e.tipo_egreso || '').toLowerCase().includes(q)
+    );
+    if (!egrsQ.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">Sin egresos generales en este período</td></tr>';
+      return;
+    }
+    const totGen = egrsQ.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+    tbody.innerHTML = egrsQ.map(e => {
+      const cat   = catChipLabel(e.tipo_egreso || e.categoria || '');
+      const monto = parseFloat(e.total || 0);
+      return `<tr>
+        <td><span style="font-size:.72rem">${cat}</span></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.descripcion || '—')}</td>
+        <td style="font-size:.78rem">${esc(e.proveedor || '—')}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(e.num_fac_ref || e.id_egreso || '—')}</td>
+        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#C62828">$${monto.toFixed(2)}</td>
+      </tr>`;
+    }).join('') +
+    `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
+      <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--muted)">${egrsQ.length} registros</td>
+      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totGen.toFixed(2)}</td>
+    </tr>`;
+    return;
+  }
+
+  // ── Modos PROYECTOS / COMERCIALIZACIÓN / TODOS: ST_Items + CV-OP ──
   // ── Ítems de ST (flujo Servicios Técnicos) ──
   let items = plStItems.filter(si => {
     const siAnio = parseInt(si.anio) || 0;
@@ -8007,6 +8070,7 @@ function plRenderTblEgresos(q) {
     if (siAnio !== plYear) return false;
     if (plMonth !== 'ytd' && siMes !== plMonth) return false;
     if ((si.item.tipo || '') === 'credito_fiscal') return false;
+    if (plTipo === 'comercializacion') return false; // ST no pertenece a COM
     return true;
   });
 
