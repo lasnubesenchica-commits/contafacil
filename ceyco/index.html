@@ -1388,10 +1388,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
       style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
       👤 Planilla
     </button>
-    <button id="rgTabAcrBtn" onclick="rgShowTab('acr')"
-      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
-      🏦 Acreedores
-    </button>
   </div>
 
   <!-- TAB: EGRESOS -->
@@ -1402,9 +1398,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="rgEStatMonto">—</span><span class="stat-pill-label">Total gastado</span></div>
       <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgEStatItbms">—</span><span class="stat-pill-label">ITBMS pagado</span></div>
     </div>
-    <!-- Toolbar -->
-    <div class="op-toolbar" style="padding:.75rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
-      <button class="op-filter-btn active" data-rge-filter="all" onclick="rgApplyEgrFilter(this,'all')">Todos</button>
+    <!-- Toolbar fila 1: filtro estado (Pendientes / Aprobados / Todos) + Sincronizar + Nuevo -->
+    <div style="padding:.65rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
+      <button class="op-filter-btn" data-rge-estado="pendiente" onclick="rgApplyEgrEstado(this,'pendiente')" style="background:#FFF9C4;border-color:#F9A825;color:#795548;font-weight:700">⏳ Pendientes</button>
+      <button class="op-filter-btn active" data-rge-estado="all" onclick="rgApplyEgrEstado(this,'all')">Todos</button>
+      <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
+      <div style="width:1px;height:20px;background:var(--border);margin:0 .25rem"></div>
       <button class="op-filter-btn" data-rge-filter="nomina"                    onclick="rgApplyEgrFilter(this,'nomina')">👤 Planilla</button>
       <button class="op-filter-btn" data-rge-filter="alquileres"                onclick="rgApplyEgrFilter(this,'alquileres')">🏢 Alquiler</button>
       <button class="op-filter-btn" data-rge-filter="servicios_publicos"        onclick="rgApplyEgrFilter(this,'servicios_publicos')">⚡ Servicios públ.</button>
@@ -1413,33 +1412,42 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn" data-rge-filter="otros_deducibles"          onclick="rgApplyEgrFilter(this,'otros_deducibles')">📋 Otros</button>
       <div class="search-wrap" style="margin-left:auto">
         <span class="search-icon">🔍</span>
-        <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso..." oninput="rgRenderEgr()">
+        <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
       </div>
-      <button class="btn-sync" onclick="rgRefresh()">↻ Actualizar</button>
+      <button class="btn-sync" id="btnAcrSync" onclick="acrSincronizar()">↺ Sincronizar emails</button>
+      <button class="btn-sync" onclick="rgRefreshEgr()" style="background:var(--bg);border:1px solid var(--border);color:var(--muted)">↻ Actualizar</button>
+    </div>
+    <!-- Stats unificados -->
+    <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
+      <div class="stat-pill"><span class="stat-pill-num orange" id="rgEStatPend">—</span><span class="stat-pill-label">Pendientes</span></div>
+      <div class="stat-pill"><span class="stat-pill-num green"  id="rgEStatTotal">—</span><span class="stat-pill-label">Registrados</span></div>
+      <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="rgEStatMonto">—</span><span class="stat-pill-label">Total gastado</span></div>
+      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgEStatItbms">—</span><span class="stat-pill-label">ITBMS pagado</span></div>
     </div>
     <!-- Header + botón nuevo -->
     <div class="section-hdr-row">
       <span class="section-hdr-lbl">Egresos generales</span>
       <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
     </div>
-    <!-- Tabla -->
+    <!-- Tabla unificada -->
     <div class="op-table-wrap">
       <table class="op-table" id="rgEgrTable">
         <thead>
           <tr>
             <th>Fecha</th>
-            <th>Categoría DGI</th>
-            <th>Descripción</th>
-            <th>Proveedor</th>
-            <th>Factura</th>
+            <th>Proveedor / Acreedor</th>
+            <th>Origen</th>
+            <th>N° Factura</th>
+            <th>Categoría</th>
             <th style="text-align:right">Subtotal</th>
             <th style="text-align:right">ITBMS</th>
             <th style="text-align:right">Total</th>
-            <th></th>
+            <th>Estado</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody id="rgEgrBody">
-          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+          <tr><td colspan="10"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -1617,54 +1625,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   </div><!-- /rgTabPl -->
 
-  <!-- TAB: ACREEDORES ════════════════════════════════════════ -->
-  <div id="rgTabAcr" style="display:none">
 
-    <!-- Toolbar -->
-    <div class="op-toolbar" style="padding:.75rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
-      <button class="op-filter-btn active" data-acr-filter="borrador" onclick="acrApplyFilter(this,'borrador')">⏳ Pendientes</button>
-      <button class="op-filter-btn" data-acr-filter="aprobado"        onclick="acrApplyFilter(this,'aprobado')">✅ Aprobados</button>
-      <button class="op-filter-btn" data-acr-filter="all"             onclick="acrApplyFilter(this,'all')">Todos</button>
-      <div class="search-wrap" style="margin-left:auto">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="acrSearch" class="filter-search" placeholder="Buscar acreedor..." oninput="acrRender()">
-      </div>
-      <button class="btn-sync" onclick="acrSincronizar()" id="btnAcrSync">↻ Sincronizar emails</button>
-    </div>
-
-    <!-- Stats -->
-    <div style="padding:.75rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
-      <div class="stat-pill"><span class="stat-pill-num orange" id="acrStatPend">—</span><span class="stat-pill-label">Pendientes</span></div>
-      <div class="stat-pill"><span class="stat-pill-num green"  id="acrStatApro">—</span><span class="stat-pill-label">Aprobados</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="acrStatMonto">—</span><span class="stat-pill-label">Total aprobado</span></div>
-    </div>
-
-    <!-- Tabla de pendientes -->
-    <div class="section-hdr-row">
-      <span class="section-hdr-lbl">Facturas de acreedores</span>
-    </div>
-    <div class="op-table-wrap">
-      <table class="op-table" id="acrTable">
-        <thead>
-          <tr>
-            <th>Acreedor</th>
-            <th>Fecha factura</th>
-            <th>N° factura</th>
-            <th>Categoría</th>
-            <th style="text-align:right">Subtotal</th>
-            <th style="text-align:right">ITBMS</th>
-            <th style="text-align:right">Total</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="acrBody">
-          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
-        </tbody>
-      </table>
-    </div>
-
-  </div><!-- /rgTabAcr -->
 
 
 
@@ -5985,8 +5946,10 @@ var invFiltered = [];
 // ══════════════════════════════════════════════════
 
 var rg_initialized = false;
-var rg_egr_filter  = 'all';
+var rg_egr_filter  = 'all';   // filtro por categoría
+var rg_egr_estado  = 'all';   // filtro por estado: 'all' | 'pendiente' | 'registrado'
 var rg_ing_filter  = 'all';
+var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
 // Categorías DGI → label legible
 const RG_EGR_CAT_LABELS = {
@@ -6028,6 +5991,8 @@ function rgInit() {
     else rgRender();
     if (!ingItems.length) loadIngresos().then(() => rgRenderIng());
     else rgRenderIng();
+    // Cargar pendientes de acreedores si no están cargados
+    if (!_acrDataLoaded) acrCargarPendientesSilencioso();
     rg_initialized = true;
   } else {
     rgRender();
@@ -6059,21 +6024,16 @@ function rgShowTab(tab) {
   document.getElementById('rgTabEgr').style.display = tab === 'egr' ? 'block' : 'none';
   document.getElementById('rgTabIng').style.display = tab === 'ing' ? 'block' : 'none';
   document.getElementById('rgTabPl').style.display  = tab === 'pl'  ? 'block' : 'none';
-  document.getElementById('rgTabAcr').style.display = tab === 'acr' ? 'block' : 'none';
-  if (tab === 'pl')  plInit();
-  if (tab === 'acr') acrInit();
+  if (tab === 'pl') plInit();
   const btnEgr = document.getElementById('rgTabEgrBtn');
   const btnIng = document.getElementById('rgTabIngBtn');
-  var btnPl  = document.getElementById('rgTabPlBtn');
-  var btnAcr = document.getElementById('rgTabAcrBtn');
+  var btnPl = document.getElementById('rgTabPlBtn');
   btnEgr.style.borderBottomColor = 'transparent'; btnEgr.style.color = 'var(--muted)';
   btnIng.style.borderBottomColor = 'transparent'; btnIng.style.color = 'var(--muted)';
-  if (btnPl)  { btnPl.style.borderBottomColor  = 'transparent'; btnPl.style.color  = 'var(--muted)'; }
-  if (btnAcr) { btnAcr.style.borderBottomColor = 'transparent'; btnAcr.style.color = 'var(--muted)'; }
+  if (btnPl) { btnPl.style.borderBottomColor = 'transparent'; btnPl.style.color = 'var(--muted)'; }
   if (tab === 'egr') { btnEgr.style.borderBottomColor = 'var(--orange)'; btnEgr.style.color = 'var(--orange)'; }
-  else if (tab === 'ing') { btnIng.style.borderBottomColor = 'var(--green)';  btnIng.style.color = 'var(--green)'; }
-  else if (tab === 'pl'  && btnPl)  { btnPl.style.borderBottomColor  = '#6A1B9A'; btnPl.style.color  = '#6A1B9A'; }
-  else if (tab === 'acr' && btnAcr) { btnAcr.style.borderBottomColor = '#4A148C'; btnAcr.style.color = '#4A148C'; }
+  else if (tab === 'ing') { btnIng.style.borderBottomColor = 'var(--green)'; btnIng.style.color = 'var(--green)'; }
+  else if (tab === 'pl' && btnPl) { btnPl.style.borderBottomColor = '#6A1B9A'; btnPl.style.color = '#6A1B9A'; }
 }
 window.rgShowTab = rgShowTab;
 
@@ -6084,59 +6044,173 @@ function rgApplyEgrFilter(btn, filter) {
   rg_egr_filter = filter;
   rgRenderEgr();
 }
+function rgApplyEgrEstado(btn, estado) {
+  document.querySelectorAll('[data-rge-estado]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  rg_egr_estado = estado;
+  rgRenderEgr();
+}
 function rgApplyIngFilter(btn, filter) {
   document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   rg_ing_filter = filter;
   rgRenderIng();
 }
-window.rgApplyEgrFilter = rgApplyEgrFilter;
-window.rgApplyIngFilter = rgApplyIngFilter;
+window.rgApplyEgrFilter  = rgApplyEgrFilter;
+window.rgApplyEgrEstado  = rgApplyEgrEstado;
+window.rgApplyIngFilter  = rgApplyIngFilter;
 
 function rgRefresh() {
   rg_initialized = false;
   egrItems = []; ingItems = [];
+  _acrData = []; _acrDataLoaded = false;
   plLoaded = false;
   rgInit();
 }
 window.rgRefresh = rgRefresh;
 
-// ── Render ────────────────────────────────────────
+// Refresco solo de la columna de egresos (sin tocar ingresos ni planilla)
+function rgRefreshEgr() {
+  egrItems = []; _acrData = []; _acrDataLoaded = false;
+  loadEgresos().then(() => {
+    acrCargarPendientesSilencioso().then(() => rgRenderEgr());
+  });
+}
+window.rgRefreshEgr = rgRefreshEgr;
+
+// ── Render unificado Egresos + Pendientes Acreedores ──────────
 function rgRender() { rgRenderEgr(); rgRenderIng(); }
 
 function rgRenderEgr() {
-  const q    = (document.getElementById('rgSearchEgr') || {value:''}).value.toLowerCase().trim();
-  let items  = egrItems.filter(rgEsMiscelaneoEgr)
-    .filter(e => String(e.estado||'').toLowerCase() !== 'anulado');
-  if (rg_egr_filter !== 'all') items = items.filter(e => e.tipo_egreso === rg_egr_filter || e.categoria === rg_egr_filter);
-  if (q) items = items.filter(e => [e.proveedor,e.descripcion,e.num_fac_ref,e.tipo_egreso].join(' ').toLowerCase().includes(q));
-  items.sort((a,b) => String(b.fecha_egreso||'').localeCompare(String(a.fecha_egreso||'')));
+  const q = (document.getElementById('rgSearchEgr') || {value:''}).value.toLowerCase().trim();
+  const catLabel = v => RG_EGR_CAT_LABELS[v] || CATEG_ACR_LABELS[v] || v || '—';
 
-  // Stats
-  const totMonto = items.reduce((s,e)=>s+Number(e.total||0),0);
-  const totItbms = items.reduce((s,e)=>s+Number(e.itbms||0),0);
-  document.getElementById('rgEStatTotal').textContent = items.length;
-  document.getElementById('rgEStatMonto').textContent = items.length ? '$'+totMonto.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
-  document.getElementById('rgEStatItbms').textContent = totItbms>0 ? '$'+totItbms.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  // ── 1. Egresos ya registrados (misceláneos) ──────────────────
+  const registrados = egrItems
+    .filter(rgEsMiscelaneoEgr)
+    .filter(e => String(e.estado||'').toLowerCase() !== 'anulado')
+    .map(e => ({
+      _tipo:      'registrado',
+      fecha:      String(e.fecha_egreso||'').substring(0,10),
+      proveedor:  e.proveedor || '—',
+      num_fac:    e.num_fac_ref || '—',
+      categoria:  e.tipo_egreso || e.categoria || '',
+      subtotal:   parseFloat(e.subtotal) || 0,
+      itbms:      parseFloat(e.itbms)    || 0,
+      total:      parseFloat(e.total)    || 0,
+      drive_url:  e.drive_url || '',
+      descripcion:e.descripcion || '',
+      _id:        e.id_egreso || '',
+      _raw:       e,
+    }));
 
+  // ── 2. Pendientes de acreedores (borradores) ─────────────────
+  const pendientes = _acrData
+    .filter(i => i.estado === 'borrador')
+    .map(i => ({
+      _tipo:      'pendiente',
+      fecha:      String(i.fecha_fac||'').substring(0,10),
+      proveedor:  i.acreedor_nom || '—',
+      num_fac:    i.num_fac || '—',
+      categoria:  i.categoria || '',
+      subtotal:   parseFloat(i.subtotal) || 0,
+      itbms:      parseFloat(i.itbms)    || 0,
+      total:      parseFloat(i.total)    || 0,
+      drive_url:  i.drive_url || '',
+      descripcion:i.descripcion || '',
+      _id:        i.id || '',
+      _raw:       i,
+    }));
+
+  // ── 3. Unificar y aplicar filtros ────────────────────────────
+  let items = [...pendientes, ...registrados];
+
+  // Filtro estado
+  if (rg_egr_estado === 'pendiente')  items = items.filter(i => i._tipo === 'pendiente');
+  if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
+
+  // Filtro categoría
+  if (rg_egr_filter !== 'all') items = items.filter(i => i.categoria === rg_egr_filter);
+
+  // Búsqueda
+  if (q) items = items.filter(i =>
+    [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
+  );
+
+  // Orden: pendientes siempre primero, luego fecha desc
+  items.sort((a, b) => {
+    if (a._tipo === 'pendiente' && b._tipo !== 'pendiente') return -1;
+    if (b._tipo === 'pendiente' && a._tipo !== 'pendiente') return  1;
+    return String(b.fecha).localeCompare(String(a.fecha));
+  });
+
+  // ── 4. Stats ─────────────────────────────────────────────────
+  const nPend  = pendientes.length;
+  const nReg   = registrados.length;
+  const totM   = items.reduce((s,i) => s + i.total,  0);
+  const totItb = items.reduce((s,i) => s + i.itbms,  0);
+  const el = id => document.getElementById(id);
+  if (el('rgEStatPend'))  el('rgEStatPend').textContent  = nPend  || '—';
+  if (el('rgEStatTotal')) el('rgEStatTotal').textContent = nReg   || '—';
+  if (el('rgEStatMonto')) el('rgEStatMonto').textContent = totM   > 0 ? '$'+totM.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  if (el('rgEStatItbms')) el('rgEStatItbms').textContent = totItb > 0 ? '$'+totItb.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+
+  // ── 5. Render tabla ──────────────────────────────────────────
   const tbody = document.getElementById('rgEgrBody');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="table-empty"><span style="font-size:2rem">📭</span><span>Sin egresos misceláneos registrados</span></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10"><div class="table-empty"><span style="font-size:2rem">📭</span><span>Sin egresos en esta vista</span></div></td></tr>';
     return;
   }
-  tbody.innerHTML = items.map(e => {
-    const catLabel = RG_EGR_CAT_LABELS[e.tipo_egreso] || RG_EGR_CAT_LABELS[e.categoria] || e.tipo_egreso || '—';
-    const docLink  = e.drive_url ? `<a href="${esc(e.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
-    return `<tr>
-      <td style="font-size:.78rem;color:var(--muted)">${e.fecha_egreso||'—'}</td>
-      <td><span style="font-size:.72rem">${esc(catLabel)}</span></td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.descripcion||'')}">${esc((e.descripcion||'—').substring(0,50))}</td>
-      <td style="font-size:.78rem">${esc(e.proveedor||'—')}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${esc(e.num_fac_ref||'—')}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted)">${e.subtotal>0?'$'+Number(e.subtotal).toFixed(2):'—'}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:#1565C0">${e.itbms>0?'$'+Number(e.itbms).toFixed(2):'—'}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#C62828">$${Number(e.total||0).toFixed(2)}</td>
-      <td>${docLink}</td>
+
+  const fmt = n => n > 0 ? '$'+parseFloat(n).toFixed(2) : '—';
+
+  tbody.innerHTML = items.map(i => {
+    const esPendiente = i._tipo === 'pendiente';
+    const rowBg       = esPendiente ? 'background:#FFFDE7' : '';
+
+    // Badge origen
+    const origenBadge = esPendiente
+      ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
+      : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
+
+    // Badge estado
+    const estadoBadge = esPendiente
+      ? '<span style="display:inline-flex;align-items:center;gap:.25rem;background:#FFF9C4;color:#F57F17;padding:.2rem .55rem;border-radius:12px;font-size:.69rem;font-weight:700">⏳ PENDIENTE</span>'
+      : '<span style="display:inline-flex;align-items:center;gap:.25rem;background:#E8F5E9;color:#2E7D32;padding:.2rem .55rem;border-radius:12px;font-size:.69rem;font-weight:700">✅ APROBADO</span>';
+
+    // Columna acciones
+    let acciones = '';
+    if (esPendiente) {
+      acciones = `
+        <div style="display:flex;gap:.35rem;align-items:center">
+          <button onclick='acrAbrirDetalle(${JSON.stringify(i._raw)})'
+            style="padding:.28rem .6rem;background:#6A1B9A;color:#fff;border:none;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer"
+            title="Ver detalles y editar">👁 Ver</button>
+          <button onclick='acrAprobarRapido(${JSON.stringify(i._raw)})'
+            style="padding:.28rem .6rem;background:#2E7D32;color:#fff;border:none;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer"
+            title="Aprobar con categoría sugerida">✅</button>
+          <button onclick='acrEliminarDirecto("${esc(i._id)}")'
+            style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer"
+            title="Eliminar permanentemente">🗑</button>
+        </div>`;
+    } else {
+      const docLink = i.drive_url
+        ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
+        : '';
+      acciones = `<div style="display:flex;gap:.5rem;align-items:center">${docLink}</div>`;
+    }
+
+    return `<tr style="${rowBg}">
+      <td style="font-family:'DM Mono',monospace;font-size:.76rem;color:var(--muted);white-space:nowrap">${i.fecha||'—'}</td>
+      <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
+      <td>${origenBadge}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(i.num_fac)}</td>
+      <td style="font-size:.74rem">${esc(catLabel(i.categoria))}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
+      <td>${estadoBadge}</td>
+      <td>${acciones}</td>
     </tr>`;
   }).join('');
 }
@@ -8712,89 +8786,86 @@ function _acrBuildCatOptions(selectId, selected) {
   ).join('');
 }
 
+// Mapa de categorías acreedor para el render unificado
+const CATEG_ACR_LABELS = {
+  alquiler_local:              '🏠 Alquiler local / oficina',
+  servicios_publicos:          '💡 Servicios públicos (agua, luz)',
+  internet_telecomunicaciones: '📶 Internet y telecomunicaciones',
+  seguros:                     '🛡️ Seguros',
+  mantenimiento_reparacion:    '🔧 Mantenimiento y reparaciones',
+  servicios_profesionales:     '💼 Servicios profesionales',
+  publicidad_marketing:        '📣 Publicidad y marketing',
+  transporte_combustible:      '⛽ Transporte y combustible',
+  suministros_oficina:         '🖇️ Suministros de oficina',
+  planilla_empleados:          '👤 Planilla y cargas sociales',
+  financiero_bancario:         '🏦 Gastos financieros y bancarios',
+  capacitacion:                '📚 Capacitación y formación',
+  tecnologia_software:         '💻 Tecnología y software',
+  otros_gastos_generales:      '📋 Otros gastos generales',
+};
+
 // ── Inicialización del tab ───────────────────────────────────
 async function acrInit() {
   _acrBuildCatOptions('acrDetCat', '');
   await acrCargarPendientes();
 }
 
+// Carga silenciosa para uso desde rgInit (no muestra spinner en tabla)
+async function acrCargarPendientesSilencioso() {
+  try {
+    const data = await gasJsonp('getPendientesAcreedor', {});
+    if (!data.success) return;
+    _acrData = data.items || [];
+    _acrDataLoaded = true;
+    rgRenderEgr();
+  } catch(err) {
+    console.warn('acrCargarPendientesSilencioso:', err.message);
+  }
+}
+
 async function acrCargarPendientes() {
   try {
-    document.getElementById('acrBody').innerHTML =
-      '<tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>';
+    document.getElementById('rgEgrBody').innerHTML =
+      '<tr><td colspan="10"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>';
     const data = await gasJsonp('getPendientesAcreedor', {});
     if (!data.success) throw new Error(data.error || 'Error cargando acreedores');
     _acrData = data.items || [];
-    acrRenderStats();
-    acrRender();
+    _acrDataLoaded = true;
+    rgRenderEgr();
   } catch(err) {
-    document.getElementById('acrBody').innerHTML =
-      `<tr><td colspan="9" style="text-align:center;color:var(--danger);padding:1.5rem">${err.message}</td></tr>`;
+    console.warn('acrCargarPendientes:', err.message);
   }
 }
 
-function acrRenderStats() {
-  const pendientes = _acrData.filter(i => i.estado === 'borrador');
-  const aprobados  = _acrData.filter(i => i.estado === 'aprobado');
-  const totalApr   = aprobados.reduce((s, i) => s + (i.total || 0), 0);
-  const s = n => n !== undefined ? String(n) : '—';
-  const el = id => document.getElementById(id);
-  if (el('acrStatPend'))  el('acrStatPend').textContent  = pendientes.length;
-  if (el('acrStatApro'))  el('acrStatApro').textContent  = aprobados.length;
-  if (el('acrStatMonto')) el('acrStatMonto').textContent = '$' + totalApr.toFixed(2);
+// Aprobar directo sin abrir modal (usa la categoría ya sugerida por IA)
+async function acrAprobarRapido(item) {
+  const categoria = item.categoria || CATEG_ACREEDOR[0].valor;
+  if (!confirm(`¿Aprobar y registrar egreso de ${item.acreedor_nom} por $${parseFloat(item.total||0).toFixed(2)}?\nCategoría: ${CATEG_ACREEDOR.find(c=>c.valor===categoria)?.label || categoria}`)) return;
+  try {
+    const data = await gasJsonp('aprobarAcreedor', { id: item.id, categoria });
+    if (!data.success) throw new Error(data.error || 'Error al aprobar');
+    showToast('✅ Egreso registrado: ' + data.egresoId);
+    _acrData = _acrData.filter(i => i.id !== item.id);
+    egrItems = []; // forzar recarga de egresos para que aparezca el nuevo
+    loadEgresos().then(() => rgRenderEgr());
+  } catch(err) { showToast('Error: ' + err.message, true); }
 }
+window.acrAprobarRapido = acrAprobarRapido;
 
-function acrApplyFilter(btn, filter) {
-  document.querySelectorAll('[data-acr-filter]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  _acrFilter = filter;
-  acrRender();
+// Eliminar directo desde la tabla sin abrir modal
+async function acrEliminarDirecto(id) {
+  if (!confirm('¿Eliminar permanentemente este registro? Esta acción no se puede deshacer.')) return;
+  try {
+    const data = await gasJsonp('eliminarPendienteAcr', { id });
+    if (!data.success) throw new Error(data.error);
+    showToast('Registro eliminado');
+    _acrData = _acrData.filter(i => i.id !== id);
+    rgRenderEgr();
+  } catch(err) { showToast('Error: ' + err.message, true); }
 }
+window.acrEliminarDirecto = acrEliminarDirecto;
 
-function acrRender() {
-  const q     = (document.getElementById('acrSearch')?.value || '').toLowerCase();
-  const body  = document.getElementById('acrBody');
-  if (!body) return;
-
-  let items = _acrData.filter(i => {
-    if (_acrFilter === 'borrador'  && i.estado !== 'borrador')  return false;
-    if (_acrFilter === 'aprobado'  && i.estado !== 'aprobado')  return false;
-    if (q && !(
-      (i.acreedor_nom || '').toLowerCase().includes(q) ||
-      (i.num_fac      || '').toLowerCase().includes(q) ||
-      (i.descripcion  || '').toLowerCase().includes(q)
-    )) return false;
-    return true;
-  });
-
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
-    return;
-  }
-
-  const catLabel = v => (CATEG_ACREEDOR.find(c => c.valor === v) || {}).label || v || '—';
-  const fmt = n => '$' + (parseFloat(n)||0).toFixed(2);
-
-  body.innerHTML = items.map(i => {
-    const estadoBadge = i.estado === 'borrador'
-      ? '<span style="background:#FFF9C4;color:#F57F17;padding:.2rem .55rem;border-radius:12px;font-size:.72rem;font-weight:700">⏳ PENDIENTE</span>'
-      : '<span style="background:#E8F5E9;color:#2E7D32;padding:.2rem .55rem;border-radius:12px;font-size:.72rem;font-weight:700">✅ APROBADO</span>';
-    const acciones = i.estado === 'borrador'
-      ? `<button onclick='acrAbrirDetalle(${JSON.stringify(i)})' style="padding:.3rem .7rem;background:#6A1B9A;color:#fff;border:none;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer">Ver / Aprobar</button>`
-      : (i.drive_url ? `<a href="${i.drive_url}" target="_blank" style="font-size:.76rem;color:var(--orange)">📄 Factura</a>` : '—');
-    return `<tr>
-      <td style="font-weight:600">${i.acreedor_nom || '—'}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:.8rem">${i.fecha_fac || '—'}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:.8rem">${i.num_fac || '—'}</td>
-      <td style="font-size:.78rem">${catLabel(i.categoria)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace">${fmt(i.subtotal)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace">${fmt(i.itbms)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmt(i.total)}</td>
-      <td>${estadoBadge}</td>
-      <td>${acciones}</td>
-    </tr>`;
-  }).join('');
-}
+// acrRenderStats, acrApplyFilter y acrRender fusionados en rgRenderEgr()
 
 // ── Modal Detalle / Aprobar ──────────────────────────────────
 function acrAbrirDetalle(item) {
@@ -8880,7 +8951,13 @@ async function acrAprobar() {
     msg.style.color = 'var(--green)';
     msg.textContent = '✅ Egreso registrado: ' + data.egresoId;
     showToast('✅ Egreso registrado: ' + data.egresoId);
-    setTimeout(() => { acrCerrarModal(); acrCargarPendientes(); }, 1200);
+    setTimeout(() => {
+      acrCerrarModal();
+      // Quitar de _acrData y recargar egresos para que aparezca el nuevo registro
+      _acrData = _acrData.filter(i => i.id !== _acrSelected?.id);
+      egrItems = [];
+      loadEgresos().then(() => rgRenderEgr());
+    }, 1200);
   } catch(err) {
     msg.style.color = 'var(--danger)';
     msg.textContent = '❌ ' + err.message;
@@ -8894,8 +8971,9 @@ async function acrRechazar() {
     const data = await gasJsonp('rechazarAcreedor', { id: _acrSelected.id });
     if (!data.success) throw new Error(data.error);
     showToast('Factura rechazada');
+    _acrData = _acrData.filter(i => i.id !== _acrSelected?.id);
     acrCerrarModal();
-    acrCargarPendientes();
+    rgRenderEgr();
   } catch(err) { showToast('Error: ' + err.message, true); }
 }
 
@@ -8906,8 +8984,9 @@ async function acrEliminar() {
     const data = await gasJsonp('eliminarPendienteAcr', { id: _acrSelected.id });
     if (!data.success) throw new Error(data.error);
     showToast('Registro eliminado');
+    _acrData = _acrData.filter(i => i.id !== _acrSelected?.id);
     acrCerrarModal();
-    acrCargarPendientes();
+    rgRenderEgr();
   } catch(err) { showToast('Error: ' + err.message, true); }
 }
 
@@ -8918,7 +8997,7 @@ async function acrSincronizar() {
     const data = await gasJsonp('sincronizarAcreedores', {});
     if (!data.success) throw new Error(data.error || 'Error');
     showToast(`✅ Sincronizado — ${data.nuevos} nuevos, ${data.ignorados} ignorados`);
-    if (data.nuevos > 0) await acrCargarPendientes();
+    if (data.nuevos > 0) await acrCargarPendientesSilencioso();
   } catch(err) {
     showToast('Error: ' + err.message, true);
   } finally {
