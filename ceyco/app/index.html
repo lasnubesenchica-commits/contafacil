@@ -1178,6 +1178,46 @@ async function postJSON(payload) {
 // ── HELPERS ───────────────────────────────────
 const fmt    = n => '$' + (parseFloat(n)||0).toLocaleString('es-PA',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// ── Catálogo DGI unificado (espejo de Code.gs CATEGORIAS_GASTO_DGI) ──────────
+const CATEGORIAS_GASTO_DGI = [
+  { valor: 'nomina',                   label: 'Nómina / Salarios',               linea: '42', emoji: '👤' },
+  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales',          linea: '43', emoji: '👥' },
+  { valor: 'gastos_representacion',    label: 'Gastos de representación',        linea: '44', emoji: '🤝' },
+  { valor: 'alquileres',               label: 'Alquileres',                      linea: '46', emoji: '🏠' },
+  { valor: 'cargos_bancarios',         label: 'Cargos bancarios',                linea: '53', emoji: '🏦' },
+  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad',          linea: '54', emoji: '🔒' },
+  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros',  linea: '55', emoji: '📊' },
+  { valor: 'combustible_transporte',   label: 'Combustible y transporte',        linea: '56', emoji: '⛽' },
+  { valor: 'depreciacion',             label: 'Depreciación',                    linea: '57', emoji: '📉' },
+  { valor: 'amortizacion',             label: 'Amortización',                    linea: '58', emoji: '📋' },
+  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales',   linea: '59', emoji: '🏛️' },
+  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales',        linea: '60', emoji: '💼' },
+  { valor: 'seguros',                  label: 'Seguros',                         linea: '63-66', emoji: '🛡️' },
+  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones',    linea: '67', emoji: '🔧' },
+  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo',           linea: '68', emoji: '📣' },
+  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros', linea: '69', emoji: '🖇️' },
+  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones',   linea: '71', emoji: '📶' },
+  { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
+  { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
+  { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
+  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
+];
+// Helper: label legible para cualquier valor de tipo_egreso (incluye legacy)
+function dgiLabel(valor) {
+  const c = CATEGORIAS_GASTO_DGI.find(x => x.valor === valor);
+  if (c) return c.emoji + ' ' + c.label;
+  // Legacy
+  const leg = {
+    costo_mercancia:'📦 Costo mercancía', costo_servicio_tecnico:'🔧 Costo ST',
+    impuesto_aduana:'🛃 Impuesto aduana', impuesto_importacion:'🛃 Imp. importación',
+    credito_fiscal:'🏛️ Crédito fiscal', costo_operativo:'🏢 Costo operativo',
+    servicios:'⚡ Servicios', gastos_personal:'👤 Nómina',
+    planilla_empleados:'👤 Planilla', financiero_bancario:'🏦 Financiero',
+    otros_gastos_generales:'📋 Otros gastos',
+  };
+  return leg[valor] || valor || '—';
+}
+
 const MESES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 function toast(msg, type='') {
@@ -1982,14 +2022,6 @@ const PL = (() => {
 
     } else {
       // ── Tab GASTOS — solo egresos_gasto (Registro General) ───
-      const EGR_LBL = {
-        costo_mercancia:'Costo mercancía', costo_operativo:'Operativo',
-        nomina:'Nómina', servicios:'Servicios', servicios_publicos:'Serv. públicos',
-        combustible_transporte:'Combustible', publicidad_mercadeo:'Publicidad',
-        honorarios_profesionales:'Honorarios', mantenimiento_reparacion:'Mantenimiento',
-        seguros:'Seguros', gastos_financieros:'Fin. bancarios', otros_deducibles:'Otros',
-      };
-
       const gasItems = (d.egresos_gasto || []).slice();
 
       if (!gasItems.length) {
@@ -2000,16 +2032,28 @@ const PL = (() => {
       const totalGas = gasItems.reduce((s, g) => s + (parseFloat(g.total)||0), 0);
 
       el.innerHTML = gasItems.map(g => {
-        const cat   = EGR_LBL[g.tipo_egreso] || g.tipo_egreso || '—';
-        const desc  = g.descripcion || cat;
-        const prov  = g.proveedor || '';
-        const monto = parseFloat(g.total) || 0;
+        const tipoVal = g.tipo_egreso || g.categoria || '';
+        const tipoCat = CATEGORIAS_GASTO_DGI.find(c => c.valor === tipoVal);
+        const catLbl  = dgiLabel(tipoVal);
+        const lineaDgi = tipoCat ? tipoCat.linea : '?';
+        const desc    = g.descripcion || tipoVal || '—';
+        const prov    = g.proveedor || '';
+        const monto   = parseFloat(g.total) || 0;
         const mesMeta = viewMode==='ytd' && g.mes ? MESES[(parseInt(g.mes)||1)-1]+' · ' : '';
+        const idEgr   = esc(g.id || '');
         return `<div class="tx-item">
           <div class="tx-dot" style="background:var(--purple)"></div>
           <div class="tx-body">
             <div class="tx-desc">${esc(desc.substring(0,50))}</div>
-            <div class="tx-meta">${mesMeta}${esc(cat)}${prov?' · '+esc(prov):''}</div>
+            <div class="tx-meta">${mesMeta}${prov?esc(prov)+' · ':''}</div>
+            <button onclick="PL.abrirReclasif('${idEgr}','${esc(tipoVal)}')"
+              style="display:inline-flex;align-items:center;gap:.25rem;margin-top:.25rem;
+                     font-size:.65rem;font-weight:600;padding:.2rem .5rem;border-radius:6px;
+                     border:1px solid var(--border);background:var(--bg2);color:var(--text);
+                     cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="L${lineaDgi} · Toca para reclasificar">
+              ${catLbl} <span style="font-size:.58rem;color:var(--chrome);flex-shrink:0">✏️</span>
+            </button>
           </div>
           <div class="tx-amt egr">-${fmt(monto)}</div>
         </div>`;
@@ -2067,7 +2111,57 @@ const PL = (() => {
     if (btn) btn.textContent = _erExpandido ? 'Colapsar' : 'Ver todo';
   }
 
-  return { load, prev, next, setMode, showTable, switchVista, toggleSection, toggleExpandAll, get loaded(){ return _loaded; } };
+  // ── Reclasificación DGI desde tab Gastos ────────────────────
+  let _reclasifId = null;
+
+  function abrirReclasif(idEgreso, tipoActual) {
+    _reclasifId = idEgreso;
+    // Poblar select
+    const sel = document.getElementById('mReclasifSelect');
+    if (!sel) return;
+    sel.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
+      `<option value="${c.valor}" ${c.valor === tipoActual ? 'selected' : ''}>
+        L${c.linea} · ${c.emoji} ${c.label}
+      </option>`
+    ).join('');
+    // Mostrar tipo actual
+    const act = document.getElementById('mReclasifActual');
+    if (act) act.textContent = dgiLabel(tipoActual) + (tipoActual ? ' (L' + (CATEGORIAS_GASTO_DGI.find(c=>c.valor===tipoActual)?.linea||'?') + ')' : '');
+    document.getElementById('mReclasifMsg').textContent = '';
+    document.getElementById('mReclasifBtnOk').disabled = false;
+    document.getElementById('mReclasifBtnOk').textContent = 'Confirmar';
+    openModal('mReclasif');
+  }
+
+  async function confirmarReclasif() {
+    if (!_reclasifId) return;
+    const nuevoTipo = document.getElementById('mReclasifSelect').value;
+    const btnOk  = document.getElementById('mReclasifBtnOk');
+    const msgEl  = document.getElementById('mReclasifMsg');
+    btnOk.disabled = true;
+    btnOk.textContent = 'Guardando…';
+    try {
+      const r = await jsonpGet('reclasificarEgreso', { id_egreso: _reclasifId, nuevo_tipo: nuevoTipo });
+      if (!r.success) throw new Error(r.error || 'Error desconocido');
+
+      // Actualizar en memoria — egresos_gasto de todos los períodos
+      for (const key in periodos) {
+        const arr = periodos[key].egresos_gasto || [];
+        const eg  = arr.find(g => g.id === _reclasifId);
+        if (eg) { eg.tipo_egreso = nuevoTipo; break; }
+      }
+
+      toast('✅ Reclasificado', 'ok');
+      closeModal('mReclasif');
+      renderAll();
+    } catch(err) {
+      msgEl.textContent = '⚠️ ' + err.message;
+      btnOk.disabled = false;
+      btnOk.textContent = 'Confirmar';
+    }
+  }
+
+  return { load, prev, next, setMode, showTable, switchVista, toggleSection, toggleExpandAll, abrirReclasif, confirmarReclasif, get loaded(){ return _loaded; } };
 })();
 
 
@@ -2959,6 +3053,39 @@ const PEND = (() => {
   </div>
   <div class="drive-frame-wrap" id="driveFrameWrap">
     <!-- contenido inyectado dinámicamente por DRIVE.open() -->
+  </div>
+</div>
+
+<!-- SHEET: Reclasificación DGI -->
+<div class="overlay" id="mReclasif">
+  <div class="sheet">
+    <div class="sheet-top"><div class="sheet-handle"></div>
+    <div class="sheet-hdr">
+      <span class="sheet-title">Reclasificar gasto · DGI</span>
+      <button class="sheet-close" onclick="closeModal('mReclasif')">✕</button>
+    </div></div>
+    <div class="sheet-body">
+      <div class="f-lbl" style="margin-bottom:.2rem">Clasificación actual</div>
+      <div id="mReclasifActual" style="font-size:.82rem;color:var(--text);background:var(--bg2);
+           padding:.45rem .75rem;border-radius:8px;margin-bottom:1rem;font-weight:500"></div>
+
+      <div class="f-lbl" style="margin-bottom:.2rem">Nueva clasificación DGI</div>
+      <select id="mReclasifSelect" class="f-inp" style="width:100%;margin-bottom:.3rem"></select>
+      <div style="font-size:.65rem;color:var(--chrome);margin-bottom:1rem">
+        L = Línea del formulario Persona Jurídica DGI (e-Tax 2.0)
+      </div>
+
+      <div id="mReclasifMsg" style="font-size:.75rem;color:var(--red);min-height:1.1rem"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-footer-cancel" onclick="closeModal('mReclasif')">Cancelar</button>
+      <button id="mReclasifBtnOk"
+        onclick="PL.confirmarReclasif()"
+        style="padding:.78rem 1.4rem;border-radius:var(--r);font-size:.85rem;font-weight:700;
+               background:var(--orange);color:#fff;border:none;cursor:pointer;transition:opacity .15s">
+        Confirmar
+      </button>
+    </div>
   </div>
 </div>
 
