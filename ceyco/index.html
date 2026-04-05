@@ -6400,27 +6400,25 @@ let _catDropJustOpened = false;
 // Posiciona el dropdown inteligentemente: abajo del trigger si hay espacio,
 // arriba si no, y ajustado horizontalmente para no salir de la pantalla.
 function _positionDrop(drop, rect) {
-  const dropH   = 320;  // max-height del dropdown
-  const dropW   = 270;
-  const margin  = 8;
-  const vw      = window.innerWidth;
-  const vh      = window.innerHeight;
+  const dropH  = 320;
+  const dropW  = 270;
+  const margin = 8;
+  const vw     = window.innerWidth;
+  const vh     = window.innerHeight;
 
-  // Horizontal: alineado con el trigger, sin salirse por la derecha
-  const left = Math.min(rect.left + window.scrollX, window.scrollX + vw - dropW - margin);
+  // Horizontal — position:fixed, rect.left ya es relativo al viewport
+  const left = Math.min(rect.left, vw - dropW - margin);
   drop.style.left = Math.max(margin, left) + 'px';
 
-  // Vertical: abajo si cabe, arriba si no
+  // Vertical — position:fixed, sin scrollY
   const spaceBelow = vh - rect.bottom;
   const spaceAbove = rect.top;
   if (spaceBelow >= dropH || spaceBelow >= spaceAbove) {
-    // Abrir hacia abajo
-    drop.style.top    = (rect.bottom + window.scrollY + 4) + 'px';
+    drop.style.top    = (rect.bottom + 4) + 'px';
     drop.style.bottom = 'auto';
   } else {
-    // Abrir hacia arriba
     drop.style.top    = 'auto';
-    drop.style.bottom = (vh - rect.top + window.scrollY + 4) + 'px';
+    drop.style.bottom = (vh - rect.top + 4) + 'px';
   }
 }
 
