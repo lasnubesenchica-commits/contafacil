@@ -421,83 +421,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .badge-egreso-nomina   {background:#EDE7F6;color:#4527A0}
 .badge-egreso-servicios{background:#E8EAF6;color:#283593}
 
-/* ── Categoría clickeable con dropdown chips ── */
-.cat-chip-wrap {
-  position: relative;
-  display: inline-block;
-}
-.cat-chip-label {
-  display: inline-flex;
-  align-items: center;
-  gap: .25rem;
-  font-size: .72rem;
-  cursor: pointer;
-  padding: .2rem .5rem;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  transition: all .15s;
-  white-space: nowrap;
-}
-.cat-chip-label:hover {
-  border-color: var(--orange);
-  background: rgba(224,90,0,.06);
-}
-.cat-chip-label .cat-chip-edit-icon {
-  font-size: .6rem;
-  opacity: 0;
-  transition: opacity .15s;
-}
-.cat-chip-label:hover .cat-chip-edit-icon { opacity: 1; }
-.cat-chip-dropdown {
-  display: none;
-  position: fixed;
-  z-index: 500;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.12);
-  padding: .5rem;
-  min-width: 240px;
-  max-height: 320px;
-  overflow-y: auto;
-}
-.cat-chip-dropdown.open { display: block; }
-.cat-chip-dropdown-title {
-  font-family: 'DM Mono', monospace;
-  font-size: .6rem;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--orange);
-  padding: .25rem .5rem .5rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: .4rem;
-}
-.cat-chip-option {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .38rem .6rem;
-  border-radius: 6px;
-  font-size: .78rem;
-  cursor: pointer;
-  transition: background .12s;
-  white-space: nowrap;
-}
-.cat-chip-option:hover { background: var(--bg); }
-.cat-chip-option.active {
-  background: rgba(224,90,0,.08);
-  color: var(--orange);
-  font-weight: 600;
-}
-.cat-chip-option .cat-check { font-size: .7rem; margin-left: auto; opacity: 0; }
-.cat-chip-option.active .cat-check { opacity: 1; }
-.cat-chip-saving {
-  font-size: .68rem;
-  color: var(--muted);
-  padding: .3rem .5rem;
-  text-align: center;
-}
-
 /* Confianza bar */
 .conf-bar{display:flex;align-items:center;gap:.4rem}
 .conf-track{flex:1;height:5px;background:var(--bg3);border-radius:3px;min-width:40px}
@@ -1465,6 +1388,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
       style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
       👤 Planilla
     </button>
+    <button id="rgTabAcrBtn" onclick="rgShowTab('acr')"
+      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
+      🏦 Acreedores
+    </button>
   </div>
 
   <!-- TAB: EGRESOS -->
@@ -1475,12 +1402,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="rgEStatMonto">—</span><span class="stat-pill-label">Total gastado</span></div>
       <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgEStatItbms">—</span><span class="stat-pill-label">ITBMS pagado</span></div>
     </div>
-    <!-- Toolbar fila 1: filtro estado (Pendientes / Aprobados / Todos) + Sincronizar + Nuevo -->
-    <div style="padding:.65rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
-      <button class="op-filter-btn" data-rge-estado="pendiente" onclick="rgApplyEgrEstado(this,'pendiente')" style="background:#FFF9C4;border-color:#F9A825;color:#795548;font-weight:700">⏳ Pendientes</button>
-      <button class="op-filter-btn active" data-rge-estado="all" onclick="rgApplyEgrEstado(this,'all')">Todos</button>
-      <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
-      <div style="width:1px;height:20px;background:var(--border);margin:0 .25rem"></div>
+    <!-- Toolbar -->
+    <div class="op-toolbar" style="padding:.75rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <button class="op-filter-btn active" data-rge-filter="all" onclick="rgApplyEgrFilter(this,'all')">Todos</button>
       <button class="op-filter-btn" data-rge-filter="nomina"                    onclick="rgApplyEgrFilter(this,'nomina')">👤 Planilla</button>
       <button class="op-filter-btn" data-rge-filter="alquileres"                onclick="rgApplyEgrFilter(this,'alquileres')">🏢 Alquiler</button>
       <button class="op-filter-btn" data-rge-filter="servicios_publicos"        onclick="rgApplyEgrFilter(this,'servicios_publicos')">⚡ Servicios públ.</button>
@@ -1489,41 +1413,33 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn" data-rge-filter="otros_deducibles"          onclick="rgApplyEgrFilter(this,'otros_deducibles')">📋 Otros</button>
       <div class="search-wrap" style="margin-left:auto">
         <span class="search-icon">🔍</span>
-        <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
+        <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso..." oninput="rgRenderEgr()">
       </div>
-      <button class="btn-sync" id="btnAcrSync" onclick="acrSincronizar()">↺ Sincronizar emails</button>
-    </div>
-    <!-- Stats unificados -->
-    <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
-      <div class="stat-pill"><span class="stat-pill-num orange" id="rgEStatPend">—</span><span class="stat-pill-label">Pendientes</span></div>
-      <div class="stat-pill"><span class="stat-pill-num green"  id="rgEStatTotal">—</span><span class="stat-pill-label">Registrados</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="rgEStatMonto">—</span><span class="stat-pill-label">Total gastado</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgEStatItbms">—</span><span class="stat-pill-label">ITBMS pagado</span></div>
+      <button class="btn-sync" onclick="rgRefresh()">↻ Actualizar</button>
     </div>
     <!-- Header + botón nuevo -->
     <div class="section-hdr-row">
       <span class="section-hdr-lbl">Egresos generales</span>
       <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
     </div>
-    <!-- Tabla unificada -->
+    <!-- Tabla -->
     <div class="op-table-wrap">
       <table class="op-table" id="rgEgrTable">
         <thead>
           <tr>
             <th>Fecha</th>
-            <th>Proveedor / Acreedor</th>
-            <th>Origen</th>
-            <th>N° Factura</th>
-            <th>Categoría</th>
+            <th>Categoría DGI</th>
+            <th>Descripción</th>
+            <th>Proveedor</th>
+            <th>Factura</th>
             <th style="text-align:right">Subtotal</th>
             <th style="text-align:right">ITBMS</th>
             <th style="text-align:right">Total</th>
-            <th>Estado</th>
-            <th>Acciones</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="rgEgrBody">
-          <tr><td colspan="10"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -1701,7 +1617,54 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   </div><!-- /rgTabPl -->
 
+  <!-- TAB: ACREEDORES ════════════════════════════════════════ -->
+  <div id="rgTabAcr" style="display:none">
 
+    <!-- Toolbar -->
+    <div class="op-toolbar" style="padding:.75rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <button class="op-filter-btn active" data-acr-filter="borrador" onclick="acrApplyFilter(this,'borrador')">⏳ Pendientes</button>
+      <button class="op-filter-btn" data-acr-filter="aprobado"        onclick="acrApplyFilter(this,'aprobado')">✅ Aprobados</button>
+      <button class="op-filter-btn" data-acr-filter="all"             onclick="acrApplyFilter(this,'all')">Todos</button>
+      <div class="search-wrap" style="margin-left:auto">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="acrSearch" class="filter-search" placeholder="Buscar acreedor..." oninput="acrRender()">
+      </div>
+      <button class="btn-sync" onclick="acrSincronizar()" id="btnAcrSync">↻ Sincronizar emails</button>
+    </div>
+
+    <!-- Stats -->
+    <div style="padding:.75rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
+      <div class="stat-pill"><span class="stat-pill-num orange" id="acrStatPend">—</span><span class="stat-pill-label">Pendientes</span></div>
+      <div class="stat-pill"><span class="stat-pill-num green"  id="acrStatApro">—</span><span class="stat-pill-label">Aprobados</span></div>
+      <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="acrStatMonto">—</span><span class="stat-pill-label">Total aprobado</span></div>
+    </div>
+
+    <!-- Tabla de pendientes -->
+    <div class="section-hdr-row">
+      <span class="section-hdr-lbl">Facturas de acreedores</span>
+    </div>
+    <div class="op-table-wrap">
+      <table class="op-table" id="acrTable">
+        <thead>
+          <tr>
+            <th>Acreedor</th>
+            <th>Fecha factura</th>
+            <th>N° factura</th>
+            <th>Categoría</th>
+            <th style="text-align:right">Subtotal</th>
+            <th style="text-align:right">ITBMS</th>
+            <th style="text-align:right">Total</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="acrBody">
+          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /rgTabAcr -->
 
 
 
@@ -1731,10 +1694,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
     <div class="pl-tipo-wrap">
       <span class="pl-control-label">Tipo</span>
-      <button class="pl-tipo-btn active" data-tipo="todos"           onclick="selectPlTipo(this)">Todo</button>
-      <button class="pl-tipo-btn"        data-tipo="proyectos"       onclick="selectPlTipo(this)">🔧 Proyectos</button>
-      <button class="pl-tipo-btn"        data-tipo="comercializacion" onclick="selectPlTipo(this)">🛒 Comercialización</button>
-      <button class="pl-tipo-btn"        data-tipo="general"         onclick="selectPlTipo(this)">📒 General</button>
+      <button class="pl-tipo-btn active" data-tipo="todos"              onclick="selectPlTipo(this)">Todos</button>
+      <button class="pl-tipo-btn" data-tipo="venta_producto"            onclick="selectPlTipo(this)">Venta producto</button>
+      <button class="pl-tipo-btn" data-tipo="servicio_tecnico"          onclick="selectPlTipo(this)">Serv. técnico</button>
+      <button class="pl-tipo-btn" data-tipo="servicio_asesoria"         onclick="selectPlTipo(this)">Asesoría</button>
+      <button class="pl-tipo-btn" data-tipo="comision"                  onclick="selectPlTipo(this)">Comisión</button>
+      <button class="pl-tipo-btn" data-tipo="otro"                      onclick="selectPlTipo(this)">Otro</button>
     </div>
   </div>
 
@@ -3825,7 +3790,6 @@ function refreshCurrentSection() {
   else if (activeTab === 'dashboard')        { plLoaded = false; loadDashboard(); }
   else if (activeTab === 'inventario')       loadInventario();
   else if (activeTab === 'proveedores')      loadProveedores();
-  else if (activeTab === 'registroGeneral')  rgRefreshEgr();
   else if (activeTab.startsWith('reporte:')) loadReporte(activeTab.replace('reporte:', ''), true);
   else                                       loadOperaciones();
 }
@@ -6021,10 +5985,8 @@ var invFiltered = [];
 // ══════════════════════════════════════════════════
 
 var rg_initialized = false;
-var rg_egr_filter  = 'all';   // filtro por categoría
-var rg_egr_estado  = 'all';   // filtro por estado: 'all' | 'pendiente' | 'registrado'
+var rg_egr_filter  = 'all';
 var rg_ing_filter  = 'all';
-var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
 // Categorías DGI → label legible
 const RG_EGR_CAT_LABELS = {
@@ -6066,8 +6028,6 @@ function rgInit() {
     else rgRender();
     if (!ingItems.length) loadIngresos().then(() => rgRenderIng());
     else rgRenderIng();
-    // Cargar pendientes de acreedores si no están cargados
-    if (!_acrDataLoaded) acrCargarPendientesSilencioso();
     rg_initialized = true;
   } else {
     rgRender();
@@ -6099,16 +6059,21 @@ function rgShowTab(tab) {
   document.getElementById('rgTabEgr').style.display = tab === 'egr' ? 'block' : 'none';
   document.getElementById('rgTabIng').style.display = tab === 'ing' ? 'block' : 'none';
   document.getElementById('rgTabPl').style.display  = tab === 'pl'  ? 'block' : 'none';
-  if (tab === 'pl') plInit();
+  document.getElementById('rgTabAcr').style.display = tab === 'acr' ? 'block' : 'none';
+  if (tab === 'pl')  plInit();
+  if (tab === 'acr') acrInit();
   const btnEgr = document.getElementById('rgTabEgrBtn');
   const btnIng = document.getElementById('rgTabIngBtn');
-  var btnPl = document.getElementById('rgTabPlBtn');
+  var btnPl  = document.getElementById('rgTabPlBtn');
+  var btnAcr = document.getElementById('rgTabAcrBtn');
   btnEgr.style.borderBottomColor = 'transparent'; btnEgr.style.color = 'var(--muted)';
   btnIng.style.borderBottomColor = 'transparent'; btnIng.style.color = 'var(--muted)';
-  if (btnPl) { btnPl.style.borderBottomColor = 'transparent'; btnPl.style.color = 'var(--muted)'; }
+  if (btnPl)  { btnPl.style.borderBottomColor  = 'transparent'; btnPl.style.color  = 'var(--muted)'; }
+  if (btnAcr) { btnAcr.style.borderBottomColor = 'transparent'; btnAcr.style.color = 'var(--muted)'; }
   if (tab === 'egr') { btnEgr.style.borderBottomColor = 'var(--orange)'; btnEgr.style.color = 'var(--orange)'; }
-  else if (tab === 'ing') { btnIng.style.borderBottomColor = 'var(--green)'; btnIng.style.color = 'var(--green)'; }
-  else if (tab === 'pl' && btnPl) { btnPl.style.borderBottomColor = '#6A1B9A'; btnPl.style.color = '#6A1B9A'; }
+  else if (tab === 'ing') { btnIng.style.borderBottomColor = 'var(--green)';  btnIng.style.color = 'var(--green)'; }
+  else if (tab === 'pl'  && btnPl)  { btnPl.style.borderBottomColor  = '#6A1B9A'; btnPl.style.color  = '#6A1B9A'; }
+  else if (tab === 'acr' && btnAcr) { btnAcr.style.borderBottomColor = '#4A148C'; btnAcr.style.color = '#4A148C'; }
 }
 window.rgShowTab = rgShowTab;
 
@@ -6119,300 +6084,59 @@ function rgApplyEgrFilter(btn, filter) {
   rg_egr_filter = filter;
   rgRenderEgr();
 }
-function rgApplyEgrEstado(btn, estado) {
-  document.querySelectorAll('[data-rge-estado]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  rg_egr_estado = estado;
-  rgRenderEgr();
-}
 function rgApplyIngFilter(btn, filter) {
   document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   rg_ing_filter = filter;
   rgRenderIng();
 }
-window.rgApplyEgrFilter  = rgApplyEgrFilter;
-window.rgApplyEgrEstado  = rgApplyEgrEstado;
-window.rgApplyIngFilter  = rgApplyIngFilter;
+window.rgApplyEgrFilter = rgApplyEgrFilter;
+window.rgApplyIngFilter = rgApplyIngFilter;
 
 function rgRefresh() {
   rg_initialized = false;
   egrItems = []; ingItems = [];
-  _acrData = []; _acrDataLoaded = false;
   plLoaded = false;
   rgInit();
 }
 window.rgRefresh = rgRefresh;
 
-// Refresco solo de la columna de egresos (sin tocar ingresos ni planilla)
-function rgRefreshEgr() {
-  egrItems = []; _acrData = []; _acrDataLoaded = false;
-  loadEgresos().then(() => {
-    acrCargarPendientesSilencioso().then(() => rgRenderEgr());
-  });
-}
-window.rgRefreshEgr = rgRefreshEgr;
-
-// ── Dropdown chips de categoría inline ───────────────────────
-// Categorías disponibles para ambos tipos (egresos registrados + acreedores pendientes)
-const TODAS_CATEGORIAS_EGR = [
-  { valor: 'alquiler_local',              label: '🏠 Alquiler local / oficina' },
-  { valor: 'servicios_publicos',          label: '💡 Servicios públicos (agua, luz)' },
-  { valor: 'internet_telecomunicaciones', label: '📶 Internet y telecomunicaciones' },
-  { valor: 'seguros',                     label: '🛡️ Seguros' },
-  { valor: 'mantenimiento_reparacion',    label: '🔧 Mantenimiento y reparaciones' },
-  { valor: 'servicios_profesionales',     label: '💼 Servicios profesionales' },
-  { valor: 'publicidad_marketing',        label: '📣 Publicidad y marketing' },
-  { valor: 'transporte_combustible',      label: '⛽ Transporte y combustible' },
-  { valor: 'suministros_oficina',         label: '🖇️ Suministros de oficina' },
-  { valor: 'planilla_empleados',          label: '👤 Planilla y cargas sociales' },
-  { valor: 'financiero_bancario',         label: '🏦 Gastos financieros y bancarios' },
-  { valor: 'capacitacion',               label: '📚 Capacitación y formación' },
-  { valor: 'tecnologia_software',         label: '💻 Tecnología y software' },
-  { valor: 'otros_gastos_generales',      label: '📋 Otros gastos generales' },
-  { valor: 'alquileres',                  label: '🏢 Alquiler local' },
-  { valor: 'combustible_transporte',      label: '⛽ Combustible' },
-  { valor: 'honorarios_profesionales',    label: '💼 Honorarios profesionales' },
-  { valor: 'otros_deducibles',            label: '📋 Otros deducibles' },
-  { valor: 'nomina',                      label: '👤 Planilla / Nómina' },
-];
-
-// Encontrar label de cualquier categoría
-function catChipLabel(valor) {
-  const found = TODAS_CATEGORIAS_EGR.find(c => c.valor === valor);
-  if (found) return found.label;
-  return RG_EGR_CAT_LABELS[valor] || CATEG_ACR_LABELS[valor] || valor || '—';
-}
-
-// Construir la celda chip clickeable
-function buildCatChip(item) {
-  const label = catChipLabel(item.categoria);
-  const id    = esc(item._id);
-  const tipo  = item._tipo; // 'pendiente' | 'registrado'
-  return `<div class="cat-chip-wrap">
-    <span class="cat-chip-label" onclick="catChipOpen(event,'${id}','${tipo}','${esc(item.categoria)}')">
-      ${label}
-      <span class="cat-chip-edit-icon">✏️</span>
-    </span>
-  </div>`;
-}
-
-// Singleton dropdown — un solo elemento reutilizable
-let _catDropEl = null;
-let _catDropId = null;
-let _catDropTipo = null;
-
-function _getCatDropEl() {
-  if (_catDropEl) return _catDropEl;
-  const el = document.createElement('div');
-  el.id = 'catChipDropdown';
-  el.className = 'cat-chip-dropdown';
-  document.body.appendChild(el);
-  // Cerrar al click fuera
-  document.addEventListener('click', (e) => {
-    if (_catDropEl && !_catDropEl.contains(e.target) && !e.target.closest('.cat-chip-label')) {
-      _catDropEl.classList.remove('open');
-    }
-  }, true);
-  _catDropEl = el;
-  return el;
-}
-
-function catChipOpen(e, id, tipo, catActual) {
-  e.stopPropagation();
-  const trigger = e.currentTarget;
-  const rect    = trigger.getBoundingClientRect();
-  const drop    = _getCatDropEl();
-
-  _catDropId   = id;
-  _catDropTipo = tipo;
-
-  // Posicionar
-  drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 260) + 'px';
-
-  // Construir opciones
-  drop.innerHTML = `<div class="cat-chip-dropdown-title">Reclasificar categoría</div>` +
-    TODAS_CATEGORIAS_EGR.map(c => `
-      <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
-           onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
-        ${c.label}
-        <span class="cat-check">✓</span>
-      </div>`
-    ).join('');
-
-  drop.classList.add('open');
-}
-window.catChipOpen = catChipOpen;
-
-async function catChipSelect(nuevoValor, nuevoLabel) {
-  const drop = _getCatDropEl();
-  drop.innerHTML = `<div class="cat-chip-saving">⏳ Guardando...</div>`;
-
-  try {
-    if (_catDropTipo === 'pendiente') {
-      // Actualiza Acreedores_Pending
-      await fetch(GAS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'actualizarPendienteAcr', id: _catDropId, categoria: nuevoValor }),
-      });
-      // Actualizar en memoria
-      const idx = _acrData.findIndex(i => String(i.id) === String(_catDropId));
-      if (idx !== -1) _acrData[idx].categoria = nuevoValor;
-    } else {
-      // Actualiza fila de Egresos registrados — reusar handler existente
-      const data = await gasJsonp('actualizarCategoriaEgreso', { id: _catDropId, categoria: nuevoValor });
-      if (data && !data.success) throw new Error(data.error || 'Error al guardar');
-      // Actualizar en memoria
-      const idx = egrItems.findIndex(i => String(i.id_egreso) === String(_catDropId));
-      if (idx !== -1) {
-        egrItems[idx].tipo_egreso = nuevoValor;
-        egrItems[idx].categoria   = nuevoValor;
-      }
-    }
-    drop.classList.remove('open');
-    showToast('✅ Categoría actualizada');
-    rgRenderEgr(); // re-render sin fetch
-  } catch(err) {
-    drop.innerHTML = `<div class="cat-chip-saving" style="color:var(--red)">❌ ${err.message}</div>`;
-    setTimeout(() => drop.classList.remove('open'), 2000);
-  }
-}
-window.catChipSelect = catChipSelect;
-
-// ── Render unificado Egresos + Pendientes Acreedores ──────────
+// ── Render ────────────────────────────────────────
 function rgRender() { rgRenderEgr(); rgRenderIng(); }
 
 function rgRenderEgr() {
-  const q = (document.getElementById('rgSearchEgr') || {value:''}).value.toLowerCase().trim();
+  const q    = (document.getElementById('rgSearchEgr') || {value:''}).value.toLowerCase().trim();
+  let items  = egrItems.filter(rgEsMiscelaneoEgr)
+    .filter(e => String(e.estado||'').toLowerCase() !== 'anulado');
+  if (rg_egr_filter !== 'all') items = items.filter(e => e.tipo_egreso === rg_egr_filter || e.categoria === rg_egr_filter);
+  if (q) items = items.filter(e => [e.proveedor,e.descripcion,e.num_fac_ref,e.tipo_egreso].join(' ').toLowerCase().includes(q));
+  items.sort((a,b) => String(b.fecha_egreso||'').localeCompare(String(a.fecha_egreso||'')));
 
-  // ── 1. Egresos ya registrados (misceláneos) ──────────────────
-  const registrados = egrItems
-    .filter(rgEsMiscelaneoEgr)
-    .filter(e => String(e.estado||'').toLowerCase() !== 'anulado')
-    .map(e => ({
-      _tipo:      'registrado',
-      fecha:      String(e.fecha_egreso||'').substring(0,10),
-      proveedor:  e.proveedor || '—',
-      num_fac:    e.num_fac_ref || '—',
-      categoria:  e.tipo_egreso || e.categoria || '',
-      subtotal:   parseFloat(e.subtotal) || 0,
-      itbms:      parseFloat(e.itbms)    || 0,
-      total:      parseFloat(e.total)    || 0,
-      drive_url:  e.drive_url || '',
-      descripcion:e.descripcion || '',
-      _id:        e.id_egreso || '',
-      _raw:       e,
-    }));
+  // Stats
+  const totMonto = items.reduce((s,e)=>s+Number(e.total||0),0);
+  const totItbms = items.reduce((s,e)=>s+Number(e.itbms||0),0);
+  document.getElementById('rgEStatTotal').textContent = items.length;
+  document.getElementById('rgEStatMonto').textContent = items.length ? '$'+totMonto.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  document.getElementById('rgEStatItbms').textContent = totItbms>0 ? '$'+totItbms.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
 
-  // ── 2. Pendientes de acreedores (borradores) ─────────────────
-  const pendientes = _acrData
-    .filter(i => i.estado === 'borrador')
-    .map(i => ({
-      _tipo:      'pendiente',
-      fecha:      String(i.fecha_fac||'').substring(0,10),
-      proveedor:  i.acreedor_nom || '—',
-      num_fac:    i.num_fac || '—',
-      categoria:  i.categoria || '',
-      subtotal:   parseFloat(i.subtotal) || 0,
-      itbms:      parseFloat(i.itbms)    || 0,
-      total:      parseFloat(i.total)    || 0,
-      drive_url:  i.drive_url || '',
-      descripcion:i.descripcion || '',
-      _id:        i.id || '',
-      _raw:       i,
-    }));
-
-  // ── 3. Unificar y aplicar filtros ────────────────────────────
-  let items = [...pendientes, ...registrados];
-
-  // Filtro estado
-  if (rg_egr_estado === 'pendiente')  items = items.filter(i => i._tipo === 'pendiente');
-  if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
-
-  // Filtro categoría
-  if (rg_egr_filter !== 'all') items = items.filter(i => i.categoria === rg_egr_filter);
-
-  // Búsqueda
-  if (q) items = items.filter(i =>
-    [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
-  );
-
-  // Orden: pendientes siempre primero, luego fecha desc
-  items.sort((a, b) => {
-    if (a._tipo === 'pendiente' && b._tipo !== 'pendiente') return -1;
-    if (b._tipo === 'pendiente' && a._tipo !== 'pendiente') return  1;
-    return String(b.fecha).localeCompare(String(a.fecha));
-  });
-
-  // ── 4. Stats ─────────────────────────────────────────────────
-  const nPend  = pendientes.length;
-  const nReg   = registrados.length;
-  const totM   = items.reduce((s,i) => s + i.total,  0);
-  const totItb = items.reduce((s,i) => s + i.itbms,  0);
-  const el = id => document.getElementById(id);
-  if (el('rgEStatPend'))  el('rgEStatPend').textContent  = nPend  || '—';
-  if (el('rgEStatTotal')) el('rgEStatTotal').textContent = nReg   || '—';
-  if (el('rgEStatMonto')) el('rgEStatMonto').textContent = totM   > 0 ? '$'+totM.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
-  if (el('rgEStatItbms')) el('rgEStatItbms').textContent = totItb > 0 ? '$'+totItb.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
-
-  // ── 5. Render tabla ──────────────────────────────────────────
   const tbody = document.getElementById('rgEgrBody');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="table-empty"><span style="font-size:2rem">📭</span><span>Sin egresos en esta vista</span></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9"><div class="table-empty"><span style="font-size:2rem">📭</span><span>Sin egresos misceláneos registrados</span></div></td></tr>';
     return;
   }
-
-  const fmt = n => n > 0 ? '$'+parseFloat(n).toFixed(2) : '—';
-
-  tbody.innerHTML = items.map(i => {
-    const esPendiente = i._tipo === 'pendiente';
-    const rowBg       = esPendiente ? 'background:#FFFDE7' : '';
-
-    // Badge origen
-    const origenBadge = esPendiente
-      ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
-      : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
-
-    // Badge estado
-    const estadoBadge = esPendiente
-      ? '<span style="display:inline-flex;align-items:center;gap:.25rem;background:#FFF9C4;color:#F57F17;padding:.2rem .55rem;border-radius:12px;font-size:.69rem;font-weight:700">⏳ PENDIENTE</span>'
-      : '<span style="display:inline-flex;align-items:center;gap:.25rem;background:#E8F5E9;color:#2E7D32;padding:.2rem .55rem;border-radius:12px;font-size:.69rem;font-weight:700">✅ APROBADO</span>';
-
-    // Columna acciones
-    let acciones = '';
-    if (esPendiente) {
-      acciones = `
-        <div style="display:flex;gap:.35rem;align-items:center">
-          <button onclick='acrAbrirDetalle(${JSON.stringify(i._raw)})'
-            style="padding:.28rem .6rem;background:#6A1B9A;color:#fff;border:none;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer"
-            title="Ver detalles y editar">👁 Ver</button>
-          <button onclick='acrAprobarRapido(${JSON.stringify(i._raw)})'
-            style="padding:.28rem .6rem;background:#2E7D32;color:#fff;border:none;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer"
-            title="Aprobar con categoría sugerida">✅</button>
-          <button onclick='acrEliminarDirecto("${esc(i._id)}")'
-            style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer"
-            title="Eliminar permanentemente">🗑</button>
-        </div>`;
-    } else {
-      const docLink = i.drive_url
-        ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
-        : '';
-      acciones = `<div style="display:flex;gap:.5rem;align-items:center">${docLink}</div>`;
-    }
-
-    return `<tr style="${rowBg}">
-      <td style="font-family:'DM Mono',monospace;font-size:.76rem;color:var(--muted);white-space:nowrap">${i.fecha||'—'}</td>
-      <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
-      <td>${origenBadge}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(i.num_fac)}</td>
-      <td>${buildCatChip(i)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
-      <td>${estadoBadge}</td>
-      <td>${acciones}</td>
+  tbody.innerHTML = items.map(e => {
+    const catLabel = RG_EGR_CAT_LABELS[e.tipo_egreso] || RG_EGR_CAT_LABELS[e.categoria] || e.tipo_egreso || '—';
+    const docLink  = e.drive_url ? `<a href="${esc(e.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
+    return `<tr>
+      <td style="font-size:.78rem;color:var(--muted)">${e.fecha_egreso||'—'}</td>
+      <td><span style="font-size:.72rem">${esc(catLabel)}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.descripcion||'')}">${esc((e.descripcion||'—').substring(0,50))}</td>
+      <td style="font-size:.78rem">${esc(e.proveedor||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${esc(e.num_fac_ref||'—')}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted)">${e.subtotal>0?'$'+Number(e.subtotal).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:#1565C0">${e.itbms>0?'$'+Number(e.itbms).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#C62828">$${Number(e.total||0).toFixed(2)}</td>
+      <td>${docLink}</td>
     </tr>`;
   }).join('');
 }
@@ -7626,38 +7350,22 @@ function selectPlTipo(btn) {
   renderDashboard();
 }
 
-// ── Helpers de clasificación por dimensión ─────────────────────
-// Cada ingreso/egreso pertenece a exactamente una de las 3 dimensiones.
-// Las mismas reglas que usa rgEsMiscelaneoEgr/Ing, en sentido positivo.
-
-function _plClasifIngreso(i) {
-  const notas = (i.notas_internas || i.notas || '').toUpperCase();
-  const tipo  = (i.tipo_ingreso || '').toLowerCase();
-  if (notas.includes('ST:') || tipo.includes('tecnico') || tipo.includes('técnico'))
-    return 'proyectos';
-  if (notas.includes('CV:') || String(i.id_orden_web || '').trim())
-    return 'comercializacion';
-  return 'general';
-}
-
-function _plClasifEgreso(e) {
-  const notas  = (e.notas || '').toUpperCase();
-  const idCV   = String(e.id_item_cv  || '').trim();
-  const idST   = String(e.id_st_item  || '').trim();
-  if (idST || notas.includes('ST:'))
-    return 'proyectos';
-  if (idCV || notas.includes('CV:'))
-    return 'comercializacion';
-  return 'general';
-}
-
 function plFiltrarIngresos() {
   return plIngresos.filter(i => {
     if (String(i.estado || '').toLowerCase() === 'anulado') return false;
     if (parseInt(i.anio_fiscal) !== plYear) return false;
     if (plMonth !== 'ytd' && parseInt(i.mes) !== plMonth) return false;
     if (plTipo !== 'todos') {
-      if (_plClasifIngreso(i) !== plTipo) return false;
+      const t = (i.tipo_ingreso || '').toLowerCase();
+      const c = (i.categoria_ingreso || '').toLowerCase();
+      const n = (i.notas_internas || i.notas || '').toLowerCase();
+      // FIX #2: 'servicio_tecnico' captura ingresos tipo servicio_tecnico Y
+      // cualquier venta_producto que haya sido generada por un ST (nota contiene 'st:')
+      if (plTipo === 'venta_producto'    && !t.includes('venta')   && !c.includes('venta'))   return false;
+      if (plTipo === 'servicio_tecnico'  && !t.includes('tecnico') && !t.includes('técnico') && !n.includes('st:')) return false;
+      if (plTipo === 'servicio_asesoria' && !t.includes('asesoria')&& !t.includes('asesor'))  return false;
+      if (plTipo === 'comision'          && !t.includes('comision'))                          return false;
+      if (plTipo === 'otro'              && t !== 'otro')                                     return false;
     }
     return true;
   });
@@ -7666,12 +7374,14 @@ function plFiltrarIngresos() {
 function plFiltrarEgresos() {
   return plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    // Usar mes/anio explícitos (igual que web app) — más confiable que re-parsear fecha string
     const eMes  = parseInt(e.mes)  || _mesDesfecha(e.fecha_egreso);
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== plYear) return false;
     if (plMonth !== 'ytd' && eMes !== plMonth) return false;
-    if (plTipo !== 'todos') {
-      if (_plClasifEgreso(e) !== plTipo) return false;
+    // NO excluir 'Inventario' — son costos reales aunque el ítem esté en stock
+    if (plTipo !== 'todos' && plTipo !== 'venta_producto') {
+      if ((e.tipo_egreso || '') === 'costo_mercancia') return false;
     }
     // credito_fiscal siempre incluido — necesario para cálculo ITBMS neto DGI
     return true;
@@ -7684,54 +7394,30 @@ function renderDashboard() {
 
   const totalIng    = ingresos.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
   const itbmsIng    = ingresos.reduce((s,i) => s + (parseFloat(i.itbms)||0), 0);
+  // COGS desde ST_Items (misma fuente que la tabla de Servicios Técnicos).
+  // Suma total_real si existe, total_cotizado si no, excluyendo cancelados.
+  // Filtra por mes/año igual que los ingresos para consistencia de período.
+  const cogsItems = plStItems.filter(si => {
+    const siAnio = parseInt(si.anio) || 0;
+    const siMes  = parseInt(si.mes)  || 0;
+    if (siAnio !== plYear) return false;
+    if (plMonth !== 'ytd' && siMes !== plMonth) return false;
+    if ((si.item.tipo || '') === 'credito_fiscal') return false; // no es costo, es crédito
+    return true;
+  });
+  const cogs = cogsItems.reduce((s, si) => {
+    const tr = parseFloat(si.item.total_real)     || 0;
+    const tc = parseFloat(si.item.total_cotizado) || 0;
+    return s + (tr > 0 ? tr : tc);
+  }, 0);
 
-  // ── COGS según dimensión ─────────────────────────────────────
-  // Proyectos  → ST_Items (fuente de verdad de costos de proyectos)
-  // Comercializ→ egresos CV-OP costo_mercancia
-  // General    → todos los egresos misceláneos (plFiltrarEgresos)
-  // Todo       → suma de los tres
+  // COGS adicional desde egresos de Operaciones (CV-OP-...) — no pasan por ST_Items
+  const cogsOp = egresos.filter(e => {
+    const idCV = String(e.id_item_cv || '');
+    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+  }).reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
 
-  let cogsTotal = 0;
-
-  if (plTipo === 'todos' || plTipo === 'proyectos') {
-    const cogsItems = plStItems.filter(si => {
-      const siAnio = parseInt(si.anio) || 0;
-      const siMes  = parseInt(si.mes)  || 0;
-      if (siAnio !== plYear) return false;
-      if (plMonth !== 'ytd' && siMes !== plMonth) return false;
-      if ((si.item.tipo || '') === 'credito_fiscal') return false;
-      return true;
-    });
-    cogsTotal += cogsItems.reduce((s, si) => {
-      const tr = parseFloat(si.item.total_real)     || 0;
-      const tc = parseFloat(si.item.total_cotizado) || 0;
-      return s + (tr > 0 ? tr : tc);
-    }, 0);
-  }
-
-  if (plTipo === 'todos' || plTipo === 'comercializacion') {
-    const cogsOp = egresos.filter(e => {
-      const idCV = String(e.id_item_cv || '');
-      return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
-    }).reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
-    cogsTotal += cogsOp;
-  }
-
-  if (plTipo === 'general' || plTipo === 'todos') {
-    // Egresos misceláneos (Registro General) — siempre suman al resultado consolidado
-    // En modo 'general' son el único costo; en 'todos' se suman a COGS de Proy + COM
-    const egresosGral = plEgresos.filter(e => {
-      if (String(e.estado || '').toLowerCase() === 'anulado') return false;
-      const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
-      if (!eAnio || eAnio !== plYear) return false;
-      if (plMonth !== 'ytd') {
-        const eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
-        if (eMes !== plMonth) return false;
-      }
-      return _plClasifEgreso(e) === 'general';
-    });
-    cogsTotal += egresosGral.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
-  }
+  const cogsTotal = cogs + cogsOp;
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
   // Ingresos NETO = subtotal sin ITBMS (base imponible real)
@@ -7742,11 +7428,6 @@ function renderDashboard() {
   const itbmsNeto    = itbmsIng - itbmsEgr;   // lo que hay que pagar a DGI
   const txCount      = ingresos.length;
   const ticket       = txCount > 0 ? totalIngNeto / txCount : 0;
-
-  const _cogsLabel = plTipo === 'general' ? 'Gastos generales'
-                   : plTipo === 'todos'   ? 'Costos totales'
-                   : 'Costo mercancía';
-  const _utilLabel = plTipo === 'general' ? 'Resultado neto' : 'Utilidad neta';
 
   // KPIs — 4 widgets: Ingresos Neto | Costo Mercancía | Utilidad Neta | ITBMS DGI
   document.getElementById('plKpiRow').innerHTML = `
@@ -7759,12 +7440,12 @@ function renderDashboard() {
       </div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:#E65100">
-      <div class="pl-kpi-label">${_cogsLabel}</div>
+      <div class="pl-kpi-label">Costo mercancía</div>
       <div class="pl-kpi-value" style="color:#E65100">${plFmtFull(cogsTotal)}</div>
-      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : plTipo === 'general' ? 'egresos del período' : '—'}</div>
+      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
-      <div class="pl-kpi-label">${_utilLabel}</div>
+      <div class="pl-kpi-label">Utilidad neta</div>
       <div class="pl-kpi-value ${utilNeta >= 0 ? 'green' : 'red'}">${plFmt(utilNeta)}</div>
       <div class="pl-kpi-sub">
         <span class="pl-kpi-tag ${margenNeto >= 0 ? 'pos' : 'neg'}">${margenNeto >= 0 ? '+' : ''}${margenNeto.toFixed(1)}%</span>
@@ -7787,7 +7468,7 @@ function renderDashboard() {
   plRenderBarChart(plYear);
 
   // Desglose costos por tipo
-  plRenderCostRow(cogsTotal);
+  plRenderCostRow(cogs);
 
   // Tablas detalle (ingresos / costos)
   plRenderTables();
@@ -7888,8 +7569,6 @@ function plRenderTblIngresos(q) {
     .filter(p => {
       if (parseInt(p.A.anio_fiscal) !== plYear) return false;
       if (plMonth !== 'ytd' && parseInt(p.A.mes) !== plMonth) return false;
-      // Respetar dimensión — la NC pertenece a la misma dimensión que su ingreso original
-      if (plTipo !== 'todos' && _plClasifIngreso(p.A) !== plTipo) return false;
       return true;
     });
 
@@ -7897,7 +7576,6 @@ function plRenderTblIngresos(q) {
     if (String(i.estado || '').toLowerCase() === 'anulado') return false;
     if (parseInt(i.anio_fiscal) !== plYear) return false;
     if (plMonth !== 'ytd' && parseInt(i.mes) !== plMonth) return false;
-    if (plTipo !== 'todos' && _plClasifIngreso(i) !== plTipo) return false;
     return true;
   });
   if (q) items = items.filter(i =>
@@ -8014,12 +7692,11 @@ function plRenderTblIngresos(q) {
       ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄</a>`
       : '—';
     const h = (i) => activeIdx === i ? cellBg : '';
-    const _dim = _plClasifIngreso(item);
-    const _modBadge = _dim === 'comercializacion'
+    const _notas = String(item.notas_internas || item.notas || '');
+    const _esRetail = _notas.includes('CV:');
+    const _modBadge = _esRetail
       ? '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E3F2FD;color:#1565C0;vertical-align:middle;margin-left:4px">COM</span>'
-      : _dim === 'proyectos'
-      ? '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8EAF6;color:#283593;vertical-align:middle;margin-left:4px">PROY</span>'
-      : '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8F5E9;color:#2E7D32;vertical-align:middle;margin-left:4px">GEN</span>';
+      : '<span style="font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8EAF6;color:#283593;vertical-align:middle;margin-left:4px">PROY</span>';
     return `<tr>
       <td style="white-space:nowrap;color:var(--muted);font-size:.8rem;${h(0)}">${esc(String(item.fecha_ingreso||'').substring(0,10))}</td>
       <td style="${h(1)}"><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(item.num_factura||'—')}</span>${_modBadge}</td>
@@ -8045,39 +7722,6 @@ function plRenderTblEgresos(q) {
   const tbody = document.getElementById('plTblEgrBody');
   if (!tbody) return;
 
-  // ── Modo GENERAL: mostrar egresos misceláneos directamente ──
-  if (plTipo === 'general') {
-    const egrs = plFiltrarEgresos(); // ya filtrados por año/mes/dimensión
-    let egrsQ = egrs;
-    if (q) egrsQ = egrs.filter(e =>
-      (e.proveedor   || '').toLowerCase().includes(q) ||
-      (e.descripcion || '').toLowerCase().includes(q) ||
-      (e.tipo_egreso || '').toLowerCase().includes(q)
-    );
-    if (!egrsQ.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">Sin egresos generales en este período</td></tr>';
-      return;
-    }
-    const totGen = egrsQ.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
-    tbody.innerHTML = egrsQ.map(e => {
-      const cat   = catChipLabel(e.tipo_egreso || e.categoria || '');
-      const monto = parseFloat(e.total || 0);
-      return `<tr>
-        <td><span style="font-size:.72rem">${cat}</span></td>
-        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.descripcion || '—')}</td>
-        <td style="font-size:.78rem">${esc(e.proveedor || '—')}</td>
-        <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(e.num_fac_ref || e.id_egreso || '—')}</td>
-        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#C62828">$${monto.toFixed(2)}</td>
-      </tr>`;
-    }).join('') +
-    `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
-      <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--muted)">${egrsQ.length} registros</td>
-      <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totGen.toFixed(2)}</td>
-    </tr>`;
-    return;
-  }
-
-  // ── Modos PROYECTOS / COMERCIALIZACIÓN / TODOS: ST_Items + CV-OP ──
   // ── Ítems de ST (flujo Servicios Técnicos) ──
   let items = plStItems.filter(si => {
     const siAnio = parseInt(si.anio) || 0;
@@ -8085,7 +7729,6 @@ function plRenderTblEgresos(q) {
     if (siAnio !== plYear) return false;
     if (plMonth !== 'ytd' && siMes !== plMonth) return false;
     if ((si.item.tipo || '') === 'credito_fiscal') return false;
-    if (plTipo === 'comercializacion') return false; // ST no pertenece a COM
     return true;
   });
 
@@ -8203,36 +7846,26 @@ function plRenderCostRow(totalCogsRef) {
   const el = document.getElementById('plCostRow');
   if (!el) return;
 
-  // En modo General no hay ST_Items — ocultar el desglose por tipo de costo
-  if (plTipo === 'general') {
-    el.innerHTML = '';
-    return;
-  }
-
-  // Sumar ST_Items del período activo agrupados por tipo, respetando plTipo
+  // Sumar ST_Items del período activo agrupados por tipo
   const byTipo = {};
   plStItems.forEach(si => {
     const siAnio = parseInt(si.anio) || 0;
     const siMes  = parseInt(si.mes)  || 0;
     if (siAnio !== plYear) return;
     if (plMonth !== 'ytd' && siMes !== plMonth) return;
-    if ((si.item.tipo || '') === 'credito_fiscal') return;
-    // En modo Comercialización no mostrar ST_Items (son de Proyectos)
-    if (plTipo === 'comercializacion') return;
+    if ((si.item.tipo || '') === 'credito_fiscal') return; // no es costo real
     const tipo = si.item.tipo || 'otro';
     const tr   = parseFloat(si.item.total_real)     || 0;
     const tc   = parseFloat(si.item.total_cotizado) || 0;
     byTipo[tipo] = (byTipo[tipo] || 0) + (tr > 0 ? tr : tc);
   });
-  // Añadir egresos de Operaciones al desglose (tipo 'producto') — solo en todos/comercializacion
-  if (plTipo === 'todos' || plTipo === 'comercializacion') {
-    plFiltrarEgresos().filter(e => {
-      const idCV = String(e.id_item_cv || '');
-      return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
-    }).forEach(e => {
-      byTipo['producto'] = (byTipo['producto'] || 0) + (parseFloat(e.total) || 0);
-    });
-  }
+  // Añadir egresos de Operaciones al desglose (tipo 'producto')
+  plFiltrarEgresos().filter(e => {
+    const idCV = String(e.id_item_cv || '');
+    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+  }).forEach(e => {
+    byTipo['producto'] = (byTipo['producto'] || 0) + (parseFloat(e.total) || 0);
+  });
 
   const TIPO_CFG = {
     producto:          { label: 'Producto',           icon: '📦', color: '#1565C0' },
@@ -8293,11 +7926,12 @@ function plRenderBarChart(year) {
 
   const egrYear = plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    // Usar mes/anio explícitos — igual que plFiltrarEgresos
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== year) return false;
-    // Respetar dimensión si es el año activo
-    if (year === plYear && plTipo !== 'todos') {
-      if (_plClasifEgreso(e) !== plTipo) return false;
+    // NO excluir 'Inventario'
+    if (plTipo !== 'todos' && plTipo !== 'venta_producto') {
+      if ((e.tipo_egreso || '') === 'costo_mercancia') return false;
     }
     return true;
   });
@@ -8313,55 +7947,24 @@ function plRenderBarChart(year) {
     if (m >= 0 && m < 12) egrByMes[m] += parseFloat(e.total) || 0;
   });
 
-  // COGS en gráfica: según dimensión activa
-  // general → egresos misceláneos por mes
-  // proyectos/todos → ST_Items por mes
-  // comercializacion → egresos CV-OP por mes (generalmente vacío en CEYCO)
+  // COGS en gráfica: misma fuente que renderDashboard — ST_Items agrupados por mes
+  // excluir credito_fiscal igual que el widget de COGS
+  // Si hay un mes seleccionado, solo mostrar COGS de ese mes (consistente con ingresos)
   const cogsData = new Array(12).fill(0);
-  if (plTipo === 'general') {
-    // Egresos misceláneos agrupados por mes
-    egrYear.forEach(e => {
-      const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
-      if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
-    });
-  } else {
-    // ST_Items agrupados por mes (proyectos / todos)
-    plStItems.filter(si => {
-      if ((parseInt(si.anio) || 0) !== year) return false;
-      if ((si.item.tipo || '') === 'credito_fiscal') return false;
-      if (year === plYear && plMonth !== 'ytd' && (parseInt(si.mes) || 0) !== plMonth) return false;
-      if (plTipo === 'comercializacion') return false; // ST es Proyectos
-      return true;
-    }).forEach(si => {
-      const m = (parseInt(si.mes) || 0) - 1;
-      if (m >= 0 && m < 12) {
-        const tr = parseFloat(si.item.total_real)     || 0;
-        const tc = parseFloat(si.item.total_cotizado) || 0;
-        cogsData[m] += tr > 0 ? tr : tc;
-      }
-    });
-    // CV-OP para comercializacion/todos
-    if (plTipo === 'todos' || plTipo === 'comercializacion') {
-      egrYear.filter(e => {
-        const idCV = String(e.id_item_cv || '');
-        return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
-      }).forEach(e => {
-        const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
-        if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
-      });
+  plStItems.filter(si => {
+    if ((parseInt(si.anio) || 0) !== year) return false;
+    if ((si.item.tipo || '') === 'credito_fiscal') return false;
+    // Respetar filtro de mes (igual que ingYear usa plFiltrarIngresos que filtra por plMonth)
+    if (year === plYear && plMonth !== 'ytd' && (parseInt(si.mes) || 0) !== plMonth) return false;
+    return true;
+  }).forEach(si => {
+    const m = (parseInt(si.mes) || 0) - 1;
+    if (m >= 0 && m < 12) {
+      const tr = parseFloat(si.item.total_real)     || 0;
+      const tc = parseFloat(si.item.total_cotizado) || 0;
+      cogsData[m] += tr > 0 ? tr : tc;
     }
-    // Gastos generales (misceláneos) en todos — se suman al COGS consolidado
-    if (plTipo === 'todos') {
-      plEgresos.filter(e => {
-        if (String(e.estado || '').toLowerCase() === 'anulado') return false;
-        if ((parseInt(e.anio) || _anioDesfecha(e.fecha_egreso)) !== year) return false;
-        return _plClasifEgreso(e) === 'general';
-      }).forEach(e => {
-        const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
-        if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
-      });
-    }
-  }
+  });
 
   for (let m = 0; m < 12; m++) utilData[m] = ingData[m] - cogsData[m];
 
@@ -9109,86 +8712,89 @@ function _acrBuildCatOptions(selectId, selected) {
   ).join('');
 }
 
-// Mapa de categorías acreedor para el render unificado
-const CATEG_ACR_LABELS = {
-  alquiler_local:              '🏠 Alquiler local / oficina',
-  servicios_publicos:          '💡 Servicios públicos (agua, luz)',
-  internet_telecomunicaciones: '📶 Internet y telecomunicaciones',
-  seguros:                     '🛡️ Seguros',
-  mantenimiento_reparacion:    '🔧 Mantenimiento y reparaciones',
-  servicios_profesionales:     '💼 Servicios profesionales',
-  publicidad_marketing:        '📣 Publicidad y marketing',
-  transporte_combustible:      '⛽ Transporte y combustible',
-  suministros_oficina:         '🖇️ Suministros de oficina',
-  planilla_empleados:          '👤 Planilla y cargas sociales',
-  financiero_bancario:         '🏦 Gastos financieros y bancarios',
-  capacitacion:                '📚 Capacitación y formación',
-  tecnologia_software:         '💻 Tecnología y software',
-  otros_gastos_generales:      '📋 Otros gastos generales',
-};
-
 // ── Inicialización del tab ───────────────────────────────────
 async function acrInit() {
   _acrBuildCatOptions('acrDetCat', '');
   await acrCargarPendientes();
 }
 
-// Carga silenciosa para uso desde rgInit (no muestra spinner en tabla)
-async function acrCargarPendientesSilencioso() {
-  try {
-    const data = await gasJsonp('getPendientesAcreedor', {});
-    if (!data.success) return;
-    _acrData = data.items || [];
-    _acrDataLoaded = true;
-    rgRenderEgr();
-  } catch(err) {
-    console.warn('acrCargarPendientesSilencioso:', err.message);
-  }
-}
-
 async function acrCargarPendientes() {
   try {
-    document.getElementById('rgEgrBody').innerHTML =
-      '<tr><td colspan="10"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>';
+    document.getElementById('acrBody').innerHTML =
+      '<tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>';
     const data = await gasJsonp('getPendientesAcreedor', {});
     if (!data.success) throw new Error(data.error || 'Error cargando acreedores');
     _acrData = data.items || [];
-    _acrDataLoaded = true;
-    rgRenderEgr();
+    acrRenderStats();
+    acrRender();
   } catch(err) {
-    console.warn('acrCargarPendientes:', err.message);
+    document.getElementById('acrBody').innerHTML =
+      `<tr><td colspan="9" style="text-align:center;color:var(--danger);padding:1.5rem">${err.message}</td></tr>`;
   }
 }
 
-// Aprobar directo sin abrir modal (usa la categoría ya sugerida por IA)
-async function acrAprobarRapido(item) {
-  const categoria = item.categoria || CATEG_ACREEDOR[0].valor;
-  if (!confirm(`¿Aprobar y registrar egreso de ${item.acreedor_nom} por $${parseFloat(item.total||0).toFixed(2)}?\nCategoría: ${CATEG_ACREEDOR.find(c=>c.valor===categoria)?.label || categoria}`)) return;
-  try {
-    const data = await gasJsonp('aprobarAcreedor', { id: item.id, categoria });
-    if (!data.success) throw new Error(data.error || 'Error al aprobar');
-    showToast('✅ Egreso registrado: ' + data.egresoId);
-    _acrData = _acrData.filter(i => i.id !== item.id);
-    egrItems = []; // forzar recarga de egresos para que aparezca el nuevo
-    loadEgresos().then(() => rgRenderEgr());
-  } catch(err) { showToast('Error: ' + err.message, true); }
+function acrRenderStats() {
+  const pendientes = _acrData.filter(i => i.estado === 'borrador');
+  const aprobados  = _acrData.filter(i => i.estado === 'aprobado');
+  const totalApr   = aprobados.reduce((s, i) => s + (i.total || 0), 0);
+  const s = n => n !== undefined ? String(n) : '—';
+  const el = id => document.getElementById(id);
+  if (el('acrStatPend'))  el('acrStatPend').textContent  = pendientes.length;
+  if (el('acrStatApro'))  el('acrStatApro').textContent  = aprobados.length;
+  if (el('acrStatMonto')) el('acrStatMonto').textContent = '$' + totalApr.toFixed(2);
 }
-window.acrAprobarRapido = acrAprobarRapido;
 
-// Eliminar directo desde la tabla sin abrir modal
-async function acrEliminarDirecto(id) {
-  if (!confirm('¿Eliminar permanentemente este registro? Esta acción no se puede deshacer.')) return;
-  try {
-    const data = await gasJsonp('eliminarPendienteAcr', { id });
-    if (!data.success) throw new Error(data.error);
-    showToast('Registro eliminado');
-    _acrData = _acrData.filter(i => i.id !== id);
-    rgRenderEgr();
-  } catch(err) { showToast('Error: ' + err.message, true); }
+function acrApplyFilter(btn, filter) {
+  document.querySelectorAll('[data-acr-filter]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _acrFilter = filter;
+  acrRender();
 }
-window.acrEliminarDirecto = acrEliminarDirecto;
 
-// acrRenderStats, acrApplyFilter y acrRender fusionados en rgRenderEgr()
+function acrRender() {
+  const q     = (document.getElementById('acrSearch')?.value || '').toLowerCase();
+  const body  = document.getElementById('acrBody');
+  if (!body) return;
+
+  let items = _acrData.filter(i => {
+    if (_acrFilter === 'borrador'  && i.estado !== 'borrador')  return false;
+    if (_acrFilter === 'aprobado'  && i.estado !== 'aprobado')  return false;
+    if (q && !(
+      (i.acreedor_nom || '').toLowerCase().includes(q) ||
+      (i.num_fac      || '').toLowerCase().includes(q) ||
+      (i.descripcion  || '').toLowerCase().includes(q)
+    )) return false;
+    return true;
+  });
+
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--muted)">Sin registros</td></tr>';
+    return;
+  }
+
+  const catLabel = v => (CATEG_ACREEDOR.find(c => c.valor === v) || {}).label || v || '—';
+  const fmt = n => '$' + (parseFloat(n)||0).toFixed(2);
+
+  body.innerHTML = items.map(i => {
+    const estadoBadge = i.estado === 'borrador'
+      ? '<span style="background:#FFF9C4;color:#F57F17;padding:.2rem .55rem;border-radius:12px;font-size:.72rem;font-weight:700">⏳ PENDIENTE</span>'
+      : '<span style="background:#E8F5E9;color:#2E7D32;padding:.2rem .55rem;border-radius:12px;font-size:.72rem;font-weight:700">✅ APROBADO</span>';
+    const acciones = i.estado === 'borrador'
+      ? `<button onclick='acrAbrirDetalle(${JSON.stringify(i)})' style="padding:.3rem .7rem;background:#6A1B9A;color:#fff;border:none;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer">Ver / Aprobar</button>`
+      : (i.drive_url ? `<a href="${i.drive_url}" target="_blank" style="font-size:.76rem;color:var(--orange)">📄 Factura</a>` : '—');
+    return `<tr>
+      <td style="font-weight:600">${i.acreedor_nom || '—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.8rem">${i.fecha_fac || '—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.8rem">${i.num_fac || '—'}</td>
+      <td style="font-size:.78rem">${catLabel(i.categoria)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace">${fmt(i.subtotal)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace">${fmt(i.itbms)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmt(i.total)}</td>
+      <td>${estadoBadge}</td>
+      <td>${acciones}</td>
+    </tr>`;
+  }).join('');
+}
 
 // ── Modal Detalle / Aprobar ──────────────────────────────────
 function acrAbrirDetalle(item) {
@@ -9274,13 +8880,7 @@ async function acrAprobar() {
     msg.style.color = 'var(--green)';
     msg.textContent = '✅ Egreso registrado: ' + data.egresoId;
     showToast('✅ Egreso registrado: ' + data.egresoId);
-    setTimeout(() => {
-      acrCerrarModal();
-      // Quitar de _acrData y recargar egresos para que aparezca el nuevo registro
-      _acrData = _acrData.filter(i => i.id !== _acrSelected?.id);
-      egrItems = [];
-      loadEgresos().then(() => rgRenderEgr());
-    }, 1200);
+    setTimeout(() => { acrCerrarModal(); acrCargarPendientes(); }, 1200);
   } catch(err) {
     msg.style.color = 'var(--danger)';
     msg.textContent = '❌ ' + err.message;
@@ -9294,9 +8894,8 @@ async function acrRechazar() {
     const data = await gasJsonp('rechazarAcreedor', { id: _acrSelected.id });
     if (!data.success) throw new Error(data.error);
     showToast('Factura rechazada');
-    _acrData = _acrData.filter(i => i.id !== _acrSelected?.id);
     acrCerrarModal();
-    rgRenderEgr();
+    acrCargarPendientes();
   } catch(err) { showToast('Error: ' + err.message, true); }
 }
 
@@ -9307,9 +8906,8 @@ async function acrEliminar() {
     const data = await gasJsonp('eliminarPendienteAcr', { id: _acrSelected.id });
     if (!data.success) throw new Error(data.error);
     showToast('Registro eliminado');
-    _acrData = _acrData.filter(i => i.id !== _acrSelected?.id);
     acrCerrarModal();
-    rgRenderEgr();
+    acrCargarPendientes();
   } catch(err) { showToast('Error: ' + err.message, true); }
 }
 
@@ -9320,7 +8918,7 @@ async function acrSincronizar() {
     const data = await gasJsonp('sincronizarAcreedores', {});
     if (!data.success) throw new Error(data.error || 'Error');
     showToast(`✅ Sincronizado — ${data.nuevos} nuevos, ${data.ignorados} ignorados`);
-    if (data.nuevos > 0) await acrCargarPendientesSilencioso();
+    if (data.nuevos > 0) await acrCargarPendientes();
   } catch(err) {
     showToast('Error: ' + err.message, true);
   } finally {
