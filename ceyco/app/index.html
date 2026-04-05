@@ -610,6 +610,64 @@ select.f-inp { appearance:none; }
 /* 4 tabs — reducir padding */
 .bottom-nav .nav-item { padding:.45rem .15rem .38rem; font-size:.55rem; }
 .bottom-nav .nav-icon  { font-size:1.05rem; }
+
+/* ═══════════════════════════════════════════════ PENDIENTES EMAIL */
+.pend-section-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.72rem .85rem .38rem;
+}
+.pend-section-title {
+  display:flex; align-items:center; gap:.42rem;
+  font-size:.65rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.07em; color:#6A1B9A;
+}
+.pend-count {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:1.25rem; height:1.25rem; border-radius:20px;
+  background:#EDE7F6; color:#4527A0;
+  font-family:'DM Mono',monospace; font-size:.67rem; font-weight:700;
+  padding:0 .3rem;
+}
+.btn-sync-egr {
+  display:inline-flex; align-items:center; gap:.3rem;
+  font-size:.72rem; font-weight:600; color:#6A1B9A;
+  background:#EDE7F6; border:1px solid #CE93D8;
+  border-radius:20px; padding:.3rem .72rem;
+  transition:opacity .15s;
+}
+.btn-sync-egr:active { opacity:.7; }
+.btn-sync-egr.loading { opacity:.5; pointer-events:none; }
+
+/* Card de pendiente — hereda .card pero con acento púrpura */
+.card.s-email-pend { border-left-color:#9C27B0; }
+.card-dot.email-pend { background:#9C27B0; }
+
+/* Campos inline del detalle */
+.pf-grp { margin-bottom:.72rem; }
+.pf-grp:last-of-type { margin-bottom:0; }
+.pf-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+.pf-lbl { display:block; font-size:.67rem; font-weight:600;
+  text-transform:uppercase; letter-spacing:.06em;
+  color:var(--muted); margin-bottom:.25rem; }
+.pf-inp {
+  width:100%; padding:.62rem .78rem; border:1px solid var(--bg3);
+  border-radius:var(--r); font-size:.87rem;
+  background:var(--bg); color:var(--text);
+  outline:none; transition:border-color .15s;
+  -webkit-appearance:none; appearance:none;
+}
+.pf-inp:focus { border-color:#9C27B0; background:var(--surface); }
+select.pf-inp { appearance:none; -webkit-appearance:none; }
+.pf-link {
+  display:inline-flex; align-items:center; gap:.35rem;
+  font-size:.77rem; color:var(--indigo); font-weight:600;
+  margin-bottom:.62rem;
+}
+.pend-msg {
+  font-size:.77rem; margin-top:.55rem; padding:.38rem .62rem;
+  border-radius:var(--r); display:none;
+  background:var(--bg2); color:var(--muted);
+}
 </style>
 </head>
 <body>
@@ -767,6 +825,21 @@ select.f-inp { appearance:none; }
           <div class="reg-btn-chev">›</div>
         </button>
       </div>
+
+      <!-- PENDIENTES DE EMAIL ─────────────────── -->
+      <div id="pendEmailSection">
+        <div class="pend-section-hdr">
+          <div class="pend-section-title">
+            📧 Recibidos por email
+            <span class="pend-count" id="pendCount">…</span>
+          </div>
+          <button class="btn-sync-egr" id="btnSyncEgr" onclick="PEND.sync()">
+            ⟳ Sincronizar
+          </button>
+        </div>
+        <div class="card-list" id="pend-list" style="padding-top:0"></div>
+      </div>
+      <!-- ───────────────────────────────────── -->
 
       <!-- Botón Ingreso -->
       <div style="padding:.38rem .85rem .85rem">
@@ -1014,6 +1087,7 @@ function switchView(v) {
   document.getElementById({ proyectos:'nav-proy', comercial:'nav-com', pl:'nav-pl', registros:'nav-reg' }[v]).classList.add('active');
   document.getElementById('btnSync').style.display = v === 'comercial' ? 'flex' : 'none';
   if (v === 'pl' && !PL.loaded) PL.load();
+  if (v === 'registros' && !PEND.loaded) PEND.load();
 }
 
 // ── GAS COMM ──────────────────────────────────
@@ -2212,6 +2286,285 @@ document.addEventListener('DOMContentLoaded', () => {
 document.querySelectorAll('.overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
+
+// ════════════════════════════════════════════════════════
+//  MÓDULO PEND — Egresos pendientes de email
+// ════════════════════════════════════════════════════════
+const PEND = (() => {
+  let _items    = [];
+  let _expanded = null;
+  let _loaded   = false;
+
+  const CATS = [
+    { v:'alquiler_local',              l:'🏠 Alquiler local / oficina' },
+    { v:'servicios_publicos',          l:'💡 Servicios públicos (agua, luz)' },
+    { v:'internet_telecomunicaciones', l:'📶 Internet y telecomunicaciones' },
+    { v:'seguros',                     l:'🛡️ Seguros' },
+    { v:'mantenimiento_reparacion',    l:'🔧 Mantenimiento y reparaciones' },
+    { v:'servicios_profesionales',     l:'💼 Servicios profesionales' },
+    { v:'publicidad_marketing',        l:'📣 Publicidad y marketing' },
+    { v:'transporte_combustible',      l:'⛽ Transporte y combustible' },
+    { v:'suministros_oficina',         l:'🖇️ Suministros de oficina' },
+    { v:'planilla_empleados',          l:'👤 Planilla y cargas sociales' },
+    { v:'financiero_bancario',         l:'🏦 Gastos financieros y bancarios' },
+    { v:'capacitacion',               l:'📚 Capacitación y formación' },
+    { v:'tecnologia_software',         l:'💻 Tecnología y software' },
+    { v:'otros_gastos_generales',      l:'📋 Otros gastos generales' },
+    { v:'combustible_transporte',      l:'⛽ Combustible / Transporte' },
+    { v:'honorarios_profesionales',    l:'💼 Honorarios profesionales' },
+    { v:'alquileres',                  l:'🏢 Alquileres' },
+    { v:'otros_deducibles',            l:'📋 Otros deducibles' },
+  ];
+
+  function _catLabel(v) { return (CATS.find(c => c.v === v) || {}).l || v || '—'; }
+  function _catOpts(sel) {
+    return CATS.map(c => `<option value="${c.v}"${c.v===sel?' selected':''}>${c.l}</option>`).join('');
+  }
+
+  // ── Cargar desde GAS ─────────────────────────────────
+  async function load() {
+    _loaded = true;
+    _skel();
+    try {
+      const r = await jsonpGet('getPendientesAcreedor', {}, 30000);
+      if (!r.success) throw new Error(r.error || 'Error cargando');
+      _items = (r.items || []).filter(i => i.estado === 'borrador');
+      _render();
+    } catch(e) {
+      document.getElementById('pend-list').innerHTML =
+        `<div class="empty"><div class="empty-title">Error cargando</div><div class="empty-sub">${esc(e.message)}</div></div>`;
+      document.getElementById('pendCount').textContent = '!';
+    }
+  }
+
+  // ── Sync emails ──────────────────────────────────────
+  async function sync() {
+    const btn = document.getElementById('btnSyncEgr');
+    btn.classList.add('loading'); btn.textContent = '⏳ Sincronizando…';
+    toast('Sincronizando emails de egresos… puede tardar 1-2 min');
+    try {
+      const r = await jsonpGet('sincronizarEmails', {}, 180000);
+      if (r.success) {
+        toast(`Sincronizado ✓ — ${r.nuevos||0} nuevos`, 'ok');
+      } else {
+        toast(r.error || 'Sync completado', 'err');
+      }
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+    // Recargar pendientes en cualquier caso
+    _loaded = false;
+    await load();
+    btn.classList.remove('loading');
+    btn.innerHTML = '⟳ Sincronizar';
+  }
+
+  // ── Toggle expand/collapse ────────────────────────────
+  function toggle(id) {
+    if (_expanded === id) {
+      const card = document.getElementById('pcard-' + id);
+      if (card) card.classList.remove('open');
+      _expanded = null;
+    } else {
+      if (_expanded) {
+        const prev = document.getElementById('pcard-' + _expanded);
+        if (prev) prev.classList.remove('open');
+      }
+      _expanded = id;
+      const card = document.getElementById('pcard-' + id);
+      if (card) {
+        card.classList.add('open');
+        setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'nearest' }), 80);
+      }
+    }
+  }
+
+  // ── Guardar cambios sin aprobar ───────────────────────
+  async function guardar(id) {
+    _setMsg(id, '⏳ Guardando…', 'var(--muted)');
+    try {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action:      'actualizarPendienteAcr',
+          id,
+          categoria:   _val('pcat-'   + id),
+          descripcion: _val('pdesc-'  + id),
+          subtotal:    _val('psub-'   + id) || undefined,
+          itbms:       _val('pitbms-' + id) || undefined,
+          total:       _val('ptot-'   + id) || undefined,
+        }),
+      });
+      const idx = _items.findIndex(i => String(i.id) === String(id));
+      if (idx !== -1) {
+        _items[idx].categoria   = _val('pcat-'   + id);
+        _items[idx].descripcion = _val('pdesc-'  + id);
+        _items[idx].subtotal    = _val('psub-'   + id);
+        _items[idx].itbms       = _val('pitbms-' + id);
+        _items[idx].total       = _val('ptot-'   + id);
+      }
+      _setMsg(id, '✅ Cambios guardados', 'var(--green)');
+      toast('Guardado ✓', 'ok');
+      setTimeout(() => _hideMsg(id), 2000);
+    } catch(e) { _setMsg(id, '❌ ' + e.message, 'var(--red)'); }
+  }
+
+  // ── Aprobar → registrar egreso ────────────────────────
+  async function aprobar(id) {
+    const cat = _val('pcat-' + id);
+    if (!cat) { toast('Selecciona una categoría', 'err'); return; }
+    _setMsg(id, '⏳ Guardando cambios…', 'var(--muted)');
+    try {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action:      'actualizarPendienteAcr',
+          id,
+          categoria:   cat,
+          descripcion: _val('pdesc-'  + id),
+          subtotal:    _val('psub-'   + id) || undefined,
+          itbms:       _val('pitbms-' + id) || undefined,
+          total:       _val('ptot-'   + id) || undefined,
+        }),
+      });
+      _setMsg(id, '⏳ Registrando egreso…', 'var(--muted)');
+      const r = await jsonpGet('aprobarAcreedor', { id, categoria: cat }, 30000);
+      if (!r.success) throw new Error(r.error || 'Error al aprobar');
+      _setMsg(id, '✅ Egreso registrado: ' + r.egresoId, 'var(--green)');
+      toast('Egreso registrado ✓', 'ok');
+      setTimeout(() => {
+        _items = _items.filter(i => String(i.id) !== String(id));
+        if (_expanded === id) _expanded = null;
+        _render();
+      }, 1200);
+    } catch(e) { _setMsg(id, '❌ ' + e.message, 'var(--red)'); }
+  }
+
+  // ── Eliminar ──────────────────────────────────────────
+  async function eliminar(id) {
+    if (!confirm('¿Eliminar este registro permanentemente?')) return;
+    try {
+      const r = await jsonpGet('eliminarPendienteAcr', { id }, 15000);
+      if (!r.success) throw new Error(r.error || 'Error');
+      _items = _items.filter(i => String(i.id) !== String(id));
+      if (_expanded === id) _expanded = null;
+      _render();
+      toast('Eliminado ✓');
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+  }
+
+  // ── Render ────────────────────────────────────────────
+  function _render() {
+    const list = document.getElementById('pend-list');
+    document.getElementById('pendCount').textContent = _items.length || '0';
+
+    if (!_items.length) {
+      list.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">📭</div>
+          <div class="empty-title">Sin pendientes de email</div>
+          <div class="empty-sub">Toca Sincronizar para buscar nuevas facturas</div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = _items.map(item => {
+      const id      = String(item.id || '');
+      const nombre  = esc(item.acreedor_nom || '—');
+      const total   = parseFloat(item.total || 0);
+      const fecha   = String(item.fecha_fac || item.fecha_reg || '').substring(0, 10);
+      const catLbl  = _catLabel(item.categoria);
+      const conf    = (item.notas || '').match(/(\d+)%/);
+      const confTag = conf
+        ? `<span style="color:${parseInt(conf[1])>=80?'var(--green)':parseInt(conf[1])>=60?'var(--orange)':'var(--red)'};font-size:.66rem">IA ${conf[1]}%</span>`
+        : '';
+      const driveEl = item.drive_url
+        ? `<a href="${esc(item.drive_url)}" target="_blank" class="pf-link">📄 Ver factura en Drive</a>`
+        : '';
+
+      return `
+      <div class="card s-email-pend" id="pcard-${id}">
+        <div class="card-head" onclick="PEND.toggle('${id}')">
+          <div class="card-dot email-pend"></div>
+          <div class="card-body">
+            <div class="card-title">${nombre}</div>
+            <div class="card-meta">
+              <span>${fecha}</span>
+              <span class="card-sep">·</span>
+              <span>${catLbl}</span>
+              ${conf ? `<span class="card-sep">·</span>${confTag}` : ''}
+            </div>
+          </div>
+          <div class="card-right">
+            <div class="card-monto" style="color:var(--red)">$${total.toFixed(2)}</div>
+            <span class="card-chev">▾</span>
+          </div>
+        </div>
+        <div class="card-detail">
+          ${driveEl}
+          <div class="pf-grp">
+            <label class="pf-lbl">Categoría</label>
+            <select class="pf-inp" id="pcat-${id}">${_catOpts(item.categoria||'')}</select>
+          </div>
+          <div class="pf-grp">
+            <label class="pf-lbl">Descripción</label>
+            <input class="pf-inp" type="text" id="pdesc-${id}"
+                   value="${esc(item.descripcion||'')}" placeholder="Descripción del gasto">
+          </div>
+          <div class="pf-grp pf-grid">
+            <div>
+              <label class="pf-lbl">Subtotal</label>
+              <input class="pf-inp" type="number" id="psub-${id}"
+                     value="${item.subtotal||''}" placeholder="0.00" step="0.01" min="0">
+            </div>
+            <div>
+              <label class="pf-lbl">ITBMS</label>
+              <input class="pf-inp" type="number" id="pitbms-${id}"
+                     value="${item.itbms||''}" placeholder="0.00" step="0.01" min="0">
+            </div>
+          </div>
+          <div class="pf-grp">
+            <label class="pf-lbl">Total</label>
+            <input class="pf-inp" type="number" id="ptot-${id}"
+                   value="${item.total||''}" placeholder="0.00" step="0.01" min="0"
+                   style="font-weight:700">
+          </div>
+          <div class="card-acts">
+            <button class="act orange" onclick="PEND.guardar('${id}')">💾 Guardar</button>
+            <button class="act success" onclick="PEND.aprobar('${id}')">✅ Aprobar</button>
+            <button class="act danger" style="flex:none;min-width:auto;padding:.48rem .72rem"
+                    onclick="PEND.eliminar('${id}')" title="Eliminar">🗑</button>
+          </div>
+          <div class="pend-msg" id="pmsg-${id}"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Skeleton mientras carga ───────────────────────────
+  function _skel() {
+    document.getElementById('pendCount').textContent = '…';
+    let h = '';
+    for (let i = 0; i < 2; i++) h += '<div class="skel-card skel"></div>';
+    document.getElementById('pend-list').innerHTML = h;
+  }
+
+  // ── Micro-helpers ─────────────────────────────────────
+  function _val(id) { return (document.getElementById(id)||{}).value || ''; }
+  function _setMsg(id, txt, color) {
+    const el = document.getElementById('pmsg-' + id);
+    if (!el) return;
+    el.style.display = 'block'; el.style.color = color; el.textContent = txt;
+  }
+  function _hideMsg(id) {
+    const el = document.getElementById('pmsg-' + id);
+    if (el) el.style.display = 'none';
+  }
+
+  return { load, sync, toggle, guardar, aprobar, eliminar,
+           get loaded() { return _loaded; } };
+})();
+
 </script>
 
 <!-- MODAL REGISTROS: Egreso general -->
