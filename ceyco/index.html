@@ -6074,25 +6074,36 @@ function rgInit() {
   }
 }
 
-// ── Identificar registros misceláneos ─────────────
-// Son registros SIN id_item_cv (CV-OP-...) y SIN id_st_item
-function rgEsMiscelaneoEgr(e) {
-  const cv  = String(e.id_item_cv  || '').trim();
-  const sti = String(e.id_st_item  || '').trim();
-  const notas = String(e.notas || '').toUpperCase();
-  return !cv && !sti && !notas.includes('ST:');
+// ══════════════════════════════════════════════════
+//  CLASIFICACIÓN DE DIMENSIÓN — fuente única de verdad
+//  Retorna: 'proyectos' | 'comercializacion' | 'general'
+//  Todas las funciones de filtro usan esta y solo esta.
+// ══════════════════════════════════════════════════
+function _clasificarDimension(registro, tipo) {
+  if (tipo === 'egreso') {
+    const idST  = String(registro.id_st_item || '').trim();
+    const idCV  = String(registro.id_item_cv || '').trim();
+    const notas = String(registro.notas      || '').toUpperCase();
+    // Campos estructurales tienen prioridad sobre notas (texto libre)
+    if (idST || notas.includes('ST:')) return 'proyectos';
+    if (idCV || notas.includes('CV:')) return 'comercializacion';
+    return 'general';
+  }
+  if (tipo === 'ingreso') {
+    const notas = (registro.notas_internas || registro.notas || '').toUpperCase();
+    const tipoI = String(registro.tipo_ingreso || '').toLowerCase();
+    if (notas.includes('ST:') || tipoI.includes('tecnico') || tipoI.includes('técnico'))
+      return 'proyectos';
+    if (notas.includes('CV:') || String(registro.id_orden_web || '').trim())
+      return 'comercializacion';
+    return 'general';
+  }
+  return 'general';
 }
-function rgEsMiscelaneoIng(i) {
-  // Ingresos sin referencia a ST en notas y sin tipo tecnico vinculado a ST
-  const notas = String(i.notas || '').toUpperCase();
-  const tipo  = String(i.tipo_ingreso || '').toLowerCase();
-  // Ingresos de Proyectos tienen 'ST:' en notas
-  return !notas.includes('ST:') &&
-         // Ingresos de Operaciones tienen referencia CV: en notas o son venta_producto generados por cierre de CV
-         !notas.includes('CV:') &&
-         // Excluir si hay id de operación web vinculado (venta Comercializacion)
-         !String(i.id_orden_web || '').trim();
-}
+
+// ── Wrappers — todos delegan a _clasificarDimension ──
+function rgEsMiscelaneoEgr(e) { return _clasificarDimension(e, 'egreso')  === 'general'; }
+function rgEsMiscelaneoIng(i) { return _clasificarDimension(i, 'ingreso') === 'general'; }
 
 // ── Tabs internos ─────────────────────────────────
 function rgShowTab(tab) {
@@ -7627,29 +7638,9 @@ function selectPlTipo(btn) {
 }
 
 // ── Helpers de clasificación por dimensión ─────────────────────
-// Cada ingreso/egreso pertenece a exactamente una de las 3 dimensiones.
-// Las mismas reglas que usa rgEsMiscelaneoEgr/Ing, en sentido positivo.
-
-function _plClasifIngreso(i) {
-  const notas = (i.notas_internas || i.notas || '').toUpperCase();
-  const tipo  = (i.tipo_ingreso || '').toLowerCase();
-  if (notas.includes('ST:') || tipo.includes('tecnico') || tipo.includes('técnico'))
-    return 'proyectos';
-  if (notas.includes('CV:') || String(i.id_orden_web || '').trim())
-    return 'comercializacion';
-  return 'general';
-}
-
-function _plClasifEgreso(e) {
-  const notas  = (e.notas || '').toUpperCase();
-  const idCV   = String(e.id_item_cv  || '').trim();
-  const idST   = String(e.id_st_item  || '').trim();
-  if (idST || notas.includes('ST:'))
-    return 'proyectos';
-  if (idCV || notas.includes('CV:'))
-    return 'comercializacion';
-  return 'general';
-}
+// Wrappers sobre _clasificarDimension — única fuente de verdad (definida arriba).
+function _plClasifIngreso(i) { return _clasificarDimension(i, 'ingreso'); }
+function _plClasifEgreso(e)  { return _clasificarDimension(e, 'egreso');  }
 
 function plFiltrarIngresos() {
   return plIngresos.filter(i => {
