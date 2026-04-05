@@ -421,6 +421,83 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .badge-egreso-nomina   {background:#EDE7F6;color:#4527A0}
 .badge-egreso-servicios{background:#E8EAF6;color:#283593}
 
+/* ── Categoría clickeable con dropdown chips ── */
+.cat-chip-wrap {
+  position: relative;
+  display: inline-block;
+}
+.cat-chip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  font-size: .72rem;
+  cursor: pointer;
+  padding: .2rem .5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.cat-chip-label:hover {
+  border-color: var(--orange);
+  background: rgba(224,90,0,.06);
+}
+.cat-chip-label .cat-chip-edit-icon {
+  font-size: .6rem;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.cat-chip-label:hover .cat-chip-edit-icon { opacity: 1; }
+.cat-chip-dropdown {
+  display: none;
+  position: fixed;
+  z-index: 500;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+  padding: .5rem;
+  min-width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.cat-chip-dropdown.open { display: block; }
+.cat-chip-dropdown-title {
+  font-family: 'DM Mono', monospace;
+  font-size: .6rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--orange);
+  padding: .25rem .5rem .5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .4rem;
+}
+.cat-chip-option {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .38rem .6rem;
+  border-radius: 6px;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: background .12s;
+  white-space: nowrap;
+}
+.cat-chip-option:hover { background: var(--bg); }
+.cat-chip-option.active {
+  background: rgba(224,90,0,.08);
+  color: var(--orange);
+  font-weight: 600;
+}
+.cat-chip-option .cat-check { font-size: .7rem; margin-left: auto; opacity: 0; }
+.cat-chip-option.active .cat-check { opacity: 1; }
+.cat-chip-saving {
+  font-size: .68rem;
+  color: var(--muted);
+  padding: .3rem .5rem;
+  text-align: center;
+}
+
 /* Confianza bar */
 .conf-bar{display:flex;align-items:center;gap:.4rem}
 .conf-track{flex:1;height:5px;background:var(--bg3);border-radius:3px;min-width:40px}
@@ -1415,7 +1492,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
       </div>
       <button class="btn-sync" id="btnAcrSync" onclick="acrSincronizar()">↺ Sincronizar emails</button>
-      <button class="btn-sync" onclick="rgRefreshEgr()" style="background:var(--bg);border:1px solid var(--border);color:var(--muted)">↻ Actualizar</button>
     </div>
     <!-- Stats unificados -->
     <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
@@ -3751,6 +3827,7 @@ function refreshCurrentSection() {
   else if (activeTab === 'dashboard')        { plLoaded = false; loadDashboard(); }
   else if (activeTab === 'inventario')       loadInventario();
   else if (activeTab === 'proveedores')      loadProveedores();
+  else if (activeTab === 'registroGeneral')  rgRefreshEgr();
   else if (activeTab.startsWith('reporte:')) loadReporte(activeTab.replace('reporte:', ''), true);
   else                                       loadOperaciones();
 }
@@ -6078,12 +6155,139 @@ function rgRefreshEgr() {
 }
 window.rgRefreshEgr = rgRefreshEgr;
 
+// ── Dropdown chips de categoría inline ───────────────────────
+// Categorías disponibles para ambos tipos (egresos registrados + acreedores pendientes)
+const TODAS_CATEGORIAS_EGR = [
+  { valor: 'alquiler_local',              label: '🏠 Alquiler local / oficina' },
+  { valor: 'servicios_publicos',          label: '💡 Servicios públicos (agua, luz)' },
+  { valor: 'internet_telecomunicaciones', label: '📶 Internet y telecomunicaciones' },
+  { valor: 'seguros',                     label: '🛡️ Seguros' },
+  { valor: 'mantenimiento_reparacion',    label: '🔧 Mantenimiento y reparaciones' },
+  { valor: 'servicios_profesionales',     label: '💼 Servicios profesionales' },
+  { valor: 'publicidad_marketing',        label: '📣 Publicidad y marketing' },
+  { valor: 'transporte_combustible',      label: '⛽ Transporte y combustible' },
+  { valor: 'suministros_oficina',         label: '🖇️ Suministros de oficina' },
+  { valor: 'planilla_empleados',          label: '👤 Planilla y cargas sociales' },
+  { valor: 'financiero_bancario',         label: '🏦 Gastos financieros y bancarios' },
+  { valor: 'capacitacion',               label: '📚 Capacitación y formación' },
+  { valor: 'tecnologia_software',         label: '💻 Tecnología y software' },
+  { valor: 'otros_gastos_generales',      label: '📋 Otros gastos generales' },
+  { valor: 'alquileres',                  label: '🏢 Alquiler local' },
+  { valor: 'combustible_transporte',      label: '⛽ Combustible' },
+  { valor: 'honorarios_profesionales',    label: '💼 Honorarios profesionales' },
+  { valor: 'otros_deducibles',            label: '📋 Otros deducibles' },
+  { valor: 'nomina',                      label: '👤 Planilla / Nómina' },
+];
+
+// Encontrar label de cualquier categoría
+function catChipLabel(valor) {
+  const found = TODAS_CATEGORIAS_EGR.find(c => c.valor === valor);
+  if (found) return found.label;
+  return RG_EGR_CAT_LABELS[valor] || CATEG_ACR_LABELS[valor] || valor || '—';
+}
+
+// Construir la celda chip clickeable
+function buildCatChip(item) {
+  const label = catChipLabel(item.categoria);
+  const id    = esc(item._id);
+  const tipo  = item._tipo; // 'pendiente' | 'registrado'
+  return `<div class="cat-chip-wrap">
+    <span class="cat-chip-label" onclick="catChipOpen(event,'${id}','${tipo}','${esc(item.categoria)}')">
+      ${label}
+      <span class="cat-chip-edit-icon">✏️</span>
+    </span>
+  </div>`;
+}
+
+// Singleton dropdown — un solo elemento reutilizable
+let _catDropEl = null;
+let _catDropId = null;
+let _catDropTipo = null;
+
+function _getCatDropEl() {
+  if (_catDropEl) return _catDropEl;
+  const el = document.createElement('div');
+  el.id = 'catChipDropdown';
+  el.className = 'cat-chip-dropdown';
+  document.body.appendChild(el);
+  // Cerrar al click fuera
+  document.addEventListener('click', (e) => {
+    if (_catDropEl && !_catDropEl.contains(e.target) && !e.target.closest('.cat-chip-label')) {
+      _catDropEl.classList.remove('open');
+    }
+  }, true);
+  _catDropEl = el;
+  return el;
+}
+
+function catChipOpen(e, id, tipo, catActual) {
+  e.stopPropagation();
+  const trigger = e.currentTarget;
+  const rect    = trigger.getBoundingClientRect();
+  const drop    = _getCatDropEl();
+
+  _catDropId   = id;
+  _catDropTipo = tipo;
+
+  // Posicionar
+  drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 260) + 'px';
+
+  // Construir opciones
+  drop.innerHTML = `<div class="cat-chip-dropdown-title">Reclasificar categoría</div>` +
+    TODAS_CATEGORIAS_EGR.map(c => `
+      <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+           onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
+        ${c.label}
+        <span class="cat-check">✓</span>
+      </div>`
+    ).join('');
+
+  drop.classList.add('open');
+}
+window.catChipOpen = catChipOpen;
+
+async function catChipSelect(nuevoValor, nuevoLabel) {
+  const drop = _getCatDropEl();
+  drop.innerHTML = `<div class="cat-chip-saving">⏳ Guardando...</div>`;
+
+  try {
+    if (_catDropTipo === 'pendiente') {
+      // Actualiza Acreedores_Pending
+      await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'actualizarPendienteAcr', id: _catDropId, categoria: nuevoValor }),
+      });
+      // Actualizar en memoria
+      const idx = _acrData.findIndex(i => String(i.id) === String(_catDropId));
+      if (idx !== -1) _acrData[idx].categoria = nuevoValor;
+    } else {
+      // Actualiza fila de Egresos registrados — reusar handler existente
+      const data = await gasJsonp('actualizarCategoriaEgreso', { id: _catDropId, categoria: nuevoValor });
+      if (data && !data.success) throw new Error(data.error || 'Error al guardar');
+      // Actualizar en memoria
+      const idx = egrItems.findIndex(i => String(i.id_egreso) === String(_catDropId));
+      if (idx !== -1) {
+        egrItems[idx].tipo_egreso = nuevoValor;
+        egrItems[idx].categoria   = nuevoValor;
+      }
+    }
+    drop.classList.remove('open');
+    showToast('✅ Categoría actualizada');
+    rgRenderEgr(); // re-render sin fetch
+  } catch(err) {
+    drop.innerHTML = `<div class="cat-chip-saving" style="color:var(--red)">❌ ${err.message}</div>`;
+    setTimeout(() => drop.classList.remove('open'), 2000);
+  }
+}
+window.catChipSelect = catChipSelect;
+
 // ── Render unificado Egresos + Pendientes Acreedores ──────────
 function rgRender() { rgRenderEgr(); rgRenderIng(); }
 
 function rgRenderEgr() {
   const q = (document.getElementById('rgSearchEgr') || {value:''}).value.toLowerCase().trim();
-  const catLabel = v => RG_EGR_CAT_LABELS[v] || CATEG_ACR_LABELS[v] || v || '—';
 
   // ── 1. Egresos ya registrados (misceláneos) ──────────────────
   const registrados = egrItems
@@ -6205,7 +6409,7 @@ function rgRenderEgr() {
       <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
       <td>${origenBadge}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(i.num_fac)}</td>
-      <td style="font-size:.74rem">${esc(catLabel(i.categoria))}</td>
+      <td>${buildCatChip(i)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
