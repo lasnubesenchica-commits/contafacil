@@ -6395,24 +6395,30 @@ let _catDropEl = null;
 let _catDropId = null;
 let _catDropTipo = null;
 
+let _catDropJustOpened = false;
+
 function _getCatDropEl() {
   if (_catDropEl) return _catDropEl;
   const el = document.createElement('div');
   el.id = 'catChipDropdown';
   el.className = 'cat-chip-dropdown';
   document.body.appendChild(el);
-  // Cerrar al click fuera
+  // Cerrar al click fuera — bubble, no capture
   document.addEventListener('click', (e) => {
-    if (_catDropEl && !_catDropEl.contains(e.target) && !e.target.closest('.cat-chip-label')) {
-      _catDropEl.classList.remove('open');
+    if (_catDropJustOpened) { _catDropJustOpened = false; return; }
+    if (_catDropEl && _catDropEl.classList.contains('open')) {
+      if (!_catDropEl.contains(e.target)) {
+        _catDropEl.classList.remove('open');
+      }
     }
-  }, true);
+  });
   _catDropEl = el;
   return el;
 }
 
 function catChipOpen(e, id, tipo, catActual) {
   e.stopPropagation();
+  _catDropJustOpened = true;
   const trigger = (e.currentTarget || e.target).closest('.cat-chip-label') || e.target;
   const rect    = trigger.getBoundingClientRect();
   const drop    = _getCatDropEl();
@@ -6508,7 +6514,7 @@ window.catChipSelect = catChipSelect;
 // tipo: 'pl_costo' → tipos de costo (solo informativo, no reclasificable)
 function catChipOpenPL(e, id, tipo, catActual) {
   e.stopPropagation();
-  // e.currentTarget es null en onclick inline — usar e.target + closest
+  _catDropJustOpened = true;
   const trigger = (e.currentTarget || e.target).closest('.cat-chip-label') || e.target;
   const rect    = trigger.getBoundingClientRect();
   const drop    = _getCatDropEl();
