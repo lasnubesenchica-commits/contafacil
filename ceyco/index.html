@@ -7717,9 +7717,20 @@ function renderDashboard() {
     cogsTotal += cogsOp;
   }
 
-  if (plTipo === 'general') {
-    // Para Registro General, el "costo" es el total de egresos misceláneos
-    cogsTotal = egresos.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  if (plTipo === 'general' || plTipo === 'todos') {
+    // Egresos misceláneos (Registro General) — siempre suman al resultado consolidado
+    // En modo 'general' son el único costo; en 'todos' se suman a COGS de Proy + COM
+    const egresosGral = plEgresos.filter(e => {
+      if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+      const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+      if (!eAnio || eAnio !== plYear) return false;
+      if (plMonth !== 'ytd') {
+        const eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
+        if (eMes !== plMonth) return false;
+      }
+      return _plClasifEgreso(e) === 'general';
+    });
+    cogsTotal += egresosGral.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
   }
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
@@ -7732,7 +7743,9 @@ function renderDashboard() {
   const txCount      = ingresos.length;
   const ticket       = txCount > 0 ? totalIngNeto / txCount : 0;
 
-  const _cogsLabel = plTipo === 'general' ? 'Gastos generales' : 'Costo mercancía';
+  const _cogsLabel = plTipo === 'general' ? 'Gastos generales'
+                   : plTipo === 'todos'   ? 'Costos totales'
+                   : 'Costo mercancía';
   const _utilLabel = plTipo === 'general' ? 'Resultado neto' : 'Utilidad neta';
 
   // KPIs — 4 widgets: Ingresos Neto | Costo Mercancía | Utilidad Neta | ITBMS DGI
@@ -7875,6 +7888,8 @@ function plRenderTblIngresos(q) {
     .filter(p => {
       if (parseInt(p.A.anio_fiscal) !== plYear) return false;
       if (plMonth !== 'ytd' && parseInt(p.A.mes) !== plMonth) return false;
+      // Respetar dimensión — la NC pertenece a la misma dimensión que su ingreso original
+      if (plTipo !== 'todos' && _plClasifIngreso(p.A) !== plTipo) return false;
       return true;
     });
 
@@ -8330,6 +8345,17 @@ function plRenderBarChart(year) {
       egrYear.filter(e => {
         const idCV = String(e.id_item_cv || '');
         return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+      }).forEach(e => {
+        const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
+        if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
+      });
+    }
+    // Gastos generales (misceláneos) en todos — se suman al COGS consolidado
+    if (plTipo === 'todos') {
+      plEgresos.filter(e => {
+        if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+        if ((parseInt(e.anio) || _anioDesfecha(e.fecha_egreso)) !== year) return false;
+        return _plClasifEgreso(e) === 'general';
       }).forEach(e => {
         const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
         if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
