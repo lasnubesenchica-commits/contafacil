@@ -6214,6 +6214,14 @@ const CATEGORIAS_GASTO_DGI = [
 // Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
 const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
 
+// ── COSTOS DIRECTOS (Líneas 27-41 formulario DGI) — inmutables desde el P&L ──
+const TIPOS_COSTO_DIRECTO = [
+  { valor: 'costo_mercancia',        label: 'Costo de mercancía / inventario',  linea_dgi: '28-34' },
+  { valor: 'costo_servicio_tecnico', label: 'Costo de servicio técnico',        linea_dgi: '35'    },
+  { valor: 'impuesto_aduana',        label: 'Impuesto / Aduana (importación)',  linea_dgi: '35'    },
+  { valor: 'credito_fiscal',         label: 'Crédito fiscal ITBMS',             linea_dgi: 'ITBMS' },
+];
+
 // Labels de categorías DGI — construido desde CATEGORIAS_GASTO_DGI para consistencia
 // Incluye también costos directos y valores legacy para compatibilidad con datos existentes
 const RG_EGR_CAT_LABELS = (() => {
