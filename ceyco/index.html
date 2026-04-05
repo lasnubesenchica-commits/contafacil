@@ -758,10 +758,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .pl-tipo-btn:hover { border-color:rgba(0,0,0,.25);color:var(--text) }
 .pl-tipo-btn.active { background:var(--orange);border-color:var(--orange);color:#fff;font-weight:600; }
 .pl-kpi-row {
-  display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;
+  display:grid;grid-template-columns:repeat(6,1fr);gap:.75rem;
   padding:1.25rem 2rem;background:var(--white);border-bottom:1px solid var(--border);
 }
-@media(max-width:1100px){ .pl-kpi-row{ grid-template-columns:repeat(3,1fr) } }
+@media(max-width:1300px){ .pl-kpi-row{ grid-template-columns:repeat(3,1fr) } }
 @media(max-width:700px) { .pl-kpi-row{ grid-template-columns:repeat(2,1fr) } }
 @media(max-width:500px) { .pl-kpi-row{ grid-template-columns:1fr } }
 .pl-kpi {
@@ -7758,11 +7758,11 @@ function renderDashboard() {
   const _cogsLabel = plTipo === 'general' ? 'Gastos operativos'
                    : 'Costos directos';
 
-  // KPIs — 5 widgets: Ingresos Neto | Costos Directos | Util.Bruta | Util.Neta | ITBMS DGI
+  // KPIs — 6 widgets: Ingresos | Costos | Gastos | Util.Bruta | Util.Neta | ITBMS
   document.getElementById('plKpiRow').innerHTML = `
     <div class="pl-kpi" style="--kpi-accent:var(--orange)">
       <div class="pl-kpi-label">Ingresos neto</div>
-      <div class="pl-kpi-value orange">${plFmtFull(totalIngNeto)}</div>
+      <div class="pl-kpi-value orange">${plFmt(totalIngNeto)}</div>
       <div class="pl-kpi-sub">
         <span class="pl-kpi-tag neutral">${plMonth === 'ytd' ? 'YTD' : plMesLabel(plMonth)} ${plYear}</span>
         <span style="margin-left:.25rem">sin ITBMS · bruto ${plFmt(totalIng)}</span>
@@ -7770,8 +7770,13 @@ function renderDashboard() {
     </div>
     <div class="pl-kpi" style="--kpi-accent:#E65100">
       <div class="pl-kpi-label">${_cogsLabel}</div>
-      <div class="pl-kpi-value" style="color:#E65100">${plFmtFull(cogsTotal)}</div>
+      <div class="pl-kpi-value" style="color:#E65100">${plFmt(cogsTotal)}</div>
       <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
+    </div>
+    <div class="pl-kpi" style="--kpi-accent:#6A1B9A">
+      <div class="pl-kpi-label">Gastos operativos</div>
+      <div class="pl-kpi-value" style="color:#6A1B9A">${plFmt(gastosGral)}</div>
+      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((gastosGral/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : gastosGral > 0 ? 'del período' : '—'}</div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilBruta >= 0 ? '#2E7D32' : 'var(--red)'}">
       <div class="pl-kpi-label">Utilidad bruta</div>
@@ -8495,21 +8500,15 @@ function _anioDesfecha(f) {
   return m ? parseInt(m[1]) : 0;
 }
 
+// Formato moneda — siempre 2 decimales, sin abreviatura K
 function plFmt(n) {
-  if (isNaN(n) || n === null) return '—';
-  const abs = Math.abs(n);
-  const f = abs >= 10000
-    ? '$' + (abs/1000).toLocaleString('es-PA',{minimumFractionDigits:1,maximumFractionDigits:1}) + 'k'
-    : '$' + abs.toLocaleString('es-PA',{minimumFractionDigits:2,maximumFractionDigits:2});
-  return n < 0 ? '-' + f : f;
-}
-// Versión sin abreviatura K — para KPIs donde se quiere el número completo
-function plFmtFull(n) {
   if (isNaN(n) || n === null) return '—';
   const abs = Math.abs(n);
   const f = '$' + abs.toLocaleString('es-PA',{minimumFractionDigits:2,maximumFractionDigits:2});
   return n < 0 ? '-' + f : f;
 }
+// Alias — misma función, se mantiene por compatibilidad con llamadas existentes
+function plFmtFull(n) { return plFmt(n); }
 function plMesLabel(m) {
   return ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][m] || '';
 }
