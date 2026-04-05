@@ -5030,20 +5030,23 @@ function renderEgresoTable(items) {
     tbody.innerHTML = '<tr><td colspan="9"><div class="table-empty"><span style="font-size:2rem">📭</span><span>No hay egresos</span></div></td></tr>';
     return;
   }
-  const catBadgeEgr = c => ({
-    costo_mercancia:          '<span class="badge badge-egreso-mercancia">📦 Mercancía</span>',
-    gastos_personal:          '<span class="badge badge-egreso-nomina">👤 Personal</span>',
-    alquileres:               '<span class="badge badge-egreso-operativo">🏠 Alquiler</span>',
-    servicios_publicos:       '<span class="badge badge-egreso-servicios">💡 Serv. públicos</span>',
-    combustible_transporte:   '<span class="badge badge-egreso-operativo">⛽ Combustible</span>',
-    publicidad_mercadeo:      '<span class="badge badge-egreso-operativo">📣 Publicidad</span>',
-    honorarios_profesionales: '<span class="badge badge-egreso-servicios">📋 Honorarios</span>',
-    mantenimiento_reparacion: '<span class="badge badge-egreso-operativo">🔧 Mantenimiento</span>',
-    seguros:                  '<span class="badge badge-egreso-operativo">🛡️ Seguros</span>',
-    depreciacion:             '<span class="badge badge-egreso-operativo">📉 Depreciación</span>',
-    gastos_financieros:       '<span class="badge badge-egreso-servicios">🏦 Financiero</span>',
-    otros_deducibles:         '<span class="badge">📂 Otros</span>',
-  }[c] || `<span class="badge">${esc(c||'—')}</span>`);
+  // catBadgeEgr — construido desde CATEGORIAS_GASTO_DGI, con fallback para valores legacy
+  const _catBadgeMap = (() => {
+    const m = {
+      costo_mercancia:        '<span class="badge badge-egreso-mercancia">📦 Mercancía</span>',
+      costo_servicio_tecnico: '<span class="badge badge-egreso-mercancia">🔧 Costo ST</span>',
+      credito_fiscal:         '<span class="badge badge-egreso-servicios">🏛️ Crédito fiscal</span>',
+      // Legacy
+      gastos_personal:        '<span class="badge badge-egreso-nomina">👤 Personal</span>',
+      costo_operativo:        '<span class="badge badge-egreso-operativo">🏢 Operativo</span>',
+      servicios:              '<span class="badge badge-egreso-servicios">⚡ Servicios</span>',
+    };
+    CATEGORIAS_GASTO_DGI.forEach(c => {
+      m[c.valor] = `<span class="badge badge-egreso-operativo">${c.emoji} ${c.label.split(' ').slice(0,2).join(' ')}</span>`;
+    });
+    return m;
+  })();
+  const catBadgeEgr = c => _catBadgeMap[c] || `<span class="badge">${esc(c||'—')}</span>`;
 
   const estadoBadge = e => ({
     registrado: '<span class="badge badge-pendiente">● Registrado</span>',
@@ -5051,32 +5054,22 @@ function renderEgresoTable(items) {
     anulado:    '<span class="badge badge-cancelada">✕ Anulado</span>',
   }[e] || `<span class="badge">${esc(e||'—')}</span>`);
 
-  const CATS_EGR = [
-    ['gastos_personal',           'Nómina / Personal'],
-    ['alquileres',                'Alquileres'],
-    ['servicios_publicos',        'Servicios públicos'],
-    ['combustible_transporte',    'Combustible / Transporte'],
-    ['publicidad_mercadeo',       'Publicidad / Mercadeo'],
-    ['honorarios_profesionales',  'Honorarios profesionales'],
-    ['mantenimiento_reparacion',  'Mantenimiento / Reparación'],
-    ['seguros',                   'Seguros'],
-    ['depreciacion',              'Depreciación'],
-    ['gastos_financieros',        'Gastos financieros'],
-    ['otros_deducibles',          'Otros deducibles'],
-  ];
+  // CATS_EGR — construido desde CATEGORIAS_GASTO_DGI (fuente única DGI)
+  const CATS_EGR = CATEGORIAS_GASTO_DGI.map(c => [c.valor, c.emoji + ' ' + c.label]);
 
   const trashSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
 
   tbody.innerHTML = visibles.map(item => {
     const total    = parseFloat(item.total || '0') || 0;
     const editable = item.tipo_egreso !== 'costo_mercancia';
+    const _catVal  = item.tipo_egreso || item.categoria || '';
     const catOpts  = CATS_EGR.map(([v,l]) =>
-      `<option value="${v}"${v === item.categoria ? ' selected' : ''}>${l}</option>`
+      `<option value="${v}"${v === _catVal ? ' selected' : ''}>${l}</option>`
     ).join('');
 
     const catCell = editable
       ? `<td><select class="tbl-cat-select" onchange="actualizarCategoriaTabla(this,'egreso','${esc(item.id_egreso)}')">${catOpts}</select></td>`
-      : `<td>${catBadgeEgr(item.categoria)}</td>`;
+      : `<td>${catBadgeEgr(_catVal)}</td>`;
 
     const actionsCell = editable
       ? `<td><div class="tbl-actions-cell">
@@ -5123,6 +5116,7 @@ async function guardarEgresoOperativo() {
     const data = await gasJsonp('registrarEgresoOperativo', {
       fecha:       fecha,
       tipo:        document.getElementById('eTipoHidden').value,
+      categoria:   document.getElementById('eCategoria').value,
       categoria:   document.getElementById('eCategoria').value,
       proveedor:   document.getElementById('eProveedor').value.trim(),
       ruc_prov:    document.getElementById('eRucProv').value.trim(),
@@ -6020,25 +6014,10 @@ function _sugerirCategoriaDesdeParsed(parsed) {
 }
 
 function inferirTipoEgreso() {
-  // Deriva tipo_egreso interno desde la categoría DGI para el GAS
-  const cat  = document.getElementById('eCategoria').value;
-  const mapa = {
-    costo_mercancia:         'costo_mercancia',
-    gastos_personal:         'nomina',
-    alquileres:              'costo_operativo',
-    servicios_publicos:      'servicios',
-    combustible_transporte:  'costo_operativo',
-    publicidad_mercadeo:     'costo_operativo',
-    honorarios_profesionales:'servicios',
-    mantenimiento_reparacion:'costo_operativo',
-    seguros:                 'costo_operativo',
-    depreciacion:            'costo_operativo',
-    gastos_financieros:      'servicios',
-    otros_deducibles:        'costo_operativo',
-  };
-  // guardamos en hidden para enviar al GAS
+  // El valor de eCategoria ES directamente el tipo DGI — sin mapa intermedio
+  const cat    = document.getElementById('eCategoria').value;
   const hidden = document.getElementById('eTipoHidden');
-  if (hidden) hidden.value = mapa[cat] || 'costo_operativo';
+  if (hidden) hidden.value = cat || 'otros_deducibles';
 }
 
 function abrirModalNuevoEgreso() {
@@ -6108,7 +6087,10 @@ async function actualizarCategoriaTabla(selectEl, tipo, id) {
       if (idx !== -1) ingItems[idx].categoria_ingreso = categoria;
     } else {
       const idx = egrItems.findIndex(e => e.id_egreso === id);
-      if (idx !== -1) egrItems[idx].categoria = categoria;
+      if (idx !== -1) {
+        egrItems[idx].tipo_egreso = categoria;
+        egrItems[idx].categoria   = categoria;
+      }
     }
     plLoaded = false;   // invalidar cache P&L
     showToast('✅ Categoría actualizada');
