@@ -1843,8 +1843,20 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
   </div><!-- /pl-body -->
 
-  <!-- TABLAS DETALLE: Ingresos / Costos con toggle -->
-  <div style="padding:0 2rem 2rem">
+  <!-- TOGGLE CONSOLIDADO / DETALLE -->
+  <div style="padding:0 2rem .75rem;display:flex;align-items:center;gap:.4rem">
+    <button id="plVistaBtnCons" onclick="plSwitchVista('consolidado')"
+      style="font-size:.78rem;font-weight:600;padding:5px 16px;border-radius:100px;border:1px solid var(--orange);background:var(--orange);color:#fff;cursor:pointer;transition:all .2s">
+      Consolidado
+    </button>
+    <button id="plVistaBtnDet" onclick="plSwitchVista('detalle')"
+      style="font-size:.78rem;font-weight:500;padding:5px 16px;border-radius:100px;border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;transition:all .2s">
+      Detalle
+    </button>
+  </div>
+
+  <!-- VISTA DETALLE: Ingresos / Costos / Gastos con tabs -->
+  <div id="plVistaDetalle" style="padding:0 2rem 2rem;display:none">
     <div class="pl-card">
       <!-- Toggle header -->
       <div style="display:flex;align-items:center;gap:.5rem;padding:.85rem 1.25rem;border-bottom:1px solid var(--border)">
@@ -1912,7 +1924,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </table>
       </div>
     </div>
-  </div>
+  </div><!-- /plVistaDetalle -->
+
+  <!-- VISTA CONSOLIDADO: Estado de Resultados acordeón -->
+  <div id="plVistaConsolidado">
 
   <!-- ESTADO DE RESULTADOS — vista contable con acordeón -->
   <div style="padding:0 2rem 2rem">
@@ -1930,6 +1945,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
       </div>
     </div>
   </div>
+
+  </div><!-- /plVistaConsolidado -->
 
   <!-- IDs ocultos para JS del widget ITBMS (sin card visible) -->
   <span id="plItbmsIng"  style="display:none"></span>
@@ -7935,7 +7952,19 @@ function renderDashboard() {
 
 // ── Tablas detalle del P&L ─────────────────────────────────────
 
-var plTblMode = 'ingresos';   // 'ingresos' | 'egresos' | 'gastos'
+var plTblMode  = 'ingresos';   // 'ingresos' | 'egresos' | 'gastos'
+var plVista    = 'consolidado'; // 'consolidado' | 'detalle'
+
+function plSwitchVista(vista) {
+  plVista = vista;
+  const isCons = vista === 'consolidado';
+  document.getElementById('plVistaConsolidado').style.display = isCons ? '' : 'none';
+  document.getElementById('plVistaDetalle').style.display     = isCons ? 'none' : '';
+  const activeStyle = 'font-size:.78rem;font-weight:600;padding:5px 16px;border-radius:100px;border:1px solid var(--orange);background:var(--orange);color:#fff;cursor:pointer;transition:all .2s';
+  const idleStyle   = 'font-size:.78rem;font-weight:500;padding:5px 16px;border-radius:100px;border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;transition:all .2s';
+  document.getElementById('plVistaBtnCons').style.cssText = isCons  ? activeStyle : idleStyle;
+  document.getElementById('plVistaBtnDet').style.cssText  = !isCons ? activeStyle : idleStyle;
+}
 
 // Sort state — tablas Ingresos y Costos
 var plIngSort = { col: 'num_factura', dir: 'desc' };
