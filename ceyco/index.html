@@ -8188,26 +8188,36 @@ function plRenderCostRow(totalCogsRef) {
   const el = document.getElementById('plCostRow');
   if (!el) return;
 
-  // Sumar ST_Items del período activo agrupados por tipo
+  // En modo General no hay ST_Items — ocultar el desglose por tipo de costo
+  if (plTipo === 'general') {
+    el.innerHTML = '';
+    return;
+  }
+
+  // Sumar ST_Items del período activo agrupados por tipo, respetando plTipo
   const byTipo = {};
   plStItems.forEach(si => {
     const siAnio = parseInt(si.anio) || 0;
     const siMes  = parseInt(si.mes)  || 0;
     if (siAnio !== plYear) return;
     if (plMonth !== 'ytd' && siMes !== plMonth) return;
-    if ((si.item.tipo || '') === 'credito_fiscal') return; // no es costo real
+    if ((si.item.tipo || '') === 'credito_fiscal') return;
+    // En modo Comercialización no mostrar ST_Items (son de Proyectos)
+    if (plTipo === 'comercializacion') return;
     const tipo = si.item.tipo || 'otro';
     const tr   = parseFloat(si.item.total_real)     || 0;
     const tc   = parseFloat(si.item.total_cotizado) || 0;
     byTipo[tipo] = (byTipo[tipo] || 0) + (tr > 0 ? tr : tc);
   });
-  // Añadir egresos de Operaciones al desglose (tipo 'producto')
-  plFiltrarEgresos().filter(e => {
-    const idCV = String(e.id_item_cv || '');
-    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
-  }).forEach(e => {
-    byTipo['producto'] = (byTipo['producto'] || 0) + (parseFloat(e.total) || 0);
-  });
+  // Añadir egresos de Operaciones al desglose (tipo 'producto') — solo en todos/comercializacion
+  if (plTipo === 'todos' || plTipo === 'comercializacion') {
+    plFiltrarEgresos().filter(e => {
+      const idCV = String(e.id_item_cv || '');
+      return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+    }).forEach(e => {
+      byTipo['producto'] = (byTipo['producto'] || 0) + (parseFloat(e.total) || 0);
+    });
+  }
 
   const TIPO_CFG = {
     producto:          { label: 'Producto',           icon: '📦', color: '#1565C0' },
@@ -8268,12 +8278,11 @@ function plRenderBarChart(year) {
 
   const egrYear = plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
-    // Usar mes/anio explícitos — igual que plFiltrarEgresos
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== year) return false;
-    // NO excluir 'Inventario'
-    if (plTipo !== 'todos' && plTipo !== 'venta_producto') {
-      if ((e.tipo_egreso || '') === 'costo_mercancia') return false;
+    // Respetar dimensión si es el año activo
+    if (year === plYear && plTipo !== 'todos') {
+      if (_plClasifEgreso(e) !== plTipo) return false;
     }
     return true;
   });
@@ -8289,24 +8298,44 @@ function plRenderBarChart(year) {
     if (m >= 0 && m < 12) egrByMes[m] += parseFloat(e.total) || 0;
   });
 
-  // COGS en gráfica: misma fuente que renderDashboard — ST_Items agrupados por mes
-  // excluir credito_fiscal igual que el widget de COGS
-  // Si hay un mes seleccionado, solo mostrar COGS de ese mes (consistente con ingresos)
+  // COGS en gráfica: según dimensión activa
+  // general → egresos misceláneos por mes
+  // proyectos/todos → ST_Items por mes
+  // comercializacion → egresos CV-OP por mes (generalmente vacío en CEYCO)
   const cogsData = new Array(12).fill(0);
-  plStItems.filter(si => {
-    if ((parseInt(si.anio) || 0) !== year) return false;
-    if ((si.item.tipo || '') === 'credito_fiscal') return false;
-    // Respetar filtro de mes (igual que ingYear usa plFiltrarIngresos que filtra por plMonth)
-    if (year === plYear && plMonth !== 'ytd' && (parseInt(si.mes) || 0) !== plMonth) return false;
-    return true;
-  }).forEach(si => {
-    const m = (parseInt(si.mes) || 0) - 1;
-    if (m >= 0 && m < 12) {
-      const tr = parseFloat(si.item.total_real)     || 0;
-      const tc = parseFloat(si.item.total_cotizado) || 0;
-      cogsData[m] += tr > 0 ? tr : tc;
+  if (plTipo === 'general') {
+    // Egresos misceláneos agrupados por mes
+    egrYear.forEach(e => {
+      const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
+      if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
+    });
+  } else {
+    // ST_Items agrupados por mes (proyectos / todos)
+    plStItems.filter(si => {
+      if ((parseInt(si.anio) || 0) !== year) return false;
+      if ((si.item.tipo || '') === 'credito_fiscal') return false;
+      if (year === plYear && plMonth !== 'ytd' && (parseInt(si.mes) || 0) !== plMonth) return false;
+      if (plTipo === 'comercializacion') return false; // ST es Proyectos
+      return true;
+    }).forEach(si => {
+      const m = (parseInt(si.mes) || 0) - 1;
+      if (m >= 0 && m < 12) {
+        const tr = parseFloat(si.item.total_real)     || 0;
+        const tc = parseFloat(si.item.total_cotizado) || 0;
+        cogsData[m] += tr > 0 ? tr : tc;
+      }
+    });
+    // CV-OP para comercializacion/todos
+    if (plTipo === 'todos' || plTipo === 'comercializacion') {
+      egrYear.filter(e => {
+        const idCV = String(e.id_item_cv || '');
+        return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+      }).forEach(e => {
+        const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
+        if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
+      });
     }
-  });
+  }
 
   for (let m = 0; m < 12; m++) utilData[m] = ingData[m] - cogsData[m];
 
