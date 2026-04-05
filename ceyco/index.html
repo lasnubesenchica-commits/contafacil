@@ -8494,9 +8494,9 @@ function plRenderTblEgresos(q) {
     const _dgiVal = _tipoToDgi[tipo] || 'costo_mercancia';
     const _dgiCat = TIPOS_COSTO_DIRECTO.find(c => c.valor === _dgiVal);
     const _dgiChip = _dgiCat
-      ? `<div class="cat-chip-wrap"><span class="cat-chip-label"
-           onclick="catChipOpenPL(event,this,'','pl_costo','${_dgiVal}')"
-           title="L${_dgiCat.linea_dgi} · Solo informativo — no reclasificable" style="color:var(--muted)">
+      ? `<div class="cat-chip-wrap"><span class="cat-chip-label pl-costo-chip"
+           data-dgi-val="${_dgiVal}"
+           title="L${_dgiCat.linea_dgi} · Solo informativo" style="color:var(--muted)">
            📦 ${_dgiCat.label}
            <span class="cat-chip-edit-icon">ℹ️</span>
          </span></div>`
@@ -8514,6 +8514,30 @@ function plRenderTblEgresos(q) {
     <td colspan="5" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${allItems.length} ítems</td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totTotal.toFixed(2)}</td>
   </tr>`;
+
+  // ── Listener delegado para chips informativos de Costos ──
+  tbody.addEventListener('click', function plCostoChipHandler(ev) {
+    const chip = ev.target.closest('.pl-costo-chip');
+    if (!chip) return;
+    ev.stopPropagation();
+    _catDropJustOpened = true;
+    const rect   = chip.getBoundingClientRect();
+    const dgiVal = chip.dataset.dgiVal || '';
+    const cat    = TIPOS_COSTO_DIRECTO.find(c => c.valor === dgiVal);
+    const drop   = _getCatDropEl();
+    drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+    drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 270) + 'px';
+    drop.innerHTML  =
+      `<div class="cat-chip-dropdown-title">Clasificación DGI · Costo directo</div>
+       <div style="font-size:.78rem;padding:.5rem .6rem;color:var(--muted);line-height:1.6">
+         ${cat ? '📦 <strong>' + cat.label + '</strong><br><span style="font-size:.68rem">Línea DGI ' + cat.linea_dgi + '</span>' : dgiVal}
+         <br><span style="font-size:.65rem;color:var(--chrome);margin-top:.4rem;display:block">
+           Costos de Proyectos y Comercialización<br>no son reclasificables desde el P&L.
+         </span>
+       </div>`;
+    drop.onclick = null;
+    drop.classList.add('open');
+  });
 }
 
 function plRenderTblGastos(q) {
@@ -8557,8 +8581,10 @@ function plRenderTblGastos(q) {
       <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)">${esc(e.num_fac_ref || e.id_egreso || '—')}</td>
       <td>
         <div class="cat-chip-wrap">
-          <span class="cat-chip-label"
-            onclick="catChipOpenPL(event,this,'${idEgr}','pl_gasto','${esc(tipoVal)}')"
+          <span class="cat-chip-label pl-gas-chip"
+            data-id="${idEgr}"
+            data-tipo="pl_gasto"
+            data-cat="${esc(tipoVal)}"
             title="${lineaDgi} · Click para reclasificar">
             ${chipLbl}
             <span class="cat-chip-edit-icon">✏️</span>
@@ -8573,6 +8599,39 @@ function plRenderTblGastos(q) {
     <td></td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totGas.toFixed(2)}</td>
   </tr>`;
+
+  // ── Listener delegado: captura clicks en .pl-gas-chip ──
+  // Se registra en el tbody para tener acceso al elemento real y su rect
+  tbody.addEventListener('click', function plGasChipHandler(ev) {
+    const chip = ev.target.closest('.pl-gas-chip');
+    if (!chip) return;
+    ev.stopPropagation();
+    _catDropJustOpened = true;
+    const rect = chip.getBoundingClientRect();
+    const drop = _getCatDropEl();
+    _catDropId   = chip.dataset.id;
+    _catDropTipo = chip.dataset.tipo;
+    const catActual = chip.dataset.cat || '';
+    drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+    drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 270) + 'px';
+    drop.innerHTML =
+      `<div class="cat-chip-dropdown-title">Reclasificar · DGI</div>` +
+      CATEGORIAS_GASTO_DGI.map(c =>
+        `<div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+              data-val="${c.valor}" data-lbl="${c.label.replace(/"/g,"'")}">
+           <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+           ${c.emoji} ${c.label}
+           <span class="cat-check">✓</span>
+         </div>`
+      ).join('');
+    // Listener de selección dentro del dropdown
+    drop.onclick = function(ev2) {
+      const opt = ev2.target.closest('.cat-chip-option');
+      if (!opt) return;
+      catChipSelect(opt.dataset.val, opt.dataset.lbl);
+    };
+    drop.classList.add('open');
+  }, { once: false });
 }
 
 
