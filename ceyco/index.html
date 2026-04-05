@@ -1899,12 +1899,13 @@ tr:hover td{background:rgba(0,0,0,.015)}
       </div>
       <!-- Tabla Costos (egresos) -->
       <div id="plTblEgresos" style="overflow-x:auto;display:none">
-        <table class="op-table" style="min-width:700px">
+        <table class="op-table" style="min-width:820px">
           <thead><tr id="plEgrHead">
             <th data-sort-egr="tipo" style="cursor:pointer;user-select:none">Tipo <span class="pl-sort-arrow"></span></th>
             <th data-sort-egr="descripcion" style="cursor:pointer;user-select:none">Descripción <span class="pl-sort-arrow"></span></th>
             <th data-sort-egr="proveedor" style="cursor:pointer;user-select:none">Proveedor <span class="pl-sort-arrow"></span></th>
             <th data-sort-egr="id_st" style="cursor:pointer;user-select:none">Origen <span class="pl-sort-arrow"></span></th>
+            <th>Clasif. DGI</th>
             <th data-sort-egr="monto" style="cursor:pointer;user-select:none;text-align:right">Monto <span class="pl-sort-arrow"></span></th>
           </tr></thead>
           <tbody id="plTblEgrBody"></tbody>
@@ -1958,50 +1959,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
   <span id="plTicket"    style="display:none"></span>
   <span id="plTxCount"   style="display:none"></span>
 
-  <!-- Modal Reclasificación DGI -->
-  <div id="plReclasifModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
-       z-index:1200;align-items:center;justify-content:center">
-    <div style="background:var(--white);border-radius:14px;padding:1.75rem;width:min(95vw,460px);
-                box-shadow:0 20px 60px rgba(0,0,0,.25)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.04em">
-          Reclasificar gasto · DGI
-        </div>
-        <button onclick="plCerrarReclasif()"
-          style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
-      </div>
-
-      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
-                  color:var(--muted);margin-bottom:.3rem">Clasificación actual</div>
-      <div id="plReclasifActual" style="font-size:.85rem;color:var(--text);background:var(--bg);
-           padding:.5rem .75rem;border-radius:6px;margin-bottom:1.25rem"></div>
-
-      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
-                  color:var(--muted);margin-bottom:.3rem">Nueva clasificación DGI</div>
-      <select id="plReclasifSelect"
-        style="width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:7px;
-               font-size:.83rem;background:var(--bg);color:var(--text);outline:none;margin-bottom:.5rem">
-      </select>
-      <div style="font-size:.68rem;color:var(--chrome);margin-bottom:1.25rem">
-        L = Línea del formulario Persona Jurídica DGI (e-Tax 2.0)
-      </div>
-
-      <div id="plReclasifMsg" style="font-size:.78rem;color:var(--red);margin-bottom:.75rem;min-height:1rem"></div>
-
-      <div style="display:flex;gap:.75rem;justify-content:flex-end">
-        <button onclick="plCerrarReclasif()"
-          style="padding:.5rem 1.25rem;background:var(--bg);border:1px solid var(--border);
-                 border-radius:8px;font-size:.83rem;cursor:pointer">
-          Cancelar
-        </button>
-        <button id="plReclasifBtnOk" onclick="plConfirmarReclasif()"
-          style="padding:.5rem 1.5rem;background:var(--orange);color:#fff;border:none;
-                 border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
-          Confirmar
-        </button>
-      </div>
-    </div>
-  </div>
 
 </div><!-- /sectionDashboard -->
 
@@ -6485,29 +6442,101 @@ async function catChipSelect(nuevoValor, nuevoLabel) {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'actualizarPendienteAcr', id: _catDropId, categoria: nuevoValor }),
       });
-      // Actualizar en memoria
       const idx = _acrData.findIndex(i => String(i.id) === String(_catDropId));
       if (idx !== -1) _acrData[idx].categoria = nuevoValor;
+      drop.classList.remove('open');
+      showToast('✅ Categoría actualizada');
+      rgRenderEgr();
+
+    } else if (_catDropTipo === 'pl_gasto') {
+      // Reclasifica egreso de Registro General desde el P&L
+      const res = await new Promise((resolve, reject) => {
+        const cb = 'rcb_' + Date.now();
+        const s  = document.createElement('script');
+        let done = false;
+        const t  = setTimeout(() => { if (!done) { done=true; reject(new Error('Timeout')); }}, 15000);
+        window[cb] = d => { if (!done) { done=true; clearTimeout(t); delete window[cb]; s.remove(); resolve(d); }};
+        s.onerror  = () => { if (!done) { done=true; clearTimeout(t); delete window[cb]; s.remove(); reject(new Error('Script error')); }};
+        s.src = GAS_URL + '?action=reclasificarEgreso&id_egreso=' + encodeURIComponent(_catDropId) +
+                '&nuevo_tipo=' + encodeURIComponent(nuevoValor) + '&callback=' + cb;
+        document.head.appendChild(s);
+      });
+      if (!res.success) throw new Error(res.error || 'Error al guardar');
+      // Actualizar en memoria (plEgresos)
+      const eg = plEgresos.find(e => e.id_egreso === _catDropId);
+      if (eg) eg.tipo_egreso = nuevoValor;
+      // También en egrItems si está cargado (Registro General)
+      const ei = egrItems.findIndex(i => String(i.id_egreso) === String(_catDropId));
+      if (ei !== -1) { egrItems[ei].tipo_egreso = nuevoValor; egrItems[ei].categoria = nuevoValor; }
+      drop.classList.remove('open');
+      showToast('✅ Reclasificado');
+      // Re-render P&L sin fetch completo
+      plRenderTblGastos(document.getElementById('plTblSearch')?.value || '');
+      erRender();
+      renderDashboard();
+
     } else {
-      // Actualiza fila de Egresos registrados — reusar handler existente
+      // Registro General — egresos registrados
       const data = await gasJsonp('actualizarCategoriaEgreso', { id: _catDropId, categoria: nuevoValor });
       if (data && !data.success) throw new Error(data.error || 'Error al guardar');
-      // Actualizar en memoria
       const idx = egrItems.findIndex(i => String(i.id_egreso) === String(_catDropId));
       if (idx !== -1) {
         egrItems[idx].tipo_egreso = nuevoValor;
         egrItems[idx].categoria   = nuevoValor;
       }
+      drop.classList.remove('open');
+      showToast('✅ Categoría actualizada');
+      rgRenderEgr();
     }
-    drop.classList.remove('open');
-    showToast('✅ Categoría actualizada');
-    rgRenderEgr(); // re-render sin fetch
   } catch(err) {
     drop.innerHTML = `<div class="cat-chip-saving" style="color:var(--red)">❌ ${err.message}</div>`;
     setTimeout(() => drop.classList.remove('open'), 2000);
   }
 }
 window.catChipSelect = catChipSelect;
+
+// ── catChipOpenPL — abre el dropdown del P&L con el catálogo DGI correcto ──
+// tipo: 'pl_gasto' → categorías operativas (reclasificable)
+// tipo: 'pl_costo' → tipos de costo (solo informativo, no reclasificable)
+function catChipOpenPL(e, id, tipo, catActual) {
+  e.stopPropagation();
+  const trigger = e.currentTarget;
+  const rect    = trigger.getBoundingClientRect();
+  const drop    = _getCatDropEl();
+
+  _catDropId   = id;
+  _catDropTipo = tipo;
+
+  drop.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  drop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 270) + 'px';
+
+  if (tipo === 'pl_gasto') {
+    drop.innerHTML =
+      `<div class="cat-chip-dropdown-title">Reclasificar · DGI</div>` +
+      CATEGORIAS_GASTO_DGI.map(c => `
+        <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+             onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
+          <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+          ${c.emoji} ${c.label}
+          <span class="cat-check">✓</span>
+        </div>`
+      ).join('');
+  } else {
+    // pl_costo — solo informativo
+    const cat = TIPOS_COSTO_DIRECTO.find(c => c.valor === catActual);
+    drop.innerHTML =
+      `<div class="cat-chip-dropdown-title">Clasificación DGI · Costo directo</div>` +
+      `<div style="font-size:.78rem;padding:.5rem .6rem;color:var(--muted);line-height:1.5">
+        ${cat ? '📦 ' + cat.label + '<br><span style="font-size:.68rem">Línea DGI ' + cat.linea_dgi + '</span>' : catActual}
+        <br><span style="font-size:.65rem;color:var(--chrome);margin-top:.4rem;display:block">
+          Los costos de Proyectos y Comercialización<br>no son reclasificables desde el P&L.
+        </span>
+      </div>`;
+  }
+
+  drop.classList.add('open');
+}
+window.catChipOpenPL = catChipOpenPL;
 
 // ── Render unificado Egresos + Pendientes Acreedores ──────────
 function rgRender() { rgRenderEgr(); rgRenderIng(); }
@@ -8417,7 +8446,7 @@ function plRenderTblEgresos(q) {
   };
 
   // Índice de columna activa para highlight de celda
-  const colIdx = { tipo:0, descripcion:1, proveedor:2, id_st:3, monto:4 };
+  const colIdx = { tipo:0, descripcion:1, proveedor:2, id_st:3, monto:5 }; // col 4 = DGI chip
   const activeIdx = colIdx[col] ?? -1;
   const cellBg = 'background:rgba(0,0,0,.03)';
 
@@ -8439,16 +8468,34 @@ function plRenderTblEgresos(q) {
     const _origenBadge = si._esOp
       ? '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:6px;background:#E3F2FD;color:#1565C0;display:inline-block;margin-top:2px">COM</span>'
       : '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:6px;background:#E8EAF6;color:#283593;display:inline-block;margin-top:2px">PROY</span>';
+    // Mapear tipo de ítem a categoría DGI de COSTO
+    const _tipoToDgi = {
+      producto:'costo_mercancia', shipping_handling:'costo_mercancia',
+      flete:'costo_mercancia', impuesto:'impuesto_aduana', aduana:'impuesto_aduana',
+      mano_obra:'costo_servicio_tecnico', subcontrato:'costo_servicio_tecnico',
+      credito_fiscal:'credito_fiscal', fianza:'costo_servicio_tecnico', otro:'costo_mercancia',
+    };
+    const _dgiVal = _tipoToDgi[tipo] || 'costo_mercancia';
+    const _dgiCat = TIPOS_COSTO_DIRECTO.find(c => c.valor === _dgiVal);
+    const _dgiChip = _dgiCat
+      ? `<div class="cat-chip-wrap"><span class="cat-chip-label"
+           onclick="catChipOpenPL(event,'','pl_costo','${_dgiVal}')"
+           title="L${_dgiCat.linea_dgi} · Solo informativo — no reclasificable" style="color:var(--muted)">
+           📦 ${_dgiCat.label}
+           <span class="cat-chip-edit-icon">ℹ️</span>
+         </span></div>`
+      : '—';
     return `<tr>
       <td style="white-space:nowrap;${h(0)}"><span style="font-size:.8rem">${icon} ${esc(label)}</span></td>
-      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${h(1)}" title="${esc(it.descripcion||'')}">${esc((it.descripcion||'').substring(0,70))}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${h(1)}" title="${esc(it.descripcion||'')}">${esc((it.descripcion||'').substring(0,70))}</td>
       <td style="font-size:.8rem;${h(2)}">${esc(it.proveedor||'—')}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);${h(3)}">${esc(si.id_st||'')} ${_origenBadge}</td>
+      <td>${_dgiChip}</td>
       <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#C62828;${h(4)}">$${monto.toFixed(2)}</td>
     </tr>`;
   }).join('') +
   `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
-    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${allItems.length} ítems</td>
+    <td colspan="5" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${allItems.length} ítems</td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totTotal.toFixed(2)}</td>
   </tr>`;
 }
@@ -8486,22 +8533,21 @@ function plRenderTblGastos(q) {
     const tipoVal  = e.tipo_egreso || e.categoria || '';
     const tipoCat  = CATEGORIAS_GASTO_DGI.find(c => c.valor === tipoVal);
     const chipLbl  = tipoCat ? (tipoCat.emoji + ' ' + tipoCat.label) : (tipoVal || '—');
-    const lineaDgi = tipoCat ? tipoCat.linea : '?';
+    const lineaDgi = tipoCat ? 'L' + tipoCat.linea : '';
     const idEgr    = esc(e.id_egreso || '');
     return `<tr>
       <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.descripcion||'')}">${esc(e.descripcion || '—')}</td>
       <td style="font-size:.78rem">${esc(e.proveedor || '—')}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)">${esc(e.num_fac_ref || e.id_egreso || '—')}</td>
       <td>
-        <button onclick="plAbrirReclasif('${idEgr}','${esc(tipoVal)}')"
-          style="display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;font-weight:500;
-                 padding:.28rem .65rem;border-radius:6px;border:1px solid var(--border);
-                 background:var(--bg);color:var(--text);cursor:pointer;transition:all .15s;
-                 max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-          title="L${lineaDgi} — Click para reclasificar">
-          ${chipLbl}
-          <span style="font-size:.6rem;color:var(--chrome);flex-shrink:0">✏️</span>
-        </button>
+        <div class="cat-chip-wrap">
+          <span class="cat-chip-label"
+            onclick="catChipOpenPL(event,'${idEgr}','pl_gasto','${esc(tipoVal)}')"
+            title="${lineaDgi} · Click para reclasificar">
+            ${chipLbl}
+            <span class="cat-chip-edit-icon">✏️</span>
+          </span>
+        </div>
       </td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#C62828">$${monto.toFixed(2)}</td>
     </tr>`;
@@ -8511,74 +8557,6 @@ function plRenderTblGastos(q) {
     <td></td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totGas.toFixed(2)}</td>
   </tr>`;
-}
-
-// ── Modal de reclasificación DGI ──────────────────────────────
-var _plReclasifIdActual = null;
-
-function plAbrirReclasif(idEgreso, tipoActual) {
-  _plReclasifIdActual = idEgreso;
-  const sel = document.getElementById('plReclasifSelect');
-  if (!sel) return;
-  sel.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
-    `<option value="${esc(c.valor)}" ${c.valor === tipoActual ? 'selected' : ''}>
-      L${c.linea} · ${c.emoji} ${c.label}
-    </option>`
-  ).join('');
-  const modal = document.getElementById('plReclasifModal');
-  modal.style.display = 'flex';
-  // Mostrar tipo actual
-  const act = CATEGORIAS_GASTO_DGI.find(c => c.valor === tipoActual);
-  document.getElementById('plReclasifActual').textContent =
-    act ? (act.emoji + ' ' + act.label + ' (L' + act.linea + ')') : (tipoActual || '—');
-}
-
-function plCerrarReclasif() {
-  document.getElementById('plReclasifModal').style.display = 'none';
-  _plReclasifIdActual = null;
-}
-
-async function plConfirmarReclasif() {
-  if (!_plReclasifIdActual) return;
-  const nuevoTipo = document.getElementById('plReclasifSelect').value;
-  const btnOk     = document.getElementById('plReclasifBtnOk');
-  const msgEl     = document.getElementById('plReclasifMsg');
-
-  btnOk.disabled   = true;
-  btnOk.textContent = 'Guardando…';
-  msgEl.textContent = '';
-
-  try {
-    const res = await new Promise((resolve, reject) => {
-      const cb = 'rcb_' + Date.now();
-      const s  = document.createElement('script');
-      let done = false;
-      const t  = setTimeout(() => { if (!done) { done=true; reject(new Error('Timeout')); }}, 15000);
-      window[cb] = d => { if (!done) { done=true; clearTimeout(t); delete window[cb]; s.remove(); resolve(d); }};
-      s.onerror  = () => { if (!done) { done=true; clearTimeout(t); delete window[cb]; s.remove(); reject(new Error('Script error')); }};
-      s.src = GAS_URL + '?action=reclasificarEgreso&id_egreso=' + encodeURIComponent(_plReclasifIdActual) +
-              '&nuevo_tipo=' + encodeURIComponent(nuevoTipo) + '&callback=' + cb;
-      document.head.appendChild(s);
-    });
-
-    if (!res.success) throw new Error(res.error || 'Error desconocido');
-
-    // Actualizar en memoria sin recargar todo
-    const egr = plEgresos.find(e => e.id_egreso === _plReclasifIdActual);
-    if (egr) egr.tipo_egreso = nuevoTipo;
-
-    showToast('✅ Reclasificado correctamente');
-    plCerrarReclasif();
-    // Re-render tablas y estado de resultados
-    plRenderTblGastos(document.getElementById('plTblSearch')?.value || '');
-    erRender();
-    renderDashboard();
-
-  } catch(err) {
-    msgEl.textContent = '⚠️ ' + err.message;
-    btnOk.disabled   = false;
-    btnOk.textContent = 'Confirmar';
-  }
 }
 
 
