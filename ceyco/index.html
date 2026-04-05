@@ -1564,12 +1564,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn active" data-rge-estado="all" onclick="rgApplyEgrEstado(this,'all')">Todos</button>
       <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .25rem"></div>
-      <button class="op-filter-btn" data-rge-filter="nomina"                    onclick="rgApplyEgrFilter(this,'nomina')">👤 Planilla</button>
-      <button class="op-filter-btn" data-rge-filter="alquileres"                onclick="rgApplyEgrFilter(this,'alquileres')">🏢 Alquiler</button>
-      <button class="op-filter-btn" data-rge-filter="servicios_publicos"        onclick="rgApplyEgrFilter(this,'servicios_publicos')">⚡ Servicios públ.</button>
-      <button class="op-filter-btn" data-rge-filter="combustible_transporte"    onclick="rgApplyEgrFilter(this,'combustible_transporte')">⛽ Combustible</button>
-      <button class="op-filter-btn" data-rge-filter="honorarios_profesionales"  onclick="rgApplyEgrFilter(this,'honorarios_profesionales')">💼 Honorarios</button>
-      <button class="op-filter-btn" data-rge-filter="otros_deducibles"          onclick="rgApplyEgrFilter(this,'otros_deducibles')">📋 Otros</button>
+      <!-- Generado dinámicamente desde CATEGORIAS_GASTO_DGI — ver rgBuildFilterBtns() -->
+      <span id="rgEgrFilterBtns"></span>
       <div class="search-wrap" style="margin-left:auto">
         <span class="search-icon">🔍</span>
         <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
@@ -6263,8 +6259,20 @@ const RG_ING_CAT_LABELS = {
   otro_exento:              '📋 Otro (exento)',
 };
 
+function rgBuildFilterBtns() {
+  const container = document.getElementById('rgEgrFilterBtns');
+  if (!container) return;
+  container.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
+    `<button class="op-filter-btn" data-rge-filter="${c.valor}"
+       onclick="rgApplyEgrFilter(this,'${c.valor}')">
+       ${c.emoji} ${c.label.split(' ')[0]}${c.label.split(' ').length > 1 ? ' ' + c.label.split(' ').slice(1,3).join(' ') : ''}
+     </button>`
+  ).join('');
+}
+
 function rgInit() {
   if (!rg_initialized) {
+    rgBuildFilterBtns();
     // Cargar datos si aún no están en memoria
     if (!egrItems.length) loadEgresos().then(() => rgRender());
     else rgRender();
@@ -6379,11 +6387,12 @@ function catChipLabel(valor) {
 
 // Construir la celda chip clickeable
 function buildCatChip(item) {
-  const label = catChipLabel(item.categoria);
+  const catVal = item.tipo_egreso || item.categoria || '';
+  const label = catChipLabel(catVal);
   const id    = esc(item._id);
   const tipo  = item._tipo; // 'pendiente' | 'registrado'
   return `<div class="cat-chip-wrap">
-    <span class="cat-chip-label" onclick="catChipOpen(event,'${id}','${tipo}','${esc(item.categoria)}')">
+    <span class="cat-chip-label" onclick="catChipOpen(event,'${id}','${tipo}','${esc(catVal)}')">
       ${label}
       <span class="cat-chip-edit-icon">✏️</span>
     </span>
@@ -6525,6 +6534,13 @@ async function catChipSelect(nuevoValor, nuevoLabel) {
       drop.classList.remove('open');
       showToast('✅ Categoría actualizada');
       rgRenderEgr();
+      // Si el P&L está cargado, refrescar también
+      if (typeof plLoaded !== 'undefined' && plLoaded) {
+        const eg = plEgresos.find(e => e.id_egreso === _catDropId);
+        if (eg) eg.tipo_egreso = nuevoValor;
+        plRenderTblGastos('');
+        erRender();
+      }
     }
   } catch(err) {
     drop.innerHTML = `<div class="cat-chip-saving" style="color:var(--red)">❌ ${err.message}</div>`;
@@ -6628,7 +6644,7 @@ function rgRenderEgr() {
   if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
 
   // Filtro categoría
-  if (rg_egr_filter !== 'all') items = items.filter(i => i.categoria === rg_egr_filter);
+  if (rg_egr_filter !== 'all') items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
 
   // Búsqueda
   if (q) items = items.filter(i =>
