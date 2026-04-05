@@ -1564,8 +1564,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn active" data-rge-estado="all" onclick="rgApplyEgrEstado(this,'all')">Todos</button>
       <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .25rem"></div>
-      <!-- Generado dinámicamente desde CATEGORIAS_GASTO_DGI — ver rgBuildFilterBtns() -->
-      <span id="rgEgrFilterBtns"></span>
+      <select id="rgEgrCatDropdown" onchange="rgApplyEgrFilterSel(this)"
+        style="font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--border);border-radius:7px;
+               background:var(--bg);color:var(--text);cursor:pointer;outline:none;max-width:220px">
+        <option value="all">📂 Todas las categorías</option>
+      </select>
       <div class="search-wrap" style="margin-left:auto">
         <span class="search-icon">🔍</span>
         <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
@@ -6260,15 +6263,22 @@ const RG_ING_CAT_LABELS = {
 };
 
 function rgBuildFilterBtns() {
-  const container = document.getElementById('rgEgrFilterBtns');
-  if (!container) return;
-  container.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
-    `<button class="op-filter-btn" data-rge-filter="${c.valor}"
-       onclick="rgApplyEgrFilter(this,'${c.valor}')">
-       ${c.emoji} ${c.label.split(' ')[0]}${c.label.split(' ').length > 1 ? ' ' + c.label.split(' ').slice(1,3).join(' ') : ''}
-     </button>`
-  ).join('');
+  // Ahora usamos un <select> en lugar de botones — poblar las opciones
+  const sel = document.getElementById('rgEgrCatDropdown');
+  if (!sel) return;
+  // Conservar la opción "Todas"
+  sel.innerHTML = '<option value="all">📂 Todas las categorías</option>' +
+    CATEGORIAS_GASTO_DGI.map(c =>
+      `<option value="${c.valor}">${c.emoji} ${c.label}</option>`
+    ).join('');
 }
+
+// Handler para el select de categoría
+function rgApplyEgrFilterSel(sel) {
+  rg_egr_filter = sel.value;
+  rgRenderEgr();
+}
+window.rgApplyEgrFilterSel = rgApplyEgrFilterSel;
 
 function rgInit() {
   if (!rg_initialized) {
@@ -6337,9 +6347,10 @@ window.rgShowTab = rgShowTab;
 
 // ── Filtros ───────────────────────────────────────
 function rgApplyEgrFilter(btn, filter) {
-  document.querySelectorAll('[data-rge-filter]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  rg_egr_filter = filter;
+  // Ya no hay botones data-rge-filter — sincronizar el select dropdown
+  const sel = document.getElementById('rgEgrCatDropdown');
+  if (sel) sel.value = filter || 'all';
+  rg_egr_filter = filter || 'all';
   rgRenderEgr();
 }
 function rgApplyEgrEstado(btn, estado) {
@@ -6468,6 +6479,7 @@ function catChipOpen(e, id, tipo, catActual) {
     TODAS_CATEGORIAS_EGR.map(c => `
       <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
            onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
+        <span style="font-size:.9rem;flex-shrink:0">${c.emoji || ''}</span>
         ${c.label}
         <span class="cat-check">✓</span>
       </div>`
