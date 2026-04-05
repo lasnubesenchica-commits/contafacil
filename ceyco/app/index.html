@@ -2215,7 +2215,17 @@ const REG = (() => {
     }
   }
 
-  function inferTipoEgr() { /* categoría mapea directamente */ }
+  function inferTipoEgr() { /* categoría mapea directamente al valor DGI */ }
+
+  function buildEgrCatOpts() {
+    const sel = document.getElementById('regEgrCat');
+    if (!sel || !CATEGORIAS_GASTO_DGI) return;
+    sel.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
+      `<option value="${c.valor}">${c.emoji} ${c.label}</option>`
+    ).join('');
+    // Default: otros_deducibles
+    sel.value = 'otros_deducibles';
+  }
 
   function inferItbmsIng() {
     const cat = document.getElementById('regIngCat').value;
@@ -2345,9 +2355,10 @@ const REG = (() => {
 
   // ── Abrir modales ─────────────────────────────────────
   function openEgreso() {
+    buildEgrCatOpts(); // poblar select desde CATEGORIAS_GASTO_DGI
     ['regEgrNfac','regEgrDesc','regEgrTotal','regEgrProv','regEgrRuc','regEgrDv','regEgrNotas']
       .forEach(id => document.getElementById(id).value = '');
-    document.getElementById('regEgrCat').value          = 'combustible_transporte';
+    document.getElementById('regEgrCat').value          = 'otros_deducibles';
     document.getElementById('regEgrFecha').value        = new Date().toISOString().slice(0,10);
     document.getElementById('regEgrItbms').checked      = false;
     document.getElementById('regEgrDesglose').style.display = 'none';
@@ -2395,6 +2406,7 @@ const REG = (() => {
         fecha,
         tipo:        'costo_operativo',
         categoria:   document.getElementById('regEgrCat').value,
+        tipo:        document.getElementById('regEgrCat').value,
         proveedor:   document.getElementById('regEgrProv').value.trim(),
         ruc_prov:    document.getElementById('regEgrRuc').value.trim(),
         dv_prov:     document.getElementById('regEgrDv').value.trim(),
@@ -2444,7 +2456,7 @@ const REG = (() => {
   }
 
   return { openEgreso, openIngreso, onEgrFile, onIngFile,
-           recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng };
+           recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts };
 })();
 
 
@@ -2579,28 +2591,13 @@ const PEND = (() => {
   let _expanded = null;
   let _loaded   = false;
 
-  const CATS = [
-    { v:'alquiler_local',              l:'🏠 Alquiler local / oficina' },
-    { v:'servicios_publicos',          l:'💡 Servicios públicos (agua, luz)' },
-    { v:'internet_telecomunicaciones', l:'📶 Internet y telecomunicaciones' },
-    { v:'seguros',                     l:'🛡️ Seguros' },
-    { v:'mantenimiento_reparacion',    l:'🔧 Mantenimiento y reparaciones' },
-    { v:'servicios_profesionales',     l:'💼 Servicios profesionales' },
-    { v:'publicidad_marketing',        l:'📣 Publicidad y marketing' },
-    { v:'transporte_combustible',      l:'⛽ Transporte y combustible' },
-    { v:'suministros_oficina',         l:'🖇️ Suministros de oficina' },
-    { v:'planilla_empleados',          l:'👤 Planilla y cargas sociales' },
-    { v:'financiero_bancario',         l:'🏦 Gastos financieros y bancarios' },
-    { v:'capacitacion',               l:'📚 Capacitación y formación' },
-    { v:'tecnologia_software',         l:'💻 Tecnología y software' },
-    { v:'otros_gastos_generales',      l:'📋 Otros gastos generales' },
-    { v:'combustible_transporte',      l:'⛽ Combustible / Transporte' },
-    { v:'honorarios_profesionales',    l:'💼 Honorarios profesionales' },
-    { v:'alquileres',                  l:'🏢 Alquileres' },
-    { v:'otros_deducibles',            l:'📋 Otros deducibles' },
-  ];
+  // CATS — alias de CATEGORIAS_GASTO_DGI (fuente única DGI)
+  const CATS = CATEGORIAS_GASTO_DGI.map(c => ({ v: c.valor, l: c.emoji + ' ' + c.label }));
 
-  function _catLabel(v) { return (CATS.find(c => c.v === v) || {}).l || v || '—'; }
+  function _catLabel(v) {
+    const c = CATEGORIAS_GASTO_DGI.find(x => x.valor === v);
+    return c ? c.emoji + ' ' + c.label : (dgiLabel(v) || v || '—');
+  }
   function _catOpts(sel) {
     return CATS.map(c => `<option value="${c.v}"${c.v===sel?' selected':''}>${c.l}</option>`).join('');
   }
@@ -2874,16 +2871,7 @@ const PEND = (() => {
       <div class="f-grp">
         <label class="f-lbl">Categoría</label>
         <select class="f-inp" id="regEgrCat" onchange="REG.inferTipoEgr()">
-          <option value="combustible_transporte">⛽ Combustible / Transporte</option>
-          <option value="gastos_personal">👤 Nómina / Personal</option>
-          <option value="alquileres">🏠 Alquileres</option>
-          <option value="servicios_publicos">💡 Servicios públicos</option>
-          <option value="publicidad_mercadeo">📣 Publicidad / Mercadeo</option>
-          <option value="honorarios_profesionales">📋 Honorarios profesionales</option>
-          <option value="mantenimiento_reparacion">🔧 Mantenimiento / Reparación</option>
-          <option value="seguros">🛡️ Seguros</option>
-          <option value="gastos_financieros">🏦 Gastos financieros</option>
-          <option value="otros_deducibles">📂 Otros deducibles</option>
+          <!-- Poblado dinámicamente por REG.buildEgrCatOpts() desde CATEGORIAS_GASTO_DGI -->
         </select>
       </div>
       <div class="f-grp">
