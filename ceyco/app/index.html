@@ -471,7 +471,21 @@ select.f-inp { appearance:none; }
 .pl-w-val { font-family:'DM Mono',monospace; font-size:1.05rem; font-weight:500; line-height:1.1; }
 .pl-w-val.green  { color:var(--green); }
 .pl-w-val.red    { color:var(--red); }
-.pl-w-val.indigo { color:var(--indigo); }
+.pl-w-val.indigo  { color:var(--indigo); }
+.pl-w-val.purple  { color:var(--purple); }
+.pl-w-val.orange  { color:var(--orange); }
+/* Acordeón Estado de Resultados */
+.pl-stmt-row.accordeon { cursor:pointer; user-select:none; }
+.pl-stmt-row.accordeon:active { background:var(--bg2); }
+.pl-stmt-chevron { font-size:.6rem; color:var(--chrome); transition:transform .2s; display:inline-block; margin-right:.35rem; }
+.pl-stmt-row.accordeon.open .pl-stmt-chevron { transform:rotate(90deg); }
+.pl-stmt-detail { display:none; background:var(--bg); border-bottom:1px solid var(--border); }
+.pl-stmt-detail.open { display:block; }
+.pl-stmt-detail-item { display:flex; justify-content:space-between; align-items:center;
+  padding:.42rem .85rem .42rem 1.4rem; border-bottom:1px solid rgba(0,0,0,.04); font-size:.72rem; }
+.pl-stmt-detail-item:last-child { border-bottom:none; }
+.pl-stmt-detail-lbl { color:var(--muted); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:.5rem; }
+.pl-stmt-detail-amt { font-family:'DM Mono',monospace; font-size:.72rem; font-weight:600; white-space:nowrap; color:var(--text); flex-shrink:0; }
 
 .pl-statement { margin:.55rem .85rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r2); overflow:hidden; }
 .pl-stmt-hdr {
@@ -788,17 +802,48 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
       </div>
       <div class="pl-widgets">
         <div class="pl-widget"><div class="pl-w-lbl">Ingresos neto</div><div class="pl-w-val green" id="pl-w-ing">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem">sin ITBMS</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">Costo mercancía</div><div class="pl-w-val red" id="pl-w-egr">—</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">Utilidad neta</div><div class="pl-w-val indigo" id="pl-w-margen">—</div></div>
+        <div class="pl-widget"><div class="pl-w-lbl">Costos directos</div><div class="pl-w-val red" id="pl-w-egr">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-egr-sub">—</div></div>
+        <div class="pl-widget"><div class="pl-w-lbl">Gastos operativos</div><div class="pl-w-val purple" id="pl-w-gas">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-gas-sub">—</div></div>
+        <div class="pl-widget"><div class="pl-w-lbl">Utilidad bruta</div><div class="pl-w-val green" id="pl-w-ubruta">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-ubruta-sub">—</div></div>
+        <div class="pl-widget"><div class="pl-w-lbl">Utilidad neta</div><div class="pl-w-val indigo" id="pl-w-margen">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-margen-sub">tras gastos operativos</div></div>
         <div class="pl-widget"><div class="pl-w-lbl">ITBMS neto DGI</div><div class="pl-w-val" id="pl-w-itbms">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-itbms-sub">cobrado — pagado</div></div>
       </div>
       <div class="pl-statement">
-        <div class="pl-stmt-hdr">Estado de Resultados</div>
-        <div class="pl-stmt-row"><span class="pl-stmt-lbl">Ingresos neto (sin ITBMS)</span><span class="pl-stmt-val green" id="pl-s-ing">—</span></div>
-        <div class="pl-stmt-row"><span class="pl-stmt-lbl">Costo de servicios</span>   <span class="pl-stmt-val red"    id="pl-s-costo">—</span></div>
-        <div class="pl-stmt-row subtotal"><span class="pl-stmt-lbl">Utilidad bruta</span><span class="pl-stmt-val"      id="pl-s-ubruta">—</span></div>
-        <div class="pl-stmt-row"><span class="pl-stmt-lbl">Gastos operativos</span>    <span class="pl-stmt-val red"    id="pl-s-gastos">—</span></div>
-        <div class="pl-stmt-row total-final"><span class="pl-stmt-lbl">Utilidad neta</span><span class="pl-stmt-val indigo" id="pl-s-uneta">—</span></div>
+        <div class="pl-stmt-hdr" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Estado de Resultados</span>
+          <button id="er-expand-btn" onclick="PL.toggleExpandAll()"
+            style="font-size:.62rem;font-weight:600;padding:2px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;cursor:pointer">
+            Ver todo
+          </button>
+        </div>
+        <!-- Ingresos — acordeón -->
+        <div class="pl-stmt-row accordeon" id="pl-s-ing-row" onclick="PL.toggleSection('ing')">
+          <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Ingresos neto (sin ITBMS)</span>
+          <span class="pl-stmt-val green" id="pl-s-ing">—</span>
+        </div>
+        <div class="pl-stmt-detail" id="pl-s-ing-detail"></div>
+        <!-- Costos directos — acordeón -->
+        <div class="pl-stmt-row accordeon" id="pl-s-costo-row" onclick="PL.toggleSection('cogs')">
+          <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Costo de servicios</span>
+          <span class="pl-stmt-val red" id="pl-s-costo">—</span>
+        </div>
+        <div class="pl-stmt-detail" id="pl-s-cogs-detail"></div>
+        <!-- Utilidad bruta — fila estática -->
+        <div class="pl-stmt-row subtotal">
+          <span class="pl-stmt-lbl">Utilidad bruta</span>
+          <span class="pl-stmt-val" id="pl-s-ubruta">—</span>
+        </div>
+        <!-- Gastos operativos — acordeón -->
+        <div class="pl-stmt-row accordeon" id="pl-s-gastos-row" onclick="PL.toggleSection('gas')">
+          <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Gastos operativos</span>
+          <span class="pl-stmt-val red" id="pl-s-gastos">—</span>
+        </div>
+        <div class="pl-stmt-detail" id="pl-s-gas-detail"></div>
+        <!-- Utilidad neta — fila final -->
+        <div class="pl-stmt-row total-final">
+          <span class="pl-stmt-lbl">Utilidad neta</span>
+          <span class="pl-stmt-val indigo" id="pl-s-uneta">—</span>
+        </div>
       </div>
       <div class="pl-toggle">
         <button class="pl-tbtn active" id="pl-tab-ing" onclick="PL.showTable('ing')">Ingresos</button>
@@ -1708,27 +1753,85 @@ const PL = (() => {
 
     const d = _getData();
 
-    // Widgets
-    document.getElementById('pl-w-ing').textContent       = fmt(d.subtotal);
-    document.getElementById('pl-w-egr').textContent       = fmt(d.cogs);
-    const itbmsAbs   = Math.abs(d.itbms_neto);
+    // ── Widgets ────────────────────────────────────────────────
+    document.getElementById('pl-w-ing').textContent      = fmt(d.subtotal);
+    document.getElementById('pl-w-egr').textContent      = fmt(d.cogs);
+    document.getElementById('pl-w-egr-sub').textContent  = d.subtotal > 0
+      ? ((d.cogs / d.subtotal) * 100).toFixed(1) + '% de ingresos' : '—';
+    document.getElementById('pl-w-gas').textContent      = fmt(d.gastos);
+    document.getElementById('pl-w-gas-sub').textContent  = d.subtotal > 0 && d.gastos > 0
+      ? ((d.gastos / d.subtotal) * 100).toFixed(1) + '% de ingresos' : '—';
+    document.getElementById('pl-w-ubruta').textContent   = fmt(d.ub);
+    document.getElementById('pl-w-ubruta').className     = 'pl-w-val ' + (d.ub >= 0 ? 'green' : 'red');
+    document.getElementById('pl-w-ubruta-sub').textContent = d.subtotal > 0
+      ? (d.ub >= 0 ? '+' : '') + ((d.ub / d.subtotal) * 100).toFixed(1) + '%' : '—';
+    document.getElementById('pl-w-margen').textContent   = fmt(d.un);
+    document.getElementById('pl-w-margen').className     = 'pl-w-val ' + (d.un >= 0 ? 'indigo' : 'red');
+    document.getElementById('pl-w-margen-sub').textContent = d.subtotal > 0
+      ? (d.un >= 0 ? '+' : '') + ((d.un / d.subtotal) * 100).toFixed(1) + '%' : 'tras gastos operativos';
+    const itbmsAbs    = Math.abs(d.itbms_neto);
     const itbmsAFavor = d.itbms_neto < 0;
-    document.getElementById('pl-w-itbms').textContent      = fmt(itbmsAbs);
-    document.getElementById('pl-w-itbms').style.color      = itbmsAFavor ? 'var(--green)' : '';
-    document.getElementById('pl-w-itbms-sub').textContent  = itbmsAFavor
-      ? '↓ crédito fiscal a favor DGI'
-      : 'cobrado '+fmt(d.itbms_cobrado)+' · pagado '+fmt(d.itbms_pagado);
-    document.getElementById('pl-w-margen').textContent    = fmt(d.un);
-    document.getElementById('pl-w-margen').className      = 'pl-w-val '+(d.un>=0?'indigo':'red');
+    document.getElementById('pl-w-itbms').textContent     = fmt(itbmsAbs);
+    document.getElementById('pl-w-itbms').style.color     = itbmsAFavor ? 'var(--green)' : '';
+    document.getElementById('pl-w-itbms-sub').textContent = itbmsAFavor
+      ? '↓ crédito fiscal DGI'
+      : 'cobrado ' + fmt(d.itbms_cobrado) + ' · pagado ' + fmt(d.itbms_pagado);
 
-    // Estado de Resultados
-    document.getElementById('pl-s-ing').textContent    = fmt(d.subtotal);
-    document.getElementById('pl-s-costo').textContent  = '(' + fmt(d.cogs) + ')';
-    document.getElementById('pl-s-ubruta').textContent = fmt(d.ub);
-    document.getElementById('pl-s-gastos').textContent = d.gastos ? '(' + fmt(d.gastos) + ')' : '—';
-    document.getElementById('pl-s-uneta').textContent  = fmt(d.un);
-    document.getElementById('pl-s-ubruta').className   = 'pl-stmt-val ' + (d.ub >= 0 ? 'green' : 'red');
-    document.getElementById('pl-s-uneta').className    = 'pl-stmt-val indigo';
+    // ── Estado de Resultados — valores y detalles acordeón ─────
+    document.getElementById('pl-s-ing').textContent     = fmt(d.subtotal);
+    document.getElementById('pl-s-costo').textContent   = d.cogs   ? '(' + fmt(d.cogs)   + ')' : '—';
+    document.getElementById('pl-s-ubruta').textContent  = fmt(d.ub);
+    document.getElementById('pl-s-ubruta').className    = 'pl-stmt-val ' + (d.ub >= 0 ? 'green' : 'red');
+    document.getElementById('pl-s-gastos').textContent  = d.gastos ? '(' + fmt(d.gastos) + ')' : '—';
+    document.getElementById('pl-s-uneta').textContent   = fmt(d.un);
+    document.getElementById('pl-s-uneta').className     = 'pl-stmt-val ' + (d.un >= 0 ? 'indigo' : 'red');
+
+    // Detalle acordeón — Ingresos
+    const ingDetEl = document.getElementById('pl-s-ing-detail');
+    if (ingDetEl) {
+      const ingRows = (d.ingresos || []).map(i => {
+        const monto = parseFloat(i.subtotal) || parseFloat(i.total) || 0;
+        const desc  = i.nombre_cliente || i.descripcion || '—';
+        const nfac  = i.num_factura ? ' · ' + i.num_factura : '';
+        return `<div class="pl-stmt-detail-item">
+          <span class="pl-stmt-detail-lbl">${esc(desc)}${esc(nfac)}</span>
+          <span class="pl-stmt-detail-amt">${fmt(monto)}</span>
+        </div>`;
+      }).join('') || '<div class="pl-stmt-detail-item"><span class="pl-stmt-detail-lbl" style="color:var(--chrome)">Sin registros</span></div>';
+      ingDetEl.innerHTML = ingRows;
+    }
+
+    // Detalle acordeón — Costos (ST_Items + CV-OP)
+    const cogsDetEl = document.getElementById('pl-s-cogs-detail');
+    if (cogsDetEl) {
+      const TIPO_ICON = { producto:'📦', shipping_handling:'✈️', impuesto:'🏛️', mano_obra:'🔧', flete:'🚛', subcontrato:'🤝', otro:'📌' };
+      const cogsRows = (d.cogs_items || []).map(it => {
+        const icon = TIPO_ICON[it.tipo || 'otro'] || '📌';
+        const desc = (it.descripcion || '—').substring(0, 45);
+        const monto = parseFloat(it.monto) || 0;
+        return `<div class="pl-stmt-detail-item">
+          <span class="pl-stmt-detail-lbl">${icon} ${esc(desc)}</span>
+          <span class="pl-stmt-detail-amt">${fmt(monto)}</span>
+        </div>`;
+      }).join('') || '<div class="pl-stmt-detail-item"><span class="pl-stmt-detail-lbl" style="color:var(--chrome)">Sin costos directos</span></div>';
+      cogsDetEl.innerHTML = cogsRows;
+    }
+
+    // Detalle acordeón — Gastos operativos
+    const gasDetEl = document.getElementById('pl-s-gas-detail');
+    if (gasDetEl) {
+      const gasRows = (d.egresos_gasto || []).map(g => {
+        const cat   = g.tipo_egreso || g.categoria || '—';
+        const desc  = g.descripcion ? g.descripcion.substring(0, 40) : cat;
+        const monto = parseFloat(g.total) || 0;
+        return `<div class="pl-stmt-detail-item">
+          <span class="pl-stmt-detail-lbl">${esc(desc)}</span>
+          <span class="pl-stmt-detail-amt">${fmt(monto)}</span>
+        </div>`;
+      }).join('') || '<div class="pl-stmt-detail-item"><span class="pl-stmt-detail-lbl" style="color:var(--chrome)">Sin gastos operativos</span></div>';
+      gasDetEl.innerHTML = gasRows;
+    }
+
     renderTx();
   }
 
@@ -1763,11 +1866,17 @@ const PL = (() => {
         const meta     = mesMeta ? (mesMeta+(baseMeta?' · '+baseMeta:'')) : baseMeta;
         const url      = row.drive_url || '';
         const monto    = parseFloat(row.subtotal) || parseFloat(row.total) || 0;
-        // Badge COM si notas comienza con 'CV:', sino PROY
-        const notas    = row.notas || '';
-        const esCOM    = notas.startsWith('CV:');
-        const badge    = esCOM
+        // Badge dimensión — misma lógica que desktop (_clasificarDimension)
+        const notas    = String(row.notas_internas || row.notas || '').toUpperCase();
+        const tipoI    = String(row.tipo_ingreso   || '').toLowerCase();
+        const dimIng   = (notas.includes('ST:') || tipoI.includes('tecnico') || tipoI.includes('técnico'))
+          ? 'proyectos'
+          : (notas.includes('CV:') || String(row.id_orden_web || '').trim())
+          ? 'comercializacion' : 'general';
+        const badge    = dimIng === 'comercializacion'
           ? `<span style="font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--blue-bg);color:var(--blue);margin-left:.3rem">COM</span>`
+          : dimIng === 'general'
+          ? `<span style="font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:4px;background:#E8F5E9;color:#2E7D32;margin-left:.3rem">GEN</span>`
           : `<span style="font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--indigo-bg);color:var(--indigo);margin-left:.3rem">PROY</span>`;
         const facLabel = nfac ? `<span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600">${esc(nfac)}</span>${badge}` : badge;
         const onclk   = url ? `onclick="DRIVE.open('${esc(url)}','${esc(desc)} · ${esc(nfac)}')"` : '';
@@ -1877,7 +1986,33 @@ const PL = (() => {
     return Promise.resolve();
   }
 
-  return { load, prev, next, setMode, showTable, get loaded(){ return _loaded; } };
+  // ── Acordeón Estado de Resultados ────────────────────────────
+  let _erExpandido = false;
+
+  function toggleSection(sec) {
+    const rowMap = { ing:'pl-s-ing-row', cogs:'pl-s-costo-row', gas:'pl-s-gastos-row' };
+    const det    = document.getElementById('pl-s-' + sec + '-detail');
+    const rowEl  = document.getElementById(rowMap[sec]);
+    if (!det) return;
+    const isOpen = det.classList.contains('open');
+    det.classList.toggle('open', !isOpen);
+    if (rowEl) rowEl.classList.toggle('open', !isOpen);
+  }
+
+  function toggleExpandAll() {
+    _erExpandido = !_erExpandido;
+    ['ing','cogs','gas'].forEach(sec => {
+      const det    = document.getElementById('pl-s-' + sec + '-detail');
+      const rowMap = { ing:'pl-s-ing-row', cogs:'pl-s-costo-row', gas:'pl-s-gastos-row' };
+      const rowEl  = document.getElementById(rowMap[sec]);
+      if (det)   det.classList.toggle('open', _erExpandido);
+      if (rowEl) rowEl.classList.toggle('open', _erExpandido);
+    });
+    const btn = document.getElementById('er-expand-btn');
+    if (btn) btn.textContent = _erExpandido ? 'Colapsar' : 'Ver todo';
+  }
+
+  return { load, prev, next, setMode, showTable, toggleSection, toggleExpandAll, get loaded(){ return _loaded; } };
 })();
 
 
