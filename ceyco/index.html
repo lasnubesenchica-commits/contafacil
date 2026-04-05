@@ -9725,28 +9725,14 @@ var _acrFilter     = 'borrador';
 var _acrSelected   = null;    // pendiente actualmente en el modal
 var _acrFileB64    = null;    // base64 de la factura ejemplo en el modal de nuevo acreedor
 
-const CATEG_ACREEDOR = [
-  { valor: 'alquiler_local',              label: 'Alquiler de local / oficina' },
-  { valor: 'servicios_publicos',          label: 'Servicios públicos (agua, luz)' },
-  { valor: 'internet_telecomunicaciones', label: 'Internet y telecomunicaciones' },
-  { valor: 'seguros',                     label: 'Seguros' },
-  { valor: 'mantenimiento_reparacion',    label: 'Mantenimiento y reparaciones' },
-  { valor: 'servicios_profesionales',     label: 'Servicios profesionales (legal, contable)' },
-  { valor: 'publicidad_marketing',        label: 'Publicidad y marketing' },
-  { valor: 'transporte_combustible',      label: 'Transporte y combustible' },
-  { valor: 'suministros_oficina',         label: 'Suministros de oficina' },
-  { valor: 'planilla_empleados',          label: 'Planilla y cargas sociales' },
-  { valor: 'financiero_bancario',         label: 'Gastos financieros y bancarios' },
-  { valor: 'capacitacion',               label: 'Capacitación y formación' },
-  { valor: 'tecnologia_software',         label: 'Tecnología y software' },
-  { valor: 'otros_gastos_generales',      label: 'Otros gastos generales' },
-];
+// Alias — el catálogo de Acreedores ES el catálogo DGI unificado
+const CATEG_ACREEDOR = CATEGORIAS_GASTO_DGI;
 
 function _acrBuildCatOptions(selectId, selected) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
-  sel.innerHTML = CATEG_ACREEDOR.map(c =>
-    `<option value="${c.valor}" ${c.valor === selected ? 'selected' : ''}>${c.label}</option>`
+  sel.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
+    `<option value="${c.valor}" ${c.valor === selected ? 'selected' : ''}>${c.emoji} ${c.label}</option>`
   ).join('');
 }
 
