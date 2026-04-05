@@ -6413,7 +6413,7 @@ function _getCatDropEl() {
 
 function catChipOpen(e, id, tipo, catActual) {
   e.stopPropagation();
-  const trigger = e.currentTarget;
+  const trigger = (e.currentTarget || e.target).closest('.cat-chip-label') || e.target;
   const rect    = trigger.getBoundingClientRect();
   const drop    = _getCatDropEl();
 
@@ -6508,7 +6508,8 @@ window.catChipSelect = catChipSelect;
 // tipo: 'pl_costo' → tipos de costo (solo informativo, no reclasificable)
 function catChipOpenPL(e, id, tipo, catActual) {
   e.stopPropagation();
-  const trigger = e.currentTarget;
+  // e.currentTarget es null en onclick inline — usar e.target + closest
+  const trigger = (e.currentTarget || e.target).closest('.cat-chip-label') || e.target;
   const rect    = trigger.getBoundingClientRect();
   const drop    = _getCatDropEl();
 
