@@ -6512,10 +6512,11 @@ window.catChipSelect = catChipSelect;
 // ── catChipOpenPL — abre el dropdown del P&L con el catálogo DGI correcto ──
 // tipo: 'pl_gasto' → categorías operativas (reclasificable)
 // tipo: 'pl_costo' → tipos de costo (solo informativo, no reclasificable)
-function catChipOpenPL(e, id, tipo, catActual) {
+function catChipOpenPL(e, triggerEl, id, tipo, catActual) {
   e.stopPropagation();
   _catDropJustOpened = true;
-  const trigger = (e.currentTarget || e.target).closest('.cat-chip-label') || e.target;
+  // triggerEl = this desde el onclick inline — posicionamiento exacto garantizado
+  const trigger = triggerEl || (e.currentTarget || e.target);
   const rect    = trigger.getBoundingClientRect();
   const drop    = _getCatDropEl();
 
@@ -8494,7 +8495,7 @@ function plRenderTblEgresos(q) {
     const _dgiCat = TIPOS_COSTO_DIRECTO.find(c => c.valor === _dgiVal);
     const _dgiChip = _dgiCat
       ? `<div class="cat-chip-wrap"><span class="cat-chip-label"
-           onclick="catChipOpenPL(event,'','pl_costo','${_dgiVal}')"
+           onclick="catChipOpenPL(event,this,'','pl_costo','${_dgiVal}')"
            title="L${_dgiCat.linea_dgi} · Solo informativo — no reclasificable" style="color:var(--muted)">
            📦 ${_dgiCat.label}
            <span class="cat-chip-edit-icon">ℹ️</span>
@@ -8557,7 +8558,7 @@ function plRenderTblGastos(q) {
       <td>
         <div class="cat-chip-wrap">
           <span class="cat-chip-label"
-            onclick="catChipOpenPL(event,'${idEgr}','pl_gasto','${esc(tipoVal)}')"
+            onclick="catChipOpenPL(event,this,'${idEgr}','pl_gasto','${esc(tipoVal)}')"
             title="${lineaDgi} · Click para reclasificar">
             ${chipLbl}
             <span class="cat-chip-edit-icon">✏️</span>
