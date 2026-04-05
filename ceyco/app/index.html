@@ -808,6 +808,20 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <div class="pl-widget"><div class="pl-w-lbl">Utilidad neta</div><div class="pl-w-val indigo" id="pl-w-margen">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-margen-sub">tras gastos operativos</div></div>
         <div class="pl-widget"><div class="pl-w-lbl">ITBMS neto DGI</div><div class="pl-w-val" id="pl-w-itbms">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-itbms-sub">cobrado — pagado</div></div>
       </div>
+      <!-- Toggle Consolidado / Detalle -->
+      <div style="display:flex;gap:.35rem;padding:.1rem .85rem .55rem">
+        <button id="pl-vista-cons" onclick="PL.switchVista('consolidado')"
+          style="flex:1;padding:.42rem;border-radius:var(--r);font-size:.75rem;font-weight:600;border:1px solid var(--orange);background:var(--orange);color:#fff;cursor:pointer;transition:all .15s">
+          Consolidado
+        </button>
+        <button id="pl-vista-det" onclick="PL.switchVista('detalle')"
+          style="flex:1;padding:.42rem;border-radius:var(--r);font-size:.75rem;font-weight:600;border:1px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;transition:all .15s">
+          Detalle
+        </button>
+      </div>
+
+      <!-- VISTA CONSOLIDADO -->
+      <div id="pl-v-cons">
       <div class="pl-statement">
         <div class="pl-stmt-hdr" style="display:flex;justify-content:space-between;align-items:center">
           <span>Estado de Resultados</span>
@@ -845,11 +859,17 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
           <span class="pl-stmt-val indigo" id="pl-s-uneta">—</span>
         </div>
       </div>
+      </div><!-- /pl-v-cons -->
+
+      <!-- VISTA DETALLE -->
+      <div id="pl-v-det" style="display:none">
       <div class="pl-toggle">
         <button class="pl-tbtn active" id="pl-tab-ing" onclick="PL.showTable('ing')">Ingresos</button>
-        <button class="pl-tbtn"        id="pl-tab-egr" onclick="PL.showTable('egr')">Egresos</button>
+        <button class="pl-tbtn"        id="pl-tab-egr" onclick="PL.showTable('egr')">Costos</button>
+        <button class="pl-tbtn"        id="pl-tab-gas" onclick="PL.showTable('gas')">Gastos</button>
       </div>
       <div class="tx-list" id="pl-tx-list"></div>
+      </div><!-- /pl-v-det -->
     </div>
 
     <!-- REGISTROS -->
@@ -1682,7 +1702,8 @@ const PL = (() => {
   let _loaded = false;
   let periodos = {};   // key "anio-mes" → objeto período del backend
   let año = new Date().getFullYear(), mes = new Date().getMonth()+1;
-  let txMode  = 'ing'; // 'ing' | 'egr'
+  let txMode  = 'ing'; // 'ing' | 'egr' | 'gas'
+  let plVista = 'consolidado'; // 'consolidado' | 'detalle'
   let viewMode = 'ytd'; // 'mes' | 'ytd'  ← YTD por defecto
 
   // ── Navegación mes ───────────────────────────────────────────
@@ -1704,7 +1725,19 @@ const PL = (() => {
     txMode = m;
     document.getElementById('pl-tab-ing').classList.toggle('active', m==='ing');
     document.getElementById('pl-tab-egr').classList.toggle('active', m==='egr');
+    document.getElementById('pl-tab-gas').classList.toggle('active', m==='gas');
     renderTx();
+  }
+
+  function switchVista(v) {
+    plVista = v;
+    const isCons = v === 'consolidado';
+    document.getElementById('pl-v-cons').style.display = isCons ? '' : 'none';
+    document.getElementById('pl-v-det').style.display  = isCons ? 'none' : '';
+    const activeStyle = 'flex:1;padding:.42rem;border-radius:var(--r);font-size:.75rem;font-weight:600;border:1px solid var(--orange);background:var(--orange);color:#fff;cursor:pointer;transition:all .15s';
+    const idleStyle   = 'flex:1;padding:.42rem;border-radius:var(--r);font-size:.75rem;font-weight:600;border:1px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;transition:all .15s';
+    document.getElementById('pl-vista-cons').style.cssText = isCons  ? activeStyle : idleStyle;
+    document.getElementById('pl-vista-det').style.cssText  = !isCons ? activeStyle : idleStyle;
   }
 
   // ── Agregar períodos para acumular YTD ───────────────────────
@@ -1892,8 +1925,8 @@ const PL = (() => {
         </div>`;
       }).join('');
 
-    } else {
-      // ── Costos COGS — detalle igual que desktop ───────────
+    } else if (txMode === 'egr') {
+      // ── Tab COSTOS — solo cogs_items (ST_Items + CV-OP) ──────
       const TIPO_ICON = {
         producto:'📦', shipping_handling:'✈️', impuesto:'🏛️',
         mano_obra:'🔧', flete:'🚛', subcontrato:'🤝', otro:'📌',
@@ -1906,36 +1939,20 @@ const PL = (() => {
 
       let items = (d.cogs_items || []).slice();
 
-      // Combinar con egresos_gasto operativos
-      (d.egresos_gasto||[]).forEach(g => {
-        items.push({
-          tipo: g.tipo_egreso || 'otro',
-          descripcion: g.descripcion || '',
-          proveedor: g.proveedor || '',
-          id_st: '',
-          monto: parseFloat(g.total) || 0,
-          origen: 'OP',
-          mes: g.mes || 0,
-        });
-      });
-
-      // Ordenar por id_st asc (igual que desktop) — agrupa por proyecto
       items.sort((a, b) => {
         const sa = String(a.id_st || '').toLowerCase();
         const sb = String(b.id_st || '').toLowerCase();
         if (sa !== sb) return sa.localeCompare(sb);
-        // Dentro del mismo ST: por tipo (producto → shipping → impuesto)
         const ORDEN = { producto:0, shipping_handling:1, impuesto:2, mano_obra:3, otro:9 };
         return (ORDEN[a.tipo]??9) - (ORDEN[b.tipo]??9);
       });
 
       if (!items.length) {
-        el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">📊</div><div class="empty-title">Sin costos ${viewMode==='ytd'?'este año':'este mes'}</div></div>`;
+        el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">📊</div><div class="empty-title">Sin costos directos ${viewMode==='ytd'?'este año':'este mes'}</div></div>`;
         return;
       }
 
-      // Total
-      const totalCogs = items.reduce((s,it)=>s+(parseFloat(it.monto)||0),0);
+      const totalCogs = items.reduce((s,it) => s + (parseFloat(it.monto)||0), 0);
 
       el.innerHTML = items.map(it => {
         const tipo  = (it.tipo||'otro').toLowerCase();
@@ -1945,10 +1962,8 @@ const PL = (() => {
         const prov  = it.proveedor   || '';
         const orig  = it.origen === 'COM'
           ? '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--blue-bg);color:var(--blue)">COM</span>'
-          : it.origen === 'OP'
-          ? '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--purple-bg);color:var(--purple)">OP</span>'
           : '<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--indigo-bg);color:var(--indigo)">ST</span>';
-        const mesMeta = viewMode==='ytd' && it.mes ? MESES[(parseInt(it.mes)||1)-1]+' · ' : '';
+        const mesMeta  = viewMode==='ytd' && it.mes ? MESES[(parseInt(it.mes)||1)-1]+' · ' : '';
         const driveUrl = it.drive_url || '';
         return `<div class="tx-item${driveUrl?' link':''}" ${driveUrl?`onclick="DRIVE.open('${esc(driveUrl)}','${esc(desc.substring(0,40))}')"`:''}>
           <div class="tx-dot egr"></div>
@@ -1963,6 +1978,46 @@ const PL = (() => {
         <div style="width:6px;flex-shrink:0"></div>
         <div class="tx-body"><div class="tx-desc" style="font-weight:700;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">${items.length} ítems</div></div>
         <div class="tx-amt egr" style="font-weight:700">-${fmt(totalCogs)}</div>
+      </div>`;
+
+    } else {
+      // ── Tab GASTOS — solo egresos_gasto (Registro General) ───
+      const EGR_LBL = {
+        costo_mercancia:'Costo mercancía', costo_operativo:'Operativo',
+        nomina:'Nómina', servicios:'Servicios', servicios_publicos:'Serv. públicos',
+        combustible_transporte:'Combustible', publicidad_mercadeo:'Publicidad',
+        honorarios_profesionales:'Honorarios', mantenimiento_reparacion:'Mantenimiento',
+        seguros:'Seguros', gastos_financieros:'Fin. bancarios', otros_deducibles:'Otros',
+      };
+
+      const gasItems = (d.egresos_gasto || []).slice();
+
+      if (!gasItems.length) {
+        el.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">🧾</div><div class="empty-title">Sin gastos operativos ${viewMode==='ytd'?'este año':'este mes'}</div></div>`;
+        return;
+      }
+
+      const totalGas = gasItems.reduce((s, g) => s + (parseFloat(g.total)||0), 0);
+
+      el.innerHTML = gasItems.map(g => {
+        const cat   = EGR_LBL[g.tipo_egreso] || g.tipo_egreso || '—';
+        const desc  = g.descripcion || cat;
+        const prov  = g.proveedor || '';
+        const monto = parseFloat(g.total) || 0;
+        const mesMeta = viewMode==='ytd' && g.mes ? MESES[(parseInt(g.mes)||1)-1]+' · ' : '';
+        return `<div class="tx-item">
+          <div class="tx-dot" style="background:var(--purple)"></div>
+          <div class="tx-body">
+            <div class="tx-desc">${esc(desc.substring(0,50))}</div>
+            <div class="tx-meta">${mesMeta}${esc(cat)}${prov?' · '+esc(prov):''}</div>
+          </div>
+          <div class="tx-amt egr">-${fmt(monto)}</div>
+        </div>`;
+      }).join('') +
+      `<div class="tx-item" style="background:var(--bg2);border-top:2px solid var(--border)">
+        <div style="width:6px;flex-shrink:0"></div>
+        <div class="tx-body"><div class="tx-desc" style="font-weight:700;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">${gasItems.length} registros</div></div>
+        <div class="tx-amt egr" style="font-weight:700">-${fmt(totalGas)}</div>
       </div>`;
     }
   }
@@ -2012,7 +2067,7 @@ const PL = (() => {
     if (btn) btn.textContent = _erExpandido ? 'Colapsar' : 'Ver todo';
   }
 
-  return { load, prev, next, setMode, showTable, toggleSection, toggleExpandAll, get loaded(){ return _loaded; } };
+  return { load, prev, next, setMode, showTable, switchVista, toggleSection, toggleExpandAll, get loaded(){ return _loaded; } };
 })();
 
 
