@@ -6229,6 +6229,34 @@ var rg_egr_estado  = 'all';   // filtro por estado: 'all' | 'pendiente' | 'regis
 var rg_ing_filter  = 'all';
 var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
+// ── Catálogo DGI unificado — Gastos Operativos (Líneas 42-77 formulario jurídica) ──
+// Fuente única de verdad, espejo de CATEGORIAS_GASTO_DGI en Code.gs
+const CATEGORIAS_GASTO_DGI = [
+  { valor: 'nomina',                   label: 'Nómina / Salarios',               linea: '42', emoji: '👤' },
+  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales',          linea: '43', emoji: '👥' },
+  { valor: 'gastos_representacion',    label: 'Gastos de representación',        linea: '44', emoji: '🤝' },
+  { valor: 'alquileres',               label: 'Alquileres',                      linea: '46', emoji: '🏠' },
+  { valor: 'cargos_bancarios',         label: 'Cargos bancarios',                linea: '53', emoji: '🏦' },
+  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad',          linea: '54', emoji: '🔒' },
+  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros',  linea: '55', emoji: '📊' },
+  { valor: 'combustible_transporte',   label: 'Combustible y transporte',        linea: '56', emoji: '⛽' },
+  { valor: 'depreciacion',             label: 'Depreciación',                    linea: '57', emoji: '📉' },
+  { valor: 'amortizacion',             label: 'Amortización',                    linea: '58', emoji: '📋' },
+  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales',   linea: '59', emoji: '🏛️' },
+  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales',        linea: '60', emoji: '💼' },
+  { valor: 'seguros',                  label: 'Seguros',                         linea: '63-66', emoji: '🛡️' },
+  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones',    linea: '67', emoji: '🔧' },
+  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo',           linea: '68', emoji: '📣' },
+  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros', linea: '69', emoji: '🖇️' },
+  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones',   linea: '71', emoji: '📶' },
+  { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
+  { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
+  { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
+  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
+];
+// Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
+const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
+
 // Labels de categorías DGI — construido desde CATEGORIAS_GASTO_DGI para consistencia
 // Incluye también costos directos y valores legacy para compatibilidad con datos existentes
 const RG_EGR_CAT_LABELS = (() => {
@@ -6375,33 +6403,7 @@ function rgRefreshEgr() {
 }
 window.rgRefreshEgr = rgRefreshEgr;
 
-// ── Catálogo DGI unificado — Gastos Operativos (Líneas 42-77 formulario jurídica) ──
-// Fuente única de verdad, espejo de CATEGORIAS_GASTO_DGI en Code.gs
-const CATEGORIAS_GASTO_DGI = [
-  { valor: 'nomina',                   label: 'Nómina / Salarios',               linea: '42', emoji: '👤' },
-  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales',          linea: '43', emoji: '👥' },
-  { valor: 'gastos_representacion',    label: 'Gastos de representación',        linea: '44', emoji: '🤝' },
-  { valor: 'alquileres',               label: 'Alquileres',                      linea: '46', emoji: '🏠' },
-  { valor: 'cargos_bancarios',         label: 'Cargos bancarios',                linea: '53', emoji: '🏦' },
-  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad',          linea: '54', emoji: '🔒' },
-  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros',  linea: '55', emoji: '📊' },
-  { valor: 'combustible_transporte',   label: 'Combustible y transporte',        linea: '56', emoji: '⛽' },
-  { valor: 'depreciacion',             label: 'Depreciación',                    linea: '57', emoji: '📉' },
-  { valor: 'amortizacion',             label: 'Amortización',                    linea: '58', emoji: '📋' },
-  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales',   linea: '59', emoji: '🏛️' },
-  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales',        linea: '60', emoji: '💼' },
-  { valor: 'seguros',                  label: 'Seguros',                         linea: '63-66', emoji: '🛡️' },
-  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones',    linea: '67', emoji: '🔧' },
-  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo',           linea: '68', emoji: '📣' },
-  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros', linea: '69', emoji: '🖇️' },
-  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones',   linea: '71', emoji: '📶' },
-  { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
-  { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
-  { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
-  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
-];
-// Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
-const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
+
 
 // Encontrar label de cualquier categoría
 function catChipLabel(valor) {
