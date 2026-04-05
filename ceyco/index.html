@@ -1912,12 +1912,15 @@ tr:hover td{background:rgba(0,0,0,.015)}
       </div>
       <!-- Tabla Gastos operativos (Registro General) -->
       <div id="plTblGastos" style="overflow-x:auto;display:none">
-        <table class="op-table" style="min-width:640px">
+        <table class="op-table" style="min-width:760px">
           <thead><tr>
-            <th>Categoría</th>
             <th>Descripción</th>
             <th>Proveedor</th>
             <th style="font-family:'DM Mono',monospace;font-size:.62rem">Ref.</th>
+            <th>
+              Clasif. DGI
+              <span style="font-size:.58rem;font-weight:400;color:var(--chrome);margin-left:.3rem">(click para reclasificar)</span>
+            </th>
             <th style="text-align:right">Monto</th>
           </tr></thead>
           <tbody id="plTblGasBody"></tbody>
@@ -1954,6 +1957,51 @@ tr:hover td{background:rgba(0,0,0,.015)}
   <span id="plItbmsNeto" style="display:none"></span>
   <span id="plTicket"    style="display:none"></span>
   <span id="plTxCount"   style="display:none"></span>
+
+  <!-- Modal Reclasificación DGI -->
+  <div id="plReclasifModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+       z-index:1200;align-items:center;justify-content:center">
+    <div style="background:var(--white);border-radius:14px;padding:1.75rem;width:min(95vw,460px);
+                box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.04em">
+          Reclasificar gasto · DGI
+        </div>
+        <button onclick="plCerrarReclasif()"
+          style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
+      </div>
+
+      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+                  color:var(--muted);margin-bottom:.3rem">Clasificación actual</div>
+      <div id="plReclasifActual" style="font-size:.85rem;color:var(--text);background:var(--bg);
+           padding:.5rem .75rem;border-radius:6px;margin-bottom:1.25rem"></div>
+
+      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+                  color:var(--muted);margin-bottom:.3rem">Nueva clasificación DGI</div>
+      <select id="plReclasifSelect"
+        style="width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:7px;
+               font-size:.83rem;background:var(--bg);color:var(--text);outline:none;margin-bottom:.5rem">
+      </select>
+      <div style="font-size:.68rem;color:var(--chrome);margin-bottom:1.25rem">
+        L = Línea del formulario Persona Jurídica DGI (e-Tax 2.0)
+      </div>
+
+      <div id="plReclasifMsg" style="font-size:.78rem;color:var(--red);margin-bottom:.75rem;min-height:1rem"></div>
+
+      <div style="display:flex;gap:.75rem;justify-content:flex-end">
+        <button onclick="plCerrarReclasif()"
+          style="padding:.5rem 1.25rem;background:var(--bg);border:1px solid var(--border);
+                 border-radius:8px;font-size:.83rem;cursor:pointer">
+          Cancelar
+        </button>
+        <button id="plReclasifBtnOk" onclick="plConfirmarReclasif()"
+          style="padding:.5rem 1.5rem;background:var(--orange);color:#fff;border:none;
+                 border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
 
 </div><!-- /sectionDashboard -->
 
@@ -2809,16 +2857,27 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full">
             <label>Categoría</label>
             <select id="costoOpCategoria" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;width:100%">
-              <option value="gastos_personal">👤 Nómina / Personal</option>
-              <option value="alquileres">🏠 Alquileres</option>
-              <option value="servicios_publicos">💡 Servicios públicos</option>
-              <option value="combustible_transporte">⛽ Combustible / Transporte</option>
-              <option value="publicidad_mercadeo">📣 Publicidad / Mercadeo</option>
-              <option value="honorarios_profesionales">📋 Honorarios profesionales</option>
-              <option value="mantenimiento_reparacion">🔧 Mantenimiento / Reparación</option>
-              <option value="seguros">🛡️ Seguros</option>
-              <option value="gastos_financieros">🏦 Gastos financieros</option>
-              <option value="otros_deducibles" selected>📂 Otros deducibles</option>
+              <option value="nomina">👤 Nómina / Salarios (L42)</option>
+              <option value="prestaciones_laborales">👥 Prestaciones laborales (L43)</option>
+              <option value="gastos_representacion">🤝 Gastos de representación (L44)</option>
+              <option value="alquileres">🏠 Alquileres (L46)</option>
+              <option value="cargos_bancarios">🏦 Cargos bancarios (L53)</option>
+              <option value="vigilancia_seguridad">🔒 Vigilancia y seguridad (L54)</option>
+              <option value="gastos_financieros">📊 Intereses y gastos financieros (L55)</option>
+              <option value="combustible_transporte">⛽ Combustible y transporte (L56)</option>
+              <option value="depreciacion">📉 Depreciación (L57)</option>
+              <option value="amortizacion">📋 Amortización (L58)</option>
+              <option value="impuestos_tasas">🏛️ Impuestos y tasas municipales (L59)</option>
+              <option value="honorarios_profesionales">💼 Honorarios profesionales (L60)</option>
+              <option value="seguros">🛡️ Seguros (L63-66)</option>
+              <option value="mantenimiento_reparacion">🔧 Mantenimiento y reparaciones (L67)</option>
+              <option value="publicidad_mercadeo">📣 Publicidad y mercadeo (L68)</option>
+              <option value="gastos_oficina">🖇️ Gastos de oficina y suministros (L69)</option>
+              <option value="telecomunicaciones">📶 Internet y telecomunicaciones (L71)</option>
+              <option value="servicios_publicos">💡 Servicios públicos - agua, luz (L75)</option>
+              <option value="tecnologia_software">💻 Tecnología y software (L76)</option>
+              <option value="capacitacion">📚 Capacitación y formación (L76)</option>
+              <option value="otros_deducibles" selected>📋 Otros gastos deducibles (L77)</option>
             </select>
           </div>
           <div class="modal-field full">
@@ -2967,17 +3026,27 @@ tr:hover td{background:rgba(0,0,0,.015)}
             <label>Categoría</label>
             <select id="eCategoria" onchange="inferirTipoEgreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
               <option value="costo_mercancia" disabled>(automático — desde Operaciones)</option>
-              <option value="gastos_personal">👤 Nómina / Personal</option>
-              <option value="alquileres">🏠 Alquileres</option>
-              <option value="servicios_publicos">💡 Servicios públicos</option>
-              <option value="combustible_transporte">⛽ Combustible / Transporte</option>
-              <option value="publicidad_mercadeo">📣 Publicidad / Mercadeo</option>
-              <option value="honorarios_profesionales">📋 Honorarios profesionales</option>
-              <option value="mantenimiento_reparacion">🔧 Mantenimiento / Reparación</option>
-              <option value="seguros">🛡️ Seguros</option>
-              <option value="depreciacion">📉 Depreciación</option>
-              <option value="gastos_financieros">🏦 Gastos financieros</option>
-              <option value="otros_deducibles">📂 Otros deducibles</option>
+              <option value="nomina">👤 Nómina / Salarios (L42)</option>
+              <option value="prestaciones_laborales">👥 Prestaciones laborales (L43)</option>
+              <option value="gastos_representacion">🤝 Gastos de representación (L44)</option>
+              <option value="alquileres">🏠 Alquileres (L46)</option>
+              <option value="cargos_bancarios">🏦 Cargos bancarios (L53)</option>
+              <option value="vigilancia_seguridad">🔒 Vigilancia y seguridad (L54)</option>
+              <option value="gastos_financieros">📊 Intereses y gastos financieros (L55)</option>
+              <option value="combustible_transporte">⛽ Combustible y transporte (L56)</option>
+              <option value="depreciacion">📉 Depreciación (L57)</option>
+              <option value="amortizacion">📋 Amortización (L58)</option>
+              <option value="impuestos_tasas">🏛️ Impuestos y tasas municipales (L59)</option>
+              <option value="honorarios_profesionales">💼 Honorarios profesionales (L60)</option>
+              <option value="seguros">🛡️ Seguros (L63-66)</option>
+              <option value="mantenimiento_reparacion">🔧 Mantenimiento y reparaciones (L67)</option>
+              <option value="publicidad_mercadeo">📣 Publicidad y mercadeo (L68)</option>
+              <option value="gastos_oficina">🖇️ Gastos de oficina y suministros (L69)</option>
+              <option value="telecomunicaciones">📶 Internet y telecomunicaciones (L71)</option>
+              <option value="servicios_publicos">💡 Servicios públicos - agua, luz (L75)</option>
+              <option value="tecnologia_software">💻 Tecnología y software (L76)</option>
+              <option value="capacitacion">📚 Capacitación y formación (L76)</option>
+              <option value="otros_deducibles" selected>📋 Otros gastos deducibles (L77)</option>
             </select>
           </div>
           <div class="modal-field full">
@@ -6160,25 +6229,33 @@ var rg_egr_estado  = 'all';   // filtro por estado: 'all' | 'pendiente' | 'regis
 var rg_ing_filter  = 'all';
 var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
-// Categorías DGI → label legible
-const RG_EGR_CAT_LABELS = {
-  costo_mercancia:          '📦 Costo mercancía',
-  costo_servicio_tecnico:   '🔧 Costo ST',
-  impuesto_importacion:     '🛃 Impuesto importación',
-  costo_operativo:          '🏢 Operativo',
-  nomina:                   '👤 Planilla / Nómina',
-  alquileres:               '🏢 Alquiler local',
-  servicios:                '⚡ Servicios',
-  servicios_publicos:       '💡 Servicios públicos',
-  combustible_transporte:   '⛽ Combustible',
-  publicidad_mercadeo:      '📣 Publicidad',
-  honorarios_profesionales: '💼 Honorarios',
-  mantenimiento_reparacion: '🔧 Mantenimiento',
-  seguros:                  '🛡️ Seguros',
-  gastos_financieros:       '🏦 Gastos financieros',
-  otros_deducibles:         '📋 Otros deducibles',
-  credito_fiscal:           '🏛️ Crédito fiscal',
-};
+// Labels de categorías DGI — construido desde CATEGORIAS_GASTO_DGI para consistencia
+// Incluye también costos directos y valores legacy para compatibilidad con datos existentes
+const RG_EGR_CAT_LABELS = (() => {
+  const m = {};
+  // Costos directos (inmutables desde P&L)
+  m['costo_mercancia']        = '📦 Costo mercancía';
+  m['costo_servicio_tecnico'] = '🔧 Costo ST';
+  m['impuesto_aduana']        = '🛃 Impuesto aduana';
+  m['impuesto_importacion']   = '🛃 Impuesto importación'; // legacy
+  m['credito_fiscal']         = '🏛️ Crédito fiscal';
+  // Valores legacy → mapear al nuevo equivalente
+  m['costo_operativo']        = '🏢 Costo operativo';
+  m['servicios']              = '⚡ Servicios';
+  m['gastos_personal']        = '👤 Nómina / Personal';
+  m['alquiler_local']         = '🏠 Alquiler local';
+  m['internet_telecomunicaciones'] = '📶 Internet y telecom.';
+  m['servicios_profesionales'] = '💼 Serv. profesionales';
+  m['publicidad_marketing']   = '📣 Publicidad';
+  m['transporte_combustible'] = '⛽ Combustible';
+  m['suministros_oficina']    = '🖇️ Suministros';
+  m['planilla_empleados']     = '👤 Planilla';
+  m['financiero_bancario']    = '🏦 Financiero';
+  m['otros_gastos_generales'] = '📋 Otros gastos';
+  // Catálogo DGI actual — leer desde CATEGORIAS_GASTO_DGI
+  CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.emoji + ' ' + c.label; });
+  return m;
+})();
 const RG_ING_CAT_LABELS = {
   venta_producto_gravado:   '📦 Venta producto (+ITBMS)',
   venta_producto_exento:    '📦 Venta producto (exento)',
@@ -6298,29 +6375,33 @@ function rgRefreshEgr() {
 }
 window.rgRefreshEgr = rgRefreshEgr;
 
-// ── Dropdown chips de categoría inline ───────────────────────
-// Categorías disponibles para ambos tipos (egresos registrados + acreedores pendientes)
-const TODAS_CATEGORIAS_EGR = [
-  { valor: 'alquiler_local',              label: '🏠 Alquiler local / oficina' },
-  { valor: 'servicios_publicos',          label: '💡 Servicios públicos (agua, luz)' },
-  { valor: 'internet_telecomunicaciones', label: '📶 Internet y telecomunicaciones' },
-  { valor: 'seguros',                     label: '🛡️ Seguros' },
-  { valor: 'mantenimiento_reparacion',    label: '🔧 Mantenimiento y reparaciones' },
-  { valor: 'servicios_profesionales',     label: '💼 Servicios profesionales' },
-  { valor: 'publicidad_marketing',        label: '📣 Publicidad y marketing' },
-  { valor: 'transporte_combustible',      label: '⛽ Transporte y combustible' },
-  { valor: 'suministros_oficina',         label: '🖇️ Suministros de oficina' },
-  { valor: 'planilla_empleados',          label: '👤 Planilla y cargas sociales' },
-  { valor: 'financiero_bancario',         label: '🏦 Gastos financieros y bancarios' },
-  { valor: 'capacitacion',               label: '📚 Capacitación y formación' },
-  { valor: 'tecnologia_software',         label: '💻 Tecnología y software' },
-  { valor: 'otros_gastos_generales',      label: '📋 Otros gastos generales' },
-  { valor: 'alquileres',                  label: '🏢 Alquiler local' },
-  { valor: 'combustible_transporte',      label: '⛽ Combustible' },
-  { valor: 'honorarios_profesionales',    label: '💼 Honorarios profesionales' },
-  { valor: 'otros_deducibles',            label: '📋 Otros deducibles' },
-  { valor: 'nomina',                      label: '👤 Planilla / Nómina' },
+// ── Catálogo DGI unificado — Gastos Operativos (Líneas 42-77 formulario jurídica) ──
+// Fuente única de verdad, espejo de CATEGORIAS_GASTO_DGI en Code.gs
+const CATEGORIAS_GASTO_DGI = [
+  { valor: 'nomina',                   label: 'Nómina / Salarios',               linea: '42', emoji: '👤' },
+  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales',          linea: '43', emoji: '👥' },
+  { valor: 'gastos_representacion',    label: 'Gastos de representación',        linea: '44', emoji: '🤝' },
+  { valor: 'alquileres',               label: 'Alquileres',                      linea: '46', emoji: '🏠' },
+  { valor: 'cargos_bancarios',         label: 'Cargos bancarios',                linea: '53', emoji: '🏦' },
+  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad',          linea: '54', emoji: '🔒' },
+  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros',  linea: '55', emoji: '📊' },
+  { valor: 'combustible_transporte',   label: 'Combustible y transporte',        linea: '56', emoji: '⛽' },
+  { valor: 'depreciacion',             label: 'Depreciación',                    linea: '57', emoji: '📉' },
+  { valor: 'amortizacion',             label: 'Amortización',                    linea: '58', emoji: '📋' },
+  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales',   linea: '59', emoji: '🏛️' },
+  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales',        linea: '60', emoji: '💼' },
+  { valor: 'seguros',                  label: 'Seguros',                         linea: '63-66', emoji: '🛡️' },
+  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones',    linea: '67', emoji: '🔧' },
+  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo',           linea: '68', emoji: '📣' },
+  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros', linea: '69', emoji: '🖇️' },
+  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones',   linea: '71', emoji: '📶' },
+  { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
+  { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
+  { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
+  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
 ];
+// Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
+const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
 
 // Encontrar label de cualquier categoría
 function catChipLabel(valor) {
@@ -7593,18 +7674,36 @@ var plDonaChart = null;
 var plLoaded    = false;
 
 const EGR_COLORS = {
+  // Costos directos
   costo_mercancia:          '#E65100',
-  costo_operativo:          '#6A1B9A',
+  costo_servicio_tecnico:   '#BF360C',
+  impuesto_aduana:          '#4527A0',
+  credito_fiscal:           '#1A237E',
+  // Gastos operativos DGI
   nomina:                   '#283593',
-  servicios:                '#00695C',
-  servicios_publicos:       '#00838F',
-  combustible_transporte:   '#4E342E',
-  publicidad_mercadeo:      '#AD1457',
-  honorarios_profesionales: '#1565C0',
-  mantenimiento_reparacion: '#558B2F',
-  seguros:                  '#795548',
+  prestaciones_laborales:   '#311B92',
+  gastos_representacion:    '#1B5E20',
+  alquileres:               '#4E342E',
+  cargos_bancarios:         '#37474F',
+  vigilancia_seguridad:     '#263238',
   gastos_financieros:       '#37474F',
+  combustible_transporte:   '#4E342E',
+  depreciacion:             '#6D4C41',
+  amortizacion:             '#795548',
+  impuestos_tasas:          '#4527A0',
+  honorarios_profesionales: '#1565C0',
+  seguros:                  '#795548',
+  mantenimiento_reparacion: '#558B2F',
+  publicidad_mercadeo:      '#AD1457',
+  gastos_oficina:           '#00695C',
+  telecomunicaciones:       '#00838F',
+  servicios_publicos:       '#00838F',
+  tecnologia_software:      '#0277BD',
+  capacitacion:             '#2E7D32',
   otros_deducibles:         '#AEAEB2',
+  // Legacy
+  costo_operativo:          '#6A1B9A',
+  servicios:                '#00695C',
 };
 const TIPO_LABEL = {
   venta_producto:    'Venta producto',
@@ -7614,20 +7713,20 @@ const TIPO_LABEL = {
   exportacion:       'Exportación',
   otro:              'Otro',
 };
-const EGR_LABEL = {
-  costo_mercancia:          'Costo mercancía',
-  costo_operativo:          'Operativo',
-  nomina:                   'Nómina',
-  servicios:                'Servicios',
-  servicios_publicos:       'Serv. públicos',
-  combustible_transporte:   'Combustible',
-  publicidad_mercadeo:      'Publicidad',
-  honorarios_profesionales: 'Honorarios',
-  mantenimiento_reparacion: 'Mantenimiento',
-  seguros:                  'Seguros',
-  gastos_financieros:       'Fin. bancarios',
-  otros_deducibles:         'Otros',
-};
+// EGR_LABEL — construido dinámicamente desde CATEGORIAS_GASTO_DGI
+const EGR_LABEL = (() => {
+  const m = {
+    costo_mercancia:        'Costo mercancía',
+    costo_servicio_tecnico: 'Costo ST',
+    impuesto_aduana:        'Impuesto aduana',
+    impuesto_importacion:   'Impuesto importación',
+    credito_fiscal:         'Crédito fiscal',
+    costo_operativo:        'Costo operativo',
+    servicios:              'Servicios',
+  };
+  CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.label; });
+  return m;
+})();
 
 async function loadDashboard() {
   if (plLoaded) { renderDashboard(); return; }
@@ -8356,7 +8455,6 @@ function plRenderTblGastos(q) {
   const tbody = document.getElementById('plTblGasBody');
   if (!tbody) return;
 
-  // Gastos operativos del período — mismos que _egresosGralFiltrados en renderDashboard
   let items = plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
@@ -8382,20 +8480,103 @@ function plRenderTblGastos(q) {
   const totGas = items.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
 
   tbody.innerHTML = items.map(e => {
-    const cat   = catChipLabel(e.tipo_egreso || e.categoria || '');
-    const monto = parseFloat(e.total || 0);
+    const monto    = parseFloat(e.total || 0);
+    const tipoVal  = e.tipo_egreso || e.categoria || '';
+    const tipoCat  = CATEGORIAS_GASTO_DGI.find(c => c.valor === tipoVal);
+    const chipLbl  = tipoCat ? (tipoCat.emoji + ' ' + tipoCat.label) : (tipoVal || '—');
+    const lineaDgi = tipoCat ? tipoCat.linea : '?';
+    const idEgr    = esc(e.id_egreso || '');
     return `<tr>
-      <td><span style="font-size:.72rem">${cat}</span></td>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.descripcion||'')}">${esc(e.descripcion || '—')}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.descripcion||'')}">${esc(e.descripcion || '—')}</td>
       <td style="font-size:.78rem">${esc(e.proveedor || '—')}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)">${esc(e.num_fac_ref || e.id_egreso || '—')}</td>
+      <td>
+        <button onclick="plAbrirReclasif('${idEgr}','${esc(tipoVal)}')"
+          style="display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;font-weight:500;
+                 padding:.28rem .65rem;border-radius:6px;border:1px solid var(--border);
+                 background:var(--bg);color:var(--text);cursor:pointer;transition:all .15s;
+                 max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          title="L${lineaDgi} — Click para reclasificar">
+          ${chipLbl}
+          <span style="font-size:.6rem;color:var(--chrome);flex-shrink:0">✏️</span>
+        </button>
+      </td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#C62828">$${monto.toFixed(2)}</td>
     </tr>`;
   }).join('') +
   `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
-    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--muted)">${items.length} registros</td>
+    <td colspan="3" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--muted)">${items.length} registros</td>
+    <td></td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${totGas.toFixed(2)}</td>
   </tr>`;
+}
+
+// ── Modal de reclasificación DGI ──────────────────────────────
+var _plReclasifIdActual = null;
+
+function plAbrirReclasif(idEgreso, tipoActual) {
+  _plReclasifIdActual = idEgreso;
+  const sel = document.getElementById('plReclasifSelect');
+  if (!sel) return;
+  sel.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
+    `<option value="${esc(c.valor)}" ${c.valor === tipoActual ? 'selected' : ''}>
+      L${c.linea} · ${c.emoji} ${c.label}
+    </option>`
+  ).join('');
+  const modal = document.getElementById('plReclasifModal');
+  modal.style.display = 'flex';
+  // Mostrar tipo actual
+  const act = CATEGORIAS_GASTO_DGI.find(c => c.valor === tipoActual);
+  document.getElementById('plReclasifActual').textContent =
+    act ? (act.emoji + ' ' + act.label + ' (L' + act.linea + ')') : (tipoActual || '—');
+}
+
+function plCerrarReclasif() {
+  document.getElementById('plReclasifModal').style.display = 'none';
+  _plReclasifIdActual = null;
+}
+
+async function plConfirmarReclasif() {
+  if (!_plReclasifIdActual) return;
+  const nuevoTipo = document.getElementById('plReclasifSelect').value;
+  const btnOk     = document.getElementById('plReclasifBtnOk');
+  const msgEl     = document.getElementById('plReclasifMsg');
+
+  btnOk.disabled   = true;
+  btnOk.textContent = 'Guardando…';
+  msgEl.textContent = '';
+
+  try {
+    const res = await new Promise((resolve, reject) => {
+      const cb = 'rcb_' + Date.now();
+      const s  = document.createElement('script');
+      let done = false;
+      const t  = setTimeout(() => { if (!done) { done=true; reject(new Error('Timeout')); }}, 15000);
+      window[cb] = d => { if (!done) { done=true; clearTimeout(t); delete window[cb]; s.remove(); resolve(d); }};
+      s.onerror  = () => { if (!done) { done=true; clearTimeout(t); delete window[cb]; s.remove(); reject(new Error('Script error')); }};
+      s.src = GAS_URL + '?action=reclasificarEgreso&id_egreso=' + encodeURIComponent(_plReclasifIdActual) +
+              '&nuevo_tipo=' + encodeURIComponent(nuevoTipo) + '&callback=' + cb;
+      document.head.appendChild(s);
+    });
+
+    if (!res.success) throw new Error(res.error || 'Error desconocido');
+
+    // Actualizar en memoria sin recargar todo
+    const egr = plEgresos.find(e => e.id_egreso === _plReclasifIdActual);
+    if (egr) egr.tipo_egreso = nuevoTipo;
+
+    showToast('✅ Reclasificado correctamente');
+    plCerrarReclasif();
+    // Re-render tablas y estado de resultados
+    plRenderTblGastos(document.getElementById('plTblSearch')?.value || '');
+    erRender();
+    renderDashboard();
+
+  } catch(err) {
+    msgEl.textContent = '⚠️ ' + err.message;
+    btnOk.disabled   = false;
+    btnOk.textContent = 'Confirmar';
+  }
 }
 
 
@@ -9478,22 +9659,9 @@ function _acrBuildCatOptions(selectId, selected) {
 }
 
 // Mapa de categorías acreedor para el render unificado
-const CATEG_ACR_LABELS = {
-  alquiler_local:              '🏠 Alquiler local / oficina',
-  servicios_publicos:          '💡 Servicios públicos (agua, luz)',
-  internet_telecomunicaciones: '📶 Internet y telecomunicaciones',
-  seguros:                     '🛡️ Seguros',
-  mantenimiento_reparacion:    '🔧 Mantenimiento y reparaciones',
-  servicios_profesionales:     '💼 Servicios profesionales',
-  publicidad_marketing:        '📣 Publicidad y marketing',
-  transporte_combustible:      '⛽ Transporte y combustible',
-  suministros_oficina:         '🖇️ Suministros de oficina',
-  planilla_empleados:          '👤 Planilla y cargas sociales',
-  financiero_bancario:         '🏦 Gastos financieros y bancarios',
-  capacitacion:                '📚 Capacitación y formación',
-  tecnologia_software:         '💻 Tecnología y software',
-  otros_gastos_generales:      '📋 Otros gastos generales',
-};
+// CATEG_ACR_LABELS — alias de RG_EGR_CAT_LABELS para compatibilidad con Acreedores
+// Incluye mapeo de valores legacy de Acreedores al nuevo catálogo DGI
+const CATEG_ACR_LABELS = RG_EGR_CAT_LABELS;
 
 // ── Inicialización del tab ───────────────────────────────────
 async function acrInit() {
