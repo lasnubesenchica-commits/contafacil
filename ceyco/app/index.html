@@ -739,18 +739,18 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         </div>
       </div>
       <div class="toolbar" id="st-toolbar">
-        <button class="ftab active" onclick="ST.setFilter(this,'todos')">Todos</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cotizacion')">Cotización</button>
-        <button class="ftab" onclick="ST.setFilter(this,'ejecucion')">Ejecución</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cerrado')">Cerrados</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cancelado')">Cancelados</button>
         <button id="btnSyncST" onclick="doSyncST()" style="
-          flex-shrink:0; margin-left:auto;
+          flex-shrink:0;
           font-size:.73rem; font-weight:700; color:var(--orange);
           background:var(--orange-bg); border:.5px solid rgba(224,90,0,.3);
           border-radius:20px; padding:.32rem .78rem; cursor:pointer;
           display:flex; align-items:center; gap:.3rem; white-space:nowrap;
         ">⟳ Sync emails</button>
+        <button class="ftab active" onclick="ST.setFilter(this,'todos')">Todos</button>
+        <button class="ftab" onclick="ST.setFilter(this,'cotizacion')">Cotización</button>
+        <button class="ftab" onclick="ST.setFilter(this,'ejecucion')">Ejecución</button>
+        <button class="ftab" onclick="ST.setFilter(this,'cerrado')">Cerrados</button>
+        <button class="ftab" onclick="ST.setFilter(this,'cancelado')">Cancelados</button>
       </div>
       <div id="st-list"></div>
     </div>
@@ -780,18 +780,18 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         </div>
       </div>
       <div class="toolbar">
-        <button class="ftab active" onclick="OP.setFilter(this,'todos')">Todos</button>
-        <button class="ftab" onclick="OP.setFilter(this,'pendiente')">Pendiente</button>
-        <button class="ftab" onclick="OP.setFilter(this,'inventario')">Inventario</button>
-        <button class="ftab" onclick="OP.setFilter(this,'facturado')">Facturado</button>
-        <button class="ftab" onclick="OP.setFilter(this,'cerrado')">Cerrado</button>
         <button id="btnSyncOp" onclick="doSync()" style="
-          flex-shrink:0; margin-left:auto;
+          flex-shrink:0;
           font-size:.73rem; font-weight:700; color:var(--orange);
           background:var(--orange-bg); border:.5px solid rgba(224,90,0,.3);
           border-radius:20px; padding:.32rem .78rem; cursor:pointer;
           display:flex; align-items:center; gap:.3rem; white-space:nowrap;
         ">⟳ Sync emails</button>
+        <button class="ftab active" onclick="OP.setFilter(this,'todos')">Todos</button>
+        <button class="ftab" onclick="OP.setFilter(this,'pendiente')">Pendiente</button>
+        <button class="ftab" onclick="OP.setFilter(this,'inventario')">Inventario</button>
+        <button class="ftab" onclick="OP.setFilter(this,'facturado')">Facturado</button>
+        <button class="ftab" onclick="OP.setFilter(this,'cerrado')">Cerrado</button>
       </div>
       <div id="op-list"></div>
     </div>
