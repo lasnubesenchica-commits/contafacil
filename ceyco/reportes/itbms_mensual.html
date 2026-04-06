@@ -556,12 +556,40 @@ function itbRenderEmitidas(ing, total) {
   const totITBMS = ing.reduce((s,i) => s + Number(i.itbms||0), 0);
   const totTotal = ing.reduce((s,i) => s + Number(i.total||0), 0);
 
+  // Segregación gravado / exento
+  const gravadas = ing.filter(i => Number(i.itbms||0) > 0);
+  const exentasl = ing.filter(i => Number(i.itbms||0) === 0);
+  const subGrav  = gravadas.reduce((s,i) => s + Number(i.subtotal||0), 0);
+  const itbGrav  = gravadas.reduce((s,i) => s + Number(i.itbms||0), 0);
+  const totGrav  = gravadas.reduce((s,i) => s + Number(i.total||0), 0);
+  const subExen  = exentasl.reduce((s,i) => s + Number(i.subtotal||0), 0);
+  const totExen  = exentasl.reduce((s,i) => s + Number(i.total||0), 0);
+
   tbody.innerHTML = rows;
-  tfoot.innerHTML = `<tr>
-    <td colspan="6">Total — ${ing.length} factura${ing.length!==1?'s':''}</td>
-    <td>${fmt(totSub)}</td>
-    <td style="color:#1565C0">${fmt(totITBMS)}</td>
-    <td>${fmt(totTotal)}</td>
+  tfoot.innerHTML = `
+  <tr style="background:#f8fafc;font-size:.72rem;color:#64748b;border-top:1px solid #e2e8f0">
+    <td colspan="6" style="padding:6px 10px;letter-spacing:.03em">
+      <span class="itb-badge gravado" style="font-size:.65rem">Gravado</span>
+      ${gravadas.length} factura${gravadas.length!==1?'s':''}
+    </td>
+    <td class="num" style="color:#475569">${fmt(subGrav)}</td>
+    <td class="num" style="color:#1565C0;font-weight:700">${fmt(itbGrav)}</td>
+    <td class="num" style="color:#475569">${fmt(totGrav)}</td>
+  </tr>
+  ${exentasl.length ? `<tr style="background:#f8fafc;font-size:.72rem;color:#64748b;border-top:1px dashed #e2e8f0">
+    <td colspan="6" style="padding:6px 10px;letter-spacing:.03em">
+      <span class="itb-badge exento" style="font-size:.65rem">Exento</span>
+      ${exentasl.length} factura${exentasl.length!==1?'s':''}
+    </td>
+    <td class="num" style="color:#475569">${fmt(subExen)}</td>
+    <td class="num" style="color:#94a3b8">—</td>
+    <td class="num" style="color:#475569">${fmt(totExen)}</td>
+  </tr>` : ''}
+  <tr style="border-top:2px solid #cbd5e1">
+    <td colspan="6" style="font-weight:700">Total — ${ing.length} factura${ing.length!==1?'s':''}</td>
+    <td class="num" style="font-weight:700">${fmt(totSub)}</td>
+    <td class="num" style="color:#1565C0;font-weight:800">${fmt(totITBMS)}</td>
+    <td class="num" style="font-weight:700">${fmt(totTotal)}</td>
   </tr>`;
 }
 
