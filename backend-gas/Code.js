@@ -1568,8 +1568,10 @@ function _handleGetIngresos(params, callback) {
       var stId     = _extractStId(notas);
 
       // Preferir ST.drive_url (factura emitida) sobre drive_url del ingreso
-      // que puede ser el voucher de pago del cliente
-      if (stId && stMap[stId]) {
+      // que puede ser el voucher de pago del cliente.
+      // EXCEPCIÓN: notas_credito conservan su propio drive_url (apunta al PDF de la NC)
+      var tipoComp = String(r[COL_I.TIPO_COMP - 1] || '');
+      if (stId && stMap[stId] && tipoComp !== 'nota_credito') {
         driveUrl = stMap[stId];
       }
 
