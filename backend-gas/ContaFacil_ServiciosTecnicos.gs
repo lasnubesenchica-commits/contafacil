@@ -972,6 +972,9 @@ function _handleActualizarEgresoST(data) {
       for (var i = 0; i < itemData.length; i++) {
         if (String(itemData[i][COL_STI.ID - 1]) !== idItemST) continue;
         var itemRow = i + 3;
+        if (data.descripcion) sheetSTI.getRange(itemRow, COL_STI.DESCRIPCION).setValue(data.descripcion);
+        var nuevaCant = parseFloat(data.cantidad || '0');
+        if (nuevaCant > 0) sheetSTI.getRange(itemRow, COL_STI.CANTIDAD).setValue(nuevaCant);
         sheetSTI.getRange(itemRow, COL_STI.MONTO_REAL).setValue(subtotal || total);
         sheetSTI.getRange(itemRow, COL_STI.ITBMS_REAL).setValue(itbms);
         sheetSTI.getRange(itemRow, COL_STI.TOTAL_REAL).setValue(total);
