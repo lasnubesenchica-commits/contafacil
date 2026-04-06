@@ -1137,7 +1137,13 @@
         var resumen = res.resumen;
 
         // Si hay ingreso pero sin drive_url, buscarlo en la hoja Ingresos
-        var needsIngresoUrl = resumen.ingreso_id && !resumen.ingreso_drive_url;
+        // Determinar si este ST está anulado buscando en st_state.data
+        var _stDataForNC = null;
+        for (var _di = 0; _di < st_state.data.length; _di++) {
+          if (st_state.data[_di].id_st === idST) { _stDataForNC = st_state.data[_di]; break; }
+        }
+        var _isAnulado = _stDataForNC && _stDataForNC.estado === 'anulado';
+        var needsIngresoUrl = resumen.ingreso_id && (!resumen.ingreso_drive_url || _isAnulado);
 
         var p1 = gasJsonp('getCotizaciones', { id_st: idST })
           .then(function(r2) {
@@ -1185,6 +1191,19 @@
                         if (vm) resumen.ingreso_drive_url = vm[1];
                       }
                       break;
+                    }
+                  }
+                  // Para STs anulados (Escenario 2): buscar el ING de la NC
+                  // que tiene tipo_comprobante='nota_credito' y referencia al ST en notas
+                  if (_isAnulado) {
+                    for (var j = 0; j < ri.items.length; j++) {
+                      var ingJ = ri.items[j];
+                      if (ingJ.tipo_comprobante === 'nota_credito' &&
+                          String(ingJ.notas || '').indexOf(idST) !== -1) {
+                        resumen.nc_drive_url = ingJ.drive_url || '';
+                        resumen.nc_num       = ingJ.num_factura || '';
+                        break;
+                      }
                     }
                   }
                 }
@@ -1290,13 +1309,14 @@
       var _ncNumMatch = _notasAnul.match(/NC\s+(\S+)/);
       var _ncNum = _ncNumMatch ? _ncNumMatch[1] : 'NC';
       // El ingreso_id del ST anulado apunta al ING-NC2, que tiene su drive_url en Ingresos
-      var _ncIngUrl = r.ingreso_drive_url || '';
+      var _ncIngUrl = r.nc_drive_url || '';
+      var _ncNumDisp = r.nc_num ? String(r.nc_num).replace(/^0+/, '') : _ncNum;
       html += '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #fca5a5">';
       html += '<div style="font-size:.67rem;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">NC Emitida</div>';
       if (_ncIngUrl) {
-        html += '<a href="'+st_esc(_ncIngUrl)+'" target="_blank" class="st-doc-a" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5">NC '+st_esc(_ncNum)+' ↗</a>';
+        html += '<a href="'+st_esc(_ncIngUrl)+'" target="_blank" class="st-doc-a" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5">NC '+st_esc(_ncNumDisp)+' ↗</a>';
       } else {
-        html += '<span style="font-size:.78rem;font-weight:700;color:#b91c1c">NC '+st_esc(_ncNum)+'</span>';
+        html += '<span style="font-size:.78rem;font-weight:700;color:#b91c1c">NC '+st_esc(_ncNumDisp)+'</span>';
       }
       html += '</div>';
     }
