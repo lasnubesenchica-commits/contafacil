@@ -139,9 +139,9 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;background:no
 .filter-btn:hover{border-color:rgba(0,0,0,.25);color:var(--text)}
 .filter-btn.active{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:600}
 .filter-search{
-  margin-left:auto;background:var(--bg);border:1px solid var(--border);
+  background:var(--bg);border:1px solid var(--border);
   border-radius:100px;padding:.4rem .9rem .4rem 2.2rem;font-family:'DM Sans',sans-serif;
-  font-size:.82rem;outline:none;width:200px;transition:border-color .2s;
+  font-size:.82rem;outline:none;width:220px;transition:border-color .2s;
   position:relative;
 }
 .filter-search:focus{border-color:var(--orange)}
@@ -380,12 +380,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .op-filter-btn:hover{border-color:rgba(0,0,0,.25);color:var(--text)}
 .op-filter-btn.active{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:600}
 .btn-sync{
-  display:flex;align-items:center;gap:.5rem;margin-left:auto;
-  background:var(--orange);color:#fff;font-weight:600;font-size:.82rem;
-  padding:.45rem 1.1rem;border-radius:var(--r);border:none;cursor:pointer;
-  transition:all .2s;white-space:nowrap;
+  display:flex;align-items:center;gap:.4rem;flex-shrink:0;
+  background:var(--orange);color:#fff;font-weight:700;font-size:.78rem;
+  padding:.35rem 1rem;border-radius:100px;border:none;cursor:pointer;
+  transition:opacity .15s;white-space:nowrap;
 }
-.btn-sync:hover{background:var(--orange2)}
+.btn-sync:hover{opacity:.88}
 .btn-sync:disabled{opacity:.5;cursor:not-allowed}
 
 /* ── OPERACIONES ITEM CARDS ── */
@@ -1312,6 +1312,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   <!-- Toolbar -->
   <div class="op-toolbar">
+    <button class="btn-sync" id="btnSync" onclick="sincronizarEmails()">⟳ Sync emails</button>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="filter-search" id="searchOp" placeholder="Buscar producto, cliente...">
+    </div>
     <button class="op-filter-btn active" data-op-filter="all">Todos</button>
     <button class="op-filter-btn" data-op-filter="pendiente">Pendiente</button>
     <button class="op-filter-btn" data-op-filter="inventario">📦 Inventario</button>
@@ -1319,11 +1324,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <button class="op-filter-btn" data-op-filter="vinculado">Vinculado</button>
     <button class="op-filter-btn" data-op-filter="facturado">📋 Facturado</button>
     <button class="op-filter-btn" data-op-filter="cerrado">Cerrado</button>
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input type="text" class="filter-search" id="searchOp" placeholder="Buscar producto, cliente...">
-    </div>
-    <button class="btn-sync" id="btnSync" onclick="sincronizarEmails()">↻ Sincronizar emails</button>
   </div>
 
   <!-- Tabla Operaciones -->
@@ -1558,22 +1558,22 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="rgEStatMonto">—</span><span class="stat-pill-label">Total gastado</span></div>
       <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgEStatItbms">—</span><span class="stat-pill-label">ITBMS pagado</span></div>
     </div>
-    <!-- Toolbar fila 1: filtro estado (Pendientes / Aprobados / Todos) + Sincronizar + Nuevo -->
-    <div style="padding:.65rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
+    <!-- Toolbar fila 1: Sync + Search + filtros estado + categoría -->
+    <div class="op-toolbar">
+      <button class="btn-sync" id="btnAcrSync" onclick="acrSincronizar()">⟳ Sync emails</button>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
+      </div>
       <button class="op-filter-btn" data-rge-estado="pendiente" onclick="rgApplyEgrEstado(this,'pendiente')" style="background:#FFF9C4;border-color:#F9A825;color:#795548;font-weight:700">⏳ Pendientes</button>
       <button class="op-filter-btn active" data-rge-estado="all" onclick="rgApplyEgrEstado(this,'all')">Todos</button>
       <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
-      <div style="width:1px;height:20px;background:var(--border);margin:0 .25rem"></div>
+      <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
       <select id="rgEgrCatDropdown" onchange="rgApplyEgrFilterSel(this)"
         style="font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--border);border-radius:7px;
                background:var(--bg);color:var(--text);cursor:pointer;outline:none;max-width:220px">
         <option value="all">📂 Todas las categorías</option>
       </select>
-      <div class="search-wrap" style="margin-left:auto">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
-      </div>
-      <button class="btn-sync" id="btnAcrSync" onclick="acrSincronizar()">↺ Sincronizar emails</button>
     </div>
     <!-- Stats unificados -->
     <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
