@@ -330,6 +330,12 @@
     </div>
 
     <div class="st-toolbar">
+      <button id="st-btn-sync" onclick="sincronizarEmailsST()"
+        style="flex-shrink:0;padding:5px 12px;background:#E05A00;color:#fff;border:none;
+               border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;
+               display:flex;align-items:center;gap:4px;white-space:nowrap;transition:opacity .15s">
+        ⟳ Sync emails
+      </button>
       <input class="st-search" id="st-search" placeholder="Buscar por cliente, descripción, número…" oninput="st_applyFilters()">
       <button class="st-fbtn active" id="st-f-all"         onclick="st_setFilter('all')">Todos</button>
       <button class="st-fbtn"        id="st-f-cotizado"    onclick="st_setFilter('cotizado')">Cotizados</button>
