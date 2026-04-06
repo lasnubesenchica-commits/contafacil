@@ -3221,7 +3221,7 @@ var currentOrden  = null;
 // ══════════════════════════════════════════════════
 //  MENÚ DINÁMICO — ?admin=1 muestra menú completo
 // ══════════════════════════════════════════════════
-const IS_ADMIN = new URLSearchParams(window.location.search).get('admin') === '1';
+const IS_ADMIN = true;
 
 function buildMenu() {
   const container = document.getElementById('mainTabs');
@@ -3252,7 +3252,7 @@ function buildMenu() {
     '</div>' +
     '<button class="main-tab" id="tabDashboard" style="display:none"></button>' +
     '<button class="main-tab" id="tabInventario" onclick="switchTab(&quot;inventario&quot;)">📦 Inventario</button>' +
-    (IS_ADMIN ? '<button class="main-tab" id="tabSetup" onclick="switchTab(&quot;setup&quot;)" style="margin-left:auto">⚙️ Configuración <span class="setup-badge-admin">ADMIN</span></button>' : '');
+    (IS_ADMIN ? '<button class="main-tab" id="tabSetup" onclick="switchTab(&quot;setup&quot;)" style="margin-left:auto">⚙️ Configuración</button>' : '');
 }
 
 // ══════════════════════════════════════════════════
