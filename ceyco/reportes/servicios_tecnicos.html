@@ -979,7 +979,12 @@
       // si no extraer del ingreso_id (formato ING-RP-YYYYMMDD...), 
       // si no fecha_cierre, si no fecha_reg
       var fechaEfectiva;
-      if (st.fecha_ingreso && st.fecha_ingreso.length >= 7) {
+      if (st.estado === 'anulado' && st.mes && st.anio) {
+        // Para STs anulados (E2): la fecha efectiva es la de la factura original,
+        // que se almacena en mes/anio del ST (no la fecha_cierre que es la NC).
+        var _mesStr = String(parseInt(st.mes) || 1).padStart(2, '0');
+        fechaEfectiva = String(st.anio) + '-' + _mesStr + '-15';
+      } else if (st.fecha_ingreso && st.fecha_ingreso.length >= 7) {
         fechaEfectiva = st.fecha_ingreso;
       } else if (st.ingreso_id) {
         // ingreso_id formato: ING-RP-20260129... → extraer YYYYMMDD
@@ -1077,6 +1082,8 @@
     // pvNeto: usar subtotal_venta del resumen si existe (correcto para gravados y exentos),
     // fallback a /1.07 solo si no está disponible.
     // Para STs cancelados (nota de crédito), el neto es siempre $0.
+    // cancelado (E1 — nunca despachado) → $0
+    // anulado   (E2 — despachado y luego revertido) → monto real de la factura original
     var pvNeto = st.estado === 'cancelado'
       ? 0
       : (st.subtotal_venta > 0
@@ -1436,7 +1443,9 @@
     // tanto para gravados como exentos). Fallback a /1.07 si no está disponible.
     // Para STs cancelados (nota de crédito), el neto es $0 — los dos ingresos se anulan.
     var esExento   = r.es_exento || false;
-    var esCancelado = (st && (st.estado === 'cancelado' || st.estado === 'anulado'));
+    // cancelado (E1): nunca despachado → KPIs internos en $0
+    // anulado   (E2): despachado y revertido → KPIs muestran monto real
+    var esCancelado = (st && st.estado === 'cancelado');
     var pv         = esCancelado
       ? 0
       : (r.subtotal_venta > 0
@@ -1779,6 +1788,10 @@
         vb = nb2 > 0 ? (nb2 - st_calcCostoReal(b)) / nb2 : 0;
       }
       else { va = String(a.fecha_reg||''); vb = String(b.fecha_reg||''); }
+      // Anulados y cancelados siempre al final
+      var aInact = (a.estado === 'anulado' || a.estado === 'cancelado') ? 1 : 0;
+      var bInact = (b.estado === 'anulado' || b.estado === 'cancelado') ? 1 : 0;
+      if (aInact !== bInact) return aInact - bInact;
       if (va < vb) return dir === 'asc' ? -1 : 1;
       if (va > vb) return dir === 'asc' ?  1 : -1;
       return 0;
@@ -1824,14 +1837,16 @@
     };
 
     items.forEach(function(st) {
-      // Para STs cancelados (nota de crédito), neto = $0 — los dos ingresos se cancelan.
-      var esCancelado = st.estado === 'cancelado' || st.estado === 'anulado';
+      // cancelado (E1): nunca despachado → $0 en montos
+      // anulado   (E2): despachado y revertido → muestra monto real de la factura original
+      var esCancelado = st.estado === 'cancelado';
+      var esAnulado   = st.estado === 'anulado';
       var pvNeto   = esCancelado
         ? 0
         : (st.subtotal_venta > 0
             ? st.subtotal_venta
             : (st.precio_venta > 0 ? parseFloat((st.precio_venta / 1.07).toFixed(2)) : 0));
-      var pvItbms  = (!esCancelado && st.precio_venta > 0)
+      var pvItbms  = (!(esCancelado) && st.precio_venta > 0)
         ? parseFloat((st.precio_venta - pvNeto).toFixed(2))
         : 0;
       var pvTotal    = esCancelado ? 0 : (st.precio_venta || 0);
@@ -1843,7 +1858,10 @@
       var isExpanded = !!st_state.expandedRows[st.id_st];
       var hasItems   = st.items && st.items.filter(function(i){ return i.estado_item !== 'cancelado'; }).length > 0;
 
-      if (st.estado !== 'anulado') {
+      // Excluir de totales: anulado (E2) y cancelado (E1)
+      // El anulado muestra su monto real en la fila para trazabilidad,
+      // pero no contribuye al pipeline activo.
+      if (!esAnulado && !esCancelado) {
         totNeto     += pvNeto;
         totItbms    += esExento ? 0 : pvItbms;
         totTotal    += pvTotal;
@@ -1863,12 +1881,18 @@
       html += '<td style="font-weight:600;max-width:150px">'+st_esc(st.nombre_cliente)+'</td>';
       html += '<td style="max-width:200px;color:#64748b;font-size:.73rem">'+st_esc(st.descripcion.length>60?st.descripcion.slice(0,60)+'…':st.descripcion)+'</td>';
       html += '<td><span class="st-badge s-'+st_esc(st.estado)+'">'+st_esc(ESTADO_LABEL[st.estado]||st.estado)+'</span></td>';
-      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:600">'+st_fmt(pvNeto)+'</td>';
-      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:600">'+(esExento ? '<span style="font-size:.68rem;font-weight:600;color:#64748b">Exento</span>' : st_fmt(pvItbms))+'</td>';
-      html += '<td class="r" style="background:#f0fdf4;color:#15803d;font-weight:700">'+(pvTotal > 0 ? st_fmt(pvTotal) : '—')+'</td>';
-      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+st_fmt(totalCosto)+'</td>';
-      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+st_fmt(utilidad)+'</td>';
-      html += '<td class="r" style="background:#eff6ff;color:#1d4ed8;font-weight:600">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
+      // Montos: anulado → color rojo atenuado para señalizar monto histórico revertido
+      var _bgIng  = esAnulado ? '#fff5f5' : '#f0fdf4';
+      var _clrIng = esAnulado ? '#b91c1c' : '#15803d';
+      var _bgEgr  = esAnulado ? '#fff5f5' : '#eff6ff';
+      var _clrEgr = esAnulado ? '#b91c1c' : '#1d4ed8';
+      var _strike = esAnulado ? 'text-decoration:line-through;opacity:.7;' : '';
+      html += '<td class="r" style="background:'+_bgIng+';color:'+_clrIng+';font-weight:600;'+_strike+'">'+st_fmt(pvNeto)+'</td>';
+      html += '<td class="r" style="background:'+_bgIng+';color:'+_clrIng+';font-weight:600;'+_strike+'">'+(esExento ? '<span style="font-size:.68rem;font-weight:600;color:#94a3b8">Exento</span>' : st_fmt(pvItbms))+'</td>';
+      html += '<td class="r" style="background:'+_bgIng+';color:'+_clrIng+';font-weight:700;'+_strike+'">'+(pvTotal > 0 ? st_fmt(pvTotal) : '—')+'</td>';
+      html += '<td class="r" style="background:'+_bgEgr+';color:'+_clrEgr+';font-weight:600;'+_strike+'">'+st_fmt(totalCosto)+'</td>';
+      html += '<td class="r" style="background:'+_bgEgr+';color:'+_clrEgr+';font-weight:600;'+_strike+'">'+st_fmt(utilidad)+'</td>';
+      html += '<td class="r" style="background:'+_bgEgr+';color:'+_clrEgr+';font-weight:600;'+_strike+'">'+(margenPct!=='—'?(parseFloat(margenPct)>0?'+':'')+margenPct+'%':'—')+'</td>';
       html += '<td><div class="st-tbl-actions">';
       if (st.estado === 'cotizado') {
         html += '<button class="st-tbl-btn warning" onclick="st_accionEmailTabla(\''+st_esc(st.id_st)+'\',\''+st_esc(st.email_cliente||'')+'\')">📧</button>';
