@@ -524,6 +524,10 @@
         <input class="st-input" id="st-me-desc" placeholder="Descripción del costo">
       </div>
       <div class="st-field">
+        <label class="st-label">Cantidad</label>
+        <input class="st-input" id="st-me-cant" type="number" min="0" step="1" placeholder="1">
+      </div>
+      <div class="st-field">
         <label class="st-label">Proveedor</label>
         <input class="st-input" id="st-me-prov" placeholder="Nombre del proveedor">
       </div>
@@ -1492,7 +1496,7 @@
 
       // ── Tabla de costos ejecutados ────────────────────────────
       html += '<div class="st-cst-wrap"><div class="st-cst-lbl">Costos ejecutados</div><table class="st-cst-tbl"><thead><tr>' +
-        '<th style="width:110px">Tipo</th><th>Descripci\u00f3n</th><th style="width:130px">Proveedor</th><th class="r">Monto</th><th>Estado</th>' +
+        '<th style="width:110px">Tipo</th><th>Descripci\u00f3n</th><th class="r" style="width:50px">Cant.</th><th style="width:130px">Proveedor</th><th class="r">Monto</th><th>Estado</th>' +
         '<th style="width:72px;text-align:center">Acciones</th>' +
         '</tr></thead><tbody>';
       items.forEach(function(it){
@@ -1543,6 +1547,7 @@
           ' data-item-id="'+st_esc(itemId)+'" data-st-id="'+st_esc(idST)+'"' +
           ' data-tipo="'+st_esc(tipoActual)+'" data-desc="'+st_esc(it.descripcion)+'"' +
           ' data-prov="'+st_esc(it.proveedor||'')+'" data-nfac="'+st_esc(it.num_factura||'')+'"' +
+          ' data-cant="'+st_esc(String(it.cantidad||''))+'"' +
           ' data-total="'+st_esc(String(it.total_real||''))+'" data-itbms="'+st_esc(String(it.itbms_real||''))+'"' +
           ' data-egreso="'+st_esc(it.egreso_id||'')+'"' +
           ' onclick="st_editarItem(this)">Editar</span>';
@@ -1552,8 +1557,13 @@
           'data-item-id="'+st_esc(itemId)+'" data-st-id="'+st_esc(idST)+'" ' +
           'onclick="st_eliminarItemBtn(this)">Borrar</span>';
 
+        var cantCell = it.cantidad > 1
+          ? '<td class="r" style="font-weight:600;color:#475569">'+it.cantidad+'</td>'
+          : '<td class="r" style="color:#d1d5db">—</td>';
+
         html += '<tr><td style="white-space:nowrap">'+tipoCell+'</td>' +
-          '<td>'+st_esc(it.descripcion)+(it.cantidad>1?' <span style="font-size:.66rem;color:#94a3b8">\u00d7'+it.cantidad+'</span>':'')+'</td>' +
+          '<td>'+st_esc(it.descripcion)+'</td>' +
+          cantCell +
           '<td>'+provCell+'</td>' +
           '<td class="r">'+st_fmt(montoItem)+
             (pctItem ? '<span style="font-size:.63rem;font-weight:500;color:#94a3b8;margin-left:3px">('+pctItem+'%)</span>' : '')+
@@ -1564,7 +1574,7 @@
       });
       var totalCostosCalc = 0;
       items.forEach(function(it) { totalCostosCalc += (it.total_real > 0 ? it.total_real : it.total_cotizado) || 0; });
-      html += '</tbody><tfoot><tr><td colspan="3" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(totalCostosCalc)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
+      html += '</tbody><tfoot><tr><td colspan="4" style="padding:5px 9px">Total costos</td><td class="r">'+st_fmt(totalCostosCalc)+'</td><td colspan="2"></td></tr></tfoot></table></div>';
     } else {
       html += '<div style="padding:12px 14px;font-size:.8rem;color:#94a3b8">Sin costos registrados</div>';
     }
@@ -2351,7 +2361,7 @@
   window.st_abrirModalNuevoCosto = function(idST) {
     if (idST) st_setActualById(idST);
     // Limpiar todo el modal
-    ['st-me-tipo','st-me-desc','st-me-prov','st-me-nfac','st-me-total','st-me-itbms','st-me-notas'].forEach(function(id) {
+    ['st-me-tipo','st-me-desc','st-me-cant','st-me-prov','st-me-nfac','st-me-total','st-me-itbms','st-me-notas'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.value = (id === 'st-me-tipo') ? 'producto' : '';
     });
@@ -2409,6 +2419,7 @@
         egreso_id:    egresoIdViejo,
         tipo:         document.getElementById('st-me-tipo').value,
         descripcion:  desc,
+        cantidad:     parseFloat(document.getElementById('st-me-cant').value) || 1,
         proveedor:    document.getElementById('st-me-prov').value.trim(),
         num_factura:  document.getElementById('st-me-nfac').value.trim(),
         total:        total,
@@ -3146,6 +3157,7 @@
     var desc     = el.getAttribute('data-desc')    || '';
     var prov     = el.getAttribute('data-prov')    || '';
     var nfac     = el.getAttribute('data-nfac')    || '';
+    var cant     = el.getAttribute('data-cant')    || '';
     var total    = el.getAttribute('data-total')   || '';
     var itbms    = el.getAttribute('data-itbms')   || '';
     var egresoId = el.getAttribute('data-egreso')  || '';
@@ -3155,6 +3167,7 @@
     // Cargar campos del modal
     document.getElementById('st-me-tipo').value  = tipo;
     document.getElementById('st-me-desc').value  = desc;
+    document.getElementById('st-me-cant').value  = cant;
     document.getElementById('st-me-prov').value  = prov;
     document.getElementById('st-me-nfac').value  = nfac;
     document.getElementById('st-me-total').value = total;
