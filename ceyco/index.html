@@ -1538,11 +1538,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
   <div style="display:flex;gap:0;background:var(--white);border-bottom:2px solid var(--border);padding:0 2rem">
     <button id="rgTabEgrBtn" onclick="rgShowTab('egr')"
       style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--orange);color:var(--orange);margin-bottom:-2px;transition:all .15s">
-      📤 Egresos misceláneos
+      📤 Gastos
     </button>
     <button id="rgTabIngBtn" onclick="rgShowTab('ing')"
       style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
-      💰 Ingresos misceláneos
+      💰 Ingresos
     </button>
     <button id="rgTabPlBtn" onclick="rgShowTab('pl')"
       style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
@@ -1607,24 +1607,24 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   <!-- TAB: INGRESOS -->
   <div id="rgTabIng" style="display:none">
-    <!-- Stats -->
-    <div class="op-stats" id="rgIngStats" style="padding:1rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
-      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatTotal">—</span><span class="stat-pill-label">Total registros</span></div>
-      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatMonto">—</span><span class="stat-pill-label">Total ingresos</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgIStatItbms">—</span><span class="stat-pill-label">ITBMS cobrado</span></div>
-    </div>
     <!-- Toolbar -->
-    <div class="op-toolbar" style="padding:.75rem 2rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+    <div class="op-toolbar">
+      <button class="btn-sync" onclick="rgRefresh()">⟳ Actualizar</button>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="rgSearchIng" class="filter-search" placeholder="Buscar ingreso..." oninput="rgRenderIng()">
+      </div>
       <button class="op-filter-btn active" data-rgi-filter="all" onclick="rgApplyIngFilter(this,'all')">Todos</button>
       <button class="op-filter-btn" data-rgi-filter="alquiler_cobrado"  onclick="rgApplyIngFilter(this,'alquiler_cobrado')">🏢 Alquiler cobrado</button>
       <button class="op-filter-btn" data-rgi-filter="intereses"         onclick="rgApplyIngFilter(this,'intereses')">🏦 Intereses</button>
       <button class="op-filter-btn" data-rgi-filter="otro_gravado"      onclick="rgApplyIngFilter(this,'otro_gravado')">📋 Otro gravado</button>
       <button class="op-filter-btn" data-rgi-filter="otro_exento"       onclick="rgApplyIngFilter(this,'otro_exento')">📋 Otro exento</button>
-      <div class="search-wrap" style="margin-left:auto">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="rgSearchIng" class="filter-search" placeholder="Buscar ingreso..." oninput="rgRenderIng()">
-      </div>
-      <button class="btn-sync" onclick="rgRefresh()">↻ Actualizar</button>
+    </div>
+    <!-- Stats filtrados -->
+    <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
+      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatTotal">—</span><span class="stat-pill-label">Total registros</span></div>
+      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatMonto">—</span><span class="stat-pill-label">Total ingresos</span></div>
+      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgIStatItbms">—</span><span class="stat-pill-label">ITBMS cobrado</span></div>
     </div>
     <!-- Header + botón nuevo -->
     <div class="section-hdr-row">
