@@ -104,7 +104,7 @@
   .st-card-right{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0; }
   .st-card-monto{ font-size:1rem; font-weight:700; color:#1A237E; }
   .st-card-util { font-size:.71rem; font-weight:600; }
-  .st-card-fnum { font-size:.71rem; font-weight:700; font-family:monospace; background:#EEF2FF; color:#3730A3; padding:2px 7px; border-radius:5px; }
+  .st-card-fnum { font-size:.88rem; font-weight:800; font-family:monospace; background:#1A237E; color:#fff; padding:3px 10px; border-radius:6px; letter-spacing:.03em; }
   .st-card-fecha{ font-size:.69rem; color:#94a3b8; }
   .st-card-chev { font-size:.7rem; color:#94a3b8; transition:transform .2s; }
   .st-card.active .st-card-chev { transform:rotate(180deg); color:#1A237E; }
@@ -1039,6 +1039,12 @@
         '</div>';
       return;
     }
+    // Ordenar por número de factura desc
+    items = items.slice().sort(function(a, b) {
+      var na = parseInt((st_numFactura(a).match(/\d+$/) || ['0'])[0], 10);
+      var nb = parseInt((st_numFactura(b).match(/\d+$/) || ['0'])[0], 10);
+      return nb - na;
+    });
     var outer = '<div class="st-cards-outer">';
     for (var i = 0; i < items.length; i++) {
       outer += '<div class="st-cards-row">';
@@ -1557,7 +1563,7 @@
           'data-item-id="'+st_esc(itemId)+'" data-st-id="'+st_esc(idST)+'" ' +
           'onclick="st_eliminarItemBtn(this)">Borrar</span>';
 
-        var cantCell = it.cantidad > 1
+        var cantCell = (it.cantidad > 0)
           ? '<td class="r" style="font-weight:600;color:#475569">'+it.cantidad+'</td>'
           : '<td class="r" style="color:#d1d5db">—</td>';
 
