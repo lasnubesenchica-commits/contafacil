@@ -110,6 +110,8 @@ function _getConfig() {
     empresa_dv:           '',
     email_comprobantes:   '',   // legado — plus-address anterior (Retail)
     email_op_destino:     '',   // nuevo: To: fijo (ej: facturas@balanceclip.net)
+    email_op_remitente:   '',   // nuevo: From: del cliente permitido   // legado — plus-address anterior (Retail)
+    email_op_destino:     '',   // nuevo: To: fijo (ej: facturas@balanceclip.net)
     email_op_remitente:   '',   // nuevo: From: del cliente permitido
     drive_folder_id:      '',
     confianza_minima:     '70',
@@ -277,6 +279,9 @@ function doGet_Operaciones(action, params, callback) {
   if (action === 'estadoTriggerST')       return _handleEstadoTriggerST(params, callback);
   if (action === 'getEmailSTLog')         return _handleGetEmailSTLog(params, callback);
   if (action === 'estadoTriggerOp')       return _handleEstadoTriggerOp(params, callback);
+  // ── Acreedores (módulo independiente) ──
+  var resAcr = doGet_Acreedores(action, params, callback);
+  if (resAcr !== null) return resAcr;
   return null;  // no es una action de Operaciones
 }
 
@@ -292,6 +297,9 @@ function doPost_Operaciones(action, data) {
   if (action === 'removerTriggerST')         return _handleRemoverTriggerST(data);
   if (action === 'instalarTriggerOp')        return _handleInstalarTriggerOp(data);
   if (action === 'removerTriggerOp')         return _handleRemoverTriggerOp(data);
+  // ── Acreedores (módulo independiente) ──
+  var resAcrPost = doPost_Acreedores(action, data);
+  if (resAcrPost !== null) return resAcrPost;
   return null;  // no es una action de Operaciones
 }
 
