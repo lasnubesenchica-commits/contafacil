@@ -541,6 +541,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
 }
 .tbl-trash-btn:hover { opacity:1; color:var(--red); }
 .tbl-trash-btn svg { width:13px; height:13px; pointer-events:none; }
+.tbl-trash-btn.danger { color:#dc2626; opacity:.6; }
+.tbl-trash-btn.danger:hover { opacity:1; color:#991b1b; background:#fee2e2; }
 .tbl-cat-select {
   font-size:.72rem; color:var(--muted);
   border:none; background:transparent; outline:none; cursor:pointer;
@@ -5075,11 +5077,13 @@ function renderEgresoTable(items) {
   // CATS_EGR — construido desde CATEGORIAS_GASTO_DGI (fuente única DGI)
   const CATS_EGR = CATEGORIAS_GASTO_DGI.map(c => [c.valor, c.emoji + ' ' + c.label]);
 
-  const trashSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+  const trashSvg  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+  const cancelSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`;
 
   tbody.innerHTML = visibles.map(item => {
     const total    = parseFloat(item.total || '0') || 0;
     const editable = item.tipo_egreso !== 'costo_mercancia';
+    const anulado  = item.estado === 'anulado';
     const _catVal  = item.tipo_egreso || item.categoria || '';
     const catOpts  = CATS_EGR.map(([v,l]) =>
       `<option value="${v}"${v === _catVal ? ' selected' : ''}>${l}</option>`
@@ -5091,7 +5095,8 @@ function renderEgresoTable(items) {
 
     const actionsCell = editable
       ? `<td><div class="tbl-actions-cell">
-           <button class="tbl-trash-btn" onclick="anularRegistroTabla('egreso','${esc(item.id_egreso)}')" title="Anular egreso">${trashSvg}</button>
+           ${!anulado ? `<button class="tbl-trash-btn" onclick="anularRegistroTabla('egreso','${esc(item.id_egreso)}')" title="Anular (mantiene historial)">${cancelSvg}</button>` : ''}
+           <button class="tbl-trash-btn danger" onclick="eliminarRegistroTabla('egreso','${esc(item.id_egreso)}')" title="Eliminar permanentemente">${trashSvg}</button>
          </div></td>`
       : `<td></td>`;
 
@@ -5331,7 +5336,8 @@ function renderIngresosTable(items) {
     ['otro_exento',              'Otro (exento)'],
   ];
 
-  const trashSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+  const trashSvg  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+  const cancelSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`;
 
   tbody.innerHTML = visibles.map(item => {
     const total    = parseFloat(item.total || '0') || 0;
@@ -5340,6 +5346,7 @@ function renderIngresosTable(items) {
       ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄 Ver</a>`
       : '—';
     const editable = item.tipo_comprobante !== 'factura_emitida';
+    const anulado  = item.estado === 'anulado';
     const catOpts  = CATS_ING.map(([v,l]) =>
       `<option value="${v}"${v === item.categoria_ingreso ? ' selected' : ''}>${l}</option>`
     ).join('');
@@ -5350,7 +5357,8 @@ function renderIngresosTable(items) {
 
     const actionsCell = editable
       ? `<td><div class="tbl-actions-cell">
-           <button class="tbl-trash-btn" onclick="anularRegistroTabla('ingreso','${esc(item.id_trans)}')" title="Anular ingreso">${trashSvg}</button>
+           ${!anulado ? `<button class="tbl-trash-btn" onclick="anularRegistroTabla('ingreso','${esc(item.id_trans)}')" title="Anular (mantiene historial)">${cancelSvg}</button>` : ''}
+           <button class="tbl-trash-btn danger" onclick="eliminarRegistroTabla('ingreso','${esc(item.id_trans)}')" title="Eliminar permanentemente">${trashSvg}</button>
          </div></td>`
       : `<td></td>`;
 
@@ -6085,6 +6093,28 @@ async function anularRegistroTabla(tipo, id) {
     }
     plLoaded = false;   // invalidar cache P&L para próxima visita al tab
     showToast('✅ Registro anulado');
+  } catch(err) {
+    showToast('⚠️ ' + err.message);
+  }
+}
+
+async function eliminarRegistroTabla(tipo, id) {
+  const label = tipo === 'egreso' ? 'egreso' : 'ingreso';
+  if (!confirm('⚠️ ELIMINAR PERMANENTEMENTE\n\nEsto borrará la fila del Sheets definitivamente y no se puede deshacer.\n\n¿Confirmar eliminación del ' + label + '?')) return;
+  try {
+    const data = await gasJsonp('eliminarRegistro', { tipo, id });
+    if (!data.success) throw new Error(data.error || 'Error desconocido');
+    if (tipo === 'ingreso') {
+      ingItems = ingItems.filter(i => i.id_trans !== id);
+      updateIngresoStats(ingItems);
+      applyIngresoFilters();
+    } else {
+      egrItems = egrItems.filter(e => e.id_egreso !== id);
+      updateEgresoStats(egrItems);
+      applyEgresoFilters();
+    }
+    plLoaded = false;
+    showToast('🗑️ Registro eliminado permanentemente');
   } catch(err) {
     showToast('⚠️ ' + err.message);
   }
