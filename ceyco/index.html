@@ -4122,6 +4122,21 @@ async function sincronizarEmails() {
   btn.textContent = '↻ Sincronizar emails';
 }
 
+async function sincronizarEmailsST() {
+  const btn = document.getElementById('st-btn-sync');
+  if (btn) { btn.style.opacity = '.5'; btn.style.pointerEvents = 'none'; btn.textContent = '⏳ Sincronizando...'; }
+  try {
+    const data = await gasJsonp('sincronizarEmailsST', {}, 180000);
+    if (!data.success) throw new Error(data.error || 'Error en sincronización');
+    showToast(`✅ ST Sync — ${data.nuevos || 0} nuevos procesados`);
+    if (typeof st_cargarDatos === 'function') st_cargarDatos(true);
+  } catch(err) {
+    showToast('⚠️ ' + err.message);
+  } finally {
+    if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; btn.textContent = '⟳ Sync emails'; }
+  }
+}
+
 // ══════════════════════════════════════════════════
 //  RENDER TABLA OPERACIONES
 // ══════════════════════════════════════════════════
