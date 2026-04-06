@@ -703,11 +703,10 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 
   <header class="app-header">
     <div>
-      <span class="header-logo">CEY<span>CO</span></span>
-      <span class="header-badge">OPS</span>
+      <span class="header-logo" id="appHeaderLogo">CEY<span>CO</span></span>
+      <span class="header-badge" id="appHeaderBadge">BalanceClip</span>
     </div>
     <div class="header-right">
-      <button class="hdr-btn" id="btnSync" onclick="doSync()" style="display:none" title="Sync emails">⟳</button>
       <button class="hdr-btn" id="btnRefresh" onclick="doRefresh()" title="Actualizar">↻</button>
       <button class="hdr-btn" onclick="CFG_PANEL.open()" title="Configuración" style="font-size:.8rem">⚙</button>
     </div>
@@ -745,6 +744,13 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <button class="ftab" onclick="ST.setFilter(this,'ejecucion')">Ejecución</button>
         <button class="ftab" onclick="ST.setFilter(this,'cerrado')">Cerrados</button>
         <button class="ftab" onclick="ST.setFilter(this,'cancelado')">Cancelados</button>
+        <button id="btnSyncST" onclick="doSyncST()" style="
+          flex-shrink:0; margin-left:auto;
+          font-size:.73rem; font-weight:700; color:var(--orange);
+          background:var(--orange-bg); border:.5px solid rgba(224,90,0,.3);
+          border-radius:20px; padding:.32rem .78rem; cursor:pointer;
+          display:flex; align-items:center; gap:.3rem; white-space:nowrap;
+        ">⟳ Sync emails</button>
       </div>
       <div id="st-list"></div>
     </div>
@@ -779,6 +785,13 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <button class="ftab" onclick="OP.setFilter(this,'inventario')">Inventario</button>
         <button class="ftab" onclick="OP.setFilter(this,'facturado')">Facturado</button>
         <button class="ftab" onclick="OP.setFilter(this,'cerrado')">Cerrado</button>
+        <button id="btnSyncOp" onclick="doSync()" style="
+          flex-shrink:0; margin-left:auto;
+          font-size:.73rem; font-weight:700; color:var(--orange);
+          background:var(--orange-bg); border:.5px solid rgba(224,90,0,.3);
+          border-radius:20px; padding:.32rem .78rem; cursor:pointer;
+          display:flex; align-items:center; gap:.3rem; white-space:nowrap;
+        ">⟳ Sync emails</button>
       </div>
       <div id="op-list"></div>
     </div>
@@ -1151,7 +1164,6 @@ function switchView(v) {
   document.getElementById({ proyectos:'viewProyectos', comercial:'viewComercial', pl:'viewPL', registros:'viewRegistros' }[v]).style.display = 'block';
   ['nav-proy','nav-com','nav-pl','nav-reg'].forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById({ proyectos:'nav-proy', comercial:'nav-com', pl:'nav-pl', registros:'nav-reg' }[v]).classList.add('active');
-  document.getElementById('btnSync').style.display = v === 'comercial' ? 'flex' : 'none';
   if (v === 'pl' && !PL.loaded) PL.load();
   if (v === 'registros' && !PEND.loaded) PEND.load();
 }
@@ -1252,7 +1264,14 @@ function resetUpload(key) {
 }
 
 // ── REFRESH / SYNC ────────────────────────────
-async function loadAll() { ST.load(); OP.load(); }
+async function loadAll() {
+  ST.load(); OP.load();
+  // Cargar nombre comercial para el header al inicio
+  try {
+    const d = await jsonpGet('getConfig', {});
+    if (d.success) CFG_PANEL.applyHeaderPublic(d.config || {});
+  } catch(e) {}
+}
 function doRefresh() {
   const btn = document.getElementById('btnRefresh'); btn.classList.add('spin');
   const done = () => btn.classList.remove('spin');
@@ -1262,14 +1281,27 @@ function doRefresh() {
   else done();
 }
 async function doSync() {
-  const btn = document.getElementById('btnSync'); btn.classList.add('spin');
-  toast('Sincronizando emails…');
+  const btn = document.getElementById('btnSyncOp');
+  if (btn) { btn.style.opacity = '.5'; btn.style.pointerEvents = 'none'; }
+  toast('Sincronizando emails Comercialización…');
   try {
-    const r = await jsonpGet('sincronizarEmails');
-    if (r.success) { toast('Sincronizado ✓','ok'); OP.load(); }
+    const r = await jsonpGet('sincronizarEmails', {}, 180000);
+    if (r.success) { toast('Sincronizado ✓  — ' + (r.nuevos||0) + ' nuevos', 'ok'); OP.load(); }
     else toast(r.error || 'Error','err');
   } catch(e) { toast('Error de conexión','err'); }
-  finally { btn.classList.remove('spin'); }
+  finally { if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; } }
+}
+
+async function doSyncST() {
+  const btn = document.getElementById('btnSyncST');
+  if (btn) { btn.style.opacity = '.5'; btn.style.pointerEvents = 'none'; }
+  toast('Sincronizando emails Proyectos…');
+  try {
+    const r = await jsonpGet('sincronizarEmailsST', {}, 180000);
+    if (r.success) { toast('Sincronizado ✓  — ' + (r.nuevos||0) + ' nuevos', 'ok'); ST.load(); }
+    else toast(r.error || 'Error','err');
+  } catch(e) { toast('Error de conexión','err'); }
+  finally { if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; } }
 }
 
 
@@ -3143,7 +3175,12 @@ const PEND = (() => {
           <div class="cfg-card-body">
             <div class="f-grp">
               <label class="f-lbl">Nombre de la empresa</label>
-              <input type="text" class="f-inp" id="cfgEmpresaNombre" placeholder="Consultores Electrotécnicos...">
+              <input type="text" class="f-inp" id="cfgEmpresaNombre" placeholder="Consultores Electrotécnicos y Contratistas, S.A.">
+            </div>
+            <div class="f-grp">
+              <label class="f-lbl">Nombre comercial</label>
+              <input type="text" class="f-inp" id="cfgEmpresaComercial" placeholder="CEYCO" maxlength="16">
+              <div style="font-size:.65rem;color:var(--chrome);margin-top:.25rem">Aparece en el encabezado. Si está vacío se calculan las iniciales del nombre.</div>
             </div>
             <div class="f-grid">
               <div class="f-grp">
@@ -3522,6 +3559,7 @@ const CFG_PANEL = (() => {
       if (!data.success) { toast('Error cargando config: ' + (data.error||''), 'err'); return; }
       const c = data.config || {};
       _sv('cfgEmpresaNombre',    c.empresa_nombre       || '');
+      _sv('cfgEmpresaComercial', c.empresa_comercial    || '');
       _sv('cfgEmpresaRuc',       c.empresa_ruc          || '');
       _sv('cfgEmpresaDv',        c.empresa_dv           || '');
       _sv('cfgDriveFolderId',    c.drive_folder_id      || '');
@@ -3533,12 +3571,36 @@ const CFG_PANEL = (() => {
       _sv('cfgEmailStDestino',   c.email_st_destino     || '');
       _sv('cfgEmailStRemitente', c.email_st_remitente   || '');
       _loaded = true;
+      _applyHeader(c);
     } catch(err) {
       toast('Error cargando configuración', 'err');
     }
   }
   function _sv(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
   function _gv(id)      { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+  function _inferSiglas(nombre) {
+    if (!nombre) return '';
+    // Palabras vacías a ignorar
+    const skip = new Set(['y','de','del','la','el','los','las','con','s.a.','s.a','sa','inc','ltd','corp','co.']);
+    const words = nombre.split(/[\s,./]+/).filter(w => w.length > 0);
+    const siglas = words
+      .filter(w => !skip.has(w.toLowerCase()))
+      .map(w => w[0].toUpperCase())
+      .join('');
+    return siglas || nombre.substring(0, 4).toUpperCase();
+  }
+
+  function _applyHeader(config) {
+    const comercial = (config.empresa_comercial || '').trim();
+    const nombre    = (config.empresa_nombre    || '').trim();
+    const siglas    = comercial || _inferSiglas(nombre);
+    const logoEl    = document.getElementById('appHeaderLogo');
+    const badgeEl   = document.getElementById('appHeaderBadge');
+    if (logoEl  && siglas) logoEl.textContent  = siglas;
+    if (badgeEl)           badgeEl.textContent = 'BalanceClip';
+  }
+
   function _fillST()    { /* ya cargado por load() */ }
 
   // ── Guardar Empresa ───────────────────────────────────────────
@@ -3553,8 +3615,9 @@ const CFG_PANEL = (() => {
         method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
         body: JSON.stringify({
           action:          'guardarConfig',
-          empresa_nombre:  _gv('cfgEmpresaNombre'),
-          empresa_ruc:     _gv('cfgEmpresaRuc'),
+          empresa_nombre:      _gv('cfgEmpresaNombre'),
+          empresa_comercial:  _gv('cfgEmpresaComercial'),
+          empresa_ruc:        _gv('cfgEmpresaRuc'),
           empresa_dv:      _gv('cfgEmpresaDv'),
           drive_folder_id: _gv('cfgDriveFolderId'),
         }),
@@ -3562,6 +3625,7 @@ const CFG_PANEL = (() => {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Error');
       _showOk(msg); toast('✅ Empresa guardada', 'ok'); _loaded = false;
+      _applyHeader({ empresa_nombre: _gv('cfgEmpresaNombre'), empresa_comercial: _gv('cfgEmpresaComercial') });
     } catch(e) { toast('Error: ' + e.message, 'err'); }
     finally { btn.disabled = false; btn.textContent = '💾 Guardar'; }
   }
@@ -4007,7 +4071,8 @@ const CFG_PANEL = (() => {
            toggleGasto, abrirNuevoGasto, cerrarNuevoGasto,
            analizarFacturaGasto, guardarGasto, verificar,
            abrirNuevoProv, cerrarNuevoProv, editarProv,
-           provHandleFile, provAnalizarFactura, guardarProv, toggleProv };
+           provHandleFile, provAnalizarFactura, guardarProv, toggleProv,
+           applyHeaderPublic: _applyHeader };
 })();
 </script>
 
