@@ -345,7 +345,10 @@ function doGet(e) {
 
     // ── OPERACIONES ─────────────────────────────────────────────
     if (action === 'anularRegistro')      return _handleAnularRegistro(params, callback);
-    if (action === 'actualizarCategoria') return _handleActualizarCategoria(params, callback);
+    if (action === 'actualizarCategoria')        return _handleActualizarCategoria(params, callback);
+    if (action === 'actualizarCategoriaEgreso')  return _handleActualizarCategoria({ tipo:'egreso', id: params.id, categoria: params.categoria }, callback);
+    if (action === 'reclasificarEgreso')   return _handleReclasificarEgreso(params, callback);
+    if (action === 'getCatalogoGastos')    return _handleGetCatalogoGastos(params, callback);
     if (action === 'sincronizarEmails')        return _handleSincronizar(params, callback);
     if (action === 'getComprasVentas')         return _handleGetComprasVentas(params, callback);
     if (action === 'aprobarMatch')             return _handleAprobarMatch(params, callback);
@@ -1356,8 +1359,10 @@ function _handleRegistrarEgresoOperativo(params, callback) {
     fila[COL_E.ITBMS - 1]       = itbms    || '';
     fila[COL_E.TOTAL - 1]       = total    || '';
     fila[COL_E.MONEDA - 1]      = 'USD';
-    fila[COL_E.TIPO_EGRESO - 1] = params.tipo        || 'costo_operativo';
-    fila[COL_E.CATEGORIA - 1]   = params.categoria   || '';
+    // tipo_egreso y categoria son siempre el valor DGI (ej: 'nomina', 'alquileres', etc.)
+    var dgiCat = params.tipo || params.categoria || 'otros_deducibles';
+    fila[COL_E.TIPO_EGRESO - 1] = dgiCat;
+    fila[COL_E.CATEGORIA - 1]   = dgiCat;
     fila[COL_E.PROVEEDOR - 1]   = params.proveedor   || '';
     fila[COL_E.RUC_PROV - 1]    = params.ruc_prov    || '';
     fila[COL_E.DV_PROV - 1]     = params.dv_prov     || '';
@@ -2092,6 +2097,135 @@ function _handleAnularRegistro(params, callback) {
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  CATÁLOGO UNIFICADO DGI — Gastos Deducibles
+//  Formulario Persona Jurídica General (e-Tax 2.0)
+//  Secciones COSTOS (líneas 27-41) y GASTOS (líneas 42-77)
+//  v2.0 — alineado con formulario oficial DGI Panamá
+//  Los COSTOS son inmutables desde el P&L (vienen de ST_Items).
+//  Solo los GASTOS son reclasificables por el usuario.
+// ═══════════════════════════════════════════════════════════════
+
+// ── COSTOS DIRECTOS (Líneas 27-41 formulario DGI) ────────────
+var TIPOS_COSTO_DIRECTO = [
+  { valor: 'costo_mercancia',         label: 'Costo de mercancía / inventario',   linea_dgi: '28-34' },
+  { valor: 'costo_servicio_tecnico',  label: 'Costo de servicio técnico',         linea_dgi: '35'    },
+  { valor: 'impuesto_aduana',         label: 'Impuesto / Aduana (importación)',   linea_dgi: '35'    },
+  { valor: 'credito_fiscal',          label: 'Crédito fiscal ITBMS',              linea_dgi: 'ITBMS' },
+];
+
+// ── GASTOS OPERATIVOS (Líneas 42-77 formulario DGI) ──────────
+// Reclasificables por el usuario desde el P&L
+var CATEGORIAS_GASTO_DGI = [
+  { valor: 'nomina',                   label: 'Nómina / Salarios',                linea_dgi: '42',    emoji: '👤' },
+  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales',           linea_dgi: '43',    emoji: '👥' },
+  { valor: 'gastos_representacion',    label: 'Gastos de representación',         linea_dgi: '44',    emoji: '🤝' },
+  { valor: 'alquileres',               label: 'Alquileres',                       linea_dgi: '46',    emoji: '🏠' },
+  { valor: 'cargos_bancarios',         label: 'Cargos bancarios',                 linea_dgi: '53',    emoji: '🏦' },
+  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad',           linea_dgi: '54',    emoji: '🔒' },
+  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros',   linea_dgi: '55',    emoji: '📊' },
+  { valor: 'combustible_transporte',   label: 'Combustible y transporte',         linea_dgi: '56',    emoji: '⛽' },
+  { valor: 'depreciacion',             label: 'Depreciación',                     linea_dgi: '57',    emoji: '📉' },
+  { valor: 'amortizacion',             label: 'Amortización',                     linea_dgi: '58',    emoji: '📋' },
+  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales',    linea_dgi: '59',    emoji: '🏛️' },
+  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales',         linea_dgi: '60',    emoji: '💼' },
+  { valor: 'seguros',                  label: 'Seguros',                          linea_dgi: '63-66', emoji: '🛡️' },
+  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones',     linea_dgi: '67',    emoji: '🔧' },
+  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo',            linea_dgi: '68',    emoji: '📣' },
+  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros',  linea_dgi: '69',    emoji: '🖇️' },
+  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones',    linea_dgi: '71',    emoji: '📶' },
+  { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',   linea_dgi: '75',    emoji: '💡' },
+  { valor: 'tecnologia_software',      label: 'Tecnología y software',            linea_dgi: '76',    emoji: '💻' },
+  { valor: 'capacitacion',             label: 'Capacitación y formación',         linea_dgi: '76',    emoji: '📚' },
+  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',          linea_dgi: '77',    emoji: '📋' },
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleReclasificarEgreso
+//  Actualiza tipo_egreso en hoja Egresos.
+//  Solo aplica a egresos de Registro General (sin id_st_item, sin id_item_cv).
+//  Params: id_egreso, nuevo_tipo (debe estar en CATEGORIAS_GASTO_DGI)
+// ═══════════════════════════════════════════════════════════════
+function _handleReclasificarEgreso(params, callback) {
+  var result = { success: false, error: null };
+  try {
+    var idEgreso  = String(params.id_egreso  || '').trim();
+    var nuevoTipo = String(params.nuevo_tipo || '').trim();
+    if (!idEgreso)  throw new Error('id_egreso requerido');
+    if (!nuevoTipo) throw new Error('nuevo_tipo requerido');
+
+    // Validar que el nuevo tipo esté en el catálogo de gastos (no costos)
+    var valido = false;
+    for (var c = 0; c < CATEGORIAS_GASTO_DGI.length; c++) {
+      if (CATEGORIAS_GASTO_DGI[c].valor === nuevoTipo) { valido = true; break; }
+    }
+    if (!valido) throw new Error('Tipo no válido: ' + nuevoTipo + '. Debe ser un gasto operativo DGI.');
+
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_EGRESOS);
+    if (!sheet) throw new Error('Hoja Egresos no encontrada');
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 2) throw new Error('Hoja Egresos vacía');
+
+    var data  = sheet.getRange(3, 1, lastRow - 2, EGRESOS_NCOLS).getValues();
+    var found = false;
+
+    for (var i = 0; i < data.length; i++) {
+      if (String(data[i][COL_E.ID - 1] || '').trim() !== idEgreso) continue;
+
+      // Verificar que es un egreso de Registro General (no vinculado a ST ni CV)
+      var idST = String(data[i][COL_E.ID_ST_ITEM - 1] || '').trim();
+      var idCV = String(data[i][COL_E.ID_ITEM_CV - 1] || '').trim();
+      if (idST || idCV) {
+        throw new Error('Solo se pueden reclasificar egresos de Registro General (sin vínculo a ST o CV).');
+      }
+
+      var rowNum    = i + 3;
+      var tipoAnterior = String(data[i][COL_E.TIPO_EGRESO - 1] || '');
+      var stamp        = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+
+      // Actualizar tipo_egreso y categoria
+      sheet.getRange(rowNum, COL_E.TIPO_EGRESO).setValue(nuevoTipo);
+      sheet.getRange(rowNum, COL_E.CATEGORIA).setValue(nuevoTipo);
+
+      // Registrar el cambio en notas
+      var notasActual = String(sheet.getRange(rowNum, COL_E.NOTAS).getValue() || '');
+      var notaReclasif = 'Reclasificado: ' + tipoAnterior + ' → ' + nuevoTipo + ' | ' + stamp;
+      sheet.getRange(rowNum, COL_E.NOTAS).setValue(
+        notasActual ? notasActual + ' | ' + notaReclasif : notaReclasif
+      );
+
+      result.success      = true;
+      result.tipo_anterior = tipoAnterior;
+      result.tipo_nuevo    = nuevoTipo;
+      found = true;
+      Logger.log('✅ Reclasificado egreso ' + idEgreso + ': ' + tipoAnterior + ' → ' + nuevoTipo);
+      break;
+    }
+
+    if (!found) throw new Error('Egreso no encontrado: ' + idEgreso);
+
+  } catch(err) {
+    result.error = err.message;
+    Logger.log('Error _handleReclasificarEgreso: ' + err.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleGetCatalogoGastos
+//  Devuelve CATEGORIAS_GASTO_DGI para que el frontend se sincronice.
+// ═══════════════════════════════════════════════════════════════
+function _handleGetCatalogoGastos(params, callback) {
+  var result = { success: true, categorias: CATEGORIAS_GASTO_DGI, costos: TIPOS_COSTO_DIRECTO };
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
 function _handleActualizarCategoria(params, callback) {
   var result = { success: false, error: null };
   try {
@@ -2111,11 +2245,15 @@ function _handleActualizarCategoria(params, callback) {
         }
       }
     } else {
+      // Egresos: actualizar AMBOS campos para mantenerlos en sync
+      // tipo_egreso es la fuente del P&L, categoria es la fuente de Registro General
       var sheetEgr2 = ss.getSheetByName(SHEET_EGRESOS);
       var dataEgr2  = sheetEgr2.getRange(3, 1, sheetEgr2.getLastRow()-2, EGRESOS_NCOLS).getValues();
       for (var j = 0; j < dataEgr2.length; j++) {
         if (String(dataEgr2[j][COL_E.ID-1]) === id) {
-          sheetEgr2.getRange(j+3, COL_E.CATEGORIA).setValue(categoria);
+          var rowNum = j + 3;
+          sheetEgr2.getRange(rowNum, COL_E.TIPO_EGRESO).setValue(categoria);
+          sheetEgr2.getRange(rowNum, COL_E.CATEGORIA).setValue(categoria);
           break;
         }
       }
@@ -2383,8 +2521,8 @@ function _handleGetPL(params, callback) {
       if (eTipo === 'credito_fiscal') continue;
       // costo_mercancia y costo_servicio_tecnico ya están en ST_Items → saltar
       if (eTipo === 'costo_mercancia' || eTipo === 'costo_servicio_tecnico') continue;
-      // impuesto_importacion cubierto por ST_Items → saltar
-      if (eTipo === 'impuesto_importacion') continue;
+      // impuesto_aduana / impuesto_importacion cubiertos por ST_Items → saltar
+      if (eTipo === 'impuesto_aduana' || eTipo === 'impuesto_importacion') continue;
       // Cualquier egreso con id_st_item ya está contabilizado en ST_Items → saltar
       var eStItem = String(er[COL_E_ST_ITEM - 1] || '').trim();
       if (eStItem) continue;
@@ -2398,6 +2536,8 @@ function _handleGetPL(params, callback) {
         tipo_egreso: eTipo,
         total:       eTotal,
         itbms:       eItbms,
+        mes:         eMes,
+        anio:        eAnio,
         drive_url:   String(er[COL_E.DRIVE_URL - 1] || '').trim(),
       });
     }
