@@ -37,22 +37,31 @@ var SHEET_ACREEDORES_PENDING = 'Acreedores_Pending';
 var LABEL_ACREEDOR           = 'cf_acreedor_procesado';
 
 // Categorias fiscales disponibles para egresos de acreedores
-// Alineadas con Formulario 03 DGI Panamá y buenas prácticas contables
+// Alineadas con Formulario Persona Jurídica General DGI Panamá (e-Tax 2.0)
+// v2.0 — catálogo unificado con Code.gs CATEGORIAS_GASTO_DGI
+// IMPORTANTE: estos valores deben ser idénticos a CATEGORIAS_GASTO_DGI en Code.gs
 var CATEGORIAS_ACREEDOR = [
-  { valor: 'alquiler_local',              label: 'Alquiler de local / oficina' },
-  { valor: 'servicios_publicos',          label: 'Servicios publicos (agua, luz)' },
-  { valor: 'internet_telecomunicaciones', label: 'Internet y telecomunicaciones' },
-  { valor: 'seguros',                     label: 'Seguros' },
-  { valor: 'mantenimiento_reparacion',    label: 'Mantenimiento y reparaciones' },
-  { valor: 'servicios_profesionales',     label: 'Servicios profesionales (legal, contable)' },
-  { valor: 'publicidad_marketing',        label: 'Publicidad y marketing' },
-  { valor: 'transporte_combustible',      label: 'Transporte y combustible' },
-  { valor: 'suministros_oficina',         label: 'Suministros de oficina' },
-  { valor: 'planilla_empleados',          label: 'Planilla y cargas sociales' },
-  { valor: 'financiero_bancario',         label: 'Gastos financieros y bancarios' },
-  { valor: 'capacitacion',               label: 'Capacitacion y formacion' },
-  { valor: 'tecnologia_software',         label: 'Tecnologia y software' },
-  { valor: 'otros_gastos_generales',      label: 'Otros gastos generales' },
+  { valor: 'nomina',                   label: 'Nómina / Salarios (L42)'               },
+  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales (L43)'          },
+  { valor: 'gastos_representacion',    label: 'Gastos de representación (L44)'        },
+  { valor: 'alquileres',               label: 'Alquileres (L46)'                      },
+  { valor: 'cargos_bancarios',         label: 'Cargos bancarios (L53)'               },
+  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad (L54)'         },
+  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros (L55)' },
+  { valor: 'combustible_transporte',   label: 'Combustible y transporte (L56)'       },
+  { valor: 'depreciacion',             label: 'Depreciación (L57)'                   },
+  { valor: 'amortizacion',             label: 'Amortización (L58)'                   },
+  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales (L59)'  },
+  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales (L60)'       },
+  { valor: 'seguros',                  label: 'Seguros (L63-66)'                     },
+  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones (L67)'   },
+  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo (L68)'          },
+  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros (L69)'},
+  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones (L71)'  },
+  { valor: 'servicios_publicos',       label: 'Servicios públicos - agua, luz (L75)' },
+  { valor: 'tecnologia_software',      label: 'Tecnología y software (L76)'          },
+  { valor: 'capacitacion',             label: 'Capacitación y formación (L76)'       },
+  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles (L77)'        },
 ];
 
 // ── COLUMNAS Acreedores_Config (base 1) ──────────────────────
