@@ -1208,8 +1208,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
   <!-- TOP NAV -->
   <nav class="topnav">
     <div style="display:flex;align-items:center;gap:.75rem">
-      <div class="topnav-logo">CEYCO</div>
-      <div class="topnav-badge">Admin</div>
+      <div class="topnav-logo" id="appHeaderLogo">CEYCO</div>
+      <div class="topnav-badge" id="appHeaderBadge">BalanceClip</div>
     </div>
     <div class="topnav-right">
       <button class="topnav-refresh" id="btnRefreshNav" onclick="refreshCurrentSection()">↻ Actualizar</button>
@@ -2233,6 +2233,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="setup-field full">
             <label>Nombre de la empresa</label>
             <input type="text" id="cfgEmpresaNombre" placeholder="Consultores Electrotécnicos y Contratistas, S.A.">
+          </div>
+          <div class="setup-field full" style="margin-top:.5rem">
+            <label>Nombre comercial</label>
+            <input type="text" id="cfgEmpresaComercial" placeholder="CEYCO" maxlength="16">
+            <span class="setup-hint">Aparece en el encabezado de la app. Si está vacío se calculan las iniciales del nombre.</span>
           </div>
         </div>
         <div class="setup-grid">
@@ -3261,6 +3266,10 @@ function doLogin() {
     buildMenu();
     loadOrdenes();
     switchTab('reporte:reportes/servicios_tecnicos.html');
+    // Cargar nombre comercial para el header
+    gasJsonp('getConfig', {}).then(d => {
+      if (d.success) _applyHeaderDesktop(d.config || {});
+    }).catch(() => {});
   } else {
     document.getElementById('loginError').style.display = 'block';
     document.getElementById('loginPwd').value = '';
@@ -9531,6 +9540,7 @@ async function loadSetupConfig() {
 
     const c = data.config || {};
     _setVal('cfgEmpresaNombre',     c.empresa_nombre       || '');
+    _setVal('cfgEmpresaComercial',  c.empresa_comercial    || '');
     _setVal('cfgEmpresaRuc',        c.empresa_ruc          || '');
     _setVal('cfgEmpresaDv',         c.empresa_dv           || '');
     _setVal('cfgEmailOpDestino',    c.email_op_destino     || '');
@@ -9555,6 +9565,7 @@ async function loadSetupConfig() {
     _validarCampoConfig('cfgDriveFolderId',    c.drive_folder_id);
 
     _setupLoaded = true;
+    _applyHeaderDesktop(c);
   } catch(err) {
     showToast('Error cargando configuración: ' + err.message, true);
   }
@@ -9563,6 +9574,27 @@ async function loadSetupConfig() {
 function _setVal(id, val) {
   const el = document.getElementById(id);
   if (el) el.value = val;
+}
+
+function _inferSiglas(nombre) {
+  if (!nombre) return '';
+  const skip = new Set(['y','de','del','la','el','los','las','con','s.a.','s.a','sa','inc','ltd','corp','co.']);
+  const words = nombre.split(/[\s,./]+/).filter(w => w.length > 0);
+  const siglas = words
+    .filter(w => !skip.has(w.toLowerCase()))
+    .map(w => w[0].toUpperCase())
+    .join('');
+  return siglas || nombre.substring(0, 4).toUpperCase();
+}
+
+function _applyHeaderDesktop(config) {
+  const comercial = (config.empresa_comercial || '').trim();
+  const nombre    = (config.empresa_nombre    || '').trim();
+  const siglas    = comercial || _inferSiglas(nombre);
+  const logoEl    = document.getElementById('appHeaderLogo');
+  const badgeEl   = document.getElementById('appHeaderBadge');
+  if (logoEl && siglas) logoEl.textContent  = siglas;
+  if (badgeEl)          badgeEl.textContent = 'BalanceClip';
 }
 
 function _validarCampoConfig(id, val) {
@@ -9583,6 +9615,7 @@ async function guardarConfigEmpresa() {
     const payload = {
       action:              'guardarConfig',
       empresa_nombre:      document.getElementById('cfgEmpresaNombre').value.trim(),
+      empresa_comercial:   document.getElementById('cfgEmpresaComercial').value.trim(),
       empresa_ruc:         document.getElementById('cfgEmpresaRuc').value.trim(),
       empresa_dv:          document.getElementById('cfgEmpresaDv').value.trim(),
       drive_folder_id:     document.getElementById('cfgDriveFolderId').value.trim(),
@@ -9605,6 +9638,7 @@ async function guardarConfigEmpresa() {
     msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
     showToast('✅ Datos de empresa guardados');
+    _applyHeaderDesktop({ empresa_nombre: payload.empresa_nombre, empresa_comercial: payload.empresa_comercial });
     await new Promise(r => setTimeout(r, 800));
     _setupLoaded = false;
   } catch(err) {
