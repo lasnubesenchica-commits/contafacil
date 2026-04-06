@@ -1552,13 +1552,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   <!-- TAB: EGRESOS -->
   <div id="rgTabEgr">
-    <!-- Stats -->
-    <div class="op-stats" id="rgEgrStats" style="padding:1rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
-      <div class="stat-pill"><span class="stat-pill-num orange" id="rgEStatTotal">—</span><span class="stat-pill-label">Total registros</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="rgEStatMonto">—</span><span class="stat-pill-label">Total gastado</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgEStatItbms">—</span><span class="stat-pill-label">ITBMS pagado</span></div>
-    </div>
-    <!-- Toolbar fila 1: Sync + Search + filtros estado + categoría -->
+    <!-- Toolbar: Sync + Search + filtros estado + categoría -->
     <div class="op-toolbar">
       <button class="btn-sync" id="btnAcrSync" onclick="acrSincronizar()">⟳ Sync emails</button>
       <div class="search-wrap">
@@ -1575,7 +1569,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <option value="all">📂 Todas las categorías</option>
       </select>
     </div>
-    <!-- Stats unificados -->
+    <!-- Stats filtrados -->
     <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
       <div class="stat-pill"><span class="stat-pill-num orange" id="rgEStatPend">—</span><span class="stat-pill-label">Pendientes</span></div>
       <div class="stat-pill"><span class="stat-pill-num green"  id="rgEStatTotal">—</span><span class="stat-pill-label">Registrados</span></div>
