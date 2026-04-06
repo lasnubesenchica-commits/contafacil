@@ -6120,6 +6120,36 @@ async function eliminarRegistroTabla(tipo, id) {
   }
 }
 
+// ── Anular/Eliminar desde la vista Registro General (egresos APROBADO) ──
+async function rgAnularEgreso(id) {
+  if (!confirm('¿Anular este egreso? El registro quedará marcado como anulado.')) return;
+  try {
+    const data = await gasJsonp('anularRegistro', { tipo: 'egreso', id });
+    if (!data.success) throw new Error(data.error || 'Error desconocido');
+    const idx = egrItems.findIndex(e => e.id_egreso === id);
+    if (idx !== -1) egrItems[idx].estado = 'anulado';
+    plLoaded = false;
+    rgRenderEgr();
+    showToast('✅ Egreso anulado');
+  } catch(err) {
+    showToast('⚠️ ' + err.message);
+  }
+}
+
+async function rgEliminarEgreso(id) {
+  if (!confirm('⚠️ ELIMINAR PERMANENTEMENTE\n\nEsto borrará la fila del Sheets definitivamente y no se puede deshacer.\n\n¿Confirmar eliminación?')) return;
+  try {
+    const data = await gasJsonp('eliminarRegistro', { tipo: 'egreso', id });
+    if (!data.success) throw new Error(data.error || 'Error desconocido');
+    egrItems = egrItems.filter(e => e.id_egreso !== id);
+    plLoaded = false;
+    rgRenderEgr();
+    showToast('🗑️ Egreso eliminado permanentemente');
+  } catch(err) {
+    showToast('⚠️ ' + err.message);
+  }
+}
+
 // ══════════════════════════════════════════════════
 //  ACTUALIZAR CATEGORÍA INLINE — desde tabla Ingresos / Egresos
 // ══════════════════════════════════════════════════
@@ -6753,7 +6783,15 @@ function rgRenderEgr() {
       const docLink = i.drive_url
         ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
         : '';
-      acciones = `<div style="display:flex;gap:.5rem;align-items:center">${docLink}</div>`;
+      acciones = `<div style="display:flex;gap:.5rem;align-items:center">
+        ${docLink}
+        <button onclick='rgAnularEgreso("${esc(i._id)}")'
+          style="padding:.28rem .5rem;background:var(--bg);color:#E65100;border:1px solid #FFE0B2;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
+          title="Anular (mantiene historial)">⊘</button>
+        <button onclick='rgEliminarEgreso("${esc(i._id)}")'
+          style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
+          title="Eliminar permanentemente">🗑</button>
+      </div>`;
     }
 
     return `<tr style="${rowBg}">
