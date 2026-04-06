@@ -3062,7 +3062,7 @@ const PEND = (() => {
      PANEL DE CONFIGURACIÓN — sheet de pantalla completa
 ════════════════════════════════════════════════════════ -->
 <div class="overlay" id="mConfig">
-  <div class="sheet" style="max-height:100vh;grid-template-rows:auto auto 1fr">
+  <div class="sheet" style="max-height:100dvh;max-height:100vh;grid-template-rows:auto auto 1fr;height:92dvh;height:92vh">
 
     <!-- Cabecera fija -->
     <div class="sheet-top">
@@ -3079,7 +3079,7 @@ const PEND = (() => {
       border-bottom:1px solid var(--border);
       background:var(--surface);
       scrollbar-width:none; -webkit-overflow-scrolling:touch;
-      flex-shrink:0;
+      flex-shrink:0; min-height:0;
     ">
       <style>
         #cfgTabBar::-webkit-scrollbar { display:none; }
@@ -3166,7 +3166,7 @@ const PEND = (() => {
     </div>
 
     <!-- Cuerpo scrolleable -->
-    <div class="sheet-body" style="background:var(--bg)">
+    <div class="sheet-body" style="background:var(--bg);min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">
 
       <!-- ── EMPRESA ── -->
       <div class="cfg-panel active" id="cfgPanelEmpresa">
