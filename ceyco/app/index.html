@@ -709,6 +709,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
     <div class="header-right">
       <button class="hdr-btn" id="btnSync" onclick="doSync()" style="display:none" title="Sync emails">⟳</button>
       <button class="hdr-btn" id="btnRefresh" onclick="doRefresh()" title="Actualizar">↻</button>
+      <button class="hdr-btn" onclick="CFG_PANEL.open()" title="Configuración" style="font-size:.8rem">⚙</button>
     </div>
   </header>
 
@@ -3025,6 +3026,320 @@ const PEND = (() => {
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════
+     PANEL DE CONFIGURACIÓN — sheet de pantalla completa
+════════════════════════════════════════════════════════ -->
+<div class="overlay" id="mConfig">
+  <div class="sheet" style="max-height:100vh;grid-template-rows:auto auto 1fr">
+
+    <!-- Cabecera fija -->
+    <div class="sheet-top">
+      <div class="sheet-handle"></div>
+      <div class="sheet-hdr">
+        <span class="sheet-title">⚙ Configuración</span>
+        <button class="sheet-close" onclick="CFG_PANEL.close()">✕</button>
+      </div>
+    </div>
+
+    <!-- Tabs de configuración -->
+    <div id="cfgTabBar" style="
+      display:flex; overflow-x:auto; gap:0;
+      border-bottom:1px solid var(--border);
+      background:var(--surface);
+      scrollbar-width:none; -webkit-overflow-scrolling:touch;
+      flex-shrink:0;
+    ">
+      <style>
+        #cfgTabBar::-webkit-scrollbar { display:none; }
+        .cfg-tab {
+          flex-shrink:0; padding:.62rem .9rem;
+          font-size:.72rem; font-weight:600; color:var(--muted);
+          letter-spacing:.03em; border-bottom:2px solid transparent;
+          background:none; border-top:none; border-left:none; border-right:none;
+          transition:color .15s, border-color .15s; white-space:nowrap;
+        }
+        .cfg-tab.active { color:var(--orange); border-bottom-color:var(--orange); }
+        /* ── Panels ── */
+        .cfg-panel { display:none; }
+        .cfg-panel.active { display:block; }
+        /* ── Section card ── */
+        .cfg-card {
+          background:var(--surface); border:1px solid var(--border);
+          border-radius:var(--r2); margin-bottom:.85rem; overflow:hidden;
+        }
+        .cfg-card-hdr {
+          padding:.7rem .9rem .4rem;
+          font-size:.68rem; font-weight:700; letter-spacing:.07em;
+          text-transform:uppercase; color:var(--muted);
+          border-bottom:1px solid var(--border);
+        }
+        .cfg-card-body { padding:.8rem .9rem; }
+        /* ── Save bar ── */
+        .cfg-save-bar {
+          display:flex; gap:.5rem; justify-content:flex-end;
+          align-items:center; margin-top:.75rem;
+          padding-top:.75rem; border-top:1px solid var(--border);
+        }
+        .cfg-btn-save {
+          padding:.55rem 1.1rem; background:var(--orange); color:#fff;
+          border:none; border-radius:var(--r); font-size:.8rem; font-weight:700;
+          cursor:pointer; transition:background .15s;
+        }
+        .cfg-btn-save:active { background:var(--orange2); }
+        .cfg-btn-save:disabled { opacity:.5; }
+        .cfg-btn-sec {
+          padding:.55rem .9rem; background:var(--bg2); color:var(--muted);
+          border:1px solid var(--border); border-radius:var(--r);
+          font-size:.8rem; font-weight:600; cursor:pointer;
+        }
+        .cfg-ok-msg { font-size:.72rem; color:var(--green); display:none; }
+        /* ── Gasto card en grid ── */
+        .cfg-gasto-card {
+          background:var(--bg); border:1px solid var(--border);
+          border-radius:var(--r); padding:.75rem; position:relative;
+        }
+        .cfg-gasto-id {
+          font-size:.62rem; font-weight:700; letter-spacing:.06em;
+          background:#EDE7F6; color:#4A148C; border-radius:4px;
+          padding:.1rem .4rem; display:inline-block; margin-bottom:.35rem;
+        }
+        .cfg-gasto-toggle {
+          position:absolute; top:.75rem; right:.75rem;
+          width:36px; height:20px; background:var(--bg3);
+          border-radius:10px; cursor:pointer; transition:background .2s;
+          border:none; flex-shrink:0;
+        }
+        .cfg-gasto-toggle.on { background:#4A148C; }
+        .cfg-gasto-toggle::after {
+          content:''; position:absolute; top:2px; left:2px;
+          width:16px; height:16px; background:#fff; border-radius:50%;
+          transition:transform .2s;
+        }
+        .cfg-gasto-toggle.on::after { transform:translateX(16px); }
+        /* ── Check items ── */
+        .cfg-check-row {
+          display:flex; justify-content:space-between; align-items:center;
+          padding:.55rem 0; border-bottom:1px solid var(--border2);
+          font-size:.8rem;
+        }
+        .cfg-check-row:last-child { border-bottom:none; }
+        .cfg-check-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+      </style>
+
+      <button class="cfg-tab active" id="cfgTabEmpresa"     onclick="CFG_PANEL.switchTab('empresa')">🏢 Empresa</button>
+      <button class="cfg-tab"        id="cfgTabComercial"   onclick="CFG_PANEL.switchTab('comercial')">⚙️ Comercialización</button>
+      <button class="cfg-tab"        id="cfgTabProyectos"   onclick="CFG_PANEL.switchTab('proyectos')">🔧 Proyectos</button>
+      <button class="cfg-tab"        id="cfgTabReg"         onclick="CFG_PANEL.switchTab('reg')">🏦 Registro General</button>
+      <button class="cfg-tab"        id="cfgTabSistema"     onclick="CFG_PANEL.switchTab('sistema')">🔍 Sistema</button>
+    </div>
+
+    <!-- Cuerpo scrolleable -->
+    <div class="sheet-body" style="background:var(--bg)">
+
+      <!-- ── EMPRESA ── -->
+      <div class="cfg-panel active" id="cfgPanelEmpresa">
+        <div class="cfg-card">
+          <div class="cfg-card-hdr">🏢 Datos de la Empresa</div>
+          <div class="cfg-card-body">
+            <div class="f-grp">
+              <label class="f-lbl">Nombre de la empresa</label>
+              <input type="text" class="f-inp" id="cfgEmpresaNombre" placeholder="Consultores Electrotécnicos...">
+            </div>
+            <div class="f-grid">
+              <div class="f-grp">
+                <label class="f-lbl">RUC</label>
+                <input type="text" class="f-inp" id="cfgEmpresaRuc" placeholder="2470636-1-814806">
+              </div>
+              <div class="f-grp">
+                <label class="f-lbl">DV</label>
+                <input type="text" class="f-inp" id="cfgEmpresaDv" placeholder="06" maxlength="4">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cfg-card">
+          <div class="cfg-card-hdr">📁 Google Drive — Carpeta de Archivos</div>
+          <div class="cfg-card-body">
+            <div class="f-grp" style="margin-bottom:0">
+              <label class="f-lbl">ID carpeta Drive</label>
+              <input type="text" class="f-inp" id="cfgDriveFolderId" placeholder="1OiVyKh7...">
+              <div style="font-size:.65rem;color:var(--chrome);margin-top:.25rem">drive.google.com/drive/folders/<strong>ID_AQUÍ</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="cfg-save-bar">
+          <span class="cfg-ok-msg" id="cfgEmpresaMsg">✅ Guardado</span>
+          <button class="cfg-btn-sec" onclick="CFG_PANEL.load()">↺</button>
+          <button class="cfg-btn-save" id="cfgBtnEmpresa" onclick="CFG_PANEL.saveEmpresa()">💾 Guardar</button>
+        </div>
+      </div>
+
+      <!-- ── COMERCIALIZACIÓN ── -->
+      <div class="cfg-panel" id="cfgPanelComercial">
+        <div class="cfg-card">
+          <div class="cfg-card-hdr">📧 Email de entrada</div>
+          <div class="cfg-card-body">
+            <div class="f-grp">
+              <label class="f-lbl">Email destino (To:)</label>
+              <input type="email" class="f-inp" id="cfgEmailOpDestino" placeholder="facturas@balanceclip.net">
+            </div>
+            <div class="f-grp" style="margin-bottom:0">
+              <label class="f-lbl">Remitente permitido (From:)</label>
+              <input type="email" class="f-inp" id="cfgEmailOpRemitente" placeholder="proveedor@empresa.com">
+              <div style="font-size:.65rem;color:var(--chrome);margin-top:.25rem">Solo se procesan facturas de este remitente</div>
+            </div>
+          </div>
+        </div>
+        <div class="cfg-card">
+          <div class="cfg-card-hdr">⚙️ Parámetros</div>
+          <div class="cfg-card-body">
+            <div class="f-grid">
+              <div class="f-grp">
+                <label class="f-lbl">Prefijo de IDs</label>
+                <input type="text" class="f-inp" id="cfgPrefijoId" placeholder="RP" maxlength="6">
+              </div>
+              <div class="f-grp">
+                <label class="f-lbl">Tasa ITBMS</label>
+                <input type="number" class="f-inp" id="cfgItbmsRate" placeholder="0.07" step="0.01" min="0" max="1">
+              </div>
+            </div>
+            <div class="f-grp" style="margin-bottom:0">
+              <label class="f-lbl">Confianza mínima match IA (%)</label>
+              <input type="number" class="f-inp" id="cfgConfianzaMin" placeholder="70" min="50" max="100">
+            </div>
+          </div>
+        </div>
+        <div class="cfg-save-bar">
+          <span class="cfg-ok-msg" id="cfgOpMsg">✅ Guardado</span>
+          <button class="cfg-btn-sec" onclick="CFG_PANEL.load()">↺</button>
+          <button class="cfg-btn-save" id="cfgBtnOp" onclick="CFG_PANEL.saveComercial()">💾 Guardar</button>
+        </div>
+      </div>
+
+      <!-- ── PROYECTOS ── -->
+      <div class="cfg-panel" id="cfgPanelProyectos">
+        <div class="cfg-card">
+          <div class="cfg-card-hdr">📧 Email de entrada de STs</div>
+          <div class="cfg-card-body">
+            <div class="f-grp">
+              <label class="f-lbl">Email destino (To:)</label>
+              <input type="email" class="f-inp" id="cfgEmailStDestino" placeholder="facturas@balanceclip.net">
+            </div>
+            <div class="f-grp" style="margin-bottom:0">
+              <label class="f-lbl">Remitente permitido (From:)</label>
+              <input type="email" class="f-inp" id="cfgEmailStRemitente" placeholder="cliente@gmail.com">
+              <div style="font-size:.65rem;color:var(--chrome);margin-top:.25rem">Solo se procesan emails de este remitente</div>
+            </div>
+          </div>
+        </div>
+        <div class="cfg-save-bar">
+          <span class="cfg-ok-msg" id="cfgStMsg">✅ Guardado</span>
+          <button class="cfg-btn-sec" onclick="CFG_PANEL.load()">↺</button>
+          <button class="cfg-btn-save" id="cfgBtnSt" onclick="CFG_PANEL.saveST()">💾 Guardar</button>
+        </div>
+      </div>
+
+      <!-- ── REGISTRO GENERAL ── -->
+      <div class="cfg-panel" id="cfgPanelReg">
+        <div class="cfg-card">
+          <div class="cfg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">
+            <span>🏦 Gastos configurados</span>
+            <button onclick="CFG_PANEL.abrirNuevoGasto()" style="
+              font-size:.7rem;font-weight:700;color:var(--orange);
+              background:var(--orange-bg);border:none;border-radius:6px;
+              padding:.28rem .65rem;cursor:pointer;
+            ">+ Agregar</button>
+          </div>
+          <div class="cfg-card-body" style="padding:.5rem .9rem .9rem">
+            <div style="font-size:.74rem;color:var(--muted);margin-bottom:.75rem">
+              Gastos cuyas facturas el sistema detecta y procesa automáticamente desde email.
+            </div>
+            <div id="cfgGastoGrid" style="display:flex;flex-direction:column;gap:.6rem">
+              <div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem">
+                <div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Cargando...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SISTEMA ── -->
+      <div class="cfg-panel" id="cfgPanelSistema">
+        <div class="cfg-card">
+          <div class="cfg-card-hdr">🔍 Estado del Sistema</div>
+          <div class="cfg-card-body" id="cfgSistemaBody">
+            <div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem">
+              <div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Verificando...
+            </div>
+          </div>
+          <div style="padding:.5rem .9rem .9rem">
+            <button class="cfg-btn-sec" style="width:100%" onclick="CFG_PANEL.verificar()">↺ Verificar ahora</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sheet-body -->
+  </div>
+</div>
+
+<!-- SHEET: Nuevo Gasto (Registro General) -->
+<div class="overlay" id="mNuevoGasto">
+  <div class="sheet">
+    <div class="sheet-top">
+      <div class="sheet-handle"></div>
+      <div class="sheet-hdr">
+        <span class="sheet-title" id="mNuevoGastoTitulo">Nuevo gasto</span>
+        <button class="sheet-close" onclick="CFG_PANEL.cerrarNuevoGasto()">✕</button>
+      </div>
+    </div>
+    <div class="sheet-body">
+
+      <!-- Upload factura ejemplo -->
+      <div class="upload-zone" id="gastoUploadZone" onclick="document.getElementById('gastoFileInput').click()" style="margin-bottom:.85rem">
+        <div class="upload-icon">📄</div>
+        <div id="gastoFileLabel">Subir factura ejemplo (PDF) — la IA extraerá los datos</div>
+        <div style="font-size:.65rem;color:var(--chrome);margin-top:.2rem">Opcional</div>
+      </div>
+      <input type="file" id="gastoFileInput" accept=".pdf,image/*" style="display:none" onchange="CFG_PANEL.analizarFacturaGasto(this)">
+      <div id="gastoAnalisisStatus" style="display:none;font-size:.75rem;color:#6A1B9A;margin-bottom:.75rem;text-align:center">⏳ Analizando con IA...</div>
+
+      <input type="hidden" id="gastoEditId">
+      <div class="f-grp">
+        <label class="f-lbl">Nombre del gasto <span style="color:var(--orange)">*</span></label>
+        <input type="text" class="f-inp" id="gastoNombre" placeholder="Ej: Inmobiliaria Las Brisas S.A.">
+      </div>
+      <div class="f-grid">
+        <div class="f-grp">
+          <label class="f-lbl">RUC</label>
+          <input type="text" class="f-inp" id="gastoRuc" placeholder="8-123-456">
+        </div>
+        <div class="f-grp">
+          <label class="f-lbl">DV</label>
+          <input type="text" class="f-inp" id="gastoDv" placeholder="99" maxlength="3">
+        </div>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Categoría por defecto <span style="color:var(--orange)">*</span></label>
+        <select class="f-inp" id="gastoCategoriaDef"></select>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Keywords de detección</label>
+        <input type="text" class="f-inp" id="gastoKeywords" placeholder="Ej: INMOBILIARIA BRISAS,8123456">
+        <div style="font-size:.65rem;color:var(--chrome);margin-top:.22rem">Separadas por coma</div>
+      </div>
+      <div class="f-grp">
+        <label class="f-lbl">Nota para IA (opcional)</label>
+        <textarea class="f-inp" id="gastoPromptOverride" rows="2" placeholder="Ej: Factura mensual de alquiler..." style="resize:vertical"></textarea>
+      </div>
+      <div id="gastoGuardarMsg" style="display:none;font-size:.75rem;text-align:center;margin-bottom:.5rem"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-submit" id="btnGuardarGasto" onclick="CFG_PANEL.guardarGasto()" style="margin:0">💾 Guardar gasto</button>
+      <button class="sheet-footer-cancel" onclick="CFG_PANEL.cerrarNuevoGasto()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- LIGHTBOX: Preview Google Drive -->
 <div id="driveModal">
   <div class="drive-modal-top">
@@ -3076,6 +3391,342 @@ const PEND = (() => {
     </div>
   </div>
 </div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CFG_PANEL — Módulo de Configuración (web app móvil)
+// ════════════════════════════════════════════════════════════════
+const CFG_PANEL = (() => {
+  let _loaded  = false;
+  let _curTab  = 'empresa';
+  let _gastoB64 = null;
+
+  // ── Abrir / cerrar ────────────────────────────────────────────
+  function open() {
+    document.getElementById('mConfig').classList.add('open');
+    if (!_loaded) load();
+  }
+  function close() {
+    document.getElementById('mConfig').classList.remove('open');
+  }
+
+  // ── Cambiar sub-tab ───────────────────────────────────────────
+  function switchTab(tab) {
+    _curTab = tab;
+    const TABS = ['empresa','comercial','proyectos','reg','sistema'];
+    TABS.forEach(t => {
+      const btn = document.getElementById('cfgTab' + t.charAt(0).toUpperCase() + t.slice(1));
+      const pan = document.getElementById('cfgPanel' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (btn) btn.classList.toggle('active', t === tab);
+      if (pan) pan.classList.toggle('active', t === tab);
+    });
+    if (tab === 'reg')     _loadGastoGrid();
+    if (tab === 'sistema') verificar();
+    if (tab === 'proyectos' && _loaded) _fillST();
+  }
+
+  // ── Cargar config desde GAS ───────────────────────────────────
+  async function load() {
+    try {
+      const data = await jsonpGet('getConfig', {});
+      if (!data.success) { toast('Error cargando config: ' + (data.error||''), 'err'); return; }
+      const c = data.config || {};
+      _sv('cfgEmpresaNombre',    c.empresa_nombre       || '');
+      _sv('cfgEmpresaRuc',       c.empresa_ruc          || '');
+      _sv('cfgEmpresaDv',        c.empresa_dv           || '');
+      _sv('cfgDriveFolderId',    c.drive_folder_id      || '');
+      _sv('cfgEmailOpDestino',   c.email_op_destino     || '');
+      _sv('cfgEmailOpRemitente', c.email_op_remitente   || '');
+      _sv('cfgPrefijoId',        c.prefijo_id           || 'RP');
+      _sv('cfgConfianzaMin',     c.confianza_minima     || '70');
+      _sv('cfgItbmsRate',        c.itbms_rate           || '0.07');
+      _sv('cfgEmailStDestino',   c.email_st_destino     || '');
+      _sv('cfgEmailStRemitente', c.email_st_remitente   || '');
+      _loaded = true;
+    } catch(err) {
+      toast('Error cargando configuración', 'err');
+    }
+  }
+  function _sv(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
+  function _gv(id)      { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  function _fillST()    { /* ya cargado por load() */ }
+
+  // ── Guardar Empresa ───────────────────────────────────────────
+  async function saveEmpresa() {
+    const btn = document.getElementById('cfgBtnEmpresa');
+    const msg = document.getElementById('cfgEmpresaMsg');
+    if (!_gv('cfgEmpresaNombre')) { toast('Nombre de empresa requerido', 'err'); return; }
+    if (!_gv('cfgEmpresaRuc'))    { toast('RUC requerido', 'err'); return; }
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+      const res  = await fetch(GAS_URL, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action:          'guardarConfig',
+          empresa_nombre:  _gv('cfgEmpresaNombre'),
+          empresa_ruc:     _gv('cfgEmpresaRuc'),
+          empresa_dv:      _gv('cfgEmpresaDv'),
+          drive_folder_id: _gv('cfgDriveFolderId'),
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Error');
+      _showOk(msg); toast('✅ Empresa guardada', 'ok'); _loaded = false;
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+    finally { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+  }
+
+  // ── Guardar Comercialización ──────────────────────────────────
+  async function saveComercial() {
+    const btn = document.getElementById('cfgBtnOp');
+    const msg = document.getElementById('cfgOpMsg');
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+      const res  = await fetch(GAS_URL, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action:             'guardarConfig',
+          email_op_destino:   _gv('cfgEmailOpDestino'),
+          email_op_remitente: _gv('cfgEmailOpRemitente'),
+          prefijo_id:         _gv('cfgPrefijoId')     || 'RP',
+          confianza_minima:   _gv('cfgConfianzaMin')  || '70',
+          itbms_rate:         _gv('cfgItbmsRate')     || '0.07',
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Error');
+      _showOk(msg); toast('✅ Comercialización guardada', 'ok'); _loaded = false;
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+    finally { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+  }
+
+  // ── Guardar Proyectos/ST ──────────────────────────────────────
+  async function saveST() {
+    const btn = document.getElementById('cfgBtnSt');
+    const msg = document.getElementById('cfgStMsg');
+    const dest = _gv('cfgEmailStDestino');
+    const rem  = _gv('cfgEmailStRemitente');
+    if (!dest) { toast('Email destino requerido', 'err'); return; }
+    if (!rem)  { toast('Remitente requerido', 'err');     return; }
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+      const res  = await fetch(GAS_URL, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'guardarConfig', email_st_destino:dest, email_st_remitente:rem }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Error');
+      _showOk(msg); toast('✅ Config Proyectos guardada', 'ok'); _loaded = false;
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+    finally { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+  }
+
+  function _showOk(el) {
+    if (!el) return;
+    el.style.display = 'inline';
+    setTimeout(() => { el.style.display = 'none'; }, 3000);
+  }
+
+  // ── Grid de Gastos ────────────────────────────────────────────
+  async function _loadGastoGrid() {
+    const grid = document.getElementById('cfgGastoGrid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem"><div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Cargando...</div>';
+    try {
+      const data = await jsonpGet('getAcreedores', {});
+      if (!data.success) throw new Error(data.error);
+      const items = data.items || [];
+      if (!items.length) {
+        grid.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.78rem">Sin gastos configurados. Toca "+ Agregar" para añadir el primero.</div>';
+        return;
+      }
+      const catLabel = v => {
+        const c = CATEGORIAS_GASTO_DGI.find(x => x.valor === v);
+        return c ? c.emoji + ' ' + c.label : (v || '—');
+      };
+      grid.innerHTML = items.map(acr => `
+        <div class="cfg-gasto-card" style="border-left:3px solid ${acr.activo ? '#4A148C' : '#ccc'}">
+          <div style="display:flex;align-items:flex-start;gap:.5rem">
+            <div style="flex:1;min-width:0">
+              <span class="cfg-gasto-id">${acr.id}</span>
+              <div style="font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:.18rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${acr.nombre}</div>
+              <div style="font-size:.69rem;color:var(--muted)">RUC ${acr.ruc||'—'}${acr.dv?' DV '+acr.dv:''}</div>
+              <div style="font-size:.69rem;color:#6A1B9A;margin-top:.18rem">${catLabel(acr.categoria_def)}</div>
+              ${acr.drive_ejemplo ? `<a href="${acr.drive_ejemplo}" target="_blank" style="font-size:.68rem;color:var(--orange);margin-top:.2rem;display:block">📄 Ver factura</a>` : ''}
+            </div>
+            <button class="cfg-gasto-toggle ${acr.activo ? 'on' : ''}"
+              onclick="CFG_PANEL.toggleGasto('${acr.id}', ${!acr.activo})" title="${acr.activo?'Desactivar':'Activar'}">
+            </button>
+          </div>
+        </div>
+      `).join('');
+    } catch(err) {
+      grid.innerHTML = `<div style="color:var(--red);text-align:center;padding:1rem;font-size:.8rem">Error: ${err.message}</div>`;
+    }
+  }
+
+  async function toggleGasto(id, activo) {
+    try {
+      const data = await jsonpGet('toggleAcreedor', { id, activo: String(activo) });
+      if (!data.success) throw new Error(data.error);
+      toast('Gasto ' + (activo ? 'activado' : 'desactivado'), 'ok');
+      _loadGastoGrid();
+    } catch(err) { toast('Error: ' + err.message, 'err'); }
+  }
+
+  // ── Modal Nuevo Gasto ─────────────────────────────────────────
+  function abrirNuevoGasto() {
+    _gastoB64 = null;
+    document.getElementById('gastoEditId').value          = '';
+    document.getElementById('gastoNombre').value          = '';
+    document.getElementById('gastoRuc').value             = '';
+    document.getElementById('gastoDv').value              = '';
+    document.getElementById('gastoKeywords').value        = '';
+    document.getElementById('gastoPromptOverride').value  = '';
+    document.getElementById('gastoFileLabel').textContent = 'Subir factura ejemplo (PDF) — la IA extraerá los datos';
+    document.getElementById('gastoAnalisisStatus').style.display = 'none';
+    document.getElementById('gastoGuardarMsg').style.display     = 'none';
+    document.getElementById('gastoUploadZone').classList.remove('has-file');
+    document.getElementById('mNuevoGastoTitulo').textContent = 'Nuevo gasto';
+    _buildCatOpts('gastoCategoriaDef', '');
+    document.getElementById('mNuevoGasto').classList.add('open');
+  }
+
+  function cerrarNuevoGasto() {
+    document.getElementById('mNuevoGasto').classList.remove('open');
+    _gastoB64 = null;
+  }
+
+  function _buildCatOpts(selId, selected) {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Selecciona categoría —</option>' +
+      CATEGORIAS_GASTO_DGI.map(c =>
+        `<option value="${c.valor}"${c.valor===selected?' selected':''}>${c.emoji} ${c.label}</option>`
+      ).join('');
+  }
+
+  async function analizarFacturaGasto(input) {
+    const file = input.files[0];
+    if (!file) return;
+    document.getElementById('gastoFileLabel').textContent = '📄 ' + file.name;
+    document.getElementById('gastoUploadZone').classList.add('has-file');
+    const statusEl = document.getElementById('gastoAnalisisStatus');
+    statusEl.style.display = 'block';
+    statusEl.style.color   = '#6A1B9A';
+    statusEl.textContent   = '⏳ Analizando con IA...';
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      const b64 = e.target.result.split(',')[1];
+      _gastoB64 = b64;
+      try {
+        const res  = await fetch(GAS_URL, {
+          method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({ action:'analizarFacturaAcreedor', imageBase64:b64, mimeType:file.type||'application/pdf' }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        if (data.nombre_acreedor) document.getElementById('gastoNombre').value         = data.nombre_acreedor;
+        if (data.ruc)             document.getElementById('gastoRuc').value            = data.ruc;
+        if (data.dv)              document.getElementById('gastoDv').value             = data.dv;
+        if (data.keywords)        document.getElementById('gastoKeywords').value       = data.keywords;
+        if (data.notas_formato)   document.getElementById('gastoPromptOverride').value = data.notas_formato;
+        if (data.categoria_sugerida) _buildCatOpts('gastoCategoriaDef', data.categoria_sugerida);
+        statusEl.style.color = 'var(--green)';
+        statusEl.textContent = '✅ Datos extraídos' + (data.confianza_categoria ? ' (' + data.confianza_categoria + '% confianza)' : '');
+      } catch(err) {
+        statusEl.style.color = 'var(--red)';
+        statusEl.textContent = '⚠️ No se pudo analizar: ' + err.message;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function guardarGasto() {
+    const btn    = document.getElementById('btnGuardarGasto');
+    const msg    = document.getElementById('gastoGuardarMsg');
+    const nombre = document.getElementById('gastoNombre').value.trim();
+    const cat    = document.getElementById('gastoCategoriaDef').value;
+    if (!nombre) { toast('Nombre del gasto requerido', 'err');       return; }
+    if (!cat)    { toast('Selecciona una categoría', 'err');          return; }
+    btn.disabled = true; btn.textContent = '⏳ Guardando...';
+    msg.style.display = 'none';
+    try {
+      const payload = {
+        action:          'guardarAcreedor',
+        nombre,
+        ruc:             document.getElementById('gastoRuc').value.trim(),
+        dv:              document.getElementById('gastoDv').value.trim(),
+        keywords:        document.getElementById('gastoKeywords').value.trim(),
+        categoria_def:   cat,
+        prompt_override: document.getElementById('gastoPromptOverride').value.trim(),
+      };
+      if (_gastoB64) { payload.imageBase64 = _gastoB64; payload.mimeType = 'application/pdf'; }
+      const editId = document.getElementById('gastoEditId').value;
+      if (editId) payload.id = editId;
+
+      const res  = await fetch(GAS_URL, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Error al guardar');
+      msg.style.display = 'block'; msg.style.color = 'var(--green)';
+      msg.textContent   = '✅ Guardado: ' + data.id;
+      toast('✅ Gasto guardado: ' + data.id, 'ok');
+      setTimeout(() => { cerrarNuevoGasto(); _loadGastoGrid(); }, 900);
+    } catch(err) {
+      msg.style.display = 'block'; msg.style.color = 'var(--red)';
+      msg.textContent   = '❌ ' + err.message;
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 Guardar gasto';
+    }
+  }
+
+  // ── Verificar Sistema ─────────────────────────────────────────
+  async function verificar() {
+    const body = document.getElementById('cfgSistemaBody');
+    if (!body) return;
+    body.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem"><div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Verificando...</div>';
+    const checks = [
+      { label:'GAS Web App',              key:'gas' },
+      { label:'Empresa (RUC)',            key:'empresa' },
+      { label:'Email Comercialización',   key:'email_op' },
+      { label:'Email Proyectos',          key:'email_st' },
+      { label:'Drive folder',             key:'drive' },
+      { label:'CLAUDE_API_KEY',           key:'api_key' },
+      { label:'Proveedores configurados', key:'proveedores' },
+    ];
+    const results = {};
+    try {
+      const data = await jsonpGet('getConfig', {});
+      const c    = data.config || {};
+      results.gas        = { ok: data.success,           msg: data.success ? 'Conectado' : 'Sin respuesta' };
+      results.empresa    = { ok: !!(c.empresa_ruc),      msg: c.empresa_ruc    ? c.empresa_ruc    : 'No configurado' };
+      results.email_op   = { ok: !!(c.email_op_destino), msg: c.email_op_destino  || 'No configurado' };
+      results.email_st   = { ok: !!(c.email_st_destino), msg: c.email_st_destino  || 'No configurado' };
+      results.drive      = { ok: !!(c.drive_folder_id),  msg: c.drive_folder_id   ? 'Configurado' : 'No configurado' };
+      results.api_key    = { ok: !!(c.api_key_ok),       msg: c.api_key_ok        ? 'OK' : 'No verificado' };
+      results.proveedores= { ok: (c.num_proveedores||0)>0, msg: (c.num_proveedores||0) + ' proveedor(es)' };
+    } catch(err) {
+      results.gas = { ok:false, msg: 'Error: ' + err.message };
+    }
+    body.innerHTML = checks.map(ch => {
+      const r   = results[ch.key] || { ok:false, msg:'—' };
+      const col = r.ok ? 'var(--green)' : 'var(--red)';
+      return `<div class="cfg-check-row">
+        <span style="color:var(--text)">${ch.label}</span>
+        <span style="font-size:.72rem;color:${col};font-weight:600">${r.msg}</span>
+      </div>`;
+    }).join('');
+  }
+
+  return { open, close, switchTab, load, saveEmpresa, saveComercial, saveST,
+           toggleGasto, abrirNuevoGasto, cerrarNuevoGasto,
+           analizarFacturaGasto, guardarGasto, verificar };
+})();
+</script>
 
 </body>
 </html>
