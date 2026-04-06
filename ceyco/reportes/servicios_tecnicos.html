@@ -1196,12 +1196,19 @@
                   // Para STs anulados (Escenario 2): buscar el ING de la NC
                   // que tiene tipo_comprobante='nota_credito' y referencia al ST en notas
                   if (_isAnulado) {
+                    // El ID del ingreso NC está en las notas del ST: "Ing: ING-RP-...-NC2"
+                    // También puede estar como ingreso_id en el resumen si el ST fue
+                    // procesado por el Escenario 2 (ingreso_id = ING-...-NC2)
+                    // Buscar el ING de la NC: tiene id_trans terminado en -NC2
+                    // y referencia al ST en sus notas. Con el fix de Code.js,
+                    // su drive_url apunta correctamente al PDF de la NC.
                     for (var j = 0; j < ri.items.length; j++) {
-                      var ingJ = ri.items[j];
-                      if (ingJ.tipo_comprobante === 'nota_credito' &&
+                      var ingJ   = ri.items[j];
+                      var ingJId = String(ingJ.id_trans || '');
+                      if (ingJId.indexOf('-NC2') !== -1 &&
                           String(ingJ.notas || '').indexOf(idST) !== -1) {
                         resumen.nc_drive_url = ingJ.drive_url || '';
-                        resumen.nc_num       = ingJ.num_factura || '';
+                        resumen.nc_num       = String(ingJ.num_factura || '').replace(/\.0$/, '').replace(/^0+/, '');
                         break;
                       }
                     }
