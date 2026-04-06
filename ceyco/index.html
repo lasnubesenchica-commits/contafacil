@@ -7760,7 +7760,8 @@ function invFmt(n) {
 }
 
 var plIngresos         = [];
-var plIngresosAnulados = [];  // para pares de nota de crédito
+var plIngresosAnulados = [];  // para pares de nota de crédito (Escenario 1)
+var plIngresosNC       = [];  // notas de crédito Escenario 2 (ingresos negativos reales)
 var plEgresos   = [];
 var plOpItems   = [];
 var plStItems   = [];   // ítems de ST_Items vía getCotizaciones — fuente de verdad para COGS
@@ -7852,7 +7853,16 @@ async function loadDashboard() {
     plIngresos = (ing.items || []).filter(i =>
       i.estado === 'confirmado' || i.estado === 'abono' || i.estado === 'pendiente'
     );
-    plIngresosAnulados = (ing.items || []).filter(i => i.estado === 'anulado');
+    // Separar anulados en dos grupos:
+    // - Escenario 1 (par A+B): factura que nunca salió → se muestra como $0 de trazabilidad
+    // - Escenario 2 (NC2): despacho ya ocurrió → ingreso negativo real que afecta DGI
+    const _todosAnulados = (ing.items || []).filter(i => i.estado === 'anulado');
+    plIngresosAnulados = _todosAnulados.filter(i =>
+      !String(i.id_trans || '').includes('-NC2')
+    );
+    plIngresosNC = _todosAnulados.filter(i =>
+      String(i.id_trans || '').includes('-NC2')
+    );
     plEgresos  = egr.items || [];
     plOpItems  = op.items  || [];
     plStItems  = [];
@@ -7924,8 +7934,12 @@ function highlightMonthPills() {
   const monthsWithData = new Set(
     plIngresos.filter(i => parseInt(i.anio_fiscal) === plYear).map(i => parseInt(i.mes))
   );
-  // Incluir meses con pares de nota de crédito (ingresos anulados A+B)
+  // Incluir meses con pares de nota de crédito E1 (A+B)
   plIngresosAnulados
+    .filter(i => parseInt(i.anio_fiscal) === plYear)
+    .forEach(i => monthsWithData.add(parseInt(i.mes)));
+  // Incluir meses con NCs E2 (ingresos negativos reales)
+  plIngresosNC
     .filter(i => parseInt(i.anio_fiscal) === plYear)
     .forEach(i => monthsWithData.add(parseInt(i.mes)));
   // Incluir meses con COGS (ST_Items activos)
@@ -7974,7 +7988,7 @@ function _plClasifIngreso(i) { return _clasificarDimension(i, 'ingreso'); }
 function _plClasifEgreso(e)  { return _clasificarDimension(e, 'egreso');  }
 
 function plFiltrarIngresos() {
-  return plIngresos.filter(i => {
+  const base = plIngresos.filter(i => {
     if (String(i.estado || '').toLowerCase() === 'anulado') return false;
     if (parseInt(i.anio_fiscal) !== plYear) return false;
     if (plMonth !== 'ytd' && parseInt(i.mes) !== plMonth) return false;
@@ -7983,6 +7997,16 @@ function plFiltrarIngresos() {
     }
     return true;
   });
+  // Incluir notas de crédito Escenario 2: ingresos negativos reales (afectan DGI)
+  const nc2 = plIngresosNC.filter(i => {
+    if (parseInt(i.anio_fiscal) !== plYear) return false;
+    if (plMonth !== 'ytd' && parseInt(i.mes) !== plMonth) return false;
+    if (plTipo !== 'todos') {
+      if (_plClasifIngreso(i) !== plTipo) return false;
+    }
+    return true;
+  });
+  return [...base, ...nc2];
 }
 
 function plFiltrarEgresos() {
@@ -8250,11 +8274,25 @@ function plRenderTblIngresos(q) {
     if (plTipo !== 'todos' && _plClasifIngreso(i) !== plTipo) return false;
     return true;
   });
-  if (q) items = items.filter(i =>
-    (i.nombre_cliente||'').toLowerCase().includes(q) ||
-    (i.num_factura||'').toLowerCase().includes(q)    ||
-    (i.descripcion||'').toLowerCase().includes(q)
-  );
+  // Incluir NCs Escenario 2 como ingresos negativos reales
+  let itemsNC2 = plIngresosNC.filter(i => {
+    if (parseInt(i.anio_fiscal) !== plYear) return false;
+    if (plMonth !== 'ytd' && parseInt(i.mes) !== plMonth) return false;
+    if (plTipo !== 'todos' && _plClasifIngreso(i) !== plTipo) return false;
+    return true;
+  });
+  if (q) {
+    items = items.filter(i =>
+      (i.nombre_cliente||'').toLowerCase().includes(q) ||
+      (i.num_factura||'').toLowerCase().includes(q)    ||
+      (i.descripcion||'').toLowerCase().includes(q)
+    );
+    itemsNC2 = itemsNC2.filter(i =>
+      (i.nombre_cliente||'').toLowerCase().includes(q) ||
+      (i.num_factura||'').toLowerCase().includes(q)    ||
+      (i.descripcion||'').toLowerCase().includes(q)
+    );
+  }
 
   // Sort
   const { col, dir } = plIngSort;
@@ -8294,8 +8332,10 @@ function plRenderTblIngresos(q) {
     estado:         'anulado',
   }));
 
-  // Mezclar items normales + pseudo NC, luego ordenar juntos
-  const allItems = [...items, ...ncPseudo];
+  // Marcar NC2 para renderizado especial
+  const itemsNC2Marked = itemsNC2.map(i => ({ ...i, _isNC2: true }));
+  // Mezclar items normales + pseudo NC E1 + NCs E2
+  const allItems = [...items, ...ncPseudo, ...itemsNC2Marked];
   allItems.sort((a, b) => {
     let va, vb;
     if (['subtotal','itbms','total'].includes(col)) {
@@ -8333,12 +8373,33 @@ function plRenderTblIngresos(q) {
   const activeIdx = colIdx[col] ?? -1;
   const cellBg = 'background:rgba(0,0,0,.03)';
 
-  const totSubtotal = items.reduce((s,i) => s+(parseFloat(i.subtotal)||0), 0);
-  const totItbms    = items.reduce((s,i) => s+(parseFloat(i.itbms)||0), 0);
-  const totTotal    = items.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
+  const totSubtotal = [...items, ...itemsNC2].reduce((s,i) => s+(parseFloat(i.subtotal)||0), 0);
+  const totItbms    = [...items, ...itemsNC2].reduce((s,i) => s+(parseFloat(i.itbms)||0), 0);
+  const totTotal    = [...items, ...itemsNC2].reduce((s,i) => s+(parseFloat(i.total)||0), 0);
 
   tbody.innerHTML = allItems.map(item => {
-    // ── Fila de nota de crédito ──────────────────────────────
+    // ── Fila de nota de crédito Escenario 2 (ingreso negativo real) ──
+    if (item._isNC2) {
+      const subtotalNC2 = parseFloat(item.subtotal||'0')||0;
+      const itbmsNC2    = parseFloat(item.itbms||'0')||0;
+      const totalNC2    = parseFloat(item.total||'0')||0;
+      const driveNC2    = item.drive_url
+        ? `<a href="${esc(item.drive_url)}" target="_blank" style="font-size:.75rem;color:#b91c1c">📄</a>`
+        : '—';
+      const numNC2 = String(item.num_factura||'').replace(/\.0$/,'').replace(/^0+/,'');
+      return `<tr style="background:#fff5f5">
+        <td style="white-space:nowrap;color:var(--muted);font-size:.8rem">${esc(String(item.fecha_ingreso||'').substring(0,10))}</td>
+        <td><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600;color:#b91c1c">NC ${esc(numNC2)}</span></td>
+        <td><div style="font-weight:500">${esc(item.nombre_cliente||'—')}</div><div style="font-size:.65rem;color:var(--muted)">${esc(item.ruc_cliente||'')}</div></td>
+        <td><span style="background:#fee2e2;color:#b91c1c;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px">🔄 Nota de Crédito</span></td>
+        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;color:#b91c1c">${subtotalNC2.toFixed(2)}</td>
+        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.8rem;color:#b91c1c">${itbmsNC2 < 0 ? itbmsNC2.toFixed(2) : '—'}</td>
+        <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:#b91c1c">${totalNC2.toFixed(2)}</td>
+        <td><span style="background:#fee2e2;color:#b91c1c;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:10px">✕ NC</span></td>
+        <td style="text-align:center">${driveNC2}</td>
+      </tr>`;
+    }
+    // ── Fila de nota de crédito Escenario 1 ──────────────────────────────
     if (item._isNC) {
       const ingA = item._pairA, ingB = item._pairB;
       const driveA = ingA.drive_url ? `<a href="${esc(ingA.drive_url)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄 F${esc(ingA.num_factura||'')}</a>` : '';
@@ -8383,7 +8444,7 @@ function plRenderTblIngresos(q) {
     </tr>`;
   }).join('') +
   `<tr style="border-top:2px solid var(--border);background:var(--bg2)">
-    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${items.length} registros</td>
+    <td colspan="4" style="padding:8px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">${items.length + itemsNC2.length} registros</td>
     <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--text)">$${totSubtotal.toFixed(2)}</td>
     <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--muted)">$${totItbms.toFixed(2)}</td>
     <td style="text-align:right;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--green)">$${totTotal.toFixed(2)}</td>
@@ -9440,6 +9501,18 @@ function openItbmsDetalle() {
       cobrado:   parseFloat(i.itbms) || 0,
       pagado:    0
     }));
+  // Notas de crédito E2: itbms negativo → crédito a favor en DGI
+  const ncCreditoRows = ingresos
+    .filter(i => parseFloat(i.itbms) < 0)
+    .map(i => ({
+      tipo:      'nota_credito',
+      empresa:   i.nombre_cliente || '—',
+      num_doc:   'NC ' + String(i.num_factura||'').replace(/\.0$/,'').replace(/^0+/,''),
+      fecha:     i.fecha_ingreso  || '',
+      drive_url: i.drive_url      || '',
+      cobrado:   parseFloat(i.itbms) || 0,  // negativo — reduce el total cobrado
+      pagado:    0
+    }));
 
   const pagadoRows = egresos
     .filter(e => parseFloat(e.itbms) > 0)
@@ -9455,10 +9528,10 @@ function openItbmsDetalle() {
       pagado:    parseFloat(e.itbms) || 0
     }));
 
-  const allRows = [...cobradoRows, ...pagadoRows]
+  const allRows = [...cobradoRows, ...ncCreditoRows, ...pagadoRows]
     .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
 
-  const totalCobrado = cobradoRows.reduce((s, r) => s + r.cobrado, 0);
+  const totalCobrado = [...cobradoRows, ...ncCreditoRows].reduce((s, r) => s + r.cobrado, 0);
   const totalPagado  = pagadoRows.reduce((s,  r) => s + r.pagado,  0);
   const neto         = totalCobrado - totalPagado;
 
@@ -9472,6 +9545,7 @@ function openItbmsDetalle() {
   const tipoBadge = tipo => {
     if (tipo === 'factura_local')  return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:#E3F2FD;color:#1565C0;padding:.15rem .4rem;border-radius:4px;font-weight:600">📄 Factura local</span>';
     if (tipo === 'credito_fiscal') return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:var(--green-bg);color:var(--green);padding:.15rem .4rem;border-radius:4px;font-weight:600">✓ Crédito fiscal</span>';
+    if (tipo === 'nota_credito')   return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:#fee2e2;color:#b91c1c;padding:.15rem .4rem;border-radius:4px;font-weight:600">🔄 Nota de crédito</span>';
     return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:#EDE7F6;color:#4527A0;padding:.15rem .4rem;border-radius:4px;font-weight:600">🏛 Impuesto/Aduana</span>';
   };
 
