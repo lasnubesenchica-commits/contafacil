@@ -2219,9 +2219,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- Sub-tabs -->
     <div class="setup-tabs">
       <button class="setup-tab active" id="setupTabEmpresa"       onclick="setupSwitchTab('empresa')">🏢 Empresa</button>
-      <button class="setup-tab"        id="setupTabOperaciones"   onclick="setupSwitchTab('operaciones')">⚙️ Operaciones</button>
-      <button class="setup-tab"        id="setupTabServiciosTec"  onclick="setupSwitchTab('serviciosTec')">🔧 Servicios Técnicos</button>
-      <button class="setup-tab"        id="setupTabAcreedores"    onclick="setupSwitchTab('acreedores')">🏦 Acreedores</button>
+      <button class="setup-tab"        id="setupTabOperaciones"   onclick="setupSwitchTab('operaciones')">⚙️ Comercialización</button>
+      <button class="setup-tab"        id="setupTabServiciosTec"  onclick="setupSwitchTab('serviciosTec')">🔧 Proyectos</button>
+      <button class="setup-tab"        id="setupTabAcreedores"    onclick="setupSwitchTab('acreedores')">🏦 Registro General</button>
       <button class="setup-tab"        id="setupTabSistema"       onclick="setupSwitchTab('sistema')">⚙ Sistema</button>
     </div>
 
@@ -2365,18 +2365,18 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <div class="setup-panel" id="setupPanelAcreedores">
 
       <div class="setup-card">
-        <div class="setup-card-title">🏦 Acreedores configurados</div>
+        <div class="setup-card-title">🏦 Gastos configurados</div>
         <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
-          Acreedores cuyas facturas el sistema detecta y procesa automáticamente desde email.
-          Solo se procesarán facturas de acreedores activos.
+          Gastos cuyas facturas el sistema detecta y procesa automáticamente desde email.
+          Solo se procesarán facturas de gastos activos.
         </div>
         <div class="prov-grid" id="setupAcrGrid" style="padding:0;gap:.85rem">
           <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">
-            <div class="spinner" style="margin:0 auto .75rem"></div>Cargando acreedores...
+            <div class="spinner" style="margin:0 auto .75rem"></div>Cargando gastos...
           </div>
         </div>
         <div style="margin-top:1rem">
-          <button class="btn-primary" style="font-size:.8rem;padding:.4rem .85rem" onclick="acrAbrirModalNuevo()">+ Agregar acreedor</button>
+          <button class="btn-primary" style="font-size:.8rem;padding:.4rem .85rem" onclick="acrAbrirModalNuevo()">+ Agregar gasto</button>
         </div>
       </div>
 
@@ -10025,8 +10025,8 @@ async function acrGuardar() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Error al guardar');
     msg.style.display = 'block'; msg.style.color = 'var(--green)';
-    msg.textContent = '✅ Acreedor guardado: ' + data.id;
-    showToast('✅ Acreedor guardado: ' + data.id);
+    msg.textContent = '✅ Gasto guardado: ' + data.id;
+    showToast('✅ Gasto guardado: ' + data.id);
     setTimeout(() => { acrCerrarModalNuevo(); _loadSetupAcrGrid(); }, 1000);
   } catch(err) {
     msg.style.display = 'block'; msg.style.color = 'var(--danger)';
@@ -10074,7 +10074,7 @@ async function acrToggle(id, activo) {
   try {
     const data = await gasJsonp('toggleAcreedor', { id, activo: String(activo) });
     if (!data.success) throw new Error(data.error);
-    showToast('Acreedor ' + (activo ? 'activado' : 'desactivado'));
+    showToast('Gasto ' + (activo ? 'activado' : 'desactivado'));
   } catch(err) { showToast('Error: ' + err.message, true); }
 }
 
@@ -10391,7 +10391,7 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
   <div id="modalNuevoAcreedor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:center;justify-content:center">
     <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,540px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em" id="modalAcrTitulo">Nuevo acreedor</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em" id="modalAcrTitulo">Nuevo gasto</div>
         <button onclick="acrCerrarModalNuevo()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
       </div>
 
@@ -10405,7 +10405,7 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
       <div style="display:grid;gap:.75rem">
         <input type="hidden" id="acrEditId">
         <div>
-          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">NOMBRE DEL ACREEDOR <span style="color:var(--orange)">*</span></label>
+          <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">NOMBRE DEL GASTO <span style="color:var(--orange)">*</span></label>
           <input type="text" id="acrNombre" placeholder="Ej: Inmobiliaria Las Brisas S.A." style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
         </div>
         <div style="display:grid;grid-template-columns:1fr auto;gap:.5rem">
@@ -10435,7 +10435,7 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
 
       <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem">
         <button onclick="acrCerrarModalNuevo()" style="padding:.5rem 1.25rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:.83rem;cursor:pointer">Cancelar</button>
-        <button id="btnGuardarAcreedor" onclick="acrGuardar()" style="padding:.5rem 1.5rem;background:#6A1B9A;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">💾 Guardar acreedor</button>
+        <button id="btnGuardarAcreedor" onclick="acrGuardar()" style="padding:.5rem 1.5rem;background:#6A1B9A;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">💾 Guardar gasto</button>
       </div>
       <div id="acrGuardarMsg" style="display:none;margin-top:.5rem;font-size:.78rem;text-align:center"></div>
     </div>
