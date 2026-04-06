@@ -380,7 +380,10 @@ async function itbLoad() {
       const est = String(i.estado || '').toLowerCase();
       return est === 'confirmado' || est === 'abono' || est === 'pendiente';
     });
-    itb_egr = egrRes.items || [];
+    // Excluir egresos anulados — igual que ingresos excluye los anulados
+    itb_egr = (egrRes.items || []).filter(e =>
+      String(e.estado || '').toLowerCase() !== 'anulado'
+    );
 
     itbPopulateYears();
     itbRebuildMonths();
