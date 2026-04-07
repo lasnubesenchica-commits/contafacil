@@ -49,19 +49,40 @@ var CONFIG_ST_EMAIL = {
   EMAIL_ST_DEFAULT:      'lasnubesenchica+ceyco@gmail.com',  // fallback si no hay config
 };
 
-// ── Obtener el email de entrada ST desde Config_Operaciones ───
-// Si no está configurado, usa el default hardcodeado como fallback.
+// ── Obtener query Gmail para STs — v2.1 ───────────────────────
+// Nueva lógica: destino fijo (To:) + remitente del cliente (From:).
+// Fallback hacia email_st_entrante legado (plus-address) si las
+// claves nuevas no están configuradas aún.
 function _getEmailSTQuery() {
   try {
     var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var sheet = ss.getSheetByName('Config_Operaciones');
     if (sheet) {
-      var data = sheet.getDataRange().getValues();
+      var data      = sheet.getDataRange().getValues();
+      var destino   = '';
+      var remitente = '';
+      var legado    = '';
       for (var i = 1; i < data.length; i++) {
-        if (String(data[i][0] || '').trim() === 'email_st_entrante') {
-          var email = String(data[i][1] || '').trim();
-          if (email) return 'to:' + email + ' is:unread';
-        }
+        var clave = String(data[i][0] || '').trim();
+        var valor = String(data[i][1] || '').trim();
+        if (clave === 'email_st_destino')   destino   = valor;
+        if (clave === 'email_st_remitente') remitente = valor;
+        if (clave === 'email_st_entrante')  legado    = valor;
+      }
+      // Modo nuevo: destino fijo + remitente del cliente
+      if (destino && remitente) {
+        Logger.log('📧 Query ST: to:' + destino + ' from:' + remitente);
+        return 'to:' + destino + ' from:' + remitente + ' is:unread';
+      }
+      // Solo destino configurado (migración parcial)
+      if (destino) {
+        Logger.log('📧 Query ST (sin remitente): to:' + destino);
+        return 'to:' + destino + ' is:unread';
+      }
+      // Legado: plus-address (comportamiento anterior)
+      if (legado) {
+        Logger.log('📧 Query ST (legado plus-address): to:' + legado);
+        return 'to:' + legado + ' is:unread';
       }
     }
   } catch(e) {
