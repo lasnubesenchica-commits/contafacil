@@ -106,6 +106,7 @@ function _getConfig() {
   // Defaults seguros si la hoja no existe aún
   var defaults = {
     empresa_nombre:       'Mi Empresa S.A.',
+    empresa_comercial:    '',               // nombre corto para el header de la app
     empresa_ruc:          '',
     empresa_dv:           '',
     email_comprobantes:   '',   // legado — plus-address anterior (Retail)
@@ -329,7 +330,7 @@ function _handleGuardarConfig(data) {
     var sheet = ss.getSheetByName(SHEET_CONFIG_OP) || _initConfigSheet(ss);
 
     var claves = [
-      'empresa_nombre', 'empresa_ruc', 'empresa_dv',
+      'empresa_nombre', 'empresa_comercial', 'empresa_ruc', 'empresa_dv',
       'email_comprobantes',   // legado — mantener para no romper instancias existentes
       'email_op_destino',     // nuevo: To: fijo (facturas@balanceclip.net)
       'email_op_remitente',   // nuevo: From: del cliente permitido
