@@ -271,13 +271,16 @@ function _procesarCarpetaFactura(ss, folder, mes) {
              ' | costos=' + clasificados.facturas_costo.length +
              ' | voucher=' + (clasificados.voucher ? '✅' : '❌'));
 
-  // ── DESVÍO: Nota de crédito detectada → Escenario 1 (anulación sin despacho) ──
-  // Si la carpeta tiene tanto factura CEYCO como nota de crédito que la anula,
-  // registrar ambos documentos en Ingresos (se cancelan entre sí) y crear
-  // el ST en estado 'cancelado'. Sin egresos, sin movimientos de inventario.
+  // ── DESVÍO: Nota de crédito ──────────────────────────────────
+  // Escenario 1: carpeta tiene factura_ceyco + NC → anulación antes de despacho
+  // Escenario 2: carpeta tiene solo NC → despacho ya ocurrió, reversa contable
   if (clasificados.factura_ceyco && clasificados.nota_credito) {
-    Logger.log('  📋 Nota de crédito detectada — procesando como anulación (Escenario 1)');
+    Logger.log('  📋 NC + factura detectadas — Escenario 1 (anulación sin despacho)');
     return _procesarNotaCredito(ss, clasificados, mes, resultado);
+  }
+  if (!clasificados.factura_ceyco && clasificados.nota_credito) {
+    Logger.log('  🔄 NC sola detectada — derivando a Escenario 2 (despacho ya ocurrió)');
+    return _procesarNotaCreditoEscenario2(ss, clasificados.nota_credito, mes, resultado);
   }
 
   if (!clasificados.factura_ceyco) {
@@ -498,16 +501,20 @@ function _procesarCarpetaFactura(ss, folder, mes) {
   if (!sheetIng) throw new Error('Hoja Ingresos no encontrada');
 
   var precioVenta = resultado.total_venta;
+  // FIX: usar subtotal e ITBMS ya extraídos por Claude (soporta facturas mixtas gravado/exento).
   var tieneItbms  = datosCeyco.tiene_itbms !== false;
-  var subtotalIng = tieneItbms
-    ? parseFloat((precioVenta / 1.07).toFixed(2))
-    : precioVenta;
-  var itbmsIng    = tieneItbms
-    ? parseFloat((precioVenta - subtotalIng).toFixed(2))
-    : 0;
-
-  var idIng = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') +
-              '-IH-' + String(seqData.seq).padStart(4, '0');
+  var subtotalIng = parseFloat(datosCeyco.subtotal || '0') || 0;
+  var itbmsIng    = parseFloat(datosCeyco.itbms    || '0') || 0;
+  if (subtotalIng === 0 && precioVenta > 0) {
+    subtotalIng = tieneItbms
+      ? parseFloat((precioVenta / 1.07).toFixed(2))
+      : precioVenta;
+    itbmsIng = tieneItbms
+      ? parseFloat((precioVenta - subtotalIng).toFixed(2))
+      : 0;
+  }
+  var idIng     = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') +
+                  '-IH-' + String(seqData.seq).padStart(4, '0');
   var estadoIng = clasificados.voucher ? 'confirmado' : 'pendiente';
 
   var filaIng = new Array(INGRESOS_NCOLS);
@@ -1196,8 +1203,15 @@ function _procesarNotaCredito(ss, clasificados, mes, resultado) {
   var mesST      = isNaN(fechaDate.getTime()) ? ahora.getMonth()+1 : fechaDate.getMonth()+1;
   var anioST     = isNaN(fechaDate.getTime()) ? ahora.getFullYear() : fechaDate.getFullYear();
 
-  var subtotalFact = tieneItbms ? parseFloat((totalVenta / 1.07).toFixed(2)) : totalVenta;
-  var itbmsFact    = tieneItbms ? parseFloat((totalVenta - subtotalFact).toFixed(2)) : 0;
+  // FIX: usar subtotal e ITBMS ya extraídos por Claude (soporta facturas mixtas gravado/exento).
+  // El cálculo total/1.07 asume 100% gravado y falla cuando hay ítems exentos (A) + (E) mezclados.
+  var subtotalFact = parseFloat(datosCeyco.subtotal || '0') || 0;
+  var itbmsFact    = parseFloat(datosCeyco.itbms    || '0') || 0;
+  if (subtotalFact === 0 && totalVenta > 0) {
+    // Fallback solo si Claude no extrajo subtotal
+    subtotalFact = tieneItbms ? parseFloat((totalVenta / 1.07).toFixed(2)) : totalVenta;
+    itbmsFact    = tieneItbms ? parseFloat((totalVenta - subtotalFact).toFixed(2)) : 0;
+  }
 
   // Parsear nota de credito para su numero y fecha
   var datosNC = _parsearFacturaCeyco(clasificados.nota_credito);
@@ -1335,6 +1349,306 @@ function _procesarNotaCredito(ss, clasificados, mes, resultado) {
   resultado.tipo_costo  = 'nota_credito';
   resultado.estado      = 'completo';
   resultado.ingreso_id  = idIng1;
+  return resultado;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  _parsearNotaCredito
+//  Extrae datos de una NC DGI emitida por CEYCO:
+//    - num_factura: número de la NC
+//    - fecha: fecha de emisión de la NC
+//    - num_factura_referenciada: número de la factura original que anula
+//    - nombre_cliente, ruc_cliente, dv_cliente, total, subtotal, itbms
+//    - items: ítems de la NC (para devolver al inventario)
+// ═══════════════════════════════════════════════════════════════
+
+function _parsearNotaCredito(archivo) {
+  var blob = archivo.getBlob();
+  var mime = blob.getContentType() || 'application/pdf';
+  var b64  = Utilities.base64Encode(blob.getBytes());
+
+  var contentBlock = (mime === 'application/pdf')
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } }
+    : { type: 'image',    source: { type: 'base64', media_type: mime, data: b64 } };
+
+  var prompt =
+    'Extrae datos de esta Nota de Crédito DGI emitida por CEYCO.\n\n' +
+    'Responde SOLO con JSON válido, sin markdown:\n' +
+    '{\n' +
+    '  "num_factura": "número de la NOTA DE CRÉDITO, ej: 0000000114",\n' +
+    '  "fecha": "YYYY-MM-DD (fecha de emisión de la NC)",\n' +
+    '  "num_factura_referenciada": "número de la FACTURA ORIGINAL que esta NC anula, campo Número/Referencia en Información Complementaria, ej: 0000000516",\n' +
+    '  "nombre_cliente": "nombre del receptor",\n' +
+    '  "ruc_cliente": "RUC del receptor sin DV",\n' +
+    '  "dv_cliente": "DV del receptor",\n' +
+    '  "tiene_itbms": true,\n' +
+    '  "subtotal": 0.00,\n' +
+    '  "itbms": 0.00,\n' +
+    '  "total": 0.00,\n' +
+    '  "items": [\n' +
+    '    {\n' +
+    '      "linea": 1,\n' +
+    '      "codigo": "código del producto de la columna Código",\n' +
+    '      "descripcion": "descripción del ítem",\n' +
+    '      "cantidad": 1\n' +
+    '    }\n' +
+    '  ]\n' +
+    '}\n\n' +
+    'REGLAS:\n' +
+    '1. num_factura_referenciada: buscar en la sección "Información Complementaria" el campo "Número/Referencia". Es el número de la factura original que se está anulando. CRÍTICO — no confundir con el número de la NC.\n' +
+    '2. subtotal y total: tomar de la sección "Totales" del documento.\n' +
+    '3. items: extraer TODOS los ítems con su código y cantidad exacta. Las cantidades son necesarias para devolver el stock al inventario.\n' +
+    '4. nombre_cliente y ruc_cliente: del RECEPTOR, no del emisor CEYCO.\n' +
+    '5. Montos como números. null si no visible.';
+
+  var payload = {
+    model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+    messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }]
+  };
+
+  var resp = _claudeFetchConRetry(payload, 'parsear NC');
+  var text = '';
+  var content = JSON.parse(resp.getContentText()).content || [];
+  for (var i = 0; i < content.length; i++) {
+    if (content[i].type === 'text') { text = content[i].text; break; }
+  }
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  _procesarNotaCreditoEscenario2
+//
+//  Flujo: carpeta tiene SOLO la NC (sin factura original).
+//    1. Parsear NC → extraer num_factura_referenciada
+//    2. Verificar que la factura original ya existe en Ingresos
+//    3. Buscar el ST original y marcarlo 'anulado'
+//    4. Marcar el Ingreso original como 'anulado'
+//    5. Registrar Ingreso negativo en el mes de la NC
+//    6. Devolver ítems al inventario (stock + movimiento devolucion_nc)
+// ═══════════════════════════════════════════════════════════════
+
+function _procesarNotaCreditoEscenario2(ss, archivoNC, mes, resultado) {
+  var ahora    = new Date();
+  var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+
+  // ── Parsear la NC ─────────────────────────────────────────────
+  var datosNC = _parsearNotaCredito(archivoNC);
+  if (!datosNC) {
+    resultado.error_msg = 'No se pudieron extraer datos de la nota de crédito';
+    return resultado;
+  }
+
+  var numNC      = datosNC.num_factura             || 'NC';
+  var fechaNC    = datosNC.fecha                   || fechaReg.slice(0, 10);
+  var numFactRef = datosNC.num_factura_referenciada || '';
+  var cliente    = datosNC.nombre_cliente           || '';
+  var rucCli     = datosNC.ruc_cliente              || '';
+  var dvCli      = datosNC.dv_cliente               || '';
+  var totalNC    = parseFloat(datosNC.total         || '0') || 0;
+  var tieneItbms = datosNC.tiene_itbms !== false;
+
+  // FIX subtotal: usar campos directos, no total/1.07
+  var subtotalNC = parseFloat(datosNC.subtotal || '0') || 0;
+  var itbmsNC    = parseFloat(datosNC.itbms    || '0') || 0;
+  if (subtotalNC === 0 && totalNC > 0) {
+    subtotalNC = tieneItbms ? parseFloat((totalNC / 1.07).toFixed(2)) : totalNC;
+    itbmsNC    = tieneItbms ? parseFloat((totalNC - subtotalNC).toFixed(2)) : 0;
+  }
+
+  Logger.log('  🔄 NC ' + numNC + ' | Factura ref: ' + numFactRef +
+             ' | Cliente: ' + cliente + ' | $' + totalNC + ' | Fecha NC: ' + fechaNC);
+
+  // ── Guard: factura referenciada debe existir en Ingresos ──────
+  if (!numFactRef) {
+    resultado.error_msg = 'NC ' + numNC + ': no se pudo extraer num_factura_referenciada del PDF';
+    return resultado;
+  }
+  if (!_ingresoYaExiste(ss, numFactRef, cliente)) {
+    resultado.error_msg = 'NC ' + numNC + ': factura original ' + numFactRef +
+                          ' no encontrada en Ingresos — importarla primero';
+    return resultado;
+  }
+
+  // Mes/año de la NC (para el Ingreso negativo)
+  var fechaNcDate = new Date(fechaNC + 'T12:00:00');
+  var mesNC  = isNaN(fechaNcDate.getTime()) ? ahora.getMonth() + 1 : fechaNcDate.getMonth() + 1;
+  var anioNC = isNaN(fechaNcDate.getTime()) ? ahora.getFullYear()  : fechaNcDate.getFullYear();
+
+  // ── PASO 1: Marcar ST original como 'anulado' ─────────────────
+  var sheetST  = ss.getSheetByName(SHEET_ST);
+  var idSTOrig = '';
+  if (sheetST && sheetST.getLastRow() > 2) {
+    var stData       = sheetST.getRange(3, 1, sheetST.getLastRow() - 2, ST_NCOLS).getValues();
+    var numCotBuscar = 'FACT ' + String(numFactRef).replace(/^0+/, '');
+    for (var s = 0; s < stData.length; s++) {
+      var numCotST = String(stData[s][COL_ST.NUM_COT - 1]    || '').trim();
+      var nomCliST = String(stData[s][COL_ST.NOMBRE_CLI - 1] || '').trim().toUpperCase();
+      if (numCotST === numCotBuscar && nomCliST === cliente.trim().toUpperCase()) {
+        idSTOrig = String(stData[s][COL_ST.ID - 1] || '').trim();
+        var filaSTOrig = s + 3;
+        // Quitar validación de datos antes de escribir 'anulado' (no está en la lista original)
+        // y ampliarla para incluirlo permanentemente en este ST
+        var celdaEstado = sheetST.getRange(filaSTOrig, COL_ST.ESTADO);
+        celdaEstado.clearDataValidations();
+        var reglaNueva = SpreadsheetApp.newDataValidation()
+          .requireValueInList(['cotizado','aprobado','en_ejecucion','cerrado','cancelado','anulado'], true)
+          .setAllowInvalid(false).build();
+        celdaEstado.setDataValidation(reglaNueva);
+        celdaEstado.setValue('anulado');
+        var notaActST  = String(sheetST.getRange(filaSTOrig, COL_ST.NOTAS).getValue() || '');
+        sheetST.getRange(filaSTOrig, COL_ST.NOTAS).setValue(
+          notaActST + ' | ANULADO por NC ' + numNC + ' (' + fechaNC + ')'
+        );
+        sheetST.getRange(filaSTOrig, 1, 1, ST_NCOLS).setBackground('#FFEBEE');
+        Logger.log('  ✅ ST original marcado anulado: ' + idSTOrig);
+        break;
+      }
+    }
+    if (!idSTOrig) {
+      Logger.log('  ⚠️  ST original no encontrado para FACT ' + numFactRef + ' — se continúa sin marcar');
+    }
+  }
+
+  // ── PASO 2: Marcar Ingreso original como 'anulado' ────────────
+  var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+  if (!sheetIng) { resultado.error_msg = 'Hoja Ingresos no encontrada'; return resultado; }
+
+  var idIngOrig = '';
+  if (sheetIng.getLastRow() > 2) {
+    var ingData = sheetIng.getRange(3, COL_I.NUM_FACTURA, sheetIng.getLastRow() - 2, 1).getValues();
+    for (var ni = 0; ni < ingData.length; ni++) {
+      if (String(ingData[ni][0] || '').trim() === String(numFactRef).trim()) {
+        var filaIngOrig = ni + 3;
+        idIngOrig = String(sheetIng.getRange(filaIngOrig, COL_I.ID_TRANS).getValue() || '');
+        sheetIng.getRange(filaIngOrig, COL_I.ESTADO).setValue('anulado');
+        var notaIngOrig = String(sheetIng.getRange(filaIngOrig, COL_I.NOTAS_INT).getValue() || '');
+        sheetIng.getRange(filaIngOrig, COL_I.NOTAS_INT).setValue(
+          notaIngOrig + ' | ANULADO por NC ' + numNC + ' (' + fechaNC + ')'
+        );
+        sheetIng.getRange(filaIngOrig, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
+        Logger.log('  ✅ Ingreso original marcado anulado: ' + idIngOrig);
+        break;
+      }
+    }
+  }
+
+  // ── PASO 3: Registrar Ingreso negativo en mes de la NC ────────
+  var idIngNC = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-NC2';
+
+  var filaIngNC = new Array(INGRESOS_NCOLS);
+  for (var xj = 0; xj < INGRESOS_NCOLS; xj++) filaIngNC[xj] = '';
+  filaIngNC[COL_I.ID_TRANS - 1]      = idIngNC;
+  filaIngNC[COL_I.FECHA_REG - 1]     = fechaReg;
+  filaIngNC[COL_I.ESTADO - 1]        = 'anulado';
+  filaIngNC[COL_I.CONFIANZA_IA - 1]  = 'ia_historial';
+  filaIngNC[COL_I.FECHA_INGRESO - 1] = fechaNC;
+  filaIngNC[COL_I.MES - 1]           = mesNC;
+  filaIngNC[COL_I.ANIO_FISCAL - 1]   = anioNC;
+  filaIngNC[COL_I.SUBTOTAL - 1]      = -subtotalNC;
+  filaIngNC[COL_I.ITBMS - 1]         = -itbmsNC;
+  filaIngNC[COL_I.TOTAL - 1]         = -totalNC;
+  filaIngNC[COL_I.MONEDA - 1]        = 'USD';
+  filaIngNC[COL_I.TIPO_INGRESO - 1]  = 'venta_producto';
+  filaIngNC[COL_I.CATEGORIA - 1]     = tieneItbms ? 'venta_producto_gravado' : 'venta_producto_exento';
+  filaIngNC[COL_I.NOMBRE_CLI - 1]    = cliente;
+  filaIngNC[COL_I.RUC_CLI - 1]       = rucCli;
+  filaIngNC[COL_I.TIPO_PERSONA - 1]  = detectarTipoPersona(String(rucCli));
+  filaIngNC[COL_I.NUM_FACTURA - 1]   = numNC;
+  filaIngNC[COL_I.TIPO_COMP - 1]     = 'nota_credito';
+  filaIngNC[COL_I.DRIVE_URL - 1]     = archivoNC.getUrl();
+  filaIngNC[COL_I.DESCRIPCION - 1]   = 'NC ' + numNC + ' anula FACT ' + numFactRef + ' (despacho revertido)';
+  filaIngNC[COL_I.NOTAS_INT - 1]     = 'Historial ' + mes +
+                                        ' | NC anula FACT ' + numFactRef +
+                                        (idSTOrig  ? ' | ST: '  + idSTOrig  : '') +
+                                        (idIngOrig ? ' | Ing: ' + idIngOrig : '');
+  filaIngNC[COL_I.FLAG_REV - 1]      = false;
+  filaIngNC[COL_I.DV_CLI - 1]        = dvCli;
+
+  var newIngRow = sheetIng.getLastRow() + 1;
+  sheetIng.getRange(newIngRow, 1, 1, INGRESOS_NCOLS).setValues([filaIngNC]);
+  sheetIng.getRange(newIngRow, COL_I.SUBTOTAL, 1, 3).setNumberFormat('#,##0.00');
+  sheetIng.getRange(newIngRow, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
+
+  Logger.log('  ✅ Ingreso NC negativo: ' + idIngNC + ' -$' + totalNC +
+             ' | Mes: ' + mesNC + '/' + anioNC);
+
+  // ── PASO 4: Devolver ítems al inventario ──────────────────────
+  var itemsNC       = datosNC.items || [];
+  var itemsDevueltos = 0;
+
+  if (itemsNC.length > 0) {
+    var sheetInvM = ss.getSheetByName(SHEET_INV_MAESTRO);
+    if (sheetInvM && sheetInvM.getLastRow() >= INV_MAESTRO_DATA_ROW) {
+      var invNumRows = sheetInvM.getLastRow() - INV_MAESTRO_DATA_ROW + 1;
+      var invData    = sheetInvM.getRange(
+        INV_MAESTRO_DATA_ROW, 1, invNumRows, COL_IM.COSTO_REF
+      ).getValues();
+
+      itemsNC.forEach(function(itemNC) {
+        var codigoNC   = String(itemNC.codigo   || '').trim();
+        var cantidadNC = parseFloat(itemNC.cantidad || '0') || 0;
+        if (!codigoNC || cantidadNC <= 0) return;
+
+        var codigoNorm        = _normalizarCodigo(codigoNC);
+        var filaInvEncontrada = -1;
+
+        for (var iv = 0; iv < invData.length; iv++) {
+          var codigoInvNorm = _normalizarCodigo(String(invData[iv][COL_IM.CODIGO - 1] || ''));
+          if (codigoInvNorm && codigoInvNorm === codigoNorm) {
+            filaInvEncontrada = INV_MAESTRO_DATA_ROW + iv;
+            break;
+          }
+        }
+
+        if (filaInvEncontrada > 0) {
+          // El stock en Inv_Maestro es una fórmula SUMIFS sobre Inventario_Movimientos.
+          // No hay que escribir nada en Inv_Maestro — basta con registrar el movimiento
+          // de entrada y la fórmula se actualiza sola.
+          try {
+            _registrarMovimientoInventario(
+              ss,
+              'entrada',
+              codigoNC,
+              cantidadNC,
+              'devolucion_nc',
+              numNC,
+              idSTOrig || '',
+              '',
+              0,
+              '',
+              fechaNC,
+              'NC ' + numNC + ' revierte FACT ' + numFactRef
+            );
+            Logger.log('  📦 Devolución: ' + codigoNC + ' +' + cantidadNC + ' (mov. devolucion_nc registrado)');
+            itemsDevueltos++;
+          } catch (invErr) {
+            Logger.log('  ⚠️  Error mov. inventario ' + codigoNC + ': ' + invErr.message);
+          }
+        } else {
+          Logger.log('  ⚠️  ' + codigoNC + ' ×' + cantidadNC + ' — sin match en Inv_Maestro');
+        }
+      });
+    } else {
+      Logger.log('  ⚠️  Hoja Inv_Maestro no encontrada — devolución de stock omitida');
+    }
+  } else {
+    Logger.log('  ⚠️  NC sin ítems extraídos — devolución de stock no aplicada');
+  }
+
+  Logger.log('  ✅ Escenario 2 completo: NC ' + numNC + ' -$' + totalNC +
+             ' | ' + itemsDevueltos + '/' + itemsNC.length + ' ítem(s) devueltos al inventario');
+
+  resultado.id_st       = idSTOrig;
+  resultado.num_factura = numFactRef;
+  resultado.cliente     = cliente;
+  resultado.total_venta = 0;
+  resultado.total_costo = 0;
+  resultado.tipo_venta  = 'cancelado';
+  resultado.tipo_costo  = 'nota_credito_e2';
+  resultado.estado      = 'completo';
+  resultado.ingreso_id  = idIngNC;
   return resultado;
 }
 
@@ -1954,9 +2268,18 @@ function _ingresoYaExiste(ss, numFactura, nombreCliente) {
   if (!numFactura) return false;
   var sheet = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
   if (!sheet || sheet.getLastRow() <= 2) return false;
+  // Normalizar: strip ceros a la izquierda y convertir float (ej: 516.0) a entero string
+  var _normNum = function(v) {
+    var s = String(v || '').trim();
+    // Si es float tipo "516.0", convertir a "516"
+    if (/^\d+\.0$/.test(s)) s = s.slice(0, s.indexOf('.'));
+    // Strip ceros iniciales para comparar "0000000516" == "516"
+    return s.replace(/^0+/, '') || '0';
+  };
+  var numNorm = _normNum(numFactura);
   var data = sheet.getRange(3, COL_I.NUM_FACTURA, sheet.getLastRow() - 2, 1).getValues();
   for (var i = 0; i < data.length; i++) {
-    if (String(data[i][0]).trim() === String(numFactura).trim()) return true;
+    if (_normNum(data[i][0]) === numNorm) return true;
   }
   return false;
 }
@@ -2196,8 +2519,9 @@ function limpiarYReimportarCarpeta(mes, nombreCarpeta, ejecutar) {
     for (var m = 0; m < movData.length; m++) {
       var idSTMov   = String(movData[m][COL_MV.ID_ST - 1] || '').trim();
       var origenMov = String(movData[m][COL_MV.ORIGEN - 1] || '');
-      if (setIDs[idSTMov] && origenMov === INV_ORIGEN.HISTORIAL) {
-        Logger.log('  MOV: ' + movData[m][COL_MV.ID - 1] + ' | ' + movData[m][COL_MV.TIPO - 1] + ' | ' + movData[m][COL_MV.CODIGO_SKU - 1] + ' ×' + movData[m][COL_MV.CANTIDAD - 1]);
+      var origenesLimpiar = [INV_ORIGEN.HISTORIAL, 'reversion_cancelacion', 'devolucion_nc'];
+      if (setIDs[idSTMov] && origenesLimpiar.indexOf(origenMov) !== -1) {
+        Logger.log('  MOV: ' + movData[m][COL_MV.ID - 1] + ' | ' + movData[m][COL_MV.TIPO - 1] + ' | ' + movData[m][COL_MV.CODIGO_SKU - 1] + ' ×' + movData[m][COL_MV.CANTIDAD - 1] + ' [' + origenMov + ']');
         movFilas.push(m);
       }
     }
@@ -2592,6 +2916,88 @@ function _crearSTItemCreditoFiscal(sheetSTI, idST, seq, datosCosto, itbmCredito,
 function dryRunFACT516()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT516TELECOM'); }
 function ejecutarFACT516()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT516TELECOM', true); }
 function reimportarFACT516() { reimportarCarpeta('FEBRERO 2026', 'FACT516TELECOM'); }
+// ── FIX PUNTUAL: borrar movimientos duplicados de la FACT516 ──────────────
+// Causa: limpiarYReimportarCarpeta se ejecutó dos veces antes del fix del
+// limpiador. Los MOV-26/27/28 (reversion_cancelacion) quedaron duplicados.
+// El stock en Inv_Maestro es fórmula SUMIFS — basta con borrar los MOV extras.
+// Ejecutar UNA SOLA VEZ: limpiarMovDuplicados516()
+// ── FIX PUNTUAL: limpiar duplicados de la NC114 ─────────────────────────────
+// Causa: reimportarNC114() se ejecutó dos veces. Quedaron:
+//   - ING-RP-20260405220139-NC2 (primer intento, antes del fix de validación ST)
+//     → este se ejecutó parcialmente: marcó el ST anulado pero falló después
+//     → el ST ya quedó anulado correctamente, solo hay que borrar el ING duplicado
+//   - MOV-23/24/25 reversion_cancelacion (movimientos del código viejo, antes del fix)
+// Ejecutar UNA SOLA VEZ: limpiarDuplicadosNC114()
+function limpiarDuplicadosNC114() {
+  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+  // 1. Borrar ING duplicado (el primero, con timestamp 220139)
+  var sheetIng = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+  if (sheetIng && sheetIng.getLastRow() > 2) {
+    var ingData = sheetIng.getRange(3, COL_I.ID_TRANS, sheetIng.getLastRow() - 2, 1).getValues();
+    for (var i = ingData.length - 1; i >= 0; i--) {
+      if (String(ingData[i][0] || '').trim() === 'ING-RP-20260405220139-NC2') {
+        sheetIng.deleteRow(i + 3);
+        Logger.log('  🗑️  ING duplicado borrado: ING-RP-20260405220139-NC2');
+        break;
+      }
+    }
+  }
+
+  // 2. Borrar MOV-23/24/25 (reversion_cancelacion del código viejo)
+  var sheetMov = ss.getSheetByName(SHEET_INV_MOV);
+  if (sheetMov && sheetMov.getLastRow() >= INV_MOV_DATA_ROW) {
+    var aEliminar = ['MOV-CEYCO-2026-0023', 'MOV-CEYCO-2026-0024', 'MOV-CEYCO-2026-0025'];
+    var movData = sheetMov.getRange(INV_MOV_DATA_ROW, 1,
+      sheetMov.getLastRow() - INV_MOV_DATA_ROW + 1, 1).getValues();
+    var filasABorrar = [];
+    for (var m = 0; m < movData.length; m++) {
+      if (aEliminar.indexOf(String(movData[m][0] || '').trim()) !== -1) {
+        filasABorrar.push(INV_MOV_DATA_ROW + m);
+        Logger.log('  🗑️  MOV a borrar: ' + movData[m][0]);
+      }
+    }
+    for (var j = filasABorrar.length - 1; j >= 0; j--) {
+      sheetMov.deleteRow(filasABorrar[j]);
+    }
+    Logger.log('  ✅ ' + filasABorrar.length + ' movimiento(s) de reversion_cancelacion borrados');
+  }
+
+  SpreadsheetApp.flush();
+  Logger.log('✅ Limpieza NC114 completada');
+}
+
+function limpiarMovDuplicados516() {
+  var ss       = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  var sheetMov = ss.getSheetByName(SHEET_INV_MOV);
+  if (!sheetMov || sheetMov.getLastRow() < INV_MOV_DATA_ROW) {
+    Logger.log('❌ Hoja Inv_Movimientos no encontrada o vacía'); return;
+  }
+
+  var duplicados = ['MOV-CEYCO-2026-0026', 'MOV-CEYCO-2026-0027', 'MOV-CEYCO-2026-0028'];
+  var data = sheetMov.getRange(INV_MOV_DATA_ROW, 1,
+    sheetMov.getLastRow() - INV_MOV_DATA_ROW + 1, 1).getValues();
+
+  var filasABorrar = [];
+  for (var i = 0; i < data.length; i++) {
+    if (duplicados.indexOf(String(data[i][0] || '').trim()) !== -1) {
+      filasABorrar.push(INV_MOV_DATA_ROW + i);
+      Logger.log('  🗑️  ' + data[i][0]);
+    }
+  }
+
+  if (filasABorrar.length === 0) {
+    Logger.log('✅ No se encontraron duplicados — ya fue ejecutada o no aplica'); return;
+  }
+
+  // Borrar de abajo hacia arriba para no desplazar índices
+  for (var j = filasABorrar.length - 1; j >= 0; j--) {
+    sheetMov.deleteRow(filasABorrar[j]);
+  }
+  SpreadsheetApp.flush();
+  Logger.log('✅ ' + filasABorrar.length + ' movimiento(s) duplicado(s) borrado(s). Stock corregido automáticamente via fórmula.');
+}
+
 
 function dryRunFACT517()     { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT517COCACOLA'); }
 function ejecutarFACT517()   { limpiarYReimportarCarpeta('FEBRERO 2026', 'FACT517COCACOLA', true); }
@@ -2753,8 +3159,12 @@ function _procesarDesdeBlobs(ss, archivos, mes, contexto) {
 
   // Desvío: nota de crédito
   if (clasificados.factura_ceyco && clasificados.nota_credito) {
-    Logger.log('  📋 Nota de crédito detectada — procesando como anulación (Escenario 1)');
+    Logger.log('  📋 NC + factura detectadas — Escenario 1 (anulación sin despacho)');
     return _procesarNotaCredito(ss, clasificados, mes, resultado);
+  }
+  if (!clasificados.factura_ceyco && clasificados.nota_credito) {
+    Logger.log('  🔄 NC sola detectada — derivando a Escenario 2 (despacho ya ocurrió)');
+    return _procesarNotaCreditoEscenario2(ss, clasificados.nota_credito, mes, resultado);
   }
 
   if (!clasificados.factura_ceyco) {
@@ -2938,9 +3348,16 @@ function _procesarDesdeBlobs(ss, archivos, mes, contexto) {
   if (!sheetIng) throw new Error('Hoja Ingresos no encontrada');
 
   var precioVenta = resultado.total_venta;
+  // FIX: usar subtotal e ITBMS ya extraídos por Claude (soporta facturas mixtas gravado/exento).
+  // El cálculo total/1.07 asume 100% gravado y falla cuando hay ítems (A) + (E) mezclados.
   var tieneItbms  = datosCeyco.tiene_itbms !== false;
-  var subtotalIng = tieneItbms ? parseFloat((precioVenta / 1.07).toFixed(2)) : precioVenta;
-  var itbmsIng    = tieneItbms ? parseFloat((precioVenta - subtotalIng).toFixed(2)) : 0;
+  var subtotalIng = parseFloat(datosCeyco.subtotal || '0') || 0;
+  var itbmsIng    = parseFloat(datosCeyco.itbms    || '0') || 0;
+  if (subtotalIng === 0 && precioVenta > 0) {
+    // Fallback solo si Claude no extrajo subtotal
+    subtotalIng = tieneItbms ? parseFloat((precioVenta / 1.07).toFixed(2)) : precioVenta;
+    itbmsIng    = tieneItbms ? parseFloat((precioVenta - subtotalIng).toFixed(2)) : 0;
+  }
 
   var idIng = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') +
               '-ST-' + String(seqData.seq).padStart(4, '0');
