@@ -2364,24 +2364,51 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
     <!-- ══ PANEL: ACREEDORES ══════════════════════════════════ -->
     <div class="setup-panel" id="setupPanelAcreedores">
-
-      <div class="setup-card">
-        <div class="setup-card-title">🏦 Gastos configurados</div>
-        <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
-          Gastos cuyas facturas el sistema detecta y procesa automáticamente desde email.
-          Solo se procesarán facturas de gastos activos.
-        </div>
-        <div class="prov-grid" id="setupAcrGrid" style="padding:0;gap:.85rem">
-          <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">
-            <div class="spinner" style="margin:0 auto .75rem"></div>Cargando gastos...
-          </div>
-        </div>
-        <div style="margin-top:1rem">
-          <button class="btn-primary" style="font-size:.8rem;padding:.4rem .85rem" onclick="acrAbrirModalNuevo()">+ Agregar gasto</button>
-        </div>
+ 
+  <!-- ── Card: Email de entrada de Registro General ── -->
+  <div class="setup-card">
+    <div class="setup-card-title">📧 Email de entrada — Registro General</div>
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
+      Las facturas de gastos se procesan por un canal separado al de Comercialización.
+      Si no configuras estos campos, se usa el email de Comercialización como fallback.
+    </div>
+    <div class="setup-grid">
+      <div class="setup-field full">
+        <label>Email de destino (To:)</label>
+        <input type="email" id="cfgEmailAcrDestino" placeholder="facturas@balanceclip.net">
+        <span class="setup-hint">Puede ser igual al de Comercialización o uno distinto</span>
       </div>
-
-    </div><!-- /setupPanelAcreedores -->
+      <div class="setup-field full" style="margin-top:.75rem">
+        <label>Remitente permitido (From: del cliente)</label>
+        <input type="email" id="cfgEmailAcrRemitente" placeholder="cliente@gmail.com">
+        <span class="setup-hint">Solo se procesarán facturas de gastos de este remitente</span>
+      </div>
+    </div>
+    <div class="setup-save-bar" style="margin-top:.75rem">
+      <span id="cfgAcrEmailMsg" style="font-size:.8rem;color:var(--green);display:none">✅ Guardado</span>
+      <button class="btn-secondary" onclick="loadSetupConfig()">↺ Recargar</button>
+      <button class="btn-primary" id="btnGuardarAcrEmail" onclick="guardarConfigAcreedores()">💾 Guardar</button>
+    </div>
+  </div>
+ 
+  <!-- ── Card: Gastos configurados (sin cambios) ── -->
+  <div class="setup-card">
+    <div class="setup-card-title">🏦 Gastos configurados</div>
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">
+      Gastos cuyas facturas el sistema detecta y procesa automáticamente desde email.
+      Solo se procesarán facturas de gastos activos.
+    </div>
+    <div class="prov-grid" id="setupAcrGrid" style="padding:0;gap:.85rem">
+      <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">
+        <div class="spinner" style="margin:0 auto .75rem"></div>Cargando gastos...
+      </div>
+    </div>
+    <div style="margin-top:1rem">
+      <button class="btn-primary" style="font-size:.8rem;padding:.4rem .85rem" onclick="acrAbrirModalNuevo()">+ Agregar gasto</button>
+    </div>
+  </div>
+ 
+</div><!-- /setupPanelAcreedores -->
 
     <div class="setup-panel" id="setupPanelSistema">
       <div class="setup-card">
@@ -9705,6 +9732,10 @@ async function loadSetupConfig() {
     _loadSetupProvGrid();
     // Cargar email ST si el campo existe
     _cargarEmailST();
+ 
+    // Cargar email Registro General / Acreedores
+    if (document.getElementById('cfgEmailAcrDestino'))   document.getElementById('cfgEmailAcrDestino').value   = c.email_acr_destino   || '';
+    if (document.getElementById('cfgEmailAcrRemitente')) document.getElementById('cfgEmailAcrRemitente').value = c.email_acr_remitente || '';
 
     // URL del GAS
     document.getElementById('cfgGasUrl').value = GAS_URL;
@@ -9856,6 +9887,41 @@ function _cargarEmailST() {
     }
   }).catch(() => {});
 }
+
+<script>
+async function guardarConfigAcreedores() {
+  const btn       = document.getElementById('btnGuardarAcrEmail');
+  const msg       = document.getElementById('cfgAcrEmailMsg');
+  const destino   = (document.getElementById('cfgEmailAcrDestino')?.value  || '').trim();
+  const remitente = (document.getElementById('cfgEmailAcrRemitente')?.value || '').trim();
+  if (!destino)   { showToast('Email de destino requerido', true); return; }
+  if (!remitente) { showToast('Remitente permitido requerido', true); return; }
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  msg.style.display = 'none';
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action:              'guardarConfig',
+        email_acr_destino:   destino,
+        email_acr_remitente: remitente,
+      }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+    msg.style.display = 'inline'; msg.textContent = '✅ Guardado';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    showToast('✅ Config Registro General guardada — ' + remitente + ' → ' + destino);
+    await new Promise(r => setTimeout(r, 800));
+    _setupLoaded = false;
+  } catch(err) {
+    showToast('Error: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Guardar';
+  }
+}
+</script>
 
 async function guardarConfigST() {
   const btn  = document.getElementById('btnGuardarStEmail');
