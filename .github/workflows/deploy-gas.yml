@@ -8,6 +8,7 @@ on:
       - 'backend-gas/**'
       - 'BalanceClip/**'
       - 'clients.json'
+  workflow_dispatch:
 
 jobs:
   deploy:
