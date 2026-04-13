@@ -1,0 +1,10 @@
+{
+  "clientes": [
+    {
+      "id": "ceyco",
+      "nombre": "CEYCO",
+      "scriptId": "1H_dz10V_HT6HVSszSCPLCcpvRHZgwkqsd4jaqdS6yxK4vBNkGYB0GXSq",
+      "gasDir": "backend-gas"
+    }
+  ]
+}
