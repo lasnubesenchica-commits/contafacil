@@ -345,7 +345,6 @@ function doGet(e) {
 
     // ── OPERACIONES ─────────────────────────────────────────────
     if (action === 'anularRegistro')      return _handleAnularRegistro(params, callback);
-    if (action === 'eliminarRegistro')    return _handleEliminarRegistro(params, callback);
     if (action === 'actualizarCategoria')        return _handleActualizarCategoria(params, callback);
     if (action === 'actualizarCategoriaEgreso')  return _handleActualizarCategoria({ tipo:'egreso', id: params.id, categoria: params.categoria }, callback);
     if (action === 'reclasificarEgreso')   return _handleReclasificarEgreso(params, callback);
@@ -2097,86 +2096,6 @@ function _handleAnularRegistro(params, callback) {
   }
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  ELIMINAR REGISTRO — borra fila físicamente de Egresos o Ingresos
-//  Si el egreso proviene de un pendiente de acreedor (egreso_id en
-//  Acreedores_Pending apunta al mismo ID), también elimina esa fila
-//  para evitar registros huérfanos.
-// ═══════════════════════════════════════════════════════════════
-function _handleEliminarRegistro(params, callback) {
-  var result = { success: false, error: null, acr_limpiado: false };
-  try {
-    var tipo = params.tipo || '';
-    var id   = params.id   || '';
-    Logger.log('ELIMINAR — tipo: [' + tipo + '] id: [' + id + ']');
-    if (!tipo || !id) throw new Error('tipo e id requeridos');
-
-    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-
-    // ── 1. Eliminar de Egresos o Ingresos ───────────────────────
-    if (tipo === 'ingreso') {
-      var sheetIng   = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
-      var lastRowIng = sheetIng.getLastRow();
-      if (lastRowIng <= 2) throw new Error('Hoja Ingresos sin datos');
-      var dataIng = sheetIng.getRange(3, 1, lastRowIng - 2, INGRESOS_NCOLS).getValues();
-      var rowIng  = -1;
-      for (var i = 0; i < dataIng.length; i++) {
-        if (String(dataIng[i][COL_I.ID_TRANS - 1]) === id) { rowIng = i + 3; break; }
-      }
-      if (rowIng === -1) throw new Error('Ingreso no encontrado: ' + id);
-      sheetIng.deleteRow(rowIng);
-      SpreadsheetApp.flush();
-      Logger.log('✅ Ingreso eliminado — fila ' + rowIng);
-
-    } else {
-      var sheetEgr   = ss.getSheetByName(SHEET_EGRESOS);
-      var lastRowEgr = sheetEgr.getLastRow();
-      if (lastRowEgr <= 2) throw new Error('Hoja Egresos sin datos');
-      var dataEgr = sheetEgr.getRange(3, 1, lastRowEgr - 2, EGRESOS_NCOLS).getValues();
-      var rowEgr  = -1;
-      for (var j = 0; j < dataEgr.length; j++) {
-        if (String(dataEgr[j][COL_E.ID - 1]) === id) { rowEgr = j + 3; break; }
-      }
-      if (rowEgr === -1) throw new Error('Egreso no encontrado: ' + id);
-      sheetEgr.deleteRow(rowEgr);
-      SpreadsheetApp.flush();
-      Logger.log('✅ Egreso eliminado — fila ' + rowEgr);
-
-      // ── 2. Limpiar Acreedores_Pending si el egreso vino de ahí ──
-      // La hoja tiene 2 filas de cabecera. Cols (base 1):
-      //   1=id_pendiente, 3=estado, 15=egreso_id  (16 cols total)
-      var ACR_PEND_SHEET = 'Acreedores_Pending';
-      var ACR_PEND_NCOLS = 16;
-      var ACR_COL_ID     = 1;   // id_pendiente
-      var ACR_COL_EGRID  = 15;  // egreso_id
-
-      var sheetAcr = ss.getSheetByName(ACR_PEND_SHEET);
-      if (sheetAcr && sheetAcr.getLastRow() > 2) {
-        var lastAcr = sheetAcr.getLastRow();
-        var dataAcr = sheetAcr.getRange(3, 1, lastAcr - 2, ACR_PEND_NCOLS).getValues();
-        for (var k = dataAcr.length - 1; k >= 0; k--) {
-          // Iterar de abajo hacia arriba para que deleteRow no desplace índices
-          if (String(dataAcr[k][ACR_COL_EGRID - 1]) === id) {
-            var acrRow = k + 3;
-            sheetAcr.deleteRow(acrRow);
-            SpreadsheetApp.flush();
-            result.acr_limpiado = true;
-            Logger.log('✅ Acreedores_Pending limpiado — fila ' + acrRow + ' (egreso_id=' + id + ')');
-          }
-        }
-      }
-    }
-
-    result.success = true;
-  } catch(err) {
-    result.error = err.message;
-    Logger.log('ERROR _handleEliminarRegistro: ' + err.message);
-  }
-  var json = JSON.stringify(result);
-  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
