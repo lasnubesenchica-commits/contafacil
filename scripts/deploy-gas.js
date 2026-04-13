@@ -3,18 +3,19 @@ const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 
-const SCOPES = ['https://www.googleapis.com/auth/script.projects'];
+function getAuthClient() {
+  const clientId     = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-async function getAuthClient() {
-  const keyJson = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!keyJson) throw new Error('Variable GOOGLE_SERVICE_ACCOUNT_KEY no definida.');
-  let credentials;
-  try { credentials = JSON.parse(keyJson); }
-  catch { throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY no es un JSON válido.'); }
-  const auth = new google.auth.JWT(
-    credentials.client_email, null, credentials.private_key, SCOPES
-  );
-  await auth.authorize();
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error(
+      'Faltan variables: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN'
+    );
+  }
+
+  const auth = new google.auth.OAuth2(clientId, clientSecret);
+  auth.setCredentials({ refresh_token: refreshToken });
   return auth;
 }
 
@@ -24,7 +25,7 @@ function readGasFiles(dirPath) {
   for (const entry of entries) {
     const fullPath = path.join(dirPath, entry);
     if (!fs.statSync(fullPath).isFile()) continue;
-    const ext = path.extname(entry).toLowerCase();
+    const ext  = path.extname(entry).toLowerCase();
     const name = path.basename(entry, ext);
     const source = fs.readFileSync(fullPath, 'utf8');
     if (entry === 'appsscript.json') {
@@ -51,12 +52,12 @@ async function deployCliente(scriptApi, cliente, repoRoot) {
 }
 
 async function main() {
-  const repoRoot = process.cwd();
+  const repoRoot    = process.cwd();
   const clientsFile = path.join(repoRoot, 'clients.json');
   if (!fs.existsSync(clientsFile)) throw new Error('clients.json no encontrado.');
   const { clientes } = JSON.parse(fs.readFileSync(clientsFile, 'utf8'));
   console.log(`Clientes a deployar: ${clientes.length}`);
-  const auth = await getAuthClient();
+  const auth      = getAuthClient();
   const scriptApi = google.script({ version: 'v1', auth });
   let ok = 0, fail = 0;
   for (const cliente of clientes) {
