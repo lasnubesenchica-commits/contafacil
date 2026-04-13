@@ -1,0 +1,11 @@
+{
+  "name": "contafacil-deploy",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "node scripts/deploy-gas.js"
+  },
+  "dependencies": {
+    "googleapis": "^144.0.0"
+  }
+}
