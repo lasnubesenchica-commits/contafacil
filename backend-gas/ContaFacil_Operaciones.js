@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  ContaFacil_Operaciones_CEYCO.gs
+//  ContaFacil_Operaciones_CEYCO.gs BalanceClip.net
 //  Módulo: Compras & Ventas — Configurable multi-cliente
 //  v2.1 — FIX: sincronizarEmails() no consume threads desconocidos
 //         FIX: email_acr_destino / email_acr_remitente en guardarConfig
