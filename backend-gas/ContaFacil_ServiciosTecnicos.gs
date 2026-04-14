@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  ContaFacil_ServiciosTecnicos.gs
-//  Módulo: Servicios Técnicos — Ramon Pico / Círculo Financiero
+//  Módulo: Servicios Técnicos — BalanceClip.net
 //  v1.3 — Cotizaciones + Ejecución + Comparativo
 //  v1.4 — cancelar/eliminar revierten movimientos de inventario
 //  v1.3.2 — credito_fiscal añadido a ST_TIPOS_ITEM y todos los tipoMap
