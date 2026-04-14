@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  Ramon Pico — Backend de Órdenes + Ingresos + Egresos
+//  BalanceClip — Backend de Órdenes + Ingresos + Egresos
 //  Google Apps Script
 //  v12 — corregirComprobante añadido (PATCH)
 //  v12.1 — actualizarNotasIngreso añadido (PATCH)
