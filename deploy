@@ -543,24 +543,9 @@
         <input type="text" id="negocio" placeholder="Ej: Distribuidora Perez S.A." />
       </div>
       <div class="field">
-        <label>RUC de la empresa <span class="req">*</span></label>
-        <input type="text" id="ruc" placeholder="8-123-456789" />
-        <span class="field-hint">RUC del emisor (Círculo Financiero análogo)</span>
-      </div>
-      <div class="field">
-        <label>DV <span class="req">*</span></label>
-        <input type="text" id="dv" placeholder="45" maxlength="3"/>
-        <span class="field-hint">Dígito verificador</span>
-      </div>
-      <div class="field">
         <label>Email admin <span class="req">*</span></label>
         <input type="email" id="adminEmail" placeholder="admin@empresa.com" />
         <span class="field-hint">Recibe emails de órdenes</span>
-      </div>
-      <div class="field">
-        <label>Email comprobantes <span class="req">*</span></label>
-        <input type="email" id="compEmail" placeholder="admin+comprobantes@empresa.com" />
-        <span class="field-hint">Label Gmail para sync automático</span>
       </div>
       <div class="field">
         <label>WhatsApp (con código de país)</label>
@@ -574,41 +559,10 @@
           <option value="0">Exento</option>
         </select>
       </div>
-    </div>
-
-    <div class="section-label">Proveedor principal</div>
-    <div class="form-grid">
-      <div class="field span2">
-        <label>Nombre del proveedor</label>
-        <input type="text" id="provNombre" placeholder="Empresas Carbone S.A." />
-        <span class="field-hint">Proveedor de quien comprás para revender (o dejá vacío si no aplica)</span>
-      </div>
       <div class="field">
-        <label>RUC del proveedor</label>
-        <input type="text" id="provRuc" placeholder="1080323-1-554308" />
-      </div>
-      <div class="field">
-        <label>DV del proveedor</label>
-        <input type="text" id="provDv" placeholder="54" maxlength="3"/>
-      </div>
-      <div class="field">
-        <label>Email del proveedor (para sync)</label>
-        <input type="text" id="provEmail" placeholder="facturas@carbone.com.pa" />
-        <span class="field-hint">Opcional — para detectar facturas entrantes</span>
-      </div>
-      <div class="field">
-        <label>Identificador en nombre de archivo</label>
-        <input type="text" id="provFileId" placeholder="1080323" />
-        <span class="field-hint">Parte del nombre de archivo de sus facturas PDF/XML</span>
-      </div>
-    </div>
-
-    <div class="section-label">Configuración de Google Drive</div>
-    <div class="form-grid">
-      <div class="field span2">
-        <label>Prefijo de IDs del sistema <span class="req">*</span></label>
+        <label>Prefijo de IDs <span class="req">*</span></label>
         <input type="text" id="prefix" placeholder="RP" maxlength="8"/>
-        <span class="field-hint">Ej: "RP" → IDs serán ING-RP-2025-0001. Usá 2-4 letras del cliente.</span>
+        <span class="field-hint">Ej: "DP" → IDs serán ING-DP-2025-0001. Usá 2-4 letras.</span>
       </div>
     </div>
 
@@ -677,7 +631,7 @@
       <div class="step-num">3</div>
       <div class="step-meta">
         <h2>Creando recursos</h2>
-        <p>El provisioner está creando el Google Sheet y la carpeta de Drive para el cliente.</p>
+        <p>El provisioner está creando el Google Sheet, carpeta Drive y proyecto Apps Script del cliente.</p>
       </div>
     </div>
 
@@ -689,6 +643,10 @@
     <div id="step3Results" style="display:none;margin-top:24px">
       <div class="summary-banner">
         <div class="summary-item">
+          <div class="summary-label">Cliente</div>
+          <div class="summary-val" id="res-cliente">—</div>
+        </div>
+        <div class="summary-item">
           <div class="summary-label">Google Sheet</div>
           <div class="summary-val small" id="res-sheetId">—</div>
         </div>
@@ -697,33 +655,36 @@
           <div class="summary-val small" id="res-folderId">—</div>
         </div>
         <div class="summary-item">
-          <div class="summary-label">Cliente</div>
-          <div class="summary-val" id="res-cliente">—</div>
+          <div class="summary-label">GAS Project ID</div>
+          <div class="summary-val small" id="res-gasProjectId">—</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Web App URL</div>
+          <div class="summary-val small" id="res-webAppUrl">—</div>
         </div>
       </div>
       <div class="btn-row" style="margin-top:0">
-        <button class="btn btn-primary" onclick="goStep4()">Generar código GAS →</button>
+        <button class="btn btn-primary" onclick="goStep4()">Ver resumen →</button>
       </div>
     </div>
   </div>
 
-  <!-- ═══════════ STEP 4: Código generado ═══════════ -->
+  <!-- ═══════════ STEP 4: Resumen ═══════════ -->
   <div class="step" id="step4">
     <div class="step-header">
       <div class="step-num">4</div>
       <div class="step-meta">
-        <h2>Código generado</h2>
-        <p>Todo listo. Copiá cada bloque al editor de Apps Script y seguí los pasos finales.</p>
+        <h2>Cliente provisionado</h2>
+        <p>Recursos creados automáticamente. Completá los pasos finales para activar el sistema.</p>
       </div>
     </div>
 
-    <!-- Output cards -->
-    <div class="output-grid" id="outputGrid">
+    <div class="section-label">Recursos creados</div>
+    <div class="checklist" id="resumenCreados">
       <!-- Se genera dinámicamente -->
     </div>
 
-    <div class="section-label" style="margin-top:32px">Pasos finales manuales</div>
-
+    <div class="section-label" style="margin-top:32px">Pasos finales</div>
     <div class="checklist" id="checklist">
       <!-- Se genera dinámicamente -->
     </div>
@@ -737,6 +698,13 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════
+//  ADMIN CONSTANTS
+// ═══════════════════════════════════════════════════════════
+var GITHUB_PAT    = 'REEMPLAZAR_CON_TU_PAT';   // Personal Access Token con permisos repo
+var GITHUB_REPO   = 'lasnubesenchica-commits/contafacil';
+var GITHUB_BRANCH = 'main';
+
+// ═══════════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════════
 var STATE = {
@@ -746,10 +714,12 @@ var STATE = {
   folderId: null,
   sheetUrl: null,
   folderUrl: null,
+  gasProjectId:   null,
+  gasDeploymentId: null,
+  webAppUrl:      null,
+  adminUrl:       null,
   // form data
-  negocio: '', ruc: '', dv: '', adminEmail: '', compEmail: '',
-  waNum: '', itbms: '0.07', prefix: 'RP',
-  provNombre: '', provRuc: '', provDv: '', provEmail: '', provFileId: '',
+  negocio: '', adminEmail: '', waNum: '', itbms: '0.07', prefix: 'RP',
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -777,25 +747,14 @@ function goStep2() {
   var errors = [];
   var vals = {
     negocio:    document.getElementById('negocio').value.trim(),
-    ruc:        document.getElementById('ruc').value.trim(),
-    dv:         document.getElementById('dv').value.trim(),
     adminEmail: document.getElementById('adminEmail').value.trim(),
-    compEmail:  document.getElementById('compEmail').value.trim(),
     waNum:      document.getElementById('waNum').value.trim(),
     itbms:      document.getElementById('itbms').value,
     prefix:     document.getElementById('prefix').value.trim().toUpperCase(),
-    provNombre: document.getElementById('provNombre').value.trim(),
-    provRuc:    document.getElementById('provRuc').value.trim(),
-    provDv:     document.getElementById('provDv').value.trim(),
-    provEmail:  document.getElementById('provEmail').value.trim(),
-    provFileId: document.getElementById('provFileId').value.trim(),
   };
 
   if (!vals.negocio)    errors.push('Nombre del negocio es requerido');
-  if (!vals.ruc)        errors.push('RUC es requerido');
-  if (!vals.dv)         errors.push('DV es requerido');
   if (!vals.adminEmail) errors.push('Email admin es requerido');
-  if (!vals.compEmail)  errors.push('Email comprobantes es requerido');
   if (!vals.prefix)     errors.push('Prefijo de IDs es requerido');
 
   var errEl = document.getElementById('err1');
@@ -821,6 +780,7 @@ function startOAuth() {
   var scopes = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/script.projects',
   ].join(' ');
 
   var redirectUri = window.location.origin || 'http://localhost';
@@ -952,21 +912,284 @@ async function goStep3() {
     updateLog(l3, '⚠️', 'Permisos: ' + e.message + ' (hacelo manual en Drive)');
   }
 
-  // 4. Done
+  // 4. Descargar archivos GAS desde GitHub e inyectar CONFIG
+  var l4 = addLog('', 'Descargando archivos GAS desde GitHub...', '', true);
+  await sleep(300);
+  var gasFiles;
+  try {
+    var rawFiles = await fetchGasFiles();
+    gasFiles = injectConfig(rawFiles);
+    updateLog(l4, '✅', 'Archivos GAS descargados y configurados', rawFiles.length + ' archivos');
+  } catch(e) {
+    updateLog(l4, '❌', 'Error descargando archivos GAS: ' + e.message);
+    return;
+  }
+
+  // 5. Crear proyecto GAS, subir código y crear deployment
+  var l5 = addLog('', 'Creando proyecto Google Apps Script...', '', true);
+  await sleep(300);
+  var gasResult;
+  try {
+    gasResult = await createGasProject(gasFiles);
+    STATE.gasProjectId   = gasResult.scriptId;
+    STATE.gasDeploymentId = gasResult.deploymentId;
+    STATE.webAppUrl       = gasResult.webAppUrl;
+    updateLog(l5, '✅', 'Proyecto GAS creado y deployado', gasResult.scriptId);
+  } catch(e) {
+    updateLog(l5, '❌', 'Error creando proyecto GAS: ' + e.message);
+    return;
+  }
+
+  // 6. Registrar cliente en clients.json (GitHub)
+  var l6 = addLog('', 'Registrando cliente en GitHub (clients.json)...', '', true);
+  await sleep(300);
+  try {
+    await registerInGitHub(gasResult.scriptId, gasResult.deploymentId);
+    updateLog(l6, '✅', 'Cliente registrado en clients.json');
+  } catch(e) {
+    updateLog(l6, '⚠️', 'No se pudo registrar en GitHub: ' + e.message + ' — hacelo manual');
+  }
+
+  // 7. Crear carpeta admin del cliente (copia de ceyco/ con GAS_URL reemplazado)
+  var clientId = STATE.negocio.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  var l7 = addLog('', 'Creando carpeta admin del cliente...', '', true);
+  await sleep(300);
+  STATE.adminUrl = null;
+  try {
+    await createAdminFolder(clientId, gasResult.webAppUrl || '');
+    STATE.adminUrl = 'https://lasnubesenchica-commits.github.io/contafacil/' + clientId + '/';
+    updateLog(l7, '✅', 'Carpeta admin creada en GitHub', clientId + '/');
+  } catch(e) {
+    updateLog(l7, '⚠️', 'No se pudo crear carpeta admin: ' + e.message + ' — hacelo manual');
+  }
+
+  // 7. Done
   await sleep(200);
-  addLog('🎉', 'Recursos creados exitosamente', 'Listo para generar el código GAS');
+  addLog('🎉', 'Cliente provisionado exitosamente');
 
   // Mostrar resultados
-  document.getElementById('res-sheetId').textContent  = STATE.sheetId;
-  document.getElementById('res-folderId').textContent = STATE.folderId;
-  document.getElementById('res-cliente').textContent  = STATE.negocio;
+  document.getElementById('res-cliente').textContent     = STATE.negocio;
+  document.getElementById('res-sheetId').textContent     = STATE.sheetId;
+  document.getElementById('res-folderId').textContent    = STATE.folderId;
+  document.getElementById('res-gasProjectId').textContent = STATE.gasProjectId || '—';
+  document.getElementById('res-webAppUrl').textContent   = STATE.webAppUrl || '(pendiente — activar manualmente)';
   document.getElementById('step3Results').style.display = 'block';
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ═══════════════════════════════════════════════════════════
-//  STEP 4: Generar código
+//  GITHUB API HELPERS
+// ═══════════════════════════════════════════════════════════
+async function githubGetFile(filePath) {
+  var url = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + filePath + '?ref=' + GITHUB_BRANCH;
+  var res = await fetch(url, {
+    headers: {
+      'Authorization': 'Bearer ' + GITHUB_PAT,
+      'Accept': 'application/vnd.github+json',
+    },
+  });
+  var data = await res.json();
+  if (data.message) throw new Error('GitHub API: ' + data.message);
+  return data;
+}
+
+async function githubPutFile(filePath, content, message, sha) {
+  var url = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + filePath;
+  var encoded = btoa(unescape(encodeURIComponent(content)));
+  var body = { message: message, content: encoded, branch: GITHUB_BRANCH };
+  if (sha) body.sha = sha;
+  var res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer ' + GITHUB_PAT,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  var data = await res.json();
+  if (data.message && !data.commit) throw new Error('GitHub API: ' + data.message);
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GAS API HELPERS
+// ═══════════════════════════════════════════════════════════
+async function fetchGasFiles() {
+  var dirData = await githubGetFile('backend-gas');
+  if (!Array.isArray(dirData)) throw new Error('No se pudo listar backend-gas/');
+
+  var files = [];
+  for (var i = 0; i < dirData.length; i++) {
+    var f = dirData[i];
+    if (f.type !== 'file') continue;
+    var ext = f.name.split('.').pop().toLowerCase();
+    var baseName = f.name.replace(/\.[^/.]+$/, '');
+    var fileData = await githubGetFile('backend-gas/' + f.name);
+    var source = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
+
+    if (f.name === 'appsscript.json') {
+      files.push({ name: 'appsscript', type: 'JSON', source: source });
+    } else if (ext === 'gs' || ext === 'js') {
+      files.push({ name: baseName, type: 'SERVER_JS', source: source });
+    }
+  }
+  return files;
+}
+
+function injectConfig(files) {
+  var s = STATE;
+  return files.map(function(f) {
+    var source = f.source;
+
+    if (f.name === 'Code') {
+      source = source.replace(/SHEET_ID:\s*'[^']*'/, "SHEET_ID:          '" + s.sheetId + "'");
+      source = source.replace(/ADMIN_EMAIL:\s*'[^']*'/, "ADMIN_EMAIL:       '" + s.adminEmail + "'");
+      source = source.replace(/NEGOCIO:\s*'[^']*'/, "NEGOCIO:           '" + s.negocio + "'");
+      source = source.replace(/WA_NUM:\s*'[^']*'/, "WA_NUM:            '" + s.waNum + "'");
+      source = source.replace(/VOUCHER_FOLDER_ID:\s*'[^']*'/, "VOUCHER_FOLDER_ID: '" + s.folderId + "'");
+      source = source.replace(/ITBMS_RATE:\s*[\d.]+/, "ITBMS_RATE:        " + s.itbms);
+      source = source.replace(/PREFIX:\s*'[^']*'/, "PREFIX:            '" + s.prefix + "'");
+    }
+
+    if (f.name === 'ContaFacil_Operaciones') {
+      source = source.replace(/SHEET_ID:\s*'[^']*'/, "SHEET_ID: '" + s.sheetId + "'");
+    }
+
+    return { name: f.name, type: f.type, source: source };
+  });
+}
+
+async function createGasProject(files) {
+  var projectName = STATE.negocio + ' — ContaFacil';
+
+  // 1. Crear proyecto
+  var createRes = await fetch('https://script.googleapis.com/v1/projects', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + STATE.token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ title: projectName }),
+  });
+  var project = await createRes.json();
+  if (!project.scriptId) throw new Error(project.error ? project.error.message : 'No se obtuvo scriptId');
+  var scriptId = project.scriptId;
+
+  // 2. Subir código
+  var uploadRes = await fetch('https://script.googleapis.com/v1/projects/' + scriptId + '/content', {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer ' + STATE.token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ files: files }),
+  });
+  var uploadData = await uploadRes.json();
+  if (uploadData.error) throw new Error('Upload: ' + uploadData.error.message);
+
+  // 3. Crear versión
+  var versionRes = await fetch('https://script.googleapis.com/v1/projects/' + scriptId + '/versions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + STATE.token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ description: 'Provisioner v1' }),
+  });
+  var versionData = await versionRes.json();
+  if (versionData.error) throw new Error('Version: ' + versionData.error.message);
+  var versionNumber = versionData.versionNumber;
+
+  // 4. Crear deployment Web App
+  var deployRes = await fetch('https://script.googleapis.com/v1/projects/' + scriptId + '/deployments', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + STATE.token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      versionNumber:    versionNumber,
+      manifestFileName: 'appsscript',
+      description:      'Produccion',
+    }),
+  });
+  var deployData = await deployRes.json();
+  if (deployData.error) throw new Error('Deploy: ' + deployData.error.message);
+
+  var webAppUrl = null;
+  if (deployData.entryPoints) {
+    for (var ep of deployData.entryPoints) {
+      if (ep.entryPointType === 'WEB_APP' && ep.webApp) {
+        webAppUrl = ep.webApp.url;
+        break;
+      }
+    }
+  }
+
+  return {
+    scriptId:     scriptId,
+    deploymentId: deployData.deploymentId,
+    webAppUrl:    webAppUrl,
+  };
+}
+
+async function createAdminFolder(clientId, webAppUrl) {
+  var DIRS = ['ceyco', 'ceyco/app', 'ceyco/reportes'];
+  var SKIP = ['deploy.html'];  // archivos que no se copian
+
+  for (var dir of DIRS) {
+    var items = await githubGetFile(dir);
+    if (!Array.isArray(items)) continue;
+
+    for (var item of items) {
+      if (item.type !== 'file') continue;
+      if (SKIP.indexOf(item.name) !== -1) continue;
+
+      var fileData = await githubGetFile(item.path);
+      var content = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
+
+      // Reemplazar GAS_URL con la URL del nuevo cliente
+      if (webAppUrl) {
+        content = content.replace(
+          /GAS_URL(\s*)=(\s*)'https:\/\/[^']*'/g,
+          "GAS_URL$1=$2'" + webAppUrl + "'"
+        );
+      }
+
+      // Reemplazar branding CEYCO con el nombre del cliente
+      content = content.replace(/Admin — CEYCO/g, 'Admin — ' + STATE.negocio);
+      content = content.replace(/>CEYCO</g, '>' + STATE.negocio + '<');
+      content = content.replace(/placeholder="CEYCO"/g, 'placeholder="' + STATE.prefix + '"');
+
+      var newPath = item.path.replace(/^ceyco\//, clientId + '/');
+      await githubPutFile(newPath, content, 'provisioner: admin ' + clientId, null);
+    }
+  }
+}
+
+async function registerInGitHub(scriptId, deploymentId) {
+  var fileData = await githubGetFile('clients.json');
+  var currentContent = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
+  var parsed = JSON.parse(currentContent);
+
+  var clientId = STATE.negocio.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  parsed.clientes.push({
+    id:           clientId,
+    nombre:       STATE.negocio,
+    scriptId:     scriptId,
+    gasDir:       'backend-gas',
+    deploymentId: deploymentId || '',
+  });
+
+  var newContent = JSON.stringify(parsed, null, 2) + '\n';
+  await githubPutFile('clients.json', newContent, 'provisioner: agregar cliente ' + clientId, fileData.sha);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STEP 4: Resumen
 // ═══════════════════════════════════════════════════════════
 function goStep4() {
   goStep(4);
@@ -975,157 +1198,101 @@ function goStep4() {
 
 function buildOutputs() {
   var s = STATE;
-  var grid = document.getElementById('outputGrid');
-  grid.innerHTML = '';
 
-  // ── Bloque 1: CONFIG (Backend.gs) ──────────────────────
-  var configCode =
-'// ── CONFIG ────────────────────────────────────────────────────\n' +
-'var CONFIG = {\n' +
-'  SHEET_ID:          \'' + s.sheetId + '\',\n' +
-'  SHEET_ORDENES:     \'Ordenes\',\n' +
-'  SHEET_INGRESOS:    \'Ingresos\',\n' +
-'  ADMIN_EMAIL:       \'' + s.adminEmail + '\',\n' +
-'  NEGOCIO:           \'' + s.negocio + '\',\n' +
-'  WA_NUM:            \'' + s.waNum + '\',\n' +
-'  VOUCHER_FOLDER_ID: \'' + s.folderId + '\',\n' +
-'  ITBMS_RATE:        ' + s.itbms + ',\n' +
-'};\n\n' +
-'// IDs del sistema — prefijo: ' + s.prefix + '\n' +
-'// Ejemplo: ING-' + s.prefix + '-2025-0001 | EGR-' + s.prefix + '-2025-0001';
+  // ── Recursos creados (panel superior) ──────────────────
+  var resumen = document.getElementById('resumenCreados');
+  resumen.innerHTML = '';
 
-  addOutputCard(grid,
-    '📄 Backend.gs — CONFIG',
-    'Reemplazá el bloque CONFIG en la parte superior de Backend.gs',
-    configCode
-  );
+  var gasEditorUrl = s.gasProjectId
+    ? 'https://script.google.com/home/projects/' + s.gasProjectId
+    : null;
 
-  // ── Bloque 2: Operaciones.gs constantes ────────────────
-  var provRucFull = s.provRuc + (s.provDv ? '-' + s.provDv : '');
-  var operCode =
-'// ── CONSTANTES Operaciones.gs ─────────────────────────────────\n' +
-'var SHEET_CV           = \'Compras_Ventas\';\n' +
-'var EMAIL_COMPROBANTES = \'' + s.compEmail + '\';\n' +
-'var CONFIANZA_MINIMA   = 70;\n' +
-'var RUC_EMPRESA        = \'' + s.ruc + '\';\n\n';
-
-  if (s.provNombre) {
-    operCode +=
-'// Proveedor principal\n' +
-'var PROV_NOMBRE = \'' + s.provNombre + '\';\n' +
-'var PROV_RUC    = \'' + s.provRuc + '\';\n' +
-'var PROV_DV     = \'' + s.provDv + '\';\n';
-    if (s.provFileId) {
-      operCode += '\n// En _detectarTipoFactura — reemplazá \'1080323\' por:\n';
-      operCode += '// fn.indexOf(\'' + s.provFileId + '\') !== -1 → return \'carbone\'\n';
-    }
-    if (s.provEmail) {
-      operCode += '\n// Email del proveedor para detectar facturas:\n';
-      operCode += '// Actualizar el query de Gmail en sincronizarEmails()\n';
-      operCode += '// from:' + s.provEmail + '\n';
-    }
-  } else {
-    operCode += '// Sin proveedor configurado — módulo Compras_Ventas desactivado\n';
-    operCode += '// Podés usarlo solo para Ingresos y Egresos manuales.\n';
-  }
-
-  addOutputCard(grid,
-    '📄 Operaciones.gs — constantes',
-    'Reemplazá las constantes del inicio de Operaciones.gs',
-    operCode
-  );
-
-  // ── Bloque 3: IDs en funciones internas ────────────────
-  var idsCode =
-'// ── Buscar y reemplazar en TODO el proyecto GAS ───────────────\n' +
-'//\n' +
-'// Reemplazos en Operaciones.gs (referencias hardcodeadas):\n' +
-'// \'Empresas Carbone S.A.\'    →  \'' + (s.provNombre || '[PROVEEDOR]') + '\'\n' +
-'// \'1080323-1-554308\'        →  \'' + (s.provRuc || '[RUC_PROV]') + '\'\n' +
-'// dv_prov: \'54\'              →  \'' + (s.provDv || '[DV_PROV]') + '\'\n' +
-'// \'1753684-1-696883\'        →  \'' + s.ruc + '-1-XXXXX\'  // RUC completo tuyo\n' +
-'// \'CIRCULO FINANCIERO\'      →  \'' + s.negocio.toUpperCase().split(' ')[0] + '\'\n' +
-'// \'lasnubesenchica\'         →  tu email sin @\n' +
-'//\n' +
-'// IDs generados (prefijo ' + s.prefix + '):\n' +
-'// \'ING-RP-\'  →  \'ING-' + s.prefix + '-\'\n' +
-'// \'EGR-RP-\'  →  \'EGR-' + s.prefix + '-\'\n' +
-'// \'CV-\'      →  \'CV-' + s.prefix + '-\'  (opcional)\n' +
-'// \'ST-RP-\'   →  \'ST-' + s.prefix + '-\'\n' +
-'// \'COT-RP-\'  →  \'COT-' + s.prefix + '-\'';
-
-  addOutputCard(grid,
-    '🔍 Guía de búsqueda y reemplazo',
-    'Hacé Ctrl+H en el editor GAS para reemplazar estas referencias en todos los archivos',
-    idsCode
-  );
-
-  // ── Bloque 4: Admin HTML placeholder ──────────────────
-  var adminCode =
-'<!-- En adminv2.html — buscar GAS_URL y reemplazar por la URL del deploy -->\n' +
-'<script>\n' +
-'  // ⬇ Esta línea la encontrás en la parte superior del admin HTML\n' +
-'  var GAS_URL = \'[PEGAR_URL_WEB_APP_AQUI]\';\n' +
-'  // var CLIENTE = \'' + s.negocio + '\';\n' +
-'  // var PREFIX  = \'' + s.prefix + '\';\n' +
-'<\/script>\n\n' +
-'<!-- Si querés cambiar el título y color de marca -->\n' +
-'<!-- Buscar "RAMON.PICO" y reemplazar por el nombre del cliente -->';
-
-  addOutputCard(grid,
-    '🌐 adminv2.html — URL del Web App',
-    'Después del deploy GAS copiá la URL aquí',
-    adminCode
-  );
-
-  // ── Checklist ──────────────────────────────────────────
-  var checklist = document.getElementById('checklist');
-  checklist.innerHTML = '';
-
-  var checkItems = [
+  var createdItems = [
     {
       done: true,
       title: 'Google Sheet creado',
       desc: 'ID: ' + s.sheetId,
       link: s.sheetUrl,
-      linkText: 'Abrir Sheet →'
+      linkText: 'Abrir Sheet →',
     },
     {
       done: true,
       title: 'Carpeta Drive creada',
-      desc: 'ID: ' + s.folderId + ' · Permisos configurados como público con el link',
+      desc: 'ID: ' + s.folderId + ' · Acceso público con el link',
       link: s.folderUrl,
-      linkText: 'Abrir carpeta →'
+      linkText: 'Abrir carpeta →',
     },
     {
-      done: false,
-      title: 'Crear proyecto GAS y pegar los 3 archivos .gs',
-      desc: 'Desde el Sheet: Extensiones → Apps Script. Creá 3 archivos: Backend.gs, Operaciones.gs, ServiciosTecnicos.gs. Pegá el código de Ramon Pico y aplicá los bloques generados arriba.',
-      link: s.sheetUrl,
-      linkText: 'Abrir Apps Script →'
+      done: !!s.gasProjectId,
+      title: s.gasProjectId ? 'Proyecto GAS creado con código inyectado' : 'Proyecto GAS — pendiente (crear manualmente)',
+      desc: s.gasProjectId ? 'Script ID: ' + s.gasProjectId : 'El provisioner no pudo crear el proyecto GAS automáticamente.',
+      link: gasEditorUrl,
+      linkText: 'Abrir editor GAS →',
     },
     {
-      done: false,
+      done: !!s.webAppUrl,
+      title: s.webAppUrl ? 'Web App deployado' : 'Web App — pendiente (hacer deploy manual)',
+      desc: s.webAppUrl ? s.webAppUrl : 'Deploy → New deployment → Web App → Execute as Me → Anyone.',
+      link: s.webAppUrl,
+      linkText: 'Abrir Web App →',
+    },
+    {
+      done: true,
+      title: 'Cliente registrado en clients.json',
+      desc: 'El deploy automático via GitHub Actions se activará al hacer push a main.',
+    },
+    {
+      done: !!s.adminUrl,
+      title: s.adminUrl ? 'Carpeta admin creada en GitHub' : 'Carpeta admin — pendiente (crear manualmente)',
+      desc: s.adminUrl
+        ? 'Admin URL: ' + s.adminUrl
+        : 'Copiar carpeta ceyco/ a ' + (s.negocio || 'cliente').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '/ y reemplazar GAS_URL.',
+      link: s.adminUrl,
+      linkText: 'Abrir admin →',
+    },
+  ];
+
+  createdItems.forEach(function(item, i) {
+    var div = document.createElement('div');
+    div.className = 'check-item';
+    div.innerHTML =
+      '<div class="check-num' + (item.done ? ' done' : '') + '">' + (item.done ? '✓' : '!') + '</div>' +
+      '<div class="check-body">' +
+        '<div class="check-title">' + item.title + '</div>' +
+        '<div class="check-desc">' + item.desc + '</div>' +
+        (item.link ? '<a class="check-link" href="' + item.link + '" target="_blank">' + item.linkText + ' ↗</a>' : '') +
+      '</div>';
+    resumen.appendChild(div);
+  });
+
+  // ── Pasos finales ──────────────────────────────────────
+  var checklist = document.getElementById('checklist');
+  checklist.innerHTML = '';
+
+  var checkItems = [
+    {
       title: 'Configurar CLAUDE_API_KEY en Script Properties',
-      desc: 'En GAS: ícono de engranaje → Script Properties → Agregar CLAUDE_API_KEY con tu key de Anthropic.',
+      desc: 'En el editor GAS: ícono de engranaje → Script Properties → Agregar CLAUDE_API_KEY con tu key de Anthropic.',
+      link: gasEditorUrl,
+      linkText: 'Abrir editor GAS →',
     },
     {
-      done: false,
-      title: 'Ejecutar funciones de inicialización (una sola vez)',
+      title: 'Autorizar y ejecutar funciones de inicialización',
       desc: 'Ejecutar en orden: initSheets() → initComprasVentasSheet() → initSTSheets() → migrarEgresosDV() → migrarEgresosST() → installTrigger(). Autorizar permisos cuando el browser lo pida.',
+      link: gasEditorUrl,
+      linkText: 'Abrir editor GAS →',
     },
     {
-      done: false,
-      title: 'Deploy del Web App',
-      desc: 'GAS → Deploy → New deployment → Web App → Execute as Me → Anyone. Copiar la URL generada.',
+      title: s.adminUrl ? 'Verificar carpeta admin en GitHub Pages' : 'Configurar GAS_URL en la carpeta admin',
+      desc: s.adminUrl
+        ? 'La carpeta admin fue creada con GAS_URL ya inyectado. Verificar que GitHub Pages esté activo en el repo.'
+        : (s.webAppUrl
+          ? 'Web App URL: ' + s.webAppUrl + ' — copiar ceyco/ a la carpeta del cliente y reemplazar GAS_URL.'
+          : 'Primero completar el deploy GAS, luego copiar ceyco/ al cliente y reemplazar GAS_URL.'),
+      link: s.adminUrl || s.webAppUrl,
+      linkText: s.adminUrl ? 'Abrir admin →' : 'Abrir Web App →',
     },
     {
-      done: false,
-      title: 'Pegar la URL del Web App en adminv2.html',
-      desc: 'Buscar GAS_URL en el admin HTML y reemplazar. Si el cliente necesita un dominio propio, subir a Netlify.',
-    },
-    {
-      done: false,
       title: 'Verificar health check',
       desc: 'Abrir en el browser: [URL_WEB_APP]?action=getIngresos → debe responder { "success": true, "items": [] }',
     },
@@ -1135,7 +1302,7 @@ function buildOutputs() {
     var div = document.createElement('div');
     div.className = 'check-item';
     div.innerHTML =
-      '<div class="check-num' + (item.done ? ' done' : '') + '">' + (item.done ? '✓' : (i + 1)) + '</div>' +
+      '<div class="check-num">' + (i + 1) + '</div>' +
       '<div class="check-body">' +
         '<div class="check-title">' + item.title + '</div>' +
         '<div class="check-desc">' + item.desc + '</div>' +
@@ -1145,59 +1312,15 @@ function buildOutputs() {
   });
 }
 
-function addOutputCard(parent, title, subtitle, code) {
-  var card = document.createElement('div');
-  card.className = 'output-card';
-  var id = 'code_' + Math.random().toString(36).substr(2, 6);
-  card.innerHTML =
-    '<div class="output-card-header">' +
-      '<div class="output-card-title">' +
-        '<span class="file-icon">◈</span> ' + title +
-      '</div>' +
-      '<button class="copy-btn" onclick="copyCode(\'' + id + '\', this)">Copiar</button>' +
-    '</div>' +
-    (subtitle ? '<div style="padding:8px 18px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border)">' + subtitle + '</div>' : '') +
-    '<div class="code-block" id="' + id + '">' + escapeHtml(code) + '</div>';
-  parent.appendChild(card);
-}
-
-function copyCode(id, btn) {
-  var text = document.getElementById(id).textContent;
-  navigator.clipboard.writeText(text).then(function() {
-    btn.textContent = '✓ Copiado';
-    btn.className = 'copy-btn copied';
-    setTimeout(function() {
-      btn.textContent = 'Copiar';
-      btn.className = 'copy-btn';
-    }, 2000);
-  }).catch(function() {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    btn.textContent = '✓ Copiado';
-    btn.className = 'copy-btn copied';
-    setTimeout(function() { btn.textContent = 'Copiar'; btn.className = 'copy-btn'; }, 2000);
-  });
-}
-
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
 function restart() {
   STATE = {
     step: 1, token: null, sheetId: null, folderId: null,
     sheetUrl: null, folderUrl: null,
-    negocio: '', ruc: '', dv: '', adminEmail: '', compEmail: '',
-    waNum: '', itbms: '0.07', prefix: 'RP',
-    provNombre: '', provRuc: '', provDv: '', provEmail: '', provFileId: '',
+    gasProjectId: null, gasDeploymentId: null, webAppUrl: null, adminUrl: null,
+    negocio: '', adminEmail: '', waNum: '', itbms: '0.07', prefix: 'RP',
   };
   // Reset form
-  ['negocio','ruc','dv','adminEmail','compEmail','waNum','prefix',
-   'provNombre','provRuc','provDv','provEmail','provFileId','manualToken','clientId'].forEach(function(id) {
+  ['negocio','adminEmail','waNum','prefix','manualToken','clientId'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
