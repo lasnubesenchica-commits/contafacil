@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  Ramon Pico — Backend de Órdenes + Ingresos + Egresos
+//  BalanceClip — Backend de Órdenes + Ingresos + Egresos
 //  Google Apps Script
 //  v12 — corregirComprobante añadido (PATCH)
 //  v12.1 — actualizarNotasIngreso añadido (PATCH)
@@ -34,6 +34,7 @@ var CONFIG = {
   WA_NUM:            '50760909384',
   VOUCHER_FOLDER_ID: '1OiVyKh7HdyQUKPNB7EYu2UsOmdUCyyYd',
   ITBMS_RATE:        0.07,
+  PREFIX:            'RP',
 };
 
 // Columnas Tab Ordenes (base 1)
@@ -621,7 +622,7 @@ function crearIngreso(orden) {
   if (String(orden.estadoPago) === 'parcial') estadoIngreso = 'abono';
   if (String(orden.estadoPago) === 'sinpago') estadoIngreso = 'pendiente';
 
-  var id = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss');
+  var id = 'ING-' + CONFIG.PREFIX + '-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss');
 
   var fila = new Array(INGRESOS_NCOLS);
   fila[COL_I.ID_TRANS - 1]      = id;
@@ -798,7 +799,7 @@ function saveVoucherToDrive(data) {
     data.voucherBase64,
     data.voucherName,
     data.voucherType || 'image/jpeg',
-    data.orderNumber || 'RP',
+    data.orderNumber || CONFIG.PREFIX,
     data.nombre || ''
   );
 }
@@ -1163,7 +1164,7 @@ function _buildStUrlMaps(ss) {
 
 // ── Extrae id_st desde el campo notas de un egreso/ingreso ────
 function _extractStId(notas) {
-  var m = String(notas || '').match(/ST:\s*(ST-RP-[\d-]+)/);
+  var m = String(notas || '').match(new RegExp('ST:\\s*(ST-' + CONFIG.PREFIX + '-[\\d-]+)'));
   return m ? m[1] : null;
 }
 
@@ -1312,14 +1313,14 @@ function _handleRegistrarEgresoOperativo(params, callback) {
       var ids = sheet.getRange(3, COL_E.ID, lastRow - 2, 1).getValues();
       for (var k = ids.length - 1; k >= 0; k--) {
         var v = String(ids[k][0] || '');
-        if (v.indexOf('EGR-RP-') === 0) {
+        if (v.indexOf('EGR-' + CONFIG.PREFIX + '-') === 0) {
           var parts = v.split('-');
           var n     = parseInt(parts[parts.length - 1], 10);
           if (!isNaN(n)) { seq = n + 1; break; }
         }
       }
     }
-    var id = 'EGR-RP-' + year + '-' + String(seq).padStart(4, '0');
+    var id = 'EGR-' + CONFIG.PREFIX + '-' + year + '-' + String(seq).padStart(4, '0');
 
     var total    = parseFloat(params.total)    || 0;
     var itbms    = parseFloat(params.itbms)    || 0;
@@ -1458,7 +1459,7 @@ function _handleMoverAInventario(params, callback) {
           if (!isNaN(ne)) { seqEgr = ne + 1; break; }
         }
       }
-      var egresoId = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
+      var egresoId = 'EGR-' + CONFIG.PREFIX + '-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
 
       var fechaCompraDate = new Date((fechaCompra || ahora.toISOString().slice(0,10)) + 'T12:00:00');
       var mesEgr  = isNaN(fechaCompraDate.getTime()) ? '' : (fechaCompraDate.getMonth() + 1);
@@ -1638,7 +1639,7 @@ function _handleRegistrarIngresoManual(params, callback) {
     var mes      = new Date(fechaIngreso + 'T12:00:00').getMonth() + 1;
     var anio     = new Date(fechaIngreso + 'T12:00:00').getFullYear();
 
-    var id = 'ING-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-M';
+    var id = 'ING-' + CONFIG.PREFIX + '-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-M';
 
     var nombreCli  = params.nombre      || '';
     var rucCli     = params.ruc         || '';
