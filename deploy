@@ -746,7 +746,7 @@
 // ═══════════════════════════════════════════════════════════
 //  ADMIN CONSTANTS
 // ═══════════════════════════════════════════════════════════
-var GITHUB_PAT    = 'REEMPLAZAR_CON_TU_PAT';   // Personal Access Token con permisos repo
+var GITHUB_PAT    = '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';   // Personal Access Token con permisos repo
 var GITHUB_REPO   = 'lasnubesenchica-commits/contafacil';
 var GITHUB_BRANCH = 'main';
 
