@@ -394,7 +394,7 @@ function _handleRegistrarPlanilla(data) {
       var ids = sheetEgr.getRange(3, COL_E.ID, lastRow - 2, 1).getValues();
       for (var k = ids.length - 1; k >= 0; k--) {
         var v = String(ids[k][0] || '');
-        if (v.indexOf('EGR-RP-') === 0) {
+        if (v.indexOf('EGR-' + CONFIG.PREFIX + '-') === 0) {
           var parts = v.split('-');
           var n = parseInt(parts[parts.length - 1], 10);
           if (!isNaN(n)) { seq = n + 1; break; }
@@ -416,7 +416,7 @@ function _handleRegistrarPlanilla(data) {
       var neto       = parseFloat(ded.neto_a_pagar      || 0);
       var costoEmp   = parseFloat(ded.costo_empresa     || bruto + cssPatr);
 
-      var egresoId   = 'EGR-RP-' + year + '-' + String(seq).padStart(4, '0');
+      var egresoId   = 'EGR-' + CONFIG.PREFIX + '-' + year + '-' + String(seq).padStart(4, '0');
       seq++;
 
       // Descripción del egreso
