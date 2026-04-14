@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  ContaFacil_ServiciosTecnicos.gs
-//  Módulo: Servicios Técnicos — Ramon Pico / Círculo Financiero
+//  Módulo: Servicios Técnicos — BalanceClip.net
 //  v1.3 — Cotizaciones + Ejecución + Comparativo
 //  v1.4 — cancelar/eliminar revierten movimientos de inventario
 //  v1.3.2 — credito_fiscal añadido a ST_TIPOS_ITEM y todos los tipoMap
@@ -445,8 +445,8 @@ function _handleCrearCotizacion(data) {
     var anio     = ahora.getFullYear();
 
     var seqData    = _nextSTSeq(ss);
-    var idST       = 'ST-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
-    var numCot     = 'COT-RP-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+    var idST       = 'ST-' + CONFIG.PREFIX + '-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
+    var numCot     = 'COT-' + CONFIG.PREFIX + '-' + seqData.anio + '-' + String(seqData.seq).padStart(4, '0');
 
     var items = Array.isArray(data.items) ? data.items
           : (typeof data.items === 'string' ? JSON.parse(data.items) : []);
@@ -905,7 +905,7 @@ function _handleActualizarEgresoST(data) {
         if (!isNaN(ne)) { seqEgr = ne + 1; break; }
       }
     }
-    var egresoIdNuevo = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
+    var egresoIdNuevo = 'EGR-' + CONFIG.PREFIX + '-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
 
     var tipoMap = {
       'mano_obra':         'costo_servicio_tecnico',
