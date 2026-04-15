@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  ContaFacil_Inventario.gs  — v2
-//  Módulo: Gestión de Inventario CEYCO
+//  Módulo: Gestión de Inventario BalanceClip
 //  Archivo NUEVO — no modifica ningún archivo existente.
 //
 //  CORRECCIÓN v2: usa ContentService inline (igual que el resto
