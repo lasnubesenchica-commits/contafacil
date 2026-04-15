@@ -605,6 +605,8 @@
       <div class="oauth-scopes">
         <span class="scope-tag">sheets.spreadsheets</span>
         <span class="scope-tag">drive.file</span>
+        <span class="scope-tag">script.projects</span>
+        <span class="scope-tag">script.deployments</span>
       </div>
 
       <div style="margin-bottom:20px">
@@ -796,6 +798,7 @@ function startOAuth() {
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/script.projects',
+    'https://www.googleapis.com/auth/script.deployments',
   ].join(' ');
 
   var redirectUri = window.location.origin || 'http://localhost';
