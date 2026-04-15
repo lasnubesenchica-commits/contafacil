@@ -566,6 +566,15 @@
       </div>
     </div>
 
+    <div class="section-label" style="margin-top:24px">GitHub</div>
+    <div class="form-grid">
+      <div class="field span2">
+        <label>GitHub Personal Access Token <span class="req">*</span></label>
+        <input type="password" id="githubPat" placeholder="ghp_…" style="font-family:var(--mono);font-size:12px"/>
+        <span class="field-hint">Token con permisos <code>repo</code>. Se usa solo en este browser para crear la carpeta admin del cliente en GitHub.</span>
+      </div>
+    </div>
+
     <div class="btn-row">
       <button class="btn btn-primary" onclick="goStep2()">Continuar →</button>
     </div>
@@ -700,9 +709,12 @@
 // ═══════════════════════════════════════════════════════════
 //  ADMIN CONSTANTS
 // ═══════════════════════════════════════════════════════════
-var GITHUB_PAT    = 'REEMPLAZAR_CON_TU_PAT';   // Personal Access Token con permisos repo
 var GITHUB_REPO   = 'lasnubesenchica-commits/contafacil';
 var GITHUB_BRANCH = 'main';
+
+function getGitHubPAT() {
+  return (document.getElementById('githubPat') || {}).value || STATE.githubPat || '';
+}
 
 // ═══════════════════════════════════════════════════════════
 //  STATE
@@ -720,6 +732,7 @@ var STATE = {
   adminUrl:       null,
   // form data
   negocio: '', adminEmail: '', waNum: '', itbms: '0.07', prefix: 'RP',
+  githubPat: '',
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -751,11 +764,13 @@ function goStep2() {
     waNum:      document.getElementById('waNum').value.trim(),
     itbms:      document.getElementById('itbms').value,
     prefix:     document.getElementById('prefix').value.trim().toUpperCase(),
+    githubPat:  document.getElementById('githubPat').value.trim(),
   };
 
   if (!vals.negocio)    errors.push('Nombre del negocio es requerido');
   if (!vals.adminEmail) errors.push('Email admin es requerido');
   if (!vals.prefix)     errors.push('Prefijo de IDs es requerido');
+  if (!vals.githubPat)  errors.push('GitHub Personal Access Token es requerido');
 
   var errEl = document.getElementById('err1');
   if (errors.length) {
@@ -985,7 +1000,7 @@ async function githubGetFile(filePath) {
   var url = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + filePath + '?ref=' + GITHUB_BRANCH;
   var res = await fetch(url, {
     headers: {
-      'Authorization': 'Bearer ' + GITHUB_PAT,
+      'Authorization': 'Bearer ' + getGitHubPAT(),
       'Accept': 'application/vnd.github+json',
     },
   });
@@ -1002,7 +1017,7 @@ async function githubPutFile(filePath, content, message, sha) {
   var res = await fetch(url, {
     method: 'PUT',
     headers: {
-      'Authorization': 'Bearer ' + GITHUB_PAT,
+      'Authorization': 'Bearer ' + getGitHubPAT(),
       'Accept': 'application/vnd.github+json',
       'Content-Type': 'application/json',
     },
@@ -1317,10 +1332,10 @@ function restart() {
     step: 1, token: null, sheetId: null, folderId: null,
     sheetUrl: null, folderUrl: null,
     gasProjectId: null, gasDeploymentId: null, webAppUrl: null, adminUrl: null,
-    negocio: '', adminEmail: '', waNum: '', itbms: '0.07', prefix: 'RP',
+    negocio: '', adminEmail: '', waNum: '', itbms: '0.07', prefix: 'RP', githubPat: '',
   };
   // Reset form
-  ['negocio','adminEmail','waNum','prefix','manualToken','clientId'].forEach(function(id) {
+  ['negocio','adminEmail','waNum','prefix','manualToken','clientId','githubPat'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
