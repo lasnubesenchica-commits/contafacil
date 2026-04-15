@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  ContaFacil_Proveedores.gs
-//  Módulo: Gestión de Proveedores — Ramon Pico / Círculo Financiero
+//  Módulo: Gestión de Proveedores — BalanceClip
 //  v1.0 — Multi-proveedor: onboarding, config, detección dinámica
 //
 //  DEPENDENCIAS: debe estar en el mismo proyecto que el backend
