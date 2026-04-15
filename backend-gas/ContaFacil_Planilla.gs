@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  ContaFacil_Planilla.gs  —  v1.0
-//  Módulo de Planilla para CEYCO
+//  Módulo de Planilla para BalanceClip
 //
 //  Hojas:
 //    Empleados  — catálogo de empleados (creada automáticamente)
