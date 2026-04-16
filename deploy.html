@@ -1198,23 +1198,31 @@ async function githubPutFile(filePath, content, message, sha) {
 //  GAS API HELPERS
 // ═══════════════════════════════════════════════════════════
 async function fetchGasFiles() {
-  var dirData = await githubGetFile('backend-gas');
-  if (!Array.isArray(dirData)) throw new Error('No se pudo listar backend-gas/');
+  var GAS_FILES = [
+    { name: 'appsscript',                  file: 'appsscript.json',                 type: 'JSON'      },
+    { name: 'Code',                         file: 'Code.js',                         type: 'SERVER_JS' },
+    { name: 'ContaFacil_Operaciones',       file: 'ContaFacil_Operaciones.js',       type: 'SERVER_JS' },
+    { name: 'ContaFacil_ServiciosTecnicos', file: 'ContaFacil_ServiciosTecnicos.gs', type: 'SERVER_JS' },
+    { name: 'ContaFacil_Acreedores',        file: 'ContaFacil_Acreedores.gs',        type: 'SERVER_JS' },
+    { name: 'ContaFacil_Proveedores',       file: 'ContaFacil_Proveedores.gs',       type: 'SERVER_JS' },
+    { name: 'ContaFacil_EmailST',           file: 'ContaFacil_EmailST.gs',           type: 'SERVER_JS' },
+    { name: 'ContaFacil_ImportarHistorial', file: 'ContaFacil_ImportarHistorial.gs', type: 'SERVER_JS' },
+    { name: 'ContaFacil_Inventario',        file: 'ContaFacil_Inventario.gs',        type: 'SERVER_JS' },
+    { name: 'ContaFacil_Planilla',          file: 'ContaFacil_Planilla.gs',          type: 'SERVER_JS' },
+    { name: 'AutoSync',                     file: 'AutoSync.gs',                     type: 'SERVER_JS' },
+  ];
+
+  var pat     = getGitHubPAT();
+  var baseUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/' + GITHUB_BRANCH + '/backend-gas/';
+  var headers = pat ? { 'Authorization': 'Bearer ' + pat } : {};
 
   var files = [];
-  for (var i = 0; i < dirData.length; i++) {
-    var f = dirData[i];
-    if (f.type !== 'file') continue;
-    var ext = f.name.split('.').pop().toLowerCase();
-    var baseName = f.name.replace(/\.[^/.]+$/, '');
-    var fileData = await githubGetFile('backend-gas/' + f.name);
-    var source = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
-
-    if (f.name === 'appsscript.json') {
-      files.push({ name: 'appsscript', type: 'JSON', source: source });
-    } else if (ext === 'gs' || ext === 'js') {
-      files.push({ name: baseName, type: 'SERVER_JS', source: source });
-    }
+  for (var i = 0; i < GAS_FILES.length; i++) {
+    var f   = GAS_FILES[i];
+    var res = await fetch(baseUrl + f.file, { headers: headers });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' al descargar ' + f.file);
+    var source = await res.text();
+    files.push({ name: f.name, type: f.type, source: source });
   }
   return files;
 }
