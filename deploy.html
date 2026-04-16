@@ -1501,10 +1501,11 @@ function buildOutputs() {
       linkText: s.adminUrl ? 'Abrir admin →' : 'Abrir Web App →',
     },
     {
-      title: 'Verificar datos en Config_Operaciones',
-      desc: 'Abrir el Google Sheet → pestaña Config_Operaciones. Verificar que empresa_nombre, empresa_ruc, prefijo_id y drive_folder_id estén correctos. Si el paso 5b falló, ingresarlos manualmente desde el dashboard (Configuración → Empresa).',
+      title: 'Inicializar y verificar Config_Operaciones',
+      desc: 'Este paso falla en proyectos nuevos porque el script GAS necesita autorización previa. <strong>Flujo correcto:</strong> (1) Corré <code>inicializarSistema()</code> en el editor GAS para autorizar permisos → (2) usá el botón de abajo para poblar la config automáticamente.',
       link: s.sheetUrl,
       linkText: 'Abrir Google Sheet →',
+      hasRetryConfigBtn: true,
     },
     {
       title: 'Health check del Web App',
@@ -1526,9 +1527,28 @@ function buildOutputs() {
         (item.hasInitBtn
           ? '<button id="btnInicializarSistema" onclick="inicializarSistemaRemoto()" style="margin-top:10px;padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">⚙ Inicializar hojas y triggers →</button>'
           : '') +
+        (item.hasRetryConfigBtn
+          ? '<button id="btnRetryConfig" onclick="reintentarConfig()" style="margin-top:10px;padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">↺ Poblar Config_Operaciones →</button>'
+          : '') +
       '</div>';
     checklist.appendChild(div);
   });
+}
+
+async function reintentarConfig() {
+  if (!STATE.webAppUrl) {
+    alert('No hay Web App URL guardada. Completá el provisioning primero.');
+    return;
+  }
+  var btn = document.getElementById('btnRetryConfig');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando...'; }
+  try {
+    await guardarConfigInicial(STATE.webAppUrl);
+    if (btn) { btn.textContent = '✅ Config_Operaciones poblado'; btn.style.background = 'var(--green)'; }
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '↺ Poblar Config_Operaciones →'; }
+    alert('Error: ' + e.message + '\n\nAsegurate de haber corrido inicializarSistema() en el editor GAS antes.');
+  }
 }
 
 async function inicializarSistemaRemoto() {
