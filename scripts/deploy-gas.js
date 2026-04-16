@@ -52,6 +52,27 @@ function readGasFiles(dirPath) {
   return files;
 }
 
+async function deploymentExists(scriptApi, scriptId, deploymentId) {
+  try {
+    await scriptApi.projects.deployments.get({ scriptId, deploymentId });
+    return true;
+  } catch (err) {
+    if (err.response?.status === 404) return false;
+    throw err;
+  }
+}
+
+async function findWebAppDeploymentId(scriptApi, scriptId) {
+  const res = await scriptApi.projects.deployments.list({ scriptId });
+  const deployments = res.data.deployments || [];
+  for (const dep of deployments) {
+    for (const ep of (dep.entryPoints || [])) {
+      if (ep.entryPointType === 'WEB_APP') return dep.deploymentId;
+    }
+  }
+  return null;
+}
+
 async function deployCliente(scriptApi, cliente, repoRoot) {
   const gasDir = path.join(repoRoot, cliente.gasDir);
 
@@ -82,22 +103,30 @@ async function deployCliente(scriptApi, cliente, repoRoot) {
   const versionNumber = versionRes.data.versionNumber;
   console.log(`  ✓ Version ${versionNumber} creada`);
 
-  // 3. Actualizar deployment de produccion (si tiene deploymentId)
-  if (cliente.deploymentId) {
-    await scriptApi.projects.deployments.update({
-      scriptId:     cliente.scriptId,
-      deploymentId: cliente.deploymentId,
-      requestBody: {
-        deploymentConfig: {
-          scriptId:         cliente.scriptId,
-          versionNumber,
-          manifestFileName: 'appsscript',
-          description:      `Auto-deploy ${new Date().toISOString()}`,
-        },
-      },
-    });
-    console.log(`  ✓ Deployment actualizado a version ${versionNumber}`);
+  // 3. Actualizar deployment de produccion
+  let deploymentId = cliente.deploymentId;
+
+  // Si no tenemos deploymentId, o el guardado ya no existe, buscar el activo real
+  if (!deploymentId || !(await deploymentExists(scriptApi, cliente.scriptId, deploymentId))) {
+    console.warn(`  ⚠ deploymentId ${deploymentId || '(none)'} no válido — buscando deployment activo`);
+    deploymentId = await findWebAppDeploymentId(scriptApi, cliente.scriptId);
+    if (!deploymentId) throw new Error('No se encontró ningún web app deployment activo en el proyecto GAS');
+    console.log(`  → Deployment activo encontrado: ${deploymentId}`);
   }
+
+  await scriptApi.projects.deployments.update({
+    scriptId:     cliente.scriptId,
+    deploymentId,
+    requestBody: {
+      deploymentConfig: {
+        scriptId:         cliente.scriptId,
+        versionNumber,
+        manifestFileName: 'appsscript',
+        description:      `Auto-deploy ${new Date().toISOString()}`,
+      },
+    },
+  });
+  console.log(`  ✓ Deployment ${deploymentId} actualizado a version ${versionNumber}`);
 
   console.log(`✓ ${cliente.nombre} deployado correctamente.`);
 }
