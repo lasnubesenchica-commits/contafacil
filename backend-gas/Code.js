@@ -1088,6 +1088,8 @@ function installTrigger() {
 function inicializarSistema() {
   initSheets();
   initComprasVentasSheet();
+  initConfigSheet();
+  initProveedoresSheet();
   initSTSheets();
   initAcreedoresSheets();
   migrarEgresosDV();
