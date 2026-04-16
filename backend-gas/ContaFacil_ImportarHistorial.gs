@@ -103,7 +103,6 @@ var IH_CONFIG = {
   MESES_VALIDOS:    ['ENERO 2026', 'FEBRERO 2026', 'MARZO 2026'],
   SHEET_IMPORT_LOG: 'Import_Log',
   LOG_NCOLS:        14,   // +2 cols vs v1: tipo_venta, items_warning
-  CEYCO_RUC:        '2470636-1-814806',
   MIME_IGNORADOS:   [
     'application/vnd.ms-outlook',   // .msg
     'application/octet-stream',     // catch-all — evaluar por extensión
@@ -671,17 +670,15 @@ function _preCheckRucCeyco(blob, mime, nombre) {
   // Patrón DGI estándar en nombre de archivo: 01_01_0000000NNN_001_0000.pdf
   if (/^\d{2}_\d{2}_\d{7,}_\d{3}_\d{4}/.test(nombre)) return IH_TIPO.FACTURA_CEYCO;
 
-  // Para PDFs, intentar leer texto plano buscando el RUC de CEYCO como emisor
+  // Para PDFs, intentar leer texto plano buscando el RUC de la empresa como emisor
   if (mime === 'application/pdf') {
     try {
-      var text = blob.getDataAsString('UTF-8').substring(0, 3000);
-      // RUC de CEYCO en cualquier formato cercano a "Emisor" o al inicio del doc
-      if (text.indexOf('2470636-1-814806') !== -1 ||
-          text.indexOf('2470636') !== -1) {
-        // Verificar que no sea como receptor (algunos PDFs tienen ambos)
-        // Si aparece como primer RUC en el documento → es el emisor
-        return IH_TIPO.FACTURA_CEYCO;
-      }
+      var text    = blob.getDataAsString('UTF-8').substring(0, 3000);
+      var empRuc  = _getConfig().empresa_ruc || '';
+      var empRucN = empRuc.split('-')[0]; // parte numérica antes del primer guion
+      // El RUC aparece en la cabecera como emisor
+      if (empRuc && text.indexOf(empRuc) !== -1) return IH_TIPO.FACTURA_CEYCO;
+      if (empRucN && empRucN.length >= 5 && text.indexOf(empRucN) !== -1) return IH_TIPO.FACTURA_CEYCO;
     } catch(e) { /* PDF binario — no readable, continuar con Haiku */ }
   }
   return null;
@@ -692,26 +689,32 @@ function _clasificarArchivo(b64, mimeType, nombre, apiKey) {
     ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } }
     : { type: 'image',    source: { type: 'base64', media_type: mimeType,           data: b64 } };
 
+  var _cfg      = _getConfig();
+  var _empNombre = _cfg.empresa_nombre    || 'la empresa';
+  var _empComercial = _cfg.empresa_comercial || _empNombre;
+  var _empRuc   = _cfg.empresa_ruc        || '';
+  var _empRucLabel = _empRuc ? ' (RUC ' + _empRuc + ')' : '';
+
   var prompt =
-    'CEYCO tiene RUC 2470636-1-814806 (Consultores Electrotecnicos y Contratistas).\n\n' +
+    _empComercial + ' tiene RUC ' + _empRuc + ' (' + _empNombre + ').\n\n' +
     'Clasifica este documento. Responde SOLO con una de estas palabras:\n' +
-    '  factura_ceyco   — factura fiscal DGI donde CEYCO (RUC 2470636-1-814806) es el EMISOR.\n' +
-    '                    El RUC aparece en la cabecera del documento junto al nombre CEYCO\n' +
+    '  factura_ceyco   — factura fiscal DGI donde ' + _empComercial + _empRucLabel + ' es el EMISOR.\n' +
+    '                    El RUC aparece en la cabecera del documento junto al nombre de la empresa\n' +
     '                    como el que EMITE/VENDE. El receptor es el cliente.\n' +
     '                    El nombre del archivo puede ser cualquiera (no solo patrón DGI).\n' +
-    '  nota_credito    — nota de crédito DGI emitida por CEYCO (RUC 2470636-1-814806).\n' +
+    '  nota_credito    — nota de crédito DGI emitida por ' + _empComercial + _empRucLabel + '.\n' +
     '                    El documento dice "Nota de crédito" o "Nota de crédito referenciada"\n' +
-    '                    en el encabezado. CEYCO es el EMISOR. Anula o revierte una factura.\n' +
-    '  factura_costo   — factura de proveedor o courier cobrada A CEYCO:\n' +
+    '                    en el encabezado. La empresa es el EMISOR. Anula o revierte una factura.\n' +
+    '  factura_costo   — factura de proveedor o courier cobrada A ' + _empComercial + ':\n' +
     '                    facturas de proveedor local o extranjero (TME, Mouser, Dimyeen, etc.),\n' +
     '                    factura DHL/FedEx con cobro de flete + impuestos de importación.\n' +
     '  voucher         — comprobante bancario, Yappy, ACH, transferencia, depósito.\n' +
     '  desconocido     — cualquier otra cosa que NO sea factura ni voucher.\n\n' +
     'REGLAS — siempre son "desconocido":\n' +
-    '  1. ORDEN DE COMPRA emitida por un cliente A CEYCO (CEYCO aparece como vendedor/proveedor).\n' +
+    '  1. ORDEN DE COMPRA emitida por un cliente A ' + _empComercial + ' (aparece como vendedor/proveedor).\n' +
     '  2. DECLARACIÓN DE ADUANA / FORMULARIO ADUANERO de la Autoridad Nacional de Aduanas\n' +
     '     de Panamá (sello GEA, formulario rosado). El costo ya está en la factura DHL.\n' +
-    '  3. COTIZACIÓN o PROFORMA donde CEYCO es el vendedor.\n\n' +
+    '  3. COTIZACIÓN o PROFORMA donde la empresa es el vendedor.\n\n' +
     'Una sola palabra, sin puntuación.';
 
   var payload = {
@@ -885,14 +888,20 @@ function _parsearFacturaCosto(archivo) {
   var mime   = blob.getContentType() || 'application/pdf';
   var b64    = Utilities.base64Encode(blob.getBytes());
 
-  // GUARD: si el documento tiene el RUC de CEYCO como emisor, no es una factura de costo.
-  // Es una cotización o documento interno de CEYCO que llegó a esta carpeta por error.
+  // GUARD: si el documento tiene el RUC de la empresa como emisor, no es una factura de costo.
+  // Es una cotización o documento interno que llegó a esta carpeta por error.
   // En este caso retornar null para que _matchearItems lo ignore.
   if (mime === 'application/pdf') {
     try {
-      var rawText = blob.getDataAsString('UTF-8').substring(0, 2000);
-      if (rawText.indexOf('2470636-1-814806') !== -1 || rawText.indexOf('2470636') !== -1) {
-        Logger.log('    ⚠️  Descartando documento con RUC de CEYCO como emisor: ' + archivo.getName());
+      var rawText  = blob.getDataAsString('UTF-8').substring(0, 2000);
+      var _gr      = _getConfig().empresa_ruc || '';
+      var _grN     = _gr.split('-')[0];
+      if (_gr && rawText.indexOf(_gr) !== -1) {
+        Logger.log('    ⚠️  Descartando documento con RUC de la empresa como emisor: ' + archivo.getName());
+        return null;
+      }
+      if (_grN && _grN.length >= 5 && rawText.indexOf(_grN) !== -1) {
+        Logger.log('    ⚠️  Descartando documento con RUC de la empresa como emisor: ' + archivo.getName());
         return null;
       }
     } catch(e) { /* PDF binario — continuar con Sonnet */ }
@@ -903,7 +912,7 @@ function _parsearFacturaCosto(archivo) {
     : { type: 'image',    source: { type: 'base64', media_type: mime, data: b64 } };
 
   var prompt =
-    'Extrae datos del EMISOR y los ítems de esta factura de costo para CEYCO.\n\n' +
+    'Extrae datos del EMISOR y los ítems de esta factura de costo para ' + (_getConfig().empresa_comercial || _getConfig().empresa_nombre || 'la empresa') + '.\n\n' +
     'Responde SOLO con JSON válido, sin markdown:\n' +
     '{\n' +
     '  "num_factura": "referencia o número",\n' +

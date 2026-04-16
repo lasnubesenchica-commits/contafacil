@@ -539,8 +539,13 @@
     <div class="section-label">Identidad del negocio</div>
     <div class="form-grid">
       <div class="field span2">
-        <label>Nombre del negocio <span class="req">*</span></label>
+        <label>Nombre legal / razón social <span class="req">*</span></label>
         <input type="text" id="negocio" placeholder="Ej: Distribuidora Perez S.A." />
+      </div>
+      <div class="field">
+        <label>Nombre comercial / abreviado</label>
+        <input type="text" id="empresa_comercial" placeholder="Ej: Distrib. Perez" maxlength="40"/>
+        <span class="field-hint">Nombre corto usado en el sistema. Si se deja vacío, se usa la razón social.</span>
       </div>
       <div class="field">
         <label>Email admin <span class="req">*</span></label>
@@ -550,6 +555,19 @@
       <div class="field">
         <label>WhatsApp (con código de país)</label>
         <input type="text" id="waNum" placeholder="50766724615" />
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:24px">Datos fiscales</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>RUC <span class="req">*</span></label>
+        <input type="text" id="empresa_ruc" placeholder="2470636-1-814806" />
+        <span class="field-hint">Número de RUC tal como aparece en documentos DGI</span>
+      </div>
+      <div class="field">
+        <label>DV</label>
+        <input type="text" id="empresa_dv" placeholder="06" maxlength="4" style="max-width:120px"/>
       </div>
       <div class="field">
         <label>ITBMS</label>
@@ -733,7 +751,8 @@ var STATE = {
   webAppUrl:      null,
   adminUrl:       null,
   // form data
-  negocio: '', adminEmail: '', waNum: '', itbms: '0.07', prefix: 'RP',
+  negocio: '', empresa_comercial: '', adminEmail: '', waNum: '',
+  empresa_ruc: '', empresa_dv: '', itbms: '0.07', prefix: 'RP',
   githubPat: '',
 };
 
@@ -761,18 +780,22 @@ function updateProgress() {
 function goStep2() {
   var errors = [];
   var vals = {
-    negocio:    document.getElementById('negocio').value.trim(),
-    adminEmail: document.getElementById('adminEmail').value.trim(),
-    waNum:      document.getElementById('waNum').value.trim(),
-    itbms:      document.getElementById('itbms').value,
-    prefix:     document.getElementById('prefix').value.trim().toUpperCase(),
-    githubPat:  document.getElementById('githubPat').value.trim(),
+    negocio:           document.getElementById('negocio').value.trim(),
+    empresa_comercial: document.getElementById('empresa_comercial').value.trim(),
+    adminEmail:        document.getElementById('adminEmail').value.trim(),
+    waNum:             document.getElementById('waNum').value.trim(),
+    empresa_ruc:       document.getElementById('empresa_ruc').value.trim(),
+    empresa_dv:        document.getElementById('empresa_dv').value.trim(),
+    itbms:             document.getElementById('itbms').value,
+    prefix:            document.getElementById('prefix').value.trim().toUpperCase(),
+    githubPat:         document.getElementById('githubPat').value.trim(),
   };
 
-  if (!vals.negocio)    errors.push('Nombre del negocio es requerido');
-  if (!vals.adminEmail) errors.push('Email admin es requerido');
-  if (!vals.prefix)     errors.push('Prefijo de IDs es requerido');
-  if (!vals.githubPat)  errors.push('GitHub Personal Access Token es requerido');
+  if (!vals.negocio)      errors.push('Nombre del negocio es requerido');
+  if (!vals.adminEmail)   errors.push('Email admin es requerido');
+  if (!vals.empresa_ruc)  errors.push('RUC es requerido');
+  if (!vals.prefix)       errors.push('Prefijo de IDs es requerido');
+  if (!vals.githubPat)    errors.push('GitHub Personal Access Token es requerido');
 
   var errEl = document.getElementById('err1');
   if (errors.length) {
@@ -958,6 +981,18 @@ async function goStep3() {
     return;
   }
 
+  // 5b. Pre-poblar Config_Operaciones con datos del cliente
+  if (STATE.webAppUrl) {
+    var l5b = addLog('', 'Pre-poblando Config_Operaciones...', '', true);
+    await sleep(800); // dar tiempo al deployment para estar activo
+    try {
+      await guardarConfigInicial(STATE.webAppUrl);
+      updateLog(l5b, '✅', 'Config_Operaciones pre-poblado con datos del cliente');
+    } catch(e) {
+      updateLog(l5b, '⚠️', 'No se pudo pre-poblar Config: ' + e.message + ' — configurar manual en el dashboard');
+    }
+  }
+
   // 6. Registrar cliente en clients.json (GitHub)
   var l6 = addLog('', 'Registrando cliente en GitHub (clients.json)...', '', true);
   await sleep(300);
@@ -1068,7 +1103,7 @@ function injectConfig(files) {
       source = source.replace(/WA_NUM:\s*'[^']*'/, "WA_NUM:            '" + s.waNum + "'");
       source = source.replace(/VOUCHER_FOLDER_ID:\s*'[^']*'/, "VOUCHER_FOLDER_ID: '" + s.folderId + "'");
       source = source.replace(/ITBMS_RATE:\s*[\d.]+/, "ITBMS_RATE:        " + s.itbms);
-      source = source.replace(/PREFIX:\s*'[^']*'/, "PREFIX:            '" + s.prefix + "'");
+      // Nota: PREFIX/prefijo_id se configura vía guardarConfigInicial() → Config_Operaciones
     }
 
     if (f.name === 'ContaFacil_Operaciones') {
@@ -1181,6 +1216,12 @@ async function createAdminFolder(clientId, webAppUrl) {
       content = content.replace(/>CEYCO</g, '>' + STATE.negocio + '<');
       content = content.replace(/placeholder="CEYCO"/g, 'placeholder="' + STATE.prefix + '"');
 
+      // Reemplazar mobile redirect hardcodeado (meta http-equiv refresh)
+      content = content.replace(
+        /<meta http-equiv="refresh" content="0;url=https:\/\/balanceclip\.net\/[^"]*">/g,
+        '<meta http-equiv="refresh" content="0;url=https://balanceclip.net/' + clientId + '/app">'
+      );
+
       var newPath = item.path.replace(/^ceyco\//, clientId + '/');
       await githubPutFile(newPath, content, 'provisioner: admin ' + clientId, null);
     }
@@ -1194,16 +1235,48 @@ async function registerInGitHub(scriptId, deploymentId) {
 
   var clientId = STATE.negocio.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-  parsed.clientes.push({
+  // Idempotencia: si ya existe un cliente con este id, actualizar en lugar de duplicar
+  var existingIdx = parsed.clientes.findIndex(function(c) { return c.id === clientId; });
+  var entry = {
     id:           clientId,
     nombre:       STATE.negocio,
     scriptId:     scriptId,
     gasDir:       'backend-gas',
     deploymentId: deploymentId || '',
-  });
+  };
+  if (existingIdx >= 0) {
+    parsed.clientes[existingIdx] = entry;
+  } else {
+    parsed.clientes.push(entry);
+  }
 
   var newContent = JSON.stringify(parsed, null, 2) + '\n';
   await githubPutFile('clients.json', newContent, 'provisioner: agregar cliente ' + clientId, fileData.sha);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  guardarConfigInicial — pre-poblar Config_Operaciones en GAS
+// ═══════════════════════════════════════════════════════════
+async function guardarConfigInicial(webAppUrl) {
+  var payload = {
+    action:            'guardarConfig',
+    empresa_nombre:    STATE.negocio,
+    empresa_comercial: STATE.empresa_comercial,
+    empresa_ruc:       STATE.empresa_ruc,
+    empresa_dv:        STATE.empresa_dv,
+    email_comprobantes: STATE.adminEmail,
+    drive_folder_id:   STATE.folderId,
+    itbms_rate:        STATE.itbms,
+    prefijo_id:        STATE.prefix,
+  };
+  var res = await fetch(webAppUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  var data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Error desconocido');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1287,16 +1360,26 @@ function buildOutputs() {
   var checklist = document.getElementById('checklist');
   checklist.innerHTML = '';
 
+  var scriptPropsUrl = s.gasProjectId
+    ? 'https://script.google.com/home/projects/' + s.gasProjectId + '/settings'
+    : null;
+  var healthCheckUrl = s.webAppUrl
+    ? s.webAppUrl + '?action=getConfig'
+    : null;
+  var sheetConfigUrl = s.sheetUrl
+    ? s.sheetUrl.replace('/edit', '') + '/edit#gid=0'
+    : null;
+
   var checkItems = [
     {
       title: 'Configurar CLAUDE_API_KEY en Script Properties',
-      desc: 'En el editor GAS: ícono de engranaje → Script Properties → Agregar CLAUDE_API_KEY con tu key de Anthropic.',
-      link: gasEditorUrl,
-      linkText: 'Abrir editor GAS →',
+      desc: 'En el editor GAS: ícono de engranaje → Script Properties → Agregar propiedad CLAUDE_API_KEY con tu API key de Anthropic.',
+      link: scriptPropsUrl || gasEditorUrl,
+      linkText: 'Abrir Script Properties →',
     },
     {
       title: 'Autorizar y ejecutar funciones de inicialización',
-      desc: 'Ejecutar en orden: initSheets() → initComprasVentasSheet() → initSTSheets() → migrarEgresosDV() → migrarEgresosST() → installTrigger(). Autorizar permisos cuando el browser lo pida.',
+      desc: 'Ejecutar en orden en el editor GAS: initSheets() → initComprasVentasSheet() → initSTSheets() → initAcreedoresSheets() → migrarEgresosDV() → migrarEgresosST() → installTrigger(). Autorizar permisos cuando el browser lo pida.',
       link: gasEditorUrl,
       linkText: 'Abrir editor GAS →',
     },
@@ -1311,8 +1394,16 @@ function buildOutputs() {
       linkText: s.adminUrl ? 'Abrir admin →' : 'Abrir Web App →',
     },
     {
-      title: 'Verificar health check',
-      desc: 'Abrir en el browser: [URL_WEB_APP]?action=getIngresos → debe responder { "success": true, "items": [] }',
+      title: 'Verificar datos en Config_Operaciones',
+      desc: 'Abrir el Google Sheet → pestaña Config_Operaciones. Verificar que empresa_nombre, empresa_ruc, prefijo_id y drive_folder_id estén correctos. Si el paso 5b falló, ingresarlos manualmente desde el dashboard (Configuración → Empresa).',
+      link: s.sheetUrl,
+      linkText: 'Abrir Google Sheet →',
+    },
+    {
+      title: 'Health check del Web App',
+      desc: 'Abrir la URL en el browser — debe responder JSON con success:true y los datos de la empresa.',
+      link: healthCheckUrl,
+      linkText: 'Abrir health check →',
     },
   ];
 
@@ -1335,10 +1426,11 @@ function restart() {
     step: 1, token: null, sheetId: null, folderId: null,
     sheetUrl: null, folderUrl: null,
     gasProjectId: null, gasDeploymentId: null, webAppUrl: null, adminUrl: null,
-    negocio: '', adminEmail: '', waNum: '', itbms: '0.07', prefix: 'RP', githubPat: '',
+    negocio: '', empresa_comercial: '', adminEmail: '', waNum: '',
+    empresa_ruc: '', empresa_dv: '', itbms: '0.07', prefix: 'RP', githubPat: '',
   };
   // Reset form
-  ['negocio','adminEmail','waNum','prefix','manualToken','clientId','githubPat'].forEach(function(id) {
+  ['negocio','empresa_comercial','adminEmail','waNum','empresa_ruc','empresa_dv','prefix','manualToken','clientId','githubPat'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });

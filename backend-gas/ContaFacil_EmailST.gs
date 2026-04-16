@@ -42,11 +42,10 @@ var CONFIG_ST_EMAIL = {
   // usando _getEmailSTQuery() — no hardcodeado aquí
   GMAIL_LABEL_PROCESADO: 'st-procesado',
   GMAIL_LABEL_ERROR:     'st-error',
-  CEYCO_RUC:             '2470636-1-814806',
   DRIVE_SUBFOLDER_ST:    'ST_Emails',
   SHEET_EMAIL_LOG:       'Email_ST_Log',
   EMAIL_LOG_NCOLS:       10,
-  EMAIL_ST_DEFAULT:      'lasnubesenchica+ceyco@gmail.com',  // fallback si no hay config
+  EMAIL_ST_DEFAULT:      '',  // fallback vacío — configurar email_st_entrante en Config_Operaciones
 };
 
 // ── Obtener query Gmail para STs — v2.1 ───────────────────────
