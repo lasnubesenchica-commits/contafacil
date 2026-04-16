@@ -6,20 +6,6 @@
       "scriptId": "1H_dz10V_HT6HVSszSCPLCcpvRHZgwkqsd4jaqdS6yxK4vBNkGYB0GXSq",
       "gasDir": "backend-gas",
       "deploymentId": "AKfycbwLGTYAbIhEdbMIbKLZekngmMI62bGG9KprhtO-opQ2DoF8H5UOTCz6R2qBllf2FVBtOw"
-    },
-    {
-      "id": "iris-albelo-ho",
-      "nombre": "Iris Albelo Ho",
-      "scriptId": "1z2UBAOvRfJHu2xK7IjZLnH5zvv_Z88-viWXNrtnu4mdWDhs0hBvfkBuZ",
-      "gasDir": "backend-gas",
-      "deploymentId": "AKfycbx9-YQwpNq_rfjB6X8HMbsKbgYRrfzM72S67ebyY7gT3SzS8AZ_ZIWItkk9IEQ5ZRGr"
-    },
-    {
-      "id": "joslyn-alonso-lopez",
-      "nombre": "Joslyn Alonso Lopez",
-      "scriptId": "1Ih9X6KDxQ6EtFkAZna2Jy3Bw48lPWjr-cXRTU_alo6C80KRY3edRpCXZ",
-      "gasDir": "backend-gas",
-      "deploymentId": "AKfycbykWs7zrr8NDaML-iGSH1qbFcoEljoMlM91kclONW7d9Hr_7md0oJd8DX1NSXpgD8TA2Q"
     }
   ]
 }
