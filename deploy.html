@@ -854,6 +854,7 @@ var STATE = {
   gasDeploymentId: null,
   webAppUrl:      null,
   adminUrl:       null,
+  bcFolderId:     null,
   // form data
   negocio: '', empresa_comercial: '', adminEmail: '', waNum: '',
   empresa_ruc: '', empresa_dv: '', itbms: '0.07', prefix: 'RP',
@@ -993,6 +994,17 @@ async function goStep3() {
       '<div class="log-text"><div>' + text + '</div>' + (sub ? '<div class="log-sub">' + sub + '</div>' : '') + '</div>';
   }
 
+  // 0. Obtener o crear carpeta BalanceClip
+  var l0 = addLog('', 'Localizando carpeta BalanceClip en Drive...', '', true);
+  await sleep(300);
+  try {
+    STATE.bcFolderId = await getOrCreateBalanceClipFolder();
+    updateLog(l0, '✅', 'Carpeta BalanceClip lista', STATE.bcFolderId);
+  } catch(e) {
+    updateLog(l0, '⚠️', 'No se pudo localizar BalanceClip: ' + e.message + ' — se creará en My Drive raíz');
+    STATE.bcFolderId = null;
+  }
+
   // 1. Crear Google Sheet
   var l1 = addLog('', 'Creando Google Sheet...', '', true);
   await sleep(400);
@@ -1011,6 +1023,14 @@ async function goStep3() {
     if (!sheetData.spreadsheetId) throw new Error(sheetData.error ? sheetData.error.message : 'Error desconocido');
     STATE.sheetId  = sheetData.spreadsheetId;
     STATE.sheetUrl = 'https://docs.google.com/spreadsheets/d/' + STATE.sheetId + '/edit';
+    // Mover el Sheet dentro de BalanceClip
+    if (STATE.bcFolderId) {
+      await fetch('https://www.googleapis.com/drive/v3/files/' + STATE.sheetId +
+        '?addParents=' + STATE.bcFolderId + '&removeParents=root&fields=id', {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + STATE.token },
+      });
+    }
     updateLog(l1, '✅', 'Google Sheet creado', STATE.sheetId);
   } catch(e) {
     updateLog(l1, '❌', 'Error creando Sheet: ' + e.message);
@@ -1021,16 +1041,18 @@ async function goStep3() {
   var l2 = addLog('', 'Creando carpeta en Drive...', '', true);
   await sleep(300);
   try {
+    var folderBody = {
+      name: 'Vouchers — ' + STATE.negocio,
+      mimeType: 'application/vnd.google-apps.folder',
+    };
+    if (STATE.bcFolderId) folderBody.parents = [STATE.bcFolderId];
     var folderRes = await fetch('https://www.googleapis.com/drive/v3/files', {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer ' + STATE.token,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: 'Vouchers — ' + STATE.negocio,
-        mimeType: 'application/vnd.google-apps.folder',
-      }),
+      body: JSON.stringify(folderBody),
     });
     var folderData = await folderRes.json();
     if (!folderData.id) throw new Error(folderData.error ? folderData.error.message : 'Error desconocido');
@@ -1220,6 +1242,26 @@ function injectConfig(files) {
   });
 }
 
+async function getOrCreateBalanceClipFolder() {
+  var searchRes = await fetch(
+    'https://www.googleapis.com/drive/v3/files' +
+    '?q=' + encodeURIComponent("name='BalanceClip' and mimeType='application/vnd.google-apps.folder' and trashed=false") +
+    '&fields=files(id)&pageSize=1',
+    { headers: { 'Authorization': 'Bearer ' + STATE.token } }
+  );
+  var searchData = await searchRes.json();
+  if (searchData.files && searchData.files.length > 0) return searchData.files[0].id;
+
+  var createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + STATE.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'BalanceClip', mimeType: 'application/vnd.google-apps.folder' }),
+  });
+  var data = await createRes.json();
+  if (!data.id) throw new Error(data.error ? data.error.message : 'Error creando carpeta BalanceClip');
+  return data.id;
+}
+
 async function createGasProject(files) {
   var projectName = STATE.negocio + ' — ContaFacil';
 
@@ -1230,7 +1272,10 @@ async function createGasProject(files) {
       'Authorization': 'Bearer ' + STATE.token,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ title: projectName }),
+    body: JSON.stringify({
+      title: projectName,
+      parentId: STATE.bcFolderId || undefined,
+    }),
   });
   var project = await createRes.json();
   if (!project.scriptId) throw new Error(project.error ? project.error.message : 'No se obtuvo scriptId');
@@ -1578,6 +1623,7 @@ function restart() {
     step: 1, token: null, sheetId: null, folderId: null,
     sheetUrl: null, folderUrl: null,
     gasProjectId: null, gasDeploymentId: null, webAppUrl: null, adminUrl: null,
+    bcFolderId: null,
     negocio: '', empresa_comercial: '', adminEmail: '', waNum: '',
     empresa_ruc: '', empresa_dv: '', itbms: '0.07', prefix: 'RP', githubPat: '',
   };
