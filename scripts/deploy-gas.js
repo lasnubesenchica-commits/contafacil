@@ -66,6 +66,8 @@ async function findWebAppDeploymentId(scriptApi, scriptId) {
   const res = await scriptApi.projects.deployments.list({ scriptId });
   const deployments = res.data.deployments || [];
   for (const dep of deployments) {
+    // Ignorar HEAD deployment (read-only, sin versionNumber)
+    if (!dep.deploymentConfig?.versionNumber) continue;
     for (const ep of (dep.entryPoints || [])) {
       if (ep.entryPointType === 'WEB_APP') return dep.deploymentId;
     }
