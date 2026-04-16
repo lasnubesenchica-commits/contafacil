@@ -525,6 +525,9 @@ function doGet(e) {
     if (action === 'sincronizarAcreedores') return _handleSincronizarAcreedores(params, callback);
     if (action === 'getCategorias')         return _handleGetCategorias(params, callback);
 
+    // ── INICIALIZACIÓN ──────────────────────────────────────────
+    if (action === 'inicializarSistema') return _handleInicializarSistema(params, callback);
+
     // ── Default: health check ───────────────────────────────────
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'OK', ts: new Date().toISOString() }))
@@ -1078,6 +1081,34 @@ function installTrigger() {
     .onEdit()
     .create();
   Logger.log('✅ Trigger onEdit instalado.');
+}
+
+// Ejecutar una sola vez en el editor GAS para autorizar permisos,
+// después el provisioner puede llamarlo vía ?action=inicializarSistema.
+function inicializarSistema() {
+  initSheets();
+  initComprasVentasSheet();
+  initSTSheets();
+  initAcreedoresSheets();
+  migrarEgresosDV();
+  migrarEgresosST();
+  installTrigger();
+  Logger.log('✅ Sistema inicializado completamente.');
+}
+
+function _handleInicializarSistema(params, callback) {
+  var result = { success: false, message: '' };
+  try {
+    inicializarSistema();
+    result.success = true;
+    result.message = 'Sistema inicializado correctamente.';
+  } catch (e) {
+    result.message = 'Error: ' + e.message;
+    Logger.log('Error inicializarSistema: ' + e.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
 function migrarEgresosDV() {
