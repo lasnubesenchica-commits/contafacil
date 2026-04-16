@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  ContaFacil_Acreedores.gs  - v2.0
+//  ContaFacil_Acreedores.gs  - v2.0 BalanceClip
 //  Módulo: Acreedores y egresos generales automáticos
 //
 //  v2.0 — FIX: routing de emails corregido
