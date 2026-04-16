@@ -512,6 +512,7 @@
   <span class="header-sep">·</span>
   <span class="header-title">PROVISIONER</span>
   <span class="header-badge">v1.0 · developer</span>
+  <button onclick="olvidarCredenciales()" style="margin-left:12px;background:transparent;border:1px solid var(--border2);border-radius:4px;padding:4px 10px;font-family:var(--mono);font-size:11px;color:var(--muted);cursor:pointer;" title="Elimina GitHub PAT y Client ID del browser">🗑 Olvidar credenciales</button>
 </div>
 
 <div class="container">
@@ -732,6 +733,39 @@
 var GITHUB_REPO   = 'lasnubesenchica-commits/contafacil';
 var GITHUB_BRANCH = 'main';
 
+// ═══════════════════════════════════════════════════════════
+//  PERSISTENCIA LOCAL — localStorage
+// ═══════════════════════════════════════════════════════════
+var LS_PAT = 'cf_github_pat';
+var LS_CID = 'cf_oauth_client_id';
+
+function initFromLocalStorage() {
+  var pat = localStorage.getItem(LS_PAT);
+  var cid = localStorage.getItem(LS_CID);
+  if (pat) {
+    var elPat = document.getElementById('githubPat');
+    if (elPat) elPat.value = pat;
+    STATE.githubPat = pat;
+  }
+  if (cid) {
+    var elCid = document.getElementById('clientId');
+    if (elCid) elCid.value = cid;
+  }
+}
+
+function olvidarCredenciales() {
+  localStorage.removeItem(LS_PAT);
+  localStorage.removeItem(LS_CID);
+  var elPat = document.getElementById('githubPat');
+  var elCid = document.getElementById('clientId');
+  if (elPat) elPat.value = '';
+  if (elCid) elCid.value = '';
+  STATE.githubPat = '';
+  alert('Credenciales eliminadas del browser.');
+}
+
+document.addEventListener('DOMContentLoaded', initFromLocalStorage);
+
 function getGitHubPAT() {
   return (document.getElementById('githubPat') || {}).value || STATE.githubPat || '';
 }
@@ -805,6 +839,7 @@ function goStep2() {
   }
   errEl.style.display = 'none';
   Object.assign(STATE, vals);
+  localStorage.setItem(LS_PAT, vals.githubPat);
   goStep(2);
 }
 
@@ -817,6 +852,7 @@ function startOAuth() {
     alert('Ingresá el Client ID de Google Cloud Console primero, o usá el token manual.');
     return;
   }
+  localStorage.setItem(LS_CID, clientId);
   var scopes = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.file',
