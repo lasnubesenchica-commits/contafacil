@@ -84,19 +84,47 @@ async function deployCliente(scriptApi, cliente, repoRoot) {
 
   // 3. Actualizar deployment de produccion (si tiene deploymentId)
   if (cliente.deploymentId) {
-    await scriptApi.projects.deployments.update({
-      scriptId:     cliente.scriptId,
-      deploymentId: cliente.deploymentId,
-      requestBody: {
-        deploymentConfig: {
-          scriptId:         cliente.scriptId,
-          versionNumber,
-          manifestFileName: 'appsscript',
-          description:      `Auto-deploy ${new Date().toISOString()}`,
+    try {
+      await scriptApi.projects.deployments.update({
+        scriptId:     cliente.scriptId,
+        deploymentId: cliente.deploymentId,
+        requestBody: {
+          deploymentConfig: {
+            scriptId:         cliente.scriptId,
+            versionNumber,
+            manifestFileName: 'appsscript',
+            description:      `Auto-deploy ${new Date().toISOString()}`,
+          },
         },
+      });
+      console.log(`  ✓ Deployment actualizado a version ${versionNumber}`);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        console.warn(`  ⚠ Deployment ${cliente.deploymentId} no encontrado — creando nuevo deployment`);
+        await scriptApi.projects.deployments.create({
+          scriptId: cliente.scriptId,
+          requestBody: {
+            versionNumber,
+            manifestFileName: 'appsscript',
+            description: `Auto-deploy ${new Date().toISOString()}`,
+          },
+        });
+        console.log(`  ✓ Nuevo deployment creado en version ${versionNumber}`);
+      } else {
+        throw err;
+      }
+    }
+  } else {
+    // Sin deploymentId previo: crear deployment nuevo
+    await scriptApi.projects.deployments.create({
+      scriptId: cliente.scriptId,
+      requestBody: {
+        versionNumber,
+        manifestFileName: 'appsscript',
+        description: `Auto-deploy ${new Date().toISOString()}`,
       },
     });
-    console.log(`  ✓ Deployment actualizado a version ${versionNumber}`);
+    console.log(`  ✓ Deployment creado en version ${versionNumber}`);
   }
 
   console.log(`✓ ${cliente.nombre} deployado correctamente.`);
