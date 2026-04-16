@@ -628,19 +628,39 @@
         <span class="scope-tag">script.deployments</span>
       </div>
 
-      <div style="margin-bottom:20px">
-        <label style="display:block;margin-bottom:8px;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">OAuth Client ID (o dejá vacío para token manual)</label>
-        <input type="text" id="clientId" placeholder="xxxx.apps.googleusercontent.com" style="margin-bottom:12px"/>
-        <button class="btn btn-primary" id="btnOauth" onclick="startOAuth()" style="width:100%">Conectar con Google →</button>
+      <div style="margin-bottom:16px">
+        <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">OAuth Client ID</label>
+        <input type="text" id="clientId" placeholder="xxxx.apps.googleusercontent.com"/>
       </div>
 
-      <div style="color:var(--muted);font-size:12px;margin:12px 0">— o —</div>
+      <!-- ── OPCIÓN B: Auto-refresh (recomendado) ── -->
+      <details id="detailsAutoRefresh" style="margin-bottom:16px;border:1px solid var(--border);border-radius:8px;padding:14px">
+        <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--orange);user-select:none">
+          ⚡ Auto-renovación de token (configuración una sola vez)
+        </summary>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.6;background:var(--surface2);border-radius:6px;padding:10px;margin-bottom:12px">
+          <strong>Cómo obtener el Refresh Token:</strong><br>
+          1. Abrí <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--orange2)">OAuth 2.0 Playground</a><br>
+          2. Ícono de engranaje → "Use your own OAuth credentials" → ingresá Client ID y Client Secret<br>
+          3. Seleccioná los scopes: <code style="font-size:11px">spreadsheets</code> · <code style="font-size:11px">drive.file</code> · <code style="font-size:11px">script.projects</code> · <code style="font-size:11px">script.deployments</code><br>
+          4. "Authorize APIs" → "Exchange authorization code for tokens" → copiá el <code style="font-size:11px">refresh_token</code>
+        </div>
+        <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Client Secret</label>
+        <input type="text" id="clientSecret" placeholder="GOCSPX-..." style="margin-bottom:12px;font-family:var(--mono);font-size:12px"/>
+        <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Refresh Token</label>
+        <input type="text" id="refreshToken" placeholder="1//0g..." style="margin-bottom:12px;font-family:var(--mono);font-size:12px"/>
+        <button class="btn btn-primary" onclick="autoRefreshToken(false)" style="width:100%">⚡ Guardar y renovar token →</button>
+      </details>
+
+      <!-- ── OPCIÓN A: Popup OAuth ── -->
+      <button class="btn btn-secondary" id="btnOauth" onclick="startOAuth()" style="width:100%;margin-bottom:12px">Conectar con Google (popup) →</button>
+
+      <div style="color:var(--muted);font-size:12px;margin:12px 0;text-align:center">— o —</div>
 
       <div>
         <label style="display:block;margin-bottom:8px;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Pegar Access Token directamente</label>
         <input type="text" id="manualToken" placeholder="ya29.a0AfH6SM..." style="font-family:var(--mono);font-size:12px"/>
         <button class="btn btn-secondary" onclick="useManualToken()" style="width:100%;margin-top:10px">Usar este token</button>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">Obtenelo en <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--orange2)">OAuth 2.0 Playground</a> con scopes: drive.file y spreadsheets</div>
       </div>
 
       <div class="auth-status" id="authStatus">
@@ -736,12 +756,16 @@ var GITHUB_BRANCH = 'main';
 // ═══════════════════════════════════════════════════════════
 //  PERSISTENCIA LOCAL — localStorage
 // ═══════════════════════════════════════════════════════════
-var LS_PAT = 'cf_github_pat';
-var LS_CID = 'cf_oauth_client_id';
+var LS_PAT            = 'cf_github_pat';
+var LS_CID            = 'cf_oauth_client_id';
+var LS_CLIENT_SECRET  = 'cf_oauth_client_secret';
+var LS_REFRESH_TOKEN  = 'cf_oauth_refresh_token';
 
-function initFromLocalStorage() {
-  var pat = localStorage.getItem(LS_PAT);
-  var cid = localStorage.getItem(LS_CID);
+async function initFromLocalStorage() {
+  var pat     = localStorage.getItem(LS_PAT);
+  var cid     = localStorage.getItem(LS_CID);
+  var secret  = localStorage.getItem(LS_CLIENT_SECRET);
+  var refresh = localStorage.getItem(LS_REFRESH_TOKEN);
   if (pat) {
     var elPat = document.getElementById('githubPat');
     if (elPat) elPat.value = pat;
@@ -751,15 +775,61 @@ function initFromLocalStorage() {
     var elCid = document.getElementById('clientId');
     if (elCid) elCid.value = cid;
   }
+  if (secret) {
+    var elSec = document.getElementById('clientSecret');
+    if (elSec) elSec.value = secret;
+  }
+  if (refresh) {
+    var elRef = document.getElementById('refreshToken');
+    if (elRef) elRef.value = refresh;
+    // Abrir sección de auto-refresh si hay datos guardados
+    var det = document.getElementById('detailsAutoRefresh');
+    if (det) det.open = true;
+  }
+  if (cid && secret && refresh) {
+    await autoRefreshToken(true);
+  }
+}
+
+async function autoRefreshToken(silent) {
+  var cid     = (document.getElementById('clientId')     || {}).value || localStorage.getItem(LS_CID)           || '';
+  var secret  = (document.getElementById('clientSecret') || {}).value || localStorage.getItem(LS_CLIENT_SECRET) || '';
+  var refresh = (document.getElementById('refreshToken') || {}).value || localStorage.getItem(LS_REFRESH_TOKEN) || '';
+  if (!cid || !secret || !refresh) {
+    if (!silent) alert('Completá Client ID, Client Secret y Refresh Token primero.');
+    return false;
+  }
+  try {
+    var resp = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'client_id='     + encodeURIComponent(cid)     +
+            '&client_secret=' + encodeURIComponent(secret)  +
+            '&refresh_token=' + encodeURIComponent(refresh) +
+            '&grant_type=refresh_token',
+    });
+    var data = await resp.json();
+    if (data.access_token) {
+      localStorage.setItem(LS_CID,           cid);
+      localStorage.setItem(LS_CLIENT_SECRET, secret);
+      localStorage.setItem(LS_REFRESH_TOKEN, refresh);
+      setToken(data.access_token);
+      document.getElementById('authStatusText').textContent = 'Token renovado automáticamente ✓';
+      return true;
+    }
+    if (!silent) alert('Error renovando token: ' + (data.error_description || data.error || 'desconocido'));
+  } catch (e) {
+    if (!silent) alert('Error de red: ' + e.message);
+  }
+  return false;
 }
 
 function olvidarCredenciales() {
-  localStorage.removeItem(LS_PAT);
-  localStorage.removeItem(LS_CID);
-  var elPat = document.getElementById('githubPat');
-  var elCid = document.getElementById('clientId');
-  if (elPat) elPat.value = '';
-  if (elCid) elCid.value = '';
+  [LS_PAT, LS_CID, LS_CLIENT_SECRET, LS_REFRESH_TOKEN].forEach(function(k) { localStorage.removeItem(k); });
+  ['githubPat', 'clientId', 'clientSecret', 'refreshToken', 'manualToken'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   STATE.githubPat = '';
   alert('Credenciales eliminadas del browser.');
 }
@@ -1414,10 +1484,11 @@ function buildOutputs() {
       linkText: 'Abrir Script Properties →',
     },
     {
-      title: 'Autorizar y ejecutar funciones de inicialización',
-      desc: 'Ejecutar en orden en el editor GAS: initSheets() → initComprasVentasSheet() → initSTSheets() → initAcreedoresSheets() → migrarEgresosDV() → migrarEgresosST() → installTrigger(). Autorizar permisos cuando el browser lo pida.',
+      title: 'Inicializar hojas y triggers',
+      desc: 'Abrí el editor GAS y ejecutá <code>inicializarSistema()</code> una vez para autorizar los permisos de Google. Después podés usar el botón de abajo para inicializar desde acá.',
       link: gasEditorUrl,
       linkText: 'Abrir editor GAS →',
+      hasInitBtn: true,
     },
     {
       title: s.adminUrl ? 'Verificar carpeta admin en GitHub Pages' : 'Configurar GAS_URL en la carpeta admin',
@@ -1452,9 +1523,34 @@ function buildOutputs() {
         '<div class="check-title">' + item.title + '</div>' +
         '<div class="check-desc">' + item.desc + '</div>' +
         (item.link ? '<a class="check-link" href="' + item.link + '" target="_blank">' + item.linkText + ' ↗</a>' : '') +
+        (item.hasInitBtn
+          ? '<button id="btnInicializarSistema" onclick="inicializarSistemaRemoto()" style="margin-top:10px;padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">⚙ Inicializar hojas y triggers →</button>'
+          : '') +
       '</div>';
     checklist.appendChild(div);
   });
+}
+
+async function inicializarSistemaRemoto() {
+  if (!STATE.webAppUrl) {
+    alert('No hay Web App URL guardada. Completá el provisioning primero.');
+    return;
+  }
+  var btn = document.getElementById('btnInicializarSistema');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Inicializando...'; }
+  try {
+    var resp = await fetch(STATE.webAppUrl + '?action=inicializarSistema');
+    var data = await resp.json();
+    if (data.success) {
+      if (btn) { btn.textContent = '✅ Sistema inicializado'; btn.style.background = 'var(--green)'; }
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = '⚙ Inicializar hojas y triggers →'; }
+      alert('Error: ' + (data.message || 'desconocido'));
+    }
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '⚙ Inicializar hojas y triggers →'; }
+    alert('Error de red: ' + e.message + '\n\nAsegurate de haber ejecutado inicializarSistema() en el editor GAS primero para autorizar los permisos.');
+  }
 }
 
 function restart() {
