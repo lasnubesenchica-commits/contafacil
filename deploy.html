@@ -1212,19 +1212,32 @@ async function fetchGasFiles() {
     { name: 'AutoSync',                     file: 'AutoSync.gs',                     type: 'SERVER_JS' },
   ];
 
-  var pat     = getGitHubPAT();
+  // Sin Authorization header → evita CORS preflight (repo público)
   var baseUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/' + GITHUB_BRANCH + '/backend-gas/';
-  var headers = pat ? { 'Authorization': 'Bearer ' + pat } : {};
 
   var files = [];
   for (var i = 0; i < GAS_FILES.length; i++) {
-    var f   = GAS_FILES[i];
-    var res = await fetch(baseUrl + f.file, { headers: headers });
-    if (!res.ok) throw new Error('HTTP ' + res.status + ' al descargar ' + f.file);
-    var source = await res.text();
+    var f = GAS_FILES[i];
+    var source = await fetchWithRetry(baseUrl + f.file);
     files.push({ name: f.name, type: f.type, source: source });
   }
   return files;
+}
+
+async function fetchWithRetry(url, opts, maxRetries) {
+  maxRetries = maxRetries || 3;
+  var lastErr;
+  for (var attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      var res = await fetch(url, opts || {});
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.text();
+    } catch (e) {
+      lastErr = e;
+      if (attempt < maxRetries) await sleep(2000 * attempt);
+    }
+  }
+  throw new Error(lastErr.message + ' (después de ' + maxRetries + ' intentos)');
 }
 
 function injectConfig(files) {
@@ -1646,6 +1659,8 @@ function restart() {
   document.getElementById('logBody').innerHTML = '';
   document.getElementById('step3Results').style.display = 'none';
 
+  // Recargar credenciales guardadas para el próximo provisioning
+  initFromLocalStorage();
   goStep(1);
 }
 </script>
