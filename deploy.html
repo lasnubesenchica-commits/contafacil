@@ -1430,16 +1430,24 @@ async function registerInGitHub(scriptId, deploymentId) {
 //  guardarConfigInicial — pre-poblar Config_Operaciones en GAS
 // ═══════════════════════════════════════════════════════════
 async function guardarConfigInicial(webAppUrl) {
+  var clientId = (STATE.negocio || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  var bcEmail  = clientId + '@balanceclip.net';
   var payload = {
-    action:            'guardarConfig',
-    empresa_nombre:    STATE.negocio,
-    empresa_comercial: STATE.empresa_comercial,
-    empresa_ruc:       STATE.empresa_ruc,
-    empresa_dv:        STATE.empresa_dv,
+    action:             'guardarConfig',
+    empresa_nombre:     STATE.negocio,
+    empresa_comercial:  STATE.empresa_comercial,
+    empresa_ruc:        STATE.empresa_ruc,
+    empresa_dv:         STATE.empresa_dv,
     email_comprobantes: STATE.adminEmail,
-    drive_folder_id:   STATE.folderId,
-    itbms_rate:        STATE.itbms,
-    prefijo_id:        STATE.prefix,
+    drive_folder_id:    STATE.folderId,
+    itbms_rate:         STATE.itbms,
+    prefijo_id:         STATE.prefix,
+    email_op_destino:    bcEmail,
+    email_op_remitente:  STATE.adminEmail,
+    email_st_destino:    bcEmail,
+    email_st_remitente:  STATE.adminEmail,
+    email_acr_destino:   bcEmail,
+    email_acr_remitente: STATE.adminEmail,
   };
   var res = await fetch(webAppUrl, {
     method: 'POST',
@@ -1574,6 +1582,21 @@ function buildOutputs() {
       hasRetryConfigBtn: true,
     },
     {
+      title: 'Activar trigger Comercialización',
+      desc: 'Instala el trigger que revisa el Gmail del cliente cada 15 min buscando facturas de proveedores. Solo activar si el cliente usa el módulo de Comercialización.',
+      hasTriggerBtn: 'comercializacion',
+    },
+    {
+      title: 'Activar trigger Proyectos (ST)',
+      desc: 'Instala el trigger que procesa emails de Servicios Técnicos cada 15 min. Solo activar si el cliente usa el módulo de Proyectos.',
+      hasTriggerBtn: 'proyectos',
+    },
+    {
+      title: 'Activar trigger Registro General',
+      desc: 'Instala el trigger que procesa emails de Acreedores/Registro General cada 15 min. Solo activar si el cliente usa Registro General.',
+      hasTriggerBtn: 'acreedores',
+    },
+    {
       title: 'Health check del Web App',
       desc: 'Abrir la URL en el browser — debe responder JSON con success:true y los datos de la empresa.',
       link: healthCheckUrl,
@@ -1595,6 +1618,9 @@ function buildOutputs() {
           : '') +
         (item.hasRetryConfigBtn
           ? '<button id="btnRetryConfig" onclick="reintentarConfig()" style="margin-top:10px;padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">↺ Poblar Config_Operaciones →</button>'
+          : '') +
+        (item.hasTriggerBtn
+          ? '<button id="btnTrigger_' + item.hasTriggerBtn + '" onclick="activarTrigger(\'' + item.hasTriggerBtn + '\')" style="margin-top:10px;padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">▶ Activar trigger →</button>'
           : '') +
       '</div>';
     checklist.appendChild(div);
@@ -1636,6 +1662,35 @@ async function inicializarSistemaRemoto() {
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '⚙ Inicializar hojas y triggers →'; }
     alert('Error de red: ' + e.message + '\n\nAsegurate de haber ejecutado inicializarSistema() en el editor GAS primero para autorizar los permisos.');
+  }
+}
+
+async function activarTrigger(tipo) {
+  if (!STATE.webAppUrl) {
+    alert('No hay Web App URL. Completá el provisioning primero.');
+    return;
+  }
+  var acciones = {
+    comercializacion: 'instalarTriggerComercializacion',
+    proyectos:        'instalarTriggerProyectos',
+    acreedores:       'instalarTriggerAcreedores',
+  };
+  var accion = acciones[tipo];
+  if (!accion) return;
+  var btn = document.getElementById('btnTrigger_' + tipo);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Activando...'; }
+  try {
+    var resp = await fetch(STATE.webAppUrl + '?action=' + accion);
+    var data = await resp.json();
+    if (data.success) {
+      if (btn) { btn.textContent = '✅ Trigger activo'; btn.style.background = 'var(--green)'; }
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = '▶ Activar trigger →'; }
+      alert('Error: ' + (data.error || 'desconocido') + '\n\nAsegurate de haber ejecutado inicializarSistema() en el editor GAS primero.');
+    }
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '▶ Activar trigger →'; }
+    alert('Error de red: ' + e.message);
   }
 }
 

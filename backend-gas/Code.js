@@ -526,7 +526,10 @@ function doGet(e) {
     if (action === 'getCategorias')         return _handleGetCategorias(params, callback);
 
     // ── INICIALIZACIÓN ──────────────────────────────────────────
-    if (action === 'inicializarSistema') return _handleInicializarSistema(params, callback);
+    if (action === 'inicializarSistema')              return _handleInicializarSistema(params, callback);
+    if (action === 'instalarTriggerComercializacion') return _handleInstalarTriggerOp({ intervalo: params.intervalo || '15' });
+    if (action === 'instalarTriggerProyectos')        return _handleInstalarTriggerST({ intervalo: params.intervalo || '15' });
+    if (action === 'instalarTriggerAcreedores')       return _handleInstalarTriggerAcr({ intervalo: params.intervalo || '15' });
 
     // ── Default: health check ───────────────────────────────────
     return ContentService
@@ -1111,6 +1114,15 @@ function _handleInicializarSistema(params, callback) {
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+function _handleInstalarTriggerAcr(data) {
+  var result = { success: false, error: null };
+  try {
+    installAcreedoresTrigger(parseInt((data || {}).intervalo || '15', 10));
+    result.success = true;
+  } catch(err) { result.error = err.message; }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function migrarEgresosDV() {
