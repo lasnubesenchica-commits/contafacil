@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  BalanceClip — Backend de Órdenes + Ingresos + Egresos
-//  Google Apps Script Mass GAS update working
+//  Google Apps Script AUTO UPDATER WORKING
 //  v12 — corregirComprobante añadido (PATCH)
 //  v12.1 — actualizarNotasIngreso añadido (PATCH)
 //  v12.2 — EGRESOS_NCOLS = 21, COL_E.ID_ST_ITEM = 21 (col U)
