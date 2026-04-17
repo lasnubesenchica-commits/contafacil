@@ -6,13 +6,6 @@
       "scriptId": "1H_dz10V_HT6HVSszSCPLCcpvRHZgwkqsd4jaqdS6yxK4vBNkGYB0GXSq",
       "gasDir": "backend-gas",
       "deploymentId": "AKfycbwLGTYAbIhEdbMIbKLZekngmMI62bGG9KprhtO-opQ2DoF8H5UOTCz6R2qBllf2FVBtOw"
-    },
-    {
-      "id": "iris-albelo-ho",
-      "nombre": "Iris Albelo Ho",
-      "scriptId": "1t3qil0iw7axMb7OFtebkMAcjcES-57d9ynlYGKW3fXoy7r1IZfWFiLc9",
-      "gasDir": "backend-gas",
-      "deploymentId": "AKfycbzKHAqTgaCI6bTgrmRyD89jNmsjJR0fRShgAqujJvSwFGzFQhniPvCc_xh-KQZXZ27z"
     }
   ]
 }
