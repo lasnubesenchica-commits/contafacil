@@ -523,11 +523,44 @@ function _handleSincronizar(params, callback) {
 }
 
 function ejecutarSincronizacionOp() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) {
+    Logger.log('⏩ Op: otra instancia corriendo — se omite esta ejecución.');
+    return;
+  }
   try {
     var stats = sincronizarEmails();
     Logger.log('⏱ Trigger Op: ' + JSON.stringify(stats));
   } catch(err) {
     Logger.log('❌ Trigger Op error: ' + err.message);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Cache de números de factura existentes — se construye una sola vez por ejecución
+// para evitar scan lineal en _facturaYaExiste() en cada adjunto.
+var _syncFacturasProvSet_ = null;
+var _syncFacturasEmitSet_ = null;
+
+function _buildFacturasCache_() {
+  _syncFacturasProvSet_ = {};
+  _syncFacturasEmitSet_ = {};
+  try {
+    var sheet = SpreadsheetApp.openById(CONFIG_OP.SHEET_ID).getSheetByName(SHEET_CV_OP);
+    if (!sheet || sheet.getLastRow() <= 2) return;
+    var data = sheet.getDataRange().getValues();
+    var colP = COL_CV_OP.NUM_FAC_PROVEEDOR - 1;
+    var colE = COL_CV_OP.NUM_FAC_EMITIDA   - 1;
+    for (var i = 2; i < data.length; i++) {
+      var fp = String(data[i][colP] || '').trim();
+      var fe = String(data[i][colE] || '').trim();
+      if (fp) _syncFacturasProvSet_[fp] = true;
+      if (fe) _syncFacturasEmitSet_[fe] = true;
+    }
+    Logger.log('📋 Cache facturas: ' + Object.keys(_syncFacturasProvSet_).length + ' prov, ' + Object.keys(_syncFacturasEmitSet_).length + ' emit');
+  } catch(e) {
+    Logger.log('⚠️ _buildFacturasCache_: ' + e.message);
   }
 }
 
@@ -535,18 +568,19 @@ function sincronizarEmails() {
   var cfg   = _getConfig();
   var stats = { procesados: 0, nuevos: 0, vinculados: 0, ignorados: 0, errores: [] };
   var pendientesEmitidas = [];
+  _buildFacturasCache_();
 
   // ── Construir query Gmail ────────────────────────────────────
   var query;
   if (cfg.email_op_destino && cfg.email_op_remitente) {
     query = 'to:' + cfg.email_op_destino + ' from:' + cfg.email_op_remitente +
-            ' has:attachment -label:procesado_cf_op';
+            ' has:attachment -label:procesado_cf_op -label:cf-ignorado';
     Logger.log('📧 Query Retail: to:' + cfg.email_op_destino + ' from:' + cfg.email_op_remitente);
   } else if (cfg.email_op_destino) {
-    query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op';
+    query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op -label:cf-ignorado';
     Logger.log('📧 Query Retail (sin remitente): to:' + cfg.email_op_destino);
   } else if (cfg.email_comprobantes) {
-    query = 'to:' + cfg.email_comprobantes + ' has:attachment -label:procesado_cf_op';
+    query = 'to:' + cfg.email_comprobantes + ' has:attachment -label:procesado_cf_op -label:cf-ignorado';
     Logger.log('📧 Query Retail (legado): to:' + cfg.email_comprobantes);
   } else {
     throw new Error('Email de entrada Retail no configurado. Ir a Configuración → Operaciones.');
@@ -781,7 +815,7 @@ function _procesarXmlProveedor(xmlStr, pdfBytes, fileName, fechaEmail, fromEmail
   var numFactura   = _xmlVal(xmlStr, 'dNroDF');
   var fechaEmision = (_xmlVal(xmlStr, 'dFechaEm') || '').substring(0, 10);
   if (!numFactura) { Logger.log('XML sin número de factura'); return 0; }
-  if (_facturaYaExiste(numFactura, 'proveedor')) { Logger.log('Factura ya procesada: ' + numFactura); return 0; }
+  if (_facturaYaExiste(numFactura, 'proveedor', true)) { Logger.log('Factura ya procesada: ' + numFactura); return 0; }
 
   var cfg      = _getConfig();
   var provBase = _matchearProveedor(fileName, fromEmail);
@@ -833,7 +867,7 @@ function _procesarFacturaProveedor(pdfB64, pdfBytes, fileName, fechaEmail, fromE
   var provBase = _matchearProveedor(fileName, fromEmail);
   var parsed   = _claudeParsePdfFactura(pdfB64, 'application/pdf', 'proveedor', cfg, provBase);
   if (!parsed || !parsed.items || !parsed.items.length) { Logger.log('Claude no extrajo ítems de PDF proveedor'); return 0; }
-  if (_facturaYaExiste(parsed.num_factura, 'proveedor')) { Logger.log('Factura proveedor ya procesada: ' + parsed.num_factura); return 0; }
+  if (_facturaYaExiste(parsed.num_factura, 'proveedor', true)) { Logger.log('Factura proveedor ya procesada: ' + parsed.num_factura); return 0; }
 
   var driveUrl = _guardarPdfEnDrive(pdfBytes, 'Proveedor_' + parsed.num_factura + '_' + fileName, cfg);
   var ss       = SpreadsheetApp.openById(CONFIG_OP.SHEET_ID);
@@ -1326,15 +1360,25 @@ function _removerTriggerOp() {
 //  HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-function _facturaYaExiste(numFactura, tipo) {
+// updateCache=true registra el número en el cache para que llamadas posteriores
+// dentro del mismo ciclo no creen duplicados si dos emails traen la misma factura.
+function _facturaYaExiste(numFactura, tipo, updateCache) {
   if (!numFactura) return false;
+  var key   = String(numFactura).trim();
+  var cache = tipo === 'proveedor' ? _syncFacturasProvSet_ : _syncFacturasEmitSet_;
+  if (cache) {
+    if (cache[key]) return true;
+    if (updateCache) cache[key] = true;
+    return false;
+  }
+  // Fallback sin cache: scan lineal (no debería ocurrir dentro de sincronizarEmails)
   var ss    = SpreadsheetApp.openById(CONFIG_OP.SHEET_ID);
   var sheet = ss.getSheetByName(SHEET_CV_OP);
   if (!sheet || sheet.getLastRow() <= 2) return false;
   var col  = tipo === 'proveedor' ? COL_CV_OP.NUM_FAC_PROVEEDOR - 1 : COL_CV_OP.NUM_FAC_EMITIDA - 1;
   var data = sheet.getDataRange().getValues();
   for (var i = 2; i < data.length; i++) {
-    if (String(data[i][col]) === String(numFactura)) return true;
+    if (String(data[i][col]) === key) return true;
   }
   return false;
 }

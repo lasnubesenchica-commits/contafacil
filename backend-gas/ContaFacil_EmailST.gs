@@ -68,26 +68,27 @@ function _getEmailSTQuery() {
         if (clave === 'email_st_remitente') remitente = valor;
         if (clave === 'email_st_entrante')  legado    = valor;
       }
+      var excluir = ' -label:' + CONFIG_ST_EMAIL.GMAIL_LABEL_PROCESADO + ' -label:' + CONFIG_ST_EMAIL.GMAIL_LABEL_ERROR;
       // Modo nuevo: destino fijo + remitente del cliente
       if (destino && remitente) {
         Logger.log('📧 Query ST: to:' + destino + ' from:' + remitente);
-        return 'to:' + destino + ' from:' + remitente + ' is:unread';
+        return 'to:' + destino + ' from:' + remitente + ' has:attachment' + excluir;
       }
       // Solo destino configurado (migración parcial)
       if (destino) {
         Logger.log('📧 Query ST (sin remitente): to:' + destino);
-        return 'to:' + destino + ' is:unread';
+        return 'to:' + destino + ' has:attachment' + excluir;
       }
       // Legado: plus-address (comportamiento anterior)
       if (legado) {
         Logger.log('📧 Query ST (legado plus-address): to:' + legado);
-        return 'to:' + legado + ' is:unread';
+        return 'to:' + legado + ' has:attachment' + excluir;
       }
     }
   } catch(e) {
     Logger.log('⚠️ _getEmailSTQuery: ' + e.message + ' — usando default');
   }
-  return 'to:' + CONFIG_ST_EMAIL.EMAIL_ST_DEFAULT + ' is:unread';
+  return 'to:' + CONFIG_ST_EMAIL.EMAIL_ST_DEFAULT + ' has:attachment -label:' + CONFIG_ST_EMAIL.GMAIL_LABEL_PROCESADO + ' -label:' + CONFIG_ST_EMAIL.GMAIL_LABEL_ERROR;
 }
 
 // ── COLUMNAS Email_ST_Log (base 1) ────────────────────────────
@@ -125,7 +126,6 @@ function _handleSincronizarEmailsST(params, callback) {
       var messages = thread.getMessages();
       for (var m = 0; m < messages.length; m++) {
         var msg = messages[m];
-        if (!msg.isUnread()) continue;
         var msgId = msg.getId();
         if (_stEmailYaProcesado(msgId)) { msg.markRead(); continue; }
         try {
@@ -217,8 +217,17 @@ function removeEmailSTTrigger() {
 
 // Función llamada por el trigger automático
 function procesarEmailsST() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) {
+    Logger.log('⏩ ST: otra instancia corriendo — se omite esta ejecución.');
+    return;
+  }
+  try { _procesarEmailsSTInner(); } finally { lock.releaseLock(); }
+}
+
+function _procesarEmailsSTInner() {
   var threads = GmailApp.search(_getEmailSTQuery(), 0, 20);
-  Logger.log('📬 Threads no leídos a +ceyco: ' + threads.length);
+  Logger.log('📬 Threads ST sin procesar: ' + threads.length);
   if (threads.length === 0) return;
 
   var labelProc  = GmailApp.getUserLabelByName(CONFIG_ST_EMAIL.GMAIL_LABEL_PROCESADO);
@@ -229,7 +238,6 @@ function procesarEmailsST() {
     var messages = thread.getMessages();
     for (var m = 0; m < messages.length; m++) {
       var msg = messages[m];
-      if (!msg.isUnread()) continue;
       var msgId = msg.getId();
       if (_stEmailYaProcesado(msgId)) { msg.markRead(); continue; }
 

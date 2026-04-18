@@ -21,6 +21,7 @@
 var SHEET_ACREEDORES_CONFIG  = 'Acreedores_Config';
 var SHEET_ACREEDORES_PENDING = 'Acreedores_Pending';
 var LABEL_ACREEDOR           = 'cf_acreedor_procesado';
+var LABEL_IGNORADO_ACR       = 'cf-ignorado';
 
 var CATEGORIAS_ACREEDOR = [
   { valor: 'nomina',                   label: 'Nómina / Salarios (L42)'               },
@@ -136,8 +137,8 @@ function _getEmailAcrQuery() {
     Logger.log('📧 Query Acreedores (sin remitente): to:' + dest);
   }
 
-  // Excluir: lo que Comercialización ya procesó Y lo que Acreedores ya procesó
-  return base + ' -label:procesado_cf_op -label:' + LABEL_ACREEDOR;
+  // Excluir: procesado por Comercialización, por Acreedores, o marcado como ignorado
+  return base + ' -label:procesado_cf_op -label:' + LABEL_ACREEDOR + ' -label:' + LABEL_IGNORADO_ACR;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -154,8 +155,9 @@ function _sincronizarEmailsAcreedores() {
   var cfg = {};
   try { cfg = _getConfig(); } catch(e) {}
 
-  var label   = _getOrCreateLabelAcr(LABEL_ACREEDOR);
-  var threads = GmailApp.search(query, 0, 50);
+  var label        = _getOrCreateLabelAcr(LABEL_ACREEDOR);
+  var labelIgn     = _getOrCreateLabelAcr(LABEL_IGNORADO_ACR);
+  var threads      = GmailApp.search(query, 0, 50);
   Logger.log('📬 Threads para Acreedores: ' + threads.length);
 
   for (var t = 0; t < threads.length; t++) {
@@ -236,8 +238,10 @@ function _sincronizarEmailsAcreedores() {
             ? '✅ Label cf_acreedor_procesado aplicado.'
             : '⚠️  Label cf_acreedor_procesado aplicado (con errores parciales).');
         } else {
-          // Todo ignorado — no consumir el thread
-          Logger.log('⏭ Thread sin acreedores — sin label.');
+          // Ni Comercialización ni Acreedores reconocen este thread → marcar ignorado
+          // para que no vuelva a ser procesado en cada ciclo del trigger.
+          threads[t].addLabel(labelIgn);
+          Logger.log('⏭ Thread sin acreedores → label cf-ignorado aplicado.');
         }
 
       } catch(msgErr) {
@@ -923,11 +927,18 @@ function _handleActualizarPendienteAcr(data) {
 // ═══════════════════════════════════════════════════════════════
 
 function procesarEmailsAcreedores() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) {
+    Logger.log('⏩ Acreedores: otra instancia corriendo — se omite esta ejecución.');
+    return;
+  }
   try {
     var stats = _sincronizarEmailsAcreedores();
     Logger.log('Trigger Acreedores: ' + JSON.stringify(stats));
   } catch(err) {
     Logger.log('Error trigger Acreedores: ' + err.message);
+  } finally {
+    lock.releaseLock();
   }
 }
 
