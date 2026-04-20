@@ -802,10 +802,11 @@ function _handleAprobarAcreedor(params, callback) {
         filE[COL_E.SUBTOTAL - 1]      = parseFloat(r[COL_PEND.SUBTOTAL - 1] || '0') || '';
         filE[COL_E.ITBMS - 1]         = parseFloat(r[COL_PEND.ITBMS - 1]    || '0') || '';
         filE[COL_E.TOTAL - 1]         = parseFloat(r[COL_PEND.TOTAL - 1]    || '0') || '';
-        filE[COL_E.NUM_COMPROBANTE-1] = r[COL_PEND.NUM_FAC - 1] || '';
+        filE[COL_E.NFACTURA - 1]      = r[COL_PEND.NUM_FAC - 1]     || '';
+        filE[COL_E.PROVEEDOR - 1]     = r[COL_PEND.ACREEDOR_NOM - 1]|| '';
         filE[COL_E.DRIVE_URL - 1]     = r[COL_PEND.DRIVE_URL - 1]   || '';
         filE[COL_E.ESTADO - 1]        = 'registrado';
-        filE[COL_E.FUENTE - 1]        = 'acreedor_auto';
+        filE[COL_E.NOTAS - 1]         = 'acreedor_auto | ' + (r[COL_PEND.NOTAS - 1] || '');
         var lastRowE = sheetE.getLastRow() + 1;
         sheetE.getRange(lastRowE, 1, 1, EGRESOS_NCOLS).setValues([filE]);
         sheetE.getRange(lastRowE, 1, 1, EGRESOS_NCOLS).setBackground('#E8F5E9');

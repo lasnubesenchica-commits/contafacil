@@ -7672,8 +7672,8 @@ async function acrAprobar() {
     if (!data.success) throw new Error(data.error || 'Error al aprobar');
 
     msg.style.color = 'var(--green)';
-    msg.textContent = '✅ Egreso registrado: ' + data.egresoId;
-    showToast('✅ Egreso registrado: ' + data.egresoId);
+    msg.textContent = '✅ Egreso registrado: ' + (data.egreso_id || data.egresoId || '');
+    showToast('✅ Egreso registrado: ' + (data.egreso_id || data.egresoId || ''));
 
     // Guardar preferencia si el checkbox está marcado
     if (document.getElementById('acrChkRecordar')?.checked) {
@@ -7692,9 +7692,9 @@ async function acrAprobar() {
     }
 
     setTimeout(() => {
+      const approvedId = _acrSelected?.id;   // capturar ANTES de cerrar
       acrCerrarModal();
-      // Quitar de _acrData y recargar egresos para que aparezca el nuevo registro
-      _acrData = _acrData.filter(i => i.id !== _acrSelected?.id);
+      _acrData = _acrData.filter(i => i.id !== approvedId);
       egrItems = [];
       loadEgresos().then(() => rgRenderEgr());
     }, 1200);
