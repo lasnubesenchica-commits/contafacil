@@ -225,9 +225,10 @@ function doPost(e) {
     if (action === 'desactivarEmpleado') return _handleDesactivarEmpleado(data);
 
     // ── ACREEDORES ───────────────────────────────────────────────
-    if (action === 'guardarAcreedor')         return _handleGuardarAcreedor(data);
-    if (action === 'analizarFacturaAcreedor') return _handleAnalizarFacturaAcreedor(data);
-    if (action === 'actualizarPendienteAcr')  return _handleActualizarPendienteAcr(data);
+    if (action === 'guardarAcreedor')            return _handleGuardarAcreedor(data);
+    if (action === 'analizarFacturaAcreedor')    return _handleAnalizarFacturaAcreedor(data);
+    if (action === 'actualizarPendienteAcr')     return _handleActualizarPendienteAcr(data);
+    if (action === 'guardarPreferenciaAcreedor') return _handleGuardarPreferencia(data);
 
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';
