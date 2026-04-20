@@ -9,18 +9,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="CEYCO">
+<meta name="apple-mobile-web-app-title" content="BalanceClip" id="metaAppTitle">
 <meta name="theme-color" content="#0A0A0A">
-<title>CEYCO — Operaciones</title>
+<title id="pageTitle">Operaciones</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════════
-   TOKENS — idénticos al admin desktop CEYCO
+   TOKENS — Iris Albelo Ho · Registro General
    Fuentes: Bebas Neue / DM Sans / DM Mono
-   Primario: #E05A00 (naranja CEYCO)
-   Acento ST: #1A237E (índigo técnico)
+   Primario: #E05A00 (naranja)
 ═══════════════════════════════════════════════ */
 :root {
   --orange:    #E05A00;
@@ -426,8 +425,6 @@ select.f-inp { appearance:none; }
 .sheet-submit:disabled { opacity:.5; cursor:not-allowed; }
 .sheet-divider { border:none; border-top:1px solid var(--border); margin:.82rem 0; }
 
-/* ═══════════════════════════════════════════════ VISTA PROYECTOS */
-#viewProyectos { display:none; }
 
 .costo-item {
   display:flex; justify-content:space-between; align-items:flex-start;
@@ -445,8 +442,6 @@ select.f-inp { appearance:none; }
 .res-row.total { border-top:1px solid var(--border); margin-top:.32rem; padding-top:.42rem; font-weight:600; }
 .res-row.total .res-val { color:var(--indigo); }
 
-/* ═══════════════════════════════════════════════ VISTA COMERCIAL */
-#viewComercial { display:none; }
 
 /* ═══════════════════════════════════════════════ VISTA P&L */
 #viewPL { display:none; }
@@ -621,9 +616,9 @@ select.f-inp { appearance:none; }
 .reg-upload-zone.analyzing { border-color:var(--indigo); background:var(--indigo-bg); }
 .reg-upload-icon { font-size:1.35rem; margin-bottom:.28rem; }
 
-/* 4 tabs — reducir padding */
-.bottom-nav .nav-item { padding:.45rem .15rem .38rem; font-size:.55rem; }
-.bottom-nav .nav-icon  { font-size:1.05rem; }
+/* 2 tabs — padding cómodo */
+.bottom-nav .nav-item { padding:.52rem .25rem .42rem; font-size:.62rem; }
+.bottom-nav .nav-icon  { font-size:1.15rem; }
 
 /* ═══════════════════════════════════════════════ PENDIENTES EMAIL */
 .pend-section-hdr {
@@ -689,12 +684,9 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 <!-- LOGIN -->
 <div id="loginScreen">
   <div class="login-card">
-    <div class="login-logo">CEY<span>CO</span></div>
-    <div class="login-sub">Panel de operaciones</div>
-    <label class="login-lbl">Contraseña</label>
-    <input type="password" class="login-input" id="loginPwd" placeholder="••••••••" autocomplete="current-password">
-    <button class="login-btn" onclick="doLogin()">Entrar</button>
-    <div class="login-err" id="loginErr">Contraseña incorrecta</div>
+    <div class="login-logo" id="loginLogo">…</div>
+    <div class="login-sub" id="loginSub">Registro General</div>
+    <button class="login-btn" onclick="doLogin()" id="loginBtn">Entrar</button>
   </div>
 </div>
 
@@ -703,7 +695,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 
   <header class="app-header">
     <div>
-      <span class="header-logo" id="appHeaderLogo">CEY<span>CO</span></span>
+      <span class="header-logo" id="appHeaderLogo">…</span>
       <span class="header-badge" id="appHeaderBadge">BalanceClip</span>
     </div>
     <div class="header-right">
@@ -713,88 +705,6 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
   </header>
 
   <div class="app-content">
-
-    <!-- PROYECTOS -->
-    <div id="viewProyectos">
-      <div class="kpi-row">
-        <div class="kpi k-yellow">
-          <div class="kpi-lbl">Cotizados / Aprobados</div>
-          <div class="kpi-val" id="kpi-cot">—</div>
-          <div class="kpi-sub" id="kpi-cot-val">proyectos</div>
-        </div>
-        <div class="kpi k-purple">
-          <div class="kpi-lbl">En ejecución</div>
-          <div class="kpi-val" id="kpi-ejec">—</div>
-          <div class="kpi-sub" id="kpi-ejec-val">en curso</div>
-        </div>
-        <div class="kpi k-green">
-          <div class="kpi-lbl">Cerrados</div>
-          <div class="kpi-val" id="kpi-cerr">—</div>
-          <div class="kpi-sub" id="kpi-cerr-val">neto s/ITBMS</div>
-        </div>
-        <div class="kpi k-indigo">
-          <div class="kpi-lbl">Facturado año</div>
-          <div class="kpi-val" id="kpi-fact">—</div>
-          <div class="kpi-sub">neto s/ITBMS</div>
-        </div>
-      </div>
-      <div class="toolbar" id="st-toolbar">
-        <button id="btnSyncST" onclick="doSyncST()" style="
-          flex-shrink:0;
-          font-size:.73rem; font-weight:700; color:var(--orange);
-          background:var(--orange-bg); border:.5px solid rgba(224,90,0,.3);
-          border-radius:20px; padding:.32rem .78rem; cursor:pointer;
-          display:flex; align-items:center; gap:.3rem; white-space:nowrap;
-        ">⟳ Sync emails</button>
-        <button class="ftab active" onclick="ST.setFilter(this,'todos')">Todos</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cotizacion')">Cotización</button>
-        <button class="ftab" onclick="ST.setFilter(this,'ejecucion')">Ejecución</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cerrado')">Cerrados</button>
-        <button class="ftab" onclick="ST.setFilter(this,'cancelado')">Cancelados</button>
-      </div>
-      <div id="st-list"></div>
-    </div>
-
-    <!-- COMERCIALIZACIÓN -->
-    <div id="viewComercial">
-      <div class="kpi-row">
-        <div class="kpi k-yellow">
-          <div class="kpi-lbl">Pendientes</div>
-          <div class="kpi-val" id="kpi-op-pend">—</div>
-          <div class="kpi-sub" id="kpi-op-pend-v">costo proveedor</div>
-        </div>
-        <div class="kpi k-blue">
-          <div class="kpi-lbl">Inventario</div>
-          <div class="kpi-val" id="kpi-op-inv">—</div>
-          <div class="kpi-sub" id="kpi-op-inv-v">valor en stock</div>
-        </div>
-        <div class="kpi k-purple">
-          <div class="kpi-lbl">Facturados</div>
-          <div class="kpi-val" id="kpi-op-fact">—</div>
-          <div class="kpi-sub" id="kpi-op-fact-v">por cobrar</div>
-        </div>
-        <div class="kpi k-green">
-          <div class="kpi-lbl">Cerrados</div>
-          <div class="kpi-val" id="kpi-op-cerr">—</div>
-          <div class="kpi-sub" id="kpi-op-cerr-v">neto s/ITBMS</div>
-        </div>
-      </div>
-      <div class="toolbar">
-        <button id="btnSyncOp" onclick="doSync()" style="
-          flex-shrink:0;
-          font-size:.73rem; font-weight:700; color:var(--orange);
-          background:var(--orange-bg); border:.5px solid rgba(224,90,0,.3);
-          border-radius:20px; padding:.32rem .78rem; cursor:pointer;
-          display:flex; align-items:center; gap:.3rem; white-space:nowrap;
-        ">⟳ Sync emails</button>
-        <button class="ftab active" onclick="OP.setFilter(this,'todos')">Todos</button>
-        <button class="ftab" onclick="OP.setFilter(this,'pendiente')">Pendiente</button>
-        <button class="ftab" onclick="OP.setFilter(this,'inventario')">Inventario</button>
-        <button class="ftab" onclick="OP.setFilter(this,'facturado')">Facturado</button>
-        <button class="ftab" onclick="OP.setFilter(this,'cerrado')">Cerrado</button>
-      </div>
-      <div id="op-list"></div>
-    </div>
 
     <!-- P&L -->
     <div id="viewPL">
@@ -944,226 +854,47 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
   </div>
 
   <nav class="bottom-nav">
-    <button class="nav-item active" id="nav-proy" onclick="switchView('proyectos')">
-      <span class="nav-icon">🔧</span><span>Proyectos</span><span class="nav-pip"></span>
-    </button>
-    <button class="nav-item" id="nav-com" onclick="switchView('comercial')">
-      <span class="nav-icon">📦</span><span>Comercial</span><span class="nav-pip"></span>
+    <button class="nav-item active" id="nav-reg" onclick="switchView('registros')">
+      <span class="nav-icon">📋</span><span>Registros</span><span class="nav-pip"></span>
     </button>
     <button class="nav-item" id="nav-pl" onclick="switchView('pl')">
       <span class="nav-icon">📊</span><span>P&amp;L</span><span class="nav-pip"></span>
-    </button>
-    <button class="nav-item" id="nav-reg" onclick="switchView('registros')">
-      <span class="nav-icon">📋</span><span>Registros</span><span class="nav-pip"></span>
     </button>
   </nav>
 
 </div>
 <div id="toast"></div>
 
-<!-- MODAL: Resumen ST -->
-<div class="overlay" id="mResumen">
-  <div class="sheet">
-    <div class="sheet-top"><div class="sheet-handle"></div>
-    <div class="sheet-hdr">
-      <span class="sheet-title" id="mResumen-title">Resumen</span>
-      <button class="sheet-close" onclick="closeModal('mResumen')">✕</button>
-    </div></div>
-    <div class="sheet-body" id="mResumen-body"></div>
-  </div>
-</div>
-
-<!-- MODAL: Pago cliente ST -->
-<div class="overlay" id="mPago">
-  <div class="sheet">
-    <div class="sheet-top"><div class="sheet-handle"></div>
-    <div class="sheet-hdr">
-      <span class="sheet-title">Registrar pago cliente</span>
-      <button class="sheet-close" onclick="closeModal('mPago')">✕</button>
-    </div></div>
-    <div class="sheet-body">
-      <div class="f-grp">
-        <label class="f-lbl">Número de factura emitida</label>
-        <input type="text" class="f-inp" id="pago-nfac" placeholder="FACT-0001">
-      </div>
-      <div class="f-grid">
-        <div class="f-grp">
-          <label class="f-lbl">Monto total</label>
-          <input type="number" class="f-inp" id="pago-monto" placeholder="0.00" step="0.01">
-        </div>
-        <div class="f-grp">
-          <label class="f-lbl">Forma de pago</label>
-          <select class="f-inp" id="pago-forma">
-            <option value="transferencia">Transferencia</option>
-            <option value="cheque">Cheque</option>
-            <option value="efectivo">Efectivo</option>
-            <option value="yappy">Yappy</option>
-          </select>
-        </div>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Tipo de servicio (ITBMS)</label>
-        <select class="f-inp" id="pago-exento">
-          <option value="no">Gravado — aplica ITBMS 7%</option>
-          <option value="si">Exento — sin ITBMS</option>
-        </select>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Comprobante (opcional)</label>
-        <div class="upload-zone" id="pago-zone" onclick="document.getElementById('pago-file').click()">
-          <div class="upload-icon">📎</div><div>Toca para adjuntar imagen o PDF</div>
-        </div>
-        <input type="file" id="pago-file" accept="image/*,application/pdf" style="display:none" onchange="handleFile('pago',this)">
-      </div>
-      <button class="sheet-submit" id="pago-submit" onclick="ST.submitPago()">Registrar pago</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Egreso ST -->
-<div class="overlay" id="mEgreso">
-  <div class="sheet">
-    <div class="sheet-top"><div class="sheet-handle"></div>
-    <div class="sheet-hdr">
-      <span class="sheet-title">Registrar egreso</span>
-      <button class="sheet-close" onclick="closeModal('mEgreso')">✕</button>
-    </div></div>
-    <div class="sheet-body">
-      <div class="f-grp">
-        <label class="f-lbl">Tipo de ítem</label>
-        <select class="f-inp" id="egr-tipo">
-          <option value="material">Material / Insumo</option>
-          <option value="mano_obra">Mano de obra</option>
-          <option value="costo_servicio_tecnico">Subcontrato técnico</option>
-          <option value="impuesto">Impuesto importación</option>
-          <option value="otro">Otro</option>
-        </select>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Proveedor</label>
-        <input type="text" class="f-inp" id="egr-prov" placeholder="Nombre del proveedor">
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Descripción</label>
-        <input type="text" class="f-inp" id="egr-desc" placeholder="Breve descripción del item">
-      </div>
-      <div class="f-grid">
-        <div class="f-grp">
-          <label class="f-lbl">Total (con ITBMS)</label>
-          <input type="number" class="f-inp" id="egr-total" placeholder="0.00" step="0.01">
-        </div>
-        <div class="f-grp">
-          <label class="f-lbl">Nº factura</label>
-          <input type="text" class="f-inp" id="egr-nfac" placeholder="0000-001">
-        </div>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Comprobante / factura</label>
-        <div class="upload-zone" id="egr-zone" onclick="document.getElementById('egr-file').click()">
-          <div class="upload-icon">📎</div><div>Toca para adjuntar imagen o PDF</div>
-        </div>
-        <input type="file" id="egr-file" accept="image/*,application/pdf" style="display:none" onchange="handleFile('egr',this)">
-      </div>
-      <button class="sheet-submit" id="egr-submit" onclick="ST.submitEgreso()">Registrar egreso</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Cambiar estado ST -->
-<div class="overlay" id="mEstado">
-  <div class="sheet">
-    <div class="sheet-top"><div class="sheet-handle"></div>
-    <div class="sheet-hdr">
-      <span class="sheet-title" id="mEstado-title">Cambiar estado</span>
-      <button class="sheet-close" onclick="closeModal('mEstado')">✕</button>
-    </div></div>
-    <div class="sheet-body" id="mEstado-body"></div>
-  </div>
-</div>
-
-
-<!-- MODAL: Pago cliente Comercialización -->
-<div class="overlay" id="mOpPago">
-  <div class="sheet">
-    <div class="sheet-top"><div class="sheet-handle"></div>
-    <div class="sheet-hdr">
-      <span class="sheet-title">Registrar pago cliente</span>
-      <button class="sheet-close" onclick="closeModal('mOpPago')">✕</button>
-    </div></div>
-    <div class="sheet-body">
-      <input type="hidden" id="op-pago-id">
-      <div class="f-grp">
-        <label class="f-lbl">Cliente</label>
-        <input type="text" class="f-inp" id="op-pago-cli" readonly
-               style="background:var(--bg2);color:var(--muted)">
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Factura emitida</label>
-        <input type="text" class="f-inp" id="op-pago-nfac" readonly
-               style="background:var(--bg2);color:var(--muted)">
-      </div>
-      <div class="f-grid">
-        <div class="f-grp">
-          <label class="f-lbl">Monto cobrado</label>
-          <input type="number" class="f-inp" id="op-pago-monto" placeholder="0.00" step="0.01">
-        </div>
-        <div class="f-grp">
-          <label class="f-lbl">Forma de pago</label>
-          <select class="f-inp" id="op-pago-forma">
-            <option value="transferencia">Transferencia</option>
-            <option value="cheque">Cheque</option>
-            <option value="efectivo">Efectivo</option>
-            <option value="yappy">Yappy</option>
-          </select>
-        </div>
-      </div>
-      <div class="f-grp">
-        <label class="f-lbl">Comprobante de pago (opcional)</label>
-        <div class="upload-zone" id="op-zone" onclick="document.getElementById('op-file').click()">
-          <div class="upload-icon">📎</div>
-          <div>Toca para adjuntar imagen o PDF</div>
-        </div>
-        <input type="file" id="op-file" accept="image/*,application/pdf"
-               style="display:none" onchange="handleFile('op',this)">
-      </div>
-      <div style="background:var(--indigo-bg);border-radius:var(--r);padding:.65rem .85rem;margin-bottom:.85rem;font-size:.75rem;color:var(--indigo)">
-        ⚠️ Al registrar el pago se cerrará el ciclo contable y se creará el ingreso en la hoja Ingresos.
-      </div>
-      <button class="sheet-submit" id="op-pago-submit" onclick="OP.submitOpPago()">Registrar pago</button>
-    </div>
-  </div>
-</div>
 
 <script>
 'use strict';
 
 // ── CONFIG ────────────────────────────────────
-const GAS_URL        = 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
-const ADMIN_PASSWORD = 'ceyco2025';   // ← cambiar antes de producción
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
 
-// ── AUTH ──────────────────────────────────────
+// ── AUTH — login deshabilitado, se activa en deployment ──────
 function doLogin() {
-  const pwd = document.getElementById('loginPwd').value.trim();
-  if (pwd === ADMIN_PASSWORD) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    switchView('proyectos');
-    loadAll();
-  } else {
-    document.getElementById('loginErr').style.display = 'block';
-  }
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  switchView('registros');
+  loadAll();
 }
-// LOGIN DESHABILITADO TEMPORALMENTE
-document.getElementById('loginPwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.addEventListener('DOMContentLoaded', () => {
+  // Cargar branding desde config_operaciones antes del login
+  jsonpGet('getConfig', {}).then(d => {
+    if (d.success) _applyBranding(d.config || {});
+  }).catch(() => {});
+  document.getElementById('loginBtn').addEventListener('click', doLogin);
+});
 
 // ── NAVEGACIÓN ────────────────────────────────
 let currentView = '';
 function switchView(v) {
   currentView = v;
-  ['viewProyectos','viewComercial','viewPL','viewRegistros'].forEach(id => document.getElementById(id).style.display = 'none');
-  document.getElementById({ proyectos:'viewProyectos', comercial:'viewComercial', pl:'viewPL', registros:'viewRegistros' }[v]).style.display = 'block';
-  ['nav-proy','nav-com','nav-pl','nav-reg'].forEach(id => document.getElementById(id).classList.remove('active'));
-  document.getElementById({ proyectos:'nav-proy', comercial:'nav-com', pl:'nav-pl', registros:'nav-reg' }[v]).classList.add('active');
+  ['viewPL','viewRegistros'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById({ pl:'viewPL', registros:'viewRegistros' }[v]).style.display = 'block';
+  ['nav-pl','nav-reg'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById({ pl:'nav-pl', registros:'nav-reg' }[v]).classList.add('active');
   if (v === 'pl' && !PL.loaded) PL.load();
   if (v === 'registros' && !PEND.loaded) PEND.load();
 }
@@ -1191,6 +922,24 @@ async function postJSON(payload) {
 // ── HELPERS ───────────────────────────────────
 const fmt    = n => '$' + (parseFloat(n)||0).toLocaleString('es-PA',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function _applyBranding(config) {
+  const comercial = (config.empresa_comercial || '').trim();
+  const nombre    = (config.empresa_nombre    || '').trim();
+  const skip = new Set(['y','de','del','la','el','los','las','con','s.a.','s.a','sa','inc','ltd','corp','co.']);
+  const siglas = comercial || (nombre
+    ? (nombre.split(/[\s,./]+/).filter(w=>w.length>0).filter(w=>!skip.has(w.toLowerCase())).map(w=>w[0].toUpperCase()).join('') || nombre.substring(0,4).toUpperCase())
+    : '');
+  if (!siglas) return;
+  const logoEl  = document.getElementById('appHeaderLogo');
+  const loginEl = document.getElementById('loginLogo');
+  const titleEl = document.getElementById('pageTitle');
+  const metaEl  = document.getElementById('metaAppTitle');
+  if (logoEl)  logoEl.textContent  = siglas;
+  if (loginEl) loginEl.textContent = siglas;
+  if (titleEl) titleEl.textContent = (nombre || siglas) + ' — Operaciones';
+  if (metaEl)  metaEl.setAttribute('content', siglas);
+}
 // ── Catálogo DGI unificado (espejo de Code.gs CATEGORIAS_GASTO_DGI) ──────────
 const CATEGORIAS_GASTO_DGI = [
   { valor: 'nomina',                   label: 'Nómina / Salarios',               linea: '42', emoji: '👤' },
@@ -1263,509 +1012,20 @@ function resetUpload(key) {
   if (f) f.value = '';
 }
 
-// ── REFRESH / SYNC ────────────────────────────
+// ── REFRESH ────────────────────────────────────
 async function loadAll() {
-  ST.load(); OP.load();
-  // Cargar nombre comercial para el header al inicio
   try {
     const d = await jsonpGet('getConfig', {});
-    if (d.success) CFG_PANEL.applyHeaderPublic(d.config || {});
+    if (d.success) _applyBranding(d.config || {});
   } catch(e) {}
 }
 function doRefresh() {
   const btn = document.getElementById('btnRefresh'); btn.classList.add('spin');
   const done = () => btn.classList.remove('spin');
-  if      (currentView==='proyectos') ST.load().finally(done);
-  else if (currentView==='comercial') OP.load().finally(done);
-  else if (currentView==='pl')        PL.load().finally(done);
+  if (currentView==='pl') PL.load().finally(done);
   else done();
 }
-async function doSync() {
-  const btn = document.getElementById('btnSyncOp');
-  if (btn) { btn.style.opacity = '.5'; btn.style.pointerEvents = 'none'; }
-  toast('Sincronizando emails Comercialización…');
-  try {
-    const r = await jsonpGet('sincronizarEmails', {}, 180000);
-    if (r.success) { toast('Sincronizado ✓  — ' + (r.nuevos||0) + ' nuevos', 'ok'); OP.load(); }
-    else toast(r.error || 'Error','err');
-  } catch(e) { toast('Error de conexión','err'); }
-  finally { if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; } }
-}
 
-async function doSyncST() {
-  const btn = document.getElementById('btnSyncST');
-  if (btn) { btn.style.opacity = '.5'; btn.style.pointerEvents = 'none'; }
-  toast('Sincronizando emails Proyectos…');
-  try {
-    const r = await jsonpGet('sincronizarEmailsST', {}, 180000);
-    if (r.success) { toast('Sincronizado ✓  — ' + (r.nuevos||0) + ' nuevos', 'ok'); ST.load(); }
-    else toast(r.error || 'Error','err');
-  } catch(e) { toast('Error de conexión','err'); }
-  finally { if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; } }
-}
-
-
-// ════════════════════════════════════════════════════════
-//  MÓDULO ST — Proyectos
-// ════════════════════════════════════════════════════════
-const ST = (() => {
-  let items = [], filter = 'todos', expanded = null;
-  let pagoId = null, egrId = null;
-
-  // Estados reales del GAS: cotizado | aprobado | en_ejecucion | cerrado | cancelado
-  // Filtros UI → estado GAS
-  const FILTER_MAP = {
-    cotizacion: ['cotizado', 'aprobado'],
-    ejecucion:  ['en_ejecucion'],
-    cerrado:    ['cerrado'],
-    cancelado:  ['cancelado'],
-  };
-  const BADGE = {
-    cotizado:     ['badge-cot',  'Cotizado'],
-    aprobado:     ['badge-fact', 'Aprobado'],
-    en_ejecucion: ['badge-ejec', 'En ejecución'],
-    cerrado:      ['badge-cerr', 'Cerrado'],
-    cancelado:    ['badge-canc', 'Cancelado'],
-  };
-  // Clase CSS borde izq por estado real (sincronizar con CSS .card.s-*)
-  const STATE_CSS = {
-    cotizado:     'cotizacion',
-    aprobado:     'cotizacion',
-    en_ejecucion: 'ejecucion',
-    cerrado:      'cerrado',
-    cancelado:    'cancelado',
-  };
-  const badge  = e => { const [c,l] = BADGE[e]||['badge-pend',e]; return `<span class="badge ${c}">${l}</span>`; };
-  const margen = s => { const pv=parseFloat(s.precio_venta)||0, c=parseFloat(s.total_costo_real)||parseFloat(s.total_costo_cotizado)||0; return pv?((pv-c)/pv*100):null; };
-
-  function updateKPIs() {
-    const yr   = new Date().getFullYear();
-    const cot  = items.filter(s=>['cotizado','aprobado'].includes(s.estado));
-    const ejec = items.filter(s=>s.estado==='en_ejecucion');
-    const cerr = items.filter(s=>s.estado==='cerrado');
-    const cerrYr = cerr.filter(s=>s.anio==yr);
-
-    // Monto en curso: precio_venta de STs en ejecución (igual que desktop)
-    const montoEjec = ejec.reduce((a,s)=>a+(parseFloat(s.precio_venta)||0),0);
-
-    // Facturado: usar subtotal_venta (neto s/ITBMS) que el backend cruza con Ingresos.
-    // Fallback: precio_venta / 1.07 si el ingreso aún no está registrado
-    const netoFn = s => {
-      const sub = parseFloat(s.subtotal_venta||0);
-      return sub > 0 ? sub : (parseFloat(s.precio_venta)||0) / 1.07;
-    };
-    const cerrNeto   = cerr.reduce((a,s)=>a+netoFn(s),0);
-    const cerrYrNeto = cerrYr.reduce((a,s)=>a+netoFn(s),0);
-
-    // Cotización: mostrar monto presupuestado si hay
-    const cotMonto = cot.reduce((a,s)=>a+(parseFloat(s.precio_venta)||0),0);
-
-    document.getElementById('kpi-cot').textContent      = cot.length;
-    document.getElementById('kpi-cot-val').textContent  = cotMonto ? fmt(cotMonto)+' presup.' : 'proyectos';
-    document.getElementById('kpi-ejec').textContent     = ejec.length;
-    document.getElementById('kpi-ejec-val').textContent = montoEjec ? fmt(montoEjec)+' en curso' : 'proyectos';
-    document.getElementById('kpi-cerr').textContent     = cerr.length;
-    document.getElementById('kpi-cerr-val').textContent = fmt(cerrNeto);
-    document.getElementById('kpi-fact').textContent     = fmt(cerrYrNeto);
-  }
-
-  function setFilter(btn, f) {
-    filter = f; expanded = null;
-    document.querySelectorAll('#st-toolbar .ftab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    render();
-  }
-
-  function render() {
-    const el   = document.getElementById('st-list');
-    // Filtrar por grupo de estados o todos
-    const list = filter === 'todos'
-      ? items
-      : items.filter(s => (FILTER_MAP[filter]||[filter]).includes(s.estado));
-    if (!list.length) { el.innerHTML = `<div class="empty"><div class="empty-icon">🔧</div><div class="empty-title">Sin proyectos</div><div class="empty-sub">No hay proyectos en este filtro</div></div>`; return; }
-
-    // Agrupar por grupo lógico (no por estado exacto) para las section labels
-    const groups = {};
-    list.forEach(s => {
-      const g = ['cotizado','aprobado'].includes(s.estado) ? 'cotizacion'
-              : s.estado === 'en_ejecucion' ? 'ejecucion'
-              : s.estado;
-      if (!groups[g]) groups[g] = [];
-      groups[g].push(s);
-    });
-    const order = ['ejecucion','cotizacion','cerrado','cancelado'];
-    const lbls  = { ejecucion:'En ejecución', cotizacion:'Cotización / Aprobados', cerrado:'Cerrados', cancelado:'Cancelados' };
-    let html = '';
-    order.forEach(grp => {
-      if (!groups[grp]) return;
-      if (filter==='todos') html += `<div class="sec-lbl">${lbls[grp]}<span class="sec-cnt">${groups[grp].length}</span></div>`;
-      html += '<div class="card-list">' + groups[grp].map(buildCard).join('') + '</div>';
-    });
-    el.innerHTML = html;
-  }
-
-  function buildCard(s) {
-    const open  = expanded === s.id_st;
-    const m     = margen(s);
-    const css   = STATE_CSS[s.estado] || s.estado;
-    return `
-    <div class="card s-${css}${open?' open':''}">
-      <div class="card-head" onclick="ST.toggle('${esc(s.id_st)}')">
-        <div class="card-dot ${css}"></div>
-        <div class="card-body">
-          <div class="card-title">${esc(s.nombre_cliente||'—')}</div>
-          <div class="card-meta">${badge(s.estado)}<span class="card-sep">·</span><span>${esc(s.id_st)}</span></div>
-        </div>
-        <div class="card-right">
-          <div class="card-monto">${fmt(s.precio_venta)}</div>
-          ${m!==null?`<div class="kpi-sub">${m.toFixed(1)}% mg</div>`:''}
-          <span class="card-chev">▾</span>
-        </div>
-      </div>
-      <div class="card-detail">${buildDetail(s)}</div>
-    </div>`;
-  }
-
-  function buildDetail(s) {
-    const cr = parseFloat(s.total_costo_real)||parseFloat(s.total_costo_cotizado)||0;
-    // campo real del GAS: 'descripcion' (no 'descripcion_servicio')
-    let h = `
-      <div class="d-row"><span class="d-lbl">Descripción</span><span class="d-val txt" style="max-width:58%;text-align:right">${esc(s.descripcion||'—')}</span></div>
-      <div class="d-row"><span class="d-lbl">Precio venta</span><span class="d-val">${fmt(s.precio_venta)}</span></div>
-      <div class="d-row"><span class="d-lbl">Costo real</span><span class="d-val">${fmt(cr)}</span></div>
-      <div class="d-row"><span class="d-lbl">Cotización #</span><span class="d-val txt">${esc(s.num_cotizacion||'—')}</span></div>`;
-    if (s.ruc_cliente)      h += `<div class="d-row"><span class="d-lbl">RUC</span><span class="d-val txt">${esc(s.ruc_cliente)}</span></div>`;
-    if (s.fecha_aprobacion) h += `<div class="d-row"><span class="d-lbl">Aprobado</span><span class="d-val txt">${esc(s.fecha_aprobacion)}</span></div>`;
-    if (s.fecha_cierre)     h += `<div class="d-row"><span class="d-lbl">Cerrado</span><span class="d-val txt">${esc(s.fecha_cierre)}</span></div>`;
-
-    h += '<div class="card-acts">';
-    h += `<button class="act ghost" onclick="ST.openResumen('${esc(s.id_st)}')">📋 Resumen</button>`;
-    if (s.estado==='cotizado')     h += `<button class="act primary" onclick="ST.openEstado('${esc(s.id_st)}','aprobar')">✅ Aprobar</button>`;
-    if (s.estado==='aprobado')     h += `<button class="act ghost"   onclick="ST.openEstado('${esc(s.id_st)}','iniciar')">▶️ Iniciar</button>`;
-    if (s.estado==='en_ejecucion') h += `<button class="act orange"  onclick="ST.openPago('${esc(s.id_st)}')">💰 Pago</button>`;
-    if (s.estado==='en_ejecucion') h += `<button class="act ghost"   onclick="ST.openEgreso('${esc(s.id_st)}')">➕ Egreso</button>`;
-    if (s.estado==='en_ejecucion') h += `<button class="act primary" onclick="ST.openEstado('${esc(s.id_st)}','cerrar')">🔒 Cerrar</button>`;
-    if (s.drive_url) h += `<button class="act ghost" onclick="DRIVE.open('${esc(s.drive_url)}','Factura')">📄 Factura</button>`;
-    h += '</div>';
-    return h;
-  }
-
-  function toggle(id) { expanded = expanded===id ? null : id; render(); }
-
-  // Resumen
-  async function openResumen(id) {
-    const s = items.find(x=>x.id_st===id);
-    document.getElementById('mResumen-title').textContent = s?.nombre_cliente || id;
-    document.getElementById('mResumen-body').innerHTML = '<div class="empty-sub" style="padding:1rem">Cargando…</div>';
-    openModal('mResumen');
-    try {
-      const r = await jsonpGet('getResumenST', {id_st:id});
-      if (!r.success) throw new Error(r.error);
-      const resumen = r.resumen || {};
-      const imap = {material:'📦',mano_obra:'👷',impuesto:'🧾',credito_fiscal:'💳',costo_servicio_tecnico:'🔩'};
-      let h = (resumen.items||[]).length
-        ? (resumen.items||[]).map(it=>`
-            <div class="costo-item">
-              <div>
-                <div class="costo-tipo">${imap[it.tipo]||'📋'} ${esc(it.tipo||'')}</div>
-                <div class="costo-desc">${esc(it.descripcion||'')}</div>
-                ${it.proveedor?`<div class="costo-prov">${esc(it.proveedor)}</div>`:''}
-                ${it.num_factura?`<div class="costo-prov">Fact: ${esc(it.num_factura)}</div>`:''}
-              </div>
-              <div class="costo-monto">${fmt(it.total_real||it.monto_real||it.total_cotizado||0)}</div>
-            </div>`).join('')
-        : '<div class="empty-sub" style="padding:.5rem 0">Sin ítems registrados</div>';
-
-      const pv    = parseFloat(resumen.precio_venta) || parseFloat(s?.precio_venta) || 0;
-      const cost  = parseFloat(resumen.total_real)   || parseFloat(s?.total_costo_real) || parseFloat(s?.total_costo_cotizado) || 0;
-      const margenVal = resumen.margen_real != null ? parseFloat(resumen.margen_real).toFixed(1)
-                      : (pv ? ((pv-cost)/pv*100).toFixed(1) : '—');
-      const semaforo = resumen.semaforo_global;
-      const semaforoLabel = semaforo === 'verde' ? '🟢' : semaforo === 'amarillo' ? '🟡' : semaforo === 'rojo' ? '🔴' : '';
-
-      h += `<div class="resumen-box">
-        <div class="res-row"><span class="res-lbl">Precio venta</span><span class="res-val">${fmt(pv)}</span></div>
-        <div class="res-row"><span class="res-lbl">Costo cotizado</span><span class="res-val">${fmt(resumen.total_cotizado||0)}</span></div>
-        <div class="res-row"><span class="res-lbl">Costo real</span><span class="res-val" style="color:var(--red)">${fmt(cost)}</span></div>
-        <div class="res-row total"><span class="res-lbl">Margen real ${semaforoLabel}</span><span class="res-val">${margenVal}%</span></div>
-      </div>`;
-      document.getElementById('mResumen-body').innerHTML = h;
-    } catch(e) {
-      document.getElementById('mResumen-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-sub">${esc(e.message)}</div></div>`;
-    }
-  }
-
-  // Pago
-  function openPago(id) {
-    pagoId = id; fileData.pago = null;
-    const s = items.find(x=>x.id_st===id);
-    document.getElementById('pago-nfac').value   = '';
-    document.getElementById('pago-monto').value  = parseFloat(s?.precio_venta)||'';
-    document.getElementById('pago-forma').value  = 'transferencia';
-    document.getElementById('pago-exento').value = 'no';
-    resetUpload('pago');
-    openModal('mPago');
-  }
-  async function submitPago() {
-    if (!pagoId) return;
-    const monto = parseFloat(document.getElementById('pago-monto').value)||0;
-    if (!monto) { toast('Ingresa el monto','err'); return; }
-    const btn = document.getElementById('pago-submit');
-    btn.disabled = true; btn.textContent = 'Registrando…';
-    try {
-      const p = {
-        action:'registrarIngresoST', id_st:pagoId,
-        num_factura: document.getElementById('pago-nfac').value.trim(),
-        total: monto,
-        forma_pago: document.getElementById('pago-forma').value,
-        es_gravado:  document.getElementById('pago-exento').value === 'no',  // GAS usa es_gravado
-      };
-      if (fileData.pago) Object.assign(p, {imageBase64:fileData.pago.b64, imageMime:fileData.pago.mime, imageName:fileData.pago.name});
-      const r = await postJSON(p);
-      if (r.success) { toast('Pago registrado ✓','ok'); closeModal('mPago'); load(); }
-      else toast(r.error||'Error','err');
-    } catch(e) { toast('Error: '+e.message,'err'); }
-    finally { btn.disabled=false; btn.textContent='Registrar pago'; }
-  }
-
-  // Egreso
-  function openEgreso(id) {
-    egrId = id; fileData.egr = null;
-    ['egr-prov','egr-desc','egr-total','egr-nfac'].forEach(k=>document.getElementById(k).value='');
-    document.getElementById('egr-tipo').value = 'material';
-    resetUpload('egr');
-    openModal('mEgreso');
-  }
-  async function submitEgreso() {
-    if (!egrId) return;
-    const total = parseFloat(document.getElementById('egr-total').value)||0;
-    if (!total) { toast('Ingresa el monto','err'); return; }
-    const btn = document.getElementById('egr-submit');
-    btn.disabled=true; btn.textContent='Registrando…';
-    try {
-      const p = {
-        action:'registrarEgresoST', id_st:egrId,
-        tipo:        document.getElementById('egr-tipo').value,
-        proveedor:   document.getElementById('egr-prov').value.trim(),
-        descripcion: document.getElementById('egr-desc').value.trim(),
-        total,
-        num_factura: document.getElementById('egr-nfac').value.trim(),
-      };
-      if (fileData.egr) Object.assign(p, {imageBase64:fileData.egr.b64, imageMime:fileData.egr.mime, imageName:fileData.egr.name});
-      const r = await postJSON(p);
-      if (r.success) { toast('Egreso registrado ✓','ok'); closeModal('mEgreso'); load(); }
-      else toast(r.error||'Error','err');
-    } catch(e) { toast('Error: '+e.message,'err'); }
-    finally { btn.disabled=false; btn.textContent='Registrar egreso'; }
-  }
-
-  // Cambiar estado
-  function openEstado(id, accion) {
-    const s = items.find(x=>x.id_st===id);
-    const CFG = {
-      aprobar: {title:'Aprobar cotización', lbl:'Aprobar',        cls:'success', gas:'aprobarCotizacion'},
-      iniciar: {title:'Iniciar ejecución',  lbl:'Iniciar',        cls:'orange',  gas:'iniciarEjecucion'},
-      cerrar:  {title:'Cerrar proyecto',    lbl:'Cerrar proyecto',cls:'primary', gas:'cerrarST'},
-    };
-    const c = CFG[accion]; if (!c) return;
-    document.getElementById('mEstado-title').textContent = c.title;
-
-    // Advertencia especial para cerrar sin ingreso registrado
-    const sinIngreso = accion === 'cerrar' && !s?.ingreso_id;
-    const advertencia = sinIngreso
-      ? `<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);padding:.65rem .85rem;margin-bottom:1rem;font-size:.75rem;color:var(--red)">
-          ⚠️ Este proyecto no tiene pago registrado. Debes registrar el ingreso antes de cerrar.
-         </div>`
-      : '';
-
-    document.getElementById('mEstado-body').innerHTML = `
-      ${advertencia}
-      <p style="font-size:.82rem;color:var(--muted);line-height:1.55;margin-bottom:1.2rem">
-        ¿Confirmas <strong>${esc(c.lbl.toLowerCase())}</strong> el proyecto de
-        <strong>${esc(s?.nombre_cliente||id)}</strong>
-        ${s?.precio_venta ? 'por <strong>'+fmt(s.precio_venta)+'</strong>' : ''}?
-      </p>
-      <button class="sheet-submit act ${c.cls}"
-        style="width:100%;padding:.82rem;border-radius:var(--r);font-size:.88rem;font-weight:600"
-        ${sinIngreso ? 'disabled style="opacity:.4;cursor:not-allowed;width:100%;padding:.82rem;border-radius:var(--r);font-size:.88rem;font-weight:600"' : `onclick="ST.confirmEstado('${esc(c.gas)}','${esc(id)}')"`}>
-        ${c.lbl}
-      </button>`;
-    openModal('mEstado');
-  }
-  async function confirmEstado(gas, id) {
-    try {
-      const r = await jsonpGet(gas, {id_st:id});
-      if (r.success) { toast('Actualizado ✓','ok'); closeModal('mEstado'); load(); }
-      else toast(r.error||'Error','err');
-    } catch(e) { toast('Error de conexión','err'); }
-  }
-
-  // Load
-  async function load() {
-    skel('st-list',4);
-    try {
-      const r = await jsonpGet('getCotizaciones');
-      if (!r.success) throw new Error(r.error);
-      const ord = { en_ejecucion:0, aprobado:1, cotizado:2, cerrado:3, cancelado:4 };
-      items = (r.items||[]).sort((a,b)=>(ord[a.estado]??9)-(ord[b.estado]??9));
-      updateKPIs(); render();
-    } catch(e) {
-      document.getElementById('st-list').innerHTML =
-        `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Error al cargar</div><div class="empty-sub">${esc(e.message)}</div></div>`;
-    }
-    return Promise.resolve();
-  }
-
-  return { load, setFilter, toggle, openResumen, openPago, submitPago, openEgreso, submitEgreso, openEstado, confirmEstado };
-})();
-
-
-// ════════════════════════════════════════════════════════
-//  MÓDULO OP — Comercialización
-// ════════════════════════════════════════════════════════
-const OP = (() => {
-  let items = [], filter = 'todos', expanded = null;
-
-  const BADGE = { pendiente:['badge-pend','Pendiente'], inventario:['badge-inv','Inventario'], facturado:['badge-fact','Facturado'], cerrado:['badge-ok','Cerrado'] };
-  const badge = e => { const [c,l] = BADGE[e]||['badge-pend',e]; return `<span class="badge ${c}">${l}</span>`; };
-
-  function updateKPIs() {
-    const pend = items.filter(i=>i.estado==='pendiente');
-    const inv  = items.filter(i=>i.estado==='inventario');
-    const fact = items.filter(i=>i.estado==='facturado');
-    const cerr = items.filter(i=>i.estado==='cerrado');
-
-    // Pendientes: costo proveedor en riesgo (total_carbone)
-    const pendCosto = pend.reduce((a,i)=>a+(parseFloat(i.total_carbone)||0),0);
-    // Inventario: valor en stock (total_carbone)
-    const invValor  = inv.reduce((a,i)=>a+(parseFloat(i.total_carbone)||0),0);
-    // Facturados: total venta pendiente de cobro (precio_venta neto s/ITBMS)
-    const factNeto  = fact.reduce((a,i)=>a+(parseFloat(i.precio_venta)||parseFloat(i.total_venta)||0),0);
-    // Cerrados: total venta neto s/ITBMS (precio_venta del item CV)
-    const cerrNeto  = cerr.reduce((a,i)=>a+(parseFloat(i.precio_venta)||parseFloat(i.total_venta)||0),0);
-
-    document.getElementById('kpi-op-pend').textContent   = pend.length;
-    document.getElementById('kpi-op-pend-v').textContent = pendCosto ? fmt(pendCosto) : 'sin ítems';
-    document.getElementById('kpi-op-inv').textContent    = inv.length;
-    document.getElementById('kpi-op-inv-v').textContent  = invValor  ? fmt(invValor)  : 'sin ítems';
-    document.getElementById('kpi-op-fact').textContent   = fact.length;
-    document.getElementById('kpi-op-fact-v').textContent = factNeto  ? fmt(factNeto)  : 'sin ítems';
-    document.getElementById('kpi-op-cerr').textContent   = cerr.length;
-    document.getElementById('kpi-op-cerr-v').textContent = cerrNeto  ? fmt(cerrNeto)  : 'sin ítems';
-  }
-
-  function setFilter(btn, f) {
-    filter=f; expanded=null;
-    document.querySelectorAll('#viewComercial .ftab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active'); render();
-  }
-
-  function render() {
-    const el = document.getElementById('op-list');
-    const list = filter==='todos' ? items : items.filter(i=>i.estado===filter);
-    if (!list.length) { el.innerHTML=`<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Sin operaciones</div></div>`; return; }
-    el.innerHTML = '<div class="card-list">'+list.map(buildCard).join('')+'</div>';
-  }
-
-  function buildCard(it) {
-    const open = expanded===it.id_item;
-    const sub  = it.nombre_cliente || it.ruc_cliente || '';
-    return `
-    <div class="card s-${esc(it.estado)}${open?' open':''}">
-      <div class="card-head" onclick="OP.toggle('${esc(it.id_item)}')">
-        <div class="card-dot ${esc(it.estado)}"></div>
-        <div class="card-body">
-          <div class="card-title">${esc(it.descripcion_prod||it.id_item)}</div>
-          <div class="card-meta">${badge(it.estado)}<span class="card-sep">·</span><span>${esc(sub)}</span></div>
-        </div>
-        <div class="card-right">
-          <div class="card-monto">${fmt(it.total_venta||it.total_carbone)}</div>
-          ${it.margen ? `<div class="kpi-sub">${parseFloat(it.margen).toFixed(1)}% mg</div>` : ''}
-          <span class="card-chev">▾</span>
-        </div>
-      </div>
-      <div class="card-detail">${buildDetail(it)}</div>
-    </div>`;
-  }
-
-  function buildDetail(it) {
-    let h = `
-      <div class="d-row"><span class="d-lbl">Código SKU</span><span class="d-val txt">${esc(it.codigo_prod||'—')}</span></div>
-      <div class="d-row"><span class="d-lbl">Factura proveedor</span><span class="d-val txt">${esc(it.num_fac_carbone||'—')}</span></div>
-      <div class="d-row"><span class="d-lbl">Fecha compra</span><span class="d-val txt">${esc(it.fecha_compra||'—')}</span></div>
-      <div class="d-row"><span class="d-lbl">Costo total</span><span class="d-val">${fmt(it.total_carbone)}</span></div>`;
-    if (it.nombre_cliente) h += `<div class="d-row"><span class="d-lbl">Cliente</span><span class="d-val txt">${esc(it.nombre_cliente)}</span></div>`;
-    if (it.num_fac_emitida) h += `<div class="d-row"><span class="d-lbl">Factura emitida</span><span class="d-val txt">${esc(it.num_fac_emitida)}</span></div>`;
-    if (it.total_venta) h += `<div class="d-row"><span class="d-lbl">Total venta</span><span class="d-val" style="color:var(--green)">${fmt(it.total_venta)}</span></div>`;
-    if (it.margen) h += `<div class="d-row"><span class="d-lbl">Margen</span><span class="d-val">${parseFloat(it.margen).toFixed(1)}%</span></div>`;
-    if (it.ingreso_id) h += `<div class="d-row"><span class="d-lbl">Ingreso ID</span><span class="d-val txt" style="font-size:.68rem">${esc(it.ingreso_id)}</span></div>`;
-
-    h += '<div class="card-acts">';
-    if (it.estado === 'facturado' && !it.ingreso_id) {
-      h += `<button class="act orange" onclick="OP.pagoCliente('${esc(it.id_item)}')">💰 Pago cliente</button>`;
-    }
-    if (it.estado === 'facturado' && it.ingreso_id) {
-      h += `<button class="act ghost" style="cursor:default;opacity:.6">✅ Pago registrado</button>`;
-    }
-    if (it.drive_url_carb) h += `<button class="act ghost" onclick="DRIVE.open('${esc(it.drive_url_carb)}','Factura Carbone')">📄 Fact. Carbone</button>`;
-    if (it.drive_url_emit) h += `<button class="act ghost" onclick="DRIVE.open('${esc(it.drive_url_emit)}','Factura emitida')">📤 Fact. emitida</button>`;
-    h += '</div>'; return h;
-  }
-
-  function toggle(id) { expanded=expanded===id?null:id; render(); }
-  function pagoCliente(id) {
-    const it = items.find(x => x.id_item === id);
-    if (!it) return;
-    fileData.op = null;
-    document.getElementById('op-pago-id').value     = id;
-    document.getElementById('op-pago-nfac').value   = it.num_fac_emitida || '';
-    document.getElementById('op-pago-cli').value    = it.nombre_cliente  || '';
-    document.getElementById('op-pago-monto').value  = parseFloat(it.total_venta) || parseFloat(it.total_carbone) || '';
-    document.getElementById('op-pago-forma').value  = 'transferencia';
-    resetUpload('op');
-    openModal('mOpPago');
-  }
-
-  async function submitOpPago() {
-    const id    = document.getElementById('op-pago-id').value;
-    const monto = parseFloat(document.getElementById('op-pago-monto').value) || 0;
-    const forma = document.getElementById('op-pago-forma').value;
-    if (!id)    { toast('Error: sin id_item', 'err'); return; }
-    if (!monto) { toast('Ingresa el monto',   'err'); return; }
-
-    const btn = document.getElementById('op-pago-submit');
-    btn.disabled = true; btn.textContent = 'Registrando…';
-    try {
-      const p = { action:'registrarPagoOperacion', id_item:id, forma_pago:forma };
-      if (fileData.op) Object.assign(p, {
-        imageBase64: fileData.op.b64,
-        imageMime:   fileData.op.mime,
-        imageName:   fileData.op.name,
-      });
-      const r = await postJSON(p);
-      if (r.success) { toast('Pago registrado ✓', 'ok'); closeModal('mOpPago'); load(); }
-      else toast(r.error || 'Error al registrar', 'err');
-    } catch(e) { toast('Error: ' + e.message, 'err'); }
-    finally { btn.disabled = false; btn.textContent = 'Registrar pago'; }
-  }
-
-  async function load() {
-    skel('op-list',4);
-    try {
-      const r = await jsonpGet('getComprasVentas');
-      if (!r.success) throw new Error(r.error);
-      const ord = {facturado:0,pendiente:1,inventario:2,cerrado:3};
-      items = (r.items||[]).sort((a,b)=>(ord[a.estado]??9)-(ord[b.estado]??9));
-      updateKPIs(); render();
-    } catch(e) {
-      document.getElementById('op-list').innerHTML =
-        `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Error al cargar</div><div class="empty-sub">${esc(e.message)}</div></div>`;
-    }
-    return Promise.resolve();
-  }
-
-  return { load, setFilter, toggle, pagoCliente, submitOpPago };
-})();
 
 
 // ════════════════════════════════════════════════════════
@@ -2603,15 +1863,6 @@ const DRIVE = (() => {
   return { open, close, onLoad, openExternal, download };
 })();
 
-// ── INIT ──────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  // LOGIN DESHABILITADO TEMPORALMENTE — restaurar: quitar hasta el comentario "FIN LOGIN BYPASS"
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  // FIN LOGIN BYPASS
-  switchView('proyectos');
-  loadAll();
-});
 document.querySelectorAll('.overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
