@@ -100,9 +100,10 @@ function doGet_Acreedores(action, params, callback) {
 }
 
 function doPost_Acreedores(action, data) {
-  if (action === 'guardarAcreedor')         return _handleGuardarAcreedor(data);
-  if (action === 'analizarFacturaAcreedor') return _handleAnalizarFacturaAcreedor(data);
-  if (action === 'actualizarPendienteAcr')  return _handleActualizarPendienteAcr(data);
+  if (action === 'guardarAcreedor')            return _handleGuardarAcreedor(data);
+  if (action === 'analizarFacturaAcreedor')    return _handleAnalizarFacturaAcreedor(data);
+  if (action === 'actualizarPendienteAcr')     return _handleActualizarPendienteAcr(data);
+  if (action === 'guardarPreferenciaAcreedor') return _handleGuardarPreferencia(data);
   return null;
 }
 
@@ -199,6 +200,15 @@ function _sincronizarEmailsAcreedores() {
               ruc:           parsed.ruc_proveedor    || '',
               categoria_def: parsed.categoria_sugerida || ''
             };
+            // Aplicar preferencia guardada por el usuario (si existe)
+            var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+            if (pref && pref.categoria_def) {
+              acreedor.id           = pref.id;
+              acreedor.categoria_def = pref.categoria_def;
+              if (pref.desc_default) parsed.descripcion = pref.desc_default;
+              parsed.categoria_sugerida = pref.categoria_def;
+              Logger.log('🎯 Preferencia aplicada: ' + acreedor.nombre + ' → ' + pref.categoria_def);
+            }
             var driveUrl = _guardarPdfAcreedor(pdfBytes, fileName, acreedor.nombre, cfg);
 
             if (parsed.num_factura && _pendienteYaExiste(parsed.num_factura, acreedor.id)) {
@@ -445,6 +455,72 @@ function _claudeParsearFacturaLibre(pdfB64, fileName) {
 //  HELPERS DE HOJAS
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+//  PREFERENCIAS DE PROVEEDOR — guardar / buscar
+// ═══════════════════════════════════════════════════════════════
+
+function _buscarPreferenciaAcreedor(nombre, ruc) {
+  var lista = _getAcreedores();
+  var rucNorm = (ruc || '').replace(/[-\.]/g, '').toLowerCase();
+  // Buscar por RUC primero, luego por nombre exacto
+  for (var i = 0; i < lista.length; i++) {
+    var a = lista[i];
+    if (rucNorm && (a.ruc || '').replace(/[-\.]/g, '').toLowerCase() === rucNorm) return a;
+  }
+  var nomLower = (nombre || '').toLowerCase().trim();
+  for (var j = 0; j < lista.length; j++) {
+    if ((lista[j].nombre || '').toLowerCase().trim() === nomLower) return lista[j];
+  }
+  return null;
+}
+
+function _handleGuardarPreferencia(data) {
+  try {
+    var nombre     = String(data.nombre    || '').trim();
+    var ruc        = String(data.ruc       || '').trim();
+    var categoria  = String(data.categoria || '').trim();
+    var descripcion = String(data.descripcion || '').trim();
+    if (!nombre && !ruc) throw new Error('nombre o ruc requerido');
+
+    _acreedoresCache = null;
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_ACREEDORES_CONFIG);
+    if (!sheet) throw new Error('Hoja Acreedores_Config no encontrada');
+
+    var notasJson = JSON.stringify({ desc_default: descripcion, pref_usuario: true });
+    var ahora     = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd');
+
+    // Buscar fila existente por RUC o nombre
+    var existing = _buscarPreferenciaAcreedor(nombre, ruc);
+    if (existing && existing._row) {
+      // Actualizar fila existente
+      sheet.getRange(existing._row, COL_ACR.CATEGORIA_DEF).setValue(categoria);
+      sheet.getRange(existing._row, COL_ACR.NOTAS).setValue(notasJson);
+      Logger.log('✅ Preferencia actualizada: ' + nombre + ' | ' + categoria);
+      return _jsonpAcr({ success: true, action: 'updated', nombre: nombre });
+    }
+
+    // Crear fila nueva
+    var lastRow = sheet.getLastRow();
+    var seq     = lastRow <= 2 ? 1 : lastRow - 1;
+    var id      = 'PREF-' + ahora.replace(/-/g,'') + '-' + String(seq).padStart(3,'0');
+    var fila    = new Array(ACR_NCOLS).fill('');
+    fila[COL_ACR.ID - 1]             = id;
+    fila[COL_ACR.NOMBRE - 1]         = nombre;
+    fila[COL_ACR.RUC - 1]            = ruc;
+    fila[COL_ACR.CATEGORIA_DEF - 1]  = categoria;
+    fila[COL_ACR.ACTIVO - 1]         = 'true';
+    fila[COL_ACR.FECHA_ALTA - 1]     = ahora;
+    fila[COL_ACR.NOTAS - 1]          = notasJson;
+    sheet.appendRow(fila);
+    Logger.log('✅ Preferencia creada: ' + nombre + ' | ' + categoria);
+    return _jsonpAcr({ success: true, action: 'created', nombre: nombre });
+  } catch(err) {
+    Logger.log('❌ guardarPreferenciaAcreedor: ' + err.message);
+    return _jsonpAcr({ success: false, error: err.message });
+  }
+}
+
 function _getAcreedores() {
   if (_acreedoresCache) return _acreedoresCache;
   var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
@@ -467,6 +543,7 @@ function _getAcreedores() {
       fecha_alta:      r[COL_ACR.FECHA_ALTA - 1]      || '',
       drive_ejemplo:   r[COL_ACR.DRIVE_EJEMPLO - 1]   || '',
       notas:           r[COL_ACR.NOTAS - 1]            || '',
+      desc_default:    (function(n){ try { return JSON.parse(n).desc_default||''; } catch(e){ return ''; } })(String(r[COL_ACR.NOTAS-1]||'')),
       _row:            i + 3,
     });
   }
