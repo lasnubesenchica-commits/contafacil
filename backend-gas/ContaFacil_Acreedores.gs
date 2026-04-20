@@ -189,25 +189,16 @@ function _sincronizarEmailsAcreedores() {
           var pdfBytes = att.getBytes();
           var pdfB64   = Utilities.base64Encode(pdfBytes);
 
-          // ── Match Nivel 1: nombre de archivo (rápido, sin API) ──
-          var acreedor = _matchearAcreedor(fileName);
-
-          // ── Match Nivel 2: contenido PDF con Claude Haiku ───────
-          if (!acreedor) {
-            acreedor = _matchearAcreedorContenido(pdfB64);
-          }
-
-          if (!acreedor) {
-            // No es de ningún acreedor configurado — ignorar silenciosamente
-            stats.ignorados++;
-            Logger.log('⏭ Acreedores ignora (no es acreedor registrado): ' + fileName);
-            continue;
-          }
-
-          // ── Acreedor encontrado — parsear ────────────────────────
+          // ── Parsear con Claude — extrae proveedor y datos en una sola llamada ──
           tieneAlgunAcreedor = true;
           try {
-            var parsed   = _claudeParsearFacturaAcreedor(pdfB64, acreedor);
+            var parsed   = _claudeParsearFacturaLibre(pdfB64, fileName);
+            var acreedor = {
+              id:            'LIBRE',
+              nombre:        parsed.nombre_proveedor || fileName,
+              ruc:           parsed.ruc_proveedor    || '',
+              categoria_def: parsed.categoria_sugerida || ''
+            };
             var driveUrl = _guardarPdfAcreedor(pdfBytes, fileName, acreedor.nombre, cfg);
 
             if (parsed.num_factura && _pendienteYaExiste(parsed.num_factura, acreedor.id)) {
@@ -403,6 +394,54 @@ function _claudeParsearFacturaAcreedor(pdfB64, acreedor) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  CLAUDE — parsear factura sin acreedor previo (modo libre)
+// ═══════════════════════════════════════════════════════════════
+
+function _claudeParsearFacturaLibre(pdfB64, fileName) {
+  var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
+
+  var catList = CATEGORIAS_ACREEDOR.map(function(c) {
+    return c.valor + ' - ' + c.label;
+  }).join('\n');
+
+  var prompt =
+    'Eres un extractor de facturas de gastos operativos panameñas.\n' +
+    'Extrae todos los campos del documento y responde SOLO con JSON válido, sin markdown:\n' +
+    '{"nombre_proveedor":"","ruc_proveedor":"","num_factura":"","fecha":"YYYY-MM-DD",' +
+    '"subtotal":0,"itbms":0,"total":0,"descripcion":"","categoria_sugerida":"","confianza_categoria":0}\n\n' +
+    'categoria_sugerida debe ser uno de:\n' + catList + '\n\n' +
+    'Reglas:\n' +
+    '- nombre_proveedor: razón social del EMISOR de la factura (quien cobra, no quien paga).\n' +
+    '- ruc_proveedor: RUC del emisor, solo dígitos y guiones.\n' +
+    '- descripcion: servicio o producto facturado en pocas palabras.\n' +
+    '- confianza_categoria: 0-100, qué tan seguro estás de la categoría.\n' +
+    '- Si un campo no es visible usar null. Montos como números sin símbolo de moneda.';
+
+  var payload = {
+    model:      'claude-sonnet-4-6',
+    max_tokens: 600,
+    messages: [{ role: 'user', content: [
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } },
+      { type: 'text', text: prompt }
+    ]}]
+  };
+  var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post', contentType: 'application/json',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    payload: JSON.stringify(payload), muteHttpExceptions: true,
+  });
+  if (resp.getResponseCode() !== 200)
+    throw new Error('Claude error ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
+  var text    = '';
+  var content = JSON.parse(resp.getContentText()).content || [];
+  for (var i = 0; i < content.length; i++) {
+    if (content[i].type === 'text') { text = content[i].text; break; }
+  }
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  HELPERS DE HOJAS
 // ═══════════════════════════════════════════════════════════════
 
@@ -522,7 +561,8 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   fila[COL_PEND.CATEGORIA - 1]   = catSugerida;
   fila[COL_PEND.DESCRIPCION - 1] = parsed.descripcion  || acreedor.nombre;
   fila[COL_PEND.DRIVE_URL - 1]   = driveUrl;
-  fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%';
+  var notasExtra = acreedor.ruc ? ' | RUC: ' + acreedor.ruc : '';
+  fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra;
   fila[COL_PEND.EGRESO_ID - 1]   = '';
   fila[COL_PEND.MSG_ID - 1]      = clave || msgId || '';
 
