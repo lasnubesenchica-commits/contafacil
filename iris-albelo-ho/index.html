@@ -7624,6 +7624,10 @@ function acrAbrirDetalle(item) {
   const acc = document.getElementById('acrDetalleAcciones');
   acc.style.display = item.estado === 'borrador' ? 'flex' : 'none';
 
+  // Checkbox recordar
+  document.getElementById('acrChkRecordar').checked = false;
+  document.getElementById('acrRecordarNombre').textContent = item.acreedor_nom || 'este proveedor';
+
   document.getElementById('acrModalMsg').style.display = 'none';
   modal.style.display = 'flex';
 }
@@ -7670,6 +7674,23 @@ async function acrAprobar() {
     msg.style.color = 'var(--green)';
     msg.textContent = '✅ Egreso registrado: ' + data.egresoId;
     showToast('✅ Egreso registrado: ' + data.egresoId);
+
+    // Guardar preferencia si el checkbox está marcado
+    if (document.getElementById('acrChkRecordar')?.checked) {
+      const rucMatch = (_acrSelected.notas || '').match(/RUC:\s*([\w\-\.]+)/);
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action:      'guardarPreferenciaAcreedor',
+          nombre:      _acrSelected.acreedor_nom || '',
+          ruc:         rucMatch ? rucMatch[1] : '',
+          categoria,
+          descripcion,
+        }),
+      }).then(() => showToast('🎯 Preferencia guardada para ' + (_acrSelected.acreedor_nom || 'proveedor')));
+    }
+
     setTimeout(() => {
       acrCerrarModal();
       // Quitar de _acrData y recargar egresos para que aparezca el nuevo registro
@@ -8157,6 +8178,14 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
             <input type="number" id="acrDetTotal" step="0.01" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
           </div>
         </div>
+      </div>
+
+      <!-- Opción recordar preferencia -->
+      <div id="acrRecordarWrap" style="margin-bottom:.85rem;padding:.6rem .85rem;background:var(--bg);border-radius:7px;display:flex;align-items:center;gap:.6rem">
+        <input type="checkbox" id="acrChkRecordar" style="cursor:pointer;accent-color:var(--orange);width:1rem;height:1rem;flex-shrink:0">
+        <label for="acrChkRecordar" style="font-size:.8rem;color:var(--text);cursor:pointer;line-height:1.4">
+          Recordar categoría y descripción para futuras facturas de <strong id="acrRecordarNombre">este proveedor</strong>
+        </label>
       </div>
 
       <!-- Botones -->
