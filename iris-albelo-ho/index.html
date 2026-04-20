@@ -2076,8 +2076,17 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <div class="setup-card-title">🚀 Cómo activar la captura automática de gastos</div>
 
     <div style="font-size:.83rem;color:var(--text);margin-bottom:1.25rem;line-height:1.55">
-      El sistema ya está configurado para recibir tus facturas. Solo necesitas crear
-      una regla de reenvío en tu correo personal para cada proveedor que quieras capturar.
+      Hazlo directamente desde el correo que ya recibiste del proveedor — Gmail pre-llena todo por ti.
+      Solo son 3 clics por proveedor y queda configurado para siempre.
+    </div>
+
+    <!-- Email destacado — arriba para copiar antes de empezar -->
+    <div style="background:var(--bg);border:1.5px dashed var(--orange);border-radius:var(--r1);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem">
+      <div>
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.2rem">Copia esta dirección antes de empezar</div>
+        <code id="guiaEmailDestino" style="font-size:.95rem;font-weight:700;color:var(--orange);letter-spacing:.01em">facturas@balanceclip.net</code>
+      </div>
+      <button onclick="(function(){var el=document.getElementById('guiaEmailDestino');navigator.clipboard.writeText(el.textContent.trim()).then(function(){showToast('✅ Copiado al portapapeles')}).catch(function(){showToast('Copia: '+el.textContent.trim())})})()" style="font-size:.78rem;padding:.35rem .75rem;border:1px solid var(--border);background:var(--white);border-radius:var(--r1);cursor:pointer;white-space:nowrap">📋 Copiar</button>
     </div>
 
     <!-- Steps -->
@@ -2086,41 +2095,32 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div style="display:flex;gap:.9rem;align-items:flex-start">
         <div style="min-width:1.7rem;height:1.7rem;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">1</div>
         <div>
-          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Abre Gmail y ve a Configuración</div>
-          <div style="font-size:.8rem;color:var(--muted)">Clic en el ícono ⚙️ (arriba a la derecha) → <strong>Ver toda la configuración</strong> → pestaña <strong>Filtros y direcciones bloqueadas</strong></div>
+          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Abre el correo del proveedor en Gmail</div>
+          <div style="font-size:.8rem;color:var(--muted)">Busca cualquier factura que hayas recibido de ese proveedor (Cable &amp; Wireless, electricidad, seguro, etc.) y ábrela.</div>
         </div>
       </div>
 
       <div style="display:flex;gap:.9rem;align-items:flex-start">
         <div style="min-width:1.7rem;height:1.7rem;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">2</div>
         <div>
-          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Crear un filtro nuevo</div>
-          <div style="font-size:.8rem;color:var(--muted)">Clic en <strong>Crear un filtro nuevo</strong>. En el campo <strong>De:</strong> escribe el correo del proveedor (ej: <code style="background:var(--bg);padding:.1rem .3rem;border-radius:3px">facturacion@cable.com.pa</code>). Marca <strong>Tiene adjunto</strong>. Clic en <strong>Crear filtro</strong>.</div>
+          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Menú <code style="background:var(--bg);padding:.1rem .35rem;border-radius:3px;font-size:.8rem">⋮</code> → "Filtrar mensajes de este tipo"</div>
+          <div style="font-size:.8rem;color:var(--muted)">Haz clic en los tres puntos verticales (<strong>⋮</strong>) que aparecen arriba a la derecha del correo. Selecciona <strong>Filtrar mensajes de este tipo</strong>. Gmail abrirá el formulario con el remitente ya pre-llenado.</div>
         </div>
       </div>
 
       <div style="display:flex;gap:.9rem;align-items:flex-start">
         <div style="min-width:1.7rem;height:1.7rem;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">3</div>
         <div>
-          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Activar el reenvío</div>
-          <div style="font-size:.8rem;color:var(--muted)">En la pantalla de acción marca <strong>Reenviar a:</strong> y escribe la dirección de abajo. Clic en <strong>Crear filtro</strong>. ¡Listo!</div>
+          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Marca "Tiene adjunto" → Crear filtro → Reenviar a</div>
+          <div style="font-size:.8rem;color:var(--muted)">En el formulario marca <strong>Tiene adjunto</strong> y haz clic en <strong>Crear filtro</strong>. En la siguiente pantalla marca <strong>Reenviar a</strong> y pega la dirección que copiaste arriba. Clic en <strong>Crear filtro</strong>. ¡Listo!</div>
         </div>
       </div>
 
     </div>
 
-    <!-- Email destacado -->
-    <div style="background:var(--bg);border:1.5px dashed var(--orange);border-radius:var(--r1);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap">
-      <div>
-        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.2rem">Dirección de reenvío</div>
-        <code id="guiaEmailDestino" style="font-size:.95rem;font-weight:700;color:var(--orange);letter-spacing:.01em">facturas@balanceclip.net</code>
-      </div>
-      <button onclick="(function(){var el=document.getElementById('guiaEmailDestino');navigator.clipboard.writeText(el.textContent.trim()).then(function(){showToast('✅ Copiado al portapapeles')}).catch(function(){showToast('Copia: '+el.textContent.trim())})})()" style="font-size:.78rem;padding:.35rem .75rem;border:1px solid var(--border);background:var(--white);border-radius:var(--r1);cursor:pointer;white-space:nowrap">📋 Copiar</button>
-    </div>
-
-    <div style="margin-top:.85rem;padding:.65rem .85rem;background:#FFF9C4;border-radius:var(--r1);font-size:.78rem;color:#5D4037;line-height:1.5">
-      <strong>💡 Tip:</strong> Repite el paso 2 y 3 por cada proveedor (Cable &amp; Wireless, electricidad, seguro, etc.).
-      El sistema procesará solo los correos que vengan <strong>de tu email</strong> (<span id="guiaEmailRemitente" style="font-weight:600">—</span>) hacia <code>facturas@balanceclip.net</code>.
+    <div style="padding:.65rem .85rem;background:#FFF9C4;border-radius:var(--r1);font-size:.78rem;color:#5D4037;line-height:1.5">
+      <strong>💡 Tip:</strong> Repite estos 3 pasos por cada proveedor que quieras capturar. El filtro queda guardado en Gmail y aplica a todos los correos futuros de ese remitente — no tienes que hacerlo de nuevo.
+      El sistema solo procesará correos que lleguen <strong>de tu correo</strong> (<span id="guiaEmailRemitente" style="font-weight:600">—</span>) hacia <code>facturas@balanceclip.net</code>.
     </div>
 
   </div>
