@@ -2883,6 +2883,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 // ══════════════════════════════════════════════════
 
 const GAS_URL        = 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
+const IS_ADMIN       = true;   // siempre admin en este deployment unipersonal
 // ✅ Sin API key aquí — Claude Vision corre en el servidor GAS
 
 function buildMenu() {
@@ -2906,8 +2907,7 @@ function buildMenu() {
 const AUTO_LOGIN = true;  // ← false para volver a pedir contraseña
 
 function doLogin() {
-  const pwd = document.getElementById('loginPwd').value;
-  if (AUTO_LOGIN || pwd === ADMIN_PASSWORD) {
+  if (AUTO_LOGIN) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     buildMenu();
