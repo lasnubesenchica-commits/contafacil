@@ -2071,6 +2071,60 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
   </div>
  
+  <!-- ── Card: Guía de reenvío automático ── -->
+  <div class="setup-card" id="cardGuiaReenvio">
+    <div class="setup-card-title">🚀 Cómo activar la captura automática de gastos</div>
+
+    <div style="font-size:.83rem;color:var(--text);margin-bottom:1.25rem;line-height:1.55">
+      El sistema ya está configurado para recibir tus facturas. Solo necesitas crear
+      una regla de reenvío en tu correo personal para cada proveedor que quieras capturar.
+    </div>
+
+    <!-- Steps -->
+    <div style="display:flex;flex-direction:column;gap:.85rem;margin-bottom:1.25rem">
+
+      <div style="display:flex;gap:.9rem;align-items:flex-start">
+        <div style="min-width:1.7rem;height:1.7rem;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">1</div>
+        <div>
+          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Abre Gmail y ve a Configuración</div>
+          <div style="font-size:.8rem;color:var(--muted)">Clic en el ícono ⚙️ (arriba a la derecha) → <strong>Ver toda la configuración</strong> → pestaña <strong>Filtros y direcciones bloqueadas</strong></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.9rem;align-items:flex-start">
+        <div style="min-width:1.7rem;height:1.7rem;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">2</div>
+        <div>
+          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Crear un filtro nuevo</div>
+          <div style="font-size:.8rem;color:var(--muted)">Clic en <strong>Crear un filtro nuevo</strong>. En el campo <strong>De:</strong> escribe el correo del proveedor (ej: <code style="background:var(--bg);padding:.1rem .3rem;border-radius:3px">facturacion@cable.com.pa</code>). Marca <strong>Tiene adjunto</strong>. Clic en <strong>Crear filtro</strong>.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.9rem;align-items:flex-start">
+        <div style="min-width:1.7rem;height:1.7rem;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">3</div>
+        <div>
+          <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">Activar el reenvío</div>
+          <div style="font-size:.8rem;color:var(--muted)">En la pantalla de acción marca <strong>Reenviar a:</strong> y escribe la dirección de abajo. Clic en <strong>Crear filtro</strong>. ¡Listo!</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Email destacado -->
+    <div style="background:var(--bg);border:1.5px dashed var(--orange);border-radius:var(--r1);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap">
+      <div>
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.2rem">Dirección de reenvío</div>
+        <code id="guiaEmailDestino" style="font-size:.95rem;font-weight:700;color:var(--orange);letter-spacing:.01em">facturas@balanceclip.net</code>
+      </div>
+      <button onclick="(function(){var el=document.getElementById('guiaEmailDestino');navigator.clipboard.writeText(el.textContent.trim()).then(function(){showToast('✅ Copiado al portapapeles')}).catch(function(){showToast('Copia: '+el.textContent.trim())})})()" style="font-size:.78rem;padding:.35rem .75rem;border:1px solid var(--border);background:var(--white);border-radius:var(--r1);cursor:pointer;white-space:nowrap">📋 Copiar</button>
+    </div>
+
+    <div style="margin-top:.85rem;padding:.65rem .85rem;background:#FFF9C4;border-radius:var(--r1);font-size:.78rem;color:#5D4037;line-height:1.5">
+      <strong>💡 Tip:</strong> Repite el paso 2 y 3 por cada proveedor (Cable &amp; Wireless, electricidad, seguro, etc.).
+      El sistema procesará solo los correos que vengan <strong>de tu email</strong> (<span id="guiaEmailRemitente" style="font-weight:600">—</span>) hacia <code>facturas@balanceclip.net</code>.
+    </div>
+
+  </div>
+
   <!-- ── Card: Gastos configurados (sin cambios) ── -->
   <div class="setup-card">
     <div class="setup-card-title">🏦 Gastos configurados</div>
@@ -4767,6 +4821,11 @@ async function loadSetupConfig() {
     // Cargar email Registro General / Acreedores
     if (document.getElementById('cfgEmailAcrDestino'))   document.getElementById('cfgEmailAcrDestino').value   = c.email_acr_destino   || '';
     if (document.getElementById('cfgEmailAcrRemitente')) document.getElementById('cfgEmailAcrRemitente').value = c.email_acr_remitente || '';
+    // Sincronizar guía visual
+    var guiaDest = document.getElementById('guiaEmailDestino');
+    var guiaRem  = document.getElementById('guiaEmailRemitente');
+    if (guiaDest && c.email_acr_destino)   guiaDest.textContent = c.email_acr_destino;
+    if (guiaRem)  guiaRem.textContent  = c.email_acr_remitente || 'tu correo';
 
     // URL del GAS
     document.getElementById('cfgGasUrl').value = GAS_URL;
