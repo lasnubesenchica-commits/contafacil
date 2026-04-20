@@ -2823,7 +2823,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           </div>
           <div class="modal-field full">
             <label>Proveedor / Beneficiario</label>
-            <input type="text" id="eProveedor" placeholder="Nombre del proveedor" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;width:100%;box-sizing:border-box">
+            <input type="text" id="eProveedor" placeholder="Nombre del proveedor" oninput="const v=this.value.trim();document.getElementById('eRecordarNombre').textContent=v||'este proveedor'" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;width:100%;box-sizing:border-box">
           </div>
           <div class="modal-field">
             <label>RUC proveedor</label>
@@ -2844,6 +2844,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
           </div>
         </div>
       </div>
+    </div>
+    <div id="egresoRecordarWrap" style="margin:.5rem 1.25rem .25rem;padding:.6rem .85rem;background:var(--bg);border-radius:7px;display:flex;align-items:center;gap:.6rem">
+      <input type="checkbox" id="eChkRecordar" style="cursor:pointer;accent-color:#6A1B9A;width:1rem;height:1rem;flex-shrink:0">
+      <label for="eChkRecordar" style="font-size:.8rem;color:var(--text);cursor:pointer;line-height:1.4">
+        Recordar categoría y descripción para futuras facturas de <strong id="eRecordarNombre">este proveedor</strong>
+      </label>
     </div>
     <div class="modal-actions">
       <button class="btn-primary" style="background:#6A1B9A" onclick="guardarEgresoOperativo()">💾 Guardar egreso</button>
@@ -3330,6 +3336,22 @@ async function guardarEgresoOperativo() {
     });
     if (!data.success) throw new Error(data.error || 'Error desconocido');
     showToast('✅ Egreso registrado: ' + data.egresoId);
+
+    // Guardar preferencia si el checkbox está marcado
+    if (document.getElementById('eChkRecordar')?.checked) {
+      const provNom = document.getElementById('eProveedor').value.trim();
+      const provRuc = document.getElementById('eRucProv').value.trim();
+      const cat     = document.getElementById('eCategoria').value;
+      const desc    = document.getElementById('eDescripcion').value.trim();
+      if (provNom || provRuc) {
+        fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'guardarPreferenciaAcreedor', nombre: provNom, ruc: provRuc, categoria: cat, descripcion: desc }),
+        }).then(() => showToast('🎯 Preferencia guardada para ' + (provNom || provRuc)));
+      }
+    }
+
     closeEgresoModal();
     plLoaded = false;   // invalidar cache P&L
     egrItems = []; loadEgresos();
@@ -4243,6 +4265,10 @@ function abrirModalNuevoEgreso() {
   document.getElementById('eFacturaInput').value = '';
   egresoFileB64 = null; egresoFileMime = null; egresoIAItems = [];
   inferirTipoEgreso();   // sync eTipoHidden with default category
+  // Reset "recordar" checkbox
+  const chkRec = document.getElementById('eChkRecordar');
+  if (chkRec) chkRec.checked = false;
+  document.getElementById('eRecordarNombre').textContent = 'este proveedor';
   document.getElementById('egresoModalOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -5512,6 +5538,7 @@ function rgRenderEgr() {
     .filter(e => String(e.estado||'').toLowerCase() !== 'anulado')
     .map(e => ({
       _tipo:      'registrado',
+      _esEmail:   String(e.notas||'').startsWith('acreedor_auto'),
       fecha:      String(e.fecha_egreso||'').substring(0,10),
       proveedor:  e.proveedor || '—',
       num_fac:    e.num_fac_ref || '—',
@@ -5590,7 +5617,7 @@ function rgRenderEgr() {
     const rowBg       = esPendiente ? 'background:#FFFDE7' : '';
 
     // Badge origen
-    const origenBadge = esPendiente
+    const origenBadge = (esPendiente || i._esEmail)
       ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
       : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
 
