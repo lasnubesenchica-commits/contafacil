@@ -229,6 +229,7 @@ function doPost(e) {
     if (action === 'analizarFacturaAcreedor')    return _handleAnalizarFacturaAcreedor(data);
     if (action === 'actualizarPendienteAcr')     return _handleActualizarPendienteAcr(data);
     if (action === 'guardarPreferenciaAcreedor') return _handleGuardarPreferencia(data);
+    if (action === 'subirFacturaEgreso')         return _handleSubirFacturaEgreso(data);
 
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';
@@ -1434,6 +1435,48 @@ function _handleRegistrarEgresoOperativo(params, callback) {
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleSubirFacturaEgreso
+// ═══════════════════════════════════════════════════════════════
+
+function _handleSubirFacturaEgreso(data) {
+  var result = { success: false };
+  try {
+    var egresoId = data.egreso_id || '';
+    var b64      = data.file_b64  || '';
+    var mime     = data.file_mime || 'application/pdf';
+    var nombre   = data.file_name || (egresoId + '.pdf');
+    if (!egresoId || !b64) throw new Error('egreso_id y file_b64 requeridos');
+
+    var folder   = DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID);
+    var bytes    = Utilities.base64Decode(b64);
+    var blob     = Utilities.newBlob(bytes, mime, nombre);
+    var file     = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var driveUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
+
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = _initEgresosSheet(ss);
+    var numRows = sheet.getLastRow() - 2;
+    if (numRows > 0) {
+      var ids = sheet.getRange(3, COL_E.ID, numRows, 1).getValues();
+      for (var i = 0; i < ids.length; i++) {
+        if (String(ids[i][0]) === egresoId) {
+          sheet.getRange(3 + i, COL_E.DRIVE_URL).setValue(driveUrl);
+          break;
+        }
+      }
+    }
+    result.success  = true;
+    result.driveUrl = driveUrl;
+    Logger.log('📄 Factura subida Drive para ' + egresoId + ': ' + driveUrl);
+  } catch(e) {
+    result.error = e.message;
+    Logger.log('Error subirFacturaEgreso: ' + e.message);
+  }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ═══════════════════════════════════════════════════════════════
