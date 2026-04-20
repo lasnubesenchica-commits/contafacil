@@ -4947,6 +4947,1034 @@ async function guardarConfigST() {
 
 
 
+// ══════════════════════════════════════════════════
+//  REGISTRO GENERAL — misceláneos
+//  Filtra ingItems/egrItems por registros sin origen
+//  en ST (id_st_item vacío) ni CV (id_item_cv vacío)
+// ══════════════════════════════════════════════════
+
+var rg_initialized = false;
+var rg_egr_filter  = 'all';   // filtro por categoría
+var rg_egr_estado  = 'all';   // filtro por estado: 'all' | 'pendiente' | 'registrado'
+var rg_ing_filter  = 'all';
+var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
+
+// ── Catálogo DGI unificado — Gastos Operativos (Líneas 42-77 formulario jurídica) ──
+// Fuente única de verdad, espejo de CATEGORIAS_GASTO_DGI en Code.gs
+const CATEGORIAS_GASTO_DGI = [
+  { valor: 'nomina',                   label: 'Nómina / Salarios',               linea: '42', emoji: '👤' },
+  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales',          linea: '43', emoji: '👥' },
+  { valor: 'gastos_representacion',    label: 'Gastos de representación',        linea: '44', emoji: '🤝' },
+  { valor: 'alquileres',               label: 'Alquileres',                      linea: '46', emoji: '🏠' },
+  { valor: 'cargos_bancarios',         label: 'Cargos bancarios',                linea: '53', emoji: '🏦' },
+  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad',          linea: '54', emoji: '🔒' },
+  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros',  linea: '55', emoji: '📊' },
+  { valor: 'combustible_transporte',   label: 'Combustible y transporte',        linea: '56', emoji: '⛽' },
+  { valor: 'depreciacion',             label: 'Depreciación',                    linea: '57', emoji: '📉' },
+  { valor: 'amortizacion',             label: 'Amortización',                    linea: '58', emoji: '📋' },
+  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales',   linea: '59', emoji: '🏛️' },
+  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales',        linea: '60', emoji: '💼' },
+  { valor: 'seguros',                  label: 'Seguros',                         linea: '63-66', emoji: '🛡️' },
+  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones',    linea: '67', emoji: '🔧' },
+  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo',           linea: '68', emoji: '📣' },
+  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros', linea: '69', emoji: '🖇️' },
+  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones',   linea: '71', emoji: '📶' },
+  { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
+  { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
+  { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
+  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
+];
+// Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
+const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
+
+// ── COSTOS DIRECTOS (Líneas 27-41 formulario DGI) — inmutables desde el P&L ──
+const TIPOS_COSTO_DIRECTO = [
+  { valor: 'costo_mercancia',        label: 'Costo de mercancía / inventario',  linea_dgi: '28-34' },
+  { valor: 'costo_servicio_tecnico', label: 'Costo de servicio técnico',        linea_dgi: '35'    },
+  { valor: 'impuesto_aduana',        label: 'Impuesto / Aduana (importación)',  linea_dgi: '35'    },
+  { valor: 'credito_fiscal',         label: 'Crédito fiscal ITBMS',             linea_dgi: 'ITBMS' },
+];
+
+// Labels de categorías DGI — construido desde CATEGORIAS_GASTO_DGI para consistencia
+// Incluye también costos directos y valores legacy para compatibilidad con datos existentes
+const RG_EGR_CAT_LABELS = (() => {
+  const m = {};
+  // Costos directos (inmutables desde P&L)
+  m['costo_mercancia']        = '📦 Costo mercancía';
+  m['costo_servicio_tecnico'] = '🔧 Costo ST';
+  m['impuesto_aduana']        = '🛃 Impuesto aduana';
+  m['impuesto_importacion']   = '🛃 Impuesto importación'; // legacy
+  m['credito_fiscal']         = '🏛️ Crédito fiscal';
+  // Valores legacy → mapear al nuevo equivalente
+  m['costo_operativo']        = '🏢 Costo operativo';
+  m['servicios']              = '⚡ Servicios';
+  m['gastos_personal']        = '👤 Nómina / Personal';
+  m['alquiler_local']         = '🏠 Alquiler local';
+  m['internet_telecomunicaciones'] = '📶 Internet y telecom.';
+  m['servicios_profesionales'] = '💼 Serv. profesionales';
+  m['publicidad_marketing']   = '📣 Publicidad';
+  m['transporte_combustible'] = '⛽ Combustible';
+  m['suministros_oficina']    = '🖇️ Suministros';
+  m['planilla_empleados']     = '👤 Planilla';
+  m['financiero_bancario']    = '🏦 Financiero';
+  m['otros_gastos_generales'] = '📋 Otros gastos';
+  // Catálogo DGI actual — leer desde CATEGORIAS_GASTO_DGI
+  CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.emoji + ' ' + c.label; });
+  return m;
+})();
+const RG_ING_CAT_LABELS = {
+  venta_producto_gravado:   '📦 Venta producto (+ITBMS)',
+  venta_producto_exento:    '📦 Venta producto (exento)',
+  servicio_tecnico_gravado: '🔧 Serv. técnico (+ITBMS)',
+  servicio_tecnico_exento:  '🔧 Serv. técnico (exento)',
+  asesoria_consultoria:     '💼 Asesoría',
+  comision:                 '💳 Comisión',
+  alquiler_cobrado:         '🏢 Alquiler cobrado',
+  intereses:                '🏦 Intereses',
+  dividendos:               '📈 Dividendos',
+  otro_gravado:             '📋 Otro (+ITBMS)',
+  otro_exento:              '📋 Otro (exento)',
+};
+
+function rgBuildFilterBtns() {
+  // Ahora usamos un <select> en lugar de botones — poblar las opciones
+  const sel = document.getElementById('rgEgrCatDropdown');
+  if (!sel) return;
+  // Conservar la opción "Todas"
+  sel.innerHTML = '<option value="all">📂 Todas las categorías</option>' +
+    CATEGORIAS_GASTO_DGI.map(c =>
+      `<option value="${c.valor}">${c.emoji} ${c.label}</option>`
+    ).join('');
+}
+
+// Handler para el select de categoría
+function rgApplyEgrFilterSel(sel) {
+  rg_egr_filter = sel.value;
+  rgRenderEgr();
+}
+window.rgApplyEgrFilterSel = rgApplyEgrFilterSel;
+
+function rgInit() {
+  if (!rg_initialized) {
+    rgBuildFilterBtns();
+    // Cargar datos si aún no están en memoria
+    if (!egrItems.length) loadEgresos().then(() => rgRender());
+    else rgRender();
+    if (!ingItems.length) loadIngresos().then(() => rgRenderIng());
+    else rgRenderIng();
+    // Cargar pendientes de acreedores si no están cargados
+    if (!_acrDataLoaded) acrCargarPendientesSilencioso();
+    rg_initialized = true;
+  } else {
+    rgRender();
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  CLASIFICACIÓN DE DIMENSIÓN — fuente única de verdad
+//  Retorna: 'proyectos' | 'comercializacion' | 'general'
+//  Todas las funciones de filtro usan esta y solo esta.
+// ══════════════════════════════════════════════════
+function _clasificarDimension(registro, tipo) {
+  if (tipo === 'egreso') {
+    const idST  = String(registro.id_st_item || '').trim();
+    const idCV  = String(registro.id_item_cv || '').trim();
+    const notas = String(registro.notas      || '').toUpperCase();
+    // Campos estructurales tienen prioridad sobre notas (texto libre)
+    if (idST || notas.includes('ST:')) return 'proyectos';
+    if (idCV || notas.includes('CV:')) return 'comercializacion';
+    return 'general';
+  }
+  if (tipo === 'ingreso') {
+    const notas = (registro.notas_internas || registro.notas || '').toUpperCase();
+    const tipoI = String(registro.tipo_ingreso || '').toLowerCase();
+    if (notas.includes('ST:') || tipoI.includes('tecnico') || tipoI.includes('técnico'))
+      return 'proyectos';
+    if (notas.includes('CV:') || String(registro.id_orden_web || '').trim())
+      return 'comercializacion';
+    return 'general';
+  }
+  return 'general';
+}
+
+// ── Wrappers — todos delegan a _clasificarDimension ──
+function rgEsMiscelaneoEgr(e) { return _clasificarDimension(e, 'egreso')  === 'general'; }
+function rgEsMiscelaneoIng(i) { return _clasificarDimension(i, 'ingreso') === 'general'; }
+
+// ── Tabs internos ─────────────────────────────────
+function rgShowTab(tab) {
+  document.getElementById('rgTabEgr').style.display = tab === 'egr' ? 'block' : 'none';
+  document.getElementById('rgTabIng').style.display = tab === 'ing' ? 'block' : 'none';
+  document.getElementById('rgTabPl').style.display  = tab === 'pl'  ? 'block' : 'none';
+  if (tab === 'pl') plInit();
+  const btnEgr = document.getElementById('rgTabEgrBtn');
+  const btnIng = document.getElementById('rgTabIngBtn');
+  var btnPl = document.getElementById('rgTabPlBtn');
+  btnEgr.style.borderBottomColor = 'transparent'; btnEgr.style.color = 'var(--muted)';
+  btnIng.style.borderBottomColor = 'transparent'; btnIng.style.color = 'var(--muted)';
+  if (btnPl) { btnPl.style.borderBottomColor = 'transparent'; btnPl.style.color = 'var(--muted)'; }
+  if (tab === 'egr') { btnEgr.style.borderBottomColor = 'var(--orange)'; btnEgr.style.color = 'var(--orange)'; }
+  else if (tab === 'ing') { btnIng.style.borderBottomColor = 'var(--green)'; btnIng.style.color = 'var(--green)'; }
+  else if (tab === 'pl' && btnPl) { btnPl.style.borderBottomColor = '#6A1B9A'; btnPl.style.color = '#6A1B9A'; }
+}
+window.rgShowTab = rgShowTab;
+
+// ── Filtros ───────────────────────────────────────
+function rgApplyEgrFilter(btn, filter) {
+  // Ya no hay botones data-rge-filter — sincronizar el select dropdown
+  const sel = document.getElementById('rgEgrCatDropdown');
+  if (sel) sel.value = filter || 'all';
+  rg_egr_filter = filter || 'all';
+  rgRenderEgr();
+}
+function rgApplyEgrEstado(btn, estado) {
+  document.querySelectorAll('[data-rge-estado]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  rg_egr_estado = estado;
+  rgRenderEgr();
+}
+function rgApplyIngFilter(btn, filter) {
+  document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  rg_ing_filter = filter;
+  rgRenderIng();
+}
+window.rgApplyEgrFilter  = rgApplyEgrFilter;
+window.rgApplyEgrEstado  = rgApplyEgrEstado;
+window.rgApplyIngFilter  = rgApplyIngFilter;
+
+function rgRefresh() {
+  rg_initialized = false;
+  egrItems = []; ingItems = [];
+  _acrData = []; _acrDataLoaded = false;
+  plLoaded = false;
+  rgInit();
+}
+window.rgRefresh = rgRefresh;
+
+// Refresco solo de la columna de egresos (sin tocar ingresos ni planilla)
+function rgRefreshEgr() {
+  egrItems = []; _acrData = []; _acrDataLoaded = false;
+  loadEgresos().then(() => {
+    acrCargarPendientesSilencioso().then(() => rgRenderEgr());
+  });
+}
+window.rgRefreshEgr = rgRefreshEgr;
+
+
+
+// Encontrar label de cualquier categoría
+function catChipLabel(valor) {
+  const found = TODAS_CATEGORIAS_EGR.find(c => c.valor === valor);
+  if (found) return found.label;
+  return RG_EGR_CAT_LABELS[valor] || CATEG_ACR_LABELS[valor] || valor || '—';
+}
+
+// Construir la celda chip clickeable
+function buildCatChip(item) {
+  const catVal = item.tipo_egreso || item.categoria || '';
+  const label = catChipLabel(catVal);
+  const id    = esc(item._id);
+  const tipo  = item._tipo; // 'pendiente' | 'registrado'
+  return `<div class="cat-chip-wrap">
+    <span class="cat-chip-label" onclick="catChipOpen(event,'${id}','${tipo}','${esc(catVal)}')">
+      ${label}
+      <span class="cat-chip-edit-icon">✏️</span>
+    </span>
+  </div>`;
+}
+
+// Singleton dropdown — un solo elemento reutilizable
+let _catDropEl = null;
+let _catDropId = null;
+let _catDropTipo = null;
+
+let _catDropJustOpened = false;
+
+// Posiciona el dropdown inteligentemente: abajo del trigger si hay espacio,
+// arriba si no, y ajustado horizontalmente para no salir de la pantalla.
+function _positionDrop(drop, rect) {
+  const dropH  = 320;
+  const dropW  = 270;
+  const margin = 8;
+  const vw     = window.innerWidth;
+  const vh     = window.innerHeight;
+
+  // Horizontal — position:fixed, rect.left ya es relativo al viewport
+  const left = Math.min(rect.left, vw - dropW - margin);
+  drop.style.left = Math.max(margin, left) + 'px';
+
+  // Vertical — position:fixed, sin scrollY
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  if (spaceBelow >= dropH || spaceBelow >= spaceAbove) {
+    drop.style.top    = (rect.bottom + 4) + 'px';
+    drop.style.bottom = 'auto';
+  } else {
+    drop.style.top    = 'auto';
+    drop.style.bottom = (vh - rect.top + 4) + 'px';
+  }
+}
+
+function _getCatDropEl() {
+  if (_catDropEl) return _catDropEl;
+  const el = document.createElement('div');
+  el.id = 'catChipDropdown';
+  el.className = 'cat-chip-dropdown';
+  document.body.appendChild(el);
+  // Cerrar al click fuera — bubble, no capture
+  document.addEventListener('click', (e) => {
+    if (_catDropJustOpened) { _catDropJustOpened = false; return; }
+    if (_catDropEl && _catDropEl.classList.contains('open')) {
+      if (!_catDropEl.contains(e.target)) {
+        _catDropEl.classList.remove('open');
+      }
+    }
+  });
+  _catDropEl = el;
+  return el;
+}
+
+function catChipOpen(e, id, tipo, catActual) {
+  e.stopPropagation();
+  _catDropJustOpened = true;
+  const trigger = (e.currentTarget || e.target).closest('.cat-chip-label') || e.target;
+  const rect    = trigger.getBoundingClientRect();
+  const drop    = _getCatDropEl();
+
+  _catDropId   = id;
+  _catDropTipo = tipo;
+
+  // Posicionar
+  _positionDrop(drop, rect);
+
+  // Construir opciones
+  drop.innerHTML = `<div class="cat-chip-dropdown-title">Reclasificar categoría</div>` +
+    TODAS_CATEGORIAS_EGR.map(c => `
+      <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+           onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
+        <span style="font-size:.9rem;flex-shrink:0">${c.emoji || ''}</span>
+        ${c.label}
+        <span class="cat-check">✓</span>
+      </div>`
+    ).join('');
+
+  drop.classList.add('open');
+}
+window.catChipOpen = catChipOpen;
+
+async function catChipSelect(nuevoValor, nuevoLabel) {
+  const drop = _getCatDropEl();
+  drop.innerHTML = `<div class="cat-chip-saving">⏳ Guardando...</div>`;
+
+  try {
+    if (_catDropTipo === 'pendiente') {
+      // Actualiza Acreedores_Pending
+      await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'actualizarPendienteAcr', id: _catDropId, categoria: nuevoValor }),
+      });
+      const idx = _acrData.findIndex(i => String(i.id) === String(_catDropId));
+      if (idx !== -1) _acrData[idx].categoria = nuevoValor;
+      drop.classList.remove('open');
+      showToast('✅ Categoría actualizada');
+      rgRenderEgr();
+
+    } else if (_catDropTipo === 'pl_gasto') {
+      // Reclasifica egreso de Registro General desde el P&L
+      const res = await new Promise((resolve, reject) => {
+        const cb = 'rcb_' + Date.now();
+        const s  = document.createElement('script');
+        let done = false;
+        const t  = setTimeout(() => { if (!done) { done=true; reject(new Error('Timeout')); }}, 15000);
+        window[cb] = d => { if (!done) { done=true; clearTimeout(t); delete window[cb]; s.remove(); resolve(d); }};
+        s.onerror  = () => { if (!done) { done=true; clearTimeout(t); delete window[cb]; s.remove(); reject(new Error('Script error')); }};
+        s.src = GAS_URL + '?action=reclasificarEgreso&id_egreso=' + encodeURIComponent(_catDropId) +
+                '&nuevo_tipo=' + encodeURIComponent(nuevoValor) + '&callback=' + cb;
+        document.head.appendChild(s);
+      });
+      if (!res.success) throw new Error(res.error || 'Error al guardar');
+      // Actualizar en memoria (plEgresos)
+      const eg = plEgresos.find(e => e.id_egreso === _catDropId);
+      if (eg) eg.tipo_egreso = nuevoValor;
+      // También en egrItems si está cargado (Registro General)
+      const ei = egrItems.findIndex(i => String(i.id_egreso) === String(_catDropId));
+      if (ei !== -1) { egrItems[ei].tipo_egreso = nuevoValor; egrItems[ei].categoria = nuevoValor; }
+      drop.classList.remove('open');
+      showToast('✅ Reclasificado');
+      // Re-render P&L sin fetch completo
+      plRenderTblGastos(document.getElementById('plTblSearch')?.value || '');
+      erRender();
+      renderDashboard();
+
+    } else {
+      // Registro General — egresos registrados
+      const data = await gasJsonp('actualizarCategoriaEgreso', { id: _catDropId, categoria: nuevoValor });
+      if (data && !data.success) throw new Error(data.error || 'Error al guardar');
+      const idx = egrItems.findIndex(i => String(i.id_egreso) === String(_catDropId));
+      if (idx !== -1) {
+        egrItems[idx].tipo_egreso = nuevoValor;
+        egrItems[idx].categoria   = nuevoValor;
+      }
+      drop.classList.remove('open');
+      showToast('✅ Categoría actualizada');
+      rgRenderEgr();
+      // Si el P&L está cargado, refrescar también
+      if (typeof plLoaded !== 'undefined' && plLoaded) {
+        const eg = plEgresos.find(e => e.id_egreso === _catDropId);
+        if (eg) eg.tipo_egreso = nuevoValor;
+        plRenderTblGastos('');
+        erRender();
+      }
+    }
+  } catch(err) {
+    drop.innerHTML = `<div class="cat-chip-saving" style="color:var(--red)">❌ ${err.message}</div>`;
+    setTimeout(() => drop.classList.remove('open'), 2000);
+  }
+}
+window.catChipSelect = catChipSelect;
+
+// ── catChipOpenPL — abre el dropdown del P&L con el catálogo DGI correcto ──
+// tipo: 'pl_gasto' → categorías operativas (reclasificable)
+// tipo: 'pl_costo' → tipos de costo (solo informativo, no reclasificable)
+function catChipOpenPL(e, triggerEl, id, tipo, catActual) {
+  e.stopPropagation();
+  _catDropJustOpened = true;
+  // triggerEl = this desde el onclick inline — posicionamiento exacto garantizado
+  const trigger = triggerEl || (e.currentTarget || e.target);
+  const rect    = trigger.getBoundingClientRect();
+  const drop    = _getCatDropEl();
+
+  _catDropId   = id;
+  _catDropTipo = tipo;
+
+  _positionDrop(drop, rect);
+
+  if (tipo === 'pl_gasto') {
+    drop.innerHTML =
+      `<div class="cat-chip-dropdown-title">Reclasificar · DGI</div>` +
+      CATEGORIAS_GASTO_DGI.map(c => `
+        <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+             onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
+          <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+          ${c.emoji} ${c.label}
+          <span class="cat-check">✓</span>
+        </div>`
+      ).join('');
+  } else {
+    // pl_costo — solo informativo
+    const cat = TIPOS_COSTO_DIRECTO.find(c => c.valor === catActual);
+    drop.innerHTML =
+      `<div class="cat-chip-dropdown-title">Clasificación DGI · Costo directo</div>` +
+      `<div style="font-size:.78rem;padding:.5rem .6rem;color:var(--muted);line-height:1.5">
+        ${cat ? '📦 ' + cat.label + '<br><span style="font-size:.68rem">Línea DGI ' + cat.linea_dgi + '</span>' : catActual}
+        <br><span style="font-size:.65rem;color:var(--chrome);margin-top:.4rem;display:block">
+          Los costos de Proyectos y Comercialización<br>no son reclasificables desde el P&L.
+        </span>
+      </div>`;
+  }
+
+  drop.classList.add('open');
+}
+window.catChipOpenPL = catChipOpenPL;
+
+// ── Render unificado Egresos + Pendientes Acreedores ──────────
+function rgRender() { rgRenderEgr(); rgRenderIng(); }
+
+function rgRenderEgr() {
+  const q = (document.getElementById('rgSearchEgr') || {value:''}).value.toLowerCase().trim();
+
+  // ── 1. Egresos ya registrados (misceláneos) ──────────────────
+  const registrados = egrItems
+    .filter(rgEsMiscelaneoEgr)
+    .filter(e => String(e.estado||'').toLowerCase() !== 'anulado')
+    .map(e => ({
+      _tipo:      'registrado',
+      fecha:      String(e.fecha_egreso||'').substring(0,10),
+      proveedor:  e.proveedor || '—',
+      num_fac:    e.num_fac_ref || '—',
+      categoria:  e.tipo_egreso || e.categoria || '',
+      subtotal:   parseFloat(e.subtotal) || 0,
+      itbms:      parseFloat(e.itbms)    || 0,
+      total:      parseFloat(e.total)    || 0,
+      drive_url:  e.drive_url || '',
+      descripcion:e.descripcion || '',
+      _id:        e.id_egreso || '',
+      _raw:       e,
+    }));
+
+  // ── 2. Pendientes de acreedores (borradores) ─────────────────
+  const pendientes = _acrData
+    .filter(i => i.estado === 'borrador')
+    .map(i => ({
+      _tipo:      'pendiente',
+      fecha:      String(i.fecha_fac||'').substring(0,10),
+      proveedor:  i.acreedor_nom || '—',
+      num_fac:    i.num_fac || '—',
+      categoria:  i.categoria || '',
+      subtotal:   parseFloat(i.subtotal) || 0,
+      itbms:      parseFloat(i.itbms)    || 0,
+      total:      parseFloat(i.total)    || 0,
+      drive_url:  i.drive_url || '',
+      descripcion:i.descripcion || '',
+      _id:        i.id || '',
+      _raw:       i,
+    }));
+
+  // ── 3. Unificar y aplicar filtros ────────────────────────────
+  let items = [...pendientes, ...registrados];
+
+  // Filtro estado
+  if (rg_egr_estado === 'pendiente')  items = items.filter(i => i._tipo === 'pendiente');
+  if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
+
+  // Filtro categoría
+  if (rg_egr_filter !== 'all') items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
+
+  // Búsqueda
+  if (q) items = items.filter(i =>
+    [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
+  );
+
+  // Orden: pendientes siempre primero, luego fecha desc
+  items.sort((a, b) => {
+    if (a._tipo === 'pendiente' && b._tipo !== 'pendiente') return -1;
+    if (b._tipo === 'pendiente' && a._tipo !== 'pendiente') return  1;
+    return String(b.fecha).localeCompare(String(a.fecha));
+  });
+
+  // ── 4. Stats ─────────────────────────────────────────────────
+  const nPend  = pendientes.length;
+  const nReg   = registrados.length;
+  const totM   = items.reduce((s,i) => s + i.total,  0);
+  const totItb = items.reduce((s,i) => s + i.itbms,  0);
+  const el = id => document.getElementById(id);
+  if (el('rgEStatPend'))  el('rgEStatPend').textContent  = nPend  || '—';
+  if (el('rgEStatTotal')) el('rgEStatTotal').textContent = nReg   || '—';
+  if (el('rgEStatMonto')) el('rgEStatMonto').textContent = totM   > 0 ? '$'+totM.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  if (el('rgEStatItbms')) el('rgEStatItbms').textContent = totItb > 0 ? '$'+totItb.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+
+  // ── 5. Render tabla ──────────────────────────────────────────
+  const tbody = document.getElementById('rgEgrBody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="table-empty"><span style="font-size:2rem">📭</span><span>Sin egresos en esta vista</span></div></td></tr>';
+    return;
+  }
+
+  const fmt = n => n > 0 ? '$'+parseFloat(n).toFixed(2) : '—';
+
+  tbody.innerHTML = items.map(i => {
+    const esPendiente = i._tipo === 'pendiente';
+    const rowBg       = esPendiente ? 'background:#FFFDE7' : '';
+
+    // Badge origen
+    const origenBadge = esPendiente
+      ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
+      : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
+
+    // Badge estado
+    const estadoBadge = esPendiente
+      ? '<span style="display:inline-flex;align-items:center;gap:.25rem;background:#FFF9C4;color:#F57F17;padding:.2rem .55rem;border-radius:12px;font-size:.69rem;font-weight:700">⏳ PENDIENTE</span>'
+      : '<span style="display:inline-flex;align-items:center;gap:.25rem;background:#E8F5E9;color:#2E7D32;padding:.2rem .55rem;border-radius:12px;font-size:.69rem;font-weight:700">✅ APROBADO</span>';
+
+    // Columna acciones
+    let acciones = '';
+    if (esPendiente) {
+      acciones = `
+        <div style="display:flex;gap:.35rem;align-items:center">
+          <button onclick='acrAbrirDetalle(${JSON.stringify(i._raw)})'
+            style="padding:.28rem .6rem;background:#6A1B9A;color:#fff;border:none;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer"
+            title="Ver detalles y editar">👁 Ver</button>
+          <button onclick='acrAprobarRapido(${JSON.stringify(i._raw)})'
+            style="padding:.28rem .6rem;background:#2E7D32;color:#fff;border:none;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer"
+            title="Aprobar con categoría sugerida">✅</button>
+          <button onclick='acrEliminarDirecto("${esc(i._id)}")'
+            style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer"
+            title="Eliminar permanentemente">🗑</button>
+        </div>`;
+    } else {
+      const docLink = i.drive_url
+        ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
+        : '';
+      acciones = `<div style="display:flex;gap:.5rem;align-items:center">
+        ${docLink}
+        <button onclick='rgAnularEgreso("${esc(i._id)}")'
+          style="padding:.28rem .5rem;background:var(--bg);color:#E65100;border:1px solid #FFE0B2;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
+          title="Anular (mantiene historial)">⊘</button>
+        <button onclick='rgEliminarEgreso("${esc(i._id)}")'
+          style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
+          title="Eliminar permanentemente">🗑</button>
+      </div>`;
+    }
+
+    return `<tr style="${rowBg}">
+      <td style="font-family:'DM Mono',monospace;font-size:.76rem;color:var(--muted);white-space:nowrap">${i.fecha||'—'}</td>
+      <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
+      <td>${origenBadge}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(i.num_fac)}</td>
+      <td>${buildCatChip(i)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
+      <td>${estadoBadge}</td>
+      <td>${acciones}</td>
+    </tr>`;
+  }).join('');
+}
+
+function rgRenderIng() {
+  const q    = (document.getElementById('rgSearchIng') || {value:''}).value.toLowerCase().trim();
+  let items  = ingItems.filter(rgEsMiscelaneoIng)
+    .filter(i => String(i.estado||'').toLowerCase() !== 'anulado');
+  if (rg_ing_filter !== 'all') items = items.filter(i => i.categoria_ingreso === rg_ing_filter || i.tipo_ingreso === rg_ing_filter);
+  if (q) items = items.filter(i => [i.nombre_cliente,i.descripcion,i.num_factura,i.tipo_ingreso].join(' ').toLowerCase().includes(q));
+  items.sort((a,b) => String(b.fecha_ingreso||'').localeCompare(String(a.fecha_ingreso||'')));
+
+  // Stats
+  const totMonto = items.reduce((s,i)=>s+Number(i.total||0),0);
+  const totItbms = items.reduce((s,i)=>s+Number(i.itbms||0),0);
+  document.getElementById('rgIStatTotal').textContent = items.length;
+  document.getElementById('rgIStatMonto').textContent = items.length ? '$'+totMonto.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  document.getElementById('rgIStatItbms').textContent = totItbms>0 ? '$'+totItbms.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+
+  const tbody = document.getElementById('rgIngBody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="table-empty"><span style="font-size:2rem">💰</span><span>Sin ingresos misceláneos registrados</span></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(i => {
+    const catLabel = RG_ING_CAT_LABELS[i.categoria_ingreso] || RG_ING_CAT_LABELS[i.tipo_ingreso] || i.tipo_ingreso || '—';
+    const docLink  = i.drive_url ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
+    const estadoBadge = i.estado === 'confirmado'
+      ? '<span style="font-size:.68rem;font-weight:600;color:#2E7D32">✓ Confirmado</span>'
+      : '<span style="font-size:.68rem;font-weight:600;color:#E65100">⏳ Pendiente</span>';
+    return `<tr>
+      <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso||'—'}</td>
+      <td><span style="font-size:.72rem">${esc(catLabel)}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.descripcion||'')}">${esc((i.descripcion||'—').substring(0,50))}</td>
+      <td style="font-size:.78rem">${esc(i.nombre_cliente||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${esc(i.num_factura||'—')}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted)">${i.subtotal>0?'$'+Number(i.subtotal).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:#1565C0">${i.itbms>0?'$'+Number(i.itbms).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#2E7D32">$${Number(i.total||0).toFixed(2)}</td>
+      <td>${docLink}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Abrir modales reutilizando los existentes ─────
+function rgAbrirNuevoEgreso() {
+  // Setear categoría default a "otros_deducibles" y abrir el modal existente
+  abrirModalNuevoEgreso();
+  document.getElementById('eCategoria').value = 'otros_deducibles';
+  inferirTipoEgreso();
+  // Cambiar el título para contexto claro
+  document.querySelector('#egresoModalOverlay .modal-title').textContent = '📤 Registrar Egreso General';
+}
+function rgAbrirNuevoIngreso() {
+  abrirModalNuevoIngreso();
+  document.getElementById('iCategoria').value = 'otro_gravado';
+  // Cambiar el título para contexto claro
+  document.querySelector('#ingresoModalOverlay .modal-title').textContent = '💰 Registrar Ingreso General';
+}
+window.rgAbrirNuevoEgreso  = rgAbrirNuevoEgreso;
+window.rgAbrirNuevoIngreso = rgAbrirNuevoIngreso;
+
+// Al cerrar cualquier modal estando en Registro General, refrescar la vista
+const _origCloseEgr = window.closeEgresoModal;
+window.closeEgresoModal = function() {
+  _origCloseEgr && _origCloseEgr();
+  if (activeTab === 'registroGeneral') { setTimeout(rgRenderEgr, 300); }
+  // Restaurar título original
+  const t = document.querySelector('#egresoModalOverlay .modal-title');
+  if (t) t.textContent = '📤 Registrar Egreso';
+};
+const _origCloseIng = window.closeIngresoModal;
+window.closeIngresoModal = function() {
+  _origCloseIng && _origCloseIng();
+  if (activeTab === 'registroGeneral') { setTimeout(rgRenderIng, 300); }
+  const t = document.querySelector('#ingresoModalOverlay .modal-title');
+  if (t) t.textContent = '💰 Registrar Ingreso';
+};
+
+
+// ══════════════════════════════════════════════════
+//  PLANILLA — módulo dentro de Registro General
+// ══════════════════════════════════════════════════
+
+var pl_empleados  = [];
+var pl_preview    = [];
+var pl_loaded_emp = false;
+
+var PL_MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function fmtB(n) {
+  return 'B/. ' + (parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+// CSS/ISR — espejo del cálculo del GAS
+function plCalcDed(salarioMensual, aplicaIsr) {
+  var bruto   = Math.round(salarioMensual / 2 * 100) / 100;
+  var cssPatr = Math.round(bruto * 0.1225 * 100) / 100;
+  var cssEmp  = Math.round(bruto * 0.0975 * 100) / 100;
+  var isrMen  = 0;
+  if (aplicaIsr) {
+    var anual    = salarioMensual * 12;
+    var isrAnual = anual <= 11000 ? 0 : anual <= 50000 ? (anual - 11000) * 0.15 : 5850 + (anual - 50000) * 0.25;
+    isrMen = Math.round(isrAnual / 12 * 100) / 100;
+  }
+  var isrQ = Math.round(isrMen / 2 * 100) / 100;
+  var neto = Math.round((bruto - cssEmp - isrQ) * 100) / 100;
+  return {
+    bruto_quincenal:   bruto,
+    css_patronal:      cssPatr,
+    css_empleado:      cssEmp,
+    isr_quincenal:     isrQ,
+    total_deducciones: Math.round((cssEmp + isrQ) * 100) / 100,
+    neto_a_pagar:      neto,
+    costo_empresa:     Math.round((bruto + cssPatr) * 100) / 100,
+  };
+}
+
+function plShowSub(sub) {
+  document.getElementById('plSubTabQuincena').style.display  = sub === 'quincena'  ? 'block' : 'none';
+  document.getElementById('plSubTabEmpleados').style.display = sub === 'empleados' ? 'block' : 'none';
+  var btnQ = document.getElementById('plSubQuincena');
+  var btnE = document.getElementById('plSubEmpleados');
+  var purple = '#6A1B9A';
+  var muted  = 'var(--muted)';
+  btnQ.style.borderBottomColor = sub === 'quincena'  ? purple : 'transparent';
+  btnQ.style.color             = sub === 'quincena'  ? purple : muted;
+  btnE.style.borderBottomColor = sub === 'empleados' ? purple : 'transparent';
+  btnE.style.color             = sub === 'empleados' ? purple : muted;
+  if (sub === 'empleados') plCargarEmpleados();
+}
+window.plShowSub = plShowSub;
+
+function plInit() {
+  var sel = document.getElementById('plAnio');
+  if (sel && !sel.options.length) {
+    var y = new Date().getFullYear();
+    for (var i = y; i >= y - 2; i--) {
+      var o = document.createElement('option');
+      o.value = i; o.textContent = i;
+      if (i === y) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+  var selM = document.getElementById('plMes');
+  if (selM) selM.value = new Date().getMonth() + 1;
+  var selQ = document.getElementById('plQuincena');
+  if (selQ) selQ.value = new Date().getDate() <= 15 ? '1' : '2';
+  var selF = document.getElementById('plFechaPago');
+  if (selF && selQ) {
+    var hoy = new Date();
+    var q   = parseInt(selQ.value);
+    var mes = hoy.getMonth();
+    var yr  = hoy.getFullYear();
+    var fp  = q === 1 ? new Date(yr, mes, 15) : new Date(yr, mes + 1, 0);
+    selF.value = fp.toISOString().substring(0, 10);
+  }
+  if (!pl_loaded_emp) plCargarEmpleados();
+}
+
+async function plCargarEmpleados() {
+  var tbody = document.getElementById('plEmpleadosBody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>';
+  try {
+    var data = await gasJsonp('getEmpleados', {});
+    if (!data.success) throw new Error(data.error || 'Error cargando empleados');
+    pl_empleados = data.items || [];
+    pl_loaded_emp = true;
+    plRenderEmpleados();
+  } catch(err) {
+    showToast('⚠️ ' + err.message);
+  }
+}
+
+async function plCargarPreview() {
+  if (!pl_loaded_emp) await plCargarEmpleados();
+  var activos = pl_empleados.filter(function(e) { return e.estado === 'activo'; });
+  if (!activos.length) { showToast('⚠️ No hay empleados activos'); return; }
+  pl_preview = activos.map(function(e) {
+    return Object.assign({}, e, {
+      salario_override: null,
+      deducciones: plCalcDed(e.salario_base, e.aplica_isr),
+    });
+  });
+  document.getElementById('plPreviewWrap').style.display = 'block';
+  plRenderPreview();
+}
+window.plCargarPreview = plCargarPreview;
+
+function plRenderPreview() {
+  var tbody = document.getElementById('plPreviewBody');
+  var tfoot = document.getElementById('plPreviewFoot');
+  var kpis  = document.getElementById('plResumenKpis');
+  var totB=0, totCE=0, totI=0, totN=0, totCP=0, totCosto=0;
+
+  var rows = pl_preview.map(function(e, idx) {
+    var d = e.deducciones;
+    totB    += d.bruto_quincenal; totCE += d.css_empleado;
+    totI    += d.isr_quincenal;  totN  += d.neto_a_pagar;
+    totCP   += d.css_patronal;   totCosto += d.costo_empresa;
+
+    var esVar = e.tipo === 'variable';
+    var inputHtml;
+    if (esVar) {
+      inputHtml = '<input type="number" step="0.01" min="0" value="' + e.salario_base + '"'
+        + ' style="width:85px;padding:.25rem .4rem;border:1px solid var(--border);border-radius:4px;font-size:.78rem;text-align:right"'
+        + ' onchange="plUpdateSalario(' + idx + ',this.value)" title="Editar salario variable">';
+    } else {
+      inputHtml = '<strong>' + fmtB(e.salario_base) + '</strong>';
+    }
+
+    var tr = '<tr style="border-bottom:1px solid var(--bg)">';
+    tr += '<td style="padding:.5rem .75rem">';
+    tr += '<div style="font-weight:600">' + esc(e.nombre) + '</div>';
+    if (e.banco) tr += '<div style="font-size:.68rem;color:var(--muted)">' + esc(e.banco) + (e.cuenta ? ' · ' + esc(e.cuenta) : '') + '</div>';
+    if (esVar)   tr += '<span style="font-size:.62rem;background:#FFF3E0;color:#E65100;padding:.1rem .35rem;border-radius:3px;font-weight:600">VARIABLE</span>';
+    tr += '</td>';
+    tr += '<td style="padding:.5rem .75rem;font-size:.78rem;color:var(--muted)">' + esc(e.cargo) + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right">' + inputHtml + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right;font-weight:600">' + fmtB(d.bruto_quincenal) + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right;color:#6A1B9A;font-weight:600">' + fmtB(d.css_empleado) + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right">';
+    if (d.isr_quincenal > 0) tr += '<span style="color:#1565C0;font-weight:600">' + fmtB(d.isr_quincenal) + '</span>';
+    else tr += '<span style="color:var(--muted)">—</span>';
+    tr += '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right;color:#2E7D32;font-weight:700">' + fmtB(d.neto_a_pagar) + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right;font-size:.76rem;color:var(--muted)">' + fmtB(d.css_patronal) + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right;color:#C62828;font-weight:700">' + fmtB(d.costo_empresa) + '</td>';
+    tr += '</tr>';
+    return tr;
+  });
+
+  tbody.innerHTML = rows.join('');
+
+  var tf = '<tr style="background:var(--bg);border-top:2px solid var(--border)">';
+  tf += '<td style="padding:.55rem .75rem;font-weight:700" colspan="2">Total — ' + pl_preview.length + ' empleado' + (pl_preview.length !== 1 ? 's' : '') + '</td>';
+  tf += '<td></td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700">' + fmtB(totB)    + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:#6A1B9A">'  + fmtB(totCE)   + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:#1565C0">'  + fmtB(totI)    + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:#2E7D32">'  + fmtB(totN)    + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-size:.76rem;color:var(--muted)">' + fmtB(totCP) + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:#C62828">'  + fmtB(totCosto) + '</td>';
+  tf += '</tr>';
+  tfoot.innerHTML = tf;
+
+  var kpiDefs = [
+    {label:'Neto a pagar empleados',    val:totN,     color:'#2E7D32'},
+    {label:'CSS Patronal (empresa)',     val:totCP,    color:'#6A1B9A'},
+    {label:'CSS Empleados (retención)', val:totCE,    color:'#6A1B9A'},
+    {label:'ISR retenido',              val:totI,     color:'#1565C0'},
+    {label:'Costo total empresa',       val:totCosto, color:'#C62828'},
+  ];
+  var kpiHtml = '';
+  kpiDefs.forEach(function(k) {
+    kpiHtml += '<div style="background:var(--white);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem">';
+    kpiHtml += '<div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.25rem">' + k.label + '</div>';
+    kpiHtml += '<div style="font-size:1.35rem;font-weight:800;line-height:1;color:' + k.color + '">' + fmtB(k.val) + '</div>';
+    kpiHtml += '</div>';
+  });
+  kpis.innerHTML = kpiHtml;
+}
+
+function plUpdateSalario(idx, val) {
+  var sal = parseFloat(val) || 0;
+  pl_preview[idx].salario_base = sal;
+  pl_preview[idx].deducciones  = plCalcDed(sal, pl_preview[idx].aplica_isr);
+  plRenderPreview();
+}
+window.plUpdateSalario = plUpdateSalario;
+
+async function plRegistrar() {
+  if (!pl_preview.length) { showToast('⚠️ Carga primero el preview'); return; }
+  var anio      = document.getElementById('plAnio').value;
+  var mes       = document.getElementById('plMes').value;
+  var quincena  = document.getElementById('plQuincena').value;
+  var fechaPago = document.getElementById('plFechaPago').value;
+  var notas     = document.getElementById('plNotas').value.trim();
+  if (!fechaPago) { showToast('⚠️ La fecha de pago es requerida'); return; }
+  var periodo      = anio + '-M' + String(mes).padStart(2,'0') + '-Q' + quincena;
+  var periodoLabel = PL_MESES[parseInt(mes)] + ' ' + anio + ' — ' + (quincena==='1'?'1ra':'2da') + ' quincena';
+  if (!confirm('¿Registrar planilla ' + periodoLabel + ' para ' + pl_preview.length + ' empleado(s)?\nSe crearán ' + pl_preview.length + ' egresos en la hoja Egresos.')) return;
+  var btn = document.getElementById('plBtnRegistrar');
+  btn.disabled = true; btn.textContent = '⏳ Registrando...';
+  try {
+    var payload = {
+      action:     'registrarPlanilla',
+      periodo:    periodo,
+      fecha_pago: fechaPago,
+      notas:      notas,
+      empleados:  pl_preview.map(function(e) {
+        return {
+          id_empleado:     e.id_empleado,
+          nombre:          e.nombre,
+          cargo:           e.cargo,
+          cedula:          e.cedula  || '',
+          banco:           e.banco   || '',
+          cuenta:          e.cuenta  || '',
+          salario_mensual: e.salario_base,
+          aplica_isr:      e.aplica_isr,
+          deducciones:     e.deducciones,
+        };
+      }),
+    };
+    var resp = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body:    JSON.stringify(payload),
+    });
+    var data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Error al registrar');
+    showToast('✅ Planilla ' + periodoLabel + ' — ' + data.egresos_ids.length + ' egresos creados');
+    document.getElementById('plPreviewWrap').style.display = 'none';
+    plLoaded = false; egrItems = []; rg_initialized = false;
+  } catch(err) { showToast('⚠️ ' + err.message); }
+  btn.disabled = false; btn.textContent = '✅ Registrar quincena';
+}
+window.plRegistrar = plRegistrar;
+
+function plRenderEmpleados() {
+  var tbody = document.getElementById('plEmpleadosBody');
+  if (!tbody) return;
+  var todos = pl_empleados.slice().sort(function(a,b){
+    if (a.estado === b.estado) return 0;
+    return a.estado === 'activo' ? -1 : 1;
+  });
+  if (!todos.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="table-empty"><span style="font-size:2rem">👥</span><span>Sin empleados — agrega el primero</span></div></td></tr>';
+    return;
+  }
+  var html = '';
+  todos.forEach(function(e) {
+    var isActivo = e.estado === 'activo';
+    var tipoBg   = e.tipo === 'fijo' ? '#E8F5E9' : '#FFF3E0';
+    var tipoClr  = e.tipo === 'fijo' ? '#2E7D32' : '#E65100';
+    var estBg    = isActivo ? '#E8F5E9' : '#FFEBEE';
+    var estClr   = isActivo ? '#2E7D32' : '#C62828';
+    html += '<tr style="border-bottom:1px solid var(--bg)' + (isActivo ? '' : ';opacity:.55') + '">';
+    html += '<td style="padding:.5rem .75rem;font-size:.75rem;color:var(--muted)">' + esc(e.id_empleado) + '</td>';
+    html += '<td style="padding:.5rem .75rem;font-weight:600">' + esc(e.nombre) + '</td>';
+    html += '<td style="padding:.5rem .75rem;font-size:.78rem;color:var(--muted)">' + esc(e.cedula||'—') + '</td>';
+    html += '<td style="padding:.5rem .75rem;font-size:.78rem">' + esc(e.cargo||'—') + '</td>';
+    html += '<td style="padding:.5rem .75rem"><span style="font-size:.68rem;font-weight:600;padding:.15rem .5rem;border-radius:4px;background:' + tipoBg + ';color:' + tipoClr + '">' + (e.tipo==='fijo'?'Fijo':'Variable') + '</span></td>';
+    html += '<td style="padding:.5rem .75rem;text-align:right;font-weight:600">' + fmtB(e.salario_base) + '</td>';
+    html += '<td style="padding:.5rem .75rem;text-align:center">' + (e.aplica_isr ? '✓' : '—') + '</td>';
+    html += '<td style="padding:.5rem .75rem"><span style="font-size:.68rem;font-weight:600;padding:.15rem .5rem;border-radius:4px;background:' + estBg + ';color:' + estClr + '">' + (isActivo?'Activo':'Inactivo') + '</span></td>';
+    html += '<td style="padding:.5rem .75rem;white-space:nowrap">';
+    html += '<button onclick="plEditarEmpleado(\'' + esc(e.id_empleado) + '\')" style="padding:.2rem .6rem;font-size:.72rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer">✏️</button>';
+    if (isActivo) html += ' <button onclick="plDesactivar(\'' + esc(e.id_empleado) + '\')" style="padding:.2rem .6rem;font-size:.72rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:#C62828" title="Desactivar">✕</button>';
+    html += '</td></tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+var plEmpActual = null;
+
+function plAbrirNuevoEmpleado() {
+  plEmpActual = null;
+  ['plEmpId','plEmpNombre','plEmpCedula','plEmpCargo','plEmpBanco','plEmpCuenta','plEmpNotas'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value = '';
+  });
+  var tipoEl = document.getElementById('plEmpTipo'); if(tipoEl) tipoEl.value = 'fijo';
+  var salEl  = document.getElementById('plEmpSalario'); if(salEl) salEl.value = '';
+  var isrEl  = document.getElementById('plEmpIsr'); if(isrEl) isrEl.checked = false;
+  var fIni   = document.getElementById('plEmpFechaIni'); if(fIni) fIni.value = new Date().toISOString().substring(0,10);
+  var title  = document.getElementById('plEmpModalTitle'); if(title) title.textContent = '👤 Nuevo empleado';
+  var calc   = document.getElementById('plEmpCalcContent'); if(calc) calc.textContent = 'Ingresa el salario para ver el cálculo';
+  document.getElementById('plEmpModalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+window.plAbrirNuevoEmpleado = plAbrirNuevoEmpleado;
+
+function plEditarEmpleado(id) {
+  var emp = pl_empleados.find(function(e){ return e.id_empleado === id; });
+  if (!emp) return;
+  plEmpActual = emp;
+  var set = function(elId, val){ var el=document.getElementById(elId); if(el) el.value=val||''; };
+  set('plEmpId',       emp.id_empleado);
+  set('plEmpNombre',   emp.nombre);
+  set('plEmpCedula',   emp.cedula);
+  set('plEmpCargo',    emp.cargo);
+  set('plEmpTipo',     emp.tipo || 'fijo');
+  set('plEmpSalario',  emp.salario_base);
+  set('plEmpBanco',    emp.banco);
+  set('plEmpCuenta',   emp.cuenta);
+  set('plEmpNotas',    emp.notas);
+  set('plEmpFechaIni', emp.fecha_inicio);
+  var isrEl = document.getElementById('plEmpIsr'); if(isrEl) isrEl.checked = emp.aplica_isr;
+  var title = document.getElementById('plEmpModalTitle'); if(title) title.textContent = '✏️ Editar — ' + emp.nombre;
+  document.getElementById('plEmpModalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // trigger preview calc
+  var salEl = document.getElementById('plEmpSalario');
+  if (salEl) salEl.dispatchEvent(new Event('input'));
+}
+window.plEditarEmpleado = plEditarEmpleado;
+
+function plCerrarEmpModal() {
+  document.getElementById('plEmpModalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+window.plCerrarEmpModal = plCerrarEmpModal;
+
+async function plGuardarEmpleado() {
+  var nombre  = (document.getElementById('plEmpNombre').value||'').trim();
+  var salario = parseFloat(document.getElementById('plEmpSalario').value) || 0;
+  if (!nombre)  { showToast('⚠️ El nombre es requerido');       return; }
+  if (!salario) { showToast('⚠️ El salario base es requerido'); return; }
+  var btn = document.querySelector('#plEmpModalOverlay .btn-primary');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  try {
+    var payload = {
+      action:       'guardarEmpleado',
+      id_empleado:  (document.getElementById('plEmpId').value||'').trim() || null,
+      nombre:       nombre,
+      cedula:       (document.getElementById('plEmpCedula').value||'').trim(),
+      cargo:        (document.getElementById('plEmpCargo').value||'').trim(),
+      tipo:         document.getElementById('plEmpTipo').value,
+      salario_base: salario,
+      aplica_isr:   document.getElementById('plEmpIsr').checked,
+      banco:        (document.getElementById('plEmpBanco').value||'').trim(),
+      cuenta:       (document.getElementById('plEmpCuenta').value||'').trim(),
+      notas:        (document.getElementById('plEmpNotas').value||'').trim(),
+      fecha_inicio: document.getElementById('plEmpFechaIni').value,
+    };
+    var resp = await fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)});
+    var data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Error guardando');
+    showToast('✅ Empleado guardado: ' + data.id_empleado);
+    plCerrarEmpModal();
+    pl_loaded_emp = false;
+    await plCargarEmpleados();
+  } catch(err) { showToast('⚠️ ' + err.message); }
+  btn.disabled = false; btn.textContent = '💾 Guardar';
+}
+window.plGuardarEmpleado = plGuardarEmpleado;
+
+async function plDesactivar(id) {
+  var emp = pl_empleados.find(function(e){ return e.id_empleado === id; });
+  if (!emp) return;
+  if (!confirm('¿Desactivar a ' + emp.nombre + '?')) return;
+  try {
+    var resp = await fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'desactivarEmpleado', id_empleado:id})});
+    var data = await resp.json();
+    if (!data.success) throw new Error(data.error);
+    showToast('✅ Empleado desactivado');
+    pl_loaded_emp = false;
+    await plCargarEmpleados();
+  } catch(err) { showToast('⚠️ ' + err.message); }
+}
+window.plDesactivar = plDesactivar;
+
+
+
+
 // ════════════════════════════════════════════════════════════════
 //  MÓDULO ACREEDORES — JS completo
 // ════════════════════════════════════════════════════════════════
