@@ -1803,10 +1803,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
     <div class="pl-tipo-wrap">
       <span class="pl-control-label">Tipo</span>
-      <button class="pl-tipo-btn active" data-tipo="todos"           onclick="selectPlTipo(this)">Todo</button>
-      <button class="pl-tipo-btn"        data-tipo="proyectos"       onclick="selectPlTipo(this)">🔧 Proyectos</button>
-      <button class="pl-tipo-btn"        data-tipo="comercializacion" onclick="selectPlTipo(this)">🛒 Comercialización</button>
-      <button class="pl-tipo-btn"        data-tipo="general"         onclick="selectPlTipo(this)">📒 General</button>
+      <button class="pl-tipo-btn active" data-tipo="todos"   onclick="selectPlTipo(this)">Todo</button>
+      <button class="pl-tipo-btn"        data-tipo="general" onclick="selectPlTipo(this)">📒 General</button>
     </div>
   </div>
 
@@ -2209,8 +2207,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- Sub-tabs -->
     <div class="setup-tabs">
       <button class="setup-tab active" id="setupTabEmpresa"       onclick="setupSwitchTab('empresa')">🏢 Empresa</button>
-      <button class="setup-tab"        id="setupTabOperaciones"   onclick="setupSwitchTab('operaciones')">⚙️ Comercialización</button>
-      <button class="setup-tab"        id="setupTabServiciosTec"  onclick="setupSwitchTab('serviciosTec')">🔧 Proyectos</button>
       <button class="setup-tab"        id="setupTabAcreedores"    onclick="setupSwitchTab('acreedores')">🏦 Registro General</button>
       <button class="setup-tab"        id="setupTabSistema"       onclick="setupSwitchTab('sistema')">⚙ Sistema</button>
     </div>
@@ -3981,15 +3977,12 @@ function switchTab(tab) {
 }
 
 function refreshCurrentSection() {
-  if (activeTab === 'ventasWeb')             loadOrdenes();
-  else if (activeTab === 'egresos')          loadEgresos();
+  if      (activeTab === 'egresos')          loadEgresos();
   else if (activeTab === 'ingresos')         loadIngresos();
   else if (activeTab === 'dashboard')        { plLoaded = false; loadDashboard(); }
-  else if (activeTab === 'inventario')       loadInventario();
   else if (activeTab === 'proveedores')      loadProveedores();
   else if (activeTab === 'registroGeneral')  rgRefreshEgr();
   else if (activeTab.startsWith('reporte:')) loadReporte(activeTab.replace('reporte:', ''), true);
-  else                                       loadOperaciones();
 }
 
 // ══════════════════════════════════════════════════
