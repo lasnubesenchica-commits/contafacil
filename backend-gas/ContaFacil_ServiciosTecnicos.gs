@@ -354,6 +354,16 @@ function _calcSTTotalsReal(sheetSTI, idST) {
   return parseFloat(total.toFixed(2));
 }
 
+// Genera un id_item_st libre garantizado único: timestamp con milisegundos +
+// sufijo random de 4 chars. Previene colisiones cuando 2 usuarios/imports
+// generan items en el mismo segundo (bug histórico con yyyyMMddHHmmss + "-L"
+// que creaba IDs duplicados en ST_Items).
+function _nuevoIdItemSTLibre(ahora) {
+  var ts   = Utilities.formatDate(ahora || new Date(), 'America/Panama', 'yyyyMMddHHmmss');
+  var rand = Math.random().toString(36).substring(2, 6);
+  return 'STI-RP-' + ts + '-L' + rand;
+}
+
 function _getSTById(ss, idST) {
   var sheet = ss.getSheetByName(SHEET_ST);
   if (!sheet || sheet.getLastRow() <= 2) return null;
@@ -964,9 +974,7 @@ function _handleActualizarEgresoST(data) {
     // egreso nuevo como la fila ST_Items compartan la referencia correcta.
     var esSintetizado = idItemST.indexOf('EGR-') === 0;
     var ahoraSTI      = new Date();
-    var idItemSTRef   = esSintetizado
-      ? 'STI-RP-' + Utilities.formatDate(ahoraSTI, 'America/Panama', 'yyyyMMddHHmmss') + '-L'
-      : idItemST;
+    var idItemSTRef   = esSintetizado ? _nuevoIdItemSTLibre(ahoraSTI) : idItemST;
 
     var COL_COUNT = 21;
     var filaEgr   = new Array(COL_COUNT);
@@ -1176,7 +1184,12 @@ function _handleEliminarItemCotizacion(params, callback) {
     var numRows = sheetSTI.getLastRow() - 2;
     var data    = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
     var found   = false;
+    var egresoIdsAnular = {};   // dedupe egresos a anular
 
+    // Cancelar TODAS las filas con este id_item_st (no solo la primera).
+    // Data legacy puede tener IDs duplicados cuando 2 STs se crearon/importaron
+    // en el mismo segundo — cancelar solo la primera deja duplicados "fantasma"
+    // que el usuario no puede quitar del dashboard.
     for (var i = 0; i < data.length; i++) {
       if (String(data[i][COL_STI.ID - 1]).trim() !== idItemST) continue;
 
@@ -1184,37 +1197,40 @@ function _handleEliminarItemCotizacion(params, callback) {
       var egresoId = String(data[i][COL_STI.EGRESO_ID - 1] || '').trim();
       idST = idST || String(data[i][COL_STI.ID_ST - 1]).trim();
 
-      // ── Si tiene egreso vinculado, anularlo primero ──────────
-      if (egresoId) {
-        var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
-        if (sheetEgr && sheetEgr.getLastRow() > 2) {
-          var numEgr  = sheetEgr.getLastRow() - 2;
-          var idsEgr  = sheetEgr.getRange(3, COL_E.ID, numEgr, 1).getValues();
-          for (var e = 0; e < idsEgr.length; e++) {
-            if (String(idsEgr[e][0] || '').trim() !== egresoId) continue;
-            var rowEgr = e + 3;
-            sheetEgr.getRange(rowEgr, COL_E.ESTADO).setValue('anulado');
-            sheetEgr.getRange(rowEgr, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
-            var notaEgr = String(sheetEgr.getRange(rowEgr, COL_E.NOTAS).getValue() || '');
-            sheetEgr.getRange(rowEgr, COL_E.NOTAS).setValue(
-              notaEgr + ' | ANULADO — eliminación ítem ' + idItemST + ': ' + stamp
-            );
-            result.egreso_anulado = true;
-            result.egreso_id      = egresoId;
-            Logger.log('✅ Egreso anulado al borrar ítem: ' + egresoId);
-            break;
-          }
-        }
-      }
+      if (egresoId) egresoIdsAnular[egresoId] = true;
 
-      // ── Cancelar el ítem ─────────────────────────────────────
       sheetSTI.getRange(rowNum, COL_STI.ESTADO_ITEM).setValue('cancelado');
       sheetSTI.getRange(rowNum, 1, 1, STI_NCOLS).setBackground('#FFEBEE');
       found = true;
-      break;
     }
 
     if (!found) throw new Error('Ítem no encontrado: ' + idItemST);
+
+    // Anular egresos vinculados (dedupeados)
+    var egresoIdsList = Object.keys(egresoIdsAnular);
+    if (egresoIdsList.length > 0) {
+      var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
+      if (sheetEgr && sheetEgr.getLastRow() > 2) {
+        var numEgr  = sheetEgr.getLastRow() - 2;
+        var egrData = sheetEgr.getRange(3, 1, numEgr, EGRESOS_NCOLS).getValues();
+        for (var e = 0; e < egrData.length; e++) {
+          var egrId = String(egrData[e][COL_E.ID - 1] || '').trim();
+          if (!egrId || !egresoIdsAnular[egrId]) continue;
+          // Ya anulado → no tocar
+          if (String(egrData[e][COL_E.ESTADO - 1] || '').toLowerCase() === 'anulado') continue;
+          var rowEgr = e + 3;
+          sheetEgr.getRange(rowEgr, COL_E.ESTADO).setValue('anulado');
+          sheetEgr.getRange(rowEgr, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
+          var notaEgr = String(egrData[e][COL_E.NOTAS - 1] || '');
+          sheetEgr.getRange(rowEgr, COL_E.NOTAS).setValue(
+            notaEgr + ' | ANULADO — eliminación ítem ' + idItemST + ': ' + stamp
+          );
+          result.egreso_anulado = true;
+          result.egreso_id      = egrId;  // último anulado (mostrar uno)
+          Logger.log('✅ Egreso anulado al borrar ítem: ' + egrId);
+        }
+      }
+    }
 
     // Garantizar commit antes del recalculo y antes de retornar — el
     // siguiente getResumenST del frontend debe ver el estado actualizado.
@@ -1750,12 +1766,12 @@ function _handleRegistrarEgresoST(data) {
         // id_item_st vino pero no existe (ej. ítem sintetizado "EGR-*" o id obsoleto).
         // Creamos fila ST_Items nueva para no dejar el egreso huérfano.
         crearFilaSTI = true;
-        idStItemRef  = 'STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-L';
+        idStItemRef  = _nuevoIdItemSTLibre(ahora);
       }
     } else {
       // Costo libre — crear fila ST_Items nueva
       crearFilaSTI = true;
-      idStItemRef  = 'STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-L';
+      idStItemRef  = _nuevoIdItemSTLibre(ahora);
     }
 
     var COL_COUNT = 21;
@@ -1908,6 +1924,7 @@ function _handleGetResumenST(params, callback) {
     var items = [];
     var egresoIdsEnSTItems = {};
     var stItemIdsDelST     = {};   // ids de ST_Items pertenecientes a este ST
+    var vistosPorId        = {};   // dedupe por id_item_st — evita duplicados legacy
 
     if (sheetSTI && sheetSTI.getLastRow() > 2) {
       var numRows  = sheetSTI.getLastRow() - 2;
@@ -1915,6 +1932,21 @@ function _handleGetResumenST(params, callback) {
       for (var i = 0; i < itemData.length; i++) {
         if (String(itemData[i][COL_STI.ID_ST - 1]).trim() !== String(idST).trim()) continue;
         var item = _serializeSTItem(itemData[i]);
+
+        // Dedupe: si ya vimos este id_item_st en este ST, saltar. Data legacy
+        // puede tener filas duplicadas (colisiones de ID en imports rápidos).
+        // Si hay un duplicado vivo + uno cancelado, preferir el no-cancelado.
+        var idKey = String(item.id_item_st || '').trim();
+        if (idKey && vistosPorId[idKey]) {
+          var prev = vistosPorId[idKey];
+          if (prev.estado_item === 'cancelado' && item.estado_item !== 'cancelado') {
+            // Reemplazar el previo cancelado con este vivo
+            var idx = items.indexOf(prev);
+            if (idx !== -1) items.splice(idx, 1);
+          } else {
+            continue;
+          }
+        }
 
         if (item.egreso_id && egresosPorId[item.egreso_id]) {
           var eRow = egresosPorId[item.egreso_id];
@@ -1937,6 +1969,7 @@ function _handleGetResumenST(params, callback) {
         item.semaforo = varPct <= 0 ? 'verde' : (varPct <= 10 ? 'amarillo' : 'rojo');
 
         items.push(item);
+        if (idKey) vistosPorId[idKey] = item;
         if (item.egreso_id) egresoIdsEnSTItems[String(item.egreso_id).trim()] = true;
         if (item.id_item_st) stItemIdsDelST[String(item.id_item_st).trim()] = true;
       }
