@@ -41,27 +41,6 @@
 .fc-pill.active { background: var(--orange); border-color: var(--orange); color: #fff; font-weight: 600; }
 .fc-pill.green.active  { background: var(--green);  border-color: var(--green); }
 .fc-pill.blue.active   { background: #1565C0; border-color: #1565C0; }
-.fc-toggle-wrap {
-  display: flex; align-items: center; gap: .45rem;
-  padding: .3rem .75rem; border-radius: 100px;
-  border: 1px solid var(--border); background: var(--bg);
-  cursor: pointer; transition: all .2s; user-select: none;
-}
-.fc-toggle-wrap:hover { border-color: #888; }
-.fc-toggle-wrap.on { border-color: #E65100; background: #FFF3E0; }
-.fc-toggle-switch {
-  width: 28px; height: 16px; border-radius: 8px; background: #ccc;
-  position: relative; transition: background .2s; flex-shrink: 0;
-}
-.fc-toggle-wrap.on .fc-toggle-switch { background: #E65100; }
-.fc-toggle-knob {
-  position: absolute; top: 2px; left: 2px;
-  width: 12px; height: 12px; border-radius: 50%;
-  background: #fff; transition: left .2s;
-}
-.fc-toggle-wrap.on .fc-toggle-knob { left: 14px; }
-.fc-toggle-label { font-size: .78rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
-.fc-toggle-wrap.on .fc-toggle-label { color: #E65100; font-weight: 600; }
 
 /* ── KPI rows ───────────────────────────────────── */
 .fc-kpi-row {
@@ -119,53 +98,33 @@
 }
 .fc-chart-wrap { position: relative; height: 240px; }
 
-/* ── Módulo comparativo (Op vs ST) ──────────────── */
-.fc-modulo-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 0; background: var(--white); border-bottom: 1px solid var(--border);
+/* ── Distribución de gastos ──────────────────────── */
+.fc-distrib-section {
+  padding: 1.5rem 2rem; background: var(--white);
+  border-bottom: 1px solid var(--border);
 }
-@media (max-width: 860px) { .fc-modulo-grid { grid-template-columns: 1fr; } }
-
-.fc-modulo-col {
-  padding: 1.25rem 2rem; border-right: 1px solid var(--border);
+.fc-distrib-item {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .6rem 0; border-bottom: 1px solid var(--border);
 }
-.fc-modulo-col:last-child { border-right: none; }
-
-.fc-modulo-header {
-  display: flex; align-items: center; gap: .6rem;
-  margin-bottom: 1rem; padding-bottom: .75rem;
-  border-bottom: 2px solid var(--border);
+.fc-distrib-item:last-child { border-bottom: none; }
+.fc-distrib-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.fc-distrib-label { flex: 1; font-size: .82rem; }
+.fc-distrib-val {
+  font-family: 'DM Mono', monospace; font-size: .8rem; font-weight: 600;
+  min-width: 90px; text-align: right;
 }
-.fc-modulo-icon {
-  width: 28px; height: 28px; border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .9rem; flex-shrink: 0;
+.fc-distrib-pct { font-size: .72rem; color: var(--muted); min-width: 42px; text-align: right; }
+.fc-distrib-bar-wrap {
+  width: 80px; height: 6px; background: var(--border);
+  border-radius: 3px; overflow: hidden; flex-shrink: 0;
 }
-.fc-modulo-icon.op { background: #E3F2FD; }
-.fc-modulo-icon.st { background: #F3E5F5; }
-.fc-modulo-title {
-  font-family: 'DM Mono', monospace; font-size: .65rem;
-  letter-spacing: .1em; text-transform: uppercase;
-  color: var(--muted); font-weight: 600;
+.fc-distrib-bar-fill { height: 100%; border-radius: 3px; }
+.fc-distrib-total {
+  display: flex; justify-content: flex-end; align-items: center; gap: .5rem;
+  padding: .65rem .25rem 0; font-size: .83rem; font-weight: 700;
+  border-top: 2px solid var(--border); margin-top: .25rem;
 }
-.fc-modulo-kpis {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: .6rem; margin-bottom: 1rem;
-}
-.fc-modulo-kpi {
-  background: var(--bg); border: 1px solid var(--border);
-  border-radius: var(--r); padding: .75rem 1rem;
-}
-.fc-modulo-kpi-label { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: .25rem; }
-.fc-modulo-kpi-val {
-  font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; line-height: 1;
-}
-.fc-modulo-kpi-val.green  { color: var(--green); }
-.fc-modulo-kpi-val.red    { color: var(--red); }
-.fc-modulo-kpi-val.orange { color: var(--orange); }
-.fc-modulo-kpi-val.blue   { color: #1565C0; }
-.fc-modulo-kpi-val.purple { color: #6A1B9A; }
-.fc-modulo-kpi-sub { font-size: .67rem; color: var(--muted); margin-top: .15rem; }
 
 /* ── Body grid (tabla + ITBMS) ──────────────────── */
 .fc-body {
@@ -275,14 +234,6 @@
   font-size: .83rem; font-weight: 700;
 }
 
-/* ── Origen badge ───────────────────────────────── */
-.fc-origen-badge {
-  display: inline-block; padding: .15rem .5rem; border-radius: 4px;
-  font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-}
-.fc-origen-badge.op { background: #E3F2FD; color: #1565C0; }
-.fc-origen-badge.st { background: #F3E5F5; color: #6A1B9A; }
-
 .fc-estado-badge {
   display: inline-block; padding: .15rem .5rem; border-radius: 4px;
   font-size: .65rem; font-weight: 600;
@@ -316,12 +267,7 @@
     <span class="fc-ctrl-label" style="margin-left:.4rem">Vista</span>
     <button class="fc-pill active" id="fcPillMes"  onclick="fcSetVista('mes',this)">Mensual</button>
     <button class="fc-pill"       id="fcPillAcum" onclick="fcSetVista('acum',this)">Acumulado</button>
-    <div class="fc-toggle-wrap on" id="fcToggleInv" onclick="fcToggleInventario()" style="margin-left:auto"
-         title="Incluye egresos de mercancía e inventario (costo_mercancia) en el flujo">
-      <div class="fc-toggle-switch"><div class="fc-toggle-knob"></div></div>
-      <span class="fc-toggle-label">Incluir inventario</span>
-    </div>
-    <button class="fc-pill" onclick="window.fcLoaded=false;window.fcLoad()">↺ Actualizar</button>
+    <button class="fc-pill" style="margin-left:auto" onclick="window.fcLoaded=false;window.fcLoad()">↺ Actualizar</button>
   </div>
 
   <!-- KPIs GENERALES -->
@@ -342,45 +288,12 @@
     <div class="fc-chart-wrap"><canvas id="fcMainChart"></canvas></div>
   </div>
 
-  <!-- MÓDULOS COMPARATIVOS: Operaciones vs Servicios Técnicos -->
-  <div class="fc-modulo-grid">
-
-    <!-- Operaciones -->
-    <div class="fc-modulo-col">
-      <div class="fc-modulo-header">
-        <div class="fc-modulo-icon op">📦</div>
-        <span class="fc-modulo-title">Operaciones (Compras / Ventas)</span>
-      </div>
-      <div class="fc-modulo-kpis" id="fcOpKpis">
-        <div class="fc-modulo-kpi"><div class="fc-modulo-kpi-label">Cargando</div></div>
-      </div>
-      <!-- Egresos por tipo — Operaciones -->
-      <div class="fc-section-title" style="margin-top:.5rem">Egresos por tipo
-        <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"> — solo costos CV-OP vinculados</span>
-      </div>
-      <div class="fc-itbms-card" id="fcOpEgrTipoCard">
-        <div class="fc-loading" style="padding:.75rem 0"><div class="spinner" style="width:18px;height:18px"></div></div>
-      </div>
+  <!-- DISTRIBUCIÓN DE GASTOS -->
+  <div class="fc-distrib-section">
+    <div class="fc-section-title">Distribución de gastos</div>
+    <div id="fcDistribCard">
+      <div class="fc-loading"><div class="spinner" style="width:18px;height:18px"></div></div>
     </div>
-
-    <!-- Servicios Técnicos -->
-    <div class="fc-modulo-col">
-      <div class="fc-modulo-header">
-        <div class="fc-modulo-icon st">🔧</div>
-        <span class="fc-modulo-title">Servicios Técnicos</span>
-      </div>
-      <div class="fc-modulo-kpis" id="fcStKpis">
-        <div class="fc-modulo-kpi"><div class="fc-modulo-kpi-label">Cargando</div></div>
-      </div>
-      <!-- Egresos por tipo — ST -->
-      <div class="fc-section-title" style="margin-top:.5rem">Egresos por tipo
-        <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"> — facturas registradas en Egresos (distinto del COGS por ST_Items)</span>
-      </div>
-      <div class="fc-itbms-card" id="fcStEgrTipoCard">
-        <div class="fc-loading" style="padding:.75rem 0"><div class="spinner" style="width:18px;height:18px"></div></div>
-      </div>
-    </div>
-
   </div>
 
   <!-- BODY: tabla mes a mes + ITBMS -->
@@ -431,7 +344,6 @@
       <table class="fc-pending-table">
         <thead>
           <tr>
-            <th>Origen</th>
             <th>Referencia</th>
             <th>Cliente</th>
             <th class="num">Monto estimado</th>
@@ -441,7 +353,7 @@
           </tr>
         </thead>
         <tbody id="fcPendingBody">
-          <tr><td colspan="7"><div class="fc-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+          <tr><td colspan="6"><div class="fc-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -458,15 +370,13 @@ const GAS_URL = (typeof window.GAS_URL !== 'undefined' && window.GAS_URL)
              || 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
 
 // ── Estado ───────────────────────────────────────
-let fc_ing    = [];   // ingresos (confirmado | abono | pendiente)
-let fc_egr    = [];   // egresos
-let fc_op     = [];   // compras_ventas (para pendientes Operaciones)
-let fc_sts    = [];   // STs completos (getCotizaciones)
-let fc_year   = new Date().getFullYear();
-let fc_vista       = 'mes';
-let fc_inv_on      = true;
-let fc_chart  = null;
-let fcLoaded  = false;
+let fc_ing   = [];   // ingresos (confirmado | abono | pendiente)
+let fc_egr   = [];   // egresos
+let fc_sts   = [];   // STs completos (getCotizaciones)
+let fc_year  = new Date().getFullYear();
+let fc_vista = 'mes';
+let fc_chart = null;
+let fcLoaded = false;
 
 // ── JSONP helper ─────────────────────────────────
 function fcGasJsonp(action) {
@@ -489,35 +399,27 @@ function fcGasJsonp(action) {
 async function fcLoad() {
   if (fcLoaded) { fcApply(); return; }
   try {
-    // Cargar las 4 fuentes en paralelo (igual que el P&L)
-    const [ingRes, egrRes, opRes, stRes] = await Promise.all([
+    const [ingRes, egrRes, stRes] = await Promise.all([
       (typeof ingItems !== 'undefined' && ingItems.length)
         ? Promise.resolve({ success: true, items: ingItems })
         : fcGasJsonp('getIngresos'),
       (typeof egrItems !== 'undefined' && egrItems.length)
         ? Promise.resolve({ success: true, items: egrItems })
         : fcGasJsonp('getEgresos'),
-      (typeof opItems !== 'undefined' && opItems.length)
-        ? Promise.resolve({ success: true, items: opItems })
-        : fcGasJsonp('getComprasVentas'),
       fcGasJsonp('getCotizaciones'),
     ]);
 
     if (!ingRes.success) throw new Error(ingRes.error || 'Error getIngresos');
     if (!egrRes.success) throw new Error(egrRes.error || 'Error getEgresos');
-    if (!opRes.success)  throw new Error(opRes.error  || 'Error getComprasVentas');
 
-    // Ingresos: excluir anulados (mismo criterio que P&L)
     fc_ing = (ingRes.items || []).filter(i => {
       const est = String(i.estado || '').toLowerCase();
       return est === 'confirmado' || est === 'abono' || est === 'pendiente';
     });
 
     fc_egr = egrRes.items || [];
-    fc_op  = opRes.items  || [];
     fc_sts = (stRes.items || []).filter(st => st.estado !== 'cancelado');
 
-    // Normalizar egresos: derivar mes y anio desde fecha_egreso si no vienen explícitos
     fc_egr.forEach(i => {
       if (!i.anio && !i.anio_fiscal && i.fecha_egreso) {
         const d = new Date(String(i.fecha_egreso).substring(0,10) + 'T12:00:00');
@@ -526,7 +428,6 @@ async function fcLoad() {
     });
 
     fcLoaded = true;
-
     fcPopulateYears();
     fcApply();
   } catch(err) {
@@ -557,48 +458,18 @@ function fcApply() {
   fc_year = Number(document.getElementById('fcSelAnio').value);
 
   const ing = fc_ing.filter(i => Number(i.anio_fiscal) === fc_year);
-
-  const egrAll = fc_egr.filter(i => Number(i.anio || i.anio_fiscal) === fc_year);
-  const egr = fc_inv_on
-    ? egrAll
-    : egrAll.filter(i => i.tipo_egreso !== 'costo_mercancia' && i.categoria !== 'Inventario');
-
-  // STs del año — usar anio del ST o del ingreso vinculado
+  const egr = fc_egr.filter(i => Number(i.anio || i.anio_fiscal) === fc_year);
   const sts = fc_sts.filter(st => {
     const yST  = Number(st.anio || 0);
     const yIng = Number(st.anio_ingreso || 0);
     return yST === fc_year || yIng === fc_year;
   });
 
-  // ── Construir sets de IDs ST (fuente de verdad exacta) ──
-  // Ingreso ST: cualquier ingreso_id referenciado por un ST
-  const stIngresoIds = new Set();
-  // Egreso ST: cualquier egreso_id referenciado en ST_Items
-  const stEgresoIds  = new Set();
-
-  fc_sts.forEach(st => {
-    if (st.ingreso_id) stIngresoIds.add(String(st.ingreso_id).trim());
-    (st.items || []).forEach(it => {
-      if (it.egreso_id) stEgresoIds.add(String(it.egreso_id).trim());
-    });
-  });
-
-  // Split por origen — misma lógica que el P&L
-  // Op: ingresos sin ingreso_id en ST | egresos con id_item_cv = CV-OP-...
-  // ST: ingresos con ingreso_id en ST | egresos con id_st_item o referenciados en ST_Items
-  const ingOp = ing.filter(i => !stIngresoIds.has(String(i.id_trans || '').trim()));
-  const ingST = ing.filter(i =>  stIngresoIds.has(String(i.id_trans || '').trim()));
-  const egrOp = egr.filter(e => String(e.id_item_cv || '').startsWith('CV-OP-'));
-  const egrST = egr.filter(e => stEgresoIds.has(String(e.id_egreso || '').trim()));
-  // Nota: egresos sin CV-OP y sin ST_Item son gastos generales — van al total pero no a ninguna columna
-
-  fcRenderKpis(ing, egr, ingOp, ingST, egrOp, egrST);
+  fcRenderKpis(ing, egr);
   fcRenderChart(ing, egr);
   fcRenderTable(ing, egr);
   fcRenderItbms(ing, egr);
-  fcRenderModuloKpis(ingOp, egrOp, ingST, egrST, sts);
-  fcRenderEgrTipoCard('fcOpEgrTipoCard', egrOp);
-  fcRenderEgrTipoCard('fcStEgrTipoCard', egrST);
+  fcRenderGastosDistrib(egr);
   fcRenderPending(sts);
 }
 
@@ -627,7 +498,7 @@ function fcMonthData(ing, egr) {
 }
 
 // ── KPIs GENERALES ────────────────────────────────
-function fcRenderKpis(ing, egr, ingOp, ingST, egrOp, egrST) {
+function fcRenderKpis(ing, egr) {
   const totalIng = ing.reduce((s,i)=>s+Number(i.total||0),0);
   const totalEgr = egr.reduce((s,i)=>s+Number(i.total||0),0);
   const saldo    = totalIng - totalEgr;
@@ -637,13 +508,9 @@ function fcRenderKpis(ing, egr, ingOp, ingST, egrOp, egrST) {
   const mejorM  = activos.length ? activos.reduce((a,b)=>b.neto>a.neto?b:a) : null;
   const peorM   = activos.length ? activos.reduce((a,b)=>b.neto<a.neto?b:a) : null;
 
-  const itbmsNeto = ing.reduce((s,i)=>s+Number(i.itbms||0),0)
-                  - egr.filter(e=>e.tipo_egreso!=='credito_fiscal').reduce((s,i)=>s+Number(i.itbms||0),0);
-
-  // Proporción Operaciones vs ST
-  const ingOpTotal = ingOp.reduce((s,i)=>s+Number(i.total||0),0);
-  const ingSTTotal = ingST.reduce((s,i)=>s+Number(i.total||0),0);
-  const pctST = totalIng > 0 ? Math.round(ingSTTotal/totalIng*100) : 0;
+  const itbmsNeto    = ing.reduce((s,i)=>s+Number(i.itbms||0),0)
+                     - egr.filter(e=>e.tipo_egreso!=='credito_fiscal').reduce((s,i)=>s+Number(i.itbms||0),0);
+  const promMensual  = activos.length > 0 ? totalIng / activos.length : 0;
 
   document.getElementById('fcKpiRow').innerHTML = `
     <div class="fc-kpi orange">
@@ -677,86 +544,13 @@ function fcRenderKpis(ing, egr, ingOp, ingST, egrOp, egrST) {
       <div class="fc-kpi-sub">Cobrado − Pagado</div>
     </div>
     <div class="fc-kpi teal">
-      <div class="fc-kpi-label">Mix Serv. Técnico</div>
-      <div class="fc-kpi-value teal">${pctST}%</div>
-      <div class="fc-kpi-sub">Op ${fmtK(ingOpTotal)} · ST ${fmtK(ingSTTotal)}</div>
+      <div class="fc-kpi-label">Promedio mensual</div>
+      <div class="fc-kpi-value teal">${fmtK(promMensual)}</div>
+      <div class="fc-kpi-sub">${activos.length} mes${activos.length!==1?'es':''} con actividad</div>
     </div>
   `;
 }
 
-// ── MÓDULO KPIs (Op vs ST) ────────────────────────
-function fcRenderModuloKpis(ingOp, egrOp, ingST, egrST, sts) {
-  // --- Operaciones ---
-  const totIngOp = ingOp.reduce((s,i)=>s+Number(i.total||0),0);
-  const totEgrOp = egrOp.reduce((s,i)=>s+Number(i.total||0),0);
-  const netoOp   = totIngOp - totEgrOp;
-  const txOp     = ingOp.length;
-
-  document.getElementById('fcOpKpis').innerHTML = `
-    <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">Ingresos</div>
-      <div class="fc-modulo-kpi-val orange">${fmtK(totIngOp)}</div>
-      <div class="fc-modulo-kpi-sub">${txOp} transacciones</div>
-    </div>
-    <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">Costo mercancía</div>
-      <div class="fc-modulo-kpi-val red">${fmtK(totEgrOp)}</div>
-      <div class="fc-modulo-kpi-sub">egresos CV-OP vinculados</div>
-    </div>
-    <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">Neto</div>
-      <div class="fc-modulo-kpi-val ${netoOp>=0?'green':'red'}">${fmtK(netoOp)}</div>
-      <div class="fc-modulo-kpi-sub">${netoOp>=0?'Positivo':'Negativo'}</div>
-    </div>
-    <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">Ticket promedio</div>
-      <div class="fc-modulo-kpi-val blue">${txOp>0?fmtK(totIngOp/txOp):'—'}</div>
-      <div class="fc-modulo-kpi-sub">por operación</div>
-    </div>
-  `;
-
-  // --- Servicios Técnicos ---
-  const totIngST = ingST.reduce((s,i)=>s+Number(i.total||0),0);
-  const totEgrST = egrST.reduce((s,i)=>s+Number(i.total||0),0);
-  const netoST   = totIngST - totEgrST;
-  const stsCerrados   = sts.filter(st => st.estado === 'cerrado').length;
-  const stsEnEjecucion = sts.filter(st => st.estado === 'en_ejecucion').length;
-  // COGS desde ST_Items (misma lógica que P&L)
-  let cogsST = 0;
-  sts.forEach(st => {
-    (st.items || []).forEach(it => {
-      if (it.estado_item === 'cancelado') return;
-      if ((it.tipo || '') === 'credito_fiscal') return;
-      const tr = parseFloat(it.total_real) || 0;
-      const tc = parseFloat(it.total_cotizado) || 0;
-      cogsST += tr > 0 ? tr : tc;
-    });
-  });
-  const margenST = totIngST > 0 ? ((totIngST - cogsST) / totIngST * 100).toFixed(1) : 0;
-
-  document.getElementById('fcStKpis').innerHTML = `
-    <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">Ingresos facturados</div>
-      <div class="fc-modulo-kpi-val orange">${fmtK(totIngST)}</div>
-      <div class="fc-modulo-kpi-sub">${ingST.length} transacciones</div>
-    </div>
-    <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">COGS (ST_Items)</div>
-      <div class="fc-modulo-kpi-val red">${fmtK(cogsST)}</div>
-      <div class="fc-modulo-kpi-sub">por ítem real/cotizado · excl. impuestos</div>
-    </div>
-    <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">Margen bruto</div>
-      <div class="fc-modulo-kpi-val ${Number(margenST)>=0?'green':'red'}">${margenST}%</div>
-      <div class="fc-modulo-kpi-sub">Ingresos − COGS</div>
-    </div>
-    <div class="fc-modulo-kpi">
-      <div class="fc-modulo-kpi-label">STs activos</div>
-      <div class="fc-modulo-kpi-val purple">${stsCerrados + stsEnEjecucion}</div>
-      <div class="fc-modulo-kpi-sub">${stsCerrados} cerrados · ${stsEnEjecucion} en ejec.</div>
-    </div>
-  `;
-}
 
 // ── Chart ─────────────────────────────────────────
 function fcRenderChart(ing, egr) {
@@ -962,31 +756,50 @@ function fcRenderEgrTipoCard(cardId, egresos) {
   }).join('');
 }
 
+// ── Distribución de gastos ────────────────────────
+function fcRenderGastosDistrib(egr) {
+  const map = {};
+  egr.forEach(e => {
+    const k = e.tipo_egreso || 'sin_clasificar';
+    map[k] = (map[k]||0) + Number(e.total||0);
+  });
+  const total  = Object.values(map).reduce((s,v)=>s+v,0);
+  const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+
+  const el = document.getElementById('fcDistribCard');
+  if (!sorted.length) {
+    el.innerHTML = '<div class="fc-empty" style="padding:1rem">Sin egresos en el período</div>';
+    return;
+  }
+
+  el.innerHTML = sorted.map(([k,v]) => {
+    const pct = total > 0 ? (v/total*100).toFixed(1) : 0;
+    const col = EGR_COLORS[k] || '#9E9E9E';
+    const lbl = EGR_LABELS[k] || k;
+    return `
+      <div class="fc-distrib-item">
+        <div class="fc-distrib-dot" style="background:${col}"></div>
+        <span class="fc-distrib-label">${lbl}</span>
+        <span class="fc-distrib-val">${fmtUSD(v)}</span>
+        <span class="fc-distrib-pct">${pct}%</span>
+        <div class="fc-distrib-bar-wrap">
+          <div class="fc-distrib-bar-fill" style="width:${pct}%;background:${col}"></div>
+        </div>
+      </div>`;
+  }).join('') +
+  `<div class="fc-distrib-total">
+    Total: <span style="font-family:'DM Mono',monospace;margin-left:.4rem;color:var(--red)">${fmtUSD(total)}</span>
+  </div>`;
+}
+
 // ── Pendientes de cobro ───────────────────────────
-// Incluye:
-//   1. opItems estado='facturado'  (Operaciones pendientes de cobro)
-//   2. STs estado='en_ejecucion'   (trabajo en proceso, aún no facturado)
-//   3. STs estado='cerrado' con ingreso estado='pendiente' (facturado, cobro pendiente)
+// Incluye STs en ejecución y STs cerrados con cobro pendiente
 function fcRenderPending(sts) {
   const hoy   = new Date();
   const items = [];
 
-  // — Operaciones facturadas (sin cobro) —
-  fc_op.filter(i => i.estado === 'facturado').forEach(i => {
-    items.push({
-      origen:   'op',
-      ref:      i.num_fac_emitida || i.id_item || '—',
-      cliente:  i.nombre_cliente  || '—',
-      monto:    parseFloat(i.total_venta || 0),
-      estado:   'facturado',
-      fecha:    String(i.fecha_venta || '').substring(0,10),
-    });
-  });
-
-  // — STs en ejecución (monto estimado = precio_venta cotizado) —
   sts.filter(st => st.estado === 'en_ejecucion').forEach(st => {
     items.push({
-      origen:  'st',
       ref:     st.id_st || '—',
       cliente: st.nombre_cliente || '—',
       monto:   parseFloat(st.precio_venta || 0),
@@ -995,12 +808,10 @@ function fcRenderPending(sts) {
     });
   });
 
-  // — STs cerrados cuyo ingreso está en estado 'pendiente' —
   sts.filter(st => st.estado === 'cerrado' && st.ingreso_id).forEach(st => {
     const ing = fc_ing.find(i => i.id_trans === st.ingreso_id);
     if (ing && String(ing.estado || '').toLowerCase() === 'pendiente') {
       items.push({
-        origen:  'st',
         ref:     st.id_st || '—',
         cliente: st.nombre_cliente || '—',
         monto:   parseFloat(st.subtotal_venta || ing.total || 0),
@@ -1014,12 +825,11 @@ function fcRenderPending(sts) {
   const tfooter = document.getElementById('fcPendingTotal');
 
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="fc-empty"><span style="font-size:1.8rem">✅</span><span>Sin pendientes de cobro</span></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6"><div class="fc-empty"><span style="font-size:1.8rem">✅</span><span>Sin pendientes de cobro</span></div></td></tr>';
     tfooter.style.display = 'none';
     return;
   }
 
-  // Ordenar por fecha ascendente (más antiguos primero)
   items.sort((a,b) => String(a.fecha).localeCompare(String(b.fecha)));
 
   const rows = items.map(item => {
@@ -1027,12 +837,8 @@ function fcRenderPending(sts) {
     const dias      = fechaDate && !isNaN(fechaDate) ? Math.floor((hoy-fechaDate)/(1000*60*60*24)) : null;
     const diasLbl   = dias === null ? '—' : dias + 'd';
     const diasCls   = dias === null ? '' : dias<=30?'ok':dias<=60?'mid':'bad';
-
-    const origenBadge  = `<span class="fc-origen-badge ${item.origen}">${item.origen === 'op' ? 'OP' : 'ST'}</span>`;
-    const estadoBadge  = `<span class="fc-estado-badge ${item.estado}">${item.estado === 'facturado' ? 'Pend. cobro' : 'En ejecución'}</span>`;
-
+    const estadoBadge = `<span class="fc-estado-badge ${item.estado}">${item.estado === 'facturado' ? 'Pend. cobro' : 'En ejecución'}</span>`;
     return `<tr>
-      <td>${origenBadge}</td>
       <td><span class="fc-badge-pendiente">${fcEsc(item.ref)}</span></td>
       <td>${fcEsc(item.cliente)}</td>
       <td class="num">${fmtUSD(item.monto)}</td>
@@ -1056,19 +862,9 @@ function fcSetVista(v, btn) {
   fc_vista = v;
   document.querySelectorAll('.fc-pill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const ing    = fc_ing.filter(i => Number(i.anio_fiscal)===fc_year);
-  const egrAll = fc_egr.filter(i => Number(i.anio || i.anio_fiscal)===fc_year);
-  const egr    = fc_inv_on
-    ? egrAll
-    : egrAll.filter(i => i.tipo_egreso !== 'costo_mercancia' && i.categoria !== 'Inventario');
+  const ing = fc_ing.filter(i => Number(i.anio_fiscal)===fc_year);
+  const egr = fc_egr.filter(i => Number(i.anio || i.anio_fiscal)===fc_year);
   fcRenderChart(ing, egr);
-}
-
-function fcToggleInventario() {
-  fc_inv_on = !fc_inv_on;
-  const el = document.getElementById('fcToggleInv');
-  if (fc_inv_on) el.classList.add('on'); else el.classList.remove('on');
-  fcApply();
 }
 
 // ── Error ─────────────────────────────────────────
@@ -1086,10 +882,9 @@ function fcEsc(s) {
 }
 
 // ── Exponer al admin padre ─────────────────────────
-window.fcApplyFilters     = fcApply;
-window.fcToggleInventario = fcToggleInventario;
-window.fcSetVista         = fcSetVista;
-window.fcLoad             = fcLoad;
+window.fcApplyFilters = fcApply;
+window.fcSetVista     = fcSetVista;
+window.fcLoad         = fcLoad;
 Object.defineProperty(window, 'fcLoaded', {
   get: () => fcLoaded,
   set: v  => { fcLoaded = v; },
