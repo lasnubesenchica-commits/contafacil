@@ -1404,13 +1404,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
 <!-- ═══════════ SECCIÓN: REGISTRO GENERAL ═══════════ -->
 <div id="sectionRegistroGeneral" style="display:none">
 
-  <!-- Título -->
-  <div style="padding:1rem 2rem .5rem;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
-    <span style="font-size:1.15rem">📒</span>
-    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text)">Registro General</span>
-    <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">— Ingresos y egresos misceláneos no vinculados a Proyectos ni Comercialización</span>
-  </div>
-
   <!-- Tabs internos -->
   <div style="display:flex;gap:0;background:var(--white);border-bottom:2px solid var(--border);padding:0 2rem">
     <button id="rgTabEgrBtn" onclick="rgShowTab('egr')"
@@ -1422,7 +1415,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       💰 Ingresos
     </button>
     <button id="rgTabPlBtn" onclick="rgShowTab('pl')"
-      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
+      style="display:none;padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
       👤 Planilla
     </button>
   </div>
@@ -3076,7 +3069,7 @@ function refreshCurrentSection() {
   else if (activeTab === 'ingresos')         loadIngresos();
   else if (activeTab === 'dashboard')        { plLoaded = false; loadDashboard(); }
   else if (activeTab === 'proveedores')      loadProveedores();
-  else if (activeTab === 'registroGeneral')  rgRefreshEgr();
+  else if (activeTab === 'registroGeneral')  rgRefresh();
   else if (activeTab.startsWith('reporte:')) loadReporte(activeTab.replace('reporte:', ''), true);
 }
 
