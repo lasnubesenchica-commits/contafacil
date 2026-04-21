@@ -6150,7 +6150,16 @@ window.plDesactivar = plDesactivar;
 // ══════════════════════════════════════════════════
 //  P&L / DASHBOARD
 // ══════════════════════════════════════════════════
-var plLoaded    = false;
+var plLoaded           = false;
+var plYear             = new Date().getFullYear();
+var plMonth            = 'ytd';
+var plTipo             = 'todos';
+var plIngresos         = [];
+var plIngresosAnulados = [];
+var plIngresosNC       = [];
+var plEgresos          = [];
+var plStItems          = [];
+var plOpItems          = [];
 
 const EGR_COLORS = {
   // Costos directos
