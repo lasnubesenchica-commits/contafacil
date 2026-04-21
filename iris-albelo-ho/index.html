@@ -840,7 +840,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .er-detail-item-amt   { font-family:'DM Mono',monospace;font-size:.8rem;font-weight:600;white-space:nowrap;color:var(--text); }
 
 .pl-kpi-row {
-  display:grid;grid-template-columns:repeat(6,1fr);gap:.75rem;
+  display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem;
   padding:1.25rem 2rem;background:var(--white);border-bottom:1px solid var(--border);
 }
 @media(max-width:1300px){ .pl-kpi-row{ grid-template-columns:repeat(3,1fr) } }
@@ -1682,20 +1682,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="pl-month-pill" data-m="11" onclick="selectPlMonth(11)">Nov</button>
       <button class="pl-month-pill" data-m="12" onclick="selectPlMonth(12)">Dic</button>
     </div>
-    <div class="pl-tipo-wrap">
-      <span class="pl-control-label">Tipo</span>
-      <button class="pl-tipo-btn active" data-tipo="todos"   onclick="selectPlTipo(this)">Todo</button>
-      <button class="pl-tipo-btn"        data-tipo="general" onclick="selectPlTipo(this)">📒 General</button>
-    </div>
   </div>
 
   <!-- KPI ROW -->
   <div class="pl-kpi-row" id="plKpiRow">
     <div class="pl-loading" style="grid-column:1/-1"><div class="spinner"></div><span>Cargando dashboard...</span></div>
   </div>
-
-  <!-- FILA DESGLOSE DE COSTOS POR TIPO -->
-  <div class="pl-cost-row" id="plCostRow"></div>
 
   <!-- BODY GRID -->
   <div class="pl-body">
@@ -1733,10 +1725,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <button id="plTblBtnIng" onclick="plSwitchTable('ingresos')"
             style="font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid #1A237E;background:#1A237E;color:#fff;cursor:pointer;font-weight:600">
             Ingresos
-          </button>
-          <button id="plTblBtnEgr" onclick="plSwitchTable('egresos')"
-            style="font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">
-            Costos
           </button>
           <button id="plTblBtnGas" onclick="plSwitchTable('gastos')"
             style="font-size:.72rem;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">
@@ -1820,12 +1808,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   </div><!-- /plVistaConsolidado -->
 
-  <!-- IDs ocultos para JS del widget ITBMS (sin card visible) -->
-  <span id="plItbmsIng"  style="display:none"></span>
-  <span id="plItbmsEgr"  style="display:none"></span>
-  <span id="plItbmsNeto" style="display:none"></span>
-  <span id="plTicket"    style="display:none"></span>
-  <span id="plTxCount"   style="display:none"></span>
 
 
 </div><!-- /sectionDashboard -->
@@ -6482,10 +6464,7 @@ function renderDashboard() {
   const txCount     = ingresos.length;
   const ticket      = txCount > 0 ? totalIngNeto / txCount : 0;
 
-  const _cogsLabel = plTipo === 'general' ? 'Gastos operativos'
-                   : 'Costos directos';
-
-  // KPIs — 6 widgets: Ingresos | Costos | Gastos | Util.Bruta | Util.Neta | ITBMS
+  // KPIs — 5 widgets: Ingresos | Gastos | Utilidad neta | ITBMS | Ticket promedio
   document.getElementById('plKpiRow').innerHTML = `
     <div class="pl-kpi" style="--kpi-accent:var(--orange)">
       <div class="pl-kpi-label">Ingresos neto</div>
@@ -6495,30 +6474,17 @@ function renderDashboard() {
         <span style="margin-left:.25rem">sin ITBMS · bruto ${plFmt(totalIng)}</span>
       </div>
     </div>
-    <div class="pl-kpi" style="--kpi-accent:#E65100">
-      <div class="pl-kpi-label">${_cogsLabel}</div>
-      <div class="pl-kpi-value" style="color:#E65100">${plFmt(cogsTotal)}</div>
-      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((cogsTotal/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : '—'}</div>
-    </div>
     <div class="pl-kpi" style="--kpi-accent:#6A1B9A">
       <div class="pl-kpi-label">Gastos operativos</div>
       <div class="pl-kpi-value" style="color:#6A1B9A">${plFmt(gastosGral)}</div>
-      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((gastosGral/totalIngNeto)*100).toFixed(1)+'% de ingresos neto' : gastosGral > 0 ? 'del período' : '—'}</div>
-    </div>
-    <div class="pl-kpi" style="--kpi-accent:${utilBruta >= 0 ? '#2E7D32' : 'var(--red)'}">
-      <div class="pl-kpi-label">Utilidad bruta</div>
-      <div class="pl-kpi-value ${utilBruta >= 0 ? 'green' : 'red'}">${plFmt(utilBruta)}</div>
-      <div class="pl-kpi-sub">
-        <span class="pl-kpi-tag ${margenBruto >= 0 ? 'pos' : 'neg'}">${margenBruto >= 0 ? '+' : ''}${margenBruto.toFixed(1)}%</span>
-        <span style="margin-left:.25rem">sobre ingresos neto</span>
-      </div>
+      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((gastosGral/totalIngNeto)*100).toFixed(1)+'% de ingresos' : gastosGral > 0 ? 'del período' : '—'}</div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
       <div class="pl-kpi-label">Utilidad neta</div>
       <div class="pl-kpi-value ${utilNeta >= 0 ? 'green' : 'red'}">${plFmt(utilNeta)}</div>
       <div class="pl-kpi-sub">
         <span class="pl-kpi-tag ${margenNeto >= 0 ? 'pos' : 'neg'}">${margenNeto >= 0 ? '+' : ''}${margenNeto.toFixed(1)}%</span>
-        <span style="margin-left:.25rem">tras gastos operativos</span>
+        <span style="margin-left:.25rem">margen neto</span>
       </div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${itbmsNeto >= 0 ? '#1565C0' : 'var(--green)'};cursor:pointer;transition:box-shadow .2s" onclick="openItbmsDetalle()" title="Ver desglose ITBMS · DGI">
@@ -6531,28 +6497,19 @@ function renderDashboard() {
         </span>
         <span style="font-size:.65rem;color:var(--chrome);margin-top:.1rem">🔍 Ver desglose detallado</span>
       </div>
+    </div>
+    <div class="pl-kpi" style="--kpi-accent:#00695C">
+      <div class="pl-kpi-label">Ticket promedio</div>
+      <div class="pl-kpi-value" style="color:#00695C">${plFmt(ticket)}</div>
+      <div class="pl-kpi-sub">${txCount} factura${txCount !== 1 ? 's' : ''} en el período</div>
     </div>`;
 
   // Gráfica barras
   plRenderBarChart(plYear);
 
-  // Desglose costos por tipo
-  plRenderCostRow(cogsTotal);
-
-  // Tablas detalle (ingresos / costos)
+  // Tablas detalle
   plRenderTables();
   erRender();
-
-  // Métricas inferiores
-  document.getElementById('plTicket').textContent   = plFmt(ticket);
-  document.getElementById('plTxCount').textContent  = txCount;
-  document.getElementById('plItbmsIng').textContent = plFmt(itbmsIng);
-  document.getElementById('plItbmsEgr').textContent = plFmt(itbmsEgr);
-  const itbmsNetoEl = document.getElementById('plItbmsNeto');
-  if (itbmsNetoEl) {
-    itbmsNetoEl.textContent = plFmt(Math.abs(itbmsNeto));
-    itbmsNetoEl.style.color = itbmsNeto >= 0 ? '#1565C0' : 'var(--green)';
-  }
 
   // Gap
   const periodoLabel = plMonth === 'ytd'
