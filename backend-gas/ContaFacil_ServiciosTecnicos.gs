@@ -839,6 +839,11 @@ function _handleActualizarEgresoST(data) {
     var rec = _getSTById(ss, idST);
     if (!rec) throw new Error('ST no encontrado: ' + idST);
 
+    var estadoActualUpd = String(rec.data[COL_ST.ESTADO - 1] || '');
+    if (estadoActualUpd !== 'en_ejecucion' && estadoActualUpd !== 'aprobado') {
+      throw new Error('Solo se pueden editar costos en STs "aprobado" o "en_ejecucion". Estado: ' + estadoActualUpd);
+    }
+
     var total    = parseFloat(data.total)    || 0;
     var itbms    = parseFloat(data.itbms)    || 0;
     var subtotal = parseFloat(data.subtotal) || parseFloat((total - itbms).toFixed(2));
@@ -1647,10 +1652,14 @@ function _handleRegistrarEgresoST(data) {
     if (proveedor && numFactura && lastEgrRow > 2) {
       var EGRESOS_CHECK_NCOLS = Math.max(EGRESOS_NCOLS, 20);
       var existEgr = sheetEgr.getRange(3, 1, lastEgrRow - 2, EGRESOS_CHECK_NCOLS).getValues();
+      var provNorm = proveedor.trim().toUpperCase();
+      var nfacNorm = numFactura.trim().toUpperCase();
       for (var d = 0; d < existEgr.length; d++) {
-        var provExist = String(existEgr[d][12] || '').trim().toUpperCase();
-        var nfacExist = String(existEgr[d][15] || '').trim();
-        if (provExist === proveedor.trim().toUpperCase() && nfacExist && nfacExist === numFactura.trim()) {
+        // Ignorar egresos anulados — no bloquean re-registro legítimo
+        if (String(existEgr[d][COL_E.ESTADO - 1] || '').toLowerCase() === 'anulado') continue;
+        var provExist = String(existEgr[d][COL_E.PROVEEDOR - 1] || '').trim().toUpperCase();
+        var nfacExist = String(existEgr[d][COL_E.NFACTURA  - 1] || '').trim().toUpperCase();
+        if (provExist === provNorm && nfacExist && nfacExist === nfacNorm) {
           throw new Error('DUPLICADO: Ya existe un egreso del proveedor "' + proveedor +
                           '" con factura "' + numFactura + '"');
         }
@@ -1677,6 +1686,44 @@ function _handleRegistrarEgresoST(data) {
     var tipoItem   = data.tipo || 'otro';
     var tipoEgreso = tipoMap[tipoItem] || 'costo_servicio_tecnico';
     var categoria  = data.categoria || tipoEgreso;
+    var cantidad   = parseFloat(data.cantidad || '1') || 1;
+
+    // ── Localizar ST_Items para vincular (si viene idItemST) ──────
+    //   Se busca ANTES de escribir el egreso para poder poner el id_st_item
+    //   correcto en col 21. Si viene idItemST pero no existe la fila, seguimos
+    //   el mismo patrón simétrico que _handleActualizarEgresoST para ítems
+    //   sintetizados: creamos una fila ST_Items nueva en vez de dejar huérfano
+    //   el egreso.
+    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
+    if (!sheetSTI) sheetSTI = _initSTItemsSheet(ss);
+
+    var itemRowIdx    = -1;   // fila absoluta de ST_Items si ya existe
+    var idStItemRef;          // id que se escribirá en col 21 del egreso
+    var crearFilaSTI  = false;
+
+    if (idItemST) {
+      if (sheetSTI.getLastRow() > 2) {
+        var numItemRowsReg = sheetSTI.getLastRow() - 2;
+        var itemDataReg    = sheetSTI.getRange(3, 1, numItemRowsReg, STI_NCOLS).getValues();
+        for (var i = 0; i < itemDataReg.length; i++) {
+          if (String(itemDataReg[i][COL_STI.ID - 1]).trim() !== String(idItemST).trim()) continue;
+          itemRowIdx = i + 3;
+          break;
+        }
+      }
+      if (itemRowIdx !== -1) {
+        idStItemRef = idItemST;
+      } else {
+        // id_item_st vino pero no existe (ej. ítem sintetizado "EGR-*" o id obsoleto).
+        // Creamos fila ST_Items nueva para no dejar el egreso huérfano.
+        crearFilaSTI = true;
+        idStItemRef  = 'STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-L';
+      }
+    } else {
+      // Costo libre — crear fila ST_Items nueva
+      crearFilaSTI = true;
+      idStItemRef  = 'STI-RP-' + Utilities.formatDate(ahora, 'America/Panama', 'yyyyMMddHHmmss') + '-L';
+    }
 
     var COL_COUNT = 21;
     var filaEgr   = new Array(COL_COUNT);
@@ -1701,50 +1748,41 @@ function _handleRegistrarEgresoST(data) {
     filaEgr[16] = '';   // col 17 id_item_cv — VACÍO: exclusivo de Compras_Ventas
     filaEgr[17] = driveUrl;
     filaEgr[18] = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || '');
-    filaEgr[19] = 'ST: ' + idST + (idItemST ? ' | Ítem: ' + idItemST : ' | Costo adicional') +
+    filaEgr[19] = 'ST: ' + idST + ' | Ítem: ' + idStItemRef +
+                  (crearFilaSTI && !idItemST ? ' | Costo adicional' : '') +
                   (data.notas ? ' | ' + data.notas : '');
-    filaEgr[20] = idItemST ? idItemST : idST;
+    filaEgr[20] = idStItemRef;
 
     var newEgrRow = sheetEgr.getLastRow() + 1;
     sheetEgr.getRange(newEgrRow, 1, 1, COL_COUNT).setValues([filaEgr]);
     sheetEgr.getRange(newEgrRow, 7, 1, 3).setNumberFormat('#,##0.00');
     sheetEgr.getRange(newEgrRow, 1, 1, COL_COUNT).setBackground('#F3E5F5');
 
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    if (!sheetSTI) sheetSTI = _initSTItemsSheet(ss);
-
-    if (idItemST) {
-      if (sheetSTI.getLastRow() > 2) {
-        var numItemRows = sheetSTI.getLastRow() - 2;
-        var itemData    = sheetSTI.getRange(3, 1, numItemRows, STI_NCOLS).getValues();
-        for (var i = 0; i < itemData.length; i++) {
-          if (String(itemData[i][COL_STI.ID - 1]) !== String(idItemST)) continue;
-          var itemRow = i + 3;
-          sheetSTI.getRange(itemRow, COL_STI.MONTO_REAL).setValue(subtotal || total);
-          sheetSTI.getRange(itemRow, COL_STI.ITBMS_REAL).setValue(itbms);
-          sheetSTI.getRange(itemRow, COL_STI.TOTAL_REAL).setValue(total);
-          sheetSTI.getRange(itemRow, COL_STI.DRIVE_URL).setValue(driveUrl);
-          sheetSTI.getRange(itemRow, COL_STI.EGRESO_ID).setValue(egresoId);
-          sheetSTI.getRange(itemRow, COL_STI.ESTADO_ITEM).setValue('ejecutado');
-          sheetSTI.getRange(itemRow, 1, 1, STI_NCOLS).setBackground('#E8F5E9');
-          break;
-        }
-      }
-    } else {
-      var ahoraSTI    = new Date();
-      var idItemLib   = 'STI-RP-' + Utilities.formatDate(ahoraSTI, 'America/Panama', 'yyyyMMddHHmmss') + '-L';
-      var fechaRegSTI = Utilities.formatDate(ahoraSTI, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-      var descItem    = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || 'Costo adicional');
-      var aplicaITB   = itbms > 0;
+    // ── Escribir/actualizar fila ST_Items ──────────────────────────────
+    if (itemRowIdx !== -1) {
+      // Ítem cotizado existente — actualizar con los montos reales
+      sheetSTI.getRange(itemRowIdx, COL_STI.MONTO_REAL).setValue(subtotal || total);
+      sheetSTI.getRange(itemRowIdx, COL_STI.ITBMS_REAL).setValue(itbms);
+      sheetSTI.getRange(itemRowIdx, COL_STI.TOTAL_REAL).setValue(total);
+      if (driveUrl) sheetSTI.getRange(itemRowIdx, COL_STI.DRIVE_URL).setValue(driveUrl);
+      sheetSTI.getRange(itemRowIdx, COL_STI.EGRESO_ID).setValue(egresoId);
+      sheetSTI.getRange(itemRowIdx, COL_STI.ESTADO_ITEM).setValue('ejecutado');
+      sheetSTI.getRange(itemRowIdx, 1, 1, STI_NCOLS).setBackground('#E8F5E9');
+      Logger.log('✅ ST_Items ejecutado: ' + idItemST + ' → egreso: ' + egresoId);
+    } else if (crearFilaSTI) {
+      var fechaRegSTI   = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+      var descItem      = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || 'Costo adicional');
+      var aplicaITB     = itbms > 0;
+      var precioUnitCal = cantidad > 0 ? parseFloat((total / cantidad).toFixed(2)) : total;
 
       var filaSTI = new Array(STI_NCOLS);
       for (var xsi = 0; xsi < STI_NCOLS; xsi++) filaSTI[xsi] = '';
-      filaSTI[COL_STI.ID - 1]           = idItemLib;
+      filaSTI[COL_STI.ID - 1]           = idStItemRef;
       filaSTI[COL_STI.ID_ST - 1]        = idST;
       filaSTI[COL_STI.TIPO - 1]         = tipoItem;
       filaSTI[COL_STI.DESCRIPCION - 1]  = descItem;
-      filaSTI[COL_STI.CANTIDAD - 1]     = 1;
-      filaSTI[COL_STI.PRECIO_UNIT - 1]  = total;
+      filaSTI[COL_STI.CANTIDAD - 1]     = cantidad;
+      filaSTI[COL_STI.PRECIO_UNIT - 1]  = precioUnitCal;
       filaSTI[COL_STI.APLICA_ITBMS - 1] = aplicaITB;
       filaSTI[COL_STI.MONTO_COT - 1]    = '';
       filaSTI[COL_STI.ITBMS_COT - 1]    = '';
@@ -1763,7 +1801,8 @@ function _handleRegistrarEgresoST(data) {
       sheetSTI.getRange(newSTIRow, 1, 1, STI_NCOLS).setValues([filaSTI]);
       sheetSTI.getRange(newSTIRow, COL_STI.MONTO_REAL, 1, 3).setNumberFormat('#,##0.00');
       sheetSTI.getRange(newSTIRow, 1, 1, STI_NCOLS).setBackground('#F3E5F5');
-      Logger.log('✅ ST_Items adicional creado: ' + idItemLib + ' | ' + tipoItem + ' | $' + total);
+      Logger.log('✅ ST_Items adicional creado: ' + idStItemRef + ' | ' + tipoItem +
+                 ' | cant: ' + cantidad + ' | $' + total);
     }
 
     var sheetSTI2 = ss.getSheetByName(SHEET_ST_ITEM);
