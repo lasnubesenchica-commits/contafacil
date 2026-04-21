@@ -1297,6 +1297,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
 </div>
 
 <div id="sectionIngresos" style="display:none">
+  <div style="padding:1rem 2rem .5rem;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
+    <span style="font-size:1.15rem">📄</span>
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text)">Ingresos</span>
+    <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">— Facturas emitidas y confirmadas por año fiscal</span>
+  </div>
   <!-- Stats Ingresos -->
   <div class="op-stats" style="padding:1rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border)">
     <div class="stat-pill"><span class="stat-pill-num" id="iStatTotal">—</span><span class="stat-pill-label">Total</span></div>
@@ -1347,6 +1352,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 <!-- ═══════════ SECCIÓN: EGRESOS ═══════════ -->
 <div id="sectionEgresos" style="display:none">
+  <div style="padding:1rem 2rem .5rem;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
+    <span style="font-size:1.15rem">🧾</span>
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text)">Egresos</span>
+    <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">— Gastos operativos y facturas de proveedores</span>
+  </div>
 
   <!-- Stats Egresos -->
   <div class="op-stats" id="egresoStatsBar">
@@ -1403,8 +1413,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 <!-- ═══════════ SECCIÓN: REGISTRO GENERAL ═══════════ -->
 <div id="sectionRegistroGeneral" style="display:none">
-
-  <!-- Título -->
   <div style="padding:1rem 2rem .5rem;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
     <span style="font-size:1.15rem">📒</span>
     <span style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text)">Registro General</span>
@@ -1422,7 +1430,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       💰 Ingresos
     </button>
     <button id="rgTabPlBtn" onclick="rgShowTab('pl')"
-      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
+      style="display:none;padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
       👤 Planilla
     </button>
   </div>
@@ -1662,6 +1670,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 <!-- ══════════ SECCIÓN: DASHBOARD P&L ══════════ -->
 <div id="sectionDashboard">
+  <div style="padding:1rem 2rem .5rem;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
+    <span style="font-size:1.15rem">📊</span>
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text)">Estado de Resultados</span>
+    <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">— Rentabilidad neta, egresos y posición fiscal por período</span>
+  </div>
 
   <!-- CONTROL BAR -->
   <div class="pl-control-bar">
@@ -3076,7 +3089,7 @@ function refreshCurrentSection() {
   else if (activeTab === 'ingresos')         loadIngresos();
   else if (activeTab === 'dashboard')        { plLoaded = false; loadDashboard(); }
   else if (activeTab === 'proveedores')      loadProveedores();
-  else if (activeTab === 'registroGeneral')  rgRefreshEgr();
+  else if (activeTab === 'registroGeneral')  rgRefresh();
   else if (activeTab.startsWith('reporte:')) loadReporte(activeTab.replace('reporte:', ''), true);
 }
 
