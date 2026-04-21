@@ -2384,47 +2384,41 @@
     var st = st_state.stActual;
     if (!st) { st_cargarDatos(true); return; }
     var idST = st.id_st;
-    var resumenItems = [];  // capture resumen items for merge
+    var resumenCache = null;  // capturar resumen completo para reusar en el render
     gasJsonp('getResumenST', { id_st: idST })
       .then(function(res) {
         if (!res.success) throw new Error(res.error);
-        resumenItems = res.resumen.items || [];
+        resumenCache = res.resumen;
         return gasJsonp('getCotizaciones', { id_st: idST });
       })
       .then(function(res) {
-        if (res.success && res.items && res.items.length) {
-          st_state.stActual = res.items[0];
-          // Merge EGR- free egresos from resumen into stActual.items
-          if (resumenItems.length) {
-            var stiIds = {};
-            (st_state.stActual.items || []).forEach(function(it) { stiIds[it.id_item_st] = true; });
-            resumenItems.forEach(function(it) {
-              if (!stiIds[it.id_item_st]) {
-                st_state.stActual.items = st_state.stActual.items || [];
-                st_state.stActual.items.push(it);
-              }
-            });
-          }
-          for (var i = 0; i < st_state.data.length; i++) {
-            if (st_state.data[i].id_st === idST) { st_state.data[i] = st_state.stActual; break; }
-          }
-          for (var j = 0; j < st_state.filtered.length; j++) {
-            if (st_state.filtered[j].id_st === idST) { st_state.filtered[j] = st_state.stActual; break; }
-          }
-          if (st_state.vistaMode === 'tabla') {
-            st_renderTabla();
-            return null;
-          }
-          // Find the resumen from the already-fetched data
-          return gasJsonp('getResumenST', { id_st: idST });
+        if (!(res.success && res.items && res.items.length)) throw new Error('ST no encontrado');
+        st_state.stActual = res.items[0];
+        // Merge EGR- free egresos from resumen into stActual.items
+        var resumenItems = (resumenCache && resumenCache.items) || [];
+        if (resumenItems.length) {
+          var stiIds = {};
+          (st_state.stActual.items || []).forEach(function(it) { stiIds[it.id_item_st] = true; });
+          resumenItems.forEach(function(it) {
+            if (!stiIds[it.id_item_st]) {
+              st_state.stActual.items = st_state.stActual.items || [];
+              st_state.stActual.items.push(it);
+            }
+          });
         }
-        throw new Error('ST no encontrado');
-      })
-      .then(function(res) {
-        if (!res) return;
-        if (!res.success) throw new Error(res.error);
-        st_renderDrawer(idST, res.resumen, st_state.stActual);
-        st_refreshCardHeader(idST, st_state.stActual, res.resumen.total_real || 0);
+        for (var i = 0; i < st_state.data.length; i++) {
+          if (st_state.data[i].id_st === idST) { st_state.data[i] = st_state.stActual; break; }
+        }
+        for (var j = 0; j < st_state.filtered.length; j++) {
+          if (st_state.filtered[j].id_st === idST) { st_state.filtered[j] = st_state.stActual; break; }
+        }
+        if (st_state.vistaMode === 'tabla') {
+          st_renderTabla();
+          return;
+        }
+        // Reusar el resumen ya obtenido — evita un round-trip redundante al GAS
+        st_renderDrawer(idST, resumenCache, st_state.stActual);
+        st_refreshCardHeader(idST, st_state.stActual, resumenCache.total_real || 0);
         st_computeKPIs();
       })
       .catch(function(e) { st_toast('⚠️ ' + e.message, 'error'); });

@@ -346,7 +346,9 @@ function _calcSTTotalsReal(sheetSTI, idST) {
   var total   = 0;
   for (var i = 0; i < data.length; i++) {
     var r = data[i];
-    if (String(r[COL_STI.ID_ST - 1]) !== String(idST)) continue;
+    if (String(r[COL_STI.ID_ST - 1]).trim() !== String(idST).trim()) continue;
+    // Ignorar items cancelados — simétrico con _calcSTTotals
+    if (String(r[COL_STI.ESTADO_ITEM - 1]) === 'cancelado') continue;
     total += parseFloat(r[COL_STI.TOTAL_REAL - 1] || '0') || 0;
   }
   return parseFloat(total.toFixed(2));
@@ -450,6 +452,7 @@ function _handleCrearCotizacion(data) {
 
     var items = Array.isArray(data.items) ? data.items
           : (typeof data.items === 'string' ? JSON.parse(data.items) : []);
+    if (!items.length) throw new Error('La cotización debe tener al menos un ítem');
     var totalCostoCot  = 0;
     var filasST        = [];
 
@@ -727,6 +730,7 @@ function _handleAgregarItemCotizacion(data) {
 function _handleActualizarItemTipo(data) {
   try {
     var idItemST = String(data.id_item_st || '').trim();
+    var idST     = String(data.id_st      || '').trim();
     var tipo     = String(data.tipo       || '').trim();
 
     if (!idItemST) throw new Error('id_item_st requerido');
@@ -760,7 +764,9 @@ function _handleActualizarItemTipo(data) {
     var egresoId = '';
 
     for (var i = 0; i < dataSTI.length; i++) {
-      if (String(dataSTI[i][COL_STI.ID - 1]) !== idItemST) continue;
+      if (String(dataSTI[i][COL_STI.ID - 1]).trim() !== idItemST) continue;
+      // Inferir idST del item si no vino en el payload (para la validación de estado)
+      if (!idST) idST = String(dataSTI[i][COL_STI.ID_ST - 1]).trim();
       var rowSTI = i + 3;
       sheetSTI.getRange(rowSTI, COL_STI.TIPO).setValue(tipo);
       egresoId = String(dataSTI[i][COL_STI.EGRESO_ID - 1] || '').trim();
@@ -771,17 +777,34 @@ function _handleActualizarItemTipo(data) {
 
     if (!found) throw new Error('Ítem no encontrado: ' + idItemST);
 
+    // Validar estado del ST — no permitir reclasificar en STs cerrados/cancelados
+    if (idST) {
+      var recST_ait = _getSTById(ss, idST);
+      if (recST_ait) {
+        var estadoST = String(recST_ait.data[COL_ST.ESTADO - 1] || '');
+        if (estadoST === 'cerrado' || estadoST === 'cancelado' || estadoST === 'anulado') {
+          throw new Error('No se puede reclasificar tipos en un ST ' + estadoST);
+        }
+      }
+    }
+
     var egresoActualizado = false;
     if (egresoId) {
       var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
       if (sheetEgr && sheetEgr.getLastRow() > 2) {
         var numEgr  = sheetEgr.getLastRow() - 2;
-        var idsEgr  = sheetEgr.getRange(3, COL_E.ID, numEgr, 1).getValues();
-        for (var e = 0; e < idsEgr.length; e++) {
-          if (String(idsEgr[e][0]) !== egresoId) continue;
+        // Leer también estado para evitar mutar egresos anulados
+        var egrRows = sheetEgr.getRange(3, 1, numEgr, Math.max(EGRESOS_NCOLS, COL_E.ESTADO)).getValues();
+        for (var e = 0; e < egrRows.length; e++) {
+          if (String(egrRows[e][COL_E.ID - 1] || '').trim() !== egresoId) continue;
+          var estadoEgr = String(egrRows[e][COL_E.ESTADO - 1] || '').toLowerCase();
+          if (estadoEgr === 'anulado') {
+            Logger.log('ℹ️ Egreso ' + egresoId + ' está anulado — no se muta su tipo (inmutable post-anulación)');
+            break;
+          }
           var rowEgr = e + 3;
-          sheetEgr.getRange(rowEgr, 11).setValue(nuevoTipoEgreso);
-          sheetEgr.getRange(rowEgr, 12).setValue(nuevoTipoEgreso);
+          sheetEgr.getRange(rowEgr, COL_E.TIPO_EGRESO).setValue(nuevoTipoEgreso);
+          sheetEgr.getRange(rowEgr, COL_E.CATEGORIA).setValue(nuevoTipoEgreso);
           egresoActualizado = true;
           Logger.log('✅ Egresos actualizado: ' + egresoId + ' tipo → ' + nuevoTipoEgreso);
           break;
@@ -1125,6 +1148,10 @@ function _handleEliminarItemCotizacion(params, callback) {
       }
       if (!result.egreso_anulado) throw new Error('Egreso no encontrado: ' + egresoIdSint);
 
+      // Garantizar commit antes de retornar — el siguiente getResumenST del
+      // frontend debe leer el egreso ya anulado.
+      SpreadsheetApp.flush();
+
       // Recalcular total_costo_real en ST (sin tocar ST_Items)
       if (idST) {
         var sheetSTIRec = ss.getSheetByName(SHEET_ST_ITEM);
@@ -1133,6 +1160,7 @@ function _handleEliminarItemCotizacion(params, callback) {
           var sheetSTOut = ss.getSheetByName(SHEET_ST);
           sheetSTOut.getRange(recST2.row, COL_ST.TOTAL_COSTO_REAL)
             .setValue(_calcSTTotalsReal(sheetSTIRec, idST));
+          SpreadsheetApp.flush();
         }
       }
 
@@ -1154,7 +1182,7 @@ function _handleEliminarItemCotizacion(params, callback) {
 
       var rowNum   = i + 3;
       var egresoId = String(data[i][COL_STI.EGRESO_ID - 1] || '').trim();
-      idST = idST || String(data[i][COL_STI.ID_ST - 1]);
+      idST = idST || String(data[i][COL_STI.ID_ST - 1]).trim();
 
       // ── Si tiene egreso vinculado, anularlo primero ──────────
       if (egresoId) {
@@ -1188,6 +1216,10 @@ function _handleEliminarItemCotizacion(params, callback) {
 
     if (!found) throw new Error('Ítem no encontrado: ' + idItemST);
 
+    // Garantizar commit antes del recalculo y antes de retornar — el
+    // siguiente getResumenST del frontend debe ver el estado actualizado.
+    SpreadsheetApp.flush();
+
     // ── Recalcular totales del ST ─────────────────────────────
     if (idST) {
       var totalesRecalc = _calcSTTotals(sheetSTI, idST);
@@ -1202,6 +1234,7 @@ function _handleEliminarItemCotizacion(params, callback) {
             parseFloat((totalesRecalc.totalCostoCot * (1 + margenST / 100)).toFixed(2))
           );
         }
+        SpreadsheetApp.flush();
       }
     }
 
@@ -2285,7 +2318,7 @@ function _handleCancelarST(params, callback) {
         var numSTI  = sheetSTI.getLastRow() - 2;
         var dataSTI = sheetSTI.getRange(3, 1, numSTI, STI_NCOLS).getValues();
         for (var i = 0; i < dataSTI.length; i++) {
-          if (String(dataSTI[i][COL_STI.ID_ST - 1]) !== idST) continue;
+          if (String(dataSTI[i][COL_STI.ID_ST - 1]).trim() !== idST) continue;
           var eid = String(dataSTI[i][COL_STI.EGRESO_ID - 1] || '').trim();
           if (eid) egresoIdsSet[eid] = true;
           // Marcar item como cancelado (preserva historial, no borra fila)
@@ -2328,8 +2361,9 @@ function _handleCancelarST(params, callback) {
         if (sheetIng && sheetIng.getLastRow() > 2) {
           var numIng  = sheetIng.getLastRow() - 2;
           var dataIng = sheetIng.getRange(3, 1, numIng, INGRESOS_NCOLS).getValues();
+          var ingFound = false;
           for (var n = 0; n < dataIng.length; n++) {
-            if (String(dataIng[n][COL_I.ID_TRANS - 1]) !== ingresoId) continue;
+            if (String(dataIng[n][COL_I.ID_TRANS - 1]).trim() !== ingresoId) continue;
             var rowIng = n + 3;
             sheetIng.getRange(rowIng, COL_I.ESTADO).setValue('anulado');
             sheetIng.getRange(rowIng, 1, 1, INGRESOS_NCOLS).setBackground('#FFEBEE');
@@ -2339,9 +2373,14 @@ function _handleCancelarST(params, callback) {
               (motivo ? ' — ' + motivo : '')
             );
             result.ingreso_anulado = true;
+            ingFound = true;
             break;
           }
           SpreadsheetApp.flush();
+          if (!ingFound) {
+            Logger.log('⚠️ ingreso_id ' + ingresoId + ' referenciado por ST ' + idST +
+                       ' pero no existe en hoja Ingresos — posible dato corrupto');
+          }
         }
       }
     }
@@ -2626,7 +2665,7 @@ function _handleEliminarST(params, callback) {
       var numSTI  = sheetSTI.getLastRow() - 2;
       var dataSTI = sheetSTI.getRange(3, 1, numSTI, STI_NCOLS).getValues();
       for (var i = 0; i < dataSTI.length; i++) {
-        if (String(dataSTI[i][COL_STI.ID_ST - 1]) !== idST) continue;
+        if (String(dataSTI[i][COL_STI.ID_ST - 1]).trim() !== idST) continue;
         rowsSTI.push(i + 3);
         var eid = String(dataSTI[i][COL_STI.EGRESO_ID - 1] || '').trim();
         if (eid) egresoIdsDeItems[eid] = true;
