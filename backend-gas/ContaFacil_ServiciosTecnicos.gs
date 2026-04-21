@@ -930,6 +930,16 @@ function _handleActualizarEgresoST(data) {
     var mesEgr  = isNaN(fechaGastoDate.getTime()) ? '' : (fechaGastoDate.getMonth() + 1);
     var anioEgr = isNaN(fechaGastoDate.getTime()) ? yearEgr : fechaGastoDate.getFullYear();
 
+    // Los ítems sintetizados llegan con id_item_st = "EGR-<egresoId>" — los genera
+    // _handleGetResumenST para egresos sin fila ST_Items. En ese caso vamos a crear
+    // una fila ST_Items real, así que pre-calculamos su ID ahora para que tanto el
+    // egreso nuevo como la fila ST_Items compartan la referencia correcta.
+    var esSintetizado = idItemST.indexOf('EGR-') === 0;
+    var ahoraSTI      = new Date();
+    var idItemSTRef   = esSintetizado
+      ? 'STI-RP-' + Utilities.formatDate(ahoraSTI, 'America/Panama', 'yyyyMMddHHmmss') + '-L'
+      : idItemST;
+
     var COL_COUNT = 21;
     var filaEgr   = new Array(COL_COUNT);
     for (var xe = 0; xe < COL_COUNT; xe++) filaEgr[xe] = '';
@@ -953,10 +963,10 @@ function _handleActualizarEgresoST(data) {
     filaEgr[16] = '';   // id_item_cv — vacío (exclusivo Compras_Ventas)
     filaEgr[17] = driveUrl;
     filaEgr[18] = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || '');
-    filaEgr[19] = 'ST: ' + idST + ' | Ítem: ' + idItemST +
+    filaEgr[19] = 'ST: ' + idST + ' | Ítem: ' + idItemSTRef +
                   ' | Edición de: ' + egresoIdViejo +
                   (data.notas ? ' | ' + data.notas : '');
-    filaEgr[20] = idItemST;
+    filaEgr[20] = idItemSTRef;
 
     var newEgrRow = sheetEgr.getLastRow() + 1;
     sheetEgr.getRange(newEgrRow, 1, 1, COL_COUNT).setValues([filaEgr]);
@@ -964,13 +974,20 @@ function _handleActualizarEgresoST(data) {
     sheetEgr.getRange(newEgrRow, 1, 1, COL_COUNT).setBackground('#E8F5E9');
     Logger.log('✅ Egreso nuevo creado: ' + egresoIdNuevo + ' | Reemplaza: ' + egresoIdViejo);
 
-    // ── 4. Actualizar fila en ST_Items ────────────────────────
-    var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
-    if (sheetSTI && sheetSTI.getLastRow() > 2) {
+    // ── 4. Actualizar fila en ST_Items (o crearla si es un ítem sintetizado) ─
+    //
+    //   Si es sintetizado no hay fila que actualizar: creamos una nueva con el
+    //   id idItemSTRef ya referenciado por el egreso. Así el ítem deja de
+    //   re-sintetizarse en getResumenST y obtiene un id estable eliminable.
+    var sheetSTI    = ss.getSheetByName(SHEET_ST_ITEM);
+    if (!sheetSTI) sheetSTI = _initSTItemsSheet(ss);
+    var filaActualizada = false;
+
+    if (!esSintetizado && sheetSTI.getLastRow() > 2) {
       var numItemRows = sheetSTI.getLastRow() - 2;
       var itemData    = sheetSTI.getRange(3, 1, numItemRows, STI_NCOLS).getValues();
       for (var i = 0; i < itemData.length; i++) {
-        if (String(itemData[i][COL_STI.ID - 1]) !== idItemST) continue;
+        if (String(itemData[i][COL_STI.ID - 1]).trim() !== idItemST) continue;
         var itemRow = i + 3;
         if (data.descripcion) sheetSTI.getRange(itemRow, COL_STI.DESCRIPCION).setValue(data.descripcion);
         var nuevaCant = parseFloat(data.cantidad || '0');
@@ -984,8 +1001,46 @@ function _handleActualizarEgresoST(data) {
         if (tipoItem) sheetSTI.getRange(itemRow, COL_STI.TIPO).setValue(tipoItem);
         sheetSTI.getRange(itemRow, 1, 1, STI_NCOLS).setBackground('#E8F5E9');
         Logger.log('✅ ST_Items actualizado: ' + idItemST + ' → egreso: ' + egresoIdNuevo);
+        filaActualizada = true;
         break;
       }
+    }
+
+    if (!filaActualizada && !esSintetizado) {
+      Logger.log('⚠️  ST_Items no encontrado para actualizar: ' + idItemST +
+                 ' (ST: ' + idST + ') — egreso nuevo quedará sin ST_Item vinculado');
+    }
+
+    if (!filaActualizada && esSintetizado) {
+      var fechaRegSTI = Utilities.formatDate(ahoraSTI, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+      var descItem    = data.descripcion || String(rec.data[COL_ST.DESCRIPCION - 1] || 'Costo adicional');
+      var aplicaITB   = itbms > 0;
+
+      var filaSTI = new Array(STI_NCOLS);
+      for (var xsi = 0; xsi < STI_NCOLS; xsi++) filaSTI[xsi] = '';
+      filaSTI[COL_STI.ID - 1]           = idItemSTRef;
+      filaSTI[COL_STI.ID_ST - 1]        = idST;
+      filaSTI[COL_STI.TIPO - 1]         = tipoItem;
+      filaSTI[COL_STI.DESCRIPCION - 1]  = descItem;
+      filaSTI[COL_STI.CANTIDAD - 1]     = parseFloat(data.cantidad || '1') || 1;
+      filaSTI[COL_STI.PRECIO_UNIT - 1]  = total;
+      filaSTI[COL_STI.APLICA_ITBMS - 1] = aplicaITB;
+      filaSTI[COL_STI.ES_ADICIONAL - 1] = true;
+      filaSTI[COL_STI.MONTO_REAL - 1]   = subtotal || total;
+      filaSTI[COL_STI.ITBMS_REAL - 1]   = itbms;
+      filaSTI[COL_STI.TOTAL_REAL - 1]   = total;
+      filaSTI[COL_STI.DRIVE_URL - 1]    = driveUrl;
+      filaSTI[COL_STI.EGRESO_ID - 1]    = egresoIdNuevo;
+      filaSTI[COL_STI.ESTADO_ITEM - 1]  = 'ejecutado';
+      filaSTI[COL_STI.NOTAS - 1]        = data.notas || '';
+      filaSTI[COL_STI.FECHA_REG - 1]    = fechaRegSTI;
+
+      var newSTIRow = sheetSTI.getLastRow() + 1;
+      sheetSTI.getRange(newSTIRow, 1, 1, STI_NCOLS).setValues([filaSTI]);
+      sheetSTI.getRange(newSTIRow, COL_STI.MONTO_REAL, 1, 3).setNumberFormat('#,##0.00');
+      sheetSTI.getRange(newSTIRow, 1, 1, STI_NCOLS).setBackground('#E8F5E9');
+      Logger.log('✅ ST_Items creado al editar sintetizado: ' + idItemSTRef +
+                 ' | Reemplaza: ' + idItemST + ' → egreso: ' + egresoIdNuevo);
     }
 
     // ── 5. Recalcular total_costo_real en Servicios_Tecnicos ──
@@ -1031,21 +1086,66 @@ function _handleEliminarItemCotizacion(params, callback) {
     error:          null,
   };
   try {
-    var idItemST = params.id_item_st || '';
-    var idST     = params.id_st      || '';
+    var idItemST = String(params.id_item_st || '').trim();
+    var idST     = String(params.id_st      || '').trim();
     if (!idItemST) throw new Error('id_item_st requerido');
 
     var ss       = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var stamp    = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+
+    // ── Caso sintetizado: id_item_st = "EGR-<egresoId>" ───────────────
+    //   No hay fila en ST_Items (así los genera _handleGetResumenST para
+    //   egresos libres). Anulamos el egreso directamente.
+    if (idItemST.indexOf('EGR-') === 0) {
+      var egresoIdSint = idItemST.substring(4);
+      var sheetEgrS    = ss.getSheetByName(SHEET_EGRESOS);
+      if (sheetEgrS && sheetEgrS.getLastRow() > 2) {
+        var numEgrS = sheetEgrS.getLastRow() - 2;
+        var idsEgrS = sheetEgrS.getRange(3, COL_E.ID, numEgrS, 1).getValues();
+        for (var es = 0; es < idsEgrS.length; es++) {
+          if (String(idsEgrS[es][0] || '').trim() !== egresoIdSint) continue;
+          var rowEgrS = es + 3;
+          sheetEgrS.getRange(rowEgrS, COL_E.ESTADO).setValue('anulado');
+          sheetEgrS.getRange(rowEgrS, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
+          var notaEgrS = String(sheetEgrS.getRange(rowEgrS, COL_E.NOTAS).getValue() || '');
+          sheetEgrS.getRange(rowEgrS, COL_E.NOTAS).setValue(
+            notaEgrS + ' | ANULADO — eliminación ítem sintetizado: ' + stamp
+          );
+          result.egreso_anulado = true;
+          result.egreso_id      = egresoIdSint;
+          if (!idST) idST = (String(notaEgrS).match(/ST:\s*(\S+)/) || [])[1] || '';
+          Logger.log('✅ Egreso sintetizado anulado: ' + egresoIdSint);
+          break;
+        }
+      }
+      if (!result.egreso_anulado) throw new Error('Egreso no encontrado: ' + egresoIdSint);
+
+      // Recalcular total_costo_real en ST (sin tocar ST_Items)
+      if (idST) {
+        var sheetSTIRec = ss.getSheetByName(SHEET_ST_ITEM);
+        var recST2      = _getSTById(ss, idST);
+        if (recST2 && sheetSTIRec) {
+          var sheetSTOut = ss.getSheetByName(SHEET_ST);
+          sheetSTOut.getRange(recST2.row, COL_ST.TOTAL_COSTO_REAL)
+            .setValue(_calcSTTotalsReal(sheetSTIRec, idST));
+        }
+      }
+
+      result.success = true;
+      var jsonS = JSON.stringify(result);
+      if (callback) return ContentService.createTextOutput(callback + '(' + jsonS + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+      return ContentService.createTextOutput(jsonS).setMimeType(ContentService.MimeType.JSON);
+    }
+
     var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
     if (!sheetSTI || sheetSTI.getLastRow() <= 2) throw new Error('Hoja ST_Items vacía');
 
     var numRows = sheetSTI.getLastRow() - 2;
     var data    = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
     var found   = false;
-    var stamp   = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
 
     for (var i = 0; i < data.length; i++) {
-      if (String(data[i][COL_STI.ID - 1]) !== String(idItemST)) continue;
+      if (String(data[i][COL_STI.ID - 1]).trim() !== idItemST) continue;
 
       var rowNum   = i + 3;
       var egresoId = String(data[i][COL_STI.EGRESO_ID - 1] || '').trim();
@@ -1712,7 +1812,11 @@ function _handleGetResumenST(params, callback) {
 
     var sheetEgr     = ss.getSheetByName(SHEET_EGRESOS);
     var egresosPorId = {};
-    var colsEgr = 20;
+    // Leer también col 21 (id_st_item) — necesario para evitar duplicar egresos
+    // cuya fila ST_Items ya los referencia aunque no estén en egresoIdsEnSTItems
+    // (caso típico: edit anterior dejó la fila ST_Items con egreso_id viejo pero
+    // el egreso nuevo apunta correctamente a la fila vía col 21).
+    var colsEgr = 21;
     if (sheetEgr && sheetEgr.getLastRow() > 2) {
       var numEgrPre  = sheetEgr.getLastRow() - 2;
       var egrAllData = sheetEgr.getRange(3, 1, numEgrPre, colsEgr).getValues();
@@ -1731,12 +1835,13 @@ function _handleGetResumenST(params, callback) {
     var sheetSTI = ss.getSheetByName(SHEET_ST_ITEM);
     var items = [];
     var egresoIdsEnSTItems = {};
+    var stItemIdsDelST     = {};   // ids de ST_Items pertenecientes a este ST
 
     if (sheetSTI && sheetSTI.getLastRow() > 2) {
       var numRows  = sheetSTI.getLastRow() - 2;
       var itemData = sheetSTI.getRange(3, 1, numRows, STI_NCOLS).getValues();
       for (var i = 0; i < itemData.length; i++) {
-        if (String(itemData[i][COL_STI.ID_ST - 1]) !== String(idST)) continue;
+        if (String(itemData[i][COL_STI.ID_ST - 1]).trim() !== String(idST).trim()) continue;
         var item = _serializeSTItem(itemData[i]);
 
         if (item.egreso_id && egresosPorId[item.egreso_id]) {
@@ -1761,6 +1866,7 @@ function _handleGetResumenST(params, callback) {
 
         items.push(item);
         if (item.egreso_id) egresoIdsEnSTItems[String(item.egreso_id).trim()] = true;
+        if (item.id_item_st) stItemIdsDelST[String(item.id_item_st).trim()] = true;
       }
     }
 
@@ -1775,6 +1881,12 @@ function _handleGetResumenST(params, callback) {
         if (!egresoId) continue;
         if (String(row[COL_E.ESTADO - 1] || '').toLowerCase() === 'anulado') continue;
         if (egresoIdsEnSTItems[egresoId]) continue;
+
+        // Defensa extra: si col 21 del egreso referencia un ST_Items de este ST
+        // (aunque esa fila aún no haya sincronizado su egreso_id), ya existe
+        // representación en items[] — evitar duplicar como sintetizado.
+        var idStItemColE = String(row[COL_E.ID_ST_ITEM - 1] || '').trim();
+        if (idStItemColE && stItemIdsDelST[idStItemColE]) continue;
 
         var notasE    = String(row[COL_E.NOTAS - 1] || '');
         var pertenece = notasE.indexOf(stTag) !== -1;
