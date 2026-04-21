@@ -140,7 +140,8 @@
 <script>
 (function() {
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
+const GAS_URL = (typeof window.GAS_URL !== 'undefined' && window.GAS_URL)
+             || 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
 
 let iv_raw      = [];
 let iv_filtered = [];
@@ -185,7 +186,7 @@ async function ivLoadData() {
       .map(function(i) {
         var cant      = parseInt(i.cantidad || 1) || 1;
         var costo     = parseFloat(i.total_carbone || 0);
-        var costUnit  = cant > 0 ? costo / cant : costo;
+        var costUnit  = cant > 0 ? costo / cant : 0;
         var fechaStr  = i.fecha_compra ? String(i.fecha_compra).substring(0,10) : '';
         var dias      = 0;
         if (fechaStr) {

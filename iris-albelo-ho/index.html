@@ -2946,6 +2946,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 // ══════════════════════════════════════════════════
 
 const GAS_URL        = 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
+window.GAS_URL       = GAS_URL;   // expuesto en window para que los reportes lo hereden
 const IS_ADMIN       = true;   // siempre admin en este deployment unipersonal
 // ✅ Sin API key aquí — Claude Vision corre en el servidor GAS
 
@@ -3002,6 +3003,7 @@ function buildMenu() {
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cuentas_por_cobrar.html&quot;)">💳 Cuentas por Cobrar</a>' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)">🧾 Declaración ITBMS</a>' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)">📁 Cierre Anual</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/clientes.html&quot;)">👥 Clientes</a>' +
       '</div>' +
     '</div>' +
     (IS_ADMIN ? '<button class="main-tab" id="tabSetup" onclick="switchTab(&quot;setup&quot;)" style="margin-left:auto">⚙️ Configuración</button>' : '');

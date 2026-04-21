@@ -454,7 +454,7 @@ function itbApply() {
   // Totales
   const totalCobrado = ing.reduce((s,i)       => s + Number(i.itbms || 0), 0);
   const totalPagado  = egrPagado.reduce((s,e)  => s + Number(e.itbms || 0), 0);
-  const totalCredito = egrCredito.reduce((s,e) => s + Number(e.total || 0), 0);
+  const totalCredito = egrCredito.reduce((s,e) => s + Number(e.itbms || e.total || 0), 0);
   const neto         = totalCobrado - totalPagado - totalCredito;
 
   itbRenderKpis(totalCobrado, totalPagado, totalCredito, neto, ing.length, egrPagado.length);
@@ -697,7 +697,7 @@ function itbRenderAnual() {
 
     const cobrado = ing.reduce((s,i) => s+Number(i.itbms||0), 0);
     const pagado  = egr.filter(e=>e.tipo_egreso!=='credito_fiscal').reduce((s,e)=>s+Number(e.itbms||0),0);
-    const credito = egr.filter(e=>e.tipo_egreso==='credito_fiscal').reduce((s,e)=>s+Number(e.total||0),0);
+    const credito = egr.filter(e=>e.tipo_egreso==='credito_fiscal').reduce((s,e)=>s+Number(e.itbms||e.total||0),0);
     const neto    = cobrado - pagado - credito;
     const hasData = cobrado > 0 || pagado > 0 || credito > 0;
 

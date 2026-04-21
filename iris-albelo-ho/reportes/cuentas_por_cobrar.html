@@ -316,7 +316,7 @@
 
     // Ingresos: desde ingItems global si existe
     var rawIng = (typeof ingItems !== 'undefined' && Array.isArray(ingItems)) ? ingItems
-               : (typeof window.ingItems !== 'undefined' && Array.isArray(window.ingItems)) ? ingItems
+               : (typeof window.ingItems !== 'undefined' && Array.isArray(window.ingItems)) ? window.ingItems
                : null;
     var ingPromise = rawIng
       ? Promise.resolve({ success: true, items: rawIng })
@@ -387,7 +387,7 @@
             nombre_cliente: st.nombre_cliente || '—',
             ruc_cliente:    st.ruc_cliente    || '',
             descripcion:    st.descripcion    || '—',
-            precio_venta:   parseFloat(st.subtotal_venta || st.precio_venta || ing.subtotal || 0),
+            precio_venta:   parseFloat(st.subtotal_venta || st.precio_venta || ing.total || 0),
             drive_url:      st.drive_url      || ing.drive_url || '',
             num_factura:    ing.num_factura   || '—',
             dias:           dias,

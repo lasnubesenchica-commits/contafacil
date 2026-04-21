@@ -521,7 +521,7 @@ async function fcLoad() {
     fc_egr.forEach(i => {
       if (!i.anio && !i.anio_fiscal && i.fecha_egreso) {
         const d = new Date(String(i.fecha_egreso).substring(0,10) + 'T12:00:00');
-        if (!isNaN(d)) { i.anio = d.getFullYear(); i.mes = d.getMonth() + 1; }
+        if (!isNaN(d.getTime())) { i.anio = d.getFullYear(); i.mes = d.getMonth() + 1; }
       }
     });
 
