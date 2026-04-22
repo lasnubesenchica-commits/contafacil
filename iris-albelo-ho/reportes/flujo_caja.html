@@ -417,7 +417,10 @@ async function fcLoad() {
       return est === 'confirmado' || est === 'abono' || est === 'pendiente';
     });
 
-    fc_egr = egrRes.items || [];
+    fc_egr = (egrRes.items || []).filter(e =>
+      String(e.estado || '').toLowerCase() !== 'anulado' &&
+      (e.alcance || 'negocio') !== 'personal'
+    );
     fc_sts = (stRes.items || []).filter(st => st.estado !== 'cancelado');
 
     fc_egr.forEach(i => {

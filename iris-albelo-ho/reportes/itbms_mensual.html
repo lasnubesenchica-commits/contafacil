@@ -380,9 +380,10 @@ async function itbLoad() {
       const est = String(i.estado || '').toLowerCase();
       return est === 'confirmado' || est === 'abono' || est === 'pendiente';
     });
-    // Excluir egresos anulados — igual que ingresos excluye los anulados
+    // Excluir egresos anulados y gastos personales (no deducibles)
     itb_egr = (egrRes.items || []).filter(e =>
-      String(e.estado || '').toLowerCase() !== 'anulado'
+      String(e.estado || '').toLowerCase() !== 'anulado' &&
+      (e.alcance || 'negocio') !== 'personal'
     );
 
     itbPopulateYears();

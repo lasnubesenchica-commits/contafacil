@@ -103,8 +103,9 @@ var COL_E = {
   DESCRIPCION:19,   // S  descripcion
   NOTAS:      20,   // T  notas
   ID_ST_ITEM: 21,   // U  id_st_item  ← v12.2
+  ALCANCE:    22,   // V  alcance     ← v13.0 ('negocio' | 'personal')
 };
-var EGRESOS_NCOLS = 21;  // v12.2: era 20
+var EGRESOS_NCOLS = 22;  // v13.0: era 21
 
 // Columnas Compras_Ventas usadas por _handleCorregirComprobante
 var _CC_DRIVE_URL_EMIT = 25;  // col Y — drive_url_emitida (= COL_CV.DRIVE_URL_EMIT)
@@ -1049,7 +1050,7 @@ function _initEgresosSheet(ss) {
 
   var meta = [
     'METADATA','','','FECHA','','','MONTOS','','','','CLASIFICACIÓN','',
-    'PROVEEDOR','','','COMPROBANTE','','','NOTAS','',''
+    'PROVEEDOR','','','COMPROBANTE','','','NOTAS','','',''
   ];
   var headers = [
     'id_egreso','fecha_registro','estado','fecha_egreso','mes','anio_fiscal',
@@ -1057,7 +1058,7 @@ function _initEgresosSheet(ss) {
     'tipo_egreso','categoria',
     'proveedor','ruc_proveedor','dv_proveedor',
     'num_factura_ref','id_item_cv','drive_url',
-    'descripcion','notas','id_st_item'
+    'descripcion','notas','id_st_item','alcance'
   ];
 
   sheet.getRange(1, 1, 1, EGRESOS_NCOLS).setValues([meta]);
@@ -1068,7 +1069,7 @@ function _initEgresosSheet(ss) {
     .setBackground('#546E7A').setFontColor('#FFFFFF').setFontWeight('bold');
   sheet.setFrozenRows(2);
 
-  var widths = [180,150,100,110,50,80,90,70,90,60,120,130,200,130,80,140,160,260,300,220,160];
+  var widths = [180,150,100,110,50,80,90,70,90,60,120,130,200,130,80,140,160,260,300,220,160,100];
   for (var i = 0; i < widths.length; i++) sheet.setColumnWidth(i + 1, widths[i]);
   sheet.getRange('G3:I1000').setNumberFormat('#,##0.00');
   Logger.log('✅ Hoja Egresos creada.');
@@ -1324,6 +1325,7 @@ function _handleGetEgresos(params, callback) {
         descripcion:  r[COL_E.DESCRIPCION - 1] || '',
         notas:        notas,
         id_st_item:   (ncols >= COL_E.ID_ST_ITEM) ? (r[COL_E.ID_ST_ITEM - 1] || '') : '',
+        alcance:      (ncols >= COL_E.ALCANCE)    ? (r[COL_E.ALCANCE - 1]    || 'negocio') : 'negocio',
         _row:         i + 3,
       });
     }
@@ -1420,6 +1422,7 @@ function _handleRegistrarEgresoOperativo(params, callback) {
     fila[COL_E.DESCRIPCION - 1] = params.descripcion || '';
     fila[COL_E.NOTAS - 1]       = params.notas       || '';
     // id_st_item no aplica para egresos operativos manuales
+    fila[COL_E.ALCANCE - 1]     = params.alcance === 'personal' ? 'personal' : 'negocio';
 
     var newRow = sheet.getLastRow() + 1;
     sheet.getRange(newRow, 1, 1, EGRESOS_NCOLS).setValues([fila]);

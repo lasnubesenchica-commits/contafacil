@@ -1448,6 +1448,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn active" data-rge-estado="all" onclick="rgApplyEgrEstado(this,'all')">Todos</button>
       <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
+      <button class="op-filter-btn active" data-rga="all" onclick="rgApplyEgrAlcance('all',this)">Todos</button>
+      <button class="op-filter-btn" data-rga="negocio" onclick="rgApplyEgrAlcance('negocio',this)">🏢 Negocio</button>
+      <button class="op-filter-btn" data-rga="personal" onclick="rgApplyEgrAlcance('personal',this)">👤 Personal</button>
+      <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
       <select id="rgEgrCatDropdown" onchange="rgApplyEgrFilterSel(this)"
         style="font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--border);border-radius:7px;
                background:var(--bg);color:var(--text);cursor:pointer;outline:none;max-width:220px">
@@ -2840,6 +2844,21 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </div>
       </div>
     </div>
+    <input type="hidden" id="eAlcance" value="negocio">
+    <div id="egresoAlcanceWrap" style="margin:.5rem 1.25rem .25rem;padding:.55rem .85rem;background:var(--bg);border-radius:7px;display:flex;align-items:center;gap:.75rem">
+      <span style="font-size:.8rem;color:var(--text);font-weight:600">Tipo de gasto:</span>
+      <div style="display:flex;background:var(--bg2);border-radius:20px;padding:2px;gap:2px">
+        <button id="eAlcanceNeg" onclick="eSetAlcance('negocio')"
+          style="padding:.3rem .85rem;border-radius:20px;font-size:.75rem;font-weight:700;border:none;background:#6A1B9A;color:#fff;cursor:pointer">
+          🏢 Negocio
+        </button>
+        <button id="eAlcancePers" onclick="eSetAlcance('personal')"
+          style="padding:.3rem .85rem;border-radius:20px;font-size:.75rem;font-weight:700;border:none;background:transparent;color:var(--muted);cursor:pointer">
+          👤 Personal
+        </button>
+      </div>
+      <span id="eAlcanceHint" style="font-size:.72rem;color:var(--muted)">Deducible · aparece en reportes DGI</span>
+    </div>
     <div id="egresoRecordarWrap" style="margin:.5rem 1.25rem .25rem;padding:.6rem .85rem;background:var(--bg);border-radius:7px;display:flex;align-items:center;gap:.6rem">
       <input type="checkbox" id="eChkRecordar" style="cursor:pointer;accent-color:#6A1B9A;width:1rem;height:1rem;flex-shrink:0">
       <label for="eChkRecordar" style="font-size:.8rem;color:var(--text);cursor:pointer;line-height:1.4">
@@ -3319,7 +3338,6 @@ async function guardarEgresoOperativo() {
       fecha:       fecha,
       tipo:        document.getElementById('eTipoHidden').value,
       categoria:   document.getElementById('eCategoria').value,
-      categoria:   document.getElementById('eCategoria').value,
       proveedor:   document.getElementById('eProveedor').value.trim(),
       ruc_prov:    document.getElementById('eRucProv').value.trim(),
       dv_prov:     document.getElementById('eDvProv').value.trim(),
@@ -3329,6 +3347,7 @@ async function guardarEgresoOperativo() {
       total:       total,
       descripcion: descripcion,
       notas:       document.getElementById('eNotas').value.trim(),
+      alcance:     document.getElementById('eAlcance').value,
       items_ia:    egresoIAItems.length ? JSON.stringify(egresoIAItems) : '',
     });
     if (!data.success) throw new Error(data.error || 'Error desconocido');
@@ -3384,6 +3403,19 @@ async function guardarEgresoOperativo() {
 function closeEgresoModal() {
   document.getElementById('egresoModalOverlay').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+function eSetAlcance(val) {
+  document.getElementById('eAlcance').value = val;
+  const isNeg = val === 'negocio';
+  document.getElementById('eAlcanceNeg').style.background  = isNeg ? '#6A1B9A' : 'transparent';
+  document.getElementById('eAlcanceNeg').style.color       = isNeg ? '#fff' : 'var(--muted)';
+  document.getElementById('eAlcancePers').style.background = !isNeg ? '#E65100' : 'transparent';
+  document.getElementById('eAlcancePers').style.color      = !isNeg ? '#fff' : 'var(--muted)';
+  document.getElementById('eAlcanceHint').textContent      = isNeg
+    ? 'Deducible · aparece en reportes DGI'
+    : 'No deducible · no afecta P&L ni ITBMS';
+  document.getElementById('egresoRecordarWrap').style.display = isNeg ? 'flex' : 'none';
 }
 
 
@@ -4283,6 +4315,7 @@ function abrirModalNuevoEgreso() {
   document.getElementById('eItemsSection').style.display = 'none';
   document.getElementById('eFacturaInput').value = '';
   egresoFileB64 = null; egresoFileMime = null; egresoIAItems = [];
+  eSetAlcance('negocio');
   inferirTipoEgreso();   // sync eTipoHidden with default category
   // Reset "recordar" checkbox
   const chkRec = document.getElementById('eChkRecordar');
@@ -5122,6 +5155,7 @@ async function guardarConfigST() {
 var rg_initialized = false;
 var rg_egr_filter  = 'all';   // filtro por categoría
 var rg_egr_estado  = 'all';   // filtro por estado: 'all' | 'pendiente' | 'registrado'
+var rg_egr_alcance = 'all';   // filtro por alcance: 'all' | 'negocio' | 'personal'
 var rg_ing_filter  = 'all';
 var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
@@ -5299,6 +5333,12 @@ function rgApplyEgrEstado(btn, estado) {
   rg_egr_estado = estado;
   rgRenderEgr();
 }
+function rgApplyEgrAlcance(val, btn) {
+  document.querySelectorAll('[data-rga]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  rg_egr_alcance = val;
+  rgRenderEgr();
+}
 function rgApplyIngFilter(btn, filter) {
   document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -5307,6 +5347,7 @@ function rgApplyIngFilter(btn, filter) {
 }
 window.rgApplyEgrFilter  = rgApplyEgrFilter;
 window.rgApplyEgrEstado  = rgApplyEgrEstado;
+window.rgApplyEgrAlcance = rgApplyEgrAlcance;
 window.rgApplyIngFilter  = rgApplyIngFilter;
 
 function rgRefresh() {
@@ -5567,6 +5608,7 @@ function rgRenderEgr() {
       total:      parseFloat(e.total)    || 0,
       drive_url:  e.drive_url || '',
       descripcion:e.descripcion || '',
+      alcance:    e.alcance || 'negocio',
       _id:        e.id_egreso || '',
       _raw:       e,
     }));
@@ -5585,6 +5627,7 @@ function rgRenderEgr() {
       total:      parseFloat(i.total)    || 0,
       drive_url:  i.drive_url || '',
       descripcion:i.descripcion || '',
+      alcance:    'negocio',
       _id:        i.id || '',
       _raw:       i,
     }));
@@ -5595,6 +5638,9 @@ function rgRenderEgr() {
   // Filtro estado
   if (rg_egr_estado === 'pendiente')  items = items.filter(i => i._tipo === 'pendiente');
   if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
+
+  // Filtro alcance
+  if (rg_egr_alcance !== 'all') items = items.filter(i => (i.alcance || 'negocio') === rg_egr_alcance);
 
   // Filtro categoría
   if (rg_egr_filter !== 'all') items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
@@ -5684,7 +5730,7 @@ function rgRenderEgr() {
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
-      <td>${estadoBadge}</td>
+      <td>${estadoBadge}${i.alcance === 'personal' ? ' <span style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">👤</span>' : ''}</td>
       <td>${acciones}</td>
     </tr>`;
   }).join('');
@@ -6399,6 +6445,7 @@ function plFiltrarIngresos() {
 function plFiltrarEgresos() {
   return plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    if ((e.alcance || 'negocio') === 'personal') return false;
     const eMes  = parseInt(e.mes)  || _mesDesfecha(e.fecha_egreso);
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== plYear) return false;
@@ -6454,6 +6501,7 @@ function renderDashboard() {
   // ── GASTOS OPERATIVOS: Registro General (separados de COGS) ─────
   const _egresosGralFiltrados = plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    if ((e.alcance || 'negocio') === 'personal') return false;
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== plYear) return false;
     if (plMonth !== 'ytd') {
@@ -6479,7 +6527,20 @@ function renderDashboard() {
   const txCount     = ingresos.length;
   const ticket      = txCount > 0 ? totalIngNeto / txCount : 0;
 
-  // KPIs — 5 widgets: Ingresos | Gastos | Utilidad neta | ITBMS | Ticket promedio
+  // Gastos personales del período (informativos, excluidos del P&L)
+  const gastosPersonales = plEgresos.filter(e => {
+    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    if ((e.alcance || 'negocio') !== 'personal') return false;
+    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== plYear) return false;
+    if (plMonth !== 'ytd') {
+      const eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
+      if (eMes !== plMonth) return false;
+    }
+    return true;
+  }).reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  // KPIs — 5+1 widgets: Ingresos | Gastos | Utilidad neta | ITBMS | Ticket promedio | Personal
   document.getElementById('plKpiRow').innerHTML = `
     <div class="pl-kpi" style="--kpi-accent:var(--orange)">
       <div class="pl-kpi-label">Ingresos neto</div>
@@ -6517,7 +6578,13 @@ function renderDashboard() {
       <div class="pl-kpi-label">Ticket promedio</div>
       <div class="pl-kpi-value" style="color:#00695C">${plFmt(ticket)}</div>
       <div class="pl-kpi-sub">${txCount} factura${txCount !== 1 ? 's' : ''} en el período</div>
-    </div>`;
+    </div>
+    ${gastosPersonales > 0 ? `
+    <div class="pl-kpi" style="--kpi-accent:#E65100;opacity:.85" title="Gastos personales — no afectan P&L ni reportes DGI">
+      <div class="pl-kpi-label">👤 Gastos personales</div>
+      <div class="pl-kpi-value" style="color:#E65100">${plFmt(gastosPersonales)}</div>
+      <div class="pl-kpi-sub">No deducibles · excluidos del P&L</div>
+    </div>` : ''}`);
 
   // Gráfica barras
   plRenderBarChart(plYear);
