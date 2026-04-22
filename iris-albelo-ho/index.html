@@ -11,7 +11,8 @@
   // iPad en iOS 13+ reporta como Mac — detectar también por touch + pantalla pequeña
   var isTouch  = navigator.maxTouchPoints > 1 && window.screen.width <= 1024;
   if (isMobile || isTouch) {
-    window.location.replace('https://balanceclip.net/ceyco/app');
+    var base = window.location.href.replace(/\/[^\/]*$/, '');
+    window.location.replace(base + '/app');
   }
 })();
 </script>
