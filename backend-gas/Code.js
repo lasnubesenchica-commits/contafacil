@@ -232,7 +232,8 @@ function doPost(e) {
     if (action === 'actualizarPendienteAcr')     return _handleActualizarPendienteAcr(data);
     if (action === 'guardarPreferenciaAcreedor') return _handleGuardarPreferencia(data);
     if (action === 'subirFacturaEgreso')         return _handleSubirFacturaEgreso(data);
-    if (action === 'importarFacturaGmail')       return _handleImportarFacturaGmail(data);
+    if (action === 'importarFacturaGmail')        return _handleImportarFacturaGmail(data);
+    if (action === 'importarHistorialGmail')      return _handleImportarHistorialGmail(data);
 
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';
