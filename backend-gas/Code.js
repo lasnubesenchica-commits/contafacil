@@ -34,6 +34,7 @@ var CONFIG = {
   WA_NUM:            '50760909384',
   VOUCHER_FOLDER_ID: '1OiVyKh7HdyQUKPNB7EYu2UsOmdUCyyYd',
   ITBMS_RATE:        0.07,
+  // RUC_CLIENTE se lee dinámicamente de Config_Operaciones (empresa_ruc) — no hardcodear aquí
 };
 
 // Columnas Tab Ordenes (base 1)
@@ -1845,7 +1846,8 @@ function _handleParseFacturaEgreso(data) {
     var prompt =
       'Eres un extractor de datos de facturas panameñas (DGI e-Tax 2.0 y facturas tradicionales). ' +
       'Analiza esta factura y responde SOLO con JSON válido, sin markdown ni texto adicional:\n' +
-      '{"num_factura":"","fecha":"YYYY-MM-DD","proveedor":"","ruc_proveedor":"","dv_proveedor":"","subtotal":0,"itbms":0,"total":0,' +
+      '{"num_factura":"","fecha":"YYYY-MM-DD","proveedor":"","ruc_proveedor":"","dv_proveedor":"",' +
+      '"ruc_receptor":"","nombre_receptor":"","subtotal":0,"itbms":0,"total":0,' +
       '"items":[{"descripcion":"","cantidad":1,"precio_unitario":0,"itbms":0,"total":0}]}\n' +
       '\nREGLAS IMPORTANTES:\n' +
       '1. proveedor = nombre del EMISOR (cabecera superior), NO del receptor/cliente\n' +
@@ -1857,7 +1859,10 @@ function _handleParseFacturaEgreso(data) {
       '5. subtotal = monto antes de ITBMS | itbms = impuesto 7% | total = monto final\n' +
       '6. items[].descripcion: si todos los ítems dicen lo mismo genérico (ej: "FERRETERIA"),\n' +
       '   usa "proveedor — categoría" (ej: "King Chan — Ferretería materiales"). NO repitas.\n' +
-      '7. Montos como números, no strings. null solo si el campo realmente no existe.';
+      '7. Montos como números, no strings. null solo si el campo realmente no existe.\n' +
+      '8. ruc_receptor = RUC del RECEPTOR (a quien va dirigida la factura, sección "Cliente" o "Receptor").\n' +
+      '   Solo dígitos y guiones, sin el DV. nombre_receptor = nombre o razón social del receptor.\n' +
+      '   null si no aparece en el documento.';
 
     var payload = {
       model:      'claude-sonnet-4-20250514',
@@ -1890,16 +1895,18 @@ function _handleParseFacturaEgreso(data) {
 
     return ContentService
       .createTextOutput(JSON.stringify({
-        success:       true,
-        num_factura:   parsed.num_factura   || null,
-        fecha:         parsed.fecha         || null,
-        proveedor:     parsed.proveedor     || null,
-        ruc_proveedor: parsed.ruc_proveedor || null,
-        dv_proveedor:  parsed.dv_proveedor  || null,
-        subtotal:      parsed.subtotal      || null,
-        itbms:         parsed.itbms         || null,
-        total:         parsed.total         || null,
-        items:         Array.isArray(parsed.items) ? parsed.items : [],
+        success:         true,
+        num_factura:     parsed.num_factura     || null,
+        fecha:           parsed.fecha           || null,
+        proveedor:       parsed.proveedor       || null,
+        ruc_proveedor:   parsed.ruc_proveedor   || null,
+        dv_proveedor:    parsed.dv_proveedor    || null,
+        ruc_receptor:    parsed.ruc_receptor    || null,
+        nombre_receptor: parsed.nombre_receptor || null,
+        subtotal:        parsed.subtotal        || null,
+        itbms:           parsed.itbms           || null,
+        total:           parsed.total           || null,
+        items:           Array.isArray(parsed.items) ? parsed.items : [],
       }))
       .setMimeType(ContentService.MimeType.JSON);
 

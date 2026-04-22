@@ -375,9 +375,10 @@ function _claudeParsearFacturaAcreedor(pdfB64, acreedor) {
     (promptOverride ? promptOverride + '\n' : '') +
     'Responde SOLO con JSON válido, sin markdown:\n' +
     '{"num_factura":"","fecha":"YYYY-MM-DD","subtotal":0,"itbms":0,"total":0,' +
-    '"descripcion":"","categoria_sugerida":"","confianza_categoria":0}\n' +
+    '"descripcion":"","categoria_sugerida":"","confianza_categoria":0,"ruc_receptor":""}\n' +
     'categoria_sugerida debe ser uno de:\n' + catList + '\n' +
     'confianza_categoria: número de 0 a 100.\n' +
+    'ruc_receptor: RUC del receptor/cliente a quien va dirigida la factura (solo dígitos y guiones, sin DV). null si no aparece.\n' +
     'Si un campo no está visible usar null. Montos como números.';
 
   var payload = {
@@ -418,12 +419,13 @@ function _claudeParsearFacturaLibre(pdfB64, fileName) {
   var prompt =
     'Eres un extractor de facturas de gastos operativos panameñas.\n' +
     'Extrae todos los campos del documento y responde SOLO con JSON válido, sin markdown:\n' +
-    '{"nombre_proveedor":"","ruc_proveedor":"","num_factura":"","fecha":"YYYY-MM-DD",' +
+    '{"nombre_proveedor":"","ruc_proveedor":"","ruc_receptor":"","num_factura":"","fecha":"YYYY-MM-DD",' +
     '"subtotal":0,"itbms":0,"total":0,"descripcion":"","categoria_sugerida":"","confianza_categoria":0}\n\n' +
     'categoria_sugerida debe ser uno de:\n' + catList + '\n\n' +
     'Reglas:\n' +
     '- nombre_proveedor: razón social del EMISOR de la factura (quien cobra, no quien paga).\n' +
     '- ruc_proveedor: RUC del emisor, solo dígitos y guiones.\n' +
+    '- ruc_receptor: RUC del RECEPTOR (a quien va dirigida, sección "Cliente"). Solo dígitos y guiones, sin DV. null si no aparece.\n' +
     '- descripcion: servicio o producto facturado en pocas palabras.\n' +
     '- confianza_categoria: 0-100, qué tan seguro estás de la categoría.\n' +
     '- Si un campo no es visible usar null. Montos como números sin símbolo de moneda.';
@@ -639,7 +641,11 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   fila[COL_PEND.DESCRIPCION - 1] = parsed.descripcion  || acreedor.nombre;
   fila[COL_PEND.DRIVE_URL - 1]   = driveUrl;
   var notasExtra = acreedor.ruc ? ' | RUC: ' + acreedor.ruc : '';
-  fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra;
+  var rucRec = String(parsed.ruc_receptor || '').replace(/\s/g, '');
+  var _cfgAcr = _getConfig();
+  var rucCli = String(_cfgAcr && _cfgAcr.empresa_ruc ? _cfgAcr.empresa_ruc : '').replace(/\s/g, '');
+  var alcancePend = (rucRec && rucCli && rucRec === rucCli) ? 'negocio' : (rucRec ? 'personal' : 'negocio');
+  fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra + ' | alcance:' + alcancePend;
   fila[COL_PEND.EGRESO_ID - 1]   = '';
   fila[COL_PEND.MSG_ID - 1]      = clave || msgId || '';
 
@@ -751,6 +757,7 @@ function _handleGetPendientesAcreedor(params, callback) {
         descripcion:  r[COL_PEND.DESCRIPCION - 1]  || '',
         notas:        r[COL_PEND.NOTAS - 1]        || '',
         egreso_id:    r[COL_PEND.EGRESO_ID - 1]    || '',
+        alcance:      (function(n){ var m = String(n||'').match(/\balcance:(negocio|personal)\b/); return m ? m[1] : 'negocio'; })(r[COL_PEND.NOTAS - 1]),
       });
     }
     result.success = true;
@@ -807,6 +814,9 @@ function _handleAprobarAcreedor(params, callback) {
         filE[COL_E.DRIVE_URL - 1]     = r[COL_PEND.DRIVE_URL - 1]   || '';
         filE[COL_E.ESTADO - 1]        = 'registrado';
         filE[COL_E.NOTAS - 1]         = 'acreedor_auto | ' + (r[COL_PEND.NOTAS - 1] || '');
+        var notasPend = String(r[COL_PEND.NOTAS - 1] || '');
+        var mAlc = notasPend.match(/\balcance:(negocio|personal)\b/);
+        filE[COL_E.ALCANCE - 1]       = mAlc ? mAlc[1] : 'negocio';
         var lastRowE = sheetE.getLastRow() + 1;
         sheetE.getRange(lastRowE, 1, 1, EGRESOS_NCOLS).setValues([filE]);
         sheetE.getRange(lastRowE, 1, 1, EGRESOS_NCOLS).setBackground('#E8F5E9');

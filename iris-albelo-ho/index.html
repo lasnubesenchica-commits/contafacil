@@ -3052,7 +3052,10 @@ function doLogin() {
     switchTab('registroGeneral');
     // Cargar nombre comercial para el header
     gasJsonp('getConfig', {}).then(d => {
-      if (d.success) _applyHeaderDesktop(d.config || {});
+      if (d.success) {
+        _applyHeaderDesktop(d.config || {});
+        RUC_CLIENTE = (d.config && d.config.empresa_ruc) ? d.config.empresa_ruc.trim() : '';
+      }
     }).catch(() => {});
   } else {
     document.getElementById('loginError').style.display = 'block';
@@ -3405,7 +3408,17 @@ function closeEgresoModal() {
   document.body.style.overflow = '';
 }
 
-function eSetAlcance(val) {
+function eSetAlcance(val, skipWarn) {
+  // Soft-lock: si la IA detectó mismatch de RUC y el usuario intenta forzar Negocio, pedir confirmación
+  if (val === 'negocio' && _eAlcanceMismatch && skipWarn !== true) {
+    const ok = confirm(
+      '⚠️ Esta factura no está a nombre del RUC ' + RUC_CLIENTE + '.\n\n' +
+      'Marcándola como Negocio no será deducible ante DGI.\n\n' +
+      '¿Confirmar cambio a Negocio de todas formas?'
+    );
+    if (!ok) return;
+    _eAlcanceMismatch = false;   // usuario confirmó override
+  }
   document.getElementById('eAlcance').value = val;
   const isNeg = val === 'negocio';
   document.getElementById('eAlcanceNeg').style.background  = isNeg ? '#6A1B9A' : 'transparent';
@@ -3416,6 +3429,28 @@ function eSetAlcance(val) {
     ? 'Deducible · aparece en reportes DGI'
     : 'No deducible · no afecta P&L ni ITBMS';
   document.getElementById('egresoRecordarWrap').style.display = isNeg ? 'flex' : 'none';
+}
+
+// Retorna mensaje de estado para el label de IA
+function eAutoDetectAlcance(parsed) {
+  const rucRec = String(parsed.ruc_receptor || '').replace(/\s/g, '');
+  const rucCli = RUC_CLIENTE.replace(/\s/g, '');
+
+  if (!rucRec) {
+    // IA no detectó RUC receptor — no cambiar toggle, solo informar
+    return 'revisa y confirma · RUC receptor no detectado';
+  }
+  if (rucRec === rucCli) {
+    _eAlcanceMismatch = false;
+    eSetAlcance('negocio', true);
+    const nom = parsed.nombre_receptor ? ' (' + parsed.nombre_receptor + ')' : '';
+    return 'gasto de <strong>Negocio</strong> · RUC ' + rucRec + nom + ' ✓';
+  } else {
+    _eAlcanceMismatch = true;
+    eSetAlcance('personal', true);
+    const nom = parsed.nombre_receptor ? ' (' + parsed.nombre_receptor + ')' : '';
+    return 'marcado como <strong style="color:#E65100">Personal</strong> · factura a RUC ' + rucRec + nom;
+  }
 }
 
 
@@ -4101,9 +4136,11 @@ async function guardarNuevoIngreso() {
 // ══════════════════════════════════════════════════
 //  IA EGRESOS — leer factura con Claude
 // ══════════════════════════════════════════════════
+var RUC_CLIENTE    = '';   // se carga dinámicamente de getConfig → config.empresa_ruc
 var egresoFileB64  = null;
 var egresoFileMime = null;
 var egresoIAItems  = [];
+var _eAlcanceMismatch = false;   // true = IA detectó RUC distinto al cliente → Personal sugerido
 
 function handleEgresoFileDrop(e) {
   e.preventDefault();
@@ -4161,7 +4198,8 @@ function procesarArchivoEgreso(file) {
     try {
       const parsed = await analizarFacturaEgresoConClaude(b64, mime);
       llenarCamposEgreso(parsed);
-      status.innerHTML = '<span style="color:var(--green)">✅ Datos extraídos — revisa y confirma</span>';
+      const alcMsg = eAutoDetectAlcance(parsed);
+      status.innerHTML = '<span style="color:var(--green)">✅ Datos extraídos — ' + alcMsg + '</span>';
     } catch(err) {
       status.innerHTML = '<span style="color:var(--red)">⚠️ ' + esc(err.message) + '</span>';
     }
@@ -4202,15 +4240,17 @@ async function analizarFacturaEgresoConClaude(b64, mime) {
   console.log('parseFacturaEgreso:', data);
   if (!data.success) throw new Error(data.error || 'El servidor no pudo analizar la factura');
   return {
-    num_factura:   data.num_factura   || null,
-    fecha:         data.fecha         || null,
-    proveedor:     data.proveedor     || null,
-    ruc_proveedor: data.ruc_proveedor || null,
-    dv_proveedor:  data.dv_proveedor  || null,
-    subtotal:      data.subtotal      || null,
-    itbms:         data.itbms         || null,
-    total:         data.total         || null,
-    items:         data.items         || [],
+    num_factura:     data.num_factura     || null,
+    fecha:           data.fecha           || null,
+    proveedor:       data.proveedor       || null,
+    ruc_proveedor:   data.ruc_proveedor   || null,
+    dv_proveedor:    data.dv_proveedor    || null,
+    ruc_receptor:    data.ruc_receptor    || null,
+    nombre_receptor: data.nombre_receptor || null,
+    subtotal:        data.subtotal        || null,
+    itbms:           data.itbms           || null,
+    total:           data.total           || null,
+    items:           data.items           || [],
   };
 }
 
@@ -4315,7 +4355,8 @@ function abrirModalNuevoEgreso() {
   document.getElementById('eItemsSection').style.display = 'none';
   document.getElementById('eFacturaInput').value = '';
   egresoFileB64 = null; egresoFileMime = null; egresoIAItems = [];
-  eSetAlcance('negocio');
+  _eAlcanceMismatch = false;
+  eSetAlcance('negocio', true);
   inferirTipoEgreso();   // sync eTipoHidden with default category
   // Reset "recordar" checkbox
   const chkRec = document.getElementById('eChkRecordar');
@@ -5627,7 +5668,7 @@ function rgRenderEgr() {
       total:      parseFloat(i.total)    || 0,
       drive_url:  i.drive_url || '',
       descripcion:i.descripcion || '',
-      alcance:    'negocio',
+      alcance:    i.alcance || 'negocio',
       _id:        i.id || '',
       _raw:       i,
     }));
