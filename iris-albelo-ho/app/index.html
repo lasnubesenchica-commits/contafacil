@@ -876,7 +876,10 @@ function doLogin() {
 document.addEventListener('DOMContentLoaded', () => {
   // Cargar branding desde config_operaciones antes del login
   jsonpGet('getConfig', {}).then(d => {
-    if (d.success) _applyBranding(d.config || {});
+    if (d.success) {
+      _applyBranding(d.config || {});
+      window._appRucCliente = (d.config && d.config.empresa_ruc) ? d.config.empresa_ruc.trim() : '';
+    }
   }).catch(() => {});
   document.getElementById('loginBtn').addEventListener('click', doLogin);
 });
@@ -1570,9 +1573,11 @@ const REG = (() => {
           if (d.itbms && parseFloat(d.itbms) > 0) document.getElementById('regEgrItbms').checked = true;
           recalcEgr();
         }
+        // Auto-detectar alcance según RUC receptor
+        const alcMsg = _autoDetectAlcance(d.ruc_receptor, d.nombre_receptor);
         zone.classList.remove('analyzing'); zone.classList.add('has-file');
         status.style.color = 'var(--green)';
-        status.textContent = '✅ Datos extraídos — revisa y confirma';
+        status.textContent = '✅ ' + alcMsg;
       } catch(err) {
         zone.classList.remove('analyzing');
         status.style.color = 'var(--red)';
@@ -1651,6 +1656,8 @@ const REG = (() => {
     document.getElementById('regEgrZoneLbl').textContent = 'Adjuntar factura — foto o PDF';
     document.getElementById('regEgrAIStatus').style.display = 'none';
     document.getElementById('regEgrFile').value         = '';
+    _eAlcanceMismatch = false;
+    setAlcance('negocio', true);
     openModal('mRegEgreso');
   }
 
@@ -1697,6 +1704,7 @@ const REG = (() => {
         total,
         descripcion: document.getElementById('regEgrDesc').value.trim(),
         notas:       document.getElementById('regEgrNotas').value.trim(),
+        alcance:     document.getElementById('regEgrAlcance').value || 'negocio',
       });
       if (!r.success) throw new Error(r.error || 'Error al guardar');
       toast('Egreso registrado ✓', 'ok');
@@ -1736,8 +1744,47 @@ const REG = (() => {
     btn.disabled = false; btn.textContent = 'Guardar ingreso';
   }
 
+  let _eAlcanceMismatch = false;
+
+  function setAlcance(val, skipWarn) {
+    if (val === 'negocio' && _eAlcanceMismatch && skipWarn !== true) {
+      const ruc = (window._appRucCliente || '');
+      const ok = confirm(
+        '⚠️ Esta factura no está a nombre del RUC ' + ruc + '.\n\n' +
+        'Marcándola como Negocio no será deducible ante DGI.\n\n' +
+        '¿Confirmar cambio a Negocio de todas formas?'
+      );
+      if (!ok) return;
+      _eAlcanceMismatch = false;
+    }
+    document.getElementById('regEgrAlcance').value = val;
+    const isNeg = val === 'negocio';
+    document.getElementById('regEgrAlcNeg').style.background  = isNeg ? '#6A1B9A' : 'transparent';
+    document.getElementById('regEgrAlcNeg').style.color       = isNeg ? '#fff' : 'var(--muted)';
+    document.getElementById('regEgrAlcPers').style.background = !isNeg ? '#E65100' : 'transparent';
+    document.getElementById('regEgrAlcPers').style.color      = !isNeg ? '#fff' : 'var(--muted)';
+    document.getElementById('regEgrAlcHint').textContent      = isNeg
+      ? 'Deducible · aparece en reportes DGI'
+      : 'No deducible · no afecta P&L ni ITBMS';
+  }
+
+  function _autoDetectAlcance(rucRec, nombreRec) {
+    const rucR = String(rucRec || '').replace(/\s/g, '');
+    const rucC = String(window._appRucCliente || '').replace(/\s/g, '');
+    if (!rucR) return 'Datos extraídos — RUC receptor no detectado';
+    if (rucC && rucR === rucC) {
+      _eAlcanceMismatch = false;
+      setAlcance('negocio', true);
+      return 'Gasto de Negocio · RUC ' + rucR + (nombreRec ? ' (' + nombreRec + ')' : '') + ' ✓';
+    } else {
+      _eAlcanceMismatch = true;
+      setAlcance('personal', true);
+      return 'Personal · factura a RUC ' + rucR + (nombreRec ? ' (' + nombreRec + ')' : '');
+    }
+  }
+
   return { openEgreso, openIngreso, onEgrFile, onIngFile,
-           recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts };
+           recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts, setAlcance };
 })();
 
 
@@ -2197,6 +2244,22 @@ const PEND = (() => {
       </div>
       <input type="hidden" id="regEgrSubtotal">
       <input type="hidden" id="regEgrItbmsVal">
+      <input type="hidden" id="regEgrAlcance" value="negocio">
+      <!-- Toggle Negocio / Personal -->
+      <div style="margin:.5rem 0 .25rem;padding:.5rem .75rem;background:var(--bg2);border-radius:var(--r);display:flex;align-items:center;gap:.6rem">
+        <span style="font-size:.78rem;font-weight:600;color:var(--text)">Tipo:</span>
+        <div style="display:flex;background:var(--bg);border-radius:20px;padding:2px;gap:2px;flex:1">
+          <button id="regEgrAlcNeg" onclick="REG.setAlcance('negocio')"
+            style="flex:1;padding:.28rem .5rem;border-radius:20px;font-size:.72rem;font-weight:700;border:none;background:#6A1B9A;color:#fff;cursor:pointer">
+            🏢 Negocio
+          </button>
+          <button id="regEgrAlcPers" onclick="REG.setAlcance('personal')"
+            style="flex:1;padding:.28rem .5rem;border-radius:20px;font-size:.72rem;font-weight:700;border:none;background:transparent;color:var(--muted);cursor:pointer">
+            👤 Personal
+          </button>
+        </div>
+      </div>
+      <div id="regEgrAlcHint" style="font-size:.7rem;color:var(--muted);padding:0 .25rem .25rem">Deducible · aparece en reportes DGI</div>
     </div>
     <div class="sheet-footer">
       <button class="sheet-submit" id="regEgrSubmit" onclick="REG.submitEgreso()"

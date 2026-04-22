@@ -2636,6 +2636,8 @@ function _handleGetPL(params, callback) {
       var er = egrRows[k];
       if (!er[COL_E.ID - 1]) continue;
       if (String(er[COL_E.ESTADO - 1]).toLowerCase() === 'anulado') continue;
+      // Excluir gastos personales del P&L — no deducibles, no afectan DGI
+      if (String(er[COL_E.ALCANCE - 1] || 'negocio').toLowerCase() === 'personal') continue;
 
       var eMes  = parseInt(er[COL_E.MES  - 1]) || 0;
       var eAnio = parseInt(er[COL_E.ANIO - 1]) || 0;
