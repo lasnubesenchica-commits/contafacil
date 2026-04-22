@@ -8327,6 +8327,7 @@ function _gmailRequestToken() {
   var client = google.accounts.oauth2.initTokenClient({
     client_id: GMAIL_CLIENT_ID,
     scope: 'https://www.googleapis.com/auth/gmail.readonly',
+    ux_mode: 'popup',
     callback: function(tokenResponse) {
       if (tokenResponse.error) {
         document.getElementById('gmailAuthStatus').textContent = '❌ Error: ' + tokenResponse.error;
