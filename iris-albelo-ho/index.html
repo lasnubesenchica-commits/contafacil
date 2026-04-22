@@ -8286,13 +8286,17 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
 var GMAIL_CLIENT_ID = '682314740345-4icslb4jr1ftdcga2hcdr90pr93qmfan.apps.googleusercontent.com';
 var _gmailToken = null;
 
+var _gmailMsgs = [];
+var _gmailSel  = new Set();
+
 function gmailImport_open() {
   _gmailToken = null;
+  _gmailMsgs  = [];
+  _gmailSel   = new Set();
   document.getElementById('gmailAuthStatus').textContent = 'No conectado';
   document.getElementById('gmailAuthStatus').style.color = 'var(--muted)';
-  var btn = document.getElementById('btnGmailImport');
-  btn.disabled = true;
-  btn.style.opacity = '.45';
+  var btn = document.getElementById('btnGmailSearch');
+  btn.disabled = true; btn.style.opacity = '.45';
   _gmailShowStep(0);
   document.getElementById('gmailImportModal').style.display = 'flex';
 }
@@ -8302,7 +8306,7 @@ function gmailImport_close() {
 }
 
 function _gmailShowStep(n) {
-  for (var i = 0; i <= 2; i++) {
+  for (var i = 0; i <= 4; i++) {
     var el = document.getElementById('gmailStep' + i);
     if (el) el.style.display = (i === n) ? '' : 'none';
   }
@@ -8333,38 +8337,124 @@ function _gmailRequestToken() {
       _gmailToken = tokenResponse.access_token;
       document.getElementById('gmailAuthStatus').textContent = '✅ Gmail conectado';
       document.getElementById('gmailAuthStatus').style.color = 'var(--green)';
-      var btn = document.getElementById('btnGmailImport');
-      btn.disabled = false;
-      btn.style.opacity = '1';
+      var btn = document.getElementById('btnGmailSearch');
+      btn.disabled = false; btn.style.opacity = '1';
     }
   });
   client.requestAccessToken();
 }
 
-async function gmailImport_iniciar() {
-  if (!_gmailToken) { alert('Conecta Gmail primero'); return; }
-  var days = parseInt(document.getElementById('gmailDays').value) || 90;
+// Step 1 — browser searches Gmail (fast, no GAS involved)
+async function gmailImport_buscar() {
   _gmailShowStep(1);
   try {
-    // Send token to GAS — server does all search + download + Claude parsing
-    var resp = await fetch(GAS_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'importarHistorialGmail', token: _gmailToken, days: days })
+    var days  = parseInt(document.getElementById('gmailDays').value) || 90;
+    var after = Math.floor((Date.now() - days * 86400000) / 1000);
+    var q     = encodeURIComponent('has:attachment (factura OR recibo OR invoice OR receipt OR pago) after:' + after);
+    var resp  = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=50&q=' + q, {
+      headers: { Authorization: 'Bearer ' + _gmailToken }
     });
     var data = await resp.json();
-    if (!data.ok) throw new Error(data.error || 'Error desconocido');
-    var s = data.stats || {};
-    document.getElementById('gmailDoneOk').textContent  = s.nuevos      || 0;
-    document.getElementById('gmailDoneDup').textContent = s.duplicados  || 0;
-    document.getElementById('gmailDoneErr').textContent = (s.errores && s.errores.length) || 0;
-    _gmailShowStep(2);
-    if (s.nuevos > 0) setTimeout(function() { acrSincronizar(); }, 1200);
+    if (!resp.ok) throw new Error(data.error && data.error.message ? data.error.message : 'Error Gmail ' + resp.status);
+
+    var messages = data.messages || [];
+    if (!messages.length) {
+      document.getElementById('gmailEmailList').innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.8rem">No se encontraron correos con adjuntos en el período seleccionado.</div>';
+      document.getElementById('gmailSelCount').textContent = '0 encontrados';
+      _gmailShowStep(2);
+      return;
+    }
+
+    // Fetch metadata for each message (subject, from, date)
+    var metaList = [];
+    for (var i = 0; i < Math.min(messages.length, 50); i++) {
+      var mResp = await fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + messages[i].id +
+        '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date',
+        { headers: { Authorization: 'Bearer ' + _gmailToken } }
+      );
+      var mData = await mResp.json();
+      var hdrs  = {};
+      (mData.payload && mData.payload.headers || []).forEach(function(h) { hdrs[h.name] = h.value; });
+      metaList.push({ id: messages[i].id, subject: hdrs['Subject'] || '(sin asunto)', from: hdrs['From'] || '', date: hdrs['Date'] || '', snippet: mData.snippet || '' });
+    }
+    _gmailMsgs = metaList;
+    _gmailRenderLista();
   } catch(e) {
     _gmailShowStep(0);
     document.getElementById('gmailAuthStatus').textContent = '❌ ' + e.message;
     document.getElementById('gmailAuthStatus').style.color = '#c62828';
   }
+}
+
+function _gmailRenderLista() {
+  var cont = document.getElementById('gmailEmailList');
+  cont.innerHTML = _gmailMsgs.map(function(e, i) {
+    var d = new Date(e.date);
+    var ds = isNaN(d.getTime()) ? e.date.substring(0,16) :
+      (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+    return '<label style="display:flex;align-items:flex-start;gap:.55rem;padding:.5rem .65rem;border-bottom:1px solid var(--border);cursor:pointer">' +
+      '<input type="checkbox" data-idx="' + i + '" style="margin-top:.2rem;flex-shrink:0" onchange="gmailToggle(' + i + ',this.checked)" checked>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;gap:.4rem;align-items:baseline;margin-bottom:.1rem">' +
+          '<span style="font-size:.7rem;color:var(--muted);flex-shrink:0">' + ds + '</span>' +
+          '<span style="font-weight:600;font-size:.77rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(e.subject) + '</span>' +
+        '</div>' +
+        '<div style="font-size:.71rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(e.from) + '</div>' +
+      '</div></label>';
+  }).join('');
+  _gmailSel = new Set(_gmailMsgs.map(function(_,i){ return i; }));
+  _gmailUpdCount();
+  _gmailShowStep(2);
+}
+
+function gmailToggle(idx, checked) {
+  if (checked) _gmailSel.add(idx); else _gmailSel.delete(idx);
+  _gmailUpdCount();
+}
+function gmailSelAll(v) {
+  document.querySelectorAll('#gmailEmailList input[type=checkbox]').forEach(function(cb) {
+    var i = parseInt(cb.dataset.idx); cb.checked = v;
+    if (v) _gmailSel.add(i); else _gmailSel.delete(i);
+  });
+  _gmailUpdCount();
+}
+function _gmailUpdCount() {
+  document.getElementById('gmailSelCount').textContent = _gmailSel.size + ' de ' + _gmailMsgs.length + ' seleccionados';
+}
+
+// Step 2 — process each selected email individually via GAS (one call per email, ~10s each)
+async function gmailImport_procesar() {
+  var sel = Array.from(_gmailSel).sort(function(a,b){return a-b;}).map(function(i){ return _gmailMsgs[i]; });
+  if (!sel.length) return;
+  _gmailShowStep(3);
+  var ok = 0, dup = 0, err = 0;
+  for (var i = 0; i < sel.length; i++) {
+    var pct = Math.round(i / sel.length * 100);
+    document.getElementById('gmailProgBar').style.width = pct + '%';
+    document.getElementById('gmailProgLabel').textContent = 'Procesando ' + (i+1) + ' / ' + sel.length + ' — ' + _gesc(sel[i].subject).substring(0, 40);
+    try {
+      var resp = await fetch(GAS_URL, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'procesarEmailGmail', token: _gmailToken, msgId: sel[i].id })
+      });
+      var d = await resp.json();
+      if (d.ok && !d.skipped)                           { ok++;  }
+      else if (d.ok && d.reason === 'duplicado')        { dup++; }
+      else if (d.ok && d.reason && d.reason !== 'duplicado') { err++; }
+      else                                               { err++; }
+    } catch(_) { err++; }
+  }
+  document.getElementById('gmailProgBar').style.width = '100%';
+  document.getElementById('gmailDoneOk').textContent  = ok;
+  document.getElementById('gmailDoneDup').textContent = dup;
+  document.getElementById('gmailDoneErr').textContent = err;
+  _gmailShowStep(4);
+  if (ok > 0) setTimeout(function() { acrSincronizar(); }, 1000);
+}
+
+function _gesc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 
@@ -8491,15 +8581,15 @@ async function gmailImport_iniciar() {
 
   <!-- ═══════════ MODAL GMAIL IMPORT ═══════════ -->
   <div id="gmailImportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;align-items:center;justify-content:center">
-    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,480px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,540px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em">📥 Historial de Facturas Gmail</div>
         <button onclick="gmailImport_close()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
       </div>
 
-      <!-- Step 0: Connect + period + import -->
+      <!-- Step 0: Connect + period + search -->
       <div id="gmailStep0">
-        <p style="font-size:.83rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.5">Conecta tu Gmail y la IA buscará facturas con adjuntos en el período indicado, extrayendo los datos automáticamente como pendientes.</p>
+        <p style="font-size:.83rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.5">Conecta tu Gmail para buscar facturas con adjuntos. Luego selecciona cuáles importar — la IA extrae los datos de cada una.</p>
         <div style="display:grid;gap:.85rem">
           <div>
             <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">PERÍODO A BUSCAR</label>
@@ -8514,34 +8604,60 @@ async function gmailImport_iniciar() {
             🔑 Conectar con Google Gmail
           </button>
           <div id="gmailAuthStatus" style="font-size:.78rem;text-align:center;color:var(--muted)">No conectado</div>
-          <button id="btnGmailImport" onclick="gmailImport_iniciar()" disabled style="width:100%;padding:.6rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.87rem;font-weight:700;cursor:pointer;opacity:.45">
-            🤖 Importar y procesar con IA
+          <button id="btnGmailSearch" onclick="gmailImport_buscar()" disabled style="width:100%;padding:.55rem;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;opacity:.45">
+            🔍 Buscar correos con adjuntos
           </button>
-          <p style="font-size:.72rem;color:var(--muted);text-align:center;margin:0">Se procesarán hasta 30 correos — puede tardar 1-2 minutos</p>
         </div>
       </div>
 
-      <!-- Step 1: Processing spinner -->
+      <!-- Step 1: Searching -->
       <div id="gmailStep1" style="display:none">
         <div style="text-align:center;padding:2.5rem 0">
-          <div style="font-size:2.2rem;margin-bottom:1rem">🤖</div>
-          <div style="font-size:.92rem;font-weight:600;margin-bottom:.5rem">Procesando facturas con IA...</div>
-          <div style="font-size:.78rem;color:var(--muted);line-height:1.5">El servidor busca adjuntos, los descarga y<br>Claude extrae los datos de cada factura.<br><br>No cierres esta ventana.</div>
+          <div style="font-size:2rem;margin-bottom:.75rem">🔍</div>
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:.4rem">Buscando en Gmail...</div>
+          <div style="font-size:.78rem;color:var(--muted)">Puede tardar unos segundos</div>
         </div>
       </div>
 
-      <!-- Step 2: Done -->
+      <!-- Step 2: Email list -->
       <div id="gmailStep2" style="display:none">
-        <div style="text-align:center;padding:1.75rem 0">
-          <div style="font-size:2.2rem;margin-bottom:.75rem">🎉</div>
-          <div style="font-size:.98rem;font-weight:700;margin-bottom:.75rem">¡Importación completada!</div>
-          <div style="display:grid;gap:.4rem;font-size:.83rem;margin:.5rem auto;max-width:260px;text-align:left">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;flex-wrap:wrap;gap:.4rem">
+          <span id="gmailSelCount" style="font-size:.8rem;font-weight:600">0 seleccionados</span>
+          <div style="display:flex;gap:.35rem">
+            <button onclick="gmailSelAll(true)"  style="font-size:.72rem;padding:.2rem .6rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer">Todos</button>
+            <button onclick="gmailSelAll(false)" style="font-size:.72rem;padding:.2rem .6rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer">Ninguno</button>
+          </div>
+        </div>
+        <div id="gmailEmailList" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+        <button onclick="gmailImport_procesar()" style="width:100%;padding:.6rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;margin-top:.85rem">
+          🤖 Procesar seleccionadas con IA
+        </button>
+      </div>
+
+      <!-- Step 3: Processing per-email progress -->
+      <div id="gmailStep3" style="display:none">
+        <div style="text-align:center;padding:1.5rem 0">
+          <div style="font-size:1.6rem;margin-bottom:.6rem">🤖</div>
+          <div style="font-size:.88rem;font-weight:600;margin-bottom:.85rem" id="gmailProgLabel">Procesando...</div>
+          <div style="background:var(--border);border-radius:100px;height:9px;overflow:hidden;margin:0 .5rem">
+            <div id="gmailProgBar" style="height:100%;background:var(--green);width:0%;transition:width .3s;border-radius:100px"></div>
+          </div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">Cada factura se procesa individualmente con Claude</div>
+        </div>
+      </div>
+
+      <!-- Step 4: Done -->
+      <div id="gmailStep4" style="display:none">
+        <div style="text-align:center;padding:1.5rem 0">
+          <div style="font-size:2rem;margin-bottom:.65rem">🎉</div>
+          <div style="font-size:.98rem;font-weight:700;margin-bottom:.65rem">¡Importación completada!</div>
+          <div style="display:grid;gap:.35rem;font-size:.83rem;margin:.5rem auto;max-width:260px;text-align:left">
             <div>✅ <span style="color:var(--green);font-weight:700" id="gmailDoneOk">0</span> facturas importadas como pendientes</div>
             <div>🔁 <span style="color:#1565C0;font-weight:700" id="gmailDoneDup">0</span> duplicadas (ya existían)</div>
             <div>⚠ <span style="color:var(--orange);font-weight:700" id="gmailDoneErr">0</span> sin adjunto PDF procesable</div>
           </div>
-          <p style="font-size:.78rem;color:var(--muted);margin-top:.75rem;line-height:1.5">Revisa los pendientes y aprueba los que correspondan.</p>
-          <button onclick="gmailImport_close()" style="margin-top:1rem;padding:.5rem 1.75rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.65rem;line-height:1.5">Revisa los pendientes y aprueba los que correspondan.</p>
+          <button onclick="gmailImport_close()" style="margin-top:.85rem;padding:.5rem 1.75rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
             ✓ Cerrar
           </button>
         </div>

@@ -234,6 +234,7 @@ function doPost(e) {
     if (action === 'subirFacturaEgreso')         return _handleSubirFacturaEgreso(data);
     if (action === 'importarFacturaGmail')        return _handleImportarFacturaGmail(data);
     if (action === 'importarHistorialGmail')      return _handleImportarHistorialGmail(data);
+    if (action === 'procesarEmailGmail')          return _handleProcesarEmailGmail(data);
 
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';

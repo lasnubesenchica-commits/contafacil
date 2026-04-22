@@ -1124,6 +1124,75 @@ function _initAcresPendingSheet(ss) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  GMAIL IMPORT — procesar UN mensaje (browser envía msgId + token)
+// ═══════════════════════════════════════════════════════════════
+function _handleProcesarEmailGmail(data) {
+  var token = String(data.token || '');
+  var msgId = String(data.msgId || '');
+  if (!token || !msgId) return _jsonAcr({ ok: false, error: 'token y msgId requeridos' });
+
+  try {
+    // Fetch mensaje completo con adjuntos
+    var mResp = UrlFetchApp.fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msgId + '?format=full',
+      { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true }
+    );
+    if (mResp.getResponseCode() !== 200) {
+      return _jsonAcr({ ok: false, error: 'Gmail ' + mResp.getResponseCode() });
+    }
+    var mFull = JSON.parse(mResp.getContentText());
+    var atts  = _gmailApiAtts(mFull.payload || {}, []);
+    if (!atts.length) return _jsonAcr({ ok: true, skipped: true, reason: 'no_pdf' });
+
+    var att      = atts[0];
+    var pdfBytes;
+    if (att.data) {
+      pdfBytes = Utilities.base64Decode(att.data.replace(/-/g, '+').replace(/_/g, '/'));
+    } else {
+      var aResp = UrlFetchApp.fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msgId + '/attachments/' + att.id,
+        { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true }
+      );
+      var aJson = JSON.parse(aResp.getContentText());
+      pdfBytes  = Utilities.base64Decode((aJson.data || '').replace(/-/g, '+').replace(/_/g, '/'));
+    }
+    if (!pdfBytes || !pdfBytes.length) return _jsonAcr({ ok: true, skipped: true, reason: 'pdf_vacio' });
+
+    var clave = 'gmail:' + msgId + ':' + att.filename;
+    if (_pendientePorMsgIdFileName(clave)) return _jsonAcr({ ok: true, skipped: true, reason: 'duplicado' });
+
+    var pdfB64 = Utilities.base64Encode(pdfBytes);
+    var parsed = _claudeParsearFacturaLibre(pdfB64, att.filename);
+
+    var acreedor = {
+      id: 'LIBRE', nombre: parsed.nombre_proveedor || att.filename,
+      ruc: parsed.ruc_proveedor || '', categoria_def: parsed.categoria_sugerida || ''
+    };
+    var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+    if (pref && pref.categoria_def) {
+      acreedor.id            = pref.id;
+      acreedor.categoria_def = pref.categoria_def;
+      if (pref.desc_default) parsed.descripcion = pref.desc_default;
+      parsed.categoria_sugerida = pref.categoria_def;
+    }
+    if (parsed.num_factura && _pendienteYaExiste(parsed.num_factura, acreedor.id)) {
+      return _jsonAcr({ ok: true, skipped: true, reason: 'duplicado' });
+    }
+
+    var ss       = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var cfg      = _getConfig();
+    var driveUrl = _guardarPdfAcreedor(pdfBytes, att.filename, acreedor.nombre, cfg);
+    var id       = _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, att.filename);
+
+    Logger.log('✅ Gmail import: ' + acreedor.nombre + ' | ' + (parsed.num_factura || 'SN'));
+    return _jsonAcr({ ok: true, id: id, nombre: acreedor.nombre, total: parsed.total || 0 });
+  } catch(e) {
+    Logger.log('Error _handleProcesarEmailGmail: ' + e.message);
+    return _jsonAcr({ ok: false, error: e.message });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  GMAIL HISTORIAL IMPORT — server-side con OAuth token del cliente
 // ═══════════════════════════════════════════════════════════════
 function _handleImportarHistorialGmail(data) {
