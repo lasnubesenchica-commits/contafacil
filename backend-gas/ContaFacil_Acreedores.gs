@@ -1142,7 +1142,11 @@ function _handleProcesarEmailGmail(data) {
     }
     var mFull = JSON.parse(mResp.getContentText());
     var atts  = _gmailApiAtts(mFull.payload || {}, []);
-    if (!atts.length) return _jsonAcr({ ok: true, skipped: true, reason: 'no_pdf' });
+    if (!atts.length) {
+      Logger.log('no_pdf msgId=' + msgId + ' payload=' + JSON.stringify(mFull.payload).substring(0, 1500));
+      return _jsonAcr({ ok: true, skipped: true, reason: 'no_pdf',
+        _dbg: _gmailPayloadSummary(mFull.payload) });
+    }
 
     var att      = atts[0];
     var pdfBytes;
@@ -1288,20 +1292,51 @@ function _handleImportarHistorialGmail(data) {
   }
 }
 
+// Debug: returns compact summary of MIME parts for diagnosing no_pdf
+function _gmailPayloadSummary(part, depth) {
+  depth = depth || 0;
+  var info = { mime: part.mimeType, fname: part.filename || '',
+    hasId: !!(part.body && part.body.attachmentId),
+    hasData: !!(part.body && part.body.data),
+    hdrs: (part.headers||[]).map(function(h){ return h.name+':'+h.value; }).join('|') };
+  var out = [info];
+  if (depth < 5 && part.parts) {
+    for (var i=0;i<part.parts.length;i++) {
+      var sub = _gmailPayloadSummary(part.parts[i], depth+1);
+      for (var j=0;j<sub.length;j++) out.push(sub[j]);
+    }
+  }
+  return out;
+}
+
 // Recorre el árbol MIME de la Gmail API buscando PDFs/imágenes adjuntas
 function _gmailApiAtts(part, result) {
   var mime  = (part.mimeType || '').toLowerCase();
   var fname = part.filename  || '';
+
+  // filename can live in Content-Disposition or Content-Type headers
+  if (!fname && part.headers) {
+    for (var h = 0; h < part.headers.length; h++) {
+      var hn = (part.headers[h].name  || '').toLowerCase();
+      var hv =  part.headers[h].value || '';
+      if (hn === 'content-disposition' || hn === 'content-type') {
+        var m = hv.match(/(?:filename|name)\*?=["']?(?:utf-8'')?([^"';\s]+)/i);
+        if (m) { fname = decodeURIComponent(m[1]); break; }
+      }
+    }
+  }
+
   var fnLow = fname.toLowerCase();
   var isPdf = mime === 'application/pdf' || mime === 'application/x-pdf' || fnLow.endsWith('.pdf');
   var isImg = mime.startsWith('image/') || /\.(jpe?g|png)$/.test(fnLow);
   var isOct = mime === 'application/octet-stream' && /\.(pdf|jpe?g|png)$/.test(fnLow);
 
-  if (fname && part.body && (isPdf || isImg || isOct)) {
+  if ((isPdf || isImg || isOct) && part.body && (part.body.attachmentId || part.body.data)) {
+    if (!fname) fname = isPdf ? 'adjunto.pdf' : 'adjunto.jpg';
     var entry = { filename: fname, mimeType: mime };
     if (part.body.attachmentId) { entry.id   = part.body.attachmentId; }
-    else if (part.body.data)    { entry.data  = part.body.data; }
-    if (entry.id || entry.data) result.push(entry);
+    else                        { entry.data  = part.body.data; }
+    result.push(entry);
   }
   if (part.parts) {
     for (var i = 0; i < part.parts.length; i++) _gmailApiAtts(part.parts[i], result);
