@@ -1123,6 +1123,63 @@ function _initAcresPendingSheet(ss) {
   Logger.log('Hoja Acreedores_Pending creada.');
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  GMAIL IMPORT — importarFacturaGmail
+// ═══════════════════════════════════════════════════════════════
+function _handleImportarFacturaGmail(data) {
+  try {
+    var fileBase64   = String(data.fileBase64   || '');
+    var fileName     = String(data.fileName     || 'factura.pdf');
+    var emailId      = String(data.emailId      || '');
+    var emailSubject = String(data.emailSubject || '');
+    var emailFrom    = String(data.emailFrom    || '');
+
+    if (!fileBase64) return _jsonAcr({ ok: false, error: 'fileBase64 requerido' });
+
+    // Dedup: same gmail message + file
+    var clave = 'gmail:' + emailId + ':' + fileName;
+    if (emailId && _pendientePorMsgIdFileName(clave)) {
+      return _jsonAcr({ ok: true, id: '', duplicado: true });
+    }
+
+    // Parse with Claude
+    var parsed = _claudeParsearFacturaLibre(fileBase64, fileName);
+
+    // Build synthetic acreedor (look for saved preference first)
+    var acreedor = {
+      id:            'LIBRE',
+      nombre:        parsed.nombre_proveedor || emailFrom || fileName,
+      ruc:           parsed.ruc_proveedor    || '',
+      categoria_def: parsed.categoria_sugerida || ''
+    };
+    var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+    if (pref && pref.categoria_def) {
+      acreedor.id            = pref.id;
+      acreedor.categoria_def = pref.categoria_def;
+      if (pref.desc_default) parsed.descripcion = pref.desc_default;
+      parsed.categoria_sugerida = pref.categoria_def;
+    }
+
+    // Dedup: same invoice number for same acreedor
+    if (parsed.num_factura && _pendienteYaExiste(parsed.num_factura, acreedor.id)) {
+      return _jsonAcr({ ok: true, id: '', duplicado: true });
+    }
+
+    var ss  = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var cfg = _getConfig();
+
+    // Attempt to save PDF to Drive
+    var pdfBytes = Utilities.base64Decode(fileBase64);
+    var driveUrl = _guardarPdfAcreedor(pdfBytes, fileName, acreedor.nombre, cfg);
+
+    var id = _crearPendiente(ss, acreedor, parsed, driveUrl, clave, emailId, fileName);
+    return _jsonAcr({ ok: true, id: id });
+  } catch(e) {
+    Logger.log('Error _handleImportarFacturaGmail: ' + e.message);
+    return _jsonAcr({ ok: false, error: e.message });
+  }
+}
+
 // ── Micro-helpers ─────────────────────────────────────────────
 function _jsonpAcr(obj, callback) {
   var json = JSON.stringify(obj);
