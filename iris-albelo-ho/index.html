@@ -8441,7 +8441,11 @@ async function gmailImport_procesar() {
       var d = await resp.json();
       if (d.ok && !d.skipped)                           { ok++;  }
       else if (d.ok && d.reason === 'duplicado')        { dup++; }
-      else if (d.ok && d.reason && d.reason !== 'duplicado') { err++; }
+      else if (d.ok && d.reason === 'no_pdf') {
+        err++;
+        if (d._dbg) console.log('[gmail no_pdf] msgId=' + sel[i].id, d._dbg);
+      }
+      else if (d.ok && d.reason)                        { err++; }
       else                                               { err++; }
     } catch(_) { err++; }
   }
