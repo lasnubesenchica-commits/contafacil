@@ -8473,6 +8473,7 @@ async function gmailImport_procesar() {
   if (!sel.length) return;
   _gmailShowStep(3);
   var ok = 0, dup = 0, err = 0;
+  var errLog = [];
   for (var i = 0; i < sel.length; i++) {
     var msg = sel[i];
     var att = msg.atts && msg.atts[0];
@@ -8486,16 +8487,25 @@ async function gmailImport_procesar() {
         payload.attFilename = att.filename || '';
         payload.attMimeType = att.mimeType || '';
       }
+      console.log('[gmail send]', msg.id, att ? {attId: att.attId, fn: att.filename, hasData: !!att.data} : 'NO_ATT');
       var resp = await fetch(GAS_URL, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       var d = await resp.json();
+      console.log('[gmail resp]', msg.id, d);
       if (d.ok && !d.skipped)                { ok++;  }
       else if (d.ok && d.reason==='duplicado'){ dup++; }
-      else                                   { err++;  }
-    } catch(_) { err++; }
+      else {
+        err++;
+        errLog.push({ subj: msg.subject, att: att && att.filename, reason: d.reason || d.error || 'unknown' });
+      }
+    } catch(e2) {
+      err++;
+      errLog.push({ subj: msg.subject, reason: 'catch: ' + e2.message });
+    }
   }
+  if (errLog.length) console.warn('[gmail errores]', errLog);
   document.getElementById('gmailProgBar').style.width = '100%';
   document.getElementById('gmailDoneOk').textContent  = ok;
   document.getElementById('gmailDoneDup').textContent = dup;
