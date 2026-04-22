@@ -3052,7 +3052,10 @@ function doLogin() {
     switchTab('registroGeneral');
     // Cargar nombre comercial para el header
     gasJsonp('getConfig', {}).then(d => {
-      if (d.success) _applyHeaderDesktop(d.config || {});
+      if (d.success) {
+        _applyHeaderDesktop(d.config || {});
+        RUC_CLIENTE = (d.config && d.config.empresa_ruc) ? d.config.empresa_ruc.trim() : '';
+      }
     }).catch(() => {});
   } else {
     document.getElementById('loginError').style.display = 'block';
@@ -4133,7 +4136,7 @@ async function guardarNuevoIngreso() {
 // ══════════════════════════════════════════════════
 //  IA EGRESOS — leer factura con Claude
 // ══════════════════════════════════════════════════
-var RUC_CLIENTE    = '8-743-456';   // Iris Albelo Ho
+var RUC_CLIENTE    = '';   // se carga dinámicamente de getConfig → config.empresa_ruc
 var egresoFileB64  = null;
 var egresoFileMime = null;
 var egresoIAItems  = [];

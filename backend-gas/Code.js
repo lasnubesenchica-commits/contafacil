@@ -34,7 +34,7 @@ var CONFIG = {
   WA_NUM:            '50760909384',
   VOUCHER_FOLDER_ID: '1OiVyKh7HdyQUKPNB7EYu2UsOmdUCyyYd',
   ITBMS_RATE:        0.07,
-  RUC_CLIENTE:       '8-743-456',   // Iris Albelo Ho — detección auto alcance negocio/personal
+  // RUC_CLIENTE se lee dinámicamente de Config_Operaciones (empresa_ruc) — no hardcodear aquí
 };
 
 // Columnas Tab Ordenes (base 1)

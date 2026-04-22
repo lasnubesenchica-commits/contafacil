@@ -642,7 +642,8 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   fila[COL_PEND.DRIVE_URL - 1]   = driveUrl;
   var notasExtra = acreedor.ruc ? ' | RUC: ' + acreedor.ruc : '';
   var rucRec = String(parsed.ruc_receptor || '').replace(/\s/g, '');
-  var rucCli = String((CONFIG && CONFIG.RUC_CLIENTE) ? CONFIG.RUC_CLIENTE : '').replace(/\s/g, '');
+  var _cfgAcr = _getConfig();
+  var rucCli = String(_cfgAcr && _cfgAcr.empresa_ruc ? _cfgAcr.empresa_ruc : '').replace(/\s/g, '');
   var alcancePend = (rucRec && rucCli && rucRec === rucCli) ? 'negocio' : (rucRec ? 'personal' : 'negocio');
   fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra + ' | alcance:' + alcancePend;
   fila[COL_PEND.EGRESO_ID - 1]   = '';
