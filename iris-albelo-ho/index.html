@@ -8451,7 +8451,6 @@ async function gmailImport_procesar() {
   for (var i = 0; i < selected.length; i++) {
     var email = selected[i];
     try {
-      // Fetch full message with attachment data
       var mResp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/' + email.id + '?format=full', {
         headers: { Authorization: 'Bearer ' + _gmailToken }
       });
@@ -8461,13 +8460,21 @@ async function gmailImport_procesar() {
       if (!attachments.length) {
         errCount++;
       } else {
-        var att     = attachments[0];
-        var aResp   = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/' + email.id + '/attachments/' + att.id, {
-          headers: { Authorization: 'Bearer ' + _gmailToken }
-        });
-        var aData   = await aResp.json();
-        // Gmail uses URL-safe base64 — convert to standard
-        var base64  = (aData.data || '').replace(/-/g, '+').replace(/_/g, '/');
+        var att    = attachments[0];
+        var base64 = '';
+
+        if (att.inlineData) {
+          // Small attachment — data already present in the message
+          base64 = att.inlineData.replace(/-/g, '+').replace(/_/g, '/');
+        } else {
+          var aResp  = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/' + email.id + '/attachments/' + att.id, {
+            headers: { Authorization: 'Bearer ' + _gmailToken }
+          });
+          var aData  = await aResp.json();
+          base64 = (aData.data || '').replace(/-/g, '+').replace(/_/g, '/');
+        }
+
+        if (!base64) { errCount++; continue; }
 
         var gasResp = await fetch(GAS_URL, {
           method:  'POST',
@@ -8502,10 +8509,22 @@ async function gmailImport_procesar() {
 
 function _gmailFindAttachments(part, result) {
   result = result || [];
-  var mime = part.mimeType || '';
-  if (part.filename && part.body && part.body.attachmentId &&
-      (mime === 'application/pdf' || mime.startsWith('image/'))) {
-    result.push({ id: part.body.attachmentId, filename: part.filename, mimeType: mime });
+  var mime   = (part.mimeType || '').toLowerCase();
+  var fname  = part.filename  || '';
+  var fnLow  = fname.toLowerCase();
+  var isPdf  = mime === 'application/pdf' || mime === 'application/x-pdf' ||
+               fnLow.endsWith('.pdf');
+  var isImg  = mime.startsWith('image/') ||
+               fnLow.endsWith('.jpg') || fnLow.endsWith('.jpeg') || fnLow.endsWith('.png');
+  var isOctet = mime === 'application/octet-stream' && (fnLow.endsWith('.pdf') || fnLow.endsWith('.jpg') || fnLow.endsWith('.jpeg') || fnLow.endsWith('.png'));
+
+  if (fname && part.body && (isPdf || isImg || isOctet)) {
+    if (part.body.attachmentId) {
+      result.push({ id: part.body.attachmentId, filename: fname, mimeType: mime });
+    } else if (part.body.data) {
+      // Small inline attachment — base64 already available
+      result.push({ id: null, inlineData: part.body.data, filename: fname, mimeType: mime });
+    }
   }
   if (part.parts) part.parts.forEach(function(p) { _gmailFindAttachments(p, result); });
   return result;
