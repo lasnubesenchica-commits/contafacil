@@ -1127,67 +1127,24 @@ function _initAcresPendingSheet(ss) {
 //  GMAIL IMPORT — procesar UN mensaje (browser envía msgId + token)
 // ═══════════════════════════════════════════════════════════════
 function _handleProcesarEmailGmail(data) {
-  var token       = String(data.token       || '');
   var msgId       = String(data.msgId       || '');
-  var attId       = String(data.attId       || '');
   var attDataB64  = String(data.attData     || '');
   var attFilename = String(data.attFilename || '');
 
-  if (!token || !msgId) return _jsonAcr({ ok: false, error: 'token y msgId requeridos' });
-
+  if (!msgId || !attDataB64 || !attFilename) {
+    return _jsonAcr({ ok: false, error: 'msgId, attData y attFilename requeridos' });
+  }
   try {
-    var pdfBytes;
-    var fname = attFilename;
-
-    if (attFilename && (attId || attDataB64)) {
-      // Browser already located the attachment — just download its bytes
-      if (attDataB64) {
-        pdfBytes = Utilities.base64Decode(attDataB64.replace(/-/g,'+').replace(/_/g,'/'));
-      } else {
-        var aResp = UrlFetchApp.fetch(
-          'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msgId + '/attachments/' + attId,
-          { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true }
-        );
-        if (aResp.getResponseCode() !== 200) return _jsonAcr({ ok: false, error: 'Att ' + aResp.getResponseCode() });
-        var aJson = JSON.parse(aResp.getContentText());
-        pdfBytes  = Utilities.base64Decode((aJson.data || '').replace(/-/g,'+').replace(/_/g,'/'));
-      }
-    } else {
-      // Fallback: GAS fetches full message and walks MIME tree
-      var mResp = UrlFetchApp.fetch(
-        'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msgId + '?format=full',
-        { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true }
-      );
-      if (mResp.getResponseCode() !== 200) return _jsonAcr({ ok: false, error: 'Gmail ' + mResp.getResponseCode() });
-      var mFull = JSON.parse(mResp.getContentText());
-      var atts  = _gmailApiAtts(mFull.payload || {}, []);
-      if (!atts.length) {
-        Logger.log('no_pdf msgId=' + msgId);
-        return _jsonAcr({ ok: true, skipped: true, reason: 'no_pdf' });
-      }
-      var att = atts[0];
-      fname   = att.filename;
-      if (att.data) {
-        pdfBytes = Utilities.base64Decode(att.data.replace(/-/g,'+').replace(/_/g,'/'));
-      } else {
-        var a2Resp = UrlFetchApp.fetch(
-          'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msgId + '/attachments/' + att.id,
-          { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true }
-        );
-        var a2Json = JSON.parse(a2Resp.getContentText());
-        pdfBytes   = Utilities.base64Decode((a2Json.data || '').replace(/-/g,'+').replace(/_/g,'/'));
-      }
-    }
-
+    var pdfBytes = Utilities.base64Decode(attDataB64.replace(/-/g,'+').replace(/_/g,'/'));
     if (!pdfBytes || !pdfBytes.length) return _jsonAcr({ ok: true, skipped: true, reason: 'pdf_vacio' });
 
-    var clave = 'gmail:' + msgId + ':' + fname;
+    var clave = 'gmail:' + msgId + ':' + attFilename;
     if (_pendientePorMsgIdFileName(clave)) return _jsonAcr({ ok: true, skipped: true, reason: 'duplicado' });
 
     var pdfB64   = Utilities.base64Encode(pdfBytes);
-    var parsed   = _claudeParsearFacturaLibre(pdfB64, fname);
+    var parsed   = _claudeParsearFacturaLibre(pdfB64, attFilename);
     var acreedor = {
-      id: 'LIBRE', nombre: parsed.nombre_proveedor || fname,
+      id: 'LIBRE', nombre: parsed.nombre_proveedor || attFilename,
       ruc: parsed.ruc_proveedor || '', categoria_def: parsed.categoria_sugerida || ''
     };
     var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
@@ -1203,8 +1160,8 @@ function _handleProcesarEmailGmail(data) {
 
     var ss       = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var cfg      = _getConfig();
-    var driveUrl = _guardarPdfAcreedor(pdfBytes, fname, acreedor.nombre, cfg);
-    var id       = _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fname);
+    var driveUrl = _guardarPdfAcreedor(pdfBytes, attFilename, acreedor.nombre, cfg);
+    var id       = _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, attFilename);
 
     Logger.log('Gmail import OK: ' + acreedor.nombre + ' | ' + (parsed.num_factura || 'SN'));
     return _jsonAcr({ ok: true, id: id, nombre: acreedor.nombre, total: parsed.total || 0 });

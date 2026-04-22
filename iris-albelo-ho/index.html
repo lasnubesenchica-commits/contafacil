@@ -8467,7 +8467,7 @@ function _gmailUpdCount() {
   document.getElementById('gmailSelCount').textContent = _gmailSel.size + ' de ' + _gmailMsgs.length + ' seleccionados';
 }
 
-// Step 2 — send one email at a time to GAS, passing attId so GAS skips MIME parsing
+// Step 2 — browser downloads PDF bytes from Gmail, sends only base64 to GAS (no OAuth token in GAS call)
 async function gmailImport_procesar() {
   var sel = Array.from(_gmailSel).sort(function(a,b){return a-b;}).map(function(i){ return _gmailMsgs[i]; });
   if (!sel.length) return;
@@ -8478,16 +8478,34 @@ async function gmailImport_procesar() {
     var msg = sel[i];
     var att = msg.atts && msg.atts[0];
     document.getElementById('gmailProgBar').style.width = Math.round(i / sel.length * 100) + '%';
-    document.getElementById('gmailProgLabel').textContent = 'Procesando ' + (i+1) + ' / ' + sel.length + ' — ' + _gesc(msg.subject).substring(0, 40);
+    document.getElementById('gmailProgLabel').textContent = 'Descargando ' + (i+1) + ' / ' + sel.length + ' — ' + _gesc(msg.subject).substring(0, 40);
     try {
-      var payload = { action: 'procesarEmailGmail', token: _gmailToken, msgId: msg.id };
-      if (att) {
-        payload.attId       = att.attId   || '';
-        payload.attData     = att.data    || '';
-        payload.attFilename = att.filename || '';
-        payload.attMimeType = att.mimeType || '';
+      // Browser downloads attachment bytes directly using its own OAuth token
+      var attB64 = att && att.data ? att.data : '';
+      if (!attB64 && att && att.attId) {
+        var aResp = await fetch(
+          'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msg.id + '/attachments/' + att.attId,
+          { headers: { Authorization: 'Bearer ' + _gmailToken } }
+        );
+        if (!aResp.ok) throw new Error('Gmail att ' + aResp.status);
+        var aJson = await aResp.json();
+        attB64 = aJson.data || '';
       }
-      console.log('[gmail send]', msg.id, att ? {attId: att.attId, fn: att.filename, hasData: !!att.data} : 'NO_ATT');
+      if (!attB64) {
+        err++;
+        errLog.push({ subj: msg.subject, reason: 'empty_bytes' });
+        continue;
+      }
+      // Send only base64 bytes + metadata to GAS — no OAuth token needed
+      document.getElementById('gmailProgLabel').textContent = 'Procesando ' + (i+1) + ' / ' + sel.length + ' — ' + _gesc(msg.subject).substring(0, 40);
+      var payload = {
+        action:      'procesarEmailGmail',
+        msgId:       msg.id,
+        attData:     attB64,
+        attFilename: att ? (att.filename || '') : '',
+        attMimeType: att ? (att.mimeType  || '') : ''
+      };
+      console.log('[gmail send]', msg.id, { fn: att && att.filename, b64len: attB64.length });
       var resp = await fetch(GAS_URL, {
         method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
@@ -8498,11 +8516,12 @@ async function gmailImport_procesar() {
       else if (d.ok && d.reason==='duplicado'){ dup++; }
       else {
         err++;
-        errLog.push({ subj: msg.subject, att: att && att.filename, reason: d.reason || d.error || 'unknown' });
+        errLog.push({ subj: msg.subject, fn: att && att.filename, reason: d.reason || d.error || 'unknown' });
       }
     } catch(e2) {
       err++;
       errLog.push({ subj: msg.subject, reason: 'catch: ' + e2.message });
+      console.error('[gmail err]', msg.id, e2);
     }
   }
   if (errLog.length) console.warn('[gmail errores]', errLog);
