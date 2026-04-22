@@ -8489,7 +8489,7 @@ async function gmailImport_procesar() {
       }
       console.log('[gmail send]', msg.id, att ? {attId: att.attId, fn: att.filename, hasData: !!att.data} : 'NO_ATT');
       var resp = await fetch(GAS_URL, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
       var d = await resp.json();
