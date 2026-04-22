@@ -726,11 +726,10 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
       </div>
       <div class="pl-widgets">
         <div class="pl-widget"><div class="pl-w-lbl">Ingresos neto</div><div class="pl-w-val green" id="pl-w-ing">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem">sin ITBMS</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">Costos directos</div><div class="pl-w-val red" id="pl-w-egr">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-egr-sub">—</div></div>
         <div class="pl-widget"><div class="pl-w-lbl">Gastos operativos</div><div class="pl-w-val purple" id="pl-w-gas">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-gas-sub">—</div></div>
-        <div class="pl-widget"><div class="pl-w-lbl">Utilidad bruta</div><div class="pl-w-val green" id="pl-w-ubruta">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-ubruta-sub">—</div></div>
         <div class="pl-widget"><div class="pl-w-lbl">Utilidad neta</div><div class="pl-w-val indigo" id="pl-w-margen">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-margen-sub">tras gastos operativos</div></div>
         <div class="pl-widget"><div class="pl-w-lbl">ITBMS neto DGI</div><div class="pl-w-val" id="pl-w-itbms">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-itbms-sub">cobrado — pagado</div></div>
+        <div class="pl-widget" style="grid-column:1/-1"><div class="pl-w-lbl">Ticket promedio</div><div class="pl-w-val orange" id="pl-w-ticket">—</div><div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="pl-w-ticket-sub">—</div></div>
       </div>
       <!-- Toggle Consolidado / Detalle -->
       <div style="display:flex;gap:.35rem;padding:.1rem .85rem .55rem">
@@ -760,17 +759,12 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
           <span class="pl-stmt-val green" id="pl-s-ing">—</span>
         </div>
         <div class="pl-stmt-detail" id="pl-s-ing-detail"></div>
-        <!-- Costos directos — acordeón -->
-        <div class="pl-stmt-row accordeon" id="pl-s-costo-row" onclick="PL.toggleSection('cogs')">
+        <!-- Costos directos — oculto (no aplica a servicios) -->
+        <div class="pl-stmt-row accordeon" id="pl-s-costo-row" onclick="PL.toggleSection('cogs')" style="display:none">
           <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Costo de servicios</span>
           <span class="pl-stmt-val red" id="pl-s-costo">—</span>
         </div>
         <div class="pl-stmt-detail" id="pl-s-cogs-detail"></div>
-        <!-- Utilidad bruta — fila estática -->
-        <div class="pl-stmt-row subtotal">
-          <span class="pl-stmt-lbl">Utilidad bruta</span>
-          <span class="pl-stmt-val" id="pl-s-ubruta">—</span>
-        </div>
         <!-- Gastos operativos — acordeón -->
         <div class="pl-stmt-row accordeon" id="pl-s-gastos-row" onclick="PL.toggleSection('gas')">
           <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Gastos operativos</span>
@@ -789,7 +783,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
       <div id="pl-v-det" style="display:none">
       <div class="pl-toggle">
         <button class="pl-tbtn active" id="pl-tab-ing" onclick="PL.showTable('ing')">Ingresos</button>
-        <button class="pl-tbtn"        id="pl-tab-egr" onclick="PL.showTable('egr')">Costos</button>
+        <button class="pl-tbtn" id="pl-tab-egr" onclick="PL.showTable('egr')" style="display:none">Costos</button>
         <button class="pl-tbtn"        id="pl-tab-gas" onclick="PL.showTable('gas')">Gastos</button>
       </div>
       <div class="tx-list" id="pl-tx-list"></div>
@@ -1121,16 +1115,14 @@ const PL = (() => {
 
     // ── Widgets ────────────────────────────────────────────────
     document.getElementById('pl-w-ing').textContent      = fmt(d.subtotal);
-    document.getElementById('pl-w-egr').textContent      = fmt(d.cogs);
-    document.getElementById('pl-w-egr-sub').textContent  = d.subtotal > 0
-      ? ((d.cogs / d.subtotal) * 100).toFixed(1) + '% de ingresos' : '—';
     document.getElementById('pl-w-gas').textContent      = fmt(d.gastos);
     document.getElementById('pl-w-gas-sub').textContent  = d.subtotal > 0 && d.gastos > 0
       ? ((d.gastos / d.subtotal) * 100).toFixed(1) + '% de ingresos' : '—';
-    document.getElementById('pl-w-ubruta').textContent   = fmt(d.ub);
-    document.getElementById('pl-w-ubruta').className     = 'pl-w-val ' + (d.ub >= 0 ? 'green' : 'red');
-    document.getElementById('pl-w-ubruta-sub').textContent = d.subtotal > 0
-      ? (d.ub >= 0 ? '+' : '') + ((d.ub / d.subtotal) * 100).toFixed(1) + '%' : '—';
+    const nFacturas = (d.ingresos || []).length;
+    const ticket    = nFacturas > 0 ? d.subtotal / nFacturas : 0;
+    document.getElementById('pl-w-ticket').textContent     = ticket > 0 ? fmt(ticket) : '—';
+    document.getElementById('pl-w-ticket-sub').textContent = nFacturas > 0
+      ? nFacturas + ' factura' + (nFacturas !== 1 ? 's' : '') + ' en el período' : '—';
     document.getElementById('pl-w-margen').textContent   = fmt(d.un);
     document.getElementById('pl-w-margen').className     = 'pl-w-val ' + (d.un >= 0 ? 'indigo' : 'red');
     document.getElementById('pl-w-margen-sub').textContent = d.subtotal > 0
@@ -1145,9 +1137,6 @@ const PL = (() => {
 
     // ── Estado de Resultados — valores y detalles acordeón ─────
     document.getElementById('pl-s-ing').textContent     = fmt(d.subtotal);
-    document.getElementById('pl-s-costo').textContent   = d.cogs   ? '(' + fmt(d.cogs)   + ')' : '—';
-    document.getElementById('pl-s-ubruta').textContent  = fmt(d.ub);
-    document.getElementById('pl-s-ubruta').className    = 'pl-stmt-val ' + (d.ub >= 0 ? 'green' : 'red');
     document.getElementById('pl-s-gastos').textContent  = d.gastos ? '(' + fmt(d.gastos) + ')' : '—';
     document.getElementById('pl-s-uneta').textContent   = fmt(d.un);
     document.getElementById('pl-s-uneta').className     = 'pl-stmt-val ' + (d.un >= 0 ? 'indigo' : 'red');
@@ -1697,9 +1686,8 @@ const REG = (() => {
     try {
       const r = await jsonpGet('registrarEgresoOperativo', {
         fecha,
-        tipo:        'costo_operativo',
-        categoria:   document.getElementById('regEgrCat').value,
         tipo:        document.getElementById('regEgrCat').value,
+        categoria:   document.getElementById('regEgrCat').value,
         proveedor:   document.getElementById('regEgrProv').value.trim(),
         ruc_prov:    document.getElementById('regEgrRuc').value.trim(),
         dv_prov:     document.getElementById('regEgrDv').value.trim(),
