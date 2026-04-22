@@ -8344,7 +8344,7 @@ function _gmailRequestToken() {
   client.requestAccessToken();
 }
 
-// Step 1 — browser searches Gmail (fast, no GAS involved)
+// Step 1 — browser fetches full MIME structure to extract attachment IDs directly
 async function gmailImport_buscar() {
   _gmailShowStep(1);
   try {
@@ -8365,18 +8365,32 @@ async function gmailImport_buscar() {
       return;
     }
 
-    // Fetch metadata for each message (subject, from, date)
+    // Fetch full MIME tree for each message so browser can extract attachment IDs
     var metaList = [];
     for (var i = 0; i < Math.min(messages.length, 50); i++) {
       var mResp = await fetch(
-        'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + messages[i].id +
-        '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date',
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + messages[i].id + '?format=full',
         { headers: { Authorization: 'Bearer ' + _gmailToken } }
       );
       var mData = await mResp.json();
       var hdrs  = {};
       (mData.payload && mData.payload.headers || []).forEach(function(h) { hdrs[h.name] = h.value; });
-      metaList.push({ id: messages[i].id, subject: hdrs['Subject'] || '(sin asunto)', from: hdrs['From'] || '', date: hdrs['Date'] || '', snippet: mData.snippet || '' });
+      var atts = _gmailBrowserAtts(mData.payload || {}, []);
+      if (!atts.length) continue; // skip emails without a PDF/image attachment
+      metaList.push({
+        id: messages[i].id,
+        subject: hdrs['Subject'] || '(sin asunto)',
+        from: hdrs['From'] || '',
+        date: hdrs['Date'] || '',
+        snippet: mData.snippet || '',
+        atts: atts
+      });
+    }
+    if (!metaList.length) {
+      document.getElementById('gmailEmailList').innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.8rem">Los correos encontrados no tienen adjuntos PDF procesables.</div>';
+      document.getElementById('gmailSelCount').textContent = '0 con PDF';
+      _gmailShowStep(2);
+      return;
     }
     _gmailMsgs = metaList;
     _gmailRenderLista();
@@ -8387,12 +8401,42 @@ async function gmailImport_buscar() {
   }
 }
 
+// Browser-side MIME tree walker — same logic as GAS _gmailApiAtts
+function _gmailBrowserAtts(part, result) {
+  var mime  = (part.mimeType || '').toLowerCase();
+  var fname = part.filename  || '';
+  if (!fname && part.headers) {
+    for (var h = 0; h < part.headers.length; h++) {
+      var hn = (part.headers[h].name  || '').toLowerCase();
+      var hv =  part.headers[h].value || '';
+      if (hn === 'content-disposition' || hn === 'content-type') {
+        var m = hv.match(/(?:filename|name)\*?=["']?(?:utf-8'')?([^"';\s]+)/i);
+        if (m) { try { fname = decodeURIComponent(m[1]); } catch(_) { fname = m[1]; } break; }
+      }
+    }
+  }
+  var fnLow = fname.toLowerCase();
+  var isPdf = mime === 'application/pdf' || mime === 'application/x-pdf' || fnLow.endsWith('.pdf');
+  var isImg = mime.startsWith('image/') || /\.(jpe?g|png)$/.test(fnLow);
+  var isOct = mime === 'application/octet-stream' && /\.(pdf|jpe?g|png)$/.test(fnLow);
+  if ((isPdf || isImg || isOct) && part.body && (part.body.attachmentId || part.body.data)) {
+    if (!fname) fname = isPdf ? 'adjunto.pdf' : 'adjunto.jpg';
+    var entry = { filename: fname, mimeType: mime };
+    if (part.body.attachmentId) entry.attId = part.body.attachmentId;
+    else                        entry.data  = part.body.data;
+    result.push(entry);
+  }
+  if (part.parts) { for (var i = 0; i < part.parts.length; i++) _gmailBrowserAtts(part.parts[i], result); }
+  return result;
+}
+
 function _gmailRenderLista() {
   var cont = document.getElementById('gmailEmailList');
   cont.innerHTML = _gmailMsgs.map(function(e, i) {
     var d = new Date(e.date);
     var ds = isNaN(d.getTime()) ? e.date.substring(0,16) :
       (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+    var attLabel = e.atts && e.atts.length ? '<span style="font-size:.67rem;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:0 .35rem">' + _gesc(e.atts[0].filename) + '</span>' : '';
     return '<label style="display:flex;align-items:flex-start;gap:.55rem;padding:.5rem .65rem;border-bottom:1px solid var(--border);cursor:pointer">' +
       '<input type="checkbox" data-idx="' + i + '" style="margin-top:.2rem;flex-shrink:0" onchange="gmailToggle(' + i + ',this.checked)" checked>' +
       '<div style="flex:1;min-width:0">' +
@@ -8400,7 +8444,7 @@ function _gmailRenderLista() {
           '<span style="font-size:.7rem;color:var(--muted);flex-shrink:0">' + ds + '</span>' +
           '<span style="font-weight:600;font-size:.77rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(e.subject) + '</span>' +
         '</div>' +
-        '<div style="font-size:.71rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(e.from) + '</div>' +
+        '<div style="font-size:.71rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(e.from) + ' ' + attLabel + '</div>' +
       '</div></label>';
   }).join('');
   _gmailSel = new Set(_gmailMsgs.map(function(_,i){ return i; }));
@@ -8423,30 +8467,33 @@ function _gmailUpdCount() {
   document.getElementById('gmailSelCount').textContent = _gmailSel.size + ' de ' + _gmailMsgs.length + ' seleccionados';
 }
 
-// Step 2 — process each selected email individually via GAS (one call per email, ~10s each)
+// Step 2 — send one email at a time to GAS, passing attId so GAS skips MIME parsing
 async function gmailImport_procesar() {
   var sel = Array.from(_gmailSel).sort(function(a,b){return a-b;}).map(function(i){ return _gmailMsgs[i]; });
   if (!sel.length) return;
   _gmailShowStep(3);
   var ok = 0, dup = 0, err = 0;
   for (var i = 0; i < sel.length; i++) {
-    var pct = Math.round(i / sel.length * 100);
-    document.getElementById('gmailProgBar').style.width = pct + '%';
-    document.getElementById('gmailProgLabel').textContent = 'Procesando ' + (i+1) + ' / ' + sel.length + ' — ' + _gesc(sel[i].subject).substring(0, 40);
+    var msg = sel[i];
+    var att = msg.atts && msg.atts[0];
+    document.getElementById('gmailProgBar').style.width = Math.round(i / sel.length * 100) + '%';
+    document.getElementById('gmailProgLabel').textContent = 'Procesando ' + (i+1) + ' / ' + sel.length + ' — ' + _gesc(msg.subject).substring(0, 40);
     try {
+      var payload = { action: 'procesarEmailGmail', token: _gmailToken, msgId: msg.id };
+      if (att) {
+        payload.attId       = att.attId   || '';
+        payload.attData     = att.data    || '';
+        payload.attFilename = att.filename || '';
+        payload.attMimeType = att.mimeType || '';
+      }
       var resp = await fetch(GAS_URL, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'procesarEmailGmail', token: _gmailToken, msgId: sel[i].id })
+        body: JSON.stringify(payload)
       });
       var d = await resp.json();
-      if (d.ok && !d.skipped)                           { ok++;  }
-      else if (d.ok && d.reason === 'duplicado')        { dup++; }
-      else if (d.ok && d.reason === 'no_pdf') {
-        err++;
-        if (d._dbg) console.log('[gmail no_pdf] msgId=' + sel[i].id, d._dbg);
-      }
-      else if (d.ok && d.reason)                        { err++; }
-      else                                               { err++; }
+      if (d.ok && !d.skipped)                { ok++;  }
+      else if (d.ok && d.reason==='duplicado'){ dup++; }
+      else                                   { err++;  }
     } catch(_) { err++; }
   }
   document.getElementById('gmailProgBar').style.width = '100%';
