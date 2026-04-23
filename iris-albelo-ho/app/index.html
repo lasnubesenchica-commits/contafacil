@@ -1634,6 +1634,9 @@ const REG = (() => {
   }
 
   // ── Procesar archivo ingreso ──────────────────────────
+  let _ingFileB64  = null;
+  let _ingFileMime = null;
+
   async function _procesarArchivoIng(file) {
     const zone   = document.getElementById('regIngZone');
     const lbl    = document.getElementById('regIngZoneLbl');
@@ -1652,6 +1655,8 @@ const REG = (() => {
         try { const r = await _comprimirImg(ev.target.result, 1200); b64 = r.split(',')[1]; mime = 'image/jpeg'; }
         catch(e) {}
       }
+      _ingFileB64  = b64;
+      _ingFileMime = mime;
       try {
         const r = await fetch(GAS_URL, {
           method: 'POST',
@@ -1721,6 +1726,7 @@ const REG = (() => {
     document.getElementById('regIngZoneLbl').textContent = 'Adjuntar comprobante — Yappy, transferencia o factura';
     document.getElementById('regIngAIStatus').style.display = 'none';
     document.getElementById('regIngFile').value         = '';
+    _ingFileB64 = null; _ingFileMime = null;
     openModal('mRegIngreso');
   }
 
@@ -1787,6 +1793,21 @@ const REG = (() => {
       if (!r.success) throw new Error(r.error || 'Error al guardar');
       toast('Ingreso registrado ✓', 'ok');
       closeModal('mRegIngreso');
+      if (_ingFileB64) {
+        const ext      = _ingFileMime === 'application/pdf' ? 'pdf' : 'jpg';
+        const fileName = (r.ingresoId || 'ingreso') + '.' + ext;
+        fetch(GAS_URL, {
+          method:  'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body:    JSON.stringify({ action: 'subirFacturaIngreso', ingreso_id: r.ingresoId, file_b64: _ingFileB64, file_mime: _ingFileMime, file_name: fileName }),
+        })
+          .then(res => res.json())
+          .then(d => {
+            if (d.success) toast('📄 Comprobante guardado en Drive', 'ok');
+            else toast('⚠️ Drive: ' + (d.error || 'Error al subir'), 'err');
+          })
+          .catch(err => toast('⚠️ Red: ' + err.message, 'err'));
+      }
     } catch(e) { toast('Error: ' + e.message, 'err'); }
     btn.disabled = false; btn.textContent = 'Guardar ingreso';
   }
