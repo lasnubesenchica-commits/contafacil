@@ -408,7 +408,8 @@ function _claudeParsearFacturaAcreedor(pdfB64, acreedor) {
 //  CLAUDE — parsear factura sin acreedor previo (modo libre)
 // ═══════════════════════════════════════════════════════════════
 
-function _claudeParsearFacturaLibre(pdfB64, fileName) {
+function _claudeParsearFacturaLibre(pdfB64, fileName, mediaType) {
+  mediaType = mediaType || 'application/pdf';
   var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
 
@@ -430,13 +431,13 @@ function _claudeParsearFacturaLibre(pdfB64, fileName) {
     '- confianza_categoria: 0-100, qué tan seguro estás de la categoría.\n' +
     '- Si un campo no es visible usar null. Montos como números sin símbolo de moneda.';
 
+  var contentBlock = mediaType === 'application/pdf'
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } }
+    : { type: 'image',    source: { type: 'base64', media_type: mediaType,          data: pdfB64 } };
   var payload = {
     model:      'claude-sonnet-4-6',
     max_tokens: 600,
-    messages: [{ role: 'user', content: [
-      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } },
-      { type: 'text', text: prompt }
-    ]}]
+    messages: [{ role: 'user', content: [ contentBlock, { type: 'text', text: prompt } ]}]
   };
   var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json',
@@ -1126,6 +1127,20 @@ function _initAcresPendingSheet(ss) {
 // ═══════════════════════════════════════════════════════════════
 //  GMAIL IMPORT — procesar UN mensaje (browser envía msgId + token)
 // ═══════════════════════════════════════════════════════════════
+function _gmailDetectMime(bytes) {
+  if (!bytes || bytes.length < 4) return null;
+  var b = bytes;
+  if (b[0]===0x25 && b[1]===0x50 && b[2]===0x44 && b[3]===0x46) return 'application/pdf';
+  if (b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF)                 return 'image/jpeg';
+  if (b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47) return 'image/png';
+  if (b[0]===0x50 && b[1]===0x4B)                                 return 'application/zip';
+  var hdr = '';
+  for (var i=0; i<Math.min(bytes.length,10); i++) hdr += String.fromCharCode(bytes[i]);
+  if (hdr.indexOf('<?xml')===0 || hdr.indexOf('<?XML')===0 || hdr.indexOf('<fac')===0) return 'text/xml';
+  if (hdr.toLowerCase().indexOf('<!doc')===0 || hdr.toLowerCase().indexOf('<html')===0) return 'text/html';
+  return null;
+}
+
 function _handleProcesarEmailGmail(data) {
   var msgId       = String(data.msgId       || '');
   var attDataB64  = String(data.attData     || '');
@@ -1138,11 +1153,20 @@ function _handleProcesarEmailGmail(data) {
     var pdfBytes = Utilities.base64Decode(attDataB64.replace(/-/g,'+').replace(/_/g,'/'));
     if (!pdfBytes || !pdfBytes.length) return _jsonAcr({ ok: true, skipped: true, reason: 'pdf_vacio' });
 
+    var mime = _gmailDetectMime(pdfBytes);
+    if (!mime) return _jsonAcr({ ok: true, skipped: true, reason: 'formato_desconocido' });
+    if (mime === 'text/xml')       return _jsonAcr({ ok: true, skipped: true, reason: 'xml_no_soportado' });
+    if (mime === 'text/html')      return _jsonAcr({ ok: true, skipped: true, reason: 'html_no_soportado' });
+    if (mime === 'application/zip') return _jsonAcr({ ok: true, skipped: true, reason: 'zip_no_soportado' });
+    if (mime !== 'application/pdf' && !mime.startsWith('image/')) {
+      return _jsonAcr({ ok: true, skipped: true, reason: 'formato_no_soportado' });
+    }
+
     var clave = 'gmail:' + msgId + ':' + attFilename;
     if (_pendientePorMsgIdFileName(clave)) return _jsonAcr({ ok: true, skipped: true, reason: 'duplicado' });
 
     var pdfB64   = Utilities.base64Encode(pdfBytes);
-    var parsed   = _claudeParsearFacturaLibre(pdfB64, attFilename);
+    var parsed   = _claudeParsearFacturaLibre(pdfB64, attFilename, mime);
     var acreedor = {
       id: 'LIBRE', nombre: parsed.nombre_proveedor || attFilename,
       ruc: parsed.ruc_proveedor || '', categoria_def: parsed.categoria_sugerida || ''

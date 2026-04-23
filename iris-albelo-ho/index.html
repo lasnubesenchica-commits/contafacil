@@ -8603,11 +8603,16 @@ async function gmailImport_procesar() {
   document.getElementById('gmailDoneErr').textContent = err;
 
   var reasonLabels = {
-    'no_pdf':      'sin adjunto PDF',
-    'pdf_vacio':   'adjunto vacío',
-    'duplicado':   'duplicada',
-    'empty_bytes': 'no se pudo descargar',
-    'unknown':     'error desconocido'
+    'no_pdf':               'sin adjunto PDF',
+    'pdf_vacio':            'adjunto vacío',
+    'duplicado':            'duplicada',
+    'empty_bytes':          'no se pudo descargar',
+    'xml_no_soportado':     'factura XML (no soportado aún)',
+    'html_no_soportado':    'archivo HTML (no es factura)',
+    'zip_no_soportado':     'archivo ZIP (no soportado)',
+    'formato_no_soportado': 'formato no compatible',
+    'formato_desconocido':  'formato desconocido',
+    'unknown':              'error desconocido'
   };
   var errListEl  = document.getElementById('gmailDoneErrList');
   var errItemsEl = document.getElementById('gmailDoneErrItems');
