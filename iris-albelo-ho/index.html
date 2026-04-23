@@ -8597,11 +8597,39 @@ async function gmailImport_procesar() {
       else { err++; errLog.push({ subj: msg.subject, reason: d.reason || d.error || 'unknown' }); }
     } catch(e2) { err++; errLog.push({ subj: msg.subject, reason: 'catch: ' + e2.message }); }
   }
-  if (errLog.length) console.warn('[gmail errores]', errLog);
   document.getElementById('gmailProgBar').style.width = '100%';
   document.getElementById('gmailDoneOk').textContent  = ok;
   document.getElementById('gmailDoneDup').textContent = dup;
   document.getElementById('gmailDoneErr').textContent = err;
+
+  var reasonLabels = {
+    'no_pdf':               'sin adjunto PDF',
+    'pdf_vacio':            'adjunto vacío',
+    'duplicado':            'duplicada',
+    'empty_bytes':          'no se pudo descargar',
+    'xml_no_soportado':     'factura XML (no soportado aún)',
+    'html_no_soportado':    'archivo HTML (no es factura)',
+    'zip_no_soportado':     'archivo ZIP (no soportado)',
+    'formato_no_soportado': 'formato no compatible',
+    'formato_desconocido':  'formato desconocido',
+    'unknown':              'error desconocido'
+  };
+  var errListEl  = document.getElementById('gmailDoneErrList');
+  var errItemsEl = document.getElementById('gmailDoneErrItems');
+  if (errLog.length) {
+    errItemsEl.innerHTML = errLog.map(function(e) {
+      var why = reasonLabels[e.reason] || e.reason || 'error';
+      return '<div style="display:flex;gap:.4rem;align-items:flex-start;padding:.3rem .4rem;background:var(--bg);border-radius:6px;font-size:.75rem">' +
+        '<span style="color:var(--orange);flex-shrink:0">⚠</span>' +
+        '<div><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px">' + _gesc(e.subj) + '</div>' +
+        '<div style="color:var(--muted)">' + _gesc(why) + '</div></div>' +
+        '</div>';
+    }).join('');
+    errListEl.style.display = '';
+  } else {
+    errListEl.style.display = 'none';
+  }
+
   _gmailShowStep(4);
   if (ok > 0) setTimeout(function() { acrSincronizar(); }, 1000);
 }
@@ -8811,18 +8839,29 @@ function _gesc(s) {
 
       <!-- Step 4: Done -->
       <div id="gmailStep4" style="display:none">
-        <div style="text-align:center;padding:1.5rem 0">
-          <div style="font-size:2rem;margin-bottom:.65rem">🎉</div>
-          <div style="font-size:.98rem;font-weight:700;margin-bottom:.65rem">¡Importación completada!</div>
-          <div style="display:grid;gap:.35rem;font-size:.83rem;margin:.5rem auto;max-width:260px;text-align:left">
-            <div>✅ <span style="color:var(--green);font-weight:700" id="gmailDoneOk">0</span> facturas importadas como pendientes</div>
-            <div>🔁 <span style="color:#1565C0;font-weight:700" id="gmailDoneDup">0</span> duplicadas (ya existían)</div>
-            <div>⚠ <span style="color:var(--orange);font-weight:700" id="gmailDoneErr">0</span> sin adjunto PDF procesable</div>
+        <div style="padding:1.5rem 0 .5rem">
+          <div style="text-align:center">
+            <div style="font-size:2rem;margin-bottom:.65rem">🎉</div>
+            <div style="font-size:.98rem;font-weight:700;margin-bottom:.65rem">¡Importación completada!</div>
+            <div style="display:grid;gap:.35rem;font-size:.83rem;margin:.5rem auto;max-width:260px;text-align:left">
+              <div>✅ <span style="color:var(--green);font-weight:700" id="gmailDoneOk">0</span> facturas importadas como pendientes</div>
+              <div>🔁 <span style="color:#1565C0;font-weight:700" id="gmailDoneDup">0</span> duplicadas (ya existían)</div>
+              <div>⚠ <span style="color:var(--orange);font-weight:700" id="gmailDoneErr">0</span> no procesadas</div>
+            </div>
           </div>
-          <p style="font-size:.78rem;color:var(--muted);margin-top:.65rem;line-height:1.5">Revisa los pendientes y aprueba los que correspondan.</p>
-          <button onclick="gmailImport_close()" style="margin-top:.85rem;padding:.5rem 1.75rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
-            ✓ Cerrar
-          </button>
+          <div id="gmailDoneErrList" style="display:none;margin-top:.85rem">
+            <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;letter-spacing:.04em">CORREOS NO PROCESADOS</div>
+            <div id="gmailDoneErrItems" style="display:grid;gap:.3rem;max-height:160px;overflow-y:auto"></div>
+          </div>
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.85rem;line-height:1.5;text-align:center">Revisa los pendientes y aprueba los que correspondan.</p>
+          <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.85rem">
+            <button onclick="_gmailShowStep(0)" style="padding:.45rem 1rem;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer">
+              ← Nueva búsqueda
+            </button>
+            <button onclick="gmailImport_close()" style="padding:.45rem 1.25rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer">
+              ✓ Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </div>
