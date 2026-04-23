@@ -236,6 +236,8 @@ function doPost(e) {
     if (action === 'importarHistorialGmail')      return _handleImportarHistorialGmail(data);
     if (action === 'procesarEmailGmail')          return _handleProcesarEmailGmail(data);
     if (action === 'categorizarEmailsGmail')      return _handleCategorizarEmailsGmail(data);
+    if (action === 'categorizarTransaccionesOFX') return _handleCategorizarTransaccionesOFX(data);
+    if (action === 'importarLoteOFX')             return _handleImportarLoteOFX(data);
 
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';

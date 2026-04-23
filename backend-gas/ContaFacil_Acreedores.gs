@@ -1554,6 +1554,147 @@ function _handleImportarFacturaGmail(data) {
   }
 }
 
+// ── OFX Handlers ──────────────────────────────────────────────
+function _handleCategorizarTransaccionesOFX(data) {
+  var transacciones = data.transacciones || [];
+  if (!transacciones.length) return _jsonAcr({ ok: true, result: [] });
+
+  var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) return _jsonAcr({ ok: false, error: 'CLAUDE_API_KEY no configurada' });
+
+  var cats = [
+    'restaurantes: Restaurantes, comida rápida, delivery de comida, cafeterías',
+    'alimentacion: Supermercados, tiendas de alimentos, Riba Smith, El Rey, Super 99',
+    'retail: Ferreterías, tiendas de ropa, compras generales, farmacias, Romero',
+    'combustible: Gasolineras, estaciones de servicio, Texaco, Shell, Delta, Puma',
+    'tecnologia: Software, apps, suscripciones digitales, AWS, Google, Meta, Facebook, telecomunicaciones',
+    'publicidad: Publicidad digital, Facebook Ads, Google Ads, FACEBK, Meta, marketing',
+    'salud: Farmacias, clínicas, médicos, laboratorios, Arrocha, Farmacias Metro',
+    'entretenimiento: Entretenimiento, viajes, hoteles, turismo, Netflix, Spotify',
+    'servicios: Servicios públicos, agua, electricidad, gas, ASSA, Cable Onda, INET',
+    'educacion: Colegios, universidades, cursos, libros académicos',
+    'transferencias: Transferencias entre cuentas, YAPPY, Banca Móvil, ACH, pagos internos',
+    'cargos_bancarios: Comisiones bancarias, intereses, cargos del banco, cuota mantenimiento',
+    'otro: Categoría no identificada o ambigua'
+  ].join('\n');
+
+  var txJson = transacciones.map(function(t) {
+    return JSON.stringify({ idx: t.idx, memo: String(t.memo || '').substring(0, 100), monto: t.monto });
+  }).join(',\n');
+
+  var prompt = 'Eres un clasificador de transacciones bancarias de Banco General Panamá.\n\n' +
+    'Los MEMO de las transacciones suelen ser códigos truncados, ejemplos:\n' +
+    '- "REST. EL MESON DEL PRA-4187-94XX-XXXX" → restaurantes\n' +
+    '- "FACEBK E4XMBLDQY2" → publicidad\n' +
+    '- "YAPPY BG A NOMBRE" → transferencias\n' +
+    '- "BANCA MOVIL TRANSFERENCIA" → transferencias\n' +
+    '- "FARMACIA ARROCHA" → salud\n' +
+    '- "TEXACO 123" → combustible\n\n' +
+    'CATEGORÍAS:\n' + cats + '\n\n' +
+    'TAREA: Para cada transacción, asigna la categoría más apropiada e identifica el nombre limpio del proveedor/comercio.\n' +
+    'El campo "proveedor" debe ser el nombre comercial del negocio (sin números de tarjeta ni códigos bancarios).\n' +
+    'Si es una transferencia interna (YAPPY, Banca Móvil, ACH), el proveedor debe ser el nombre de la persona/empresa destino si aparece.\n\n' +
+    'TRANSACCIONES:\n[' + txJson + ']\n\n' +
+    'Responde ÚNICAMENTE con un array JSON válido, sin texto antes ni después:\n' +
+    '[{"idx":0,"categoria":"restaurantes","proveedor":"Nombre Comercial"},...]';
+
+  var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    payload: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }),
+    muteHttpExceptions: true
+  });
+
+  if (resp.getResponseCode() !== 200) {
+    Logger.log('categorizarOFX Claude error: ' + resp.getContentText().substring(0, 200));
+    return _jsonAcr({ ok: false, error: 'Claude API error ' + resp.getResponseCode() });
+  }
+
+  var text = '';
+  var content = (JSON.parse(resp.getContentText()).content || []);
+  for (var i = 0; i < content.length; i++) { if (content[i].type === 'text') { text = content[i].text; break; } }
+
+  var jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return _jsonAcr({ ok: false, error: 'Claude no retornó JSON válido' });
+
+  return _jsonAcr({ ok: true, result: JSON.parse(jsonMatch[0]) });
+}
+
+function _handleImportarLoteOFX(data) {
+  var transacciones = data.transacciones || [];
+  if (!transacciones.length) return _jsonAcr({ ok: false, error: 'Sin transacciones' });
+
+  try {
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_ACREEDORES_PENDING);
+    if (!sheet) return _jsonAcr({ ok: false, error: 'Hoja Acreedores_Pending no encontrada' });
+
+    var lastRow   = sheet.getLastRow();
+    var existFITs = {};
+    if (lastRow >= 3) {
+      var numFacCol = sheet.getRange(3, COL_PEND.NUM_FAC, lastRow - 2, 1).getValues();
+      for (var r = 0; r < numFacCol.length; r++) {
+        var v = String(numFacCol[r][0] || '');
+        if (v.indexOf('ofx:') === 0) existFITs[v] = true;
+      }
+    }
+
+    var ids = lastRow >= 3 ? sheet.getRange(3, COL_PEND.ID, lastRow - 2, 1).getValues() : [];
+    var maxId = 0;
+    for (var j = 0; j < ids.length; j++) {
+      var n = parseInt(String(ids[j][0]).replace(/\D/g, ''), 10);
+      if (!isNaN(n) && n > maxId) maxId = n;
+    }
+
+    var inserted = 0, skipped = 0;
+    var nuevasFila = [];
+
+    for (var t = 0; t < transacciones.length; t++) {
+      var tx       = transacciones[t];
+      var fitKey   = 'ofx:' + String(tx.fitid || '');
+      if (existFITs[fitKey]) { skipped++; continue; }
+
+      maxId++;
+      var alcance  = String(tx.alcance || 'negocio');
+      var fila     = new Array(PEND_NCOLS);
+      for (var x = 0; x < PEND_NCOLS; x++) fila[x] = '';
+
+      fila[COL_PEND.ID - 1]          = maxId;
+      fila[COL_PEND.FECHA_REG - 1]   = new Date();
+      fila[COL_PEND.ESTADO - 1]      = 'borrador';
+      fila[COL_PEND.ACREEDOR_ID - 1] = '';
+      fila[COL_PEND.ACREEDOR_NOM -1] = String(tx.proveedor || tx.memo || 'Sin nombre');
+      fila[COL_PEND.FECHA_FAC - 1]   = String(tx.fecha || '');
+      fila[COL_PEND.NUM_FAC - 1]     = fitKey;
+      fila[COL_PEND.SUBTOTAL - 1]    = parseFloat(tx.monto) || 0;
+      fila[COL_PEND.ITBMS - 1]       = 0;
+      fila[COL_PEND.TOTAL - 1]       = parseFloat(tx.monto) || 0;
+      fila[COL_PEND.CATEGORIA - 1]   = String(tx.categoria || 'otro');
+      fila[COL_PEND.DESCRIPCION - 1] = String(tx.memo || tx.proveedor || '');
+      fila[COL_PEND.DRIVE_URL - 1]   = '';
+      fila[COL_PEND.NOTAS - 1]       = 'ofx_import | alcance:' + alcance;
+      fila[COL_PEND.EGRESO_ID - 1]   = '';
+      fila[COL_PEND.MSG_ID - 1]      = fitKey;
+
+      nuevasFila.push(fila);
+      existFITs[fitKey] = true;
+      inserted++;
+    }
+
+    if (nuevasFila.length) {
+      var startRow = sheet.getLastRow() + 1;
+      sheet.getRange(startRow, 1, nuevasFila.length, PEND_NCOLS).setValues(nuevasFila);
+    }
+
+    Logger.log('OFX import: ' + inserted + ' insertadas, ' + skipped + ' duplicadas');
+    return _jsonAcr({ ok: true, inserted: inserted, skipped: skipped });
+  } catch(e) {
+    Logger.log('Error _handleImportarLoteOFX: ' + e.message);
+    return _jsonAcr({ ok: false, error: e.message });
+  }
+}
+
 // ── Micro-helpers ─────────────────────────────────────────────
 function _jsonpAcr(obj, callback) {
   var json = JSON.stringify(obj);
