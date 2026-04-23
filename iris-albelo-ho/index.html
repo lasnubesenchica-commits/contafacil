@@ -4238,8 +4238,11 @@ async function guardarNuevoIngreso() {
         body:    JSON.stringify({ action: 'subirFacturaIngreso', ingreso_id: data.ingresoId, file_b64: ingresoFileB64, file_mime: ingresoFileMime, file_name: fileName }),
       })
         .then(r => r.json())
-        .then(d => { if (d.success) showToast('📄 Comprobante guardado en Drive'); })
-        .catch(() => {})
+        .then(d => {
+          if (d.success) showToast('📄 Comprobante guardado en Drive');
+          else showToast('⚠️ Drive: ' + (d.error || 'Error al subir comprobante'));
+        })
+        .catch(err => showToast('⚠️ Red: ' + err.message))
         .finally(() => {
           ingItems = [];
           loadIngresos().then(() => { if (typeof rgRenderIng === 'function' && rg_initialized) rgRenderIng(); });
