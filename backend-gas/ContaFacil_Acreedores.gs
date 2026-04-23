@@ -104,6 +104,7 @@ function doPost_Acreedores(action, data) {
   if (action === 'analizarFacturaAcreedor')    return _handleAnalizarFacturaAcreedor(data);
   if (action === 'actualizarPendienteAcr')     return _handleActualizarPendienteAcr(data);
   if (action === 'guardarPreferenciaAcreedor') return _handleGuardarPreferencia(data);
+  if (action === 'actualizarAlcanceEgreso')    return _handleActualizarAlcanceEgreso(data);
   return null;
 }
 
@@ -1038,6 +1039,13 @@ function _handleActualizarPendienteAcr(data) {
       if (data.total)       sheet.getRange(rowNum, COL_PEND.TOTAL).setValue(parseFloat(data.total)||0);
       if (data.itbms)       sheet.getRange(rowNum, COL_PEND.ITBMS).setValue(parseFloat(data.itbms)||0);
       if (data.subtotal)    sheet.getRange(rowNum, COL_PEND.SUBTOTAL).setValue(parseFloat(data.subtotal)||0);
+      if (data.alcance) {
+        var notas = String(sheet.getRange(rowNum, COL_PEND.NOTAS).getValue() || '');
+        notas = notas.match(/\balcance:(negocio|personal)\b/)
+          ? notas.replace(/\balcance:(negocio|personal)\b/, 'alcance:' + data.alcance)
+          : notas + ' | alcance:' + data.alcance;
+        sheet.getRange(rowNum, COL_PEND.NOTAS).setValue(notas);
+      }
       found = true; break;
     }
     if (!found) throw new Error('Pendiente no encontrado: ' + id);
@@ -1555,6 +1563,29 @@ function _handleImportarFacturaGmail(data) {
 }
 
 // ── OFX Handlers ──────────────────────────────────────────────
+function _handleActualizarAlcanceEgreso(data) {
+  try {
+    var id      = String(data.id      || '').trim();
+    var alcance = String(data.alcance || '').trim();
+    if (!id || (alcance !== 'negocio' && alcance !== 'personal'))
+      throw new Error('id y alcance (negocio|personal) requeridos');
+    var ss     = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet  = ss.getSheetByName(SHEET_EGRESOS);
+    if (!sheet) throw new Error('Hoja Egresos no encontrada');
+    var numRows = sheet.getLastRow() - 1;
+    if (numRows <= 0) throw new Error('Sin egresos');
+    var ids = sheet.getRange(2, COL_E.ID, numRows, 1).getValues();
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]).trim() !== id) continue;
+      sheet.getRange(i + 2, COL_E.ALCANCE).setValue(alcance);
+      return _jsonAcr({ success: true });
+    }
+    throw new Error('Egreso no encontrado: ' + id);
+  } catch(e) {
+    return _jsonAcr({ success: false, error: e.message });
+  }
+}
+
 function _handleCategorizarTransaccionesOFX(data) {
   var transacciones = data.transacciones || [];
   if (!transacciones.length) return _jsonAcr({ ok: true, result: [] });

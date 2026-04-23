@@ -5682,7 +5682,8 @@ function rgRenderEgr() {
     .filter(e => String(e.estado||'').toLowerCase() !== 'anulado')
     .map(e => ({
       _tipo:      'registrado',
-      _esEmail:   String(e.notas||'').startsWith('acreedor_auto'),
+      _esEmail:   String(e.notas||'').startsWith('acreedor_auto') && !String(e.notas||'').includes('ofx_import'),
+      _esOFX:     String(e.notas||'').includes('ofx_import'),
       fecha:      String(e.fecha_egreso||'').substring(0,10),
       proveedor:  e.proveedor || '—',
       num_fac:    e.num_fac_ref || '—',
@@ -5702,6 +5703,7 @@ function rgRenderEgr() {
     .filter(i => i.estado === 'borrador')
     .map(i => ({
       _tipo:      'pendiente',
+      _esOFX:     String(i.notas||'').startsWith('ofx_import'),
       fecha:      String(i.fecha_fac||'').substring(0,10),
       proveedor:  i.acreedor_nom || '—',
       num_fac:    i.num_fac || '—',
@@ -5830,9 +5832,11 @@ function rgRenderEgr() {
     const isSel       = _rgEgrSel.has(i._id);
 
     // Badge origen
-    const origenBadge = (esPendiente || i._esEmail)
-      ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
-      : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
+    const origenBadge = i._esOFX
+      ? '<span style="font-size:.68rem;background:#E3F2FD;color:#1565C0;padding:.15rem .45rem;border-radius:10px;font-weight:600">🏦 OFX</span>'
+      : (esPendiente || i._esEmail)
+        ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
+        : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
 
     // Badge estado
     const estadoBadge = esPendiente
@@ -5879,7 +5883,10 @@ function rgRenderEgr() {
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
-      <td>${estadoBadge} ${i.alcance === 'personal' ? '<span style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">🚫 No Deducible</span>' : '<span style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">✅ Deducible</span>'}</td>
+      <td>${estadoBadge} ${i.alcance === 'personal'
+        ? `<span onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','negocio')" title="Clic: marcar Deducible" style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">🚫 No Deducible</span>`
+        : `<span onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','personal')" title="Clic: marcar No Deducible" style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">✅ Deducible</span>`
+      }</td>
       <td>${acciones}</td>
     </tr>`;
   }).join('');
@@ -5923,6 +5930,24 @@ function rgToggleEgrSel(id, checked) {
   rgUpdBulkBar();
 }
 window.rgToggleEgrSel = rgToggleEgrSel;
+
+async function rgToggleAlcance(id, tipo, nuevoAlcance) {
+  try {
+    if (tipo === 'pendiente') {
+      await fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'actualizarPendienteAcr', id, alcance: nuevoAlcance }) });
+      const item = _acrData.find(i => String(i.id) === String(id));
+      if (item) item.alcance = nuevoAlcance;
+    } else {
+      await fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'actualizarAlcanceEgreso', id, alcance: nuevoAlcance }) });
+      const egr = egrItems.find(e => String(e.id_egreso) === String(id));
+      if (egr) egr.alcance = nuevoAlcance;
+    }
+    rgRenderEgr();
+  } catch(e) { console.error('rgToggleAlcance:', e); }
+}
+window.rgToggleAlcance = rgToggleAlcance;
 
 function rgSelAllEgr(checked) {
   document.querySelectorAll('#rgEgrBody input[type=checkbox][data-id]').forEach(cb => {
@@ -9155,9 +9180,6 @@ function _ofxRenderLista() {
     var cat = GMAIL_CATEGORIAS.filter(function(c){ return c.key === t.categoria; })[0];
     var icon = cat ? cat.icon : '📄';
     var catLbl = cat ? cat.label : (t.categoria || 'Otro');
-    var alcBadge = (t.alcance === 'personal')
-      ? '<span onclick="event.stopPropagation();ofxToggleAlcance(\'' + t.fitid + '\')" title="Clic para cambiar" style="font-size:.62rem;background:#FBE9E7;color:#BF360C;padding:.1rem .35rem;border-radius:10px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap">🚫 No Ded.</span>'
-      : '<span onclick="event.stopPropagation();ofxToggleAlcance(\'' + t.fitid + '\')" title="Clic para cambiar" style="font-size:.62rem;background:#F1F8E9;color:#1B5E20;padding:.1rem .35rem;border-radius:10px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap">✅ Deducible</span>';
     return '<div onclick="ofxToggle(\'' + t.fitid + '\')" style="' +
       'display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;cursor:pointer;' +
       'border-bottom:1px solid var(--border);transition:background .1s;' +
@@ -9168,7 +9190,6 @@ function _ofxRenderLista() {
         '<div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(t.proveedor || t.memo) + '</div>' +
         '<div style="font-size:.7rem;color:var(--muted)">' + t.fecha + ' · ' + catLbl + '</div>' +
       '</div>' +
-      alcBadge +
       '<div style="font-size:.82rem;font-weight:700;color:#C62828;flex-shrink:0">-$' + t.monto.toFixed(2) + '</div>' +
       '</div>';
   }).join('');
@@ -9178,11 +9199,6 @@ function _ofxRenderLista() {
 function ofxToggle(fitid) {
   if (_ofxSel.has(fitid)) _ofxSel.delete(fitid);
   else _ofxSel.add(fitid);
-  _ofxRenderLista();
-}
-function ofxToggleAlcance(fitid) {
-  var t = _ofxTransacciones.filter(function(x){ return x.fitid === fitid; })[0];
-  if (t) t.alcance = (t.alcance === 'personal') ? 'negocio' : 'personal';
   _ofxRenderLista();
 }
 function ofxSelAll(v) {
