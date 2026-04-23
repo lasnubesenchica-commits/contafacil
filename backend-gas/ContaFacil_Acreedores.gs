@@ -554,13 +554,13 @@ function _getAcreedores() {
   return items;
 }
 
-function _guardarPdfAcreedor(pdfBytes, fileName, nombreAcreedor, cfg) {
+function _guardarPdfAcreedor(pdfBytes, fileName, nombreAcreedor, cfg, mime) {
   try {
     var folderId = (cfg && cfg.drive_folder_id) ? cfg.drive_folder_id : '';
     if (!folderId) return '';
     var folder = DriveApp.getFolderById(folderId);
     var nombre = 'Acreedor_' + (nombreAcreedor || '').replace(/\s+/g,'_').substring(0,30) + '_' + fileName;
-    var blob   = Utilities.newBlob(pdfBytes, 'application/pdf', nombre);
+    var blob   = Utilities.newBlob(pdfBytes, mime || 'application/pdf', nombre);
     var file   = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     return 'https://drive.google.com/file/d/' + file.getId() + '/view';
@@ -1135,10 +1135,36 @@ function _gmailDetectMime(bytes) {
   if (b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47) return 'image/png';
   if (b[0]===0x50 && b[1]===0x4B)                                 return 'application/zip';
   var hdr = '';
-  for (var i=0; i<Math.min(bytes.length,10); i++) hdr += String.fromCharCode(bytes[i]);
-  if (hdr.indexOf('<?xml')===0 || hdr.indexOf('<?XML')===0 || hdr.indexOf('<fac')===0) return 'text/xml';
+  for (var i=0; i<Math.min(bytes.length,60); i++) hdr += String.fromCharCode(bytes[i]);
+  if (hdr.indexOf('<?xml')===0 || hdr.indexOf('<?XML')===0) return 'text/xml';
+  if (hdr.charAt(0)==='<' && (hdr.indexOf('xmlns')>0 || hdr.indexOf('rContFe')>0 || hdr.indexOf('rFE')>0)) return 'text/xml';
   if (hdr.toLowerCase().indexOf('<!doc')===0 || hdr.toLowerCase().indexOf('<html')===0) return 'text/html';
   return null;
+}
+
+function _parseDgiFExml(xmlText) {
+  function tag(nm) {
+    var m = xmlText.match(new RegExp('<' + nm + '[^>]*>([^<]*)</' + nm + '>'));
+    return m ? m[1].trim() : null;
+  }
+  var nomEmi = tag('dNomEmi');
+  var rucEmi = tag('dRucEmi');
+  if (!nomEmi && !rucEmi) return null;
+  var descItems = [], re = /<dDesItem[^>]*>([^<]+)<\/dDesItem>/g, mm;
+  while ((mm = re.exec(xmlText)) !== null) descItems.push(mm[1].trim());
+  return {
+    nombre_proveedor:    nomEmi,
+    ruc_proveedor:       rucEmi,
+    ruc_receptor:        tag('dRucRec') || null,
+    num_factura:         tag('dNroFac'),
+    fecha:               tag('dFecFac'),
+    subtotal:            parseFloat(tag('dSubTot')     || '0') || 0,
+    itbms:               parseFloat(tag('dTotalITBMS') || '0') || 0,
+    total:               parseFloat(tag('dTotalFac')   || '0') || 0,
+    descripcion:         descItems.join(', ') || 'Factura electrónica DGI FE',
+    categoria_sugerida:  null,
+    confianza_categoria: 0
+  };
 }
 
 function _handleProcesarEmailGmail(data) {
@@ -1155,18 +1181,25 @@ function _handleProcesarEmailGmail(data) {
 
     var mime = _gmailDetectMime(pdfBytes);
     if (!mime) return _jsonAcr({ ok: true, skipped: true, reason: 'formato_desconocido' });
-    if (mime === 'text/xml')       return _jsonAcr({ ok: true, skipped: true, reason: 'xml_no_soportado' });
-    if (mime === 'text/html')      return _jsonAcr({ ok: true, skipped: true, reason: 'html_no_soportado' });
+    if (mime === 'text/html')       return _jsonAcr({ ok: true, skipped: true, reason: 'html_no_soportado' });
     if (mime === 'application/zip') return _jsonAcr({ ok: true, skipped: true, reason: 'zip_no_soportado' });
-    if (mime !== 'application/pdf' && !mime.startsWith('image/')) {
+    if (mime !== 'application/pdf' && !mime.startsWith('image/') && mime !== 'text/xml') {
       return _jsonAcr({ ok: true, skipped: true, reason: 'formato_no_soportado' });
     }
 
     var clave = 'gmail:' + msgId + ':' + attFilename;
     if (_pendientePorMsgIdFileName(clave)) return _jsonAcr({ ok: true, skipped: true, reason: 'duplicado' });
 
-    var pdfB64   = Utilities.base64Encode(pdfBytes);
-    var parsed   = _claudeParsearFacturaLibre(pdfB64, attFilename, mime);
+    var parsed;
+    if (mime === 'text/xml') {
+      var xmlText = Utilities.newBlob(pdfBytes).getDataAsString('UTF-8');
+      parsed = _parseDgiFExml(xmlText);
+      if (!parsed) return _jsonAcr({ ok: true, skipped: true, reason: 'xml_no_soportado' });
+    } else {
+      var pdfB64 = Utilities.base64Encode(pdfBytes);
+      parsed = _claudeParsearFacturaLibre(pdfB64, attFilename, mime);
+    }
+
     var acreedor = {
       id: 'LIBRE', nombre: parsed.nombre_proveedor || attFilename,
       ruc: parsed.ruc_proveedor || '', categoria_def: parsed.categoria_sugerida || ''
@@ -1184,10 +1217,11 @@ function _handleProcesarEmailGmail(data) {
 
     var ss       = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var cfg      = _getConfig();
-    var driveUrl = _guardarPdfAcreedor(pdfBytes, attFilename, acreedor.nombre, cfg);
+    var saveMime = (mime === 'text/xml') ? 'text/xml' : 'application/pdf';
+    var driveUrl = _guardarPdfAcreedor(pdfBytes, attFilename, acreedor.nombre, cfg, saveMime);
     var id       = _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, attFilename);
 
-    Logger.log('Gmail import OK: ' + acreedor.nombre + ' | ' + (parsed.num_factura || 'SN'));
+    Logger.log('Gmail import OK (' + mime + '): ' + acreedor.nombre + ' | ' + (parsed.num_factura || 'SN'));
     return _jsonAcr({ ok: true, id: id, nombre: acreedor.nombre, total: parsed.total || 0 });
   } catch(e) {
     Logger.log('Error _handleProcesarEmailGmail: ' + e.message);

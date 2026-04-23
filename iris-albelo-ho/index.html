@@ -8462,12 +8462,21 @@ function _gmailBrowserAtts(part, result) {
   var isPdf = mime === 'application/pdf' || mime === 'application/x-pdf' || fnLow.endsWith('.pdf');
   var isImg = mime.startsWith('image/') || /\.(jpe?g|png)$/.test(fnLow);
   var isOct = mime === 'application/octet-stream' && /\.(pdf|jpe?g|png)$/.test(fnLow);
+  var isXml = mime === 'text/xml' || mime === 'application/xml' ||
+              (mime === 'application/octet-stream' && fnLow.endsWith('.xml'));
   if ((isPdf || isImg || isOct) && part.body && (part.body.attachmentId || part.body.data)) {
     if (!fname) fname = isPdf ? 'adjunto.pdf' : 'adjunto.jpg';
     var entry = { filename: fname, mimeType: mime };
     if (part.body.attachmentId) entry.attId = part.body.attachmentId;
     else                        entry.data  = part.body.data;
     result.push(entry);
+  }
+  if (isXml && part.body && (part.body.attachmentId || part.body.data)) {
+    if (!fname) fname = 'adjunto.xml';
+    var xEntry = { filename: fname, mimeType: mime, isXml: true };
+    if (part.body.attachmentId) xEntry.attId = part.body.attachmentId;
+    else                        xEntry.data  = part.body.data;
+    result.push(xEntry);
   }
   if (part.parts) { for (var i = 0; i < part.parts.length; i++) _gmailBrowserAtts(part.parts[i], result); }
   return result;
@@ -8568,8 +8577,10 @@ async function gmailImport_procesar() {
   _gmailShowStep(3);
   var ok = 0, dup = 0, err = 0, errLog = [];
   for (var i = 0; i < sel.length; i++) {
-    var msg = sel[i];
-    var att = msg.atts && msg.atts[0];
+    var msg    = sel[i];
+    var atts   = msg.atts || [];
+    var att    = atts.filter(function(a) { return !a.isXml; })[0] || null;
+    var xmlAtt = atts.filter(function(a) { return  a.isXml; })[0] || null;
     document.getElementById('gmailProgBar').style.width = Math.round(i / sel.length * 100) + '%';
     document.getElementById('gmailProgLabel').textContent = 'Descargando ' + (i+1) + '/' + sel.length + ' — ' + _gesc(msg.subject).substring(0,38);
     try {
@@ -8582,6 +8593,17 @@ async function gmailImport_procesar() {
         if (!aResp.ok) throw new Error('Gmail att ' + aResp.status);
         var aJson = await aResp.json();
         attB64 = aJson.data || '';
+      }
+      if (!attB64 && xmlAtt) {
+        var xB64 = xmlAtt.data ? xmlAtt.data : '';
+        if (!xB64 && xmlAtt.attId) {
+          var xResp = await fetch(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msg.id + '/attachments/' + xmlAtt.attId,
+            { headers: { Authorization: 'Bearer ' + _gmailToken } }
+          );
+          if (xResp.ok) { var xJson = await xResp.json(); xB64 = xJson.data || ''; }
+        }
+        if (xB64) { att = xmlAtt; attB64 = xB64; }
       }
       if (!attB64) { err++; errLog.push({ subj: msg.subject, reason: 'empty_bytes' }); continue; }
 
@@ -8607,7 +8629,7 @@ async function gmailImport_procesar() {
     'pdf_vacio':            'adjunto vacío',
     'duplicado':            'duplicada',
     'empty_bytes':          'no se pudo descargar',
-    'xml_no_soportado':     'factura XML (no soportado aún)',
+    'xml_no_soportado':     'XML no reconocido como FE Panamá',
     'html_no_soportado':    'archivo HTML (no es factura)',
     'zip_no_soportado':     'archivo ZIP (no soportado)',
     'formato_no_soportado': 'formato no compatible',
