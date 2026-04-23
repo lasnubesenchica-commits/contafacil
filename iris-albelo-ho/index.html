@@ -3715,7 +3715,7 @@ function renderIngresosTable(items) {
     const total    = parseFloat(item.total || '0') || 0;
     const driveUrl = item.drive_url || '';
     const compLink = driveUrl
-      ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄 Ver</a>`
+      ? `<a href="${esc(driveUrl)}" onclick="verFacturaXml(event,'${esc(driveUrl)}')" style="font-size:.75rem;color:var(--orange)">📄 Ver</a>`
       : '—';
     const editable = item.tipo_comprobante !== 'factura_emitida';
     const anulado  = item.estado === 'anulado';
@@ -6010,7 +6010,7 @@ function rgRenderEgr() {
         </div>`;
     } else {
       const docLink = i.drive_url
-        ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
+        ? `<a href="${esc(i.drive_url)}" onclick="verFacturaXml(event,'${esc(i.drive_url)}')" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
         : '';
       acciones = `<div style="display:flex;gap:.5rem;align-items:center">
         ${docLink}
@@ -6226,7 +6226,7 @@ function rgRenderIng() {
   }
   tbody.innerHTML = items.map(i => {
     const catLabel = RG_ING_CAT_LABELS[i.categoria_ingreso] || RG_ING_CAT_LABELS[i.tipo_ingreso] || i.tipo_ingreso || '—';
-    const docLink  = i.drive_url ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
+    const docLink  = i.drive_url ? `<a href="${esc(i.drive_url)}" onclick="verFacturaXml(event,'${esc(i.drive_url)}')" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
     const estadoBadge = i.estado === 'confirmado'
       ? '<span style="font-size:.68rem;font-weight:600;color:#2E7D32">✓ Confirmado</span>'
       : '<span style="font-size:.68rem;font-weight:600;color:#E65100">⏳ Pendiente</span>';
@@ -7278,7 +7278,7 @@ function plRenderTblIngresos(q) {
       const itbmsNC2    = parseFloat(item.itbms||'0')||0;
       const totalNC2    = parseFloat(item.total||'0')||0;
       const driveNC2    = item.drive_url
-        ? `<a href="${esc(item.drive_url)}" target="_blank" style="font-size:.75rem;color:#b91c1c">📄</a>`
+        ? `<a href="${esc(item.drive_url)}" onclick="verFacturaXml(event,'${esc(item.drive_url)}')" style="font-size:.75rem;color:#b91c1c">📄</a>`
         : '—';
       const numNC2 = String(item.num_factura||'').replace(/\.0$/,'').replace(/^0+/,'');
       return `<tr style="background:#fff5f5">
@@ -7296,8 +7296,8 @@ function plRenderTblIngresos(q) {
     // ── Fila de nota de crédito Escenario 1 ──────────────────────────────
     if (item._isNC) {
       const ingA = item._pairA, ingB = item._pairB;
-      const driveA = ingA.drive_url ? `<a href="${esc(ingA.drive_url)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄 F${esc(ingA.num_factura||'')}</a>` : '';
-      const driveB = ingB.drive_url ? `<a href="${esc(ingB.drive_url)}" target="_blank" style="font-size:.75rem;color:#b91c1c">📄 NC${esc(ingB.num_factura||'')}</a>` : '';
+      const driveA = ingA.drive_url ? `<a href="${esc(ingA.drive_url)}" onclick="verFacturaXml(event,'${esc(ingA.drive_url)}')" style="font-size:.75rem;color:var(--orange)">📄 F${esc(ingA.num_factura||'')}</a>` : '';
+      const driveB = ingB.drive_url ? `<a href="${esc(ingB.drive_url)}" onclick="verFacturaXml(event,'${esc(ingB.drive_url)}')" style="font-size:.75rem;color:#b91c1c">📄 NC${esc(ingB.num_factura||'')}</a>` : '';
       return `<tr style="background:#fff5f5;opacity:.85">
         <td style="white-space:nowrap;color:var(--muted);font-size:.8rem">${esc(String(ingA.fecha_ingreso||'').substring(0,10))}</td>
         <td><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600;color:#b91c1c">${esc(ingA.num_factura||'—')}</span></td>
@@ -7316,7 +7316,7 @@ function plRenderTblIngresos(q) {
     const total    = parseFloat(item.total||'0')||0;
     const driveUrl = item.drive_url || '';
     const compLink = driveUrl
-      ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄</a>`
+      ? `<a href="${esc(driveUrl)}" onclick="verFacturaXml(event,'${esc(driveUrl)}')" style="font-size:.75rem;color:var(--orange)">📄</a>`
       : '—';
     const h = (i) => activeIdx === i ? cellBg : '';
     const _dim = _plClasifIngreso(item);
@@ -8564,7 +8564,7 @@ function acrAbrirDetalle(item) {
 
   // Link a factura
   document.getElementById('acrDetalleLink').innerHTML = item.drive_url
-    ? `<a href="${item.drive_url}" target="_blank" style="font-size:.82rem;color:var(--orange);font-weight:600">📄 Ver factura en Drive</a>`
+    ? `<a href="${item.drive_url}" onclick="verFacturaXml(event,'${item.drive_url}')" style="font-size:.82rem;color:var(--orange);font-weight:600">📄 Ver factura</a>`
     : '';
 
   // Categoría sugerida
@@ -9169,6 +9169,191 @@ function gmailImport_close() {
     acrCargarPendientesSilencioso();
   }
 }
+
+// ══════════════════════════════════════════════════════════
+//  FACTURA XML VIEWER — DGI FE Panama (FEFE format)
+// ══════════════════════════════════════════════════════════
+
+function _extractDriveFileId(url) {
+  if (!url) return null;
+  var m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  return null;
+}
+
+function factXmlClose() {
+  document.getElementById('factXmlOverlay').style.display = 'none';
+}
+
+function verFacturaXml(ev, url) {
+  if (ev) ev.preventDefault();
+  var fileId = _extractDriveFileId(url);
+  if (!fileId) { window.open(url, '_blank'); return; }
+  var overlay  = document.getElementById('factXmlOverlay');
+  var body     = document.getElementById('factXmlBody');
+  var openBtn  = document.getElementById('factXmlOpenBtn');
+  overlay.style.display = 'block';
+  body.innerHTML = '<div style="text-align:center;padding:2.5rem;color:var(--muted)">⏳ Cargando factura...</div>';
+  if (openBtn) openBtn.href = url;
+  gasJsonp('getFacturaXml', { fileId: fileId }).then(function(res) {
+    if (!res || !res.success || !res.xml) {
+      body.innerHTML = '<div style="text-align:center;padding:2rem;color:#C62828">No se pudo cargar la factura.<br><a href="' + url + '" target="_blank" style="color:#1565C0">Abrir en Drive ↗</a></div>';
+      return;
+    }
+    var data = _parseFeXml(res.xml);
+    data._fileName = res.name || '';
+    data._driveUrl = url;
+    _renderFacturaXmlModal(data);
+  }).catch(function() {
+    body.innerHTML = '<div style="text-align:center;padding:2rem;color:#C62828">Error de red. <a href="' + url + '" target="_blank" style="color:#1565C0">Abrir en Drive ↗</a></div>';
+  });
+}
+
+function _parseFeXml(xmlText) {
+  var data = { emisor: {}, receptor: {}, items: [], totales: {}, meta: {} };
+  try {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(xmlText, 'text/xml');
+    function g(name) {
+      var els = doc.getElementsByTagNameNS('*', name);
+      if (!els || !els.length) els = doc.getElementsByTagName(name);
+      return (els && els.length) ? els[0].textContent.trim() : '';
+    }
+    function gAll(name) {
+      var els = doc.getElementsByTagNameNS('*', name);
+      if (!els || !els.length) els = doc.getElementsByTagName(name);
+      return els ? Array.from(els) : [];
+    }
+    function gChild(el, name) {
+      var ch = el.getElementsByTagNameNS ? el.getElementsByTagNameNS('*', name) : null;
+      if (!ch || !ch.length) ch = el.getElementsByTagName(name);
+      return (ch && ch.length) ? ch[0].textContent.trim() : '';
+    }
+
+    data.meta.cufe   = g('dId') || g('dCUFE') || g('dNroAutFE');
+    data.meta.nroFac = g('dNroDF') || g('dNroFac');
+    data.meta.fecha  = g('dFechaEm') || g('dFecFac');
+    data.meta.tipo   = g('dTipoDF') || g('dTipFac') || '';
+    data.meta.qrCode = g('dQRCode');
+    data.meta.authCode = g('dProtAut') || g('dCodProt');
+
+    data.emisor.nombre = g('dNombEm') || g('dNomEmi');
+    data.emisor.ruc    = g('dRucEM')  || g('dRucEmi');
+    data.emisor.dv     = g('dDvEm')   || g('dDvEmi');
+    data.emisor.dir    = g('dDirEm')  || g('dDirFis') || g('dDir');
+    data.emisor.tel    = g('dTelEm');
+    data.emisor.email  = g('dEmailEm');
+
+    data.receptor.nombre = g('dNombRec') || g('dNomRec');
+    data.receptor.ruc    = g('dRucRec');
+    data.receptor.dv     = g('dDvRec');
+    data.receptor.dir    = g('dDirRec');
+
+    gAll('gItem').forEach(function(el) {
+      data.items.push({
+        desc:   gChild(el, 'dDescProd') || gChild(el, 'dDesItem') || gChild(el, 'dDescItem'),
+        cant:   parseFloat(gChild(el, 'dCantCodInt') || gChild(el, 'dCant') || '1') || 1,
+        prUnit: parseFloat(gChild(el, 'dPrUnit') || '0') || 0,
+        total:  parseFloat(gChild(el, 'dValTotItem') || gChild(el, 'dPrItem') || '0') || 0,
+        itbms:  parseFloat(gChild(el, 'dValITBMS') || '0') || 0,
+      });
+    });
+
+    data.totales.neto  = parseFloat(g('dTotNeto')  || g('dSubTot')     || '0') || 0;
+    data.totales.itbms = parseFloat(g('dTotITBMS') || g('dTotalITBMS') || '0') || 0;
+    data.totales.total = parseFloat(g('dVTot')     || g('dTotalFac')   || '0') || 0;
+    data.totales.desc  = parseFloat(g('dTotDesc')  || '0') || 0;
+  } catch (e) {
+    console.warn('_parseFeXml error:', e);
+  }
+  return data;
+}
+
+function _renderFacturaXmlModal(data) {
+  var body = document.getElementById('factXmlBody');
+  var e = data.emisor, r = data.receptor, m = data.meta, t = data.totales;
+  var fmt = function(n) { return '$' + parseFloat(n || 0).toFixed(2); };
+  var xt  = function(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+
+  // Line items table
+  var itemsHtml = '';
+  if (data.items.length) {
+    itemsHtml = '<table style="width:100%;border-collapse:collapse;margin-top:.5rem;font-size:.8rem">'
+      + '<thead><tr style="background:#F5F5F5">'
+      + '<th style="text-align:left;padding:.4rem .6rem;border-bottom:1px solid #E0E0E0">Descripción</th>'
+      + '<th style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #E0E0E0;white-space:nowrap">Cant.</th>'
+      + '<th style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #E0E0E0;white-space:nowrap">P.Unit</th>'
+      + '<th style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #E0E0E0;white-space:nowrap">ITBMS</th>'
+      + '<th style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #E0E0E0;white-space:nowrap">Total</th>'
+      + '</tr></thead><tbody>';
+    data.items.forEach(function(it, idx) {
+      itemsHtml += '<tr style="' + (idx % 2 ? 'background:#FAFAFA' : '') + '">'
+        + '<td style="padding:.4rem .6rem;border-bottom:1px solid #F0F0F0">' + xt(it.desc || '—') + '</td>'
+        + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace">' + it.cant + '</td>'
+        + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace">' + fmt(it.prUnit) + '</td>'
+        + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace;color:#1565C0">' + (it.itbms ? fmt(it.itbms) : '—') + '</td>'
+        + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace;font-weight:700">' + fmt(it.total) + '</td>'
+        + '</tr>';
+    });
+    itemsHtml += '</tbody></table>';
+  } else {
+    itemsHtml = '<div style="color:var(--muted);font-size:.8rem;padding:.5rem 0">Sin detalle de líneas disponible.</div>';
+  }
+
+  var qrHtml = m.qrCode
+    ? '<div style="margin-top:1.25rem;text-align:center"><a href="' + m.qrCode + '" target="_blank" style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;background:#1565C0;color:#fff;border-radius:8px;text-decoration:none;font-size:.8rem;font-weight:600">🔗 Verificar en DGI ↗</a></div>'
+    : '';
+
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">'
+    + '<div style="background:#F8F9FA;border-radius:10px;padding:.9rem">'
+    + '<div style="font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.45rem">Emisor</div>'
+    + '<div style="font-weight:700;font-size:.95rem">' + xt(e.nombre || '—') + '</div>'
+    + '<div style="font-size:.77rem;color:var(--muted);margin-top:.2rem">RUC: ' + xt(e.ruc || '—') + (e.dv ? ' &nbsp;DV ' + xt(e.dv) : '') + '</div>'
+    + (e.dir   ? '<div style="font-size:.74rem;color:var(--muted);margin-top:.15rem">' + xt(e.dir) + '</div>' : '')
+    + (e.tel   ? '<div style="font-size:.74rem;color:var(--muted)">Tel: ' + xt(e.tel) + '</div>' : '')
+    + (e.email ? '<div style="font-size:.74rem;color:var(--muted)">' + xt(e.email) + '</div>' : '')
+    + '</div>'
+    + '<div style="background:#F8F9FA;border-radius:10px;padding:.9rem">'
+    + '<div style="font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.45rem">Receptor</div>'
+    + '<div style="font-weight:700;font-size:.95rem">' + xt(r.nombre || '—') + '</div>'
+    + '<div style="font-size:.77rem;color:var(--muted);margin-top:.2rem">RUC: ' + xt(r.ruc || '—') + (r.dv ? ' &nbsp;DV ' + xt(r.dv) : '') + '</div>'
+    + (r.dir ? '<div style="font-size:.74rem;color:var(--muted);margin-top:.15rem">' + xt(r.dir) + '</div>' : '')
+    + '</div>'
+    + '</div>'
+
+    // Meta badges
+    + '<div style="display:flex;flex-wrap:wrap;gap:.55rem;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--border)">'
+    + (m.nroFac ? '<div style="background:#E3F2FD;border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:#1565C0;text-transform:uppercase">N° Factura</div><div style="font-family:\'DM Mono\',monospace;font-weight:700;color:#1565C0;font-size:.88rem">' + xt(m.nroFac) + '</div></div>' : '')
+    + (m.fecha  ? '<div style="background:#F3E5F5;border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:#6A1B9A;text-transform:uppercase">Fecha</div><div style="font-weight:700;color:#6A1B9A;font-size:.88rem">' + xt(m.fecha) + '</div></div>' : '')
+    + (m.tipo   ? '<div style="background:#E8F5E9;border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:#2E7D32;text-transform:uppercase">Tipo</div><div style="font-weight:700;color:#2E7D32;font-size:.88rem">' + xt(m.tipo) + '</div></div>' : '')
+    + (m.authCode ? '<div style="background:#E8F5E9;border-radius:8px;padding:.35rem .75rem;display:flex;align-items:center;gap:.35rem"><span style="color:#2E7D32">✅</span><div><div style="font-size:.6rem;font-weight:700;color:#2E7D32;text-transform:uppercase">Autorizado</div><div style="font-family:\'DM Mono\',monospace;font-size:.76rem;color:#2E7D32">' + xt(m.authCode) + '</div></div></div>' : '')
+    + '</div>'
+
+    // Items
+    + '<div style="margin-bottom:1.25rem">'
+    + '<div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem">Productos / Servicios</div>'
+    + itemsHtml
+    + '</div>'
+
+    // Totals
+    + '<div style="background:#F8F9FA;border-radius:10px;padding:1rem;margin-bottom:1rem">'
+    + '<div style="max-width:260px;margin-left:auto">'
+    + (t.neto  ? '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0"><span style="color:var(--muted)">Subtotal</span><span style="font-family:\'DM Mono\',monospace">' + fmt(t.neto) + '</span></div>' : '')
+    + (t.desc  ? '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0"><span style="color:var(--muted)">Descuento</span><span style="font-family:\'DM Mono\',monospace;color:#E65100">-' + fmt(t.desc) + '</span></div>' : '')
+    + (t.itbms ? '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0"><span style="color:var(--muted)">ITBMS (7%)</span><span style="font-family:\'DM Mono\',monospace;color:#1565C0">' + fmt(t.itbms) + '</span></div>' : '')
+    + '<div style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:800;padding:.5rem 0;border-top:2px solid var(--border);margin-top:.3rem"><span>TOTAL</span><span style="font-family:\'DM Mono\',monospace;color:#C62828">' + fmt(t.total) + '</span></div>'
+    + '</div></div>'
+
+    + (m.cufe ? '<div style="font-size:.65rem;color:var(--muted);word-break:break-all;margin-bottom:.75rem"><strong>CUFE:</strong> ' + xt(m.cufe) + '</div>' : '')
+    + qrHtml;
+
+  body.innerHTML = html;
+}
+
 function _gmailShowStep(n) {
   for (var i = 0; i <= 4; i++) {
     var el = document.getElementById('gmailStep' + i);
@@ -10168,6 +10353,22 @@ async function ofxImport_procesar() {
     <div id="cfgPanelAuto"      style="display:none;padding:.75rem"></div>
     <div id="cfgPanelHistorico" style="display:none;padding:1.25rem"></div>
     <div id="cfgPanelSistema"   style="display:none;padding:.75rem"></div>
+  </div>
+</div>
+
+<!-- ══ FACTURA XML VIEWER ══════════════════════════════════════ -->
+<div id="factXmlOverlay" onclick="if(event.target===this)factXmlClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1600;overflow-y:auto;padding:2rem 1rem">
+  <div style="max-width:780px;margin:0 auto;background:var(--white);border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.3);overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:#1565C0;color:#fff;flex-shrink:0">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;letter-spacing:.05em">📄 Factura Electrónica DGI</div>
+      <div style="display:flex;gap:.75rem;align-items:center">
+        <a id="factXmlOpenBtn" href="#" target="_blank" style="font-size:.78rem;color:rgba(255,255,255,.8);text-decoration:none;padding:.3rem .65rem;border:1px solid rgba(255,255,255,.3);border-radius:6px">↗ Drive</a>
+        <button onclick="factXmlClose()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:1.4rem;cursor:pointer;border-radius:6px;padding:.15rem .55rem;line-height:1">×</button>
+      </div>
+    </div>
+    <div id="factXmlBody" style="padding:1.5rem">
+      <div style="text-align:center;padding:2.5rem;color:var(--muted)">⏳ Cargando...</div>
+    </div>
   </div>
 </div>
 
