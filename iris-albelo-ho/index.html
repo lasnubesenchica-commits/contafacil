@@ -4966,7 +4966,7 @@ function cfgPanelOpen(tab) {
 
 function cfgPanelClose() {
   document.getElementById('cfgPanelOverlay').style.display = 'none';
-  document.getElementById('cfgPanel').style.transform      = 'translateX(-100%)';
+  document.getElementById('cfgPanel').style.transform      = 'translateX(100%)';
 }
 
 function cfgPanelSwitchTab(tab) {
@@ -4989,7 +4989,7 @@ function _cfgPanelInit() {
   // Tab Empresa ← setupPanelEmpresa
   var ep = document.getElementById('cfgPanelEmpresa');
   var se = document.getElementById('setupPanelEmpresa');
-  if (ep && se) ep.appendChild(se);
+  if (ep && se) { se.style.display = 'block'; ep.appendChild(se); }
 
   // Tab Automático ← sync note + setupPanelAcreedores
   var ap = document.getElementById('cfgPanelAuto');
@@ -5000,16 +5000,14 @@ function _cfgPanelInit() {
       + '<button id="btnAcrSync" class="btn-sync" style="white-space:nowrap;flex-shrink:0" onclick="acrSincronizar()">⟳ Sync emails</button>';
     ap.appendChild(note);
     var sa = document.getElementById('setupPanelAcreedores');
-    if (sa) ap.appendChild(sa);
+    if (sa) { sa.style.display = 'block'; ap.appendChild(sa); }
   }
 
   // Tab Histórico ← gmailImportInner (move inner modal content; hide its own × button)
   var hp = document.getElementById('cfgPanelHistorico');
   var gi = document.getElementById('gmailImportInner');
   if (hp && gi) {
-    // Hide the modal-style padding/shadow box styling — flatten into panel
     gi.style.cssText = 'width:100%;max-height:none;overflow-y:visible;box-shadow:none;border-radius:0;padding:0';
-    // Hide the modal header row (title + × button) since panel has its own header
     var hdr = gi.firstElementChild;
     if (hdr) hdr.style.display = 'none';
     hp.appendChild(gi);
@@ -5018,7 +5016,7 @@ function _cfgPanelInit() {
   // Tab Sistema ← setupPanelSistema
   var ssp = document.getElementById('cfgPanelSistema');
   var ss  = document.getElementById('setupPanelSistema');
-  if (ssp && ss) ssp.appendChild(ss);
+  if (ssp && ss) { ss.style.display = 'block'; ssp.appendChild(ss); }
 }
 
 // ══════════════════════════════════════════════════
@@ -9701,7 +9699,7 @@ async function ofxImport_procesar() {
 
 <!-- ═══════════ CONFIG SLIDE PANEL ═══════════ -->
 <div id="cfgPanelOverlay" onclick="cfgPanelClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1400"></div>
-<div id="cfgPanel" style="position:fixed;top:0;left:0;width:min(90vw,500px);height:100vh;background:var(--white);z-index:1401;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column">
+<div id="cfgPanel" style="position:fixed;top:0;right:0;width:min(90vw,500px);height:100vh;background:var(--white);z-index:1401;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:-4px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column">
   <!-- header -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.04em">⚙ Configuración</div>
