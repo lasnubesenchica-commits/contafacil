@@ -1757,7 +1757,7 @@ const REG = (() => {
       toast('Egreso registrado ✓', 'ok');
       closeModal('mRegEgreso');
     } catch(e) { toast('Error: ' + e.message, 'err'); }
-    btn.disabled = false; btn.textContent = 'Guardar egreso';
+    btn.disabled = false; btn.textContent = '💾 Guardar gasto';
   }
 
   // ── Submit ingreso ────────────────────────────────────
@@ -1831,6 +1831,7 @@ const REG = (() => {
   }
 
   return { openEgreso, openIngreso, onEgrFile, onIngFile,
+           submitEgreso, submitIngreso,
            recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts, setAlcance };
 })();
 
@@ -2320,7 +2321,7 @@ const PEND = (() => {
     </div>
     <div class="sheet-footer">
       <button class="sheet-submit" id="regEgrSubmit" onclick="REG.submitEgreso()"
-              style="background:var(--red);margin:0">Guardar egreso</button>
+              style="background:var(--red);margin:0">💾 Guardar gasto</button>
       <button class="sheet-footer-cancel" onclick="closeModal('mRegEgreso')">Cancelar</button>
     </div>
   </div>
