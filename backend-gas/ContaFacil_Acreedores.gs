@@ -1194,6 +1194,40 @@ function _parseDgiFExml(xmlText) {
   };
 }
 
+function _claudeParsearTextoFactura(text, fileName) {
+  var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
+  var catList = CATEGORIAS_ACREEDOR.map(function(c) { return c.valor + ' - ' + c.label; }).join('\n');
+  var prompt =
+    'Eres un extractor de facturas de gastos operativos panameñas.\n' +
+    'El siguiente es el contenido de una Factura Electrónica del DGI de Panamá (formato XML).\n' +
+    'Extrae los campos y responde SOLO con JSON válido, sin markdown:\n' +
+    '{"nombre_proveedor":"","ruc_proveedor":"","ruc_receptor":"","num_factura":"","fecha":"YYYY-MM-DD",' +
+    '"subtotal":0,"itbms":0,"total":0,"descripcion":"","categoria_sugerida":"","confianza_categoria":0}\n\n' +
+    'categoria_sugerida debe ser uno de:\n' + catList + '\n\n' +
+    '- nombre_proveedor: emisor de la factura (dNomEmi o quien cobra).\n' +
+    '- ruc_proveedor: RUC del emisor (dRucEmi), solo dígitos y guiones.\n' +
+    '- num_factura: número de factura (dNroFac o similar).\n' +
+    '- fecha: formato YYYY-MM-DD. Montos como números. null si no aparece.';
+  var payload = {
+    model: 'claude-sonnet-4-6', max_tokens: 400,
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: text.substring(0, 8000) },
+      { type: 'text', text: prompt }
+    ]}]
+  };
+  var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post', contentType: 'application/json',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    payload: JSON.stringify(payload), muteHttpExceptions: true
+  });
+  if (resp.getResponseCode() !== 200)
+    throw new Error('Claude XML error ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
+  var out = '', content = JSON.parse(resp.getContentText()).content || [];
+  for (var i = 0; i < content.length; i++) { if (content[i].type === 'text') { out = content[i].text; break; } }
+  return JSON.parse(out.replace(/```json|```/g, '').trim());
+}
+
 function _handleProcesarEmailGmail(data) {
   var msgId       = String(data.msgId       || '');
   var attDataB64  = String(data.attData     || '');
@@ -1221,7 +1255,10 @@ function _handleProcesarEmailGmail(data) {
     if (mime === 'text/xml') {
       var xmlText = Utilities.newBlob(pdfBytes).getDataAsString('UTF-8');
       parsed = _parseDgiFExml(xmlText);
-      if (!parsed) return _jsonAcr({ ok: true, skipped: true, reason: 'xml_no_soportado' });
+      if (!parsed) {
+        Logger.log('_parseDgiFExml falló — usando Claude. xmlHead: ' + xmlText.substring(0, 200));
+        parsed = _claudeParsearTextoFactura(xmlText, attFilename);
+      }
     } else {
       var pdfB64 = Utilities.base64Encode(pdfBytes);
       parsed = _claudeParsearFacturaLibre(pdfB64, attFilename, mime);
