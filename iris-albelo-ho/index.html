@@ -8586,6 +8586,7 @@ async function gmailImport_procesar() {
     document.getElementById('gmailProgBar').style.width = Math.round(i / sel.length * 100) + '%';
     document.getElementById('gmailProgLabel').textContent = 'Descargando ' + (i+1) + '/' + sel.length + ' — ' + _gesc(msg.subject).substring(0,38);
     try {
+      var usedXml = false;
       var attB64 = att && att.data ? att.data : '';
       if (!attB64 && att && att.attId) {
         var aResp = await fetch(
@@ -8596,6 +8597,7 @@ async function gmailImport_procesar() {
         var aJson = await aResp.json();
         attB64 = aJson.data || '';
       }
+      // Primary att empty → try XML fallback before sending to GAS
       if (!attB64 && xmlAtt) {
         var xB64 = xmlAtt.data ? xmlAtt.data : '';
         if (!xB64 && xmlAtt.attId) {
@@ -8605,7 +8607,7 @@ async function gmailImport_procesar() {
           );
           if (xResp.ok) { var xJson = await xResp.json(); xB64 = xJson.data || ''; }
         }
-        if (xB64) { att = xmlAtt; attB64 = xB64; }
+        if (xB64) { att = xmlAtt; attB64 = xB64; usedXml = true; }
       }
       if (!attB64) { err++; errLog.push({ subj: msg.subject, reason: 'empty_bytes' }); continue; }
 
@@ -8616,6 +8618,25 @@ async function gmailImport_procesar() {
           attData: attB64, attFilename: att ? (att.filename||'') : '', attMimeType: att ? (att.mimeType||'') : '' })
       });
       var d = await resp.json();
+      // Primary att gave formato_desconocido → retry with XML if not tried yet
+      if (!usedXml && xmlAtt && d.ok && d.reason === 'formato_desconocido') {
+        var xB64r = xmlAtt.data ? xmlAtt.data : '';
+        if (!xB64r && xmlAtt.attId) {
+          var xRespR = await fetch(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msg.id + '/attachments/' + xmlAtt.attId,
+            { headers: { Authorization: 'Bearer ' + _gmailToken } }
+          );
+          if (xRespR.ok) { var xJsonR = await xRespR.json(); xB64r = xJsonR.data || ''; }
+        }
+        if (xB64r) {
+          var rResp = await fetch(GAS_URL, {
+            method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'procesarEmailGmail', msgId: msg.id,
+              attData: xB64r, attFilename: xmlAtt.filename || '', attMimeType: xmlAtt.mimeType || '' })
+          });
+          d = await rResp.json();
+        }
+      }
       if (d.ok && !d.skipped)                { ok++;  }
       else if (d.ok && d.reason==='duplicado'){ dup++; }
       else { err++; errLog.push({ subj: msg.subject, reason: d.reason || d.error || 'unknown' }); }
