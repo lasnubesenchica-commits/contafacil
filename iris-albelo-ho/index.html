@@ -1469,17 +1469,16 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn active" data-rga="all" onclick="rgApplyEgrAlcance('all',this)">Todos</button>
       <button class="op-filter-btn" data-rga="negocio" onclick="rgApplyEgrAlcance('negocio',this)">✅ Deducible</button>
       <button class="op-filter-btn" data-rga="personal" onclick="rgApplyEgrAlcance('personal',this)">🚫 No Deducible</button>
-      <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
-      <div id="rgCatPills" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center"></div>
-      <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
-      <button id="rgProveedorBtn" onclick="rgToggleProvPanel()" style="display:flex;align-items:center;gap:.35rem;padding:.28rem .65rem;border:1px solid var(--border);border-radius:7px;font-size:.78rem;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text);white-space:nowrap">
-        🏢 <span id="rgProveedorBtnLabel">Todos los proveedores</span> <span id="rgProveedorBtnArrow" style="font-size:.65rem;opacity:.6">▾</span>
-      </button>
     </div>
 
-    <!-- ── Panel proveedores (colapsable) ─────────────────────── -->
-    <div id="rgProvPanel" style="display:none;padding:.45rem 1.5rem;border-bottom:1px solid var(--border);background:var(--white)">
-      <div id="rgProvPills" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center"></div>
+    <!-- ── Fila de filtros: toggle + pills ────────────────────── -->
+    <div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 1.5rem;border-bottom:1px solid var(--border);background:var(--white);flex-wrap:wrap">
+      <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0;font-size:.76rem;font-weight:700">
+        <button id="rgFilterTabCat"  onclick="rgSetFilterTab('categorias')"  style="padding:.25rem .7rem;border:none;cursor:pointer;background:#1565C0;color:#fff">📂 Categorías</button>
+        <button id="rgFilterTabProv" onclick="rgSetFilterTab('proveedores')" style="padding:.25rem .7rem;border:none;cursor:pointer;background:var(--bg);color:var(--text)">🏢 Proveedores</button>
+      </div>
+      <div id="rgFilterPills" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;flex:1"></div>
+    </div>
     </div>
 
     <!-- ── Header sección + nuevo ──────────────────────────── -->
@@ -5229,8 +5228,8 @@ async function guardarConfigST() {
 var rg_initialized = false;
 var rg_egr_filter        = 'all';   // filtro por categoría
 var _rgCatPillsExpanded  = false;
-var _rgProvPanelOpen     = false;
 var _rgProvPillsExpanded = false;
+var _rgFilterTab         = 'categorias'; // 'categorias' | 'proveedores'
 var rg_egr_estado   = 'all';  // filtro por estado: 'all' | 'pendiente' | 'registrado'
 var rg_egr_alcance  = 'all';  // filtro por alcance: 'all' | 'negocio' | 'personal'
 var rg_ing_filter   = 'all';
@@ -5319,8 +5318,25 @@ const RG_ING_CAT_LABELS = {
 
 function rgBuildFilterBtns() { /* no-op: pills are built inside rgRenderEgr */ }
 
+function rgSetFilterTab(tab) {
+  _rgFilterTab = tab;
+  const catBtn  = document.getElementById('rgFilterTabCat');
+  const provBtn = document.getElementById('rgFilterTabProv');
+  if (catBtn)  { catBtn.style.background  = tab === 'categorias'  ? '#1565C0' : 'var(--bg)';  catBtn.style.color  = tab === 'categorias'  ? '#fff' : 'var(--text)'; }
+  if (provBtn) { provBtn.style.background = tab === 'proveedores' ? '#1565C0' : 'var(--bg)'; provBtn.style.color = tab === 'proveedores' ? '#fff' : 'var(--text)'; }
+  rgRenderEgr();
+}
+window.rgSetFilterTab = rgSetFilterTab;
+
 function rgRenderCatPills(preFilterItems) {
-  const el = document.getElementById('rgCatPills');
+  // Update toggle button active state
+  const catBtn  = document.getElementById('rgFilterTabCat');
+  const provBtn = document.getElementById('rgFilterTabProv');
+  if (catBtn)  { catBtn.style.background  = _rgFilterTab === 'categorias'  ? '#1565C0' : 'var(--bg)';  catBtn.style.color  = _rgFilterTab === 'categorias'  ? '#fff' : 'var(--text)'; }
+  if (provBtn) { provBtn.style.background = _rgFilterTab === 'proveedores' ? '#1565C0' : 'var(--bg)'; provBtn.style.color = _rgFilterTab === 'proveedores' ? '#fff' : 'var(--text)'; }
+
+  if (_rgFilterTab !== 'categorias') return;
+  const el = document.getElementById('rgFilterPills');
   if (!el) return;
 
   const counts = {};
@@ -5744,6 +5760,7 @@ function rgRenderEgr() {
   if (rg_egr_estado === 'pendiente')  items = items.filter(i => i._tipo === 'pendiente');
   if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
   if (rg_egr_alcance !== 'all')       items = items.filter(i => (i.alcance || 'negocio') === rg_egr_alcance);
+  const el = document.getElementById('rgFilterPills'); if (el) el.innerHTML = '';
   rgRenderCatPills(items);
   if (rg_egr_filter  !== 'all')       items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
   if (q) items = items.filter(i =>
@@ -5916,35 +5933,13 @@ function rgRenderEgr() {
 function rgSetAcreedor(nom) {
   _rgEgrAcreedor = nom;
   _rgEgrSel.clear();
-  if (nom !== 'TODOS') _rgProvPanelOpen = true; // keep panel open when a provider is selected
   rgRenderEgr();
 }
 window.rgSetAcreedor = rgSetAcreedor;
 
-function rgToggleProvPanel() {
-  _rgProvPanelOpen = !_rgProvPanelOpen;
-  const panel = document.getElementById('rgProvPanel');
-  const arrow = document.getElementById('rgProveedorBtnArrow');
-  if (panel) panel.style.display = _rgProvPanelOpen ? '' : 'none';
-  if (arrow) arrow.textContent = _rgProvPanelOpen ? '▴' : '▾';
-}
-window.rgToggleProvPanel = rgToggleProvPanel;
-
 function rgRenderProvPills(preFilterItems) {
-  // Update toggle button label
-  const lbl   = document.getElementById('rgProveedorBtnLabel');
-  const btn   = document.getElementById('rgProveedorBtn');
-  const panel = document.getElementById('rgProvPanel');
-  const arrow = document.getElementById('rgProveedorBtnArrow');
-  const hasFilter = _rgEgrAcreedor !== 'TODOS';
-  if (lbl) lbl.textContent = hasFilter ? _rgEgrAcreedor : 'Todos los proveedores';
-  if (btn) btn.style.background  = hasFilter ? '#E3F2FD' : 'var(--bg)';
-  if (btn) btn.style.color       = hasFilter ? '#1565C0' : 'var(--text)';
-  if (btn) btn.style.borderColor = hasFilter ? '#1565C0' : 'var(--border)';
-  if (panel) panel.style.display = _rgProvPanelOpen ? '' : 'none';
-  if (arrow) arrow.textContent   = _rgProvPanelOpen ? '▴' : '▾';
-
-  const el = document.getElementById('rgProvPills');
+  if (_rgFilterTab !== 'proveedores') return;
+  const el = document.getElementById('rgFilterPills');
   if (!el) return;
 
   const counts = {};
