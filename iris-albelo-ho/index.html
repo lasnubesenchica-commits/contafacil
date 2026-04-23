@@ -8496,32 +8496,47 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
 //  GMAIL HISTORICAL IMPORT
 // ═══════════════════════════════════════════════════════════
 var GMAIL_CLIENT_ID = '682314740345-4icslb4jr1ftdcga2hcdr90pr93qmfan.apps.googleusercontent.com';
-var _gmailToken = null;
-var _gmailMsgs  = [];
-var _gmailSel   = new Set();
+var _gmailToken        = null;
+var _gmailMsgs         = [];
+var _gmailSel          = new Set();
 var _gmailActiveFilter = 'TODOS';
 var _gmailHadImports   = false;
+var _gmailSelCats      = new Set(); // selected category keys — empty means all
+var _gmailCustomKws    = [];        // user-added custom keywords (persisted)
 
-var _GMAIL_KW_DEFAULT = ['arrocha','doitcenter','novey','ensa','electra','netflix','apple','iddan','carbone','el rey','riba smith','super 99'];
-var _gmailKeywords = [];
+var GMAIL_CATEGORIAS = [
+  { key:'restaurantes',    icon:'🍔', label:'Restaurantes',     kws:['BUCO POLLO','PEDRO MANDINGA','PERU CHICKEN','ONE WOK','PEDIDOS YA','PEDIDOSYA','DURAN COFFE','DURAN COFFEE','PREMIUM FOOD','KFC','SUSHI EXPRESS','TGI FRIDAY','T.G.I.F','ATHANASIOU','KOTOWA','UNIDO COFFE','POPEYES','CHELA EXPR','CHURRERIA MANOLO','GRAND DELI','WING ZONE','MI SAZON','EL RANCHO INTERIORANO','COFFE STORE','COFFEE HOUSE','POKECITO','TRAPICH'] },
+  { key:'alimentacion',    icon:'🛒', label:'Alimentación',     kws:['RIBA SMITH','REY DORADO','REY PASEO','REY CORONADO','PRICESMART','MEGA FRESH','SUPER CARNES','LA HORTALIZA','SUPERMERCADO','MINI SUPER','OFER MARKET','GAMBOA BAKING','MINI MARKET','FOOD MARKET','TIENDA SUPER','CP GUADALUPE','HOPSA'] },
+  { key:'retail',          icon:'🏪', label:'Retail',           kws:['METRO ALTA PLAZA','METRO ALBROOK','DELTA','AM PM','FERRETERIA','MATERIALES WU','TITAN','VENDELA'] },
+  { key:'combustible',     icon:'⛽', label:'Combustible',      kws:['TERPEL','ENAP','UBER','UNO EXPRESS','TEXACO','EST PUMA','ESTACION','PUMA CURUNDU','ACURA','ZENTRUM AUTOPARTS'] },
+  { key:'tecnologia',      icon:'💻', label:'Tecnología',       kws:['ANTHROPIC','APPLE.COM','NETLIFY','SPOTIFY','NETFLIX','DISNEY PLUS','PRIME VIDEO','SERVICIO CELULAR','URBAN PHONE','PLANES DE DATOS','RECARGA TELEFONIA','TIGO','+MOVIL'] },
+  { key:'publicidad',      icon:'📢', label:'Publicidad',       kws:['FACEBK'] },
+  { key:'salud',           icon:'🏥', label:'Salud',            kws:['FARMACIA ARROCHA','FARMACIA SABA','FARMACIA','CLINICA','SMARTFIT','FG FITNESS','ACERTA','SEGUROS'] },
+  { key:'entretenimiento', icon:'🎮', label:'Entretenimiento',  kws:['NINTENDO','GELARTI','AIRBNB','AGODA','HOTEL','RADISSON','KEVINS STUDIO'] },
+  { key:'servicios',       icon:'🏞️', label:'Servicios',        kws:['ACP AGUA','ACP MIRAFLORES','ENAP APP','SEGURO DE FRAUDE','IMPUESTO SEGURO'] },
+  { key:'educacion',       icon:'🎓', label:'Educación',        kws:['COLEGIO','ESCUELA','SAGRADO CORAZON'] }
+];
 
-function _gmailLoadKw() {
+function _gmailLoadCustomKws() {
   try {
-    var s = localStorage.getItem('iris_gmail_kw');
-    _gmailKeywords = s ? JSON.parse(s) : _GMAIL_KW_DEFAULT.slice();
-  } catch(_) { _gmailKeywords = _GMAIL_KW_DEFAULT.slice(); }
+    var s = localStorage.getItem('iris_gmail_custom_kws');
+    _gmailCustomKws = s ? JSON.parse(s) : [];
+  } catch(_) { _gmailCustomKws = []; }
 }
-function _gmailSaveKw() {
-  try { localStorage.setItem('iris_gmail_kw', JSON.stringify(_gmailKeywords)); } catch(_) {}
+function _gmailSaveCustomKws() {
+  try { localStorage.setItem('iris_gmail_custom_kws', JSON.stringify(_gmailCustomKws)); } catch(_) {}
 }
 
 function gmailImport_open() {
-  _gmailLoadKw();
-  _gmailToken = null; _gmailMsgs = []; _gmailSel = new Set(); _gmailActiveFilter = 'TODOS'; _gmailHadImports = false;
+  _gmailLoadCustomKws();
+  _gmailToken = null; _gmailMsgs = []; _gmailSel = new Set();
+  _gmailActiveFilter = 'TODOS'; _gmailHadImports = false;
+  _gmailSelCats.clear();
   document.getElementById('gmailAuthStatus').textContent = 'No conectado';
   document.getElementById('gmailAuthStatus').style.color = 'var(--muted)';
   var btn = document.getElementById('btnGmailSearch');
   btn.disabled = true; btn.style.opacity = '.45';
+  _gmailRenderCatGrid();
   _gmailRenderKwPills();
   _gmailShowStep(0);
   document.getElementById('gmailImportModal').style.display = 'flex';
@@ -8537,33 +8552,72 @@ function _gmailShowStep(n) {
   }
 }
 
-// ─── Keyword management ───────────────────────────────────
+// ─── Category grid ────────────────────────────────────────
+function _gmailRenderCatGrid() {
+  var cont = document.getElementById('gmailCatGrid');
+  if (!cont) return;
+  cont.innerHTML = GMAIL_CATEGORIAS.map(function(cat) {
+    var sel = _gmailSelCats.has(cat.key);
+    return '<button onclick="gmailToggleCat(\'' + cat.key + '\')" style="' +
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;' +
+      'padding:.45rem .25rem;border:2px solid ' + (sel ? '#1565C0' : 'var(--border)') + ';' +
+      'border-radius:9px;background:' + (sel ? '#E3F2FD' : 'var(--bg)') + ';cursor:pointer;' +
+      'font-size:.6rem;font-weight:700;color:' + (sel ? '#1565C0' : 'var(--text)') + ';' +
+      'text-align:center;line-height:1.2;transition:all .12s">' +
+      '<span style="font-size:1.2rem;line-height:1">' + cat.icon + '</span>' +
+      '<span style="letter-spacing:.02em">' + cat.label.toUpperCase() + '</span>' +
+      '</button>';
+  }).join('');
+}
+function gmailToggleCat(key) {
+  if (_gmailSelCats.has(key)) _gmailSelCats.delete(key);
+  else _gmailSelCats.add(key);
+  _gmailRenderCatGrid();
+}
+function gmailClearCats() {
+  _gmailSelCats.clear();
+  _gmailRenderCatGrid();
+}
+function gmailEscanearTodo() {
+  _gmailSelCats.clear();
+  _gmailRenderCatGrid();
+  if (_gmailToken) gmailImport_buscar();
+}
+window.gmailToggleCat   = gmailToggleCat;
+window.gmailClearCats   = gmailClearCats;
+window.gmailEscanearTodo = gmailEscanearTodo;
+
+// ─── Custom keyword management ────────────────────────────
 function _gmailRenderKwPills() {
   var cont = document.getElementById('gmailKwPills');
   if (!cont) return;
-  cont.innerHTML = _gmailKeywords.map(function(kw, i) {
-    return '<span style="display:inline-flex;align-items:center;gap:.2rem;background:#e3f2fd;color:#1565C0;' +
+  if (!_gmailCustomKws.length) {
+    cont.innerHTML = '<span style="font-size:.7rem;color:var(--muted);font-style:italic">Sin keywords adicionales</span>';
+    return;
+  }
+  cont.innerHTML = _gmailCustomKws.map(function(kw, i) {
+    return '<span style="display:inline-flex;align-items:center;gap:.2rem;background:#fff3e0;color:#E65100;' +
       'border-radius:100px;padding:.12rem .45rem .12rem .6rem;font-size:.71rem;font-weight:700;letter-spacing:.02em">' +
       kw.toUpperCase() +
       '<button onclick="gmailKwRemove(' + i + ')" title="Eliminar" style="background:none;border:none;cursor:pointer;' +
-      'color:#1565C0;font-size:.9rem;padding:0 .05rem;line-height:1;opacity:.6">×</button></span>';
+      'color:#E65100;font-size:.9rem;padding:0 .05rem;line-height:1;opacity:.6">×</button></span>';
   }).join('');
 }
 function gmailKwAdd() {
   var inp = document.getElementById('gmailKwInput');
-  var val = (inp.value || '').trim().toLowerCase();
+  var val = (inp.value || '').trim().toUpperCase();
   if (!val) return;
-  if (_gmailKeywords.indexOf(val) < 0) {
-    _gmailKeywords.push(val);
-    _gmailSaveKw();
+  if (_gmailCustomKws.indexOf(val) < 0) {
+    _gmailCustomKws.push(val);
+    _gmailSaveCustomKws();
     _gmailRenderKwPills();
   }
   inp.value = '';
   inp.focus();
 }
 function gmailKwRemove(i) {
-  _gmailKeywords.splice(i, 1);
-  _gmailSaveKw();
+  _gmailCustomKws.splice(i, 1);
+  _gmailSaveCustomKws();
   _gmailRenderKwPills();
 }
 
@@ -8604,8 +8658,14 @@ async function gmailImport_buscar() {
     var days  = parseInt(document.getElementById('gmailDays').value) || 90;
     var after = Math.floor((Date.now() - days * 86400000) / 1000);
 
-    var kws = _gmailKeywords.length ? _gmailKeywords : ['factura','recibo','invoice'];
-    var kwQ = kws.map(function(k) { return k.indexOf(' ') >= 0 ? '"' + k + '"' : k; }).join(' OR ');
+    var catsToSearch = _gmailSelCats.size > 0
+      ? GMAIL_CATEGORIAS.filter(function(c) { return _gmailSelCats.has(c.key); })
+      : GMAIL_CATEGORIAS;
+    var allKws = [];
+    catsToSearch.forEach(function(cat) { cat.kws.forEach(function(k) { allKws.push(k); }); });
+    _gmailCustomKws.forEach(function(k) { allKws.push(k); });
+    if (!allKws.length) allKws = ['factura','recibo','invoice'];
+    var kwQ = allKws.map(function(k) { return k.indexOf(' ') >= 0 ? '"' + k + '"' : k; }).join(' OR ');
     var q   = encodeURIComponent('has:attachment (' + kwQ + ') after:' + after);
 
     var resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=100&q=' + q,
@@ -8638,7 +8698,7 @@ async function gmailImport_buscar() {
         snippet: mData.snippet || '',
         atts: atts
       };
-      msg.matchKw = _gmailMsgKw(msg);
+      msg.matchCats = _gmailMsgMatchCats(msg);
       metaList.push(msg);
     }
     _gmailMsgs = metaList;
@@ -8652,10 +8712,17 @@ async function gmailImport_buscar() {
   }
 }
 
-// Returns which keywords match a message (subject + from + snippet)
-function _gmailMsgKw(msg) {
-  var text = [(msg.subject||''), (msg.from||''), (msg.snippet||'')].join(' ').toLowerCase();
-  return _gmailKeywords.filter(function(kw) { return text.indexOf(kw.toLowerCase()) >= 0; });
+// Returns array of matched categories for a message {key, icon, label, kw}
+function _gmailMsgMatchCats(msg) {
+  var text = [(msg.subject||''), (msg.from||''), (msg.snippet||'')].join(' ').toUpperCase();
+  var matched = [];
+  GMAIL_CATEGORIAS.forEach(function(cat) {
+    var hit = cat.kws.filter(function(kw) { return text.indexOf(kw) >= 0; });
+    if (hit.length) matched.push({ key: cat.key, icon: cat.icon, label: cat.label, kw: hit[0] });
+  });
+  var customHits = _gmailCustomKws.filter(function(kw) { return text.indexOf(kw.toUpperCase()) >= 0; });
+  if (customHits.length) matched.push({ key:'custom', icon:'🔑', label:'Personalizado', kw: customHits[0] });
+  return matched;
 }
 
 // ─── MIME tree walker (browser-side) ─────────────────────
@@ -8701,30 +8768,29 @@ function _gmailRenderTabs() {
   var cont = document.getElementById('gmailFilterTabs');
   if (!cont) return;
   var counts = {};
-  _gmailKeywords.forEach(function(kw) { counts[kw] = 0; });
   _gmailMsgs.forEach(function(msg) {
-    (msg.matchKw || []).forEach(function(kw) { counts[kw] = (counts[kw] || 0) + 1; });
+    (msg.matchCats || []).forEach(function(c) { counts[c.key] = (counts[c.key] || 0) + 1; });
   });
-  var tabs = ['TODOS'].concat(_gmailKeywords);
-  cont.innerHTML = tabs.map(function(kw) {
-    var isAll    = kw === 'TODOS';
-    var cnt      = isAll ? _gmailMsgs.length : (counts[kw] || 0);
-    var isActive = _gmailActiveFilter === kw;
-    var hasCnt   = cnt > 0;
-    var bg    = isActive ? '#1565C0' : (hasCnt ? 'var(--bg)' : 'transparent');
-    var color = isActive ? '#fff'    : (hasCnt ? 'var(--text)' : 'var(--muted)');
-    var bdr   = isActive ? '#1565C0' : (hasCnt ? 'var(--border)' : 'var(--border)');
-    var esc   = kw.replace(/'/g, "\\'");
+  var catTabs = GMAIL_CATEGORIAS.filter(function(c) { return counts[c.key] > 0; });
+  var tabs = [{ key:'TODOS', icon:'', label:'Todos', cnt: _gmailMsgs.length }]
+    .concat(catTabs.map(function(c) { return { key:c.key, icon:c.icon, label:c.label, cnt:counts[c.key] }; }));
+  if (counts['custom'] > 0) tabs.push({ key:'custom', icon:'🔑', label:'Personalizado', cnt:counts['custom'] });
+  cont.innerHTML = tabs.map(function(t) {
+    var isActive = _gmailActiveFilter === t.key;
+    var bg    = isActive ? '#1565C0' : 'var(--bg)';
+    var color = isActive ? '#fff'    : 'var(--text)';
+    var bdr   = isActive ? '#1565C0' : 'var(--border)';
+    var esc   = t.key.replace(/'/g, "\\'");
     return '<button onclick="gmailSetFilter(\'' + esc + '\')" style="padding:.2rem .6rem;border:1px solid ' + bdr +
       ';border-radius:100px;font-size:.69rem;font-weight:700;cursor:pointer;background:' + bg + ';color:' + color +
-      ';letter-spacing:.03em;white-space:nowrap;opacity:' + (hasCnt ? '1' : '.4') + '">' +
-      kw.toUpperCase() + (hasCnt ? ' <span style="font-weight:400">(' + cnt + ')</span>' : '') + '</button>';
+      ';letter-spacing:.03em;white-space:nowrap">' +
+      (t.icon ? t.icon + ' ' : '') + t.label.toUpperCase() + ' <span style="font-weight:400">(' + t.cnt + ')</span></button>';
   }).join('');
   _gmailShowStep(2);
 }
 
-function gmailSetFilter(kw) {
-  _gmailActiveFilter = kw;
+function gmailSetFilter(key) {
+  _gmailActiveFilter = key;
   _gmailRenderTabs();
   _gmailRenderLista();
 }
@@ -8733,7 +8799,7 @@ function gmailSetFilter(kw) {
 function _gmailVisibleIdx() {
   if (_gmailActiveFilter === 'TODOS') return _gmailMsgs.map(function(_, i) { return i; });
   return _gmailMsgs.map(function(m, i) {
-    return (m.matchKw || []).indexOf(_gmailActiveFilter) >= 0 ? i : -1;
+    return (m.matchCats || []).some(function(c) { return c.key === _gmailActiveFilter; }) ? i : -1;
   }).filter(function(i) { return i >= 0; });
 }
 
@@ -8752,8 +8818,8 @@ function _gmailRenderLista() {
       (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
     var attLabel = e.atts && e.atts[0]
       ? '<span style="font-size:.65rem;background:#e8f5e9;color:#2e7d32;border-radius:3px;padding:0 .3rem;flex-shrink:0">' + _gesc(e.atts[0].filename) + '</span>' : '';
-    var kwTags   = (e.matchKw||[]).map(function(k) {
-      return '<span style="font-size:.64rem;background:#e3f2fd;color:#1565C0;border-radius:3px;padding:0 .3rem">' + k.toUpperCase() + '</span>';
+    var kwTags   = (e.matchCats||[]).map(function(c) {
+      return '<span style="font-size:.64rem;background:#e3f2fd;color:#1565C0;border-radius:3px;padding:0 .35rem">' + c.icon + ' ' + c.label + '</span>';
     }).join('');
     return '<label style="display:flex;align-items:flex-start;gap:.5rem;padding:.45rem .6rem;border-bottom:1px solid var(--border);cursor:pointer">' +
       '<input type="checkbox" data-idx="' + idx + '" style="margin-top:.25rem;flex-shrink:0" onchange="gmailToggle(' + idx + ',this.checked)"' + (_gmailSel.has(idx) ? ' checked' : '') + '>' +
@@ -9019,33 +9085,47 @@ function _gesc(s) {
 
   <!-- ═══════════ MODAL GMAIL IMPORT ═══════════ -->
   <div id="gmailImportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;align-items:center;justify-content:center">
-    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,540px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,620px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em">📥 Historial de Facturas Gmail</div>
         <button onclick="gmailImport_close()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
       </div>
 
-      <!-- Step 0: Connect + period + keywords + search -->
+      <!-- Step 0: Connect + period + categories + custom kws + search -->
       <div id="gmailStep0">
-        <div style="display:grid;gap:.8rem">
-          <div>
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">PERÍODO A BUSCAR</label>
-            <select id="gmailDays" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none">
+        <div style="display:grid;gap:.85rem">
+          <!-- Period -->
+          <div style="display:flex;align-items:center;gap:.75rem">
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);white-space:nowrap">PERÍODO:</label>
+            <select id="gmailDays" style="flex:1;padding:.4rem .65rem;border:1px solid var(--border);border-radius:7px;font-size:.82rem;background:var(--bg);color:var(--text);outline:none">
               <option value="30">Últimos 30 días</option>
               <option value="90" selected>Últimos 90 días</option>
               <option value="180">Últimos 6 meses</option>
               <option value="365">Último año</option>
             </select>
           </div>
+          <!-- Category grid -->
           <div>
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.4rem">KEYWORDS DE BÚSQUEDA</label>
-            <div id="gmailKwPills" style="display:flex;flex-wrap:wrap;gap:.3rem;min-height:1.5rem;margin-bottom:.45rem"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
+              <label style="font-size:.72rem;font-weight:600;color:var(--muted)">CATEGORÍAS <span style="font-weight:400;opacity:.7">(selecciona o escanea todo)</span></label>
+              <button onclick="gmailClearCats()" style="font-size:.68rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Limpiar</button>
+            </div>
+            <div id="gmailCatGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.3rem;margin-bottom:.5rem"></div>
+            <button onclick="gmailEscanearTodo()" style="width:100%;padding:.4rem;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer">
+              🔎 Escanear todas las categorías
+            </button>
+          </div>
+          <!-- Custom keywords -->
+          <div>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.35rem">KEYWORDS ADICIONALES</label>
+            <div id="gmailKwPills" style="display:flex;flex-wrap:wrap;gap:.3rem;min-height:1.4rem;margin-bottom:.4rem"></div>
             <div style="display:flex;gap:.4rem">
-              <input id="gmailKwInput" type="text" placeholder="agregar keyword..." onkeydown="if(event.key==='Enter')gmailKwAdd()"
+              <input id="gmailKwInput" type="text" placeholder="Ej: IDDAN, CLARO FACTURA…" onkeydown="if(event.key==='Enter')gmailKwAdd()"
                 style="flex:1;padding:.32rem .6rem;border:1px solid var(--border);border-radius:6px;font-size:.78rem;outline:none;background:var(--bg);color:var(--text)">
-              <button onclick="gmailKwAdd()" style="padding:.32rem .7rem;background:#e3f2fd;color:#1565C0;border:1px solid #bbdefb;border-radius:6px;font-size:.78rem;cursor:pointer;font-weight:700">+ Agregar</button>
+              <button onclick="gmailKwAdd()" style="padding:.32rem .7rem;background:#fff3e0;color:#E65100;border:1px solid #FFCC80;border-radius:6px;font-size:.78rem;cursor:pointer;font-weight:700">+ Agregar</button>
             </div>
           </div>
+          <!-- Auth + Search -->
           <button onclick="gmailImport_auth()" style="width:100%;padding:.6rem;background:#4285F4;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
             🔑 Conectar con Google Gmail
           </button>
