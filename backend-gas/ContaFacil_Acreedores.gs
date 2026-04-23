@@ -1134,10 +1134,16 @@ function _gmailDetectMime(bytes) {
   if (b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF)                 return 'image/jpeg';
   if (b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47) return 'image/png';
   if (b[0]===0x50 && b[1]===0x4B)                                 return 'application/zip';
-  var hdr = '';
-  for (var i=0; i<Math.min(bytes.length,60); i++) hdr += String.fromCharCode(bytes[i]);
+  // Build raw string from first 300 bytes for text detection
+  var raw = '';
+  for (var i=0; i<Math.min(bytes.length,300); i++) raw += String.fromCharCode(bytes[i]);
+  // Strip UTF-8 BOM (EF BB BF) and leading whitespace to find actual content start
+  var hdr = raw.replace(/^\xEF\xBB\xBF/, '').replace(/^\s+/, '');
   if (hdr.indexOf('<?xml')===0 || hdr.indexOf('<?XML')===0) return 'text/xml';
-  if (hdr.charAt(0)==='<' && (hdr.indexOf('xmlns')>0 || hdr.indexOf('rContFe')>0 || hdr.indexOf('rFE')>0)) return 'text/xml';
+  if (hdr.charAt(0)==='<' && (hdr.indexOf('xmlns')>=0 || hdr.indexOf('rContFe')>=0)) return 'text/xml';
+  // Broader scan: DGI FE Panama XML markers present anywhere in first 300 bytes
+  if (raw.indexOf('rContFe')>=0 || raw.indexOf('dNomEmi')>=0 || raw.indexOf('dNroFac')>=0 ||
+      raw.indexOf('dTotalFac')>=0 || raw.indexOf('FeRecepFE')>=0) return 'text/xml';
   if (hdr.toLowerCase().indexOf('<!doc')===0 || hdr.toLowerCase().indexOf('<html')===0) return 'text/html';
   return null;
 }
