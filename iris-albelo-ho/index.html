@@ -9093,12 +9093,12 @@ async function ofxCategorizar() {
         if (_ofxTransacciones[r.idx] !== undefined) {
           _ofxTransacciones[r.idx].categoria = r.categoria || 'otro';
           _ofxTransacciones[r.idx].proveedor = r.proveedor || _ofxTransacciones[r.idx].memo;
-          _ofxTransacciones[r.idx].alcance   = r.alcance   || 'negocio';
+          _ofxTransacciones[r.idx].alcance   = 'negocio';
         }
       });
     }
   } catch(e) {
-    _ofxTransacciones.forEach(function(t) { if (!t.categoria) { t.categoria = 'otro'; t.proveedor = t.memo; t.alcance = 'personal'; } });
+    _ofxTransacciones.forEach(function(t) { if (!t.categoria) { t.categoria = 'otro'; t.proveedor = t.memo; t.alcance = 'negocio'; } });
   }
   _ofxCatFilter = 'all';
   _ofxSel = new Set(_ofxTransacciones.map(function(t) { return t.fitid; }));
