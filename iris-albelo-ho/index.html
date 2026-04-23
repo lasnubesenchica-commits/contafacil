@@ -3727,7 +3727,7 @@ function renderIngresosTable(items) {
     const total    = parseFloat(item.total || '0') || 0;
     const driveUrl = item.drive_url || '';
     const compLink = driveUrl
-      ? `<a href="${esc(driveUrl)}" onclick="verFacturaXml(event,'${esc(driveUrl)}')" style="font-size:.75rem;color:var(--orange)">📄 Ver</a>`
+      ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄 Ver</a>`
       : '—';
     const editable = item.tipo_comprobante !== 'factura_emitida';
     const anulado  = item.estado === 'anulado';
@@ -4227,8 +4227,27 @@ async function guardarNuevoIngreso() {
     if (!data.success) throw new Error(data.error||'Error desconocido');
     showToast('✅ Ingreso registrado: ' + data.ingresoId);
     closeIngresoModal();
-    plLoaded = false;   // invalidar cache P&L
+    plLoaded = false;
     ingItems = []; loadIngresos();
+    // Upload comprobante to Drive if one was attached
+    if (ingresoFileB64) {
+      const ext      = ingresoFileMime === 'application/pdf' ? 'pdf' : 'jpg';
+      const fileName = (data.ingresoId || 'ingreso') + '.' + ext;
+      fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body:    JSON.stringify({ action: 'subirFacturaIngreso', ingreso_id: data.ingresoId, file_b64: ingresoFileB64, file_mime: ingresoFileMime, file_name: fileName }),
+      })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) {
+            showToast('📄 Comprobante guardado en Drive');
+            const idx = ingItems.findIndex(i => i.id_trans === data.ingresoId);
+            if (idx !== -1) { ingItems[idx].drive_url = d.driveUrl; rgRenderIngresos && rgRenderIngresos(); }
+          }
+        })
+        .catch(() => {});
+    }
   } catch(err) { showToast('⚠️ ' + err.message); }
   btn.disabled = false; btn.textContent = '💾 Guardar ingreso';
 }
@@ -6059,7 +6078,7 @@ function rgRenderEgr() {
         </div>`;
     } else {
       const docLink = i.drive_url
-        ? `<a href="${esc(i.drive_url)}" onclick="verFacturaXml(event,'${esc(i.drive_url)}')" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
+        ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
         : '';
       acciones = `<div style="display:flex;gap:.5rem;align-items:center">
         ${docLink}
@@ -6275,7 +6294,7 @@ function rgRenderIng() {
   }
   tbody.innerHTML = items.map(i => {
     const catLabel = RG_ING_CAT_LABELS[i.categoria_ingreso] || RG_ING_CAT_LABELS[i.tipo_ingreso] || i.tipo_ingreso || '—';
-    const docLink  = i.drive_url ? `<a href="${esc(i.drive_url)}" onclick="verFacturaXml(event,'${esc(i.drive_url)}')" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
+    const docLink  = i.drive_url ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
     const estadoBadge = i.estado === 'confirmado'
       ? '<span style="font-size:.68rem;font-weight:600;color:#2E7D32">✓ Confirmado</span>'
       : '<span style="font-size:.68rem;font-weight:600;color:#E65100">⏳ Pendiente</span>';
@@ -7327,7 +7346,7 @@ function plRenderTblIngresos(q) {
       const itbmsNC2    = parseFloat(item.itbms||'0')||0;
       const totalNC2    = parseFloat(item.total||'0')||0;
       const driveNC2    = item.drive_url
-        ? `<a href="${esc(item.drive_url)}" onclick="verFacturaXml(event,'${esc(item.drive_url)}')" style="font-size:.75rem;color:#b91c1c">📄</a>`
+        ? `<a href="${esc(item.drive_url)}" target="_blank" style="font-size:.75rem;color:#b91c1c">📄</a>`
         : '—';
       const numNC2 = String(item.num_factura||'').replace(/\.0$/,'').replace(/^0+/,'');
       return `<tr style="background:#fff5f5">
@@ -7345,8 +7364,8 @@ function plRenderTblIngresos(q) {
     // ── Fila de nota de crédito Escenario 1 ──────────────────────────────
     if (item._isNC) {
       const ingA = item._pairA, ingB = item._pairB;
-      const driveA = ingA.drive_url ? `<a href="${esc(ingA.drive_url)}" onclick="verFacturaXml(event,'${esc(ingA.drive_url)}')" style="font-size:.75rem;color:var(--orange)">📄 F${esc(ingA.num_factura||'')}</a>` : '';
-      const driveB = ingB.drive_url ? `<a href="${esc(ingB.drive_url)}" onclick="verFacturaXml(event,'${esc(ingB.drive_url)}')" style="font-size:.75rem;color:#b91c1c">📄 NC${esc(ingB.num_factura||'')}</a>` : '';
+      const driveA = ingA.drive_url ? `<a href="${esc(ingA.drive_url)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄 F${esc(ingA.num_factura||'')}</a>` : '';
+      const driveB = ingB.drive_url ? `<a href="${esc(ingB.drive_url)}" target="_blank" style="font-size:.75rem;color:#b91c1c">📄 NC${esc(ingB.num_factura||'')}</a>` : '';
       return `<tr style="background:#fff5f5;opacity:.85">
         <td style="white-space:nowrap;color:var(--muted);font-size:.8rem">${esc(String(ingA.fecha_ingreso||'').substring(0,10))}</td>
         <td><span style="font-family:'DM Mono',monospace;font-size:.75rem;font-weight:600;color:#b91c1c">${esc(ingA.num_factura||'—')}</span></td>
@@ -7365,7 +7384,7 @@ function plRenderTblIngresos(q) {
     const total    = parseFloat(item.total||'0')||0;
     const driveUrl = item.drive_url || '';
     const compLink = driveUrl
-      ? `<a href="${esc(driveUrl)}" onclick="verFacturaXml(event,'${esc(driveUrl)}')" style="font-size:.75rem;color:var(--orange)">📄</a>`
+      ? `<a href="${esc(driveUrl)}" target="_blank" style="font-size:.75rem;color:var(--orange)">📄</a>`
       : '—';
     const h = (i) => activeIdx === i ? cellBg : '';
     const _dim = _plClasifIngreso(item);
@@ -8613,7 +8632,7 @@ function acrAbrirDetalle(item) {
 
   // Link a factura
   document.getElementById('acrDetalleLink').innerHTML = item.drive_url
-    ? `<a href="${item.drive_url}" onclick="verFacturaXml(event,'${item.drive_url}')" style="font-size:.82rem;color:var(--orange);font-weight:600">📄 Ver factura</a>`
+    ? `<a href="${item.drive_url}" target="_blank" style="font-size:.82rem;color:var(--orange);font-weight:600">📄 Ver factura</a>`
     : '';
 
   // Categoría sugerida
