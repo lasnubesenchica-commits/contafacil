@@ -109,6 +109,10 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;background:no
 .topnav-refresh:hover{border-color:var(--orange);color:var(--orange)}
 .topnav-logout{font-size:.8rem;color:var(--chrome);cursor:pointer;transition:color .2s}
 .topnav-logout:hover{color:var(--red)}
+.topnav-gear{display:flex;align-items:center;font-size:1.05rem;color:var(--muted);background:none;border:none;padding:.3rem .45rem;cursor:pointer;border-radius:8px;transition:all .2s;line-height:1}
+.topnav-gear:hover{background:var(--bg2);color:var(--text)}
+.cfg-panel-tab{flex:1;padding:.55rem .2rem;font-size:.72rem;font-weight:700;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;background:var(--bg);color:var(--muted);transition:all .15s}
+.cfg-panel-tab.active{background:var(--white)!important;color:#1565C0!important;border-bottom-color:#1565C0!important}
 
 /* ── STATS BAR ── */
 .stats-bar{
@@ -1212,8 +1216,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="topnav-badge" id="appHeaderBadge">BalanceClip</div>
     </div>
     <div class="topnav-right">
-      <button class="topnav-refresh" onclick="gmailImport_open()" style="background:#4285F4;color:#fff;border-color:#4285F4">📥 Historial Gmail</button>
-      <button class="topnav-refresh" id="btnRefreshNav" onclick="refreshCurrentSection()">↻ Actualizar</button>
+      <button class="topnav-gear" onclick="cfgPanelOpen()" title="Configuración">⚙</button>
       <span class="topnav-logout" onclick="logout()">Salir →</span>
     </div>
   </nav>
@@ -1444,7 +1447,6 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
     <!-- ── Toolbar ─────────────────────────────────────────── -->
     <div class="op-toolbar">
-      <button class="btn-sync" id="btnAcrSync" onclick="acrSincronizar()">⟳ Sync emails</button>
       <select id="rgEgrFechaMode" onchange="rgApplyEgrFecha(this.value)"
         style="font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--border);border-radius:7px;
                background:var(--bg);color:var(--text);cursor:pointer;outline:none">
@@ -1490,6 +1492,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
         </div>
         <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
+        <button onclick="refreshCurrentSection()" title="Actualizar" style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.28rem .65rem;font-size:1rem;cursor:pointer;line-height:1;font-weight:700">↻</button>
       </div>
     </div>
 
@@ -3070,7 +3073,7 @@ function buildMenu() {
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/clientes.html&quot;)">👥 Clientes</a>' +
       '</div>' +
     '</div>' +
-    (IS_ADMIN ? '<button class="main-tab" id="tabSetup" onclick="switchTab(&quot;setup&quot;)" style="margin-left:auto">⚙️ Configuración</button>' : '');
+    '';
 }
 
 // ══════════════════════════════════════════════════
@@ -3121,7 +3124,7 @@ function switchTab(tab) {
   if (tab === 'registroGeneral') rgInit();
   document.getElementById('sectionDashboard').style.display    = tab === 'dashboard'    ? 'block' : 'none';
   document.getElementById('sectionProveedores').style.display  = tab === 'proveedores'  ? 'block' : 'none';
-  document.getElementById('sectionSetup').style.display        = tab === 'setup'        ? 'block' : 'none';
+  document.getElementById('sectionSetup').style.display        = 'none';
   document.getElementById('sectionReporte').style.display      = isReporte              ? 'block' : 'none';
   // Activar tab según sección activa
   var ctTabs = ['reporte:reportes/flujo_caja.html','reporte:reportes/cuentas_por_cobrar.html','reporte:reportes/itbms_mensual.html','reporte:reportes/cierre_anual.html','ingresos','egresos'];
@@ -3129,8 +3132,7 @@ function switchTab(tab) {
   _tabToggle('tabDashboard',       tab === 'dashboard');
   _tabToggle('tabContabilidad',    ctTabs.indexOf(tab) >= 0);
   _tabToggle('tabRegistroGeneral', tab === 'registroGeneral');
-  _tabToggle('tabSetup',           tab === 'setup');
-  if (tab === 'setup') loadSetupConfig();
+  _tabToggle('tabSetup',           false);
   if (tab === 'egresos'      && !egrItems.length) loadEgresos();
   if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
   if (tab === 'dashboard')    loadDashboard();
@@ -4946,6 +4948,77 @@ function openItbmsDetalle() {
 
 function closeItbmsDetalle() {
   document.getElementById('itbmsDetalleOverlay').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════
+//  CONFIG SLIDE PANEL
+// ══════════════════════════════════════════════════
+var _cfgPanelActiveTab = 'empresa';
+var _cfgPanelInited    = false;
+
+function cfgPanelOpen(tab) {
+  _cfgPanelInit();
+  document.getElementById('cfgPanelOverlay').style.display = 'block';
+  document.getElementById('cfgPanel').style.transform      = 'translateX(0)';
+  cfgPanelSwitchTab(tab || _cfgPanelActiveTab);
+  loadSetupConfig();
+}
+
+function cfgPanelClose() {
+  document.getElementById('cfgPanelOverlay').style.display = 'none';
+  document.getElementById('cfgPanel').style.transform      = 'translateX(-100%)';
+}
+
+function cfgPanelSwitchTab(tab) {
+  _cfgPanelActiveTab = tab;
+  ['empresa','auto','historico','sistema'].forEach(function(t) {
+    var btn  = document.getElementById('cfgTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    var pane = document.getElementById('cfgPanel' + t.charAt(0).toUpperCase() + t.slice(1));
+    var isActive = t === tab;
+    if (btn)  btn.classList.toggle('active', isActive);
+    if (pane) pane.style.display = isActive ? '' : 'none';
+  });
+  if (tab === 'sistema')  verificarSistema();
+  if (tab === 'auto')     _loadSetupAcrGrid();
+}
+
+function _cfgPanelInit() {
+  if (_cfgPanelInited) return;
+  _cfgPanelInited = true;
+
+  // Tab Empresa ← setupPanelEmpresa
+  var ep = document.getElementById('cfgPanelEmpresa');
+  var se = document.getElementById('setupPanelEmpresa');
+  if (ep && se) ep.appendChild(se);
+
+  // Tab Automático ← sync note + setupPanelAcreedores
+  var ap = document.getElementById('cfgPanelAuto');
+  if (ap) {
+    var note = document.createElement('div');
+    note.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:1rem;background:#E3F2FD;border-radius:8px;padding:.65rem .85rem;margin-bottom:.75rem';
+    note.innerHTML = '<div style="font-size:.77rem;color:#1565C0;line-height:1.5">⏱ Corre automáticamente cada 15 min.<br>Ejecútalo manualmente solo si es necesario.</div>'
+      + '<button id="btnAcrSync" class="btn-sync" style="white-space:nowrap;flex-shrink:0" onclick="acrSincronizar()">⟳ Sync emails</button>';
+    ap.appendChild(note);
+    var sa = document.getElementById('setupPanelAcreedores');
+    if (sa) ap.appendChild(sa);
+  }
+
+  // Tab Histórico ← gmailImportInner (move inner modal content; hide its own × button)
+  var hp = document.getElementById('cfgPanelHistorico');
+  var gi = document.getElementById('gmailImportInner');
+  if (hp && gi) {
+    // Hide the modal-style padding/shadow box styling — flatten into panel
+    gi.style.cssText = 'width:100%;max-height:none;overflow-y:visible;box-shadow:none;border-radius:0;padding:0';
+    // Hide the modal header row (title + × button) since panel has its own header
+    var hdr = gi.firstElementChild;
+    if (hdr) hdr.style.display = 'none';
+    hp.appendChild(gi);
+  }
+
+  // Tab Sistema ← setupPanelSistema
+  var ssp = document.getElementById('cfgPanelSistema');
+  var ss  = document.getElementById('setupPanelSistema');
+  if (ssp && ss) ssp.appendChild(ss);
 }
 
 // ══════════════════════════════════════════════════
@@ -8173,7 +8246,7 @@ async function acrEliminar() {
 
 async function acrSincronizar() {
   const btn = document.getElementById('btnAcrSync');
-  btn.disabled = true; btn.textContent = '⏳ Sincronizando...';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sincronizando...'; }
   try {
     const data = await gasJsonp('sincronizarAcreedores', {});
     if (!data.success) throw new Error(data.error || 'Error');
@@ -8182,7 +8255,7 @@ async function acrSincronizar() {
   } catch(err) {
     showToast('Error: ' + err.message, true);
   } finally {
-    btn.disabled = false; btn.textContent = '↻ Sincronizar emails';
+    if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync emails'; }
   }
 }
 
@@ -8631,7 +8704,7 @@ function gmailImport_open() {
   _gmailRenderKwPills();
   _gmailShowStep(0);
   gmailSwitchSource('gmail');
-  document.getElementById('gmailImportModal').style.display = 'flex';
+  cfgPanelOpen('historico');
 }
 function _getCatIcon(key) {
   var c = GMAIL_CATEGORIAS.filter(function(x) { return x.key === key; })[0];
@@ -8642,7 +8715,7 @@ function _getCatLabel(key) {
   return c ? c.label : 'Otro';
 }
 function gmailImport_close() {
-  document.getElementById('gmailImportModal').style.display = 'none';
+  cfgPanelClose();
   if (_gmailHadImports || _ofxHadImports) {
     _gmailHadImports = false; _ofxHadImports = false;
     acrCargarPendientesSilencioso();
@@ -9422,7 +9495,7 @@ async function ofxImport_procesar() {
 
   <!-- ═══════════ MODAL GMAIL IMPORT ═══════════ -->
   <div id="gmailImportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;align-items:center;justify-content:center">
-    <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,620px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div id="gmailImportInner" style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,620px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
       <!-- Modal header -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em">📥 Historial de Facturas</div>
@@ -9624,6 +9697,31 @@ async function ofxImport_procesar() {
       </div><!-- /ofxSection -->
     </div>
   </div>
+
+
+<!-- ═══════════ CONFIG SLIDE PANEL ═══════════ -->
+<div id="cfgPanelOverlay" onclick="cfgPanelClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1400"></div>
+<div id="cfgPanel" style="position:fixed;top:0;left:0;width:min(90vw,500px);height:100vh;background:var(--white);z-index:1401;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column">
+  <!-- header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.04em">⚙ Configuración</div>
+    <button onclick="cfgPanelClose()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--muted);line-height:1">×</button>
+  </div>
+  <!-- tabs -->
+  <div style="display:flex;border-bottom:2px solid var(--border);flex-shrink:0">
+    <button id="cfgTabEmpresa"   onclick="cfgPanelSwitchTab('empresa')"   class="cfg-panel-tab active">🏢 Empresa</button>
+    <button id="cfgTabAuto"      onclick="cfgPanelSwitchTab('auto')"      class="cfg-panel-tab">📧 Automático</button>
+    <button id="cfgTabHistorico" onclick="cfgPanelSwitchTab('historico')" class="cfg-panel-tab">📥 Histórico</button>
+    <button id="cfgTabSistema"   onclick="cfgPanelSwitchTab('sistema')"   class="cfg-panel-tab">⚙ Sistema</button>
+  </div>
+  <!-- content -->
+  <div style="flex:1;overflow-y:auto">
+    <div id="cfgPanelEmpresa"   style="padding:.75rem"></div>
+    <div id="cfgPanelAuto"      style="display:none;padding:.75rem"></div>
+    <div id="cfgPanelHistorico" style="display:none;padding:1.25rem"></div>
+    <div id="cfgPanelSistema"   style="display:none;padding:.75rem"></div>
+  </div>
+</div>
 
 </body>
 </html>
