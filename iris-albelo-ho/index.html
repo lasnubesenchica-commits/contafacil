@@ -1462,6 +1462,23 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <option value="all">📂 Todas las categorías</option>
       </select>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
+      <select id="rgEgrFechaMode" onchange="rgApplyEgrFecha(this.value)"
+        style="font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--border);border-radius:7px;
+               background:var(--bg);color:var(--text);cursor:pointer;outline:none">
+        <option value="all">📅 Todas las fechas</option>
+        <option value="7">Últimos 7 días</option>
+        <option value="14">Últimos 14 días</option>
+        <option value="30">Últimos 30 días</option>
+        <option value="custom">Rango personalizado…</option>
+      </select>
+      <span id="rgEgrFechaCustom" style="display:none;gap:.3rem;align-items:center">
+        <input type="date" id="rgEgrFechaDesde" onchange="rgRenderEgr()"
+          style="font-size:.75rem;padding:.25rem .45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
+        <span style="font-size:.72rem;color:var(--muted)">→</span>
+        <input type="date" id="rgEgrFechaHasta" onchange="rgRenderEgr()"
+          style="font-size:.75rem;padding:.25rem .45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
+      </span>
+      <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
       <button class="btn-sync" style="background:#4285F4;color:#fff;border-color:#4285F4;font-size:.76rem;white-space:nowrap" onclick="gmailImport_open()">📥 Historial Gmail</button>
     </div>
 
@@ -5214,6 +5231,7 @@ var rg_ing_filter   = 'all';
 var _rgEgrAcreedor  = 'TODOS';             // filtro por acreedor
 var _rgEgrSort      = { col: 'fecha', dir: 'desc' }; // ordenamiento activo
 var _rgEgrSel       = new Set();           // IDs seleccionados (bulk)
+var _rgEgrFechaMode = 'all';              // filtro fecha: 'all'|'7'|'14'|'30'|'custom'
 var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
 // ── Catálogo DGI unificado — Gastos Operativos (Líneas 42-77 formulario jurídica) ──
@@ -5406,6 +5424,14 @@ window.rgApplyEgrFilter  = rgApplyEgrFilter;
 window.rgApplyEgrEstado  = rgApplyEgrEstado;
 window.rgApplyEgrAlcance = rgApplyEgrAlcance;
 window.rgApplyIngFilter  = rgApplyIngFilter;
+
+function rgApplyEgrFecha(mode) {
+  _rgEgrFechaMode = mode;
+  const wrap = document.getElementById('rgEgrFechaCustom');
+  if (wrap) wrap.style.display = mode === 'custom' ? 'inline-flex' : 'none';
+  rgRenderEgr();
+}
+window.rgApplyEgrFecha = rgApplyEgrFecha;
 
 function rgRefresh() {
   rg_initialized = false;
@@ -5699,6 +5725,26 @@ function rgRenderEgr() {
   if (q) items = items.filter(i =>
     [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
   );
+  if (_rgEgrFechaMode !== 'all') {
+    const hoy = new Date(); hoy.setHours(23,59,59,999);
+    if (_rgEgrFechaMode === 'custom') {
+      const desdeEl = document.getElementById('rgEgrFechaDesde');
+      const hastaEl = document.getElementById('rgEgrFechaHasta');
+      const desde = desdeEl && desdeEl.value ? new Date(desdeEl.value + 'T00:00:00') : null;
+      const hasta = hastaEl && hastaEl.value ? new Date(hastaEl.value + 'T23:59:59') : null;
+      if (desde || hasta) items = items.filter(i => {
+        if (!i.fecha) return true;
+        const d = new Date(i.fecha + 'T00:00:00');
+        if (desde && d < desde) return false;
+        if (hasta && d > hasta) return false;
+        return true;
+      });
+    } else {
+      const dias  = parseInt(_rgEgrFechaMode);
+      const desde = new Date(hoy); desde.setDate(desde.getDate() - dias); desde.setHours(0,0,0,0);
+      items = items.filter(i => i.fecha && new Date(i.fecha + 'T00:00:00') >= desde);
+    }
+  }
 
   // ── 4. Tabs por Acreedor (antes del filtro para mostrar todos los acreedores) ──
   const acrCounts = {};
@@ -5733,10 +5779,10 @@ function rgRenderEgr() {
     wEl.innerHTML = [
       { label:'Pendientes',   val: nPendFilt || '—', color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyEgrEstado(document.querySelector('[data-rge-estado=\"pendiente\"]'),'pendiente')" },
       { label:'Aprobados',    val: nRegFilt  || '—', color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyEgrEstado(document.querySelector('[data-rge-estado=\"registrado\"]'),'registrado')" },
-      { label:'Total gastado',val: fmt$(totFilt),    color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', click:'' },
-      { label:'ITBMS pagado', val: fmt$(itbFilt),    color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:'' },
       { label:'Negocio',      val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'🏢', click:"rgApplyEgrAlcance('negocio',document.querySelector('[data-rga=\"negocio\"]'))" },
       { label:'Personal',     val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'👤', click:"rgApplyEgrAlcance('personal',document.querySelector('[data-rga=\"personal\"]'))" },
+      { label:'Total gastado',val: fmt$(totFilt),    color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', click:'' },
+      { label:'ITBMS pagado', val: fmt$(itbFilt),    color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:'' },
     ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}">`+
       `<div style="font-size:1.3rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
       `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}</div>`+
