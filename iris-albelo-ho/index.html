@@ -8505,6 +8505,11 @@ var _gmailActiveFilter = 'TODOS';
 var _gmailHadImports   = false;
 var _gmailSelCats      = new Set(); // selected category keys — empty means all
 var _gmailCustomKws    = [];        // user-added custom keywords (persisted)
+var _gmailActiveSource = 'gmail';   // 'gmail' | 'ofx'
+var _ofxTransacciones  = [];        // all parsed OFX transactions (with categoria/proveedor)
+var _ofxSel            = new Set(); // selected fitids
+var _ofxCatFilter      = 'all';     // active category filter tab
+var _ofxHadImports     = false;
 
 var GMAIL_CATEGORIAS = [
   { key:'restaurantes',    icon:'🍔', label:'Restaurantes',     kws:['BUCO POLLO','PEDRO MANDINGA','PERU CHICKEN','ONE WOK','PEDIDOS YA','PEDIDOSYA','DURAN COFFE','DURAN COFFEE','PREMIUM FOOD','KFC','SUSHI EXPRESS','TGI FRIDAY','T.G.I.F','ATHANASIOU','KOTOWA','UNIDO COFFE','POPEYES','CHELA EXPR','CHURRERIA MANOLO','GRAND DELI','WING ZONE','MI SAZON','EL RANCHO INTERIORANO','COFFE STORE','COFFEE HOUSE','POKECITO','TRAPICH'] },
@@ -8533,12 +8538,14 @@ function gmailImport_open() {
   _gmailLoadCustomKws();
   _gmailToken = null; _gmailMsgs = []; _gmailSel = new Set();
   _gmailActiveFilter = 'TODOS'; _gmailHadImports = false;
+  _ofxTransacciones = []; _ofxSel = new Set(); _ofxHadImports = false;
   document.getElementById('gmailAuthStatus').textContent = 'No conectado';
   document.getElementById('gmailAuthStatus').style.color = 'var(--muted)';
   var btn = document.getElementById('btnGmailSearch');
   btn.disabled = true; btn.style.opacity = '.45';
   _gmailRenderKwPills();
   _gmailShowStep(0);
+  gmailSwitchSource('gmail');
   document.getElementById('gmailImportModal').style.display = 'flex';
 }
 function _getCatIcon(key) {
@@ -8551,7 +8558,10 @@ function _getCatLabel(key) {
 }
 function gmailImport_close() {
   document.getElementById('gmailImportModal').style.display = 'none';
-  if (_gmailHadImports) { _gmailHadImports = false; acrCargarPendientesSilencioso(); }
+  if (_gmailHadImports || _ofxHadImports) {
+    _gmailHadImports = false; _ofxHadImports = false;
+    acrCargarPendientesSilencioso();
+  }
 }
 function _gmailShowStep(n) {
   for (var i = 0; i <= 4; i++) {
@@ -9000,6 +9010,208 @@ async function gmailImport_procesar() {
 function _gesc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ═══ OFX Source Switch ═══════════════════════════════════════
+function gmailSwitchSource(src) {
+  _gmailActiveSource = src;
+  document.getElementById('gmailSection').style.display = (src === 'gmail') ? '' : 'none';
+  document.getElementById('ofxSection').style.display   = (src === 'ofx')   ? '' : 'none';
+  var tG = document.getElementById('tabSrcGmail');
+  var tO = document.getElementById('tabSrcOFX');
+  var activeStyle   = 'padding:.35rem .9rem;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;background:#1565C0;color:#fff';
+  var inactiveStyle = 'padding:.35rem .9rem;border:1px solid var(--border);border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text)';
+  if (tG) tG.style.cssText = (src === 'gmail') ? activeStyle : inactiveStyle;
+  if (tO) tO.style.cssText = (src === 'ofx')   ? activeStyle : inactiveStyle;
+}
+
+// ═══ OFX Parser ══════════════════════════════════════════════
+function _parseOfxDate(s) {
+  s = String(s || '').replace(/\[.*/,'').replace(/\..*/,'').trim();
+  if (s.length < 8) return s;
+  return s.substring(0,4) + '-' + s.substring(4,6) + '-' + s.substring(6,8);
+}
+
+function _parseOFX(text) {
+  var results = [];
+  var re = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
+  var m;
+  while ((m = re.exec(text)) !== null) {
+    var block = m[1];
+    var get = function(field, b) {
+      var fm = b.match(new RegExp('<' + field + '>([^<\r\n]+)', 'i'));
+      return fm ? fm[1].trim() : '';
+    };
+    var amtStr = get('TRNAMT', block);
+    var monto  = parseFloat(amtStr.replace(',','.')) || 0;
+    if (monto >= 0) continue; // skip credits / deposits
+    var fitid = get('FITID', block);
+    if (!fitid) continue;
+    results.push({
+      fitid:    fitid,
+      fecha:    _parseOfxDate(get('DTPOSTED', block)),
+      monto:    Math.abs(monto),
+      memo:     get('MEMO', block) || get('NAME', block) || '',
+      proveedor: '',
+      categoria: '',
+      alcance:   'negocio'
+    });
+  }
+  return results;
+}
+
+// ═══ OFX Step 0 — File Upload ════════════════════════════════
+function ofxHandleFile(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var lbl = document.getElementById('ofxFileName');
+  if (lbl) lbl.textContent = file.name;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    _ofxTransacciones = _parseOFX(text);
+    if (!_ofxTransacciones.length) {
+      alert('No se encontraron gastos en el archivo OFX. Verifica que sea un estado de cuenta de Banco General.');
+      return;
+    }
+    ofxCategorizar();
+  };
+  reader.readAsText(file, 'latin1');
+}
+
+// ═══ OFX Categorization ══════════════════════════════════════
+async function ofxCategorizar() {
+  _ofxShowStep(1);
+  var batch = _ofxTransacciones.map(function(t, i) { return { idx: i, memo: t.memo, monto: t.monto }; });
+  try {
+    var resp = await fetch(GAS_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'categorizarTransaccionesOFX', transacciones: batch })
+    });
+    var d = await resp.json();
+    if (d.ok && d.result) {
+      d.result.forEach(function(r) {
+        if (_ofxTransacciones[r.idx] !== undefined) {
+          _ofxTransacciones[r.idx].categoria = r.categoria || 'otro';
+          _ofxTransacciones[r.idx].proveedor = r.proveedor || _ofxTransacciones[r.idx].memo;
+        }
+      });
+    }
+  } catch(e) {
+    _ofxTransacciones.forEach(function(t) { if (!t.categoria) { t.categoria = 'otro'; t.proveedor = t.memo; } });
+  }
+  _ofxCatFilter = 'all';
+  _ofxSel = new Set(_ofxTransacciones.map(function(t) { return t.fitid; }));
+  _ofxRenderTabs();
+  _ofxRenderLista();
+  _ofxShowStep(2);
+}
+
+// ═══ OFX Step 2 — Tabs + List ════════════════════════════════
+function _ofxShowStep(n) {
+  for (var i = 0; i <= 4; i++) {
+    var el = document.getElementById('ofxStep' + i);
+    if (el) el.style.display = (i === n) ? '' : 'none';
+  }
+}
+
+function _ofxRenderTabs() {
+  var counts = { all: _ofxTransacciones.length };
+  _ofxTransacciones.forEach(function(t) { counts[t.categoria] = (counts[t.categoria]||0) + 1; });
+  var cats = Object.keys(counts).filter(function(k){ return k !== 'all'; }).sort();
+  var tabs = [{ key:'all', label:'Todos', icon:'📋' }].concat(cats.map(function(k) {
+    var c = GMAIL_CATEGORIAS.filter(function(x){ return x.key === k; })[0];
+    return { key: k, label: c ? c.label : k, icon: c ? c.icon : '📄' };
+  }));
+  var el = document.getElementById('ofxFilterTabs');
+  if (!el) return;
+  el.innerHTML = tabs.map(function(t) {
+    var active = (_ofxCatFilter === t.key);
+    return '<button onclick="ofxSetCatFilter(\'' + t.key + '\')" style="' +
+      'padding:.25rem .55rem;border-radius:20px;font-size:.72rem;font-weight:700;cursor:pointer;' +
+      'border:1px solid ' + (active ? '#1565C0' : 'var(--border)') + ';' +
+      'background:' + (active ? '#E3F2FD' : 'var(--bg)') + ';' +
+      'color:' + (active ? '#1565C0' : 'var(--text)') + '">' +
+      t.icon + ' ' + t.label + ' <span style="opacity:.7">(' + (counts[t.key]||0) + ')</span>' +
+      '</button>';
+  }).join('');
+}
+
+function ofxSetCatFilter(cat) {
+  _ofxCatFilter = cat;
+  _ofxRenderTabs();
+  _ofxRenderLista();
+}
+
+function _ofxRenderLista() {
+  var visible = _ofxCatFilter === 'all'
+    ? _ofxTransacciones
+    : _ofxTransacciones.filter(function(t){ return t.categoria === _ofxCatFilter; });
+  var el = document.getElementById('ofxTxList');
+  if (!el) return;
+  if (!visible.length) { el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.82rem;color:var(--muted)">Sin transacciones en esta categoría</div>'; _ofxUpdCount(); return; }
+  el.innerHTML = visible.map(function(t) {
+    var checked = _ofxSel.has(t.fitid);
+    var cat = GMAIL_CATEGORIAS.filter(function(c){ return c.key === t.categoria; })[0];
+    var icon = cat ? cat.icon : '📄';
+    var catLbl = cat ? cat.label : (t.categoria || 'Otro');
+    return '<div onclick="ofxToggle(\'' + t.fitid + '\')" style="' +
+      'display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;cursor:pointer;' +
+      'border-bottom:1px solid var(--border);transition:background .1s;' +
+      'background:' + (checked ? '#E3F2FD' : 'transparent') + '">' +
+      '<input type="checkbox" ' + (checked?'checked':'') + ' onclick="event.stopPropagation();ofxToggle(\'' + t.fitid + '\')" style="flex-shrink:0">' +
+      '<span style="font-size:1.1rem;flex-shrink:0">' + icon + '</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(t.proveedor || t.memo) + '</div>' +
+        '<div style="font-size:.7rem;color:var(--muted)">' + t.fecha + ' · ' + catLbl + '</div>' +
+      '</div>' +
+      '<div style="font-size:.82rem;font-weight:700;color:#C62828;flex-shrink:0">-$' + t.monto.toFixed(2) + '</div>' +
+      '</div>';
+  }).join('');
+  _ofxUpdCount();
+}
+
+function ofxToggle(fitid) {
+  if (_ofxSel.has(fitid)) _ofxSel.delete(fitid);
+  else _ofxSel.add(fitid);
+  _ofxRenderLista();
+}
+function ofxSelAll(v) {
+  var visible = _ofxCatFilter === 'all'
+    ? _ofxTransacciones
+    : _ofxTransacciones.filter(function(t){ return t.categoria === _ofxCatFilter; });
+  visible.forEach(function(t){ if(v) _ofxSel.add(t.fitid); else _ofxSel.delete(t.fitid); });
+  _ofxRenderLista();
+}
+function _ofxUpdCount() {
+  var el = document.getElementById('ofxSelCount');
+  if (el) el.textContent = _ofxSel.size + ' de ' + _ofxTransacciones.length + ' seleccionadas';
+}
+
+// ═══ OFX Step 3→4 — Import ═══════════════════════════════════
+async function ofxImport_procesar() {
+  var alcance = (document.getElementById('ofxAlcance') || {}).value || 'negocio';
+  var sel = _ofxTransacciones.filter(function(t){ return _ofxSel.has(t.fitid); });
+  if (!sel.length) return;
+  _ofxShowStep(3);
+  var payload = sel.map(function(t) {
+    return { fitid: t.fitid, fecha: t.fecha, monto: t.monto, memo: t.memo,
+             proveedor: t.proveedor || t.memo, categoria: t.categoria || 'otro', alcance: alcance };
+  });
+  try {
+    var resp = await fetch(GAS_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'importarLoteOFX', transacciones: payload })
+    });
+    var d = await resp.json();
+    document.getElementById('ofxDoneOk').textContent  = d.inserted || 0;
+    document.getElementById('ofxDoneDup').textContent = d.skipped  || 0;
+    if ((d.inserted || 0) > 0) _ofxHadImports = true;
+  } catch(e) {
+    document.getElementById('ofxDoneOk').textContent  = 0;
+    document.getElementById('ofxDoneDup').textContent = 0;
+  }
+  _ofxShowStep(4);
+}
 </script>
 
 
@@ -9126,114 +9338,213 @@ function _gesc(s) {
   <!-- ═══════════ MODAL GMAIL IMPORT ═══════════ -->
   <div id="gmailImportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;align-items:center;justify-content:center">
     <div style="background:var(--white);border-radius:14px;padding:2rem;width:min(95vw,620px);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em">📥 Historial de Facturas Gmail</div>
+      <!-- Modal header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.04em">📥 Historial de Facturas</div>
         <button onclick="gmailImport_close()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
       </div>
 
-      <!-- Step 0: Connect + period + optional extra terms + search -->
-      <div id="gmailStep0">
-        <div style="display:grid;gap:.85rem">
-          <!-- Explanation -->
-          <div style="background:#E3F2FD;border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:#1565C0;line-height:1.5">
-            🤖 <strong>Búsqueda inteligente:</strong> Busca todos los correos con adjuntos de facturas y los categoriza automáticamente con IA.
+      <!-- Source tabs -->
+      <div style="display:flex;gap:.4rem;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:2px solid var(--border)">
+        <button id="tabSrcGmail" onclick="gmailSwitchSource('gmail')" style="padding:.35rem .9rem;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;background:#1565C0;color:#fff">📧 Gmail</button>
+        <button id="tabSrcOFX"   onclick="gmailSwitchSource('ofx')"   style="padding:.35rem .9rem;border:1px solid var(--border);border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text)">🏦 Banco General (.OFX)</button>
+      </div>
+
+      <!-- ══ GMAIL SECTION ══════════════════════════════════════ -->
+      <div id="gmailSection">
+
+        <!-- Step 0: Connect + period + optional extra terms + search -->
+        <div id="gmailStep0">
+          <div style="display:grid;gap:.85rem">
+            <!-- Explanation -->
+            <div style="background:#E3F2FD;border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:#1565C0;line-height:1.5">
+              🤖 <strong>Búsqueda inteligente:</strong> Busca todos los correos con adjuntos de facturas y los categoriza automáticamente con IA.
+            </div>
+            <!-- Period -->
+            <div style="display:flex;align-items:center;gap:.75rem">
+              <label style="font-size:.72rem;font-weight:600;color:var(--muted);white-space:nowrap">PERÍODO:</label>
+              <select id="gmailDays" style="flex:1;padding:.4rem .65rem;border:1px solid var(--border);border-radius:7px;font-size:.82rem;background:var(--bg);color:var(--text);outline:none">
+                <option value="30">Últimos 30 días</option>
+                <option value="90" selected>Últimos 90 días</option>
+                <option value="180">Últimos 6 meses</option>
+                <option value="365">Último año</option>
+              </select>
+            </div>
+            <!-- Extra search terms (optional) -->
+            <div>
+              <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.35rem">TÉRMINOS ADICIONALES <span style="font-weight:400;opacity:.7">(opcional — para proveedores específicos)</span></label>
+              <div id="gmailKwPills" style="display:flex;flex-wrap:wrap;gap:.3rem;min-height:1.4rem;margin-bottom:.4rem"></div>
+              <div style="display:flex;gap:.4rem">
+                <input id="gmailKwInput" type="text" placeholder="Ej: IDDAN, CLARO FACTURA…" onkeydown="if(event.key==='Enter')gmailKwAdd()"
+                  style="flex:1;padding:.32rem .6rem;border:1px solid var(--border);border-radius:6px;font-size:.78rem;outline:none;background:var(--bg);color:var(--text)">
+                <button onclick="gmailKwAdd()" style="padding:.32rem .7rem;background:#fff3e0;color:#E65100;border:1px solid #FFCC80;border-radius:6px;font-size:.78rem;cursor:pointer;font-weight:700">+ Agregar</button>
+              </div>
+            </div>
+            <!-- Auth + Search -->
+            <button onclick="gmailImport_auth()" style="width:100%;padding:.6rem;background:#4285F4;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
+              🔑 Conectar con Google Gmail
+            </button>
+            <div id="gmailAuthStatus" style="font-size:.78rem;text-align:center;color:var(--muted)">No conectado</div>
+            <button id="btnGmailSearch" onclick="gmailImport_buscar()" disabled style="width:100%;padding:.55rem;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;opacity:.45">
+              🔍 Buscar y categorizar con IA
+            </button>
           </div>
-          <!-- Period -->
-          <div style="display:flex;align-items:center;gap:.75rem">
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);white-space:nowrap">PERÍODO:</label>
-            <select id="gmailDays" style="flex:1;padding:.4rem .65rem;border:1px solid var(--border);border-radius:7px;font-size:.82rem;background:var(--bg);color:var(--text);outline:none">
-              <option value="30">Últimos 30 días</option>
-              <option value="90" selected>Últimos 90 días</option>
-              <option value="180">Últimos 6 meses</option>
-              <option value="365">Último año</option>
-            </select>
+        </div>
+
+        <!-- Step 1: Searching / Categorizing -->
+        <div id="gmailStep1" style="display:none">
+          <div style="text-align:center;padding:2.5rem 0">
+            <div style="font-size:2rem;margin-bottom:.75rem" id="gmailStep1Icon">🔍</div>
+            <div style="font-size:.9rem;font-weight:600;margin-bottom:.4rem" id="gmailStep1Label">Buscando en Gmail...</div>
+            <div style="font-size:.78rem;color:var(--muted)" id="gmailStep1Sub">Puede tardar unos segundos</div>
           </div>
-          <!-- Extra search terms (optional) -->
-          <div>
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.35rem">TÉRMINOS ADICIONALES <span style="font-weight:400;opacity:.7">(opcional — para proveedores específicos)</span></label>
-            <div id="gmailKwPills" style="display:flex;flex-wrap:wrap;gap:.3rem;min-height:1.4rem;margin-bottom:.4rem"></div>
-            <div style="display:flex;gap:.4rem">
-              <input id="gmailKwInput" type="text" placeholder="Ej: IDDAN, CLARO FACTURA…" onkeydown="if(event.key==='Enter')gmailKwAdd()"
-                style="flex:1;padding:.32rem .6rem;border:1px solid var(--border);border-radius:6px;font-size:.78rem;outline:none;background:var(--bg);color:var(--text)">
-              <button onclick="gmailKwAdd()" style="padding:.32rem .7rem;background:#fff3e0;color:#E65100;border:1px solid #FFCC80;border-radius:6px;font-size:.78rem;cursor:pointer;font-weight:700">+ Agregar</button>
+        </div>
+
+        <!-- Step 2: Filter tabs + Email list -->
+        <div id="gmailStep2" style="display:none">
+          <div id="gmailFilterTabs" style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;flex-wrap:wrap;gap:.4rem">
+            <span id="gmailSelCount" style="font-size:.78rem;font-weight:600;color:var(--muted)">0 seleccionados</span>
+            <div style="display:flex;gap:.3rem">
+              <button onclick="gmailSelAll(true)"  style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer">Todos</button>
+              <button onclick="gmailSelAll(false)" style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer">Ninguno</button>
+              <button onclick="_gmailShowStep(0)" style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer" title="Volver y ajustar keywords">⚙</button>
             </div>
           </div>
-          <!-- Auth + Search -->
-          <button onclick="gmailImport_auth()" style="width:100%;padding:.6rem;background:#4285F4;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
-            🔑 Conectar con Google Gmail
-          </button>
-          <div id="gmailAuthStatus" style="font-size:.78rem;text-align:center;color:var(--muted)">No conectado</div>
-          <button id="btnGmailSearch" onclick="gmailImport_buscar()" disabled style="width:100%;padding:.55rem;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;opacity:.45">
-            🔍 Buscar y categorizar con IA
+          <div id="gmailEmailList" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+          <button onclick="gmailImport_procesar()" style="width:100%;padding:.6rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;margin-top:.75rem">
+            🤖 Procesar seleccionadas con IA
           </button>
         </div>
-      </div>
 
-      <!-- Step 1: Searching / Categorizing -->
-      <div id="gmailStep1" style="display:none">
-        <div style="text-align:center;padding:2.5rem 0">
-          <div style="font-size:2rem;margin-bottom:.75rem" id="gmailStep1Icon">🔍</div>
-          <div style="font-size:.9rem;font-weight:600;margin-bottom:.4rem" id="gmailStep1Label">Buscando en Gmail...</div>
-          <div style="font-size:.78rem;color:var(--muted)" id="gmailStep1Sub">Puede tardar unos segundos</div>
-        </div>
-      </div>
-
-      <!-- Step 2: Filter tabs + Email list -->
-      <div id="gmailStep2" style="display:none">
-        <div id="gmailFilterTabs" style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem"></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;flex-wrap:wrap;gap:.4rem">
-          <span id="gmailSelCount" style="font-size:.78rem;font-weight:600;color:var(--muted)">0 seleccionados</span>
-          <div style="display:flex;gap:.3rem">
-            <button onclick="gmailSelAll(true)"  style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer">Todos</button>
-            <button onclick="gmailSelAll(false)" style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer">Ninguno</button>
-            <button onclick="_gmailShowStep(0)" style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer" title="Volver y ajustar keywords">⚙</button>
+        <!-- Step 3: Processing per-email progress -->
+        <div id="gmailStep3" style="display:none">
+          <div style="text-align:center;padding:1.5rem 0">
+            <div style="font-size:1.6rem;margin-bottom:.6rem">🤖</div>
+            <div style="font-size:.88rem;font-weight:600;margin-bottom:.85rem" id="gmailProgLabel">Procesando...</div>
+            <div style="background:var(--border);border-radius:100px;height:9px;overflow:hidden;margin:0 .5rem">
+              <div id="gmailProgBar" style="height:100%;background:var(--green);width:0%;transition:width .3s;border-radius:100px"></div>
+            </div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">Cada factura se procesa individualmente con Claude</div>
           </div>
         </div>
-        <div id="gmailEmailList" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
-        <button onclick="gmailImport_procesar()" style="width:100%;padding:.6rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;margin-top:.75rem">
-          🤖 Procesar seleccionadas con IA
-        </button>
-      </div>
 
-      <!-- Step 3: Processing per-email progress -->
-      <div id="gmailStep3" style="display:none">
-        <div style="text-align:center;padding:1.5rem 0">
-          <div style="font-size:1.6rem;margin-bottom:.6rem">🤖</div>
-          <div style="font-size:.88rem;font-weight:600;margin-bottom:.85rem" id="gmailProgLabel">Procesando...</div>
-          <div style="background:var(--border);border-radius:100px;height:9px;overflow:hidden;margin:0 .5rem">
-            <div id="gmailProgBar" style="height:100%;background:var(--green);width:0%;transition:width .3s;border-radius:100px"></div>
+        <!-- Step 4: Done -->
+        <div id="gmailStep4" style="display:none">
+          <div style="padding:1.5rem 0 .5rem">
+            <div style="text-align:center">
+              <div style="font-size:2rem;margin-bottom:.65rem">🎉</div>
+              <div style="font-size:.98rem;font-weight:700;margin-bottom:.65rem">¡Importación completada!</div>
+              <div style="display:grid;gap:.35rem;font-size:.83rem;margin:.5rem auto;max-width:260px;text-align:left">
+                <div>✅ <span style="color:var(--green);font-weight:700" id="gmailDoneOk">0</span> facturas importadas como pendientes</div>
+                <div>🔁 <span style="color:#1565C0;font-weight:700" id="gmailDoneDup">0</span> duplicadas (ya existían)</div>
+                <div>⚠ <span style="color:var(--orange);font-weight:700" id="gmailDoneErr">0</span> no procesadas</div>
+              </div>
+            </div>
+            <div id="gmailDoneErrList" style="display:none;margin-top:.85rem">
+              <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;letter-spacing:.04em">CORREOS NO PROCESADOS</div>
+              <div id="gmailDoneErrItems" style="display:grid;gap:.3rem;max-height:160px;overflow-y:auto"></div>
+            </div>
+            <p style="font-size:.78rem;color:var(--muted);margin-top:.85rem;line-height:1.5;text-align:center">Revisa los pendientes y aprueba los que correspondan.</p>
+            <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.85rem">
+              <button onclick="_gmailShowStep(0)" style="padding:.45rem 1rem;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer">
+                ← Nueva búsqueda
+              </button>
+              <button onclick="gmailImport_close()" style="padding:.45rem 1.25rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer">
+                ✓ Cerrar
+              </button>
+            </div>
           </div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">Cada factura se procesa individualmente con Claude</div>
         </div>
-      </div>
 
-      <!-- Step 4: Done -->
-      <div id="gmailStep4" style="display:none">
-        <div style="padding:1.5rem 0 .5rem">
-          <div style="text-align:center">
+      </div><!-- /gmailSection -->
+
+      <!-- ══ OFX SECTION ═══════════════════════════════════════ -->
+      <div id="ofxSection" style="display:none">
+
+        <!-- Step 0: File upload -->
+        <div id="ofxStep0">
+          <div style="display:grid;gap:.85rem">
+            <div style="background:#E8F5E9;border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:#2E7D32;line-height:1.5">
+              🏦 <strong>Banco General OFX:</strong> Descarga tu estado de cuenta en formato <strong>.OFX</strong> desde Banca en Línea → Consultas → Estado de Cuenta → Exportar OFX. La IA categorizará cada gasto automáticamente.
+            </div>
+            <!-- Alcance -->
+            <div style="display:flex;align-items:center;gap:.75rem">
+              <label style="font-size:.72rem;font-weight:600;color:var(--muted);white-space:nowrap">CLASIFICAR COMO:</label>
+              <select id="ofxAlcance" style="flex:1;padding:.4rem .65rem;border:1px solid var(--border);border-radius:7px;font-size:.82rem;background:var(--bg);color:var(--text);outline:none">
+                <option value="negocio" selected>✅ Deducible (Negocio)</option>
+                <option value="personal">🚫 No Deducible (Personal)</option>
+              </select>
+            </div>
+            <!-- File drop area -->
+            <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.5rem;border:2px dashed var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s;background:var(--bg)"
+              onmouseover="this.style.borderColor='#1565C0'" onmouseout="this.style.borderColor='var(--border)'">
+              <span style="font-size:2rem">📁</span>
+              <span style="font-size:.82rem;font-weight:600;color:var(--text)">Seleccionar archivo .OFX</span>
+              <span id="ofxFileName" style="font-size:.73rem;color:var(--muted)">Ningún archivo seleccionado</span>
+              <input type="file" accept=".ofx,.OFX" onchange="ofxHandleFile(this)" style="display:none">
+            </label>
+            <div style="font-size:.72rem;color:var(--muted);text-align:center">Solo se importarán débitos (gastos). Los créditos y depósitos se omiten automáticamente.</div>
+          </div>
+        </div>
+
+        <!-- Step 1: Parsing + AI categorization -->
+        <div id="ofxStep1" style="display:none">
+          <div style="text-align:center;padding:2.5rem 0">
+            <div style="font-size:2rem;margin-bottom:.75rem">🤖</div>
+            <div style="font-size:.9rem;font-weight:600;margin-bottom:.4rem">Analizando transacciones con IA...</div>
+            <div style="font-size:.78rem;color:var(--muted)">Claude categoriza cada gasto automáticamente</div>
+          </div>
+        </div>
+
+        <!-- Step 2: Filter tabs + Transaction list -->
+        <div id="ofxStep2" style="display:none">
+          <div id="ofxFilterTabs" style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;flex-wrap:wrap;gap:.4rem">
+            <span id="ofxSelCount" style="font-size:.78rem;font-weight:600;color:var(--muted)">0 seleccionadas</span>
+            <div style="display:flex;gap:.3rem">
+              <button onclick="ofxSelAll(true)"  style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer">Todas</button>
+              <button onclick="ofxSelAll(false)" style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer">Ninguna</button>
+              <button onclick="_ofxShowStep(0)" style="font-size:.7rem;padding:.18rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer" title="Cargar otro archivo">⚙</button>
+            </div>
+          </div>
+          <div id="ofxTxList" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+          <button onclick="ofxImport_procesar()" style="width:100%;padding:.6rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;margin-top:.75rem">
+            💾 Importar seleccionadas
+          </button>
+        </div>
+
+        <!-- Step 3: Importing -->
+        <div id="ofxStep3" style="display:none">
+          <div style="text-align:center;padding:2.5rem 0">
+            <div style="font-size:2rem;margin-bottom:.75rem">⬆️</div>
+            <div style="font-size:.9rem;font-weight:600;margin-bottom:.4rem">Importando transacciones...</div>
+            <div style="font-size:.78rem;color:var(--muted)">Guardando en Acreedores Pendientes</div>
+          </div>
+        </div>
+
+        <!-- Step 4: Done -->
+        <div id="ofxStep4" style="display:none">
+          <div style="padding:1.5rem 0 .5rem;text-align:center">
             <div style="font-size:2rem;margin-bottom:.65rem">🎉</div>
             <div style="font-size:.98rem;font-weight:700;margin-bottom:.65rem">¡Importación completada!</div>
             <div style="display:grid;gap:.35rem;font-size:.83rem;margin:.5rem auto;max-width:260px;text-align:left">
-              <div>✅ <span style="color:var(--green);font-weight:700" id="gmailDoneOk">0</span> facturas importadas como pendientes</div>
-              <div>🔁 <span style="color:#1565C0;font-weight:700" id="gmailDoneDup">0</span> duplicadas (ya existían)</div>
-              <div>⚠ <span style="color:var(--orange);font-weight:700" id="gmailDoneErr">0</span> no procesadas</div>
+              <div>✅ <span style="color:var(--green);font-weight:700" id="ofxDoneOk">0</span> transacciones importadas como pendientes</div>
+              <div>🔁 <span style="color:#1565C0;font-weight:700" id="ofxDoneDup">0</span> duplicadas (FITID ya existía)</div>
+            </div>
+            <p style="font-size:.78rem;color:var(--muted);margin-top:.85rem;line-height:1.5">Revisa los pendientes y aprueba los que correspondan.</p>
+            <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.85rem">
+              <button onclick="_ofxShowStep(0)" style="padding:.45rem 1rem;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer">
+                ← Cargar otro
+              </button>
+              <button onclick="gmailImport_close()" style="padding:.45rem 1.25rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer">
+                ✓ Cerrar
+              </button>
             </div>
           </div>
-          <div id="gmailDoneErrList" style="display:none;margin-top:.85rem">
-            <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;letter-spacing:.04em">CORREOS NO PROCESADOS</div>
-            <div id="gmailDoneErrItems" style="display:grid;gap:.3rem;max-height:160px;overflow-y:auto"></div>
-          </div>
-          <p style="font-size:.78rem;color:var(--muted);margin-top:.85rem;line-height:1.5;text-align:center">Revisa los pendientes y aprueba los que correspondan.</p>
-          <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.85rem">
-            <button onclick="_gmailShowStep(0)" style="padding:.45rem 1rem;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer">
-              ← Nueva búsqueda
-            </button>
-            <button onclick="gmailImport_close()" style="padding:.45rem 1.25rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer">
-              ✓ Cerrar
-            </button>
-          </div>
         </div>
-      </div>
+
+      </div><!-- /ofxSection -->
     </div>
   </div>
 
