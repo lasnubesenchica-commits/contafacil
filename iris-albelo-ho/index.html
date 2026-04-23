@@ -6967,7 +6967,10 @@ function renderDashboard() {
     <div class="pl-kpi" style="--kpi-accent:#6A1B9A">
       <div class="pl-kpi-label">Gastos operativos</div>
       <div class="pl-kpi-value" style="color:#6A1B9A">${plFmt(gastosGral)}</div>
-      <div class="pl-kpi-sub">${totalIngNeto > 0 ? ((gastosGral/totalIngNeto)*100).toFixed(1)+'% de ingresos' : gastosGral > 0 ? 'del período' : '—'}</div>
+      <div class="pl-kpi-sub" style="flex-direction:column;align-items:flex-start;gap:.1rem">
+        <span>${totalIngNeto > 0 ? ((gastosGral/totalIngNeto)*100).toFixed(1)+'% de ingresos' : gastosGral > 0 ? 'del período' : '—'}</span>
+        ${gastosPersonales > 0 ? `<span style="color:#E65100;font-size:.67rem">🚫 ${plFmt(gastosPersonales)} personal</span>` : ''}
+      </div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
       <div class="pl-kpi-label">Utilidad neta</div>
@@ -6993,13 +6996,7 @@ function renderDashboard() {
       <div class="pl-kpi-value" style="color:#00695C">${plFmt(ticket)}</div>
       <div class="pl-kpi-sub">${txCount} factura${txCount !== 1 ? 's' : ''} en el período</div>
     </div>
-    ${gastosPersonales > 0 ? `
-    <div class="pl-kpi" style="--kpi-accent:#E65100;opacity:.85" title="Gastos personales — no afectan P&L ni reportes DGI">
-      <div class="pl-kpi-label">👤 Gastos personales</div>
-      <div class="pl-kpi-value" style="color:#E65100">${plFmt(gastosPersonales)}</div>
-      <div class="pl-kpi-sub">No deducibles · excluidos del P&L</div>
-    </div>` : ''}`;
-
+    `;
   // Gráfica barras
   plRenderBarChart(plYear);
 
@@ -7659,6 +7656,32 @@ function erRender() {
   });
   const gastosTotal = gastosItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
 
+  // ── Deducible / No deducible split ──────────────────────────────
+  const dedTotal   = gastosItems.filter(e => (e.alcance || 'negocio') !== 'personal')
+                                .reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  const nodedTotal = gastosItems.filter(e => (e.alcance || 'negocio') === 'personal')
+                                .reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  // ── Categorías ──────────────────────────────────────────────────
+  const catMap = {};
+  gastosItems.forEach(e => {
+    const cat = e.tipo_egreso || 'otros_deducibles';
+    if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
+    catMap[cat].total += parseFloat(e.total) || 0;
+    catMap[cat].count++;
+  });
+  const catEntries = Object.entries(catMap).sort((a, b) => b[1].total - a[1].total);
+
+  // ── Top proveedores ─────────────────────────────────────────────
+  const provMap = {};
+  gastosItems.forEach(e => {
+    const prov = (e.proveedor || '').trim() || 'Sin proveedor';
+    if (!provMap[prov]) provMap[prov] = { total: 0, count: 0 };
+    provMap[prov].total += parseFloat(e.total) || 0;
+    provMap[prov].count++;
+  });
+  const top5Prov = Object.entries(provMap).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
+
   const utilBruta = totalIngNeto - cogsTotal;
   const utilNeta  = utilBruta - gastosTotal;
 
@@ -7707,12 +7730,46 @@ function erRender() {
   }).join('');
 
   // ── Detalle Gastos ──
+  const dedBarHtml = gastosItems.length > 0 ? `
+    <div style="display:flex;gap:.6rem;align-items:center;padding:.5rem .85rem;background:var(--bg);border-radius:6px;margin:.45rem;font-size:.75rem;flex-wrap:wrap">
+      <span style="color:var(--green);font-weight:700">✅ ${plFmt(dedTotal)}</span>
+      <span style="color:var(--muted)">deducibles</span>
+      ${nodedTotal > 0 ? `<span style="margin-left:auto;color:#E65100;font-weight:700">🚫 ${plFmt(nodedTotal)}</span><span style="color:var(--muted)">no deducibles</span>` : ''}
+    </div>` : '';
+
   const detGasHtml = gastosItems.map(e => {
     const cat   = esc(EGR_LABEL[e.tipo_egreso] || e.tipo_egreso || '—');
     const desc  = e.descripcion ? `<span class="er-detail-item-sub">${esc(e.descripcion.substring(0,50))}</span>` : '';
+    const alcBadge = (e.alcance || 'negocio') === 'personal'
+      ? '<span style="font-size:.63rem;color:#E65100;margin-left:.3rem">🚫</span>' : '';
     return `<div class="er-detail-item">
-      <span class="er-detail-item-label">${cat}${desc}</span>
+      <span class="er-detail-item-label">${cat}${alcBadge}${desc}</span>
       <span class="er-detail-item-amt">${plFmt(parseFloat(e.total) || 0)}</span>
+    </div>`;
+  }).join('');
+
+  // ── Detalle Categorías ──
+  const catDetailHtml = catEntries.map(([cat, d]) => {
+    const label = esc(EGR_LABEL[cat] || cat);
+    const color = EGR_COLORS[cat] || '#9E9E9E';
+    const pct   = gastosTotal > 0 ? (d.total / gastosTotal * 100).toFixed(1) : '0.0';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label" style="color:var(--text)">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:.4rem;vertical-align:middle;flex-shrink:0"></span>${label}
+        <span class="er-detail-item-sub">${d.count} gasto${d.count !== 1 ? 's' : ''} · ${pct}%</span>
+      </span>
+      <span class="er-detail-item-amt">${plFmt(d.total)}</span>
+    </div>`;
+  }).join('');
+
+  // ── Detalle Top proveedores ──
+  const provDetailHtml = top5Prov.map(([prov, d]) => {
+    const pct = gastosTotal > 0 ? (d.total / gastosTotal * 100).toFixed(1) : '0.0';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label" style="color:var(--text)">${esc(prov)}
+        <span class="er-detail-item-sub">${d.count} factura${d.count !== 1 ? 's' : ''} · ${pct}%</span>
+      </span>
+      <span class="er-detail-item-amt">${plFmt(d.total)}</span>
     </div>`;
   }).join('');
 
@@ -7751,8 +7808,29 @@ function erRender() {
       ${fmtAmt(-gastosTotal, gastosTotal > 0 ? 'purple' : 'green')}
     </div>
     <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-gas">
+      ${dedBarHtml}
       ${detGasHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin gastos operativos en este período</span></div>'}
     </div>
+
+    <!-- POR CATEGORÍA -->
+    ${catEntries.length > 0 ? `
+    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="cat" onclick="erToggleSection('cat')">
+      <span class="er-row-label">${chevron} Distribución por categoría ${countLbl(catEntries.length)}</span>
+      <span style="font-size:.7rem;color:var(--chrome);font-family:'DM Mono',monospace">desglose</span>
+    </div>
+    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-cat">
+      ${catDetailHtml}
+    </div>` : ''}
+
+    <!-- TOP PROVEEDORES -->
+    ${top5Prov.length > 0 ? `
+    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="prov" onclick="erToggleSection('prov')">
+      <span class="er-row-label">${chevron} Principales proveedores ${countLbl(top5Prov.length)}</span>
+      <span style="font-size:.7rem;color:var(--chrome);font-family:'DM Mono',monospace">desglose</span>
+    </div>
+    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-prov">
+      ${provDetailHtml}
+    </div>` : ''}
 
     <!-- UTILIDAD NETA -->
     <div class="er-neta-row">
