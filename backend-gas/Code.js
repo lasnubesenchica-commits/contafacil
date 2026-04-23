@@ -232,6 +232,7 @@ function doPost(e) {
     if (action === 'actualizarPendienteAcr')     return _handleActualizarPendienteAcr(data);
     if (action === 'guardarPreferenciaAcreedor') return _handleGuardarPreferencia(data);
     if (action === 'subirFacturaEgreso')         return _handleSubirFacturaEgreso(data);
+    if (action === 'subirFacturaIngreso')         return _handleSubirFacturaIngreso(data);
     if (action === 'importarFacturaGmail')        return _handleImportarFacturaGmail(data);
     if (action === 'importarHistorialGmail')      return _handleImportarHistorialGmail(data);
     if (action === 'procesarEmailGmail')          return _handleProcesarEmailGmail(data);
@@ -1486,6 +1487,50 @@ function _handleSubirFacturaEgreso(data) {
   } catch(e) {
     result.error = e.message;
     Logger.log('Error subirFacturaEgreso: ' + e.message);
+  }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleSubirFacturaIngreso
+// ═══════════════════════════════════════════════════════════════
+
+function _handleSubirFacturaIngreso(data) {
+  var result = { success: false };
+  try {
+    var ingresoId = data.ingreso_id || '';
+    var b64       = data.file_b64   || '';
+    var mime      = data.file_mime  || 'application/pdf';
+    var nombre    = data.file_name  || (ingresoId + '.pdf');
+    if (!ingresoId || !b64) throw new Error('ingreso_id y file_b64 requeridos');
+
+    var folder   = DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID);
+    var bytes    = Utilities.base64Decode(b64);
+    var blob     = Utilities.newBlob(bytes, mime, nombre);
+    var file     = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var driveUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
+
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+    if (sheet) {
+      var numRows = sheet.getLastRow() - 2;
+      if (numRows > 0) {
+        var ids = sheet.getRange(3, COL_I.ID_TRANS, numRows, 1).getValues();
+        for (var i = 0; i < ids.length; i++) {
+          if (String(ids[i][0]) === ingresoId) {
+            sheet.getRange(3 + i, COL_I.DRIVE_URL).setValue(driveUrl);
+            break;
+          }
+        }
+      }
+    }
+    result.success  = true;
+    result.driveUrl = driveUrl;
+    Logger.log('📄 Comprobante subido Drive para ' + ingresoId + ': ' + driveUrl);
+  } catch(e) {
+    result.error = e.message;
+    Logger.log('Error subirFacturaIngreso: ' + e.message);
   }
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
