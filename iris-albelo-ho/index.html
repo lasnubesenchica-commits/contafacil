@@ -1438,7 +1438,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
   <!-- TAB: EGRESOS -->
   <div id="rgTabEgr">
-    <!-- Toolbar: Sync + Search + filtros estado + categoría -->
+    <!-- ── Widgets top ──────────────────────────────────────── -->
+    <div id="rgEgrWidgets" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;padding:1rem 1.5rem;background:var(--bg);border-bottom:1px solid var(--border)"></div>
+
+    <!-- ── Toolbar ─────────────────────────────────────────── -->
     <div class="op-toolbar">
       <button class="btn-sync" id="btnAcrSync" onclick="acrSincronizar()">⟳ Sync emails</button>
       <div class="search-wrap">
@@ -1461,37 +1464,44 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
       <button class="btn-sync" style="background:#4285F4;color:#fff;border-color:#4285F4;font-size:.76rem;white-space:nowrap" onclick="gmailImport_open()">📥 Historial Gmail</button>
     </div>
-    <!-- Stats filtrados -->
-    <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
-      <div class="stat-pill"><span class="stat-pill-num orange" id="rgEStatPend">—</span><span class="stat-pill-label">Pendientes</span></div>
-      <div class="stat-pill"><span class="stat-pill-num green"  id="rgEStatTotal">—</span><span class="stat-pill-label">Registrados</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#6A1B9A" id="rgEStatMonto">—</span><span class="stat-pill-label">Total gastado</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgEStatItbms">—</span><span class="stat-pill-label">ITBMS pagado</span></div>
-    </div>
-    <!-- Header + botón nuevo -->
+
+    <!-- ── Filtros por Acreedor ─────────────────────────────── -->
+    <div id="rgEgrAcrTabs" style="padding:.45rem 1.5rem;border-bottom:1px solid var(--border);background:var(--white);display:flex;gap:.35rem;flex-wrap:wrap;min-height:2.4rem;align-items:center"></div>
+
+    <!-- ── Header sección + nuevo ──────────────────────────── -->
     <div class="section-hdr-row">
       <span class="section-hdr-lbl">Egresos generales</span>
       <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
     </div>
-    <!-- Tabla unificada -->
+
+    <!-- ── Bulk actions bar ─────────────────────────────────── -->
+    <div id="rgEgrBulkBar" style="display:none;align-items:center;gap:.75rem;padding:.45rem 1.5rem;background:#E8F5E9;border-bottom:2px solid #2E7D32">
+      <span id="rgEgrBulkCount" style="font-size:.82rem;font-weight:700;color:#1B5E20"></span>
+      <button onclick="rgBulkAprobar()" style="padding:.28rem .75rem;background:#2E7D32;color:#fff;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">✅ Aprobar seleccionados</button>
+      <button onclick="rgBulkEliminar()" style="padding:.28rem .75rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">🗑 Eliminar</button>
+      <button onclick="_rgEgrSel.clear();rgRenderEgr()" style="margin-left:auto;padding:.28rem .6rem;background:none;border:none;font-size:.9rem;cursor:pointer;color:var(--muted)" title="Deseleccionar todo">✕</button>
+    </div>
+
+    <!-- ── Tabla unificada ──────────────────────────────────── -->
     <div class="op-table-wrap">
       <table class="op-table" id="rgEgrTable">
         <thead>
           <tr>
-            <th>Fecha</th>
-            <th>Proveedor / Acreedor</th>
+            <th style="width:2rem;padding:.5rem .6rem"><input type="checkbox" id="rgEgrSelAll" onchange="rgSelAllEgr(this.checked)" style="cursor:pointer;width:1rem;height:1rem"></th>
+            <th onclick="rgSortEgr('fecha')"     style="cursor:pointer;user-select:none;white-space:nowrap">Fecha <span id="rgSrtI-fecha" style="font-size:.65rem;color:var(--muted)">⇅</span></th>
+            <th onclick="rgSortEgr('proveedor')" style="cursor:pointer;user-select:none">Proveedor / Acreedor <span id="rgSrtI-proveedor" style="font-size:.65rem;color:var(--muted)">⇅</span></th>
             <th>Origen</th>
-            <th>N° Factura</th>
-            <th>Categoría</th>
-            <th style="text-align:right">Subtotal</th>
-            <th style="text-align:right">ITBMS</th>
-            <th style="text-align:right">Total</th>
+            <th onclick="rgSortEgr('num_fac')"   style="cursor:pointer;user-select:none;white-space:nowrap">N° Factura <span id="rgSrtI-num_fac" style="font-size:.65rem;color:var(--muted)">⇅</span></th>
+            <th onclick="rgSortEgr('categoria')" style="cursor:pointer;user-select:none">Categoría <span id="rgSrtI-categoria" style="font-size:.65rem;color:var(--muted)">⇅</span></th>
+            <th onclick="rgSortEgr('subtotal')"  style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap">Subtotal <span id="rgSrtI-subtotal" style="font-size:.65rem;color:var(--muted)">⇅</span></th>
+            <th onclick="rgSortEgr('itbms')"     style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap">ITBMS <span id="rgSrtI-itbms" style="font-size:.65rem;color:var(--muted)">⇅</span></th>
+            <th onclick="rgSortEgr('total')"     style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap">Total <span id="rgSrtI-total" style="font-size:.65rem;color:var(--muted)">⇅</span></th>
             <th>Estado</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody id="rgEgrBody">
-          <tr><td colspan="10"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+          <tr><td colspan="11"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -5197,10 +5207,13 @@ async function guardarConfigST() {
 // ══════════════════════════════════════════════════
 
 var rg_initialized = false;
-var rg_egr_filter  = 'all';   // filtro por categoría
-var rg_egr_estado  = 'all';   // filtro por estado: 'all' | 'pendiente' | 'registrado'
-var rg_egr_alcance = 'all';   // filtro por alcance: 'all' | 'negocio' | 'personal'
-var rg_ing_filter  = 'all';
+var rg_egr_filter   = 'all';  // filtro por categoría
+var rg_egr_estado   = 'all';  // filtro por estado: 'all' | 'pendiente' | 'registrado'
+var rg_egr_alcance  = 'all';  // filtro por alcance: 'all' | 'negocio' | 'personal'
+var rg_ing_filter   = 'all';
+var _rgEgrAcreedor  = 'TODOS';             // filtro por acreedor
+var _rgEgrSort      = { col: 'fecha', dir: 'desc' }; // ordenamiento activo
+var _rgEgrSel       = new Set();           // IDs seleccionados (bulk)
 var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
 // ── Catálogo DGI unificado — Gastos Operativos (Líneas 42-77 formulario jurídica) ──
@@ -5676,7 +5689,22 @@ function rgRenderEgr() {
       _raw:       i,
     }));
 
-  // ── 3. Unificar y aplicar filtros ────────────────────────────
+  // ── 3. Widgets (sobre datos globales, sin filtros) ────────────
+  const allItems = [...pendientes, ...registrados];
+  const totGlobal = allItems.reduce((s,i) => s + i.total, 0);
+  const itbGlobal = allItems.reduce((s,i) => s + i.itbms, 0);
+  const wEl = document.getElementById('rgEgrWidgets');
+  if (wEl) wEl.innerHTML = [
+    { label:'Pendientes',   val: pendientes.length,  color:'#E65100', bg:'#FFF3E0', icon:'⏳', clickFilter:'pendiente' },
+    { label:'Aprobados',    val: registrados.length,  color:'#2E7D32', bg:'#E8F5E9', icon:'✅', clickFilter:'registrado' },
+    { label:'Total gastado',val: totGlobal > 0 ? '$'+totGlobal.toLocaleString('en-US',{minimumFractionDigits:2}) : '—', color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', clickFilter:null },
+    { label:'ITBMS pagado', val: itbGlobal > 0 ? '$'+itbGlobal.toLocaleString('en-US',{minimumFractionDigits:2}) : '—', color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', clickFilter:null },
+  ].map(w => `<div onclick="${w.clickFilter ? "rgApplyEgrEstado(document.querySelector('[data-rge-estado=\""+w.clickFilter+"\"]'),'"+w.clickFilter+"')" : ''}" style="background:${w.bg};border-radius:12px;padding:.85rem 1rem;${w.clickFilter?'cursor:pointer;':''}">`+
+    `<div style="font-size:1.45rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
+    `<div style="font-size:.72rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}</div>`+
+    `</div>`).join('');
+
+  // ── 4. Unificar y aplicar filtros ────────────────────────────
   let items = [...pendientes, ...registrados];
 
   // Filtro estado
@@ -5694,28 +5722,54 @@ function rgRenderEgr() {
     [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
   );
 
-  // Orden: pendientes siempre primero, luego fecha desc
+  // ── 5. Tabs por Acreedor ──────────────────────────────────────
+  const acrCounts = {};
+  items.forEach(i => { acrCounts[i.proveedor] = (acrCounts[i.proveedor] || 0) + 1; });
+  const acrNames = Object.keys(acrCounts).sort();
+  const tabsCont = document.getElementById('rgEgrAcrTabs');
+  if (tabsCont) {
+    const tabs = ['TODOS', ...acrNames];
+    tabsCont.innerHTML = tabs.map(nom => {
+      const isAll = nom === 'TODOS';
+      const cnt   = isAll ? items.length : acrCounts[nom];
+      const act   = _rgEgrAcreedor === nom;
+      const esc2  = nom.replace(/'/g, "\\'");
+      return `<button onclick="rgSetAcreedor('${esc2}')" style="padding:.2rem .65rem;border:1px solid ${act?'#1565C0':'var(--border)'};border-radius:100px;font-size:.69rem;font-weight:700;cursor:pointer;background:${act?'#1565C0':'var(--bg)'};color:${act?'#fff':'var(--text)'};white-space:nowrap">${nom.toUpperCase()}${cnt ? ` <span style="font-weight:400">(${cnt})</span>` : ''}</button>`;
+    }).join('');
+  }
+
+  // Filtro acreedor
+  if (_rgEgrAcreedor !== 'TODOS') items = items.filter(i => i.proveedor === _rgEgrAcreedor);
+
+  // ── 6. Ordenamiento ───────────────────────────────────────────
+  const { col, dir } = _rgEgrSort;
   items.sort((a, b) => {
-    if (a._tipo === 'pendiente' && b._tipo !== 'pendiente') return -1;
-    if (b._tipo === 'pendiente' && a._tipo !== 'pendiente') return  1;
-    return String(b.fecha).localeCompare(String(a.fecha));
+    if (col === 'fecha' && dir === 'desc' && _rgEgrAcreedor === 'TODOS') {
+      if (a._tipo === 'pendiente' && b._tipo !== 'pendiente') return -1;
+      if (b._tipo === 'pendiente' && a._tipo !== 'pendiente') return  1;
+    }
+    const va = typeof a[col] === 'number' ? a[col] : String(a[col]||'').toLowerCase();
+    const vb = typeof b[col] === 'number' ? b[col] : String(b[col]||'').toLowerCase();
+    if (va < vb) return dir === 'asc' ? -1 :  1;
+    if (va > vb) return dir === 'asc' ?  1 : -1;
+    return 0;
   });
 
-  // ── 4. Stats ─────────────────────────────────────────────────
-  const nPend  = pendientes.length;
-  const nReg   = registrados.length;
-  const totM   = items.reduce((s,i) => s + i.total,  0);
-  const totItb = items.reduce((s,i) => s + i.itbms,  0);
-  const el = id => document.getElementById(id);
-  if (el('rgEStatPend'))  el('rgEStatPend').textContent  = nPend  || '—';
-  if (el('rgEStatTotal')) el('rgEStatTotal').textContent = nReg   || '—';
-  if (el('rgEStatMonto')) el('rgEStatMonto').textContent = totM   > 0 ? '$'+totM.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
-  if (el('rgEStatItbms')) el('rgEStatItbms').textContent = totItb > 0 ? '$'+totItb.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  // Actualizar iconos de ordenamiento
+  ['fecha','proveedor','num_fac','categoria','subtotal','itbms','total'].forEach(c => {
+    const ico = document.getElementById('rgSrtI-' + c);
+    if (ico) { ico.textContent = _rgEgrSort.col === c ? (_rgEgrSort.dir === 'asc' ? ' ▲' : ' ▼') : ' ⇅'; ico.style.color = _rgEgrSort.col === c ? 'var(--orange)' : 'var(--muted)'; }
+  });
 
-  // ── 5. Render tabla ──────────────────────────────────────────
+  // Bulk bar
+  rgUpdBulkBar();
+
+  // ── 7. Render tabla ───────────────────────────────────────────
   const tbody = document.getElementById('rgEgrBody');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="table-empty"><span style="font-size:2rem">📭</span><span>Sin egresos en esta vista</span></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="table-empty"><span style="font-size:2rem">📭</span><span>Sin egresos en esta vista</span></div></td></tr>';
+    // Reset select-all checkbox
+    const sa = document.getElementById('rgEgrSelAll'); if (sa) sa.checked = false;
     return;
   }
 
@@ -5724,6 +5778,7 @@ function rgRenderEgr() {
   tbody.innerHTML = items.map(i => {
     const esPendiente = i._tipo === 'pendiente';
     const rowBg       = esPendiente ? 'background:#FFFDE7' : '';
+    const isSel       = _rgEgrSel.has(i._id);
 
     // Badge origen
     const origenBadge = (esPendiente || i._esEmail)
@@ -5765,7 +5820,8 @@ function rgRenderEgr() {
       </div>`;
     }
 
-    return `<tr style="${rowBg}">
+    return `<tr style="${rowBg}${isSel ? ';outline:2px solid #1565C0;outline-offset:-1px' : ''}">
+      <td style="text-align:center;padding:.4rem .5rem"><input type="checkbox" data-id="${esc(i._id)}" ${isSel?'checked':''} onchange="rgToggleEgrSel('${esc(i._id)}',this.checked)" style="cursor:pointer;width:1rem;height:1rem"></td>
       <td style="font-family:'DM Mono',monospace;font-size:.76rem;color:var(--muted);white-space:nowrap">${i.fecha||'—'}</td>
       <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
       <td>${origenBadge}</td>
@@ -5779,6 +5835,103 @@ function rgRenderEgr() {
     </tr>`;
   }).join('');
 }
+
+// ── Acreedor filter ───────────────────────────────────────────
+function rgSetAcreedor(nom) {
+  _rgEgrAcreedor = nom;
+  _rgEgrSel.clear();
+  rgRenderEgr();
+}
+window.rgSetAcreedor = rgSetAcreedor;
+
+// ── Sort ──────────────────────────────────────────────────────
+function rgSortEgr(col) {
+  if (_rgEgrSort.col === col) {
+    _rgEgrSort.dir = _rgEgrSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _rgEgrSort.col = col;
+    _rgEgrSort.dir = (col === 'total' || col === 'subtotal' || col === 'itbms') ? 'desc' : 'asc';
+  }
+  rgRenderEgr();
+}
+window.rgSortEgr = rgSortEgr;
+
+// ── Bulk selection ────────────────────────────────────────────
+function rgToggleEgrSel(id, checked) {
+  if (checked) _rgEgrSel.add(id); else _rgEgrSel.delete(id);
+  rgUpdBulkBar();
+}
+window.rgToggleEgrSel = rgToggleEgrSel;
+
+function rgSelAllEgr(checked) {
+  document.querySelectorAll('#rgEgrBody input[type=checkbox][data-id]').forEach(cb => {
+    cb.checked = checked;
+    if (checked) _rgEgrSel.add(cb.dataset.id); else _rgEgrSel.delete(cb.dataset.id);
+  });
+  rgUpdBulkBar();
+}
+window.rgSelAllEgr = rgSelAllEgr;
+
+function rgUpdBulkBar() {
+  const bar = document.getElementById('rgEgrBulkBar');
+  if (!bar) return;
+  const n = _rgEgrSel.size;
+  if (!n) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const cEl = document.getElementById('rgEgrBulkCount');
+  if (cEl) cEl.textContent = n + ' seleccionado' + (n !== 1 ? 's' : '');
+  // Sync select-all checkbox state
+  const total = document.querySelectorAll('#rgEgrBody input[type=checkbox][data-id]').length;
+  const sa = document.getElementById('rgEgrSelAll');
+  if (sa) sa.indeterminate = n > 0 && n < total;
+}
+
+// ── Bulk approve ──────────────────────────────────────────────
+async function rgBulkAprobar() {
+  const pendItems = [..._rgEgrSel]
+    .map(id => _acrData.find(i => String(i.id) === id))
+    .filter(i => i && i.estado === 'borrador');
+  if (!pendItems.length) { showToast('No hay pendientes entre los seleccionados'); return; }
+  if (!confirm(`¿Aprobar ${pendItems.length} factura${pendItems.length !== 1 ? 's' : ''} pendiente${pendItems.length !== 1 ? 's' : ''} con la categoría sugerida?`)) return;
+  let ok = 0, errN = 0;
+  for (const item of pendItems) {
+    try {
+      const categoria = item.categoria || (CATEG_ACREEDOR[0] && CATEG_ACREEDOR[0].valor) || '';
+      const data = await gasJsonp('aprobarAcreedor', { id: item.id, categoria });
+      if (data.success) { _acrData = _acrData.filter(i => i.id !== item.id); ok++; }
+      else errN++;
+    } catch(e) { errN++; }
+  }
+  _rgEgrSel.clear();
+  showToast(`✅ ${ok} aprobadas${errN ? `, ${errN} errores` : ''}`);
+  if (ok > 0) { egrItems = []; await loadEgresos(); }
+  rgRenderEgr();
+}
+window.rgBulkAprobar = rgBulkAprobar;
+
+// ── Bulk delete ───────────────────────────────────────────────
+async function rgBulkEliminar() {
+  const selIds = [..._rgEgrSel];
+  if (!selIds.length) return;
+  if (!confirm(`¿Eliminar ${selIds.length} registro${selIds.length !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
+  let ok = 0;
+  for (const id of selIds) {
+    try {
+      const isPend = _acrData.some(i => String(i.id) === id);
+      if (isPend) {
+        const d = await gasJsonp('eliminarPendienteAcr', { id });
+        if (d.success) { _acrData = _acrData.filter(i => String(i.id) !== id); ok++; }
+      } else {
+        const d = await gasJsonp('eliminarRegistro', { tipo: 'egreso', id });
+        if (d.success) { egrItems = egrItems.filter(e => e.id_egreso !== id); ok++; }
+      }
+    } catch(e) {}
+  }
+  _rgEgrSel.clear();
+  showToast(`🗑 ${ok} eliminado${ok !== 1 ? 's' : ''}`);
+  rgRenderEgr();
+}
+window.rgBulkEliminar = rgBulkEliminar;
 
 function rgRenderIng() {
   const q    = (document.getElementById('rgSearchIng') || {value:''}).value.toLowerCase().trim();
