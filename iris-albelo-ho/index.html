@@ -1448,8 +1448,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <span class="search-icon">🔍</span>
         <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
       </div>
-      <button class="op-filter-btn" data-rge-estado="pendiente" onclick="rgApplyEgrEstado(this,'pendiente')" style="background:#FFF9C4;border-color:#F9A825;color:#795548;font-weight:700">⏳ Pendientes</button>
       <button class="op-filter-btn active" data-rge-estado="all" onclick="rgApplyEgrEstado(this,'all')">Todos</button>
+      <button class="op-filter-btn" data-rge-estado="pendiente" onclick="rgApplyEgrEstado(this,'pendiente')" style="background:#FFF9C4;border-color:#F9A825;color:#795548;font-weight:700">⏳ Pendientes</button>
       <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
       <button class="op-filter-btn active" data-rga="all" onclick="rgApplyEgrAlcance('all',this)">Todos</button>
@@ -5689,38 +5689,40 @@ function rgRenderEgr() {
       _raw:       i,
     }));
 
-  // ── 3. Widgets (sobre datos globales, sin filtros) ────────────
-  const allItems = [...pendientes, ...registrados];
-  const totGlobal = allItems.reduce((s,i) => s + i.total, 0);
-  const itbGlobal = allItems.reduce((s,i) => s + i.itbms, 0);
-  const wEl = document.getElementById('rgEgrWidgets');
-  if (wEl) wEl.innerHTML = [
-    { label:'Pendientes',   val: pendientes.length,  color:'#E65100', bg:'#FFF3E0', icon:'⏳', clickFilter:'pendiente' },
-    { label:'Aprobados',    val: registrados.length,  color:'#2E7D32', bg:'#E8F5E9', icon:'✅', clickFilter:'registrado' },
-    { label:'Total gastado',val: totGlobal > 0 ? '$'+totGlobal.toLocaleString('en-US',{minimumFractionDigits:2}) : '—', color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', clickFilter:null },
-    { label:'ITBMS pagado', val: itbGlobal > 0 ? '$'+itbGlobal.toLocaleString('en-US',{minimumFractionDigits:2}) : '—', color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', clickFilter:null },
-  ].map(w => `<div onclick="${w.clickFilter ? "rgApplyEgrEstado(document.querySelector('[data-rge-estado=\""+w.clickFilter+"\"]'),'"+w.clickFilter+"')" : ''}" style="background:${w.bg};border-radius:12px;padding:.85rem 1rem;${w.clickFilter?'cursor:pointer;':''}">`+
-    `<div style="font-size:1.45rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
-    `<div style="font-size:.72rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}</div>`+
-    `</div>`).join('');
-
-  // ── 4. Unificar y aplicar filtros ────────────────────────────
+  // ── 3. Aplicar filtros de toolbar ────────────────────────────
   let items = [...pendientes, ...registrados];
 
-  // Filtro estado
   if (rg_egr_estado === 'pendiente')  items = items.filter(i => i._tipo === 'pendiente');
   if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
-
-  // Filtro alcance
-  if (rg_egr_alcance !== 'all') items = items.filter(i => (i.alcance || 'negocio') === rg_egr_alcance);
-
-  // Filtro categoría
-  if (rg_egr_filter !== 'all') items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
-
-  // Búsqueda
+  if (rg_egr_alcance !== 'all')       items = items.filter(i => (i.alcance || 'negocio') === rg_egr_alcance);
+  if (rg_egr_filter  !== 'all')       items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
   if (q) items = items.filter(i =>
     [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
   );
+
+  // ── 4. Widgets (reflejan filtros activos de toolbar) ──────────
+  const totFilt    = items.reduce((s,i) => s + i.total, 0);
+  const itbFilt    = items.reduce((s,i) => s + i.itbms, 0);
+  const totNeg     = items.filter(i => (i.alcance||'negocio') === 'negocio').reduce((s,i) => s + i.total, 0);
+  const totPers    = items.filter(i => i.alcance === 'personal').reduce((s,i) => s + i.total, 0);
+  const nPendFilt  = items.filter(i => i._tipo === 'pendiente').length;
+  const nRegFilt   = items.filter(i => i._tipo === 'registrado').length;
+  const fmt$ = n => n > 0 ? '$'+n.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  const wEl = document.getElementById('rgEgrWidgets');
+  if (wEl) {
+    wEl.style.gridTemplateColumns = 'repeat(6,1fr)';
+    wEl.innerHTML = [
+      { label:'Pendientes',   val: nPendFilt || '—', color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyEgrEstado(document.querySelector('[data-rge-estado=\"pendiente\"]'),'pendiente')" },
+      { label:'Aprobados',    val: nRegFilt  || '—', color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyEgrEstado(document.querySelector('[data-rge-estado=\"registrado\"]'),'registrado')" },
+      { label:'Total gastado',val: fmt$(totFilt),    color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', click:'' },
+      { label:'ITBMS pagado', val: fmt$(itbFilt),    color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:'' },
+      { label:'Negocio',      val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'🏢', click:"rgApplyEgrAlcance('negocio',document.querySelector('[data-rga=\"negocio\"]'))" },
+      { label:'Personal',     val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'👤', click:"rgApplyEgrAlcance('personal',document.querySelector('[data-rga=\"personal\"]'))" },
+    ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}">`+
+      `<div style="font-size:1.3rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
+      `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}</div>`+
+      `</div>`).join('');
+  }
 
   // ── 5. Tabs por Acreedor ──────────────────────────────────────
   const acrCounts = {};
