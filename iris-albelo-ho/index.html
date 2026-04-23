@@ -1467,8 +1467,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
       <button class="op-filter-btn active" data-rga="all" onclick="rgApplyEgrAlcance('all',this)">Todos</button>
-      <button class="op-filter-btn" data-rga="negocio" onclick="rgApplyEgrAlcance('negocio',this)">🏢 Negocio</button>
-      <button class="op-filter-btn" data-rga="personal" onclick="rgApplyEgrAlcance('personal',this)">👤 Personal</button>
+      <button class="op-filter-btn" data-rga="negocio" onclick="rgApplyEgrAlcance('negocio',this)">✅ Deducible</button>
+      <button class="op-filter-btn" data-rga="personal" onclick="rgApplyEgrAlcance('personal',this)">🚫 No Deducible</button>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
       <select id="rgEgrCatDropdown" onchange="rgApplyEgrFilterSel(this)"
         style="font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--border);border-radius:7px;
@@ -1483,11 +1483,13 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── Header sección + nuevo ──────────────────────────── -->
     <div class="section-hdr-row">
       <span class="section-hdr-lbl">Egresos generales</span>
-      <div class="search-wrap" style="flex:1;max-width:300px;margin:0 1rem">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <div class="search-wrap" style="max-width:270px">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
+        </div>
+        <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
       </div>
-      <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
     </div>
 
     <!-- ── Bulk actions bar ─────────────────────────────────── -->
@@ -2879,11 +2881,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div style="display:flex;background:var(--bg2);border-radius:20px;padding:2px;gap:2px">
         <button id="eAlcanceNeg" onclick="eSetAlcance('negocio')"
           style="padding:.3rem .85rem;border-radius:20px;font-size:.75rem;font-weight:700;border:none;background:#6A1B9A;color:#fff;cursor:pointer">
-          🏢 Negocio
+          ✅ Deducible
         </button>
         <button id="eAlcancePers" onclick="eSetAlcance('personal')"
           style="padding:.3rem .85rem;border-radius:20px;font-size:.75rem;font-weight:700;border:none;background:transparent;color:var(--muted);cursor:pointer">
-          👤 Personal
+          🚫 No Deducible
         </button>
       </div>
       <span id="eAlcanceHint" style="font-size:.72rem;color:var(--muted)">Deducible · aparece en reportes DGI</span>
@@ -5778,8 +5780,8 @@ function rgRenderEgr() {
     wEl.innerHTML = [
       { label:'Pendientes',   val: nPendFilt || '—', color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyEgrEstado(document.querySelector('[data-rge-estado=\"pendiente\"]'),'pendiente')" },
       { label:'Aprobados',    val: nRegFilt  || '—', color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyEgrEstado(document.querySelector('[data-rge-estado=\"registrado\"]'),'registrado')" },
-      { label:'Negocio',      val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'🏢', click:"rgApplyEgrAlcance('negocio',document.querySelector('[data-rga=\"negocio\"]'))" },
-      { label:'Personal',     val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'👤', click:"rgApplyEgrAlcance('personal',document.querySelector('[data-rga=\"personal\"]'))" },
+      { label:'Deducible',     val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'✅', click:"rgApplyEgrAlcance('negocio',document.querySelector('[data-rga=\"negocio\"]'))" },
+      { label:'No Deducible',  val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'🚫', click:"rgApplyEgrAlcance('personal',document.querySelector('[data-rga=\"personal\"]'))" },
       { label:'Total gastado',val: fmt$(totFilt),    color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', click:'' },
       { label:'ITBMS pagado', val: fmt$(itbFilt),    color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:'' },
     ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}">`+
@@ -5877,7 +5879,7 @@ function rgRenderEgr() {
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
-      <td>${estadoBadge} ${i.alcance === 'personal' ? '<span style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">👤 Personal</span>' : '<span style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">🏢 Negocio</span>'}</td>
+      <td>${estadoBadge} ${i.alcance === 'personal' ? '<span style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">🚫 No Deducible</span>' : '<span style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">✅ Deducible</span>'}</td>
       <td>${acciones}</td>
     </tr>`;
   }).join('');
