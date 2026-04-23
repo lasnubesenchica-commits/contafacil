@@ -1149,25 +1149,46 @@ function _gmailDetectMime(bytes) {
 }
 
 function _parseDgiFExml(xmlText) {
-  function tag(nm) {
-    var m = xmlText.match(new RegExp('<' + nm + '[^>]*>([^<]*)</' + nm + '>'));
-    return m ? m[1].trim() : null;
+  // Build a flat map {localName: textValue} using XmlService (handles namespaces/prefixes)
+  var vals = {};
+  try {
+    var doc = XmlService.parse(xmlText);
+    function walkEl(el) {
+      var children = el.getChildren();
+      if (!children.length) {
+        var n = el.getName();
+        if (n && !(n in vals)) vals[n] = el.getText().trim();
+      }
+      for (var c = 0; c < children.length; c++) walkEl(children[c]);
+    }
+    walkEl(doc.getRootElement());
+  } catch(xe) {
+    Logger.log('_parseDgiFExml XmlService: ' + xe.message + ' — usando regex');
+    // Regex fallback with optional namespace prefix
+    function tag(nm) {
+      var m = xmlText.match(new RegExp('<(?:[\\w]+:)?' + nm + '[^>]*>([^<]*)<\\/(?:[\\w]+:)?' + nm + '>'));
+      return m ? m[1].trim() : null;
+    }
+    vals = {
+      dNomEmi: tag('dNomEmi'), dRucEmi: tag('dRucEmi'), dNroFac: tag('dNroFac'),
+      dFecFac: tag('dFecFac'), dRucRec: tag('dRucRec'), dSubTot: tag('dSubTot'),
+      dTotalITBMS: tag('dTotalITBMS'), dTotalFac: tag('dTotalFac')
+    };
   }
-  var nomEmi = tag('dNomEmi');
-  var rucEmi = tag('dRucEmi');
-  if (!nomEmi && !rucEmi) return null;
-  var descItems = [], re = /<dDesItem[^>]*>([^<]+)<\/dDesItem>/g, mm;
+  Logger.log('_parseDgiFExml vals: nom=' + vals.dNomEmi + ' ruc=' + vals.dRucEmi + ' fac=' + vals.dNroFac + ' tot=' + vals.dTotalFac);
+  if (!vals.dNomEmi && !vals.dRucEmi && !vals.dNroFac) return null;
+  var descItems = [], re = /<(?:[\w]+:)?dDesItem[^>]*>([^<]+)<\/(?:[\w]+:)?dDesItem>/g, mm;
   while ((mm = re.exec(xmlText)) !== null) descItems.push(mm[1].trim());
   return {
-    nombre_proveedor:    nomEmi,
-    ruc_proveedor:       rucEmi,
-    ruc_receptor:        tag('dRucRec') || null,
-    num_factura:         tag('dNroFac'),
-    fecha:               tag('dFecFac'),
-    subtotal:            parseFloat(tag('dSubTot')     || '0') || 0,
-    itbms:               parseFloat(tag('dTotalITBMS') || '0') || 0,
-    total:               parseFloat(tag('dTotalFac')   || '0') || 0,
-    descripcion:         descItems.join(', ') || 'Factura electrónica DGI FE',
+    nombre_proveedor:    vals.dNomEmi   || null,
+    ruc_proveedor:       vals.dRucEmi   || null,
+    ruc_receptor:        vals.dRucRec   || null,
+    num_factura:         vals.dNroFac   || null,
+    fecha:               vals.dFecFac   || null,
+    subtotal:            parseFloat(vals.dSubTot     || '0') || 0,
+    itbms:               parseFloat(vals.dTotalITBMS || '0') || 0,
+    total:               parseFloat(vals.dTotalFac   || '0') || 0,
+    descripcion:         descItems.join(', ') || vals.dDesItem || 'Factura electrónica DGI FE',
     categoria_sugerida:  null,
     confianza_categoria: 0
   };
