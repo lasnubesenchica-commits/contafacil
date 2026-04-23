@@ -1228,6 +1228,62 @@ function _claudeParsearTextoFactura(text, fileName) {
   return JSON.parse(out.replace(/```json|```/g, '').trim());
 }
 
+function _handleCategorizarEmailsGmail(data) {
+  var emails = data.emails || [];
+  if (!emails.length) return _jsonAcr({ ok: true, result: [] });
+
+  var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) return _jsonAcr({ ok: false, error: 'CLAUDE_API_KEY no configurada' });
+
+  var cats = [
+    'restaurantes: Restaurantes, comida rápida, delivery de comida',
+    'alimentacion: Supermercados, tiendas de alimentos, fruterías',
+    'retail: Ferreterías, tiendas de ropa, compras generales',
+    'combustible: Gasolineras, estaciones de servicio, Uber, transporte',
+    'tecnologia: Software, apps, suscripciones digitales, telefonía celular',
+    'publicidad: Publicidad digital, Facebook Ads, Google Ads, marketing',
+    'salud: Farmacias, clínicas, médicos, gimnasios, seguros de salud',
+    'entretenimiento: Entretenimiento, viajes, hoteles, turismo',
+    'servicios: Servicios públicos, agua, electricidad, internet del hogar',
+    'educacion: Colegios, universidades, cursos, libros académicos',
+    'otro: Categoría no identificada o ambigua'
+  ].join('\n');
+
+  var emailsJson = emails.map(function(e) {
+    return JSON.stringify({ idx: e.idx, from: String(e.from||'').substring(0,80), subject: String(e.subject||'').substring(0,80), snippet: String(e.snippet||'').substring(0,120) });
+  }).join(',\n');
+
+  var prompt = 'Eres un clasificador de facturas y recibos de empresas de Panamá.\n\n' +
+    'CATEGORÍAS:\n' + cats + '\n\n' +
+    'TAREA: Para cada email, asigna la categoría más apropiada e identifica el nombre del proveedor/comercio de forma limpia.\n' +
+    'El campo "proveedor" debe ser el nombre comercial del negocio (sin prefijos como "Factura de", sin email addresses).\n\n' +
+    'EMAILS:\n[' + emailsJson + ']\n\n' +
+    'Responde ÚNICAMENTE con un array JSON válido, sin texto antes ni después:\n' +
+    '[{"idx":0,"categoria":"restaurantes","proveedor":"Nombre Comercial"},...]';
+
+  var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    payload: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }),
+    muteHttpExceptions: true
+  });
+
+  if (resp.getResponseCode() !== 200) {
+    Logger.log('categorizarEmails Claude error: ' + resp.getContentText().substring(0, 200));
+    return _jsonAcr({ ok: false, error: 'Claude API error ' + resp.getResponseCode() });
+  }
+
+  var text = '';
+  var content = (JSON.parse(resp.getContentText()).content || []);
+  for (var i = 0; i < content.length; i++) { if (content[i].type === 'text') { text = content[i].text; break; } }
+
+  var jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return _jsonAcr({ ok: false, error: 'Claude no retornó JSON válido' });
+
+  return _jsonAcr({ ok: true, result: JSON.parse(jsonMatch[0]) });
+}
+
 function _handleProcesarEmailGmail(data) {
   var msgId       = String(data.msgId       || '');
   var attDataB64  = String(data.attData     || '');

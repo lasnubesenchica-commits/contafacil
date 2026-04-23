@@ -8531,15 +8531,21 @@ function gmailImport_open() {
   _gmailLoadCustomKws();
   _gmailToken = null; _gmailMsgs = []; _gmailSel = new Set();
   _gmailActiveFilter = 'TODOS'; _gmailHadImports = false;
-  _gmailSelCats.clear();
   document.getElementById('gmailAuthStatus').textContent = 'No conectado';
   document.getElementById('gmailAuthStatus').style.color = 'var(--muted)';
   var btn = document.getElementById('btnGmailSearch');
   btn.disabled = true; btn.style.opacity = '.45';
-  _gmailRenderCatGrid();
   _gmailRenderKwPills();
   _gmailShowStep(0);
   document.getElementById('gmailImportModal').style.display = 'flex';
+}
+function _getCatIcon(key) {
+  var c = GMAIL_CATEGORIAS.filter(function(x) { return x.key === key; })[0];
+  return c ? c.icon : '📄';
+}
+function _getCatLabel(key) {
+  var c = GMAIL_CATEGORIAS.filter(function(x) { return x.key === key; })[0];
+  return c ? c.label : 'Otro';
 }
 function gmailImport_close() {
   document.getElementById('gmailImportModal').style.display = 'none';
@@ -8650,23 +8656,25 @@ function _gmailRequestToken() {
   client.requestAccessToken();
 }
 
-// ─── Search ───────────────────────────────────────────────
+// ─── Search + AI categorization ───────────────────────────
 async function gmailImport_buscar() {
   _gmailShowStep(1);
   _gmailActiveFilter = 'TODOS';
+  var setLabel = function(icon, label, sub) {
+    var i = document.getElementById('gmailStep1Icon');   if (i) i.textContent = icon;
+    var l = document.getElementById('gmailStep1Label');  if (l) l.textContent = label;
+    var s = document.getElementById('gmailStep1Sub');    if (s) s.textContent = sub || '';
+  };
   try {
+    setLabel('🔍', 'Buscando en Gmail...', 'Puede tardar unos segundos');
     var days  = parseInt(document.getElementById('gmailDays').value) || 90;
     var after = Math.floor((Date.now() - days * 86400000) / 1000);
 
-    var catsToSearch = _gmailSelCats.size > 0
-      ? GMAIL_CATEGORIAS.filter(function(c) { return _gmailSelCats.has(c.key); })
-      : GMAIL_CATEGORIAS;
-    var allKws = [];
-    catsToSearch.forEach(function(cat) { cat.kws.forEach(function(k) { allKws.push(k); }); });
-    _gmailCustomKws.forEach(function(k) { allKws.push(k); });
-    if (!allKws.length) allKws = ['factura','recibo','invoice'];
-    var kwQ = allKws.map(function(k) { return k.indexOf(' ') >= 0 ? '"' + k + '"' : k; }).join(' OR ');
-    var q   = encodeURIComponent('has:attachment (' + kwQ + ') after:' + after);
+    // Broad query — AI will categorize, no need for keyword-based filtering
+    var extraTerms = _gmailCustomKws.length
+      ? ' OR ' + _gmailCustomKws.map(function(k) { return k.indexOf(' ')>=0?'"'+k+'"':k; }).join(' OR ')
+      : '';
+    var q = encodeURIComponent('has:attachment (factura OR recibo OR invoice OR comprobante OR receipt' + extraTerms + ') after:' + after);
 
     var resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=100&q=' + q,
       { headers: { Authorization: 'Bearer ' + _gmailToken } });
@@ -8679,6 +8687,7 @@ async function gmailImport_buscar() {
       _gmailRenderTabs(); _gmailRenderLista(); return;
     }
 
+    setLabel('🔍', 'Descargando ' + messages.length + ' correos...', 'Obteniendo metadata y adjuntos');
     var metaList = [];
     for (var i = 0; i < messages.length; i++) {
       var mResp = await fetch(
@@ -8690,17 +8699,43 @@ async function gmailImport_buscar() {
       (mData.payload && mData.payload.headers || []).forEach(function(h) { hdrs[h.name] = h.value; });
       var atts = _gmailBrowserAtts(mData.payload || {}, []);
       if (!atts.length) continue;
-      var msg = {
+      metaList.push({
         id: messages[i].id,
         subject: hdrs['Subject'] || '(sin asunto)',
         from: hdrs['From'] || '',
         date: hdrs['Date'] || '',
         snippet: mData.snippet || '',
-        atts: atts
-      };
-      msg.matchCats = _gmailMsgMatchCats(msg);
-      metaList.push(msg);
+        atts: atts,
+        matchCats: [],
+        proveedorAI: ''
+      });
     }
+
+    // ── AI categorization via GAS ─────────────────────────
+    if (metaList.length) {
+      setLabel('🤖', 'Categorizando con IA...', 'Claude está analizando ' + metaList.length + ' correos');
+      try {
+        var emailsMeta = metaList.map(function(msg, idx) {
+          return { idx: idx, from: msg.from, subject: msg.subject, snippet: msg.snippet };
+        });
+        var catResp = await fetch(GAS_URL, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'categorizarEmailsGmail', emails: emailsMeta })
+        });
+        var catData = await catResp.json();
+        if (catData.ok && catData.result) {
+          catData.result.forEach(function(c) {
+            if (metaList[c.idx]) {
+              metaList[c.idx].matchCats  = [{ key: c.categoria, icon: _getCatIcon(c.categoria), label: _getCatLabel(c.categoria) }];
+              metaList[c.idx].proveedorAI = c.proveedor || '';
+            }
+          });
+        }
+      } catch(catErr) {
+        console.warn('Categorization failed (continuing without):', catErr.message);
+      }
+    }
+
     _gmailMsgs = metaList;
     _gmailSel  = new Set(metaList.map(function(_, i) { return i; }));
     _gmailRenderTabs();
@@ -8818,20 +8853,23 @@ function _gmailRenderLista() {
       (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
     var attLabel = e.atts && e.atts[0]
       ? '<span style="font-size:.65rem;background:#e8f5e9;color:#2e7d32;border-radius:3px;padding:0 .3rem;flex-shrink:0">' + _gesc(e.atts[0].filename) + '</span>' : '';
-    var kwTags   = (e.matchCats||[]).map(function(c) {
-      return '<span style="font-size:.64rem;background:#e3f2fd;color:#1565C0;border-radius:3px;padding:0 .35rem">' + c.icon + ' ' + c.label + '</span>';
+    var catTags  = (e.matchCats||[]).map(function(c) {
+      return '<span style="font-size:.64rem;background:#e3f2fd;color:#1565C0;border-radius:3px;padding:0 .35rem;font-weight:700">' + c.icon + ' ' + c.label + '</span>';
     }).join('');
+    var provBadge = e.proveedorAI
+      ? '<span style="font-size:.67rem;background:#F3E5F5;color:#6A1B9A;border-radius:3px;padding:0 .35rem;font-weight:600">' + _gesc(e.proveedorAI) + '</span>'
+      : '';
     return '<label style="display:flex;align-items:flex-start;gap:.5rem;padding:.45rem .6rem;border-bottom:1px solid var(--border);cursor:pointer">' +
       '<input type="checkbox" data-idx="' + idx + '" style="margin-top:.25rem;flex-shrink:0" onchange="gmailToggle(' + idx + ',this.checked)"' + (_gmailSel.has(idx) ? ' checked' : '') + '>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="display:flex;gap:.35rem;align-items:baseline;margin-bottom:.1rem">' +
+        '<div style="display:flex;gap:.35rem;align-items:baseline;margin-bottom:.15rem">' +
           '<span style="font-size:.69rem;color:var(--muted);flex-shrink:0">' + ds + '</span>' +
           '<span style="font-weight:600;font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(e.subject) + '</span>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:.25rem;align-items:center">' +
-          '<span style="font-size:.7rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">' + _gesc(e.from) + '</span>' +
-          attLabel + kwTags +
+          provBadge + catTags + attLabel +
         '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted);margin-top:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(e.from) + '</div>' +
       '</div></label>';
   }).join('');
   _gmailUpdCount();
@@ -9091,9 +9129,13 @@ function _gesc(s) {
         <button onclick="gmailImport_close()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">×</button>
       </div>
 
-      <!-- Step 0: Connect + period + categories + custom kws + search -->
+      <!-- Step 0: Connect + period + optional extra terms + search -->
       <div id="gmailStep0">
         <div style="display:grid;gap:.85rem">
+          <!-- Explanation -->
+          <div style="background:#E3F2FD;border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:#1565C0;line-height:1.5">
+            🤖 <strong>Búsqueda inteligente:</strong> Busca todos los correos con adjuntos de facturas y los categoriza automáticamente con IA.
+          </div>
           <!-- Period -->
           <div style="display:flex;align-items:center;gap:.75rem">
             <label style="font-size:.72rem;font-weight:600;color:var(--muted);white-space:nowrap">PERÍODO:</label>
@@ -9104,20 +9146,9 @@ function _gesc(s) {
               <option value="365">Último año</option>
             </select>
           </div>
-          <!-- Category grid -->
+          <!-- Extra search terms (optional) -->
           <div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
-              <label style="font-size:.72rem;font-weight:600;color:var(--muted)">CATEGORÍAS <span style="font-weight:400;opacity:.7">(selecciona o escanea todo)</span></label>
-              <button onclick="gmailClearCats()" style="font-size:.68rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Limpiar</button>
-            </div>
-            <div id="gmailCatGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.3rem;margin-bottom:.5rem"></div>
-            <button onclick="gmailEscanearTodo()" style="width:100%;padding:.4rem;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer">
-              🔎 Escanear todas las categorías
-            </button>
-          </div>
-          <!-- Custom keywords -->
-          <div>
-            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.35rem">KEYWORDS ADICIONALES</label>
+            <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.35rem">TÉRMINOS ADICIONALES <span style="font-weight:400;opacity:.7">(opcional — para proveedores específicos)</span></label>
             <div id="gmailKwPills" style="display:flex;flex-wrap:wrap;gap:.3rem;min-height:1.4rem;margin-bottom:.4rem"></div>
             <div style="display:flex;gap:.4rem">
               <input id="gmailKwInput" type="text" placeholder="Ej: IDDAN, CLARO FACTURA…" onkeydown="if(event.key==='Enter')gmailKwAdd()"
@@ -9131,17 +9162,17 @@ function _gesc(s) {
           </button>
           <div id="gmailAuthStatus" style="font-size:.78rem;text-align:center;color:var(--muted)">No conectado</div>
           <button id="btnGmailSearch" onclick="gmailImport_buscar()" disabled style="width:100%;padding:.55rem;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;opacity:.45">
-            🔍 Buscar correos con adjuntos
+            🔍 Buscar y categorizar con IA
           </button>
         </div>
       </div>
 
-      <!-- Step 1: Searching -->
+      <!-- Step 1: Searching / Categorizing -->
       <div id="gmailStep1" style="display:none">
         <div style="text-align:center;padding:2.5rem 0">
-          <div style="font-size:2rem;margin-bottom:.75rem">🔍</div>
-          <div style="font-size:.9rem;font-weight:600;margin-bottom:.4rem">Buscando en Gmail...</div>
-          <div style="font-size:.78rem;color:var(--muted)">Puede tardar unos segundos</div>
+          <div style="font-size:2rem;margin-bottom:.75rem" id="gmailStep1Icon">🔍</div>
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:.4rem" id="gmailStep1Label">Buscando en Gmail...</div>
+          <div style="font-size:.78rem;color:var(--muted)" id="gmailStep1Sub">Puede tardar unos segundos</div>
         </div>
       </div>
 
