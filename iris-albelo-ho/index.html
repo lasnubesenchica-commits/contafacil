@@ -1471,10 +1471,16 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn" data-rga="personal" onclick="rgApplyEgrAlcance('personal',this)">🚫 No Deducible</button>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
       <div id="rgCatPills" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center"></div>
+      <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
+      <button id="rgProveedorBtn" onclick="rgToggleProvPanel()" style="display:flex;align-items:center;gap:.35rem;padding:.28rem .65rem;border:1px solid var(--border);border-radius:7px;font-size:.78rem;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text);white-space:nowrap">
+        🏢 <span id="rgProveedorBtnLabel">Todos los proveedores</span> <span id="rgProveedorBtnArrow" style="font-size:.65rem;opacity:.6">▾</span>
+      </button>
     </div>
 
-    <!-- ── Filtros por Acreedor ─────────────────────────────── -->
-    <div id="rgEgrAcrTabs" style="padding:.45rem 1.5rem;border-bottom:1px solid var(--border);background:var(--white);display:flex;gap:.35rem;flex-wrap:wrap;min-height:2.4rem;align-items:center"></div>
+    <!-- ── Panel proveedores (colapsable) ─────────────────────── -->
+    <div id="rgProvPanel" style="display:none;padding:.45rem 1.5rem;border-bottom:1px solid var(--border);background:var(--white)">
+      <div id="rgProvPills" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center"></div>
+    </div>
 
     <!-- ── Header sección + nuevo ──────────────────────────── -->
     <div class="section-hdr-row">
@@ -5223,6 +5229,8 @@ async function guardarConfigST() {
 var rg_initialized = false;
 var rg_egr_filter        = 'all';   // filtro por categoría
 var _rgCatPillsExpanded  = false;
+var _rgProvPanelOpen     = false;
+var _rgProvPillsExpanded = false;
 var rg_egr_estado   = 'all';  // filtro por estado: 'all' | 'pendiente' | 'registrado'
 var rg_egr_alcance  = 'all';  // filtro por alcance: 'all' | 'negocio' | 'personal'
 var rg_ing_filter   = 'all';
@@ -5762,21 +5770,8 @@ function rgRenderEgr() {
     }
   }
 
-  // ── 4. Tabs por Acreedor (antes del filtro para mostrar todos los acreedores) ──
-  const acrCounts = {};
-  items.forEach(i => { acrCounts[i.proveedor] = (acrCounts[i.proveedor] || 0) + 1; });
-  const acrNames = Object.keys(acrCounts).sort();
-  const tabsCont = document.getElementById('rgEgrAcrTabs');
-  if (tabsCont) {
-    const tabs = ['TODOS', ...acrNames];
-    tabsCont.innerHTML = tabs.map(nom => {
-      const isAll = nom === 'TODOS';
-      const cnt   = isAll ? items.length : acrCounts[nom];
-      const act   = _rgEgrAcreedor === nom;
-      const esc2  = nom.replace(/'/g, "\\'");
-      return `<button onclick="rgSetAcreedor('${esc2}')" style="padding:.2rem .65rem;border:1px solid ${act?'#1565C0':'var(--border)'};border-radius:100px;font-size:.69rem;font-weight:700;cursor:pointer;background:${act?'#1565C0':'var(--bg)'};color:${act?'#fff':'var(--text)'};white-space:nowrap">${nom.toUpperCase()}${cnt ? ` <span style="font-weight:400">(${cnt})</span>` : ''}</button>`;
-    }).join('');
-  }
+  // ── 4. Panel proveedores (colapsable, antes del filtro para mostrar todos) ──
+  rgRenderProvPills(items);
 
   // Filtro acreedor (aplicado ANTES de widgets para que los totales reflejen el acreedor activo)
   if (_rgEgrAcreedor !== 'TODOS') items = items.filter(i => i.proveedor === _rgEgrAcreedor);
@@ -5921,9 +5916,66 @@ function rgRenderEgr() {
 function rgSetAcreedor(nom) {
   _rgEgrAcreedor = nom;
   _rgEgrSel.clear();
+  if (nom !== 'TODOS') _rgProvPanelOpen = true; // keep panel open when a provider is selected
   rgRenderEgr();
 }
 window.rgSetAcreedor = rgSetAcreedor;
+
+function rgToggleProvPanel() {
+  _rgProvPanelOpen = !_rgProvPanelOpen;
+  const panel = document.getElementById('rgProvPanel');
+  const arrow = document.getElementById('rgProveedorBtnArrow');
+  if (panel) panel.style.display = _rgProvPanelOpen ? '' : 'none';
+  if (arrow) arrow.textContent = _rgProvPanelOpen ? '▴' : '▾';
+}
+window.rgToggleProvPanel = rgToggleProvPanel;
+
+function rgRenderProvPills(preFilterItems) {
+  // Update toggle button label
+  const lbl   = document.getElementById('rgProveedorBtnLabel');
+  const btn   = document.getElementById('rgProveedorBtn');
+  const panel = document.getElementById('rgProvPanel');
+  const arrow = document.getElementById('rgProveedorBtnArrow');
+  const hasFilter = _rgEgrAcreedor !== 'TODOS';
+  if (lbl) lbl.textContent = hasFilter ? _rgEgrAcreedor : 'Todos los proveedores';
+  if (btn) btn.style.background  = hasFilter ? '#E3F2FD' : 'var(--bg)';
+  if (btn) btn.style.color       = hasFilter ? '#1565C0' : 'var(--text)';
+  if (btn) btn.style.borderColor = hasFilter ? '#1565C0' : 'var(--border)';
+  if (panel) panel.style.display = _rgProvPanelOpen ? '' : 'none';
+  if (arrow) arrow.textContent   = _rgProvPanelOpen ? '▴' : '▾';
+
+  const el = document.getElementById('rgProvPills');
+  if (!el) return;
+
+  const counts = {};
+  preFilterItems.forEach(i => { if (i.proveedor) counts[i.proveedor] = (counts[i.proveedor] || 0) + 1; });
+  const provs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+  const TOP_N   = 5;
+  const hasMore = provs.length > TOP_N;
+  const visible = (_rgProvPillsExpanded || !hasMore) ? provs : provs.slice(0, TOP_N);
+  const hidden  = hasMore && !_rgProvPillsExpanded ? provs.length - TOP_N : 0;
+  const active  = _rgEgrAcreedor;
+
+  const pill = (val, label, count, isExtra) => {
+    const isAct = val === active || (val === 'TODOS' && active === 'TODOS');
+    return `<button onclick="rgSetAcreedor('${val.replace(/'/g,"\\'")}')" style="padding:.22rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;` +
+      `border:1px solid ${isAct ? '#1565C0' : 'var(--border)'};` +
+      `background:${isAct ? '#1565C0' : (isExtra ? '#F3E5F5' : 'var(--bg)')};` +
+      `color:${isAct ? '#fff' : (isExtra ? '#6A1B9A' : 'var(--text)')}">${label}` +
+      (count != null ? ` <span style="opacity:.65;font-weight:400">(${count})</span>` : '') + `</button>`;
+  };
+
+  let html = pill('TODOS', 'Todos', preFilterItems.length, false);
+  visible.forEach(p => html += pill(p, p, counts[p], false));
+  if (hidden > 0)
+    html += `<button onclick="_rgProvPillsExpanded=true;rgRenderEgr()" style="padding:.22rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid #CE93D8;background:#F3E5F5;color:#6A1B9A">+ ${hidden} más</button>`;
+  else if (_rgProvPillsExpanded && hasMore)
+    html += `<button onclick="_rgProvPillsExpanded=false;rgRenderEgr()" style="padding:.22rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid #CE93D8;background:#F3E5F5;color:#6A1B9A">▲ Menos</button>`;
+
+  el.innerHTML = html;
+}
+window.rgRenderProvPills = rgRenderProvPills;
 
 // ── Sort ──────────────────────────────────────────────────────
 function rgSortEgr(col) {
