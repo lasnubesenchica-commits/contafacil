@@ -1591,12 +1591,16 @@ function _handleCategorizarTransaccionesOFX(data) {
     '- "FARMACIA ARROCHA" → salud\n' +
     '- "TEXACO 123" → combustible\n\n' +
     'CATEGORÍAS:\n' + cats + '\n\n' +
-    'TAREA: Para cada transacción, asigna la categoría más apropiada e identifica el nombre limpio del proveedor/comercio.\n' +
+    'ALCANCE (deducibilidad fiscal):\n' +
+    '- "negocio" (deducible): publicidad, tecnologia, cargos_bancarios, servicios, combustible, educacion\n' +
+    '- "personal" (no deducible): restaurantes, alimentacion, entretenimiento, salud, retail, transferencias, otro\n' +
+    'Usa tu criterio si el memo sugiere claramente un gasto de negocio aunque caiga en categoría personal.\n\n' +
+    'TAREA: Para cada transacción, asigna la categoría más apropiada, identifica el nombre limpio del proveedor/comercio, y determina el alcance fiscal.\n' +
     'El campo "proveedor" debe ser el nombre comercial del negocio (sin números de tarjeta ni códigos bancarios).\n' +
     'Si es una transferencia interna (YAPPY, Banca Móvil, ACH), el proveedor debe ser el nombre de la persona/empresa destino si aparece.\n\n' +
     'TRANSACCIONES:\n[' + txJson + ']\n\n' +
     'Responde ÚNICAMENTE con un array JSON válido, sin texto antes ni después:\n' +
-    '[{"idx":0,"categoria":"restaurantes","proveedor":"Nombre Comercial"},...]';
+    '[{"idx":0,"categoria":"restaurantes","proveedor":"Nombre Comercial","alcance":"personal"},...]';
 
   var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

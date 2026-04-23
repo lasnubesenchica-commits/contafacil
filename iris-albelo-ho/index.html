@@ -9093,11 +9093,12 @@ async function ofxCategorizar() {
         if (_ofxTransacciones[r.idx] !== undefined) {
           _ofxTransacciones[r.idx].categoria = r.categoria || 'otro';
           _ofxTransacciones[r.idx].proveedor = r.proveedor || _ofxTransacciones[r.idx].memo;
+          _ofxTransacciones[r.idx].alcance   = r.alcance   || 'negocio';
         }
       });
     }
   } catch(e) {
-    _ofxTransacciones.forEach(function(t) { if (!t.categoria) { t.categoria = 'otro'; t.proveedor = t.memo; } });
+    _ofxTransacciones.forEach(function(t) { if (!t.categoria) { t.categoria = 'otro'; t.proveedor = t.memo; t.alcance = 'personal'; } });
   }
   _ofxCatFilter = 'all';
   _ofxSel = new Set(_ofxTransacciones.map(function(t) { return t.fitid; }));
@@ -9154,6 +9155,9 @@ function _ofxRenderLista() {
     var cat = GMAIL_CATEGORIAS.filter(function(c){ return c.key === t.categoria; })[0];
     var icon = cat ? cat.icon : '📄';
     var catLbl = cat ? cat.label : (t.categoria || 'Otro');
+    var alcBadge = (t.alcance === 'personal')
+      ? '<span onclick="event.stopPropagation();ofxToggleAlcance(\'' + t.fitid + '\')" title="Clic para cambiar" style="font-size:.62rem;background:#FBE9E7;color:#BF360C;padding:.1rem .35rem;border-radius:10px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap">🚫 No Ded.</span>'
+      : '<span onclick="event.stopPropagation();ofxToggleAlcance(\'' + t.fitid + '\')" title="Clic para cambiar" style="font-size:.62rem;background:#F1F8E9;color:#1B5E20;padding:.1rem .35rem;border-radius:10px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap">✅ Deducible</span>';
     return '<div onclick="ofxToggle(\'' + t.fitid + '\')" style="' +
       'display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;cursor:pointer;' +
       'border-bottom:1px solid var(--border);transition:background .1s;' +
@@ -9164,6 +9168,7 @@ function _ofxRenderLista() {
         '<div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(t.proveedor || t.memo) + '</div>' +
         '<div style="font-size:.7rem;color:var(--muted)">' + t.fecha + ' · ' + catLbl + '</div>' +
       '</div>' +
+      alcBadge +
       '<div style="font-size:.82rem;font-weight:700;color:#C62828;flex-shrink:0">-$' + t.monto.toFixed(2) + '</div>' +
       '</div>';
   }).join('');
@@ -9173,6 +9178,11 @@ function _ofxRenderLista() {
 function ofxToggle(fitid) {
   if (_ofxSel.has(fitid)) _ofxSel.delete(fitid);
   else _ofxSel.add(fitid);
+  _ofxRenderLista();
+}
+function ofxToggleAlcance(fitid) {
+  var t = _ofxTransacciones.filter(function(x){ return x.fitid === fitid; })[0];
+  if (t) t.alcance = (t.alcance === 'personal') ? 'negocio' : 'personal';
   _ofxRenderLista();
 }
 function ofxSelAll(v) {
@@ -9189,13 +9199,12 @@ function _ofxUpdCount() {
 
 // ═══ OFX Step 3→4 — Import ═══════════════════════════════════
 async function ofxImport_procesar() {
-  var alcance = (document.getElementById('ofxAlcance') || {}).value || 'negocio';
   var sel = _ofxTransacciones.filter(function(t){ return _ofxSel.has(t.fitid); });
   if (!sel.length) return;
   _ofxShowStep(3);
   var payload = sel.map(function(t) {
     return { fitid: t.fitid, fecha: t.fecha, monto: t.monto, memo: t.memo,
-             proveedor: t.proveedor || t.memo, categoria: t.categoria || 'otro', alcance: alcance };
+             proveedor: t.proveedor || t.memo, categoria: t.categoria || 'otro', alcance: t.alcance || 'negocio' };
   });
   try {
     var resp = await fetch(GAS_URL, {
@@ -9467,14 +9476,6 @@ async function ofxImport_procesar() {
           <div style="display:grid;gap:.85rem">
             <div style="background:#E8F5E9;border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:#2E7D32;line-height:1.5">
               🏦 <strong>Banco General OFX:</strong> Descarga tu estado de cuenta en formato <strong>.OFX</strong> desde Banca en Línea → Consultas → Estado de Cuenta → Exportar OFX. La IA categorizará cada gasto automáticamente.
-            </div>
-            <!-- Alcance -->
-            <div style="display:flex;align-items:center;gap:.75rem">
-              <label style="font-size:.72rem;font-weight:600;color:var(--muted);white-space:nowrap">CLASIFICAR COMO:</label>
-              <select id="ofxAlcance" style="flex:1;padding:.4rem .65rem;border:1px solid var(--border);border-radius:7px;font-size:.82rem;background:var(--bg);color:var(--text);outline:none">
-                <option value="negocio" selected>✅ Deducible (Negocio)</option>
-                <option value="personal">🚫 No Deducible (Personal)</option>
-              </select>
             </div>
             <!-- File drop area -->
             <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.5rem;border:2px dashed var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s;background:var(--bg)"
