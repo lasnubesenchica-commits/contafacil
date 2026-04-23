@@ -1470,11 +1470,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="op-filter-btn" data-rga="negocio" onclick="rgApplyEgrAlcance('negocio',this)">✅ Deducible</button>
       <button class="op-filter-btn" data-rga="personal" onclick="rgApplyEgrAlcance('personal',this)">🚫 No Deducible</button>
       <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
-      <select id="rgEgrCatDropdown" onchange="rgApplyEgrFilterSel(this)"
-        style="font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--border);border-radius:7px;
-               background:var(--bg);color:var(--text);cursor:pointer;outline:none;max-width:220px">
-        <option value="all">📂 Todas las categorías</option>
-      </select>
+      <div id="rgCatPills" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center"></div>
     </div>
 
     <!-- ── Filtros por Acreedor ─────────────────────────────── -->
@@ -5225,7 +5221,8 @@ async function guardarConfigST() {
 // ══════════════════════════════════════════════════
 
 var rg_initialized = false;
-var rg_egr_filter   = 'all';  // filtro por categoría
+var rg_egr_filter        = 'all';   // filtro por categoría
+var _rgCatPillsExpanded  = false;
 var rg_egr_estado   = 'all';  // filtro por estado: 'all' | 'pendiente' | 'registrado'
 var rg_egr_alcance  = 'all';  // filtro por alcance: 'all' | 'negocio' | 'personal'
 var rg_ing_filter   = 'all';
@@ -5312,23 +5309,41 @@ const RG_ING_CAT_LABELS = {
   otro_exento:              '📋 Otro (exento)',
 };
 
-function rgBuildFilterBtns() {
-  // Ahora usamos un <select> en lugar de botones — poblar las opciones
-  const sel = document.getElementById('rgEgrCatDropdown');
-  if (!sel) return;
-  // Conservar la opción "Todas"
-  sel.innerHTML = '<option value="all">📂 Todas las categorías</option>' +
-    CATEGORIAS_GASTO_DGI.map(c =>
-      `<option value="${c.valor}">${c.emoji} ${c.label}</option>`
-    ).join('');
-}
+function rgBuildFilterBtns() { /* no-op: pills are built inside rgRenderEgr */ }
 
-// Handler para el select de categoría
-function rgApplyEgrFilterSel(sel) {
-  rg_egr_filter = sel.value;
-  rgRenderEgr();
+function rgRenderCatPills(preFilterItems) {
+  const el = document.getElementById('rgCatPills');
+  if (!el) return;
+
+  const counts = {};
+  preFilterItems.forEach(i => {
+    const cat = i.tipo_egreso || i.categoria || '';
+    if (cat) counts[cat] = (counts[cat] || 0) + 1;
+  });
+  const cats = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+  const TOP_N    = 5;
+  const hasMore  = cats.length > TOP_N;
+  const visible  = (_rgCatPillsExpanded || !hasMore) ? cats : cats.slice(0, TOP_N);
+  const hidden   = hasMore && !_rgCatPillsExpanded ? cats.length - TOP_N : 0;
+  const active   = rg_egr_filter;
+
+  const pill = (val, label, count, extra) =>
+    `<button onclick="rgApplyEgrFilter(null,'${val}')" style="padding:.22rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;` +
+    `border:1px solid ${val === active ? '#1565C0' : 'var(--border)'};` +
+    `background:${val === active ? '#E3F2FD' : (extra ? '#F3E5F5' : 'var(--bg)')};` +
+    `color:${val === active ? '#1565C0' : (extra ? '#6A1B9A' : 'var(--text)')}">${label}` +
+    (count != null ? ` <span style="opacity:.65;font-weight:400">(${count})</span>` : '') + `</button>`;
+
+  let html = pill('all', '📂 Todas', preFilterItems.length, false);
+  visible.forEach(cat => html += pill(cat, RG_EGR_CAT_LABELS[cat] || cat, counts[cat], false));
+  if (hidden > 0)
+    html += `<button onclick="_rgCatPillsExpanded=true;rgRenderEgr()" style="padding:.22rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid #CE93D8;background:#F3E5F5;color:#6A1B9A">+ ${hidden} más</button>`;
+  else if (_rgCatPillsExpanded && hasMore)
+    html += `<button onclick="_rgCatPillsExpanded=false;rgRenderEgr()" style="padding:.22rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid #CE93D8;background:#F3E5F5;color:#6A1B9A">▲ Menos</button>`;
+
+  el.innerHTML = html;
 }
-window.rgApplyEgrFilterSel = rgApplyEgrFilterSel;
 
 function rgInit() {
   if (!rg_initialized) {
@@ -5397,9 +5412,6 @@ window.rgShowTab = rgShowTab;
 
 // ── Filtros ───────────────────────────────────────
 function rgApplyEgrFilter(btn, filter) {
-  // Ya no hay botones data-rge-filter — sincronizar el select dropdown
-  const sel = document.getElementById('rgEgrCatDropdown');
-  if (sel) sel.value = filter || 'all';
   rg_egr_filter = filter || 'all';
   rgRenderEgr();
 }
@@ -5724,6 +5736,7 @@ function rgRenderEgr() {
   if (rg_egr_estado === 'pendiente')  items = items.filter(i => i._tipo === 'pendiente');
   if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
   if (rg_egr_alcance !== 'all')       items = items.filter(i => (i.alcance || 'negocio') === rg_egr_alcance);
+  rgRenderCatPills(items);
   if (rg_egr_filter  !== 'all')       items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
   if (q) items = items.filter(i =>
     [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
