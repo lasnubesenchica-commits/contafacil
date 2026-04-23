@@ -2870,7 +2870,19 @@ tr:hover td{background:rgba(0,0,0,.015)}
               <option value="tecnologia_software">💻 Tecnología y software (L76)</option>
               <option value="capacitacion">📚 Capacitación y formación (L76)</option>
               <option value="otros_deducibles" selected>📋 Otros gastos deducibles (L77)</option>
+              <option disabled>────────────────────────</option>
+              <option value="deducibles_personales">👨‍👩‍👧 Deducibles Personales</option>
             </select>
+            <div id="eCategoriaSub" style="display:none;margin-top:.5rem;background:#F3E5F5;border-radius:8px;padding:.5rem .75rem">
+              <label style="font-size:.75rem;font-weight:700;color:#6A1B9A;display:block;margin-bottom:.3rem">Tipo de Deducible Personal</label>
+              <select id="eSubcatPersonal" onchange="inferirTipoEgreso()" style="width:100%;background:var(--white);border:1px solid #CE93D8;border-radius:6px;padding:.45rem .7rem;font-family:'DM Sans',sans-serif;font-size:.86rem;outline:none;color:#6A1B9A;font-weight:600">
+                <option value="gastos_medicos">🏥 Gastos médicos</option>
+                <option value="gastos_escolares">📖 Gastos escolares</option>
+                <option value="intereses_hipotecarios">🏡 Intereses hipotecarios</option>
+                <option value="intereses_prestamos_educativos">🎓 Intereses préstamos educativos</option>
+                <option value="gastos_escolares_discapacitados">♿ Gastos escolares discapacitados</option>
+              </select>
+            </div>
           </div>
           <div class="modal-field full">
             <label>Descripción</label>
@@ -3428,7 +3440,7 @@ async function guardarEgresoOperativo() {
     const data = await gasJsonp('registrarEgresoOperativo', {
       fecha:       fecha,
       tipo:        document.getElementById('eTipoHidden').value,
-      categoria:   document.getElementById('eCategoria').value,
+      categoria:   document.getElementById('eTipoHidden').value,
       proveedor:   document.getElementById('eProveedor').value.trim(),
       ruc_prov:    document.getElementById('eRucProv').value.trim(),
       dv_prov:     document.getElementById('eDvProv').value.trim(),
@@ -4338,6 +4350,7 @@ async function analizarFacturaEgresoConClaude(b64, mime) {
     subtotal:        data.subtotal        || null,
     itbms:           data.itbms           || null,
     total:           data.total           || null,
+    categoria_gasto: data.categoria_gasto || null,
     items:           data.items           || [],
   };
 }
@@ -4388,43 +4401,72 @@ function llenarCamposEgreso(parsed) {
 }
 
 function _sugerirCategoriaDesdeParsed(parsed) {
+  // Si la IA ya devolvió una categoría validada, usarla directamente
+  if (parsed.categoria_gasto) {
+    _setEgresoCategoria(parsed.categoria_gasto);
+    return;
+  }
+  // Fallback: inferir por texto del proveedor/ítems
   const texto = ((parsed.proveedor || '') + ' ' +
                  (parsed.items ? parsed.items.map(i => i.descripcion||'').join(' ') : '')).toLowerCase();
-  const cat = document.getElementById('eCategoria');
-
+  let cat = 'otros_deducibles';
   if (/carbone|ferreteria|ferretería|herramienta|equipo|maquinaria|repuesto/.test(texto)) {
-    cat.value = 'costo_mercancia';
+    cat = 'costo_mercancia';
   } else if (/gasolina|combustible|texaco|delta|puma|petro|taxi|uber/.test(texto)) {
-    cat.value = 'combustible_transporte';
+    cat = 'combustible_transporte';
   } else if (/alquiler|renta|arrendamiento|local|oficina|bodega/.test(texto)) {
-    cat.value = 'alquileres';
+    cat = 'alquileres';
   } else if (/cable.*onda|claro|movistar|natcom|internet|telefon|celular|electricidad|ensa|edemet|agua|anam/.test(texto)) {
-    cat.value = 'servicios_publicos';
+    cat = 'servicios_publicos';
   } else if (/publicidad|meta|facebook|google|instagram|ads|impresion|imprenta|diseño/.test(texto)) {
-    cat.value = 'publicidad_mercadeo';
+    cat = 'publicidad_mercadeo';
   } else if (/contador|abogado|legal|auditoria|consultor|honorario|asesor/.test(texto)) {
-    cat.value = 'honorarios_profesionales';
+    cat = 'honorarios_profesionales';
   } else if (/seguro|assa|mapfre|sura/.test(texto)) {
-    cat.value = 'seguros';
+    cat = 'seguros';
   } else if (/banco|comision bancaria|financiero|interes/.test(texto)) {
-    cat.value = 'gastos_financieros';
+    cat = 'gastos_financieros';
   } else if (/nomina|salario|empleado|planilla|sueldo|css|seguro social/.test(texto)) {
-    cat.value = 'gastos_personal';
+    cat = 'nomina';
   } else if (/manten|repara|taller|servicio tecnico/.test(texto)) {
-    cat.value = 'mantenimiento_reparacion';
+    cat = 'mantenimiento_reparacion';
+  }
+  _setEgresoCategoria(cat);
+}
+
+function inferirTipoEgreso() {
+  const cat    = document.getElementById('eCategoria').value;
+  const subDiv = document.getElementById('eCategoriaSub');
+  const subSel = document.getElementById('eSubcatPersonal');
+  const hidden = document.getElementById('eTipoHidden');
+  const isPersonal = cat === 'deducibles_personales';
+  if (subDiv) subDiv.style.display = isPersonal ? 'block' : 'none';
+  const efectivo = isPersonal ? ((subSel && subSel.value) || 'gastos_medicos') : (cat || 'otros_deducibles');
+  if (hidden) hidden.value = efectivo;
+}
+
+const _PERSONAL_SUBCATS = new Set(['gastos_medicos','gastos_escolares','intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados']);
+
+function _setEgresoCategoria(val) {
+  if (!val) return;
+  const mainSel = document.getElementById('eCategoria');
+  const subSel  = document.getElementById('eSubcatPersonal');
+  if (!mainSel) return;
+  if (_PERSONAL_SUBCATS.has(val)) {
+    mainSel.value = 'deducibles_personales';
+    if (subSel) subSel.value = val;
+  } else {
+    mainSel.value = val;
   }
   inferirTipoEgreso();
 }
 
-function inferirTipoEgreso() {
-  // El valor de eCategoria ES directamente el tipo DGI — sin mapa intermedio
-  const cat    = document.getElementById('eCategoria').value;
-  const hidden = document.getElementById('eTipoHidden');
-  if (hidden) hidden.value = cat || 'otros_deducibles';
-}
-
 function abrirModalNuevoEgreso() {
   document.getElementById('eCategoria').value   = 'otros_deducibles';
+  const _subDiv = document.getElementById('eCategoriaSub');
+  if (_subDiv) _subDiv.style.display = 'none';
+  const _subSel = document.getElementById('eSubcatPersonal');
+  if (_subSel) _subSel.value = 'gastos_medicos';
   document.getElementById('eDescripcion').value = '';
   document.getElementById('eFecha').value       = new Date().toISOString().substring(0,10);
   document.getElementById('eSubtotal').value    = '';
@@ -5388,6 +5430,13 @@ const CATEGORIAS_GASTO_DGI = [
   { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
+  // ── Deducibles Personales (ISR persona natural) ──
+  { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea: 'DP',  emoji: '👨‍👩‍👧' },
+  { valor: 'gastos_medicos',                  label: 'Gastos médicos',                  linea: 'DP-1', emoji: '🏥' },
+  { valor: 'gastos_escolares',                label: 'Gastos escolares',                linea: 'DP-2', emoji: '📖' },
+  { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea: 'DP-3', emoji: '🏡' },
+  { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea: 'DP-4', emoji: '🎓' },
+  { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea: 'DP-5', emoji: '♿' },
 ];
 // Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
 const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;

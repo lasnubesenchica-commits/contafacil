@@ -960,6 +960,13 @@ const CATEGORIAS_GASTO_DGI = [
   { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
+  // ── Deducibles Personales (ISR persona natural) ──
+  { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea: 'DP',  emoji: '👨‍👩‍👧' },
+  { valor: 'gastos_medicos',                  label: 'Gastos médicos',                  linea: 'DP-1', emoji: '🏥' },
+  { valor: 'gastos_escolares',                label: 'Gastos escolares',                linea: 'DP-2', emoji: '📖' },
+  { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea: 'DP-3', emoji: '🏡' },
+  { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea: 'DP-4', emoji: '🎓' },
+  { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea: 'DP-5', emoji: '♿' },
 ];
 // Helper: label legible para cualquier valor de tipo_egreso (incluye legacy)
 function dgiLabel(valor) {
@@ -1500,16 +1507,50 @@ const REG = (() => {
     }
   }
 
-  function inferTipoEgr() { /* categoría mapea directamente al valor DGI */ }
+  const _PERSONAL_SUBCATS_MOB = new Set(['gastos_medicos','gastos_escolares','intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados']);
+
+  function _getEgrCatEfectivo() {
+    const main = document.getElementById('regEgrCat');
+    if (main && main.value === 'deducibles_personales') {
+      const sub = document.getElementById('regEgrSubcat');
+      return (sub && sub.value) || 'gastos_medicos';
+    }
+    return main ? main.value : 'otros_deducibles';
+  }
+
+  function inferTipoEgr() {
+    const main   = document.getElementById('regEgrCat');
+    const subDiv = document.getElementById('regEgrCatSub');
+    if (!main || !subDiv) return;
+    subDiv.style.display = main.value === 'deducibles_personales' ? 'block' : 'none';
+  }
+
+  function _setEgrCatMob(val) {
+    if (!val) return;
+    const main = document.getElementById('regEgrCat');
+    const sub  = document.getElementById('regEgrSubcat');
+    const subDiv = document.getElementById('regEgrCatSub');
+    if (!main) return;
+    if (_PERSONAL_SUBCATS_MOB.has(val)) {
+      main.value = 'deducibles_personales';
+      if (sub) sub.value = val;
+      if (subDiv) subDiv.style.display = 'block';
+    } else {
+      main.value = val;
+      if (subDiv) subDiv.style.display = 'none';
+    }
+  }
 
   function buildEgrCatOpts() {
     const sel = document.getElementById('regEgrCat');
     if (!sel || !CATEGORIAS_GASTO_DGI) return;
-    sel.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
+    // Exclude personal sub-categories from main dropdown (they appear in sub-select)
+    const main = CATEGORIAS_GASTO_DGI.filter(c => !_PERSONAL_SUBCATS_MOB.has(c.valor));
+    sel.innerHTML = main.map(c =>
       `<option value="${c.valor}">${c.emoji} ${c.label}</option>`
     ).join('');
-    // Default: otros_deducibles
     sel.value = 'otros_deducibles';
+    document.getElementById('regEgrCatSub').style.display = 'none';
   }
 
   function inferItbmsIng() {
@@ -1569,8 +1610,7 @@ const REG = (() => {
         if (d.ruc_proveedor) document.getElementById('regEgrRuc').value = d.ruc_proveedor;
         if (d.dv_proveedor)  document.getElementById('regEgrDv').value  = d.dv_proveedor;
         if (d.categoria_gasto) {
-          const sel = document.getElementById('regEgrCat');
-          if (sel) sel.value = d.categoria_gasto;
+          _setEgrCatMob(d.categoria_gasto);
         }
         if (d.total) {
           document.getElementById('regEgrTotal').value = d.total;
@@ -1581,6 +1621,7 @@ const REG = (() => {
         const alcMsg = _autoDetectAlcance(d.ruc_receptor, d.nombre_receptor);
         const catMsg = d.categoria_gasto ? (' · ' + dgiLabel(d.categoria_gasto)) : '';
         zone.classList.remove('analyzing'); zone.classList.add('has-file');
+
         status.style.color = 'var(--green)';
         status.textContent = '✅ ' + alcMsg + catMsg;
       } catch(err) {
@@ -1696,10 +1737,11 @@ const REG = (() => {
     const btn = document.getElementById('regEgrSubmit');
     btn.disabled = true; btn.textContent = 'Guardando…';
     try {
+      const _catEfectiva = _getEgrCatEfectivo();
       const r = await jsonpGet('registrarEgresoOperativo', {
         fecha,
-        tipo:        document.getElementById('regEgrCat').value,
-        categoria:   document.getElementById('regEgrCat').value,
+        tipo:        _catEfectiva,
+        categoria:   _catEfectiva,
         proveedor:   document.getElementById('regEgrProv').value.trim(),
         ruc_prov:    document.getElementById('regEgrRuc').value.trim(),
         dv_prov:     document.getElementById('regEgrDv').value.trim(),
@@ -2197,6 +2239,16 @@ const PEND = (() => {
         <select class="f-inp" id="regEgrCat" onchange="REG.inferTipoEgr()">
           <!-- Poblado dinámicamente por REG.buildEgrCatOpts() desde CATEGORIAS_GASTO_DGI -->
         </select>
+        <div id="regEgrCatSub" style="display:none;margin-top:.5rem;background:#F3E5F5;border-radius:10px;padding:.55rem .75rem">
+          <label style="font-size:.72rem;font-weight:700;color:#6A1B9A;display:block;margin-bottom:.3rem">Tipo de Deducible Personal</label>
+          <select class="f-inp" id="regEgrSubcat" onchange="REG.inferTipoEgr()" style="border-color:#CE93D8;color:#6A1B9A;font-weight:600">
+            <option value="gastos_medicos">🏥 Gastos médicos</option>
+            <option value="gastos_escolares">📖 Gastos escolares</option>
+            <option value="intereses_hipotecarios">🏡 Intereses hipotecarios</option>
+            <option value="intereses_prestamos_educativos">🎓 Intereses préstamos educativos</option>
+            <option value="gastos_escolares_discapacitados">♿ Gastos escolares discapacitados</option>
+          </select>
+        </div>
       </div>
       <div class="f-grp">
         <label class="f-lbl">Descripción</label>

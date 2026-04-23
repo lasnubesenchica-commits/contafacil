@@ -2314,6 +2314,13 @@ var CATEGORIAS_GASTO_DGI = [
   { valor: 'tecnologia_software',      label: 'Tecnología y software',            linea_dgi: '76',    emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',         linea_dgi: '76',    emoji: '📚' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',          linea_dgi: '77',    emoji: '📋' },
+  // ── Deducibles Personales (ISR persona natural) ──
+  { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea_dgi: 'DP',  emoji: '👨‍👩‍👧' },
+  { valor: 'gastos_medicos',                  label: 'Gastos médicos',                  linea_dgi: 'DP-1', emoji: '🏥' },
+  { valor: 'gastos_escolares',                label: 'Gastos escolares',                linea_dgi: 'DP-2', emoji: '📖' },
+  { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea_dgi: 'DP-3', emoji: '🏡' },
+  { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea_dgi: 'DP-4', emoji: '🎓' },
+  { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea_dgi: 'DP-5', emoji: '♿' },
 ];
 
 // ═══════════════════════════════════════════════════════════════
