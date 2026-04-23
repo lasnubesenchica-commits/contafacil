@@ -5682,7 +5682,8 @@ function rgRenderEgr() {
     .filter(e => String(e.estado||'').toLowerCase() !== 'anulado')
     .map(e => ({
       _tipo:      'registrado',
-      _esEmail:   String(e.notas||'').startsWith('acreedor_auto'),
+      _esEmail:   String(e.notas||'').startsWith('acreedor_auto') && !String(e.notas||'').includes('ofx_import'),
+      _esOFX:     String(e.notas||'').includes('ofx_import'),
       fecha:      String(e.fecha_egreso||'').substring(0,10),
       proveedor:  e.proveedor || '—',
       num_fac:    e.num_fac_ref || '—',
@@ -5702,6 +5703,7 @@ function rgRenderEgr() {
     .filter(i => i.estado === 'borrador')
     .map(i => ({
       _tipo:      'pendiente',
+      _esOFX:     String(i.notas||'').startsWith('ofx_import'),
       fecha:      String(i.fecha_fac||'').substring(0,10),
       proveedor:  i.acreedor_nom || '—',
       num_fac:    i.num_fac || '—',
@@ -5830,9 +5832,11 @@ function rgRenderEgr() {
     const isSel       = _rgEgrSel.has(i._id);
 
     // Badge origen
-    const origenBadge = (esPendiente || i._esEmail)
-      ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
-      : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
+    const origenBadge = i._esOFX
+      ? '<span style="font-size:.68rem;background:#E3F2FD;color:#1565C0;padding:.15rem .45rem;border-radius:10px;font-weight:600">🏦 OFX</span>'
+      : (esPendiente || i._esEmail)
+        ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
+        : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
 
     // Badge estado
     const estadoBadge = esPendiente
@@ -5879,7 +5883,10 @@ function rgRenderEgr() {
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
-      <td>${estadoBadge} ${i.alcance === 'personal' ? '<span style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">🚫 No Deducible</span>' : '<span style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle">✅ Deducible</span>'}</td>
+      <td>${estadoBadge} ${i.alcance === 'personal'
+        ? `<span onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','negocio')" title="Clic: marcar Deducible" style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">🚫 No Deducible</span>`
+        : `<span onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','personal')" title="Clic: marcar No Deducible" style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">✅ Deducible</span>`
+      }</td>
       <td>${acciones}</td>
     </tr>`;
   }).join('');
@@ -5923,6 +5930,24 @@ function rgToggleEgrSel(id, checked) {
   rgUpdBulkBar();
 }
 window.rgToggleEgrSel = rgToggleEgrSel;
+
+async function rgToggleAlcance(id, tipo, nuevoAlcance) {
+  try {
+    if (tipo === 'pendiente') {
+      await fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'actualizarPendienteAcr', id, alcance: nuevoAlcance }) });
+      const item = _acrData.find(i => String(i.id) === String(id));
+      if (item) item.alcance = nuevoAlcance;
+    } else {
+      await fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'actualizarAlcanceEgreso', id, alcance: nuevoAlcance }) });
+      const egr = egrItems.find(e => String(e.id_egreso) === String(id));
+      if (egr) egr.alcance = nuevoAlcance;
+    }
+    rgRenderEgr();
+  } catch(e) { console.error('rgToggleAlcance:', e); }
+}
+window.rgToggleAlcance = rgToggleAlcance;
 
 function rgSelAllEgr(checked) {
   document.querySelectorAll('#rgEgrBody input[type=checkbox][data-id]').forEach(cb => {
@@ -9093,11 +9118,12 @@ async function ofxCategorizar() {
         if (_ofxTransacciones[r.idx] !== undefined) {
           _ofxTransacciones[r.idx].categoria = r.categoria || 'otro';
           _ofxTransacciones[r.idx].proveedor = r.proveedor || _ofxTransacciones[r.idx].memo;
+          _ofxTransacciones[r.idx].alcance   = 'negocio';
         }
       });
     }
   } catch(e) {
-    _ofxTransacciones.forEach(function(t) { if (!t.categoria) { t.categoria = 'otro'; t.proveedor = t.memo; } });
+    _ofxTransacciones.forEach(function(t) { if (!t.categoria) { t.categoria = 'otro'; t.proveedor = t.memo; t.alcance = 'negocio'; } });
   }
   _ofxCatFilter = 'all';
   _ofxSel = new Set(_ofxTransacciones.map(function(t) { return t.fitid; }));
@@ -9189,13 +9215,12 @@ function _ofxUpdCount() {
 
 // ═══ OFX Step 3→4 — Import ═══════════════════════════════════
 async function ofxImport_procesar() {
-  var alcance = (document.getElementById('ofxAlcance') || {}).value || 'negocio';
   var sel = _ofxTransacciones.filter(function(t){ return _ofxSel.has(t.fitid); });
   if (!sel.length) return;
   _ofxShowStep(3);
   var payload = sel.map(function(t) {
     return { fitid: t.fitid, fecha: t.fecha, monto: t.monto, memo: t.memo,
-             proveedor: t.proveedor || t.memo, categoria: t.categoria || 'otro', alcance: alcance };
+             proveedor: t.proveedor || t.memo, categoria: t.categoria || 'otro', alcance: t.alcance || 'negocio' };
   });
   try {
     var resp = await fetch(GAS_URL, {
@@ -9467,14 +9492,6 @@ async function ofxImport_procesar() {
           <div style="display:grid;gap:.85rem">
             <div style="background:#E8F5E9;border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:#2E7D32;line-height:1.5">
               🏦 <strong>Banco General OFX:</strong> Descarga tu estado de cuenta en formato <strong>.OFX</strong> desde Banca en Línea → Consultas → Estado de Cuenta → Exportar OFX. La IA categorizará cada gasto automáticamente.
-            </div>
-            <!-- Alcance -->
-            <div style="display:flex;align-items:center;gap:.75rem">
-              <label style="font-size:.72rem;font-weight:600;color:var(--muted);white-space:nowrap">CLASIFICAR COMO:</label>
-              <select id="ofxAlcance" style="flex:1;padding:.4rem .65rem;border:1px solid var(--border);border-radius:7px;font-size:.82rem;background:var(--bg);color:var(--text);outline:none">
-                <option value="negocio" selected>✅ Deducible (Negocio)</option>
-                <option value="personal">🚫 No Deducible (Personal)</option>
-              </select>
             </div>
             <!-- File drop area -->
             <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.5rem;border:2px dashed var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s;background:var(--bg)"
