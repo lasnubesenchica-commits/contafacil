@@ -8288,6 +8288,7 @@ var _gmailToken = null;
 var _gmailMsgs  = [];
 var _gmailSel   = new Set();
 var _gmailActiveFilter = 'TODOS';
+var _gmailHadImports   = false;
 
 var _GMAIL_KW_DEFAULT = ['arrocha','doitcenter','novey','ensa','electra','netflix','apple','iddan','carbone','el rey','riba smith','super 99'];
 var _gmailKeywords = [];
@@ -8304,7 +8305,7 @@ function _gmailSaveKw() {
 
 function gmailImport_open() {
   _gmailLoadKw();
-  _gmailToken = null; _gmailMsgs = []; _gmailSel = new Set(); _gmailActiveFilter = 'TODOS';
+  _gmailToken = null; _gmailMsgs = []; _gmailSel = new Set(); _gmailActiveFilter = 'TODOS'; _gmailHadImports = false;
   document.getElementById('gmailAuthStatus').textContent = 'No conectado';
   document.getElementById('gmailAuthStatus').style.color = 'var(--muted)';
   var btn = document.getElementById('btnGmailSearch');
@@ -8315,6 +8316,7 @@ function gmailImport_open() {
 }
 function gmailImport_close() {
   document.getElementById('gmailImportModal').style.display = 'none';
+  if (_gmailHadImports) { _gmailHadImports = false; acrCargarPendientesSilencioso(); }
 }
 function _gmailShowStep(n) {
   for (var i = 0; i <= 4; i++) {
@@ -8653,7 +8655,7 @@ async function gmailImport_procesar() {
   }
 
   _gmailShowStep(4);
-  if (ok > 0) setTimeout(function() { acrSincronizar(); }, 1000);
+  if (ok > 0) _gmailHadImports = true;
 }
 
 function _gesc(s) {
