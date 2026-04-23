@@ -1568,16 +1568,21 @@ const REG = (() => {
         if (d.proveedor)   document.getElementById('regEgrProv').value  = d.proveedor;
         if (d.ruc_proveedor) document.getElementById('regEgrRuc').value = d.ruc_proveedor;
         if (d.dv_proveedor)  document.getElementById('regEgrDv').value  = d.dv_proveedor;
+        if (d.categoria_gasto) {
+          const sel = document.getElementById('regEgrCat');
+          if (sel) sel.value = d.categoria_gasto;
+        }
         if (d.total) {
           document.getElementById('regEgrTotal').value = d.total;
           if (d.itbms && parseFloat(d.itbms) > 0) document.getElementById('regEgrItbms').checked = true;
           recalcEgr();
         }
-        // Auto-detectar alcance según RUC receptor
+        // Auto-detectar alcance según RUC receptor + mostrar categoría sugerida
         const alcMsg = _autoDetectAlcance(d.ruc_receptor, d.nombre_receptor);
+        const catMsg = d.categoria_gasto ? (' · ' + dgiLabel(d.categoria_gasto)) : '';
         zone.classList.remove('analyzing'); zone.classList.add('has-file');
         status.style.color = 'var(--green)';
-        status.textContent = '✅ ' + alcMsg;
+        status.textContent = '✅ ' + alcMsg + catMsg;
       } catch(err) {
         zone.classList.remove('analyzing');
         status.style.color = 'var(--red)';
