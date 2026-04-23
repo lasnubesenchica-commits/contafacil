@@ -96,7 +96,22 @@ function doGet_Acreedores(action, params, callback) {
   if (action === 'eliminarPendienteAcr')  return _handleEliminarPendienteAcr(params, callback);
   if (action === 'sincronizarAcreedores') return _handleSincronizarAcreedores(params, callback);
   if (action === 'getCategorias')         return _handleGetCategorias(params, callback);
+  if (action === 'getFacturaXml')         return _handleGetFacturaXml(params, callback);
   return null;
+}
+
+function _handleGetFacturaXml(params, callback) {
+  var fileId = params && (params.fileId || params.file_id);
+  if (!fileId) return _jsonp({ success: false, error: 'fileId requerido' }, callback);
+  try {
+    var file = DriveApp.getFileById(fileId);
+    var blob = file.getBlob();
+    var xml  = blob.getDataAsString('UTF-8');
+    return _jsonp({ success: true, xml: xml, name: file.getName(), mimeType: file.getMimeType() }, callback);
+  } catch (e) {
+    Logger.log('_handleGetFacturaXml error: ' + e.message);
+    return _jsonp({ success: false, error: e.message }, callback);
+  }
 }
 
 function doPost_Acreedores(action, data) {
