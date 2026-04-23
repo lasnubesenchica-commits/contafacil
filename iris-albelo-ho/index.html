@@ -5700,7 +5700,26 @@ function rgRenderEgr() {
     [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
   );
 
-  // ── 4. Widgets (reflejan filtros activos de toolbar) ──────────
+  // ── 4. Tabs por Acreedor (antes del filtro para mostrar todos los acreedores) ──
+  const acrCounts = {};
+  items.forEach(i => { acrCounts[i.proveedor] = (acrCounts[i.proveedor] || 0) + 1; });
+  const acrNames = Object.keys(acrCounts).sort();
+  const tabsCont = document.getElementById('rgEgrAcrTabs');
+  if (tabsCont) {
+    const tabs = ['TODOS', ...acrNames];
+    tabsCont.innerHTML = tabs.map(nom => {
+      const isAll = nom === 'TODOS';
+      const cnt   = isAll ? items.length : acrCounts[nom];
+      const act   = _rgEgrAcreedor === nom;
+      const esc2  = nom.replace(/'/g, "\\'");
+      return `<button onclick="rgSetAcreedor('${esc2}')" style="padding:.2rem .65rem;border:1px solid ${act?'#1565C0':'var(--border)'};border-radius:100px;font-size:.69rem;font-weight:700;cursor:pointer;background:${act?'#1565C0':'var(--bg)'};color:${act?'#fff':'var(--text)'};white-space:nowrap">${nom.toUpperCase()}${cnt ? ` <span style="font-weight:400">(${cnt})</span>` : ''}</button>`;
+    }).join('');
+  }
+
+  // Filtro acreedor (aplicado ANTES de widgets para que los totales reflejen el acreedor activo)
+  if (_rgEgrAcreedor !== 'TODOS') items = items.filter(i => i.proveedor === _rgEgrAcreedor);
+
+  // ── 5. Widgets (reflejan todos los filtros activos, incluido acreedor) ────────
   const totFilt    = items.reduce((s,i) => s + i.total, 0);
   const itbFilt    = items.reduce((s,i) => s + i.itbms, 0);
   const totNeg     = items.filter(i => (i.alcance||'negocio') === 'negocio').reduce((s,i) => s + i.total, 0);
@@ -5723,25 +5742,6 @@ function rgRenderEgr() {
       `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}</div>`+
       `</div>`).join('');
   }
-
-  // ── 5. Tabs por Acreedor ──────────────────────────────────────
-  const acrCounts = {};
-  items.forEach(i => { acrCounts[i.proveedor] = (acrCounts[i.proveedor] || 0) + 1; });
-  const acrNames = Object.keys(acrCounts).sort();
-  const tabsCont = document.getElementById('rgEgrAcrTabs');
-  if (tabsCont) {
-    const tabs = ['TODOS', ...acrNames];
-    tabsCont.innerHTML = tabs.map(nom => {
-      const isAll = nom === 'TODOS';
-      const cnt   = isAll ? items.length : acrCounts[nom];
-      const act   = _rgEgrAcreedor === nom;
-      const esc2  = nom.replace(/'/g, "\\'");
-      return `<button onclick="rgSetAcreedor('${esc2}')" style="padding:.2rem .65rem;border:1px solid ${act?'#1565C0':'var(--border)'};border-radius:100px;font-size:.69rem;font-weight:700;cursor:pointer;background:${act?'#1565C0':'var(--bg)'};color:${act?'#fff':'var(--text)'};white-space:nowrap">${nom.toUpperCase()}${cnt ? ` <span style="font-weight:400">(${cnt})</span>` : ''}</button>`;
-    }).join('');
-  }
-
-  // Filtro acreedor
-  if (_rgEgrAcreedor !== 'TODOS') items = items.filter(i => i.proveedor === _rgEgrAcreedor);
 
   // ── 6. Ordenamiento ───────────────────────────────────────────
   const { col, dir } = _rgEgrSort;
@@ -5836,6 +5836,18 @@ function rgRenderEgr() {
       <td>${acciones}</td>
     </tr>`;
   }).join('');
+
+  // ── 8. Fila de totales ────────────────────────────────────────
+  const tSub  = items.reduce((s,i) => s + i.subtotal, 0);
+  const tItbm = items.reduce((s,i) => s + i.itbms, 0);
+  const tTot  = items.reduce((s,i) => s + i.total, 0);
+  tbody.innerHTML += `<tr style="background:#F3E5F5;border-top:2px solid #CE93D8">
+    <td colspan="6" style="padding:.55rem .75rem;font-size:.78rem;font-weight:700;color:#6A1B9A;letter-spacing:.04em;text-align:right">TOTAL · ${items.length} registro${items.length!==1?'s':''}</td>
+    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--muted);padding:.55rem .6rem">$${tSub.toFixed(2)}</td>
+    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:#1565C0;padding:.55rem .6rem">$${tItbm.toFixed(2)}</td>
+    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.9rem;font-weight:800;color:#6A1B9A;padding:.55rem .6rem">$${tTot.toFixed(2)}</td>
+    <td colspan="2"></td>
+  </tr>`;
 }
 
 // ── Acreedor filter ───────────────────────────────────────────
