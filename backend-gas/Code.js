@@ -1849,26 +1849,38 @@ function _handleParseFacturaEgreso(data) {
       contentBlock = { type: 'image', source: { type: 'base64', media_type: imgMime, data: b64 } };
     }
 
+    var catValues = CATEGORIAS_GASTO_DGI.map(function(c) { return c.valor + ' — ' + c.label; }).join('\n');
+
     var prompt =
       'Eres un extractor de datos de facturas panameñas (DGI e-Tax 2.0 y facturas tradicionales). ' +
       'Analiza esta factura y responde SOLO con JSON válido, sin markdown ni texto adicional:\n' +
       '{"num_factura":"","fecha":"YYYY-MM-DD","proveedor":"","ruc_proveedor":"","dv_proveedor":"",' +
       '"ruc_receptor":"","nombre_receptor":"","subtotal":0,"itbms":0,"total":0,' +
-      '"items":[{"descripcion":"","cantidad":1,"precio_unitario":0,"itbms":0,"total":0}]}\n' +
-      '\nREGLAS IMPORTANTES:\n' +
-      '1. proveedor = nombre del EMISOR (cabecera superior), NO del receptor/cliente\n' +
-      '2. ruc_proveedor = RUC del emisor. En facturas DGI panameñas aparece en la cabecera como:\n' +
-      '   "N-20-606 DV 09"  → ruc_proveedor="N-20-606", dv_proveedor="09"\n' +
-      '   "8-517-1400 DV 85" → ruc_proveedor="8-517-1400", dv_proveedor="85"\n' +
-      '3. dv_proveedor = SOLO el número después de "DV" — extraer siempre, nunca dejar null si hay RUC\n' +
-      '4. fecha en formato YYYY-MM-DD\n' +
-      '5. subtotal = monto antes de ITBMS | itbms = impuesto 7% | total = monto final\n' +
-      '6. items[].descripcion: si todos los ítems dicen lo mismo genérico (ej: "FERRETERIA"),\n' +
-      '   usa "proveedor — categoría" (ej: "King Chan — Ferretería materiales"). NO repitas.\n' +
-      '7. Montos como números, no strings. null solo si el campo realmente no existe.\n' +
-      '8. ruc_receptor = RUC del RECEPTOR (a quien va dirigida la factura, sección "Cliente" o "Receptor").\n' +
-      '   Solo dígitos y guiones, sin el DV. nombre_receptor = nombre o razón social del receptor.\n' +
-      '   null si no aparece en el documento.';
+      '"categoria_gasto":"","' +
+      'items":[{"descripcion":"","cantidad":1,"precio_unitario":0,"itbms":0,"total":0}]}\n' +
+      '\nESTRUCTURA DE UNA FACTURA PANAMEÑA:\n' +
+      '  ▶ PARTE SUPERIOR (CABECERA): datos del EMISOR = el vendedor/proveedor (nombre empresa, RUC, dirección, teléfono).\n' +
+      '  ▶ PARTE MEDIA: sección "Cliente:" o "Receptor:" = datos del RECEPTOR = quien COMPRA (nombre, RUC del cliente).\n' +
+      '  NUNCA confundir: el RUC del EMISOR está en la cabecera junto al nombre del negocio.\n' +
+      '                   el RUC del RECEPTOR está después de "Cliente:" o "RUC:" en la sección del cliente.\n' +
+      '\nREGLAS:\n' +
+      '1. proveedor = nombre del EMISOR (cabecera, parte SUPERIOR del documento), NO del receptor/cliente.\n' +
+      '2. ruc_proveedor = RUC del EMISOR (cabecera). Formatos posibles:\n' +
+      '   "N-20-606 DV 09"        → ruc_proveedor="N-20-606",      dv_proveedor="09"\n' +
+      '   "8-517-1400 DV 85"      → ruc_proveedor="8-517-1400",    dv_proveedor="85"\n' +
+      '   "1891245-1-720993 DV 32"→ ruc_proveedor="1891245-1-720993", dv_proveedor="32"\n' +
+      '   "155604-1-409777 DV 44" → ruc_proveedor="155604-1-409777",  dv_proveedor="44"\n' +
+      '   Persona jurídica: formato largo con tres segmentos (ej: XXXXXX-1-YYYYYY).\n' +
+      '3. dv_proveedor = SOLO el número después de "DV" en la cabecera del EMISOR. Nunca el DV del cliente.\n' +
+      '4. ruc_receptor = RUC del RECEPTOR (sección "Cliente:", parte media/inferior). Solo dígitos y guiones, sin DV.\n' +
+      '5. nombre_receptor = nombre del receptor/cliente.\n' +
+      '6. fecha en formato YYYY-MM-DD.\n' +
+      '7. subtotal = monto antes de ITBMS | itbms = impuesto | total = monto final.\n' +
+      '8. items[].descripcion: descripción de los productos/servicios comprados.\n' +
+      '9. categoria_gasto = elige el valor que MEJOR describe este gasto según los productos/servicios y el nombre del proveedor.\n' +
+      '   Valores válidos (elige exactamente uno):\n' + catValues + '\n' +
+      '   Si no encaja en ninguna categoría específica usa "otros_deducibles".\n' +
+      '10. Montos como números, no strings. null solo si el campo realmente no existe.';
 
     var payload = {
       model:      'claude-sonnet-4-20250514',
@@ -1899,6 +1911,14 @@ function _handleParseFacturaEgreso(data) {
 
     var parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
 
+    // Validate categoria_gasto is a known value
+    var catGasto = parsed.categoria_gasto || null;
+    var validCat = false;
+    for (var ci = 0; ci < CATEGORIAS_GASTO_DGI.length; ci++) {
+      if (CATEGORIAS_GASTO_DGI[ci].valor === catGasto) { validCat = true; break; }
+    }
+    if (!validCat) catGasto = null;
+
     return ContentService
       .createTextOutput(JSON.stringify({
         success:         true,
@@ -1912,6 +1932,7 @@ function _handleParseFacturaEgreso(data) {
         subtotal:        parsed.subtotal        || null,
         itbms:           parsed.itbms           || null,
         total:           parsed.total           || null,
+        categoria_gasto: catGasto,
         items:           Array.isArray(parsed.items) ? parsed.items : [],
       }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -2293,6 +2314,13 @@ var CATEGORIAS_GASTO_DGI = [
   { valor: 'tecnologia_software',      label: 'Tecnología y software',            linea_dgi: '76',    emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',         linea_dgi: '76',    emoji: '📚' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',          linea_dgi: '77',    emoji: '📋' },
+  // ── Deducibles Personales (ISR persona natural) ──
+  { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea_dgi: 'DP',  emoji: '👨‍👩‍👧' },
+  { valor: 'gastos_medicos',                  label: 'Gastos médicos',                  linea_dgi: 'DP-1', emoji: '🏥' },
+  { valor: 'gastos_escolares',                label: 'Gastos escolares',                linea_dgi: 'DP-2', emoji: '📖' },
+  { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea_dgi: 'DP-3', emoji: '🏡' },
+  { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea_dgi: 'DP-4', emoji: '🎓' },
+  { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea_dgi: 'DP-5', emoji: '♿' },
 ];
 
 // ═══════════════════════════════════════════════════════════════
