@@ -7692,6 +7692,7 @@ function plRenderTblGastos(q) {
 
   let items = plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    if ((e.alcance || 'negocio') === 'personal') return false;
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== plYear) return false;
     if (plMonth !== 'ytd') {
