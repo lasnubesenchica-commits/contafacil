@@ -376,6 +376,7 @@ function doGet(e) {
     if (action === 'getIngresos')              return _handleGetIngresos(params, callback);
     if (action === 'getPL')                    return _handleGetPL(params, callback);
     if (action === 'registrarIngresoManual')   return _handleRegistrarIngresoManual(params, callback);
+    if (action === 'actualizarIngreso')        return _handleActualizarIngreso(params, callback);
     if (action === 'actualizarNotasIngreso')   return _handleActualizarNotasIngreso(params, callback);
     if (action === 'confirmarIngreso')         return _handleConfirmarIngreso(params, callback);
     // ── SERVICIOS TÉCNICOS ──────────────────────────────────────
@@ -1867,6 +1868,86 @@ function _handleRegistrarIngresoManual(params, callback) {
   } catch(err) {
     result.error = err.message;
     Logger.log('Error _handleRegistrarIngresoManual: ' + err.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleActualizarIngreso — actualiza todos los campos editables del modal
+// ═══════════════════════════════════════════════════════════════
+
+function _handleActualizarIngreso(params, callback) {
+  var result = { success: false, ingresoId: null, error: null };
+  try {
+    var id = String(params.id || '').trim();
+    if (!id) throw new Error('id requerido');
+
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+    if (!sheet) throw new Error('Hoja Ingresos no encontrada');
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 2) throw new Error('Hoja Ingresos sin datos');
+
+    var ids = sheet.getRange(3, COL_I.ID_TRANS, lastRow - 2, 1).getValues();
+    var rowIdx = -1;
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]) === id) { rowIdx = i + 3; break; }
+    }
+    if (rowIdx === -1) throw new Error('Ingreso no encontrado: ' + id);
+
+    var fechaIngreso = params.fecha || Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd');
+    var fDate = new Date(fechaIngreso + 'T12:00:00');
+    var mes   = isNaN(fDate.getTime()) ? '' : (fDate.getMonth() + 1);
+    var anio  = isNaN(fDate.getTime()) ? '' : fDate.getFullYear();
+
+    var total    = parseFloat(params.total)    || 0;
+    var itbms    = parseFloat(params.itbms)    || 0;
+    var subtotal = parseFloat(params.subtotal) || parseFloat((total - itbms).toFixed(2));
+
+    var catUnificada = params.categoria || 'venta_producto_gravado';
+    var mapaTipo = {
+      'venta_producto_gravado':   'venta_producto',
+      'venta_producto_exento':    'venta_producto',
+      'servicio_tecnico_gravado': 'servicio_tecnico',
+      'servicio_tecnico_exento':  'servicio_tecnico',
+      'asesoria_consultoria':     'servicio_asesoria',
+      'servicios_profesionales':  'servicio_profesional',
+      'salarios':                 'salario',
+      'comision':                 'comision',
+      'exportacion':              'exportacion',
+      'otro_gravado':             'otro',
+      'otro_exento':              'otro',
+    };
+    var tipoIng = mapaTipo[catUnificada] || 'venta_producto';
+
+    var rucCli = String(params.ruc || '').trim();
+
+    // Updates campo por campo (preserva FECHA_REG, ESTADO, DRIVE_URL, etc.)
+    sheet.getRange(rowIdx, COL_I.FECHA_INGRESO).setValue(fechaIngreso);
+    sheet.getRange(rowIdx, COL_I.MES).setValue(mes);
+    sheet.getRange(rowIdx, COL_I.ANIO_FISCAL).setValue(anio);
+    sheet.getRange(rowIdx, COL_I.SUBTOTAL).setValue(subtotal || '');
+    sheet.getRange(rowIdx, COL_I.ITBMS).setValue(itbms || '');
+    sheet.getRange(rowIdx, COL_I.TOTAL).setValue(total || '');
+    sheet.getRange(rowIdx, COL_I.TIPO_INGRESO).setValue(tipoIng);
+    sheet.getRange(rowIdx, COL_I.CATEGORIA).setValue(catUnificada);
+    sheet.getRange(rowIdx, COL_I.NOMBRE_CLI).setValue(params.nombre || '');
+    sheet.getRange(rowIdx, COL_I.RUC_CLI).setValue(rucCli);
+    sheet.getRange(rowIdx, COL_I.TIPO_PERSONA).setValue(detectarTipoPersona(rucCli));
+    sheet.getRange(rowIdx, COL_I.NUM_FACTURA).setValue(params.num_factura || '');
+    sheet.getRange(rowIdx, COL_I.DESCRIPCION).setValue(params.descripcion || '');
+    sheet.getRange(rowIdx, COL_I.NOTAS_INT).setValue(params.notas || '');
+    sheet.getRange(rowIdx, COL_I.DV_CLI).setValue(params.dv || '');
+    sheet.getRange(rowIdx, COL_I.SUBTOTAL, 1, 3).setNumberFormat('#,##0.00');
+
+    result.success   = true;
+    result.ingresoId = id;
+    Logger.log('✏️ Ingreso actualizado: ' + id + ' | fila ' + rowIdx);
+  } catch(err) {
+    result.error = err.message;
+    Logger.log('Error _handleActualizarIngreso: ' + err.message);
   }
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);

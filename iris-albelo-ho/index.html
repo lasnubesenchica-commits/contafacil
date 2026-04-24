@@ -1574,7 +1574,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
             <th style="text-align:right">Subtotal</th>
             <th style="text-align:right">ITBMS</th>
             <th style="text-align:right">Total</th>
-            <th></th>
+            <th style="text-align:center;white-space:nowrap">Acciones</th>
           </tr>
         </thead>
         <tbody id="rgIngBody">
@@ -3769,7 +3769,10 @@ function renderIngresosTable(items) {
   }).join('');
 }
 
+let _ingEditId = null;  // null = crear, set = editar
+
 function abrirModalNuevoIngreso() {
+  _ingEditId = null;
   document.getElementById('iCategoria').value     = 'venta_producto_gravado';
   document.getElementById('iDescripcion').value   = '';
   document.getElementById('iFecha').value         = new Date().toISOString().substring(0,10);
@@ -4263,6 +4266,31 @@ async function guardarCostoOperativo() {
   btn.disabled = false; btn.textContent = '⚙ Registrar como costo operativo';
 }
 
+function abrirModalEditarIngreso(item) {
+  abrirModalNuevoIngreso();   // resetea + abre
+  _ingEditId = item.id_trans;
+  document.getElementById('iCategoria').value   = item.categoria_ingreso || item.tipo_ingreso || 'venta_producto_gravado';
+  document.getElementById('iDescripcion').value = item.descripcion || '';
+  document.getElementById('iFecha').value       = (item.fecha_ingreso || '').slice(0,10);
+  document.getElementById('iNumFac').value      = item.num_factura || '';
+  document.getElementById('iTotal').value       = item.total || '';
+  document.getElementById('iSubtotal').value    = item.subtotal || '';
+  document.getElementById('iItbms').value       = item.itbms || '';
+  // ITBMS check según si trae ITBMS > 0
+  document.getElementById('iItbmsCheck').checked = Number(item.itbms || 0) > 0;
+  document.getElementById('iNombreCli').value   = item.nombre_cliente || '';
+  document.getElementById('iRucCli').value      = item.ruc_cliente    || '';
+  document.getElementById('iDvCli').value       = item.dv_cliente     || '';
+  document.getElementById('iNotas').value       = item.notas          || '';
+  recalcIngreso();
+  // Título y botón en modo edición
+  const t = document.querySelector('#ingresoModalOverlay .modal-title');
+  if (t) t.textContent = '✏️ Editar Ingreso';
+  const btn = document.querySelector('#ingresoModalOverlay .btn-primary');
+  if (btn) btn.textContent = '💾 Actualizar ingreso';
+}
+window.abrirModalEditarIngreso = abrirModalEditarIngreso;
+
 async function guardarNuevoIngreso() {
   const descripcion = document.getElementById('iDescripcion').value.trim();
   const total       = parseFloat(document.getElementById('iTotal').value)||0;
@@ -4272,9 +4300,10 @@ async function guardarNuevoIngreso() {
   if (!fecha)  { showToast('⚠️ La fecha es requerida');               return; }
   if (!nombre) { showToast('⚠️ El nombre del cliente es requerido');  return; }
   const btn = document.querySelector('#ingresoModalOverlay .btn-primary');
-  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  const isEdit = !!_ingEditId;
+  btn.disabled = true; btn.textContent = isEdit ? '⏳ Actualizando...' : '⏳ Guardando...';
   try {
-    const data = await gasJsonp('registrarIngresoManual', {
+    const payload = {
       fecha:            fecha,
       categoria:        document.getElementById('iCategoria').value,
       descripcion:      descripcion,
@@ -4286,9 +4315,18 @@ async function guardarNuevoIngreso() {
       ruc:             document.getElementById('iRucCli').value.trim(),
       dv:              document.getElementById('iDvCli').value.trim(),
       notas:           document.getElementById('iNotas').value.trim(),
-    });
+    };
+    let data;
+    if (isEdit) {
+      payload.id = _ingEditId;
+      data = await gasJsonp('actualizarIngreso', payload);
+    } else {
+      data = await gasJsonp('registrarIngresoManual', payload);
+    }
     if (!data.success) throw new Error(data.error||'Error desconocido');
-    showToast('✅ Ingreso registrado: ' + data.ingresoId);
+    showToast(isEdit
+      ? '✅ Ingreso actualizado: ' + data.ingresoId
+      : '✅ Ingreso registrado: ' + data.ingresoId);
     closeIngresoModal();
     plLoaded = false;
     // Upload comprobante to Drive first (if attached), then reload ingItems so drive_url is present
@@ -4315,7 +4353,7 @@ async function guardarNuevoIngreso() {
       loadIngresos().then(() => { if (typeof rgRenderIng === 'function' && rg_initialized) rgRenderIng(); });
     }
   } catch(err) { showToast('⚠️ ' + err.message); }
-  btn.disabled = false; btn.textContent = '💾 Guardar ingreso';
+  btn.disabled = false; btn.textContent = _ingEditId ? '💾 Actualizar ingreso' : '💾 Guardar ingreso';
 }
 
 // ══════════════════════════════════════════════════
@@ -6360,10 +6398,10 @@ function rgRenderIng() {
   }
   tbody.innerHTML = items.map(i => {
     const catLabel = RG_ING_CAT_LABELS[i.categoria_ingreso] || RG_ING_CAT_LABELS[i.tipo_ingreso] || i.tipo_ingreso || '—';
-    const docLink  = i.drive_url ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0">📄</a>` : '—';
-    const estadoBadge = i.estado === 'confirmado'
-      ? '<span style="font-size:.68rem;font-weight:600;color:#2E7D32">✓ Confirmado</span>'
-      : '<span style="font-size:.68rem;font-weight:600;color:#E65100">⏳ Pendiente</span>';
+    const docLink  = i.drive_url
+      ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.95rem;color:#1565C0;text-decoration:none" title="Ver comprobante">📄</a>`
+      : '';
+    const idEsc = esc(i.id_trans || '');
     return `<tr>
       <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso||'—'}</td>
       <td><span style="font-size:.72rem">${esc(catLabel)}</span></td>
@@ -6373,10 +6411,46 @@ function rgRenderIng() {
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted)">${i.subtotal>0?'$'+Number(i.subtotal).toFixed(2):'—'}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:#1565C0">${i.itbms>0?'$'+Number(i.itbms).toFixed(2):'—'}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#2E7D32">$${Number(i.total||0).toFixed(2)}</td>
-      <td>${docLink}</td>
+      <td style="white-space:nowrap;text-align:center">
+        <div style="display:inline-flex;gap:.4rem;align-items:center">
+          ${docLink}
+          <button onclick='rgEditarIngreso("${idEsc}")'
+            style="padding:.28rem .5rem;background:var(--bg);color:#1565C0;border:1px solid #BBDEFB;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
+            title="Editar ingreso">✏️</button>
+          <button onclick='rgEliminarIngreso("${idEsc}")'
+            style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
+            title="Eliminar permanentemente">🗑</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
 }
+
+// ── Editar ingreso desde Registro General ─────────
+function rgEditarIngreso(id) {
+  const item = (ingItems || []).find(i => i.id_trans === id);
+  if (!item) { showToast('⚠️ Ingreso no encontrado'); return; }
+  abrirModalEditarIngreso(item);
+}
+
+// ── Eliminar ingreso permanentemente ───────────────
+async function rgEliminarIngreso(id) {
+  if (!confirm('⚠️ ELIMINAR PERMANENTEMENTE\n\nEsto borrará la fila del Sheets definitivamente y no se puede deshacer.\n\n¿Confirmar eliminación?')) return;
+  try {
+    const data = await gasJsonp('eliminarRegistro', { tipo: 'ingreso', id });
+    if (!data.success) throw new Error(data.error || 'Error desconocido');
+    ingItems = ingItems.filter(i => i.id_trans !== id);
+    plLoaded = false;
+    updateIngresoStats(ingItems);
+    if (typeof rgRenderIng === 'function') rgRenderIng();
+    if (typeof applyIngresoFilters === 'function') applyIngresoFilters();
+    showToast('🗑️ Ingreso eliminado permanentemente');
+  } catch(err) {
+    showToast('⚠️ ' + err.message);
+  }
+}
+window.rgEditarIngreso   = rgEditarIngreso;
+window.rgEliminarIngreso = rgEliminarIngreso;
 
 // ── Abrir modales reutilizando los existentes ─────
 function rgAbrirNuevoEgreso() {
@@ -6411,6 +6485,9 @@ window.closeIngresoModal = function() {
   if (activeTab === 'registroGeneral') { setTimeout(rgRenderIng, 300); }
   const t = document.querySelector('#ingresoModalOverlay .modal-title');
   if (t) t.textContent = '💰 Registrar Ingreso';
+  const btn = document.querySelector('#ingresoModalOverlay .btn-primary');
+  if (btn) btn.textContent = '💾 Guardar ingreso';
+  _ingEditId = null;
 };
 
 
