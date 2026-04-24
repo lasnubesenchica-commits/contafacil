@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<!-- v202604241800 -->
+<!-- v202604242000 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -794,7 +794,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
     <div id="viewRegistros" style="display:none">
       <div style="padding:.85rem .85rem .38rem">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem">Ingresos y egresos misceláneos · desde cámara o galería</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem">Ingresos y gastos · desde cámara o galería</div>
       </div>
 
       <!-- Botones de registro (arriba) -->
@@ -802,13 +802,13 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <button class="reg-btn reg-btn-egr" onclick="REG.openEgreso()">
           <div class="reg-btn-icon">📤</div>
           <div class="reg-btn-body">
-            <div class="reg-btn-title">Registrar egreso</div>
+            <div class="reg-btn-title">Registrar gasto</div>
             <div class="reg-btn-sub">Combustible, insumos, servicios, facturas de proveedores…</div>
           </div>
           <div class="reg-btn-chev">›</div>
         </button>
       </div>
-      <div style="padding:.2rem .85rem .38rem">
+      <div style="padding:.2rem .85rem .15rem">
         <button class="reg-btn reg-btn-ing" onclick="REG.openIngreso()">
           <div class="reg-btn-icon">💰</div>
           <div class="reg-btn-body">
@@ -817,6 +817,14 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
           </div>
           <div class="reg-btn-chev">›</div>
         </button>
+      </div>
+
+      <!-- Tip IA -->
+      <div style="margin:.15rem .85rem .5rem;background:var(--indigo-bg);border-radius:var(--r);padding:.62rem .8rem;display:flex;gap:.55rem;align-items:flex-start">
+        <span style="font-size:1rem;flex-shrink:0">✨</span>
+        <div style="font-size:.72rem;color:var(--indigo);line-height:1.5">
+          <strong>Lector IA:</strong> adjunta una foto de la factura o voucher y los campos se llenan automáticamente. Revisa y confirma.
+        </div>
       </div>
 
       <!-- PENDIENTES DE EMAIL ─────────────────── -->
@@ -834,13 +842,6 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
       </div>
       <!-- ───────────────────────────────────── -->
 
-      <!-- Tip IA -->
-      <div style="margin:.2rem .85rem;background:var(--indigo-bg);border-radius:var(--r);padding:.72rem .88rem;display:flex;gap:.62rem;align-items:flex-start">
-        <span style="font-size:1.1rem;flex-shrink:0">✨</span>
-        <div style="font-size:.73rem;color:var(--indigo);line-height:1.5">
-          <strong>Lector IA:</strong> adjunta una foto de la factura o voucher y los campos se llenan automáticamente. Revisa y confirma.
-        </div>
-      </div>
     </div>
 
     <!-- GASTOS DASHBOARD -->
@@ -2157,8 +2158,8 @@ const REG = (() => {
     document.getElementById('regEgrAlcPers').style.background = !isNeg ? '#E65100' : 'transparent';
     document.getElementById('regEgrAlcPers').style.color      = !isNeg ? '#fff' : 'var(--muted)';
     document.getElementById('regEgrAlcHint').textContent      = isNeg
-      ? 'Deducible · aparece en reportes DGI'
-      : 'No deducible · no afecta P&L ni ITBMS';
+      ? 'Deducible · gastos de empresa, proveedores, insumos, servicios · aplica a DGI'
+      : 'No deducible · gastos personales, médicos, educación, alimentación · no afecta P&L';
   }
 
   function _autoDetectAlcance(rucRec, nombreRec) {
@@ -2380,7 +2381,9 @@ const PEND = (() => {
     if (negBtn)  { negBtn.style.background  = val === 'negocio'  ? '#6A1B9A' : 'transparent'; negBtn.style.color  = val === 'negocio'  ? '#fff' : 'var(--muted)'; }
     if (persBtn) { persBtn.style.background = val === 'personal' ? '#E65100' : 'transparent'; persBtn.style.color = val === 'personal' ? '#fff' : 'var(--muted)'; }
     const hint = document.getElementById('palc-hint-' + id);
-    if (hint) hint.textContent = val === 'negocio' ? 'Deducible · aparece en reportes DGI' : 'No deducible · gasto personal';
+    if (hint) hint.textContent = val === 'negocio'
+      ? 'Deducible · gastos de empresa, proveedores, insumos, servicios · aplica a DGI'
+      : 'No deducible · gastos personales, médicos, educación, alimentación · no afecta P&L';
   }
 
   // ── Guardar cambios sin aprobar ───────────────────────
@@ -2547,18 +2550,20 @@ const PEND = (() => {
                 style="flex:1;padding:.25rem .4rem;border-radius:20px;font-size:.7rem;font-weight:700;border:none;
                        background:${(item.alcance||'negocio')==='negocio'?'#6A1B9A':'transparent'};
                        color:${(item.alcance||'negocio')==='negocio'?'#fff':'var(--muted)'};cursor:pointer">
-                🏢 Negocio
+                ✅ Deducible
               </button>
               <button id="palc-pers-${id}" onclick="PEND.setAlcance('${id}','personal')"
                 style="flex:1;padding:.25rem .4rem;border-radius:20px;font-size:.7rem;font-weight:700;border:none;
                        background:${item.alcance==='personal'?'#E65100':'transparent'};
                        color:${item.alcance==='personal'?'#fff':'var(--muted)'};cursor:pointer">
-                👤 Personal
+                🚫 No deducible
               </button>
             </div>
           </div>
           <div id="palc-hint-${id}" style="font-size:.68rem;color:var(--muted);padding:0 .2rem .3rem">
-            ${item.alcance==='personal'?'No deducible · gasto personal':'Deducible · aparece en reportes DGI'}
+            ${item.alcance==='personal'
+              ? 'No deducible · gastos personales, médicos, educación, alimentación · no afecta P&L'
+              : 'Deducible · gastos de empresa, proveedores, insumos, servicios · aplica a DGI'}
           </div>
           <div class="card-acts">
             <button class="act orange" onclick="PEND.guardar('${id}')">💾 Guardar</button>
@@ -2603,7 +2608,7 @@ const PEND = (() => {
   <div class="sheet">
     <div class="sheet-top"><div class="sheet-handle"></div>
     <div class="sheet-hdr">
-      <span class="sheet-title">📤 Registrar egreso</span>
+      <span class="sheet-title">📤 Registrar gasto</span>
       <button class="sheet-close" onclick="closeModal('mRegEgreso')">✕</button>
     </div></div>
     <div class="sheet-body">
@@ -2686,21 +2691,21 @@ const PEND = (() => {
       <input type="hidden" id="regEgrSubtotal">
       <input type="hidden" id="regEgrItbmsVal">
       <input type="hidden" id="regEgrAlcance" value="negocio">
-      <!-- Toggle Negocio / Personal -->
+      <!-- Toggle Deducible / No deducible -->
       <div style="margin:.5rem 0 .25rem;padding:.5rem .75rem;background:var(--bg2);border-radius:var(--r);display:flex;align-items:center;gap:.6rem">
         <span style="font-size:.78rem;font-weight:600;color:var(--text)">Tipo:</span>
         <div style="display:flex;background:var(--bg);border-radius:20px;padding:2px;gap:2px;flex:1">
           <button id="regEgrAlcNeg" onclick="REG.setAlcance('negocio')"
             style="flex:1;padding:.28rem .5rem;border-radius:20px;font-size:.72rem;font-weight:700;border:none;background:#6A1B9A;color:#fff;cursor:pointer">
-            🏢 Negocio
+            ✅ Deducible
           </button>
           <button id="regEgrAlcPers" onclick="REG.setAlcance('personal')"
             style="flex:1;padding:.28rem .5rem;border-radius:20px;font-size:.72rem;font-weight:700;border:none;background:transparent;color:var(--muted);cursor:pointer">
-            👤 Personal
+            🚫 No deducible
           </button>
         </div>
       </div>
-      <div id="regEgrAlcHint" style="font-size:.7rem;color:var(--muted);padding:0 .25rem .25rem">Deducible · aparece en reportes DGI</div>
+      <div id="regEgrAlcHint" style="font-size:.7rem;color:var(--muted);padding:0 .25rem .25rem">Deducible · gastos de empresa, proveedores, insumos, servicios · aplica a DGI</div>
     </div>
     <div class="sheet-footer">
       <button class="sheet-submit" id="regEgrSubmit" onclick="REG.submitEgreso()"
@@ -3033,20 +3038,6 @@ const PEND = (() => {
           </div>
         </div>
 
-        <!-- Proveedores Retail -->
-        <div class="cfg-card" style="margin-top:.85rem">
-          <div class="cfg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">
-            <span>🏭 Proveedores Retail</span>
-            <button onclick="CFG_PANEL.abrirNuevoProv()" style="font-size:.7rem;font-weight:700;color:var(--orange);background:var(--orange-bg);border:none;border-radius:6px;padding:.28rem .65rem;cursor:pointer">+ Agregar</button>
-          </div>
-          <div class="cfg-card-body" style="padding:.5rem .9rem .9rem">
-            <div style="font-size:.74rem;color:var(--muted);margin-bottom:.75rem">Proveedores cuyas facturas el sistema lee automáticamente desde Gmail.</div>
-            <div id="cfgProvGrid" style="display:flex;flex-direction:column;gap:.6rem">
-              <div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem"><div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Cargando...</div>
-            </div>
-          </div>
-        </div>
-
       </div><!-- /cfgPanelAuto -->
 
       <!-- ── HISTÓRICO ── -->
@@ -3300,7 +3291,7 @@ const CFG_PANEL = (() => {
   function open() {
     document.getElementById('mConfig').classList.add('open');
     if (!_loaded) load();
-    if (_curTab === 'auto') { _loadGastoGrid(); _loadProvGrid(); }
+    if (_curTab === 'auto') _loadGastoGrid();
   }
   function close() {
     document.getElementById('mConfig').classList.remove('open');
@@ -3316,7 +3307,7 @@ const CFG_PANEL = (() => {
       if (btn) btn.classList.toggle('active', t === tab);
       if (pan) pan.classList.toggle('active', t === tab);
     });
-    if (tab === 'auto')    { _loadGastoGrid(); _loadProvGrid(); }
+    if (tab === 'auto')    _loadGastoGrid();
     if (tab === 'sistema') verificar();
   }
 
