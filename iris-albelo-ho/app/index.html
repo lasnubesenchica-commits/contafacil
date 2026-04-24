@@ -1768,7 +1768,8 @@ const GAS = (() => {
 // ════════════════════════════════════════════════════════
 const REG = (() => {
   const CATS_GRAVADAS_ING = new Set([
-    'venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria','comision','otro_gravado'
+    'venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria',
+    'servicios_profesionales','comision','otro_gravado'
   ]);
 
   // ── Helpers recalc ────────────────────────────────────
@@ -2038,7 +2039,67 @@ const REG = (() => {
     document.getElementById('regIngAIStatus').style.display = 'none';
     document.getElementById('regIngFile').value         = '';
     _ingFileB64 = null; _ingFileMime = null;
+    _loadClientesIng();
     openModal('mRegIngreso');
+  }
+
+  // ── Clientes guardados (derivados de PL.periodos) ────
+  function _loadClientesIng() {
+    const sel = document.getElementById('regIngClienteSel');
+    const grp = document.getElementById('regIngClienteSelGrp');
+    if (!sel || !grp) return;
+    const build = () => {
+      const map = new Map();
+      const periodos = (window.PL && PL.periodos) || {};
+      Object.keys(periodos).forEach(k => {
+        (periodos[k].ingresos || []).forEach(ing => {
+          const nom = String(ing.nombre_cliente || '').trim();
+          if (!nom) return;
+          const key = nom.toUpperCase();
+          const prev = map.get(key);
+          if (!prev || (!prev.ruc && ing.ruc_cliente)) {
+            map.set(key, {
+              nombre: nom,
+              ruc:    String(ing.ruc_cliente || '').trim(),
+              dv:     String(ing.dv_cliente  || '').trim(),
+            });
+          }
+        });
+      });
+      const list = Array.from(map.values()).sort((a,b) => a.nombre.localeCompare(b.nombre));
+      if (!list.length) { grp.style.display = 'none'; return; }
+      sel._clientes = list;
+      sel.innerHTML = '<option value="">— Nuevo cliente —</option>' +
+        list.map((c,i) => '<option value="' + i + '">' +
+          esc(c.nombre) + (c.ruc ? ' · ' + esc(c.ruc) : '') + '</option>').join('');
+      sel.value = '';
+      grp.style.display = '';
+    };
+    build();
+    if (!(window.PL && PL.loaded)) {
+      (window.PL ? PL.load() : Promise.resolve()).then(build).catch(() => {});
+    }
+  }
+
+  function pickCliente(v) {
+    const sel = document.getElementById('regIngClienteSel');
+    const list = (sel && sel._clientes) || [];
+    if (v === '' || !list[v]) {
+      document.getElementById('regIngNombre').value = '';
+      document.getElementById('regIngRuc').value    = '';
+      document.getElementById('regIngDv').value     = '';
+      return;
+    }
+    const c = list[v];
+    document.getElementById('regIngNombre').value = c.nombre || '';
+    document.getElementById('regIngRuc').value    = c.ruc    || '';
+    document.getElementById('regIngDv').value     = c.dv     || '';
+  }
+
+  function onNombreCliInput() {
+    // Si el usuario escribe manualmente, desmarcamos el dropdown
+    const sel = document.getElementById('regIngClienteSel');
+    if (sel && sel.value !== '') sel.value = '';
   }
 
   // ── File handlers ─────────────────────────────────────
@@ -2179,7 +2240,8 @@ const REG = (() => {
 
   return { openEgreso, openIngreso, onEgrFile, onIngFile,
            submitEgreso, submitIngreso,
-           recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts, setAlcance };
+           recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts, setAlcance,
+           pickCliente, onNombreCliInput };
 })();
 
 
@@ -2743,6 +2805,8 @@ const PEND = (() => {
           <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
           <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
           <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
+          <option value="servicios_profesionales">💼 Servicios profesionales</option>
+          <option value="salarios">💰 Salarios</option>
           <option value="comision">💳 Comisión</option>
           <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
           <option value="otro_exento">📋 Otro ingreso (exento)</option>
@@ -2777,9 +2841,15 @@ const PEND = (() => {
         <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Subtotal:</span><span id="regIngSubDisp">$0.00</span></div>
         <div style="display:flex;justify-content:space-between;margin-top:.2rem"><span style="color:var(--muted)">ITBMS 7%:</span><span id="regIngItbmsDisp">$0.00</span></div>
       </div>
+      <div class="f-grp" id="regIngClienteSelGrp" style="display:none">
+        <label class="f-lbl">Cliente guardado</label>
+        <select class="f-inp" id="regIngClienteSel" onchange="REG.pickCliente(this.value)">
+          <option value="">— Nuevo cliente —</option>
+        </select>
+      </div>
       <div class="f-grp">
         <label class="f-lbl">Nombre cliente *</label>
-        <input type="text" class="f-inp" id="regIngNombre" placeholder="Nombre completo">
+        <input type="text" class="f-inp" id="regIngNombre" placeholder="Nombre completo" oninput="REG.onNombreCliInput()">
       </div>
       <div class="f-grid">
         <div class="f-grp">
