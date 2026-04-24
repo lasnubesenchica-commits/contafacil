@@ -7838,9 +7838,10 @@ function erRender() {
     return s + (tr > 0 ? tr : tc);
   }, 0) + cogsOpItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
 
-  // Gastos operativos — Registro General
+  // Gastos operativos — Registro General (solo deducibles, alineado con widget y mobile P&L)
   const gastosItems = plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    if ((e.alcance || 'negocio') === 'personal') return false;
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== plYear) return false;
     if (plMonth !== 'ytd') {
