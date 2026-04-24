@@ -2644,6 +2644,15 @@ function _handleGetPL(params, callback) {
 
       var mes  = parseInt(r[COL_I.MES        - 1]) || 0;
       var anio = parseInt(r[COL_I.ANIO_FISCAL - 1]) || 0;
+      // Fallback: derivar de fecha_ingreso si MES/ANIO_FISCAL vienen vacíos (registros legacy/importados)
+      if (!mes || !anio) {
+        var fIng = r[COL_I.FECHA_INGRESO - 1];
+        var dI   = (fIng instanceof Date) ? fIng : new Date(String(fIng || '') + 'T12:00:00');
+        if (!isNaN(dI.getTime())) {
+          if (!mes)  mes  = dI.getMonth() + 1;
+          if (!anio) anio = dI.getFullYear();
+        }
+      }
       if (!mes || !anio) continue;
 
       var subtotal = parseFloat(r[COL_I.SUBTOTAL - 1]) || 0;
@@ -2722,6 +2731,15 @@ function _handleGetPL(params, callback) {
 
       var eMes  = parseInt(er[COL_E.MES  - 1]) || 0;
       var eAnio = parseInt(er[COL_E.ANIO - 1]) || 0;
+      // Fallback: derivar de fecha_egreso si MES/ANIO vienen vacíos (registros legacy/importados)
+      if (!eMes || !eAnio) {
+        var fEgr = er[COL_E.FECHA_GASTO - 1];
+        var dE   = (fEgr instanceof Date) ? fEgr : new Date(String(fEgr || '') + 'T12:00:00');
+        if (!isNaN(dE.getTime())) {
+          if (!eMes)  eMes  = dE.getMonth() + 1;
+          if (!eAnio) eAnio = dE.getFullYear();
+        }
+      }
       if (!eMes || !eAnio) continue;
 
       var eTipo  = String(er[COL_E.TIPO_EGRESO - 1] || '').toLowerCase();
@@ -2756,7 +2774,7 @@ function _handleGetPL(params, callback) {
       // impuesto_aduana / impuesto_importacion cubiertos por ST_Items → saltar
       if (eTipo === 'impuesto_aduana' || eTipo === 'impuesto_importacion') continue;
       // Cualquier egreso con id_st_item ya está contabilizado en ST_Items → saltar
-      var eStItem = String(er[COL_E_ST_ITEM - 1] || '').trim();
+      var eStItem = String(er[COL_E.ID_ST_ITEM - 1] || '').trim();
       if (eStItem) continue;
 
       // Lo que queda son gastos operativos reales sin vínculo a ST
