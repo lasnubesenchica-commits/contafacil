@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<!-- v202604241200 -->
+<!-- v202604241800 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -797,13 +797,23 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem">Ingresos y egresos misceláneos · desde cámara o galería</div>
       </div>
 
-      <!-- Botón Egreso -->
-      <div style="padding:.38rem .85rem">
+      <!-- Botones de registro (arriba) -->
+      <div style="padding:.38rem .85rem .2rem">
         <button class="reg-btn reg-btn-egr" onclick="REG.openEgreso()">
           <div class="reg-btn-icon">📤</div>
           <div class="reg-btn-body">
             <div class="reg-btn-title">Registrar egreso</div>
             <div class="reg-btn-sub">Combustible, insumos, servicios, facturas de proveedores…</div>
+          </div>
+          <div class="reg-btn-chev">›</div>
+        </button>
+      </div>
+      <div style="padding:.2rem .85rem .38rem">
+        <button class="reg-btn reg-btn-ing" onclick="REG.openIngreso()">
+          <div class="reg-btn-icon">💰</div>
+          <div class="reg-btn-body">
+            <div class="reg-btn-title">Registrar ingreso</div>
+            <div class="reg-btn-sub">Pagos de clientes, transferencias, vouchers Yappy…</div>
           </div>
           <div class="reg-btn-chev">›</div>
         </button>
@@ -823,18 +833,6 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <div class="card-list" id="pend-list" style="padding-top:0"></div>
       </div>
       <!-- ───────────────────────────────────── -->
-
-      <!-- Botón Ingreso -->
-      <div style="padding:.38rem .85rem .85rem">
-        <button class="reg-btn reg-btn-ing" onclick="REG.openIngreso()">
-          <div class="reg-btn-icon">💰</div>
-          <div class="reg-btn-body">
-            <div class="reg-btn-title">Registrar ingreso</div>
-            <div class="reg-btn-sub">Pagos de clientes, transferencias, vouchers Yappy…</div>
-          </div>
-          <div class="reg-btn-chev">›</div>
-        </button>
-      </div>
 
       <!-- Tip IA -->
       <div style="margin:.2rem .85rem;background:var(--indigo-bg);border-radius:var(--r);padding:.72rem .88rem;display:flex;gap:.62rem;align-items:flex-start">
@@ -1596,7 +1594,7 @@ const GAS = (() => {
     const periodos = PL.periodos || {};
     if (_mode === 'ytd') {
       const all = [];
-      Object.keys(periodos).filter(k => periodos[k].anio === _año)
+      Object.keys(periodos).filter(k => Number(periodos[k].anio) === _año)
         .forEach(k => (periodos[k].egresos_gasto || []).forEach(g => all.push(g)));
       return all;
     }
@@ -2373,6 +2371,18 @@ const PEND = (() => {
     }
   }
 
+  // ── Alcance toggle helper ─────────────────────────────
+  function setAlcance(id, val) {
+    const inp = document.getElementById('palc-' + id);
+    if (inp) inp.value = val;
+    const negBtn  = document.getElementById('palc-neg-'  + id);
+    const persBtn = document.getElementById('palc-pers-' + id);
+    if (negBtn)  { negBtn.style.background  = val === 'negocio'  ? '#6A1B9A' : 'transparent'; negBtn.style.color  = val === 'negocio'  ? '#fff' : 'var(--muted)'; }
+    if (persBtn) { persBtn.style.background = val === 'personal' ? '#E65100' : 'transparent'; persBtn.style.color = val === 'personal' ? '#fff' : 'var(--muted)'; }
+    const hint = document.getElementById('palc-hint-' + id);
+    if (hint) hint.textContent = val === 'negocio' ? 'Deducible · aparece en reportes DGI' : 'No deducible · gasto personal';
+  }
+
   // ── Guardar cambios sin aprobar ───────────────────────
   async function guardar(id) {
     _setMsg(id, '⏳ Guardando…', 'var(--muted)');
@@ -2388,6 +2398,7 @@ const PEND = (() => {
           subtotal:    _val('psub-'   + id) || undefined,
           itbms:       _val('pitbms-' + id) || undefined,
           total:       _val('ptot-'   + id) || undefined,
+          alcance:     _val('palc-'   + id) || 'negocio',
         }),
       });
       const idx = _items.findIndex(i => String(i.id) === String(id));
@@ -2397,6 +2408,7 @@ const PEND = (() => {
         _items[idx].subtotal    = _val('psub-'   + id);
         _items[idx].itbms       = _val('pitbms-' + id);
         _items[idx].total       = _val('ptot-'   + id);
+        _items[idx].alcance     = _val('palc-'   + id) || 'negocio';
       }
       _setMsg(id, '✅ Cambios guardados', 'var(--green)');
       toast('Guardado ✓', 'ok');
@@ -2406,7 +2418,8 @@ const PEND = (() => {
 
   // ── Aprobar → registrar egreso ────────────────────────
   async function aprobar(id) {
-    const cat = _val('pcat-' + id);
+    const cat     = _val('pcat-' + id);
+    const alcance = _val('palc-' + id) || 'negocio';
     if (!cat) { toast('Selecciona una categoría', 'err'); return; }
     _setMsg(id, '⏳ Guardando cambios…', 'var(--muted)');
     try {
@@ -2421,10 +2434,11 @@ const PEND = (() => {
           subtotal:    _val('psub-'   + id) || undefined,
           itbms:       _val('pitbms-' + id) || undefined,
           total:       _val('ptot-'   + id) || undefined,
+          alcance,
         }),
       });
       _setMsg(id, '⏳ Registrando egreso…', 'var(--muted)');
-      const r = await jsonpGet('aprobarAcreedor', { id, categoria: cat }, 30000);
+      const r = await jsonpGet('aprobarAcreedor', { id, categoria: cat, alcance }, 30000);
       if (!r.success) throw new Error(r.error || 'Error al aprobar');
       _setMsg(id, '✅ Egreso registrado: ' + r.egresoId, 'var(--green)');
       toast('Egreso registrado ✓', 'ok');
@@ -2525,6 +2539,27 @@ const PEND = (() => {
                    value="${item.total||''}" placeholder="0.00" step="0.01" min="0"
                    style="font-weight:700">
           </div>
+          <input type="hidden" id="palc-${id}" value="${item.alcance||'negocio'}">
+          <div style="margin:.4rem 0 .15rem;padding:.45rem .65rem;background:var(--bg2);border-radius:var(--r);display:flex;align-items:center;gap:.5rem">
+            <span style="font-size:.75rem;font-weight:600;color:var(--text);flex-shrink:0">Tipo:</span>
+            <div style="display:flex;background:var(--bg);border-radius:20px;padding:2px;gap:2px;flex:1">
+              <button id="palc-neg-${id}" onclick="PEND.setAlcance('${id}','negocio')"
+                style="flex:1;padding:.25rem .4rem;border-radius:20px;font-size:.7rem;font-weight:700;border:none;
+                       background:${(item.alcance||'negocio')==='negocio'?'#6A1B9A':'transparent'};
+                       color:${(item.alcance||'negocio')==='negocio'?'#fff':'var(--muted)'};cursor:pointer">
+                🏢 Negocio
+              </button>
+              <button id="palc-pers-${id}" onclick="PEND.setAlcance('${id}','personal')"
+                style="flex:1;padding:.25rem .4rem;border-radius:20px;font-size:.7rem;font-weight:700;border:none;
+                       background:${item.alcance==='personal'?'#E65100':'transparent'};
+                       color:${item.alcance==='personal'?'#fff':'var(--muted)'};cursor:pointer">
+                👤 Personal
+              </button>
+            </div>
+          </div>
+          <div id="palc-hint-${id}" style="font-size:.68rem;color:var(--muted);padding:0 .2rem .3rem">
+            ${item.alcance==='personal'?'No deducible · gasto personal':'Deducible · aparece en reportes DGI'}
+          </div>
           <div class="card-acts">
             <button class="act orange" onclick="PEND.guardar('${id}')">💾 Guardar</button>
             <button class="act success" onclick="PEND.aprobar('${id}')">✅ Aprobar</button>
@@ -2557,7 +2592,7 @@ const PEND = (() => {
     if (el) el.style.display = 'none';
   }
 
-  return { load, sync, toggle, guardar, aprobar, eliminar,
+  return { load, sync, toggle, setAlcance, guardar, aprobar, eliminar,
            get loaded() { return _loaded; } };
 })();
 
@@ -2866,11 +2901,10 @@ const PEND = (() => {
         .cfg-check-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
       </style>
 
-      <button class="cfg-tab active" id="cfgTabEmpresa"     onclick="CFG_PANEL.switchTab('empresa')">🏢 Empresa</button>
-      <button class="cfg-tab"        id="cfgTabComercial"   onclick="CFG_PANEL.switchTab('comercial')">⚙️ Comercialización</button>
-      <button class="cfg-tab"        id="cfgTabProyectos"   onclick="CFG_PANEL.switchTab('proyectos')">🔧 Proyectos</button>
-      <button class="cfg-tab"        id="cfgTabReg"         onclick="CFG_PANEL.switchTab('reg')">🏦 Registro General</button>
-      <button class="cfg-tab"        id="cfgTabSistema"     onclick="CFG_PANEL.switchTab('sistema')">🔍 Sistema</button>
+      <button class="cfg-tab active" id="cfgTabEmpresa"    onclick="CFG_PANEL.switchTab('empresa')">🏢 Empresa</button>
+      <button class="cfg-tab"        id="cfgTabAuto"       onclick="CFG_PANEL.switchTab('auto')">📧 Automático</button>
+      <button class="cfg-tab"        id="cfgTabHistorico"  onclick="CFG_PANEL.switchTab('historico')">📥 Histórico</button>
+      <button class="cfg-tab"        id="cfgTabSistema"    onclick="CFG_PANEL.switchTab('sistema')">⚙ Sistema</button>
     </div>
 
     <!-- Cuerpo scrolleable -->
@@ -2919,28 +2953,32 @@ const PEND = (() => {
         </div>
       </div>
 
-      <!-- ── COMERCIALIZACIÓN ── -->
-      <div class="cfg-panel" id="cfgPanelComercial">
+      <!-- ── AUTOMÁTICO ── -->
+      <div class="cfg-panel" id="cfgPanelAuto">
+
+        <!-- Sync note -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;background:#E3F2FD;border-radius:var(--r);padding:.6rem .8rem;margin-bottom:.85rem">
+          <div style="font-size:.75rem;color:#1565C0;line-height:1.5">⏱ Sincroniza automáticamente cada 15 min.<br>Ejecuta manualmente solo si es necesario.</div>
+          <button id="btnAutoSync" onclick="CFG_PANEL.syncAuto()"
+            style="white-space:nowrap;flex-shrink:0;padding:.4rem .75rem;background:#1565C0;color:#fff;border:none;border-radius:var(--r);font-size:.72rem;font-weight:700;cursor:pointer">⟳ Sync</button>
+        </div>
+
+        <!-- Email Comercialización -->
         <div class="cfg-card">
-          <div class="cfg-card-hdr">📧 Email de entrada</div>
+          <div class="cfg-card-hdr">📧 Email — Egresos</div>
           <div class="cfg-card-body">
             <div class="f-grp">
               <label class="f-lbl">Email destino (To:)</label>
               <input type="email" class="f-inp" id="cfgEmailOpDestino" placeholder="facturas@balanceclip.net">
             </div>
-            <div class="f-grp" style="margin-bottom:0">
+            <div class="f-grp">
               <label class="f-lbl">Remitente permitido (From:)</label>
               <input type="email" class="f-inp" id="cfgEmailOpRemitente" placeholder="proveedor@empresa.com">
               <div style="font-size:.65rem;color:var(--chrome);margin-top:.25rem">Solo se procesan facturas de este remitente</div>
             </div>
-          </div>
-        </div>
-        <div class="cfg-card">
-          <div class="cfg-card-hdr">⚙️ Parámetros</div>
-          <div class="cfg-card-body">
             <div class="f-grid">
               <div class="f-grp">
-                <label class="f-lbl">Prefijo de IDs</label>
+                <label class="f-lbl">Prefijo IDs</label>
                 <input type="text" class="f-inp" id="cfgPrefijoId" placeholder="RP" maxlength="6">
               </div>
               <div class="f-grp">
@@ -2949,15 +2987,50 @@ const PEND = (() => {
               </div>
             </div>
             <div class="f-grp" style="margin-bottom:0">
-              <label class="f-lbl">Confianza mínima match IA (%)</label>
+              <label class="f-lbl">Confianza mínima IA (%)</label>
               <input type="number" class="f-inp" id="cfgConfianzaMin" placeholder="70" min="50" max="100">
             </div>
           </div>
         </div>
-        <div class="cfg-save-bar">
+        <div class="cfg-save-bar" style="margin-bottom:.85rem">
           <span class="cfg-ok-msg" id="cfgOpMsg">✅ Guardado</span>
           <button class="cfg-btn-sec" onclick="CFG_PANEL.load()">↺</button>
           <button class="cfg-btn-save" id="cfgBtnOp" onclick="CFG_PANEL.saveComercial()">💾 Guardar</button>
+        </div>
+
+        <!-- Email Proyectos -->
+        <div class="cfg-card">
+          <div class="cfg-card-hdr">📧 Email — Proyectos / ST</div>
+          <div class="cfg-card-body">
+            <div class="f-grp">
+              <label class="f-lbl">Email destino (To:)</label>
+              <input type="email" class="f-inp" id="cfgEmailStDestino" placeholder="facturas@balanceclip.net">
+            </div>
+            <div class="f-grp" style="margin-bottom:0">
+              <label class="f-lbl">Remitente permitido (From:)</label>
+              <input type="email" class="f-inp" id="cfgEmailStRemitente" placeholder="cliente@gmail.com">
+              <div style="font-size:.65rem;color:var(--chrome);margin-top:.25rem">Solo se procesan emails de este remitente</div>
+            </div>
+          </div>
+        </div>
+        <div class="cfg-save-bar" style="margin-bottom:.85rem">
+          <span class="cfg-ok-msg" id="cfgStMsg">✅ Guardado</span>
+          <button class="cfg-btn-sec" onclick="CFG_PANEL.load()">↺</button>
+          <button class="cfg-btn-save" id="cfgBtnSt" onclick="CFG_PANEL.saveST()">💾 Guardar</button>
+        </div>
+
+        <!-- Gastos configurados -->
+        <div class="cfg-card">
+          <div class="cfg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">
+            <span>🏦 Gastos configurados</span>
+            <button onclick="CFG_PANEL.abrirNuevoGasto()" style="font-size:.7rem;font-weight:700;color:var(--orange);background:var(--orange-bg);border:none;border-radius:6px;padding:.28rem .65rem;cursor:pointer">+ Agregar</button>
+          </div>
+          <div class="cfg-card-body" style="padding:.5rem .9rem .9rem">
+            <div style="font-size:.74rem;color:var(--muted);margin-bottom:.75rem">Gastos cuyas facturas el sistema detecta automáticamente desde email.</div>
+            <div id="cfgGastoGrid" style="display:flex;flex-direction:column;gap:.6rem">
+              <div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem"><div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Cargando...</div>
+            </div>
+          </div>
         </div>
 
         <!-- Proveedores Retail -->
@@ -2974,54 +3047,43 @@ const PEND = (() => {
           </div>
         </div>
 
-      </div><!-- /cfgPanelComercial -->
+      </div><!-- /cfgPanelAuto -->
 
-      <!-- ── PROYECTOS ── -->
-      <div class="cfg-panel" id="cfgPanelProyectos">
+      <!-- ── HISTÓRICO ── -->
+      <div class="cfg-panel" id="cfgPanelHistorico">
         <div class="cfg-card">
-          <div class="cfg-card-hdr">📧 Email de entrada de STs</div>
+          <div class="cfg-card-hdr">📥 Importar desde Gmail</div>
           <div class="cfg-card-body">
-            <div class="f-grp">
-              <label class="f-lbl">Email destino (To:)</label>
-              <input type="email" class="f-inp" id="cfgEmailStDestino" placeholder="facturas@balanceclip.net">
+            <div style="font-size:.78rem;color:var(--muted);margin-bottom:.9rem;line-height:1.5">
+              Busca facturas en tu Gmail y las importa al sistema automáticamente. Requiere autorizar acceso de lectura una sola vez.
             </div>
-            <div class="f-grp" style="margin-bottom:0">
-              <label class="f-lbl">Remitente permitido (From:)</label>
-              <input type="email" class="f-inp" id="cfgEmailStRemitente" placeholder="cliente@gmail.com">
-              <div style="font-size:.65rem;color:var(--chrome);margin-top:.25rem">Solo se procesan emails de este remitente</div>
+            <!-- Auth status -->
+            <div id="histAuthStatus" style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem">● Sin conectar</div>
+            <button onclick="CFG_PANEL.gmailAuth()"
+              style="width:100%;padding:.55rem;background:#4285F4;color:#fff;border:none;border-radius:var(--r);font-size:.82rem;font-weight:700;cursor:pointer;margin-bottom:.5rem">
+              🔑 Conectar con Google Gmail
+            </button>
+            <button id="histBtnSearch" onclick="CFG_PANEL.gmailBuscar()" disabled
+              style="width:100%;padding:.5rem;background:#1565C0;color:#fff;border:none;border-radius:var(--r);font-size:.82rem;font-weight:700;cursor:pointer;opacity:.45;margin-bottom:.75rem">
+              🔍 Buscar facturas no procesadas
+            </button>
+            <!-- Resultados -->
+            <div id="histResultados" style="display:none">
+              <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem" id="histResultLbl">Resultados</div>
+              <div id="histList" style="display:flex;flex-direction:column;gap:.4rem;max-height:35vh;overflow-y:auto;margin-bottom:.65rem"></div>
+              <button onclick="CFG_PANEL.gmailProcesar()"
+                style="width:100%;padding:.55rem;background:var(--green);color:#fff;border:none;border-radius:var(--r);font-size:.82rem;font-weight:700;cursor:pointer">
+                ⚡ Procesar seleccionados
+              </button>
             </div>
-          </div>
-        </div>
-        <div class="cfg-save-bar">
-          <span class="cfg-ok-msg" id="cfgStMsg">✅ Guardado</span>
-          <button class="cfg-btn-sec" onclick="CFG_PANEL.load()">↺</button>
-          <button class="cfg-btn-save" id="cfgBtnSt" onclick="CFG_PANEL.saveST()">💾 Guardar</button>
-        </div>
-      </div>
-
-      <!-- ── REGISTRO GENERAL ── -->
-      <div class="cfg-panel" id="cfgPanelReg">
-        <div class="cfg-card">
-          <div class="cfg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">
-            <span>🏦 Gastos configurados</span>
-            <button onclick="CFG_PANEL.abrirNuevoGasto()" style="
-              font-size:.7rem;font-weight:700;color:var(--orange);
-              background:var(--orange-bg);border:none;border-radius:6px;
-              padding:.28rem .65rem;cursor:pointer;
-            ">+ Agregar</button>
-          </div>
-          <div class="cfg-card-body" style="padding:.5rem .9rem .9rem">
-            <div style="font-size:.74rem;color:var(--muted);margin-bottom:.75rem">
-              Gastos cuyas facturas el sistema detecta y procesa automáticamente desde email.
-            </div>
-            <div id="cfgGastoGrid" style="display:flex;flex-direction:column;gap:.6rem">
-              <div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem">
-                <div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Cargando...
-              </div>
+            <!-- Log de procesado -->
+            <div id="histLog" style="display:none;margin-top:.65rem">
+              <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Procesando…</div>
+              <div id="histLogList" style="font-size:.72rem;color:var(--text);line-height:1.7;max-height:30vh;overflow-y:auto"></div>
             </div>
           </div>
         </div>
-      </div>
+      </div><!-- /cfgPanelHistorico -->
 
       <!-- ── SISTEMA ── -->
       <div class="cfg-panel" id="cfgPanelSistema">
@@ -3238,7 +3300,7 @@ const CFG_PANEL = (() => {
   function open() {
     document.getElementById('mConfig').classList.add('open');
     if (!_loaded) load();
-    if (_curTab === 'comercial') _loadProvGrid();
+    if (_curTab === 'auto') { _loadGastoGrid(); _loadProvGrid(); }
   }
   function close() {
     document.getElementById('mConfig').classList.remove('open');
@@ -3247,17 +3309,15 @@ const CFG_PANEL = (() => {
   // ── Cambiar sub-tab ───────────────────────────────────────────
   function switchTab(tab) {
     _curTab = tab;
-    const TABS = ['empresa','comercial','proyectos','reg','sistema'];
+    const TABS = ['empresa','auto','historico','sistema'];
     TABS.forEach(t => {
       const btn = document.getElementById('cfgTab' + t.charAt(0).toUpperCase() + t.slice(1));
       const pan = document.getElementById('cfgPanel' + t.charAt(0).toUpperCase() + t.slice(1));
       if (btn) btn.classList.toggle('active', t === tab);
       if (pan) pan.classList.toggle('active', t === tab);
     });
-    if (tab === 'reg')      _loadGastoGrid();
-    if (tab === 'sistema')  verificar();
-    if (tab === 'comercial') _loadProvGrid();
-    if (tab === 'proyectos' && _loaded) _fillST();
+    if (tab === 'auto')    { _loadGastoGrid(); _loadProvGrid(); }
+    if (tab === 'sistema') verificar();
   }
 
   // ── Cargar config desde GAS ───────────────────────────────────
@@ -3308,8 +3368,6 @@ const CFG_PANEL = (() => {
     if (logoEl  && siglas) logoEl.textContent  = siglas;
     if (badgeEl)           badgeEl.textContent = 'BalanceClip';
   }
-
-  function _fillST()    { /* ya cargado por load() */ }
 
   // ── Guardar Empresa ───────────────────────────────────────────
   async function saveEmpresa() {
@@ -3546,6 +3604,135 @@ const CFG_PANEL = (() => {
     }
   }
 
+  // ── Sync automático manual ────────────────────────────────────
+  async function syncAuto() {
+    const btn = document.getElementById('btnAutoSync');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+    toast('Sincronizando… puede tardar 1-2 min');
+    try {
+      const r = await jsonpGet('sincronizarEmails', {}, 180000);
+      if (r.success) toast(`Sincronizado ✓ — ${r.nuevos||0} nuevos`, 'ok');
+      else toast(r.error || 'Sync completado', 'err');
+    } catch(e) { toast('Error: ' + e.message, 'err'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync'; } }
+  }
+
+  // ── Gmail Histórico ───────────────────────────────────────────
+  let _gmailToken = null;
+
+  function gmailAuth() {
+    if (typeof google === 'undefined' || !google.accounts) {
+      toast('Google API no disponible — use la versión desktop', 'err'); return;
+    }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: '',
+      scope: 'https://www.googleapis.com/auth/gmail.readonly',
+      callback: (resp) => {
+        if (resp.error) { toast('Error de autorización: ' + resp.error, 'err'); return; }
+        _gmailToken = resp.access_token;
+        const st  = document.getElementById('histAuthStatus');
+        const btn = document.getElementById('histBtnSearch');
+        if (st)  { st.textContent = '● Gmail conectado ✓'; st.style.color = 'var(--green)'; }
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        toast('Gmail conectado ✓', 'ok');
+      },
+    });
+    client.requestAccessToken();
+  }
+
+  async function gmailBuscar() {
+    if (!_gmailToken) { toast('Conecta Gmail primero', 'err'); return; }
+    const lbl  = document.getElementById('histResultLbl');
+    const list = document.getElementById('histList');
+    const res  = document.getElementById('histResultados');
+    if (lbl)  lbl.textContent = 'Buscando…';
+    if (list) list.innerHTML  = '<div style="text-align:center;padding:1rem;color:var(--muted);font-size:.8rem">⏳ Buscando en Gmail…</div>';
+    if (res)  res.style.display = 'block';
+    try {
+      const q   = encodeURIComponent('has:attachment filename:pdf subject:factura newer_than:90d');
+      const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=30`;
+      const r   = await fetch(url, { headers: { Authorization: 'Bearer ' + _gmailToken } });
+      const d   = await r.json();
+      if (!r.ok) throw new Error(d.error?.message || 'Error Gmail');
+      const msgs = d.messages || [];
+      if (!msgs.length) {
+        if (list) list.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--muted);font-size:.78rem">No se encontraron facturas.</div>';
+        if (lbl)  lbl.textContent = '0 resultados';
+        return;
+      }
+      const meta = await Promise.all(msgs.slice(0, 20).map(m =>
+        fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`,
+          { headers: { Authorization: 'Bearer ' + _gmailToken } }).then(rr => rr.json())
+      ));
+      if (lbl) lbl.textContent = meta.length + ' correos encontrados';
+      if (list) list.innerHTML = meta.map(m => {
+        const hdr = (m.payload?.headers || []).reduce((acc, h) => { acc[h.name] = h.value; return acc; }, {});
+        return `
+          <label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:var(--bg);border-radius:var(--r);cursor:pointer;font-size:.75rem">
+            <input type="checkbox" class="hist-chk" value="${m.id}" checked style="flex-shrink:0">
+            <div style="min-width:0">
+              <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(hdr.Subject||'(sin asunto)')}</div>
+              <div style="color:var(--muted);font-size:.68rem">${esc(hdr.From||'')} · ${esc((hdr.Date||'').substring(0,16))}</div>
+            </div>
+          </label>`;
+      }).join('');
+    } catch(e) {
+      if (list) list.innerHTML = `<div style="color:var(--red);text-align:center;padding:1rem;font-size:.78rem">Error: ${esc(e.message)}</div>`;
+    }
+  }
+
+  async function gmailProcesar() {
+    const chks = [...document.querySelectorAll('.hist-chk:checked')];
+    if (!chks.length) { toast('Selecciona al menos un correo', 'err'); return; }
+    const log    = document.getElementById('histLog');
+    const logLst = document.getElementById('histLogList');
+    if (log)    log.style.display = 'block';
+    if (logLst) logLst.innerHTML  = '';
+    const addLog = (txt, ok) => {
+      if (!logLst) return;
+      const row = document.createElement('div');
+      row.textContent = (ok === true ? '✅ ' : ok === false ? '❌ ' : '⏳ ') + txt;
+      row.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--red)' : 'var(--muted)';
+      logLst.appendChild(row);
+    };
+    for (const chk of chks) {
+      const msgId = chk.value;
+      addLog('Procesando ' + msgId.substring(0,8) + '…');
+      try {
+        const attResp = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}?format=full`,
+          { headers: { Authorization: 'Bearer ' + _gmailToken } }
+        );
+        const attData = await attResp.json();
+        const pdf = _findPdf(attData.payload);
+        if (!pdf) { addLog('Sin adjunto PDF — omitido', false); continue; }
+        const attR = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}/attachments/${pdf.attachmentId}`,
+          { headers: { Authorization: 'Bearer ' + _gmailToken } }
+        );
+        const attBody = await attR.json();
+        const b64 = (attBody.data || '').replace(/-/g,'+').replace(/_/g,'/');
+        const res = await fetch(GAS_URL, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'procesarEmailGmail', msgId, imageBase64: b64, mimeType: 'application/pdf' }),
+        });
+        const d = await res.json();
+        if (d.success) addLog(d.egresoId ? 'Registrado: ' + d.egresoId : 'Procesado OK', true);
+        else           addLog(d.error || 'Error procesando', false);
+      } catch(e) { addLog('Error: ' + e.message, false); }
+    }
+    toast('Importación completada', 'ok');
+    PEND && (PEND._loaded = false);
+  }
+
+  function _findPdf(part) {
+    if (!part) return null;
+    if (part.filename && part.filename.toLowerCase().endsWith('.pdf') && part.body?.attachmentId)
+      return { attachmentId: part.body.attachmentId };
+    for (const p of (part.parts || [])) { const r = _findPdf(p); if (r) return r; }
+    return null;
+  }
+
   // ── Verificar Sistema ─────────────────────────────────────────
   async function verificar() {
     const body = document.getElementById('cfgSistemaBody');
@@ -3776,6 +3963,7 @@ const CFG_PANEL = (() => {
   }
 
   return { open, close, switchTab, load, saveEmpresa, saveComercial, saveST,
+           syncAuto, gmailAuth, gmailBuscar, gmailProcesar,
            toggleGasto, abrirNuevoGasto, cerrarNuevoGasto,
            analizarFacturaGasto, guardarGasto, verificar,
            abrirNuevoProv, cerrarNuevoProv, editarProv,
