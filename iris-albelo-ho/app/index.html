@@ -2043,30 +2043,13 @@ const REG = (() => {
     openModal('mRegIngreso');
   }
 
-  // ── Clientes guardados (derivados de PL.periodos) ────
-  function _loadClientesIng() {
+  // ── Clientes guardados (derivados de getIngresos — cubre todo el histórico) ──
+  let _clientesCache = null;
+  async function _loadClientesIng() {
     const sel = document.getElementById('regIngClienteSel');
     const grp = document.getElementById('regIngClienteSelGrp');
     if (!sel || !grp) return;
-    const build = () => {
-      const map = new Map();
-      const periodos = (window.PL && PL.periodos) || {};
-      Object.keys(periodos).forEach(k => {
-        (periodos[k].ingresos || []).forEach(ing => {
-          const nom = String(ing.nombre_cliente || '').trim();
-          if (!nom) return;
-          const key = nom.toUpperCase();
-          const prev = map.get(key);
-          if (!prev || (!prev.ruc && ing.ruc_cliente)) {
-            map.set(key, {
-              nombre: nom,
-              ruc:    String(ing.ruc_cliente || '').trim(),
-              dv:     String(ing.dv_cliente  || '').trim(),
-            });
-          }
-        });
-      });
-      const list = Array.from(map.values()).sort((a,b) => a.nombre.localeCompare(b.nombre));
+    const render = (list) => {
       if (!list.length) { grp.style.display = 'none'; return; }
       sel._clientes = list;
       sel.innerHTML = '<option value="">— Nuevo cliente —</option>' +
@@ -2075,10 +2058,29 @@ const REG = (() => {
       sel.value = '';
       grp.style.display = '';
     };
-    build();
-    if (!(window.PL && PL.loaded)) {
-      (window.PL ? PL.load() : Promise.resolve()).then(build).catch(() => {});
-    }
+    if (_clientesCache) { render(_clientesCache); return; }
+    grp.style.display = 'none';
+    try {
+      const r = await jsonpGet('getIngresos');
+      const items = (r && r.items) || [];
+      const map = new Map();
+      items.forEach(ing => {
+        if (String(ing.estado || '').toLowerCase() === 'anulado') return;
+        const nom = String(ing.nombre_cliente || '').trim();
+        if (!nom) return;
+        const key = nom.toUpperCase();
+        const prev = map.get(key);
+        if (!prev || (!prev.ruc && ing.ruc_cliente)) {
+          map.set(key, {
+            nombre: nom,
+            ruc:    String(ing.ruc_cliente || '').trim(),
+            dv:     String(ing.dv_cliente  || '').trim(),
+          });
+        }
+      });
+      _clientesCache = Array.from(map.values()).sort((a,b) => a.nombre.localeCompare(b.nombre));
+      render(_clientesCache);
+    } catch(_) { /* silent — dropdown stays hidden */ }
   }
 
   function pickCliente(v) {
@@ -2179,6 +2181,7 @@ const REG = (() => {
       });
       if (!r.success) throw new Error(r.error || 'Error al guardar');
       toast('Ingreso registrado ✓', 'ok');
+      _clientesCache = null;  // invalidar para incluir el cliente recién guardado
       closeModal('mRegIngreso');
       if (_ingFileB64) {
         const ext      = _ingFileMime === 'application/pdf' ? 'pdf' : 'jpg';
