@@ -1577,6 +1577,9 @@ const REG = (() => {
   }
 
   // ── Procesar archivo egreso ───────────────────────────
+  let _egrFileB64  = null;
+  let _egrFileMime = null;
+
   async function _procesarArchivoEgr(file) {
     const zone   = document.getElementById('regEgrZone');
     const lbl    = document.getElementById('regEgrZoneLbl');
@@ -1595,6 +1598,8 @@ const REG = (() => {
         try { const r = await _comprimirImg(ev.target.result, 1200); b64 = r.split(',')[1]; mime = 'image/jpeg'; }
         catch(e) {}
       }
+      _egrFileB64  = b64;
+      _egrFileMime = mime;
       try {
         const r = await fetch(GAS_URL, {
           method: 'POST',
@@ -1707,6 +1712,7 @@ const REG = (() => {
     document.getElementById('regEgrZoneLbl').textContent = 'Adjuntar factura — foto o PDF';
     document.getElementById('regEgrAIStatus').style.display = 'none';
     document.getElementById('regEgrFile').value         = '';
+    _egrFileB64 = null; _egrFileMime = null;
     _eAlcanceMismatch = false;
     setAlcance('negocio', true);
     openModal('mRegEgreso');
@@ -1762,6 +1768,21 @@ const REG = (() => {
       if (!r.success) throw new Error(r.error || 'Error al guardar');
       toast('Egreso registrado ✓', 'ok');
       closeModal('mRegEgreso');
+      if (_egrFileB64) {
+        const ext      = _egrFileMime === 'application/pdf' ? 'pdf' : 'jpg';
+        const fileName = (r.egresoId || 'egreso') + '.' + ext;
+        fetch(GAS_URL, {
+          method:  'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body:    JSON.stringify({ action: 'subirFacturaEgreso', egreso_id: r.egresoId, file_b64: _egrFileB64, file_mime: _egrFileMime, file_name: fileName }),
+        })
+          .then(res => res.json())
+          .then(d => {
+            if (d.success) toast('📄 Factura guardada en Drive', 'ok');
+            else toast('⚠️ Drive: ' + (d.error || 'Error al subir'), 'err');
+          })
+          .catch(err => toast('⚠️ Red: ' + err.message, 'err'));
+      }
     } catch(e) { toast('Error: ' + e.message, 'err'); }
     btn.disabled = false; btn.textContent = '💾 Guardar gasto';
   }
