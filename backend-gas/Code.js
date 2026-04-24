@@ -1736,6 +1736,7 @@ function _handleGetIngresos(params, callback) {
         categoria_ingreso: r[COL_I.CATEGORIA - 1]    || '',
         nombre_cliente:    r[COL_I.NOMBRE_CLI - 1]   || '',
         ruc_cliente:       r[COL_I.RUC_CLI - 1]      || '',
+        dv_cliente:        r[COL_I.DV_CLI - 1]       || '',
         tipo_persona:      r[COL_I.TIPO_PERSONA - 1] || '',
         num_factura:       r[COL_I.NUM_FACTURA - 1]  || '',
         tipo_comprobante:  r[COL_I.TIPO_COMP - 1]    || '',
