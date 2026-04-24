@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<!-- v202604031857 -->
+<!-- v202604241200 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -845,6 +845,88 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
       </div>
     </div>
 
+    <!-- GASTOS DASHBOARD -->
+    <div id="viewGastos" style="display:none">
+
+      <!-- Period bar -->
+      <div class="period-bar">
+        <div style="display:flex;align-items:center;gap:.5rem;min-width:0">
+          <div class="period-lbl" id="gas-period">—</div>
+          <span class="pl-ytd-badge show" id="gas-ytd-badge">YTD</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.45rem">
+          <div class="period-nav" id="gas-period-nav" style="display:none">
+            <button class="period-btn" onclick="GAS.prev()">‹</button>
+            <button class="period-btn" onclick="GAS.next()">›</button>
+          </div>
+          <div class="pl-mode-toggle">
+            <button class="pl-mode-btn"        id="gas-mode-mes" onclick="GAS.setMode('mes')">Mes</button>
+            <button class="pl-mode-btn active" id="gas-mode-ytd" onclick="GAS.setMode('ytd')">YTD</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Widgets 2×2 -->
+      <div class="pl-widgets">
+        <div class="pl-widget">
+          <div class="pl-w-lbl">Total gastos</div>
+          <div class="pl-w-val red" id="gas-w-total">—</div>
+        </div>
+        <div class="pl-widget">
+          <div class="pl-w-lbl">Negocio</div>
+          <div class="pl-w-val purple" id="gas-w-neg">—</div>
+          <div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="gas-w-neg-pct">deducibles</div>
+        </div>
+        <div class="pl-widget">
+          <div class="pl-w-lbl">Personal</div>
+          <div class="pl-w-val orange" id="gas-w-pers">—</div>
+          <div style="font-size:.6rem;color:var(--chrome);margin-top:.1rem" id="gas-w-pers-pct">no deducibles</div>
+        </div>
+        <div class="pl-widget">
+          <div class="pl-w-lbl">Top categoría</div>
+          <div class="pl-w-val indigo" id="gas-w-topcat" style="font-size:.78rem;line-height:1.3">—</div>
+        </div>
+      </div>
+
+      <!-- Negocio vs Personal split bar -->
+      <div style="margin:.1rem .85rem .5rem">
+        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+          <div id="gas-split-bar" style="height:100%;background:var(--purple);width:0%;transition:width .4s ease"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:.28rem;font-size:.64rem;color:var(--muted)">
+          <span id="gas-split-lbl-neg">🏢 Negocio</span>
+          <span id="gas-split-lbl-pers">👤 Personal</span>
+        </div>
+      </div>
+
+      <!-- Acordeones -->
+      <div class="pl-statement">
+        <div class="pl-stmt-hdr">Análisis de Gastos</div>
+
+        <!-- Por categoría -->
+        <div class="pl-stmt-row accordeon" id="gas-cats-row" onclick="GAS.toggleSection('cats')">
+          <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Por categoría</span>
+          <span class="pl-stmt-val" id="gas-cats-n">—</span>
+        </div>
+        <div class="pl-stmt-detail" id="gas-cats-detail"></div>
+
+        <!-- Top proveedores -->
+        <div class="pl-stmt-row accordeon" id="gas-provs-row" onclick="GAS.toggleSection('provs')">
+          <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Top proveedores</span>
+          <span class="pl-stmt-val" id="gas-provs-n">—</span>
+        </div>
+        <div class="pl-stmt-detail" id="gas-provs-detail"></div>
+      </div>
+
+      <!-- Lista de transacciones -->
+      <div style="padding:.55rem .85rem .18rem;display:flex;align-items:center;gap:.4rem">
+        <span class="sec-lbl" style="padding:0">Transacciones</span>
+        <span class="sec-cnt" id="gas-tx-n">0</span>
+      </div>
+      <div class="tx-list" id="gas-tx-list"></div>
+
+    </div><!-- /viewGastos -->
+
   </div>
 
   <nav class="bottom-nav">
@@ -853,6 +935,9 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
     </button>
     <button class="nav-item" id="nav-pl" onclick="switchView('pl')">
       <span class="nav-icon">📊</span><span>P&amp;L</span><span class="nav-pip"></span>
+    </button>
+    <button class="nav-item" id="nav-gas" onclick="switchView('gastos')">
+      <span class="nav-icon">💸</span><span>Gastos</span><span class="nav-pip"></span>
     </button>
   </nav>
 
@@ -888,12 +973,13 @@ document.addEventListener('DOMContentLoaded', () => {
 let currentView = '';
 function switchView(v) {
   currentView = v;
-  ['viewPL','viewRegistros'].forEach(id => document.getElementById(id).style.display = 'none');
-  document.getElementById({ pl:'viewPL', registros:'viewRegistros' }[v]).style.display = 'block';
-  ['nav-pl','nav-reg'].forEach(id => document.getElementById(id).classList.remove('active'));
-  document.getElementById({ pl:'nav-pl', registros:'nav-reg' }[v]).classList.add('active');
+  ['viewPL','viewRegistros','viewGastos'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById({ pl:'viewPL', registros:'viewRegistros', gastos:'viewGastos' }[v]).style.display = 'block';
+  ['nav-pl','nav-reg','nav-gas'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById({ pl:'nav-pl', registros:'nav-reg', gastos:'nav-gas' }[v]).classList.add('active');
   if (v === 'pl' && !PL.loaded) PL.load();
   if (v === 'registros' && !PEND.loaded) PEND.load();
+  if (v === 'gastos') GAS.onEnter();
 }
 
 // ── GAS COMM ──────────────────────────────────
@@ -1027,6 +1113,7 @@ function doRefresh() {
   const btn = document.getElementById('btnRefresh'); btn.classList.add('spin');
   const done = () => btn.classList.remove('spin');
   if (currentView==='pl') PL.load().finally(done);
+  else if (currentView==='gastos') PL.load().then(() => { GAS.onEnter(); done(); }).catch(done);
   else done();
 }
 
@@ -1487,7 +1574,192 @@ const PL = (() => {
     }
   }
 
-  return { load, prev, next, setMode, showTable, switchVista, toggleSection, toggleExpandAll, abrirReclasif, confirmarReclasif, get loaded(){ return _loaded; } };
+  return { load, prev, next, setMode, showTable, switchVista, toggleSection, toggleExpandAll, abrirReclasif, confirmarReclasif,
+           get loaded()   { return _loaded; },
+           get periodos() { return periodos; },
+           get año()      { return año; },
+           get mes()      { return mes; },
+           get viewMode() { return viewMode; } };
+})();
+
+
+
+// ════════════════════════════════════════════════════════
+//  MÓDULO GAS — Dashboard de Gastos
+// ════════════════════════════════════════════════════════
+const GAS = (() => {
+  let _año  = new Date().getFullYear();
+  let _mes  = new Date().getMonth() + 1;
+  let _mode = 'ytd';
+
+  function _getItems() {
+    const periodos = PL.periodos || {};
+    if (_mode === 'ytd') {
+      const all = [];
+      Object.keys(periodos).filter(k => periodos[k].anio === _año)
+        .forEach(k => (periodos[k].egresos_gasto || []).forEach(g => all.push(g)));
+      return all;
+    }
+    const key = _año + '-' + _mes;
+    return (periodos[key] || {}).egresos_gasto || [];
+  }
+
+  function _render() {
+    const items     = _getItems();
+    const total     = items.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
+    const negItems  = items.filter(g => (g.alcance || 'negocio') !== 'personal');
+    const persItems = items.filter(g => g.alcance === 'personal');
+    const negTotal  = negItems.reduce((s, g)  => s + (parseFloat(g.total) || 0), 0);
+    const persTotal = persItems.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
+
+    document.getElementById('gas-period').textContent = _mode === 'ytd'
+      ? 'Año ' + _año : MESES[_mes - 1] + ' ' + _año;
+
+    // Widgets
+    document.getElementById('gas-w-total').textContent    = fmt(total);
+    document.getElementById('gas-w-neg').textContent      = fmt(negTotal);
+    document.getElementById('gas-w-pers').textContent     = fmt(persTotal);
+    document.getElementById('gas-w-neg-pct').textContent  = total > 0 ? ((negTotal  / total) * 100).toFixed(0) + '% del total' : 'deducibles';
+    document.getElementById('gas-w-pers-pct').textContent = total > 0 ? ((persTotal / total) * 100).toFixed(0) + '% del total' : 'no deducibles';
+
+    // Split bar
+    const negPct = total > 0 ? (negTotal / total * 100).toFixed(1) : 0;
+    document.getElementById('gas-split-bar').style.width         = negPct + '%';
+    document.getElementById('gas-split-lbl-neg').textContent     = '🏢 ' + negPct + '%';
+    document.getElementById('gas-split-lbl-pers').textContent    = '👤 ' + (total > 0 ? (100 - parseFloat(negPct)).toFixed(1) : 0) + '%';
+
+    // Category map
+    const catMap = {};
+    items.forEach(g => {
+      const cat = g.tipo_egreso || g.categoria || 'otros_deducibles';
+      catMap[cat] = (catMap[cat] || 0) + (parseFloat(g.total) || 0);
+    });
+    const catEntries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+
+    // Top category widget
+    const topCat = catEntries[0];
+    document.getElementById('gas-w-topcat').textContent = topCat ? dgiLabel(topCat[0]) : '—';
+    document.getElementById('gas-cats-n').textContent   = catEntries.length + (catEntries.length === 1 ? ' cat.' : ' cats.');
+
+    // Category accordion
+    const catsEl = document.getElementById('gas-cats-detail');
+    if (catsEl) {
+      catsEl.innerHTML = catEntries.length ? catEntries.map(([cat, tot]) => {
+        const pct  = total > 0 ? (tot / total * 100).toFixed(0) : '0';
+        const barW = total > 0 ? (tot / total * 100).toFixed(1) : '0';
+        return `<div class="pl-stmt-detail-item" style="flex-direction:column;align-items:stretch;gap:.18rem;padding:.5rem .85rem .5rem 1.4rem">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="pl-stmt-detail-lbl">${dgiLabel(cat)}</span>
+            <span class="pl-stmt-detail-amt">${fmt(tot)}<span style="color:var(--chrome);font-size:.65rem;margin-left:.25rem">${pct}%</span></span>
+          </div>
+          <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:.1rem">
+            <div style="height:100%;background:var(--purple);width:${barW}%"></div>
+          </div>
+        </div>`;
+      }).join('') : '<div class="pl-stmt-detail-item"><span class="pl-stmt-detail-lbl" style="color:var(--chrome)">Sin gastos</span></div>';
+    }
+
+    // Provider map (top 5)
+    const provMap = {};
+    items.forEach(g => {
+      const prov = (g.proveedor || '').trim() || '(sin proveedor)';
+      provMap[prov] = (provMap[prov] || 0) + (parseFloat(g.total) || 0);
+    });
+    const provEntries = Object.entries(provMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    document.getElementById('gas-provs-n').textContent = 'Top ' + provEntries.length;
+    const provsEl = document.getElementById('gas-provs-detail');
+    if (provsEl) {
+      provsEl.innerHTML = provEntries.length ? provEntries.map(([prov, tot]) => {
+        const pct = total > 0 ? (tot / total * 100).toFixed(0) : '0';
+        return `<div class="pl-stmt-detail-item">
+          <span class="pl-stmt-detail-lbl">${esc(prov.substring(0, 35))}</span>
+          <span class="pl-stmt-detail-amt">${fmt(tot)}<span style="color:var(--chrome);font-size:.65rem;margin-left:.25rem">${pct}%</span></span>
+        </div>`;
+      }).join('') : '<div class="pl-stmt-detail-item"><span class="pl-stmt-detail-lbl" style="color:var(--chrome)">Sin datos</span></div>';
+    }
+
+    // TX list
+    document.getElementById('gas-tx-n').textContent = items.length;
+    const txEl = document.getElementById('gas-tx-list');
+    if (!items.length) {
+      txEl.innerHTML = `<div class="empty" style="padding:1.5rem 1rem"><div class="empty-icon">🧾</div><div class="empty-title">Sin gastos ${_mode === 'ytd' ? 'este año' : 'este mes'}</div></div>`;
+      return;
+    }
+    txEl.innerHTML = items.map(g => {
+      const desc     = g.descripcion || g.tipo_egreso || '—';
+      const prov     = g.proveedor || '';
+      const monto    = parseFloat(g.total) || 0;
+      const catLbl   = dgiLabel(g.tipo_egreso || g.categoria || '');
+      const isPerso  = g.alcance === 'personal';
+      const badge    = isPerso
+        ? `<span style="font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:4px;background:#FBE9E7;color:#E65100;margin-left:.3rem">PERS</span>`
+        : `<span style="font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--purple-bg);color:var(--purple);margin-left:.3rem">NEG</span>`;
+      const mesMeta  = _mode === 'ytd' && g.mes ? MESES[(parseInt(g.mes) || 1) - 1] + ' · ' : '';
+      const driveUrl = g.drive_url || '';
+      return `<div class="tx-item${driveUrl ? ' link' : ''}" ${driveUrl ? `onclick="DRIVE.open('${esc(driveUrl)}','${esc(desc.substring(0,40))}')"` : ''}>
+        <div class="tx-dot" style="background:${isPerso ? 'var(--orange)' : 'var(--purple)'}"></div>
+        <div class="tx-body">
+          <div class="tx-desc" style="display:flex;align-items:center;gap:.2rem;flex-wrap:wrap">
+            <span>${esc(desc.substring(0, 45))}</span>${badge}
+          </div>
+          <div class="tx-meta">${mesMeta}${catLbl}${prov ? ' · ' + esc(prov.substring(0, 25)) : ''}${driveUrl ? ' 📎' : ''}</div>
+        </div>
+        <div class="tx-amt egr">-${fmt(monto)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function setMode(m) {
+    _mode = m;
+    document.getElementById('gas-mode-mes').classList.toggle('active', m === 'mes');
+    document.getElementById('gas-mode-ytd').classList.toggle('active', m === 'ytd');
+    document.getElementById('gas-period-nav').style.display = m === 'mes' ? 'flex' : 'none';
+    document.getElementById('gas-ytd-badge').classList.toggle('show', m === 'ytd');
+    _render();
+  }
+
+  function prev() {
+    if (_mode !== 'mes') return;
+    _mes--; if (_mes < 1) { _mes = 12; _año--; }
+    _render();
+  }
+
+  function next() {
+    if (_mode !== 'mes') return;
+    _mes++; if (_mes > 12) { _mes = 1; _año++; }
+    _render();
+  }
+
+  function toggleSection(sec) {
+    const rowId = { cats: 'gas-cats-row', provs: 'gas-provs-row' }[sec];
+    const detId = { cats: 'gas-cats-detail', provs: 'gas-provs-detail' }[sec];
+    const rowEl = document.getElementById(rowId);
+    const detEl = document.getElementById(detId);
+    if (!detEl) return;
+    const isOpen = detEl.classList.contains('open');
+    detEl.classList.toggle('open', !isOpen);
+    if (rowEl) rowEl.classList.toggle('open', !isOpen);
+  }
+
+  function onEnter() {
+    // Sync period state from PL so both views stay in sync
+    _año  = PL.año  || new Date().getFullYear();
+    _mes  = PL.mes  || new Date().getMonth() + 1;
+    _mode = PL.viewMode || 'ytd';
+    document.getElementById('gas-mode-mes').classList.toggle('active', _mode === 'mes');
+    document.getElementById('gas-mode-ytd').classList.toggle('active', _mode === 'ytd');
+    document.getElementById('gas-period-nav').style.display = _mode === 'mes' ? 'flex' : 'none';
+    document.getElementById('gas-ytd-badge').classList.toggle('show', _mode === 'ytd');
+    if (!PL.loaded) {
+      document.getElementById('gas-tx-list').innerHTML =
+        '<div class="empty-sub" style="padding:2rem;text-align:center">Cargando…</div>';
+      PL.load().then(() => _render());
+    } else {
+      _render();
+    }
+  }
+
+  return { onEnter, setMode, prev, next, toggleSection };
 })();
 
 
