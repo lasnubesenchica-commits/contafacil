@@ -2768,6 +2768,7 @@ function _handleGetPL(params, callback) {
         itbms:       eItbms,
         mes:         eMes,
         anio:        eAnio,
+        alcance:     String(er[COL_E.ALCANCE - 1] || 'negocio'),
         drive_url:   String(er[COL_E.DRIVE_URL - 1] || '').trim(),
       });
     }

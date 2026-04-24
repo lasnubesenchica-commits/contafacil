@@ -1185,16 +1185,50 @@ const PL = (() => {
     // Detalle acordeón — Gastos operativos
     const gasDetEl = document.getElementById('pl-s-gas-detail');
     if (gasDetEl) {
-      const gasRows = (d.egresos_gasto || []).map(g => {
-        const cat   = g.tipo_egreso || g.categoria || '—';
-        const desc  = g.descripcion ? g.descripcion.substring(0, 40) : cat;
-        const monto = parseFloat(g.total) || 0;
+      const gasItems = d.egresos_gasto || [];
+      const gasTotal = gasItems.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
+
+      // Deducible / no-deducible split
+      const dedTotal   = gasItems.filter(g => (g.alcance || 'negocio') !== 'personal').reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
+      const nodedTotal = gasItems.filter(g => g.alcance === 'personal').reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
+      const dedBarHtml = gasItems.length > 0 ? `
+        <div style="display:flex;gap:.5rem;align-items:center;padding:.35rem .6rem;background:var(--bg);border-radius:6px;margin:.3rem 0;font-size:.72rem;flex-wrap:wrap">
+          <span style="color:var(--green);font-weight:700">✅ ${fmt(dedTotal)}</span>
+          <span style="color:var(--muted)">deducibles</span>
+          ${nodedTotal > 0 ? `<span style="margin-left:auto;color:#E65100;font-weight:700">🚫 ${fmt(nodedTotal)}</span><span style="color:var(--muted)">no deducibles</span>` : ''}
+        </div>` : '';
+
+      // Items con etiqueta DGI
+      const gasRows = gasItems.map(g => {
+        const catLbl  = dgiLabel(g.tipo_egreso || g.categoria || '');
+        const desc    = g.descripcion ? g.descripcion.substring(0, 35) : '';
+        const badge   = g.alcance === 'personal' ? ' 🚫' : '';
+        const monto   = parseFloat(g.total) || 0;
         return `<div class="pl-stmt-detail-item">
-          <span class="pl-stmt-detail-lbl">${esc(desc)}</span>
+          <span class="pl-stmt-detail-lbl">${catLbl}${badge}${desc ? '<br><span style="font-size:.68rem;color:var(--muted)">' + esc(desc) + '</span>' : ''}</span>
           <span class="pl-stmt-detail-amt">${fmt(monto)}</span>
         </div>`;
       }).join('') || '<div class="pl-stmt-detail-item"><span class="pl-stmt-detail-lbl" style="color:var(--chrome)">Sin gastos operativos</span></div>';
-      gasDetEl.innerHTML = gasRows;
+
+      // Distribución por categoría
+      const catMap = {};
+      gasItems.forEach(g => {
+        const cat = g.tipo_egreso || g.categoria || 'otros_deducibles';
+        if (!catMap[cat]) catMap[cat] = 0;
+        catMap[cat] += parseFloat(g.total) || 0;
+      });
+      const catEntries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+      const catHtml = catEntries.length > 1 ? `
+        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--chrome);padding:.4rem 0 .2rem">Por categoría</div>` +
+        catEntries.map(([cat, tot]) => {
+          const pct = gasTotal > 0 ? (tot / gasTotal * 100).toFixed(0) : '0';
+          return `<div class="pl-stmt-detail-item">
+            <span class="pl-stmt-detail-lbl" style="font-size:.75rem">${dgiLabel(cat)} <span style="color:var(--chrome)">${pct}%</span></span>
+            <span class="pl-stmt-detail-amt">${fmt(tot)}</span>
+          </div>`;
+        }).join('') : '';
+
+      gasDetEl.innerHTML = dedBarHtml + gasRows + catHtml;
     }
 
     renderTx();
