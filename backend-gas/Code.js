@@ -1797,6 +1797,8 @@ function _handleRegistrarIngresoManual(params, callback) {
       'servicio_tecnico_gravado': 'servicio_tecnico',
       'servicio_tecnico_exento':  'servicio_tecnico',
       'asesoria_consultoria':     'servicio_asesoria',
+      'servicios_profesionales':  'servicio_profesional',
+      'salarios':                 'salario',
       'comision':                 'comision',
       'exportacion':              'exportacion',
       'otro_gravado':             'otro',

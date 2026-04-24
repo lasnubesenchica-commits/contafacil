@@ -2752,6 +2752,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
               <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
               <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
               <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
+              <option value="servicios_profesionales">💼 Servicios profesionales</option>
+              <option value="salarios">💰 Salarios</option>
               <option value="comision">💳 Comisión</option>
               <option value="alquiler_cobrado">🏢 Alquiler cobrado</option>
               <option value="intereses">🏦 Intereses ganados</option>
@@ -2796,9 +2798,15 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full" style="border-top:1px solid var(--border);padding-top:.75rem;margin-top:.25rem">
             <label style="color:var(--muted)">CLIENTE</label>
           </div>
+          <div class="modal-field full" id="iClienteSelGrp" style="display:none">
+            <label>Cliente guardado</label>
+            <select id="iClienteSel" onchange="pickClienteIngreso(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;width:100%;box-sizing:border-box">
+              <option value="">— Nuevo cliente —</option>
+            </select>
+          </div>
           <div class="modal-field full">
             <label>Nombre cliente *</label>
-            <input type="text" id="iNombreCli" placeholder="Nombre completo" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;width:100%;box-sizing:border-box">
+            <input type="text" id="iNombreCli" placeholder="Nombre completo" oninput="onNombreCliIngresoInput()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;width:100%;box-sizing:border-box">
           </div>
           <div class="modal-field">
             <label>RUC cliente</label>
@@ -3781,8 +3789,64 @@ function abrirModalNuevoIngreso() {
   document.getElementById('iAIStatus').style.display = 'none';
   document.getElementById('iVoucherInput').value  = '';
   ingresoFileB64 = null; ingresoFileMime = null;
+  loadClientesIngreso();
   document.getElementById('ingresoModalOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+// ── Clientes guardados (derivados de ingItems) ────────
+function loadClientesIngreso() {
+  const sel = document.getElementById('iClienteSel');
+  const grp = document.getElementById('iClienteSelGrp');
+  if (!sel || !grp) return;
+  const build = () => {
+    const map = new Map();
+    (ingItems || []).forEach(ing => {
+      const nom = String(ing.nombre_cliente || '').trim();
+      if (!nom) return;
+      const key = nom.toUpperCase();
+      const prev = map.get(key);
+      if (!prev || (!prev.ruc && ing.ruc_cliente)) {
+        map.set(key, {
+          nombre: nom,
+          ruc:    String(ing.ruc_cliente || '').trim(),
+          dv:     String(ing.dv_cliente  || '').trim(),
+        });
+      }
+    });
+    const list = Array.from(map.values()).sort((a,b) => a.nombre.localeCompare(b.nombre));
+    if (!list.length) { grp.style.display = 'none'; return; }
+    sel._clientes = list;
+    sel.innerHTML = '<option value="">— Nuevo cliente —</option>' +
+      list.map((c,i) => '<option value="' + i + '">' +
+        esc(c.nombre) + (c.ruc ? ' · ' + esc(c.ruc) : '') + '</option>').join('');
+    sel.value = '';
+    grp.style.display = '';
+  };
+  build();
+  if (!ingItems || !ingItems.length) {
+    loadIngresos().then(build).catch(() => {});
+  }
+}
+
+function pickClienteIngreso(v) {
+  const sel = document.getElementById('iClienteSel');
+  const list = (sel && sel._clientes) || [];
+  if (v === '' || !list[v]) {
+    document.getElementById('iNombreCli').value = '';
+    document.getElementById('iRucCli').value    = '';
+    document.getElementById('iDvCli').value     = '';
+    return;
+  }
+  const c = list[v];
+  document.getElementById('iNombreCli').value = c.nombre || '';
+  document.getElementById('iRucCli').value    = c.ruc    || '';
+  document.getElementById('iDvCli').value     = c.dv     || '';
+}
+
+function onNombreCliIngresoInput() {
+  const sel = document.getElementById('iClienteSel');
+  if (sel && sel.value !== '') sel.value = '';
 }
 
 function closeIngresoModal() {
@@ -3792,7 +3856,7 @@ function closeIngresoModal() {
 
 // ── RECALC INGRESO ──────────────────────────────────────────
 // Las categorías que llevan ITBMS por defecto
-const CATS_GRAVADAS_ING = ['venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria','comision','otro_gravado'];
+const CATS_GRAVADAS_ING = ['venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria','servicios_profesionales','comision','otro_gravado'];
 
 function inferirItbmsIngreso() {
   const cat   = document.getElementById('iCategoria').value;
