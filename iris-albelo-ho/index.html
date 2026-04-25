@@ -391,6 +391,46 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .btn-sync:hover{opacity:.88}
 .btn-sync:disabled{opacity:.5;cursor:not-allowed}
 
+/* ── REGISTRO GENERAL — filtros dropdown ── */
+.rg-filter-sel{
+  font-size:.78rem;padding:.32rem .65rem;border:1px solid var(--border);
+  border-radius:7px;background:var(--bg);color:var(--text);
+  cursor:pointer;outline:none;font-family:inherit;
+  max-width:240px;text-overflow:ellipsis;
+}
+.rg-filter-sel:hover{border-color:rgba(0,0,0,.25)}
+
+/* ── REGISTRO GENERAL — mini-charts ── */
+.rg-chart-card{
+  background:var(--white);border:1px solid var(--border);border-radius:10px;
+  padding:.7rem .9rem;
+}
+.rg-chart-title{
+  font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--muted);margin-bottom:.55rem;display:flex;align-items:center;gap:.35rem;
+}
+.rg-chart-empty{font-size:.72rem;color:var(--muted);text-align:center;padding:.6rem 0}
+.rg-chart-row{
+  display:grid;grid-template-columns:130px 1fr 78px;gap:.5rem;align-items:center;
+  font-size:.72rem;cursor:pointer;padding:.18rem .25rem;border-radius:5px;
+  transition:background .12s;
+}
+.rg-chart-row:hover{background:var(--bg2)}
+.rg-chart-lbl{
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);
+}
+.rg-chart-bar-wrap{
+  background:var(--bg2);border-radius:4px;height:13px;overflow:hidden;position:relative;
+}
+.rg-chart-bar{
+  height:100%;border-radius:4px;background:linear-gradient(90deg,#FFB74D 0%,var(--orange) 100%);
+  transition:width .2s;
+}
+.rg-chart-bar.prov{background:linear-gradient(90deg,#90CAF9 0%,#1565C0 100%)}
+.rg-chart-val{
+  font-family:'DM Mono',monospace;font-size:.7rem;text-align:right;color:#1B5E20;font-weight:700;
+}
+
 /* ── OPERACIONES ITEM CARDS ── */
 .op-table-wrap{padding:1.5rem 2rem;overflow-x:auto}
 .op-table{width:100%;border-collapse:collapse;min-width:1000px}
@@ -1452,11 +1492,15 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── Widgets top ──────────────────────────────────────── -->
     <div id="rgEgrWidgets" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;padding:1rem 1.5rem;background:var(--bg);border-bottom:1px solid var(--border)"></div>
 
-    <!-- ── Toolbar ─────────────────────────────────────────── -->
-    <div class="op-toolbar">
-      <select id="rgEgrFechaMode" onchange="rgApplyEgrFecha(this.value)"
-        style="font-size:.78rem;padding:.28rem .6rem;border:1px solid var(--border);border-radius:7px;
-               background:var(--bg);color:var(--text);cursor:pointer;outline:none">
+    <!-- ── Mini-charts: Top categorías + Top proveedores ───── -->
+    <div id="rgEgrCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;padding:0 1.5rem 1rem;background:var(--bg);border-bottom:1px solid var(--border)">
+      <div class="rg-chart-card" id="rgEgrChartCat"></div>
+      <div class="rg-chart-card" id="rgEgrChartProv"></div>
+    </div>
+
+    <!-- ── Toolbar: 5 dropdowns ────────────────────────────── -->
+    <div class="op-toolbar" style="flex-wrap:wrap;gap:.5rem">
+      <select id="rgEgrFechaMode" onchange="rgApplyEgrFecha(this.value)" class="rg-filter-sel">
         <option value="all">📅 Todas las fechas</option>
         <option value="7">Últimos 7 días</option>
         <option value="14">Últimos 14 días</option>
@@ -1470,23 +1514,22 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <input type="date" id="rgEgrFechaHasta" onchange="rgRenderEgr()"
           style="font-size:.75rem;padding:.25rem .45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
       </span>
-      <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
-      <button class="op-filter-btn active" data-rge-estado="all" onclick="rgApplyEgrEstado(this,'all')">Todos</button>
-      <button class="op-filter-btn" data-rge-estado="pendiente" onclick="rgApplyEgrEstado(this,'pendiente')" style="background:#FFF9C4;border-color:#F9A825;color:#795548;font-weight:700">⏳ Pendientes</button>
-      <button class="op-filter-btn" data-rge-estado="registrado" onclick="rgApplyEgrEstado(this,'registrado')">✅ Aprobados</button>
-      <div style="width:1px;height:20px;background:var(--border);margin:0 .1rem"></div>
-      <button class="op-filter-btn active" data-rga="all" onclick="rgApplyEgrAlcance('all',this)">Todos</button>
-      <button class="op-filter-btn" data-rga="negocio" onclick="rgApplyEgrAlcance('negocio',this)">✅ Deducible</button>
-      <button class="op-filter-btn" data-rga="personal" onclick="rgApplyEgrAlcance('personal',this)">🚫 No Deducible</button>
-    </div>
-
-    <!-- ── Fila de filtros: toggle + pills ────────────────────── -->
-    <div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 1.5rem;border-bottom:1px solid var(--border);background:var(--white);flex-wrap:wrap">
-      <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0;font-size:.76rem;font-weight:700">
-        <button id="rgFilterTabCat"  onclick="rgSetFilterTab('categorias')"  style="padding:.25rem .7rem;border:none;cursor:pointer;background:#1565C0;color:#fff">📂 Categorías</button>
-        <button id="rgFilterTabProv" onclick="rgSetFilterTab('proveedores')" style="padding:.25rem .7rem;border:none;cursor:pointer;background:var(--bg);color:var(--text)">🏢 Proveedores</button>
-      </div>
-      <div id="rgFilterPills" style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;flex:1"></div>
+      <select id="rgEgrCatSel" onchange="rgApplyEgrFilter(null,this.value)" class="rg-filter-sel">
+        <option value="all">📂 Todas las categorías</option>
+      </select>
+      <select id="rgEgrProvSel" onchange="rgSetAcreedor(this.value)" class="rg-filter-sel">
+        <option value="TODOS">🏢 Todos los proveedores</option>
+      </select>
+      <select id="rgEgrEstadoSel" onchange="rgApplyEgrEstado(null,this.value)" class="rg-filter-sel">
+        <option value="all">Estado: Todos</option>
+        <option value="pendiente">⏳ Pendientes</option>
+        <option value="registrado">✅ Aprobados</option>
+      </select>
+      <select id="rgEgrAlcanceSel" onchange="rgApplyEgrAlcance(this.value,null)" class="rg-filter-sel">
+        <option value="all">Tipo: Todos</option>
+        <option value="negocio">✅ Deducible</option>
+        <option value="personal">🚫 No Deducible</option>
+      </select>
     </div>
 
     <!-- ── Header sección + nuevo ──────────────────────────── -->
@@ -5517,9 +5560,6 @@ async function guardarConfigST() {
 
 var rg_initialized = false;
 var rg_egr_filter        = 'all';   // filtro por categoría
-var _rgCatPillsExpanded  = false;
-var _rgProvPillsExpanded = false;
-var _rgFilterTab         = 'categorias'; // 'categorias' | 'proveedores'
 var rg_egr_estado   = 'all';  // filtro por estado: 'all' | 'pendiente' | 'registrado'
 var rg_egr_alcance  = 'all';  // filtro por alcance: 'all' | 'negocio' | 'personal'
 var rg_ing_filter   = 'all';
@@ -5613,57 +5653,36 @@ const RG_ING_CAT_LABELS = {
   otro_exento:              '📋 Otro (exento)',
 };
 
-function rgBuildFilterBtns() { /* no-op: pills are built inside rgRenderEgr */ }
+function rgBuildFilterBtns() { /* no-op: dropdowns are populated inside rgRenderEgr */ }
 
-function rgSetFilterTab(tab) {
-  _rgFilterTab = tab;
-  const catBtn  = document.getElementById('rgFilterTabCat');
-  const provBtn = document.getElementById('rgFilterTabProv');
-  if (catBtn)  { catBtn.style.background  = tab === 'categorias'  ? '#1565C0' : 'var(--bg)';  catBtn.style.color  = tab === 'categorias'  ? '#fff' : 'var(--text)'; }
-  if (provBtn) { provBtn.style.background = tab === 'proveedores' ? '#1565C0' : 'var(--bg)'; provBtn.style.color = tab === 'proveedores' ? '#fff' : 'var(--text)'; }
-  rgRenderEgr();
-}
-window.rgSetFilterTab = rgSetFilterTab;
-
-function rgRenderCatPills(preFilterItems) {
-  // Update toggle button active state
-  const catBtn  = document.getElementById('rgFilterTabCat');
-  const provBtn = document.getElementById('rgFilterTabProv');
-  if (catBtn)  { catBtn.style.background  = _rgFilterTab === 'categorias'  ? '#1565C0' : 'var(--bg)';  catBtn.style.color  = _rgFilterTab === 'categorias'  ? '#fff' : 'var(--text)'; }
-  if (provBtn) { provBtn.style.background = _rgFilterTab === 'proveedores' ? '#1565C0' : 'var(--bg)'; provBtn.style.color = _rgFilterTab === 'proveedores' ? '#fff' : 'var(--text)'; }
-
-  if (_rgFilterTab !== 'categorias') return;
-  const el = document.getElementById('rgFilterPills');
-  if (!el) return;
-
+// Pueblan los <select> de Categorías y Proveedores con las opciones disponibles
+// según los items que pasan los OTROS filtros (estado/alcance/fecha/búsqueda).
+function rgRenderCatSelect(preFilterItems) {
+  const sel = document.getElementById('rgEgrCatSel');
+  if (!sel) return;
   const counts = {};
+  const totals = {};
   preFilterItems.forEach(i => {
     const cat = i.tipo_egreso || i.categoria || '';
-    if (cat) counts[cat] = (counts[cat] || 0) + 1;
+    if (!cat) return;
+    counts[cat] = (counts[cat] || 0) + 1;
+    totals[cat] = (totals[cat] || 0) + (parseFloat(i.total) || 0);
   });
-  const cats = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-
-  const TOP_N    = 5;
-  const hasMore  = cats.length > TOP_N;
-  const visible  = (_rgCatPillsExpanded || !hasMore) ? cats : cats.slice(0, TOP_N);
-  const hidden   = hasMore && !_rgCatPillsExpanded ? cats.length - TOP_N : 0;
-  const active   = rg_egr_filter;
-
-  const pill = (val, label, count, extra) =>
-    `<button onclick="rgApplyEgrFilter(null,'${val}')" style="padding:.22rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;` +
-    `border:1px solid ${val === active ? '#1565C0' : 'var(--border)'};` +
-    `background:${val === active ? '#E3F2FD' : (extra ? '#F3E5F5' : 'var(--bg)')};` +
-    `color:${val === active ? '#1565C0' : (extra ? '#6A1B9A' : 'var(--text)')}">${label}` +
-    (count != null ? ` <span style="opacity:.65;font-weight:400">(${count})</span>` : '') + `</button>`;
-
-  let html = pill('all', '📂 Todas', preFilterItems.length, false);
-  visible.forEach(cat => html += pill(cat, RG_EGR_CAT_LABELS[cat] || cat, counts[cat], false));
-  if (hidden > 0)
-    html += `<button onclick="_rgCatPillsExpanded=true;rgRenderEgr()" style="padding:.22rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid #CE93D8;background:#F3E5F5;color:#6A1B9A">+ ${hidden} más</button>`;
-  else if (_rgCatPillsExpanded && hasMore)
-    html += `<button onclick="_rgCatPillsExpanded=false;rgRenderEgr()" style="padding:.22rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid #CE93D8;background:#F3E5F5;color:#6A1B9A">▲ Menos</button>`;
-
-  el.innerHTML = html;
+  const cats = Object.keys(counts).sort((a, b) => totals[b] - totals[a]);
+  const total = preFilterItems.length;
+  let html = '<option value="all">📂 Todas las categorías (' + total + ')</option>';
+  cats.forEach(cat => {
+    const lbl = (RG_EGR_CAT_LABELS[cat] || cat).replace(/&/g,'&amp;');
+    html += '<option value="' + cat.replace(/"/g,'&quot;') + '">' + lbl + ' (' + counts[cat] + ')</option>';
+  });
+  sel.innerHTML = html;
+  // Restaurar selección activa (si la categoría sigue presente)
+  if (rg_egr_filter && rg_egr_filter !== 'all' && counts[rg_egr_filter] != null) {
+    sel.value = rg_egr_filter;
+  } else {
+    if (rg_egr_filter !== 'all' && counts[rg_egr_filter] == null) rg_egr_filter = 'all';
+    sel.value = 'all';
+  }
 }
 
 function rgInit() {
@@ -5734,18 +5753,20 @@ window.rgShowTab = rgShowTab;
 // ── Filtros ───────────────────────────────────────
 function rgApplyEgrFilter(btn, filter) {
   rg_egr_filter = filter || 'all';
+  var sel = document.getElementById('rgEgrCatSel');
+  if (sel) sel.value = rg_egr_filter;
   rgRenderEgr();
 }
 function rgApplyEgrEstado(btn, estado) {
-  document.querySelectorAll('[data-rge-estado]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  rg_egr_estado = estado;
+  rg_egr_estado = estado || 'all';
+  var sel = document.getElementById('rgEgrEstadoSel');
+  if (sel) sel.value = rg_egr_estado;
   rgRenderEgr();
 }
 function rgApplyEgrAlcance(val, btn) {
-  document.querySelectorAll('[data-rga]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  rg_egr_alcance = val;
+  rg_egr_alcance = val || 'all';
+  var sel = document.getElementById('rgEgrAlcanceSel');
+  if (sel) sel.value = rg_egr_alcance;
   rgRenderEgr();
 }
 function rgApplyIngFilter(btn, filter) {
@@ -6058,8 +6079,7 @@ function rgRenderEgr() {
   if (rg_egr_estado === 'pendiente')  items = items.filter(i => i._tipo === 'pendiente');
   if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
   if (rg_egr_alcance !== 'all')       items = items.filter(i => (i.alcance || 'negocio') === rg_egr_alcance);
-  const el = document.getElementById('rgFilterPills'); if (el) el.innerHTML = '';
-  rgRenderCatPills(items);
+  rgRenderCatSelect(items);
   if (rg_egr_filter  !== 'all')       items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
   if (q) items = items.filter(i =>
     [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
@@ -6085,8 +6105,8 @@ function rgRenderEgr() {
     }
   }
 
-  // ── 4. Panel proveedores (colapsable, antes del filtro para mostrar todos) ──
-  rgRenderProvPills(items);
+  // ── 4. Poblar dropdown de proveedores (antes del filtro acreedor) ──
+  rgRenderProvSelect(items);
 
   // Filtro acreedor (aplicado ANTES de widgets para que los totales reflejen el acreedor activo)
   if (_rgEgrAcreedor !== 'TODOS') items = items.filter(i => i.proveedor === _rgEgrAcreedor);
@@ -6103,10 +6123,10 @@ function rgRenderEgr() {
   if (wEl) {
     wEl.style.gridTemplateColumns = 'repeat(6,1fr)';
     wEl.innerHTML = [
-      { label:'Pendientes',   val: nPendFilt || '—', color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyEgrEstado(document.querySelector('[data-rge-estado=\"pendiente\"]'),'pendiente')" },
-      { label:'Aprobados',    val: nRegFilt  || '—', color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyEgrEstado(document.querySelector('[data-rge-estado=\"registrado\"]'),'registrado')" },
-      { label:'Deducible',     val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'✅', click:"rgApplyEgrAlcance('negocio',document.querySelector('[data-rga=\"negocio\"]'))" },
-      { label:'No Deducible',  val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'🚫', click:"rgApplyEgrAlcance('personal',document.querySelector('[data-rga=\"personal\"]'))" },
+      { label:'Pendientes',   val: nPendFilt || '—', color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyEgrEstado(null,'pendiente')" },
+      { label:'Aprobados',    val: nRegFilt  || '—', color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyEgrEstado(null,'registrado')" },
+      { label:'Deducible',     val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'✅', click:"rgApplyEgrAlcance('negocio',null)" },
+      { label:'No Deducible',  val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'🚫', click:"rgApplyEgrAlcance('personal',null)" },
       { label:'Total gastado',val: fmt$(totFilt),    color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', click:'' },
       { label:'ITBMS pagado', val: fmt$(itbFilt),    color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:'' },
     ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}">`+
@@ -6114,6 +6134,9 @@ function rgRenderEgr() {
       `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}</div>`+
       `</div>`).join('');
   }
+
+  // ── 5b. Mini-charts: Top categorías + Top proveedores ─────────
+  rgRenderEgrCharts(items);
 
   // ── 6. Ordenamiento ───────────────────────────────────────────
   const { col, dir } = _rgEgrSort;
@@ -6231,46 +6254,101 @@ function rgRenderEgr() {
 
 // ── Acreedor filter ───────────────────────────────────────────
 function rgSetAcreedor(nom) {
-  _rgEgrAcreedor = nom;
+  _rgEgrAcreedor = nom || 'TODOS';
   _rgEgrSel.clear();
+  var sel = document.getElementById('rgEgrProvSel');
+  if (sel) sel.value = _rgEgrAcreedor;
   rgRenderEgr();
 }
 window.rgSetAcreedor = rgSetAcreedor;
 
-function rgRenderProvPills(preFilterItems) {
-  if (_rgFilterTab !== 'proveedores') return;
-  const el = document.getElementById('rgFilterPills');
-  if (!el) return;
-
+function rgRenderProvSelect(preFilterItems) {
+  const sel = document.getElementById('rgEgrProvSel');
+  if (!sel) return;
   const counts = {};
-  preFilterItems.forEach(i => { if (i.proveedor) counts[i.proveedor] = (counts[i.proveedor] || 0) + 1; });
-  const provs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-
-  const TOP_N   = 5;
-  const hasMore = provs.length > TOP_N;
-  const visible = (_rgProvPillsExpanded || !hasMore) ? provs : provs.slice(0, TOP_N);
-  const hidden  = hasMore && !_rgProvPillsExpanded ? provs.length - TOP_N : 0;
-  const active  = _rgEgrAcreedor;
-
-  const pill = (val, label, count, isExtra) => {
-    const isAct = val === active || (val === 'TODOS' && active === 'TODOS');
-    return `<button onclick="rgSetAcreedor('${val.replace(/'/g,"\\'")}')" style="padding:.22rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;` +
-      `border:1px solid ${isAct ? '#1565C0' : 'var(--border)'};` +
-      `background:${isAct ? '#1565C0' : (isExtra ? '#F3E5F5' : 'var(--bg)')};` +
-      `color:${isAct ? '#fff' : (isExtra ? '#6A1B9A' : 'var(--text)')}">${label}` +
-      (count != null ? ` <span style="opacity:.65;font-weight:400">(${count})</span>` : '') + `</button>`;
-  };
-
-  let html = pill('TODOS', 'Todos', preFilterItems.length, false);
-  visible.forEach(p => html += pill(p, p, counts[p], false));
-  if (hidden > 0)
-    html += `<button onclick="_rgProvPillsExpanded=true;rgRenderEgr()" style="padding:.22rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid #CE93D8;background:#F3E5F5;color:#6A1B9A">+ ${hidden} más</button>`;
-  else if (_rgProvPillsExpanded && hasMore)
-    html += `<button onclick="_rgProvPillsExpanded=false;rgRenderEgr()" style="padding:.22rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid #CE93D8;background:#F3E5F5;color:#6A1B9A">▲ Menos</button>`;
-
-  el.innerHTML = html;
+  const totals = {};
+  preFilterItems.forEach(i => {
+    const p = (i.proveedor || '').trim();
+    if (!p) return;
+    counts[p] = (counts[p] || 0) + 1;
+    totals[p] = (totals[p] || 0) + (parseFloat(i.total) || 0);
+  });
+  const provs = Object.keys(counts).sort((a, b) => totals[b] - totals[a]);
+  const total = preFilterItems.length;
+  let html = '<option value="TODOS">🏢 Todos los proveedores (' + total + ')</option>';
+  provs.forEach(p => {
+    const lbl = p.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    html += '<option value="' + p.replace(/"/g,'&quot;') + '">' + lbl + ' (' + counts[p] + ')</option>';
+  });
+  sel.innerHTML = html;
+  if (_rgEgrAcreedor && _rgEgrAcreedor !== 'TODOS' && counts[_rgEgrAcreedor] != null) {
+    sel.value = _rgEgrAcreedor;
+  } else {
+    if (_rgEgrAcreedor !== 'TODOS' && counts[_rgEgrAcreedor] == null) _rgEgrAcreedor = 'TODOS';
+    sel.value = 'TODOS';
+  }
 }
-window.rgRenderProvPills = rgRenderProvPills;
+window.rgRenderProvSelect = rgRenderProvSelect;
+
+// ── Mini-charts: Top categorías + Top proveedores ─────────────────
+function rgRenderEgrCharts(items) {
+  const TOP_N = 6;
+  const fmt$ = n => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+  // Categorías
+  const catEl = document.getElementById('rgEgrChartCat');
+  if (catEl) {
+    const totals = {};
+    items.forEach(i => {
+      const cat = i.tipo_egreso || i.categoria || '';
+      if (!cat) return;
+      totals[cat] = (totals[cat] || 0) + (parseFloat(i.total) || 0);
+    });
+    const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
+    const max = sorted.length ? totals[sorted[0]] : 0;
+    let body = '<div class="rg-chart-title">📂 Top categorías</div>';
+    if (!sorted.length) {
+      body += '<div class="rg-chart-empty">Sin datos</div>';
+    } else {
+      body += sorted.map(c => {
+        const lbl = (RG_EGR_CAT_LABELS[c] || c);
+        const pct = max > 0 ? Math.max(2, (totals[c] / max) * 100) : 0;
+        return `<div class="rg-chart-row" onclick="rgApplyEgrFilter(null,'${c.replace(/'/g,"\\'")}')" title="${esc(lbl)}">`
+          + `<div class="rg-chart-lbl">${esc(lbl)}</div>`
+          + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar" style="width:${pct.toFixed(1)}%"></div></div>`
+          + `<div class="rg-chart-val">${fmt$(totals[c])}</div></div>`;
+      }).join('');
+    }
+    catEl.innerHTML = body;
+  }
+
+  // Proveedores
+  const provEl = document.getElementById('rgEgrChartProv');
+  if (provEl) {
+    const totals = {};
+    items.forEach(i => {
+      const p = (i.proveedor || '').trim();
+      if (!p) return;
+      totals[p] = (totals[p] || 0) + (parseFloat(i.total) || 0);
+    });
+    const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
+    const max = sorted.length ? totals[sorted[0]] : 0;
+    let body = '<div class="rg-chart-title">🏢 Top proveedores</div>';
+    if (!sorted.length) {
+      body += '<div class="rg-chart-empty">Sin datos</div>';
+    } else {
+      body += sorted.map(p => {
+        const pct = max > 0 ? Math.max(2, (totals[p] / max) * 100) : 0;
+        return `<div class="rg-chart-row" onclick="rgSetAcreedor('${p.replace(/'/g,"\\'")}')" title="${esc(p)}">`
+          + `<div class="rg-chart-lbl">${esc(p)}</div>`
+          + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar prov" style="width:${pct.toFixed(1)}%"></div></div>`
+          + `<div class="rg-chart-val">${fmt$(totals[p])}</div></div>`;
+      }).join('');
+    }
+    provEl.innerHTML = body;
+  }
+}
+window.rgRenderEgrCharts = rgRenderEgrCharts;
 
 // ── Sort ──────────────────────────────────────────────────────
 function rgSortEgr(col) {
