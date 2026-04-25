@@ -6399,7 +6399,9 @@ function rgRenderIng() {
   tbody.innerHTML = items.map(i => {
     const catLabel = RG_ING_CAT_LABELS[i.categoria_ingreso] || RG_ING_CAT_LABELS[i.tipo_ingreso] || i.tipo_ingreso || '—';
     const docLink  = i.drive_url
-      ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.95rem;color:#1565C0;text-decoration:none" title="Ver comprobante">📄</a>`
+      ? (i.factura_data
+          ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaIngreso(event,'${esc(i.id_trans)}');return false" style="font-size:.95rem;color:#1565C0;text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
+          : `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.95rem;color:#1565C0;text-decoration:none" title="Ver comprobante">📄</a>`)
       : '';
     const idEsc = esc(i.id_trans || '');
     return `<tr>
@@ -6451,6 +6453,31 @@ async function rgEliminarIngreso(id) {
 }
 window.rgEditarIngreso   = rgEditarIngreso;
 window.rgEliminarIngreso = rgEliminarIngreso;
+
+// ── Ver factura XML (FE Panamá) usando datos pre-parseados en backend ──
+// Si factura_data existe → render directo (sin tocar Drive).
+// Si no → fallback abre Drive en nueva pestaña.
+function rgVerFacturaIngreso(ev, idTrans) {
+  if (ev) ev.preventDefault();
+  const item = (ingItems || []).find(i => i.id_trans === idTrans);
+  if (!item) return;
+  const url = item.drive_url || '';
+  if (!item.factura_data) {
+    if (url) window.open(url, '_blank');
+    return;
+  }
+  let data;
+  try { data = JSON.parse(item.factura_data); }
+  catch(e) { if (url) window.open(url, '_blank'); return; }
+  data._driveUrl = url;
+  data._fileName = '';
+  const overlay = document.getElementById('factXmlOverlay');
+  const openBtn = document.getElementById('factXmlOpenBtn');
+  if (overlay) overlay.style.display = 'block';
+  if (openBtn && url) openBtn.href = url;
+  _renderFacturaXmlModal(data);
+}
+window.rgVerFacturaIngreso = rgVerFacturaIngreso;
 
 // ── Abrir modales reutilizando los existentes ─────
 function rgAbrirNuevoEgreso() {

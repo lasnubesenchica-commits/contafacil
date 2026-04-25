@@ -76,8 +76,9 @@ var COL_I = {
   NOTAS_INT:    23,
   FLAG_REV:     24,
   DV_CLI:       25,
+  FACTURA_DATA: 26,   // JSON parseado de XML FE Panamá (v13.1)
 };
-var INGRESOS_NCOLS = 25;
+var INGRESOS_NCOLS = 26;
 
 // Columnas Tab Egresos (base 1) — 21 cols, 2 filas cabecera
 // v12.2: añadida col U id_st_item (= 21)
@@ -103,14 +104,116 @@ var COL_E = {
   DRIVE_URL:  18,   // R  drive_url
   DESCRIPCION:19,   // S  descripcion
   NOTAS:      20,   // T  notas
-  ID_ST_ITEM: 21,   // U  id_st_item  ← v12.2
-  ALCANCE:    22,   // V  alcance     ← v13.0 ('negocio' | 'personal')
+  ID_ST_ITEM:  21,   // U  id_st_item  ← v12.2
+  ALCANCE:     22,   // V  alcance     ← v13.0 ('negocio' | 'personal')
+  FACTURA_DATA:23,   // W  factura_data ← v13.1 (JSON parseado XML FE Panamá)
 };
-var EGRESOS_NCOLS = 22;  // v13.0: era 21
+var EGRESOS_NCOLS = 23;  // v13.1: era 22
 
 // Columnas Compras_Ventas usadas por _handleCorregirComprobante
 var _CC_DRIVE_URL_EMIT = 25;  // col Y — drive_url_emitida (= COL_CV.DRIVE_URL_EMIT)
 var _CC_INGRESO_ID     = 27;  // col AA — ingreso_id (= COL_CV.INGRESO_ID)
+
+// ═══════════════════════════════════════════════════════════════
+//  XML FE PANAMÁ — Parser server-side (v13.1)
+//  Espejo de _parseFeXml en frontend; produce el mismo shape
+// ═══════════════════════════════════════════════════════════════
+
+function _xmlGetAllByLocalName(root, localName) {
+  var out = [];
+  var d = root.getDescendants();
+  for (var i = 0; i < d.length; i++) {
+    if (d[i].getType() !== XmlService.ContentType.ELEMENT) continue;
+    var el = d[i].asElement();
+    if (el.getName() === localName) out.push(el);
+  }
+  return out;
+}
+function _xmlText(root, localName) {
+  var arr = _xmlGetAllByLocalName(root, localName);
+  return arr.length ? String(arr[0].getText() || '').trim() : '';
+}
+function _xmlChildText(parent, localName) {
+  // Igual a _xmlText pero limitado al subárbol del parent
+  var d = parent.getDescendants();
+  for (var i = 0; i < d.length; i++) {
+    if (d[i].getType() !== XmlService.ContentType.ELEMENT) continue;
+    var el = d[i].asElement();
+    if (el.getName() === localName) return String(el.getText() || '').trim();
+  }
+  return '';
+}
+
+function _parseFeXmlGas(xmlText) {
+  var data = { emisor: {}, receptor: {}, items: [], totales: {}, meta: {} };
+  if (!xmlText || typeof xmlText !== 'string') return data;
+  try {
+    var doc  = XmlService.parse(xmlText);
+    var root = doc.getRootElement();
+    function g(name) { return _xmlText(root, name); }
+
+    data.meta.cufe     = g('dId') || g('dCUFE') || g('dNroAutFE');
+    data.meta.nroFac   = g('dNroDF') || g('dNroFac');
+    data.meta.fecha    = g('dFechaEm') || g('dFecFac');
+    data.meta.tipo     = g('dTipoDF') || g('dTipFac') || '';
+    data.meta.qrCode   = g('dQRCode');
+    data.meta.authCode = g('dProtAut') || g('dCodProt');
+
+    data.emisor.nombre = g('dNombEm') || g('dNomEmi');
+    data.emisor.ruc    = g('dRucEM')  || g('dRucEmi');
+    data.emisor.dv     = g('dDvEm')   || g('dDvEmi');
+    data.emisor.dir    = g('dDirEm')  || g('dDirFis') || g('dDir');
+    data.emisor.tel    = g('dTelEm');
+    data.emisor.email  = g('dEmailEm');
+
+    data.receptor.nombre = g('dNombRec') || g('dNomRec');
+    data.receptor.ruc    = g('dRucRec');
+    data.receptor.dv     = g('dDvRec');
+    data.receptor.dir    = g('dDirRec');
+
+    var items = _xmlGetAllByLocalName(root, 'gItem');
+    for (var k = 0; k < items.length; k++) {
+      var el = items[k];
+      data.items.push({
+        desc:   _xmlChildText(el, 'dDescProd') || _xmlChildText(el, 'dDesItem') || _xmlChildText(el, 'dDescItem'),
+        cant:   parseFloat(_xmlChildText(el, 'dCantCodInt') || _xmlChildText(el, 'dCant') || '1') || 1,
+        prUnit: parseFloat(_xmlChildText(el, 'dPrUnit') || '0') || 0,
+        total:  parseFloat(_xmlChildText(el, 'dValTotItem') || _xmlChildText(el, 'dPrItem') || '0') || 0,
+        itbms:  parseFloat(_xmlChildText(el, 'dValITBMS') || '0') || 0,
+      });
+    }
+
+    data.totales.neto  = parseFloat(g('dTotNeto')  || g('dSubTot')     || '0') || 0;
+    data.totales.itbms = parseFloat(g('dTotITBMS') || g('dTotalITBMS') || '0') || 0;
+    data.totales.total = parseFloat(g('dVTot')     || g('dTotalFac')   || '0') || 0;
+    data.totales.desc  = parseFloat(g('dTotDesc')  || '0') || 0;
+  } catch(e) {
+    Logger.log('_parseFeXmlGas error: ' + e.message);
+  }
+  return data;
+}
+
+// Detecta si el blob/mime corresponde a XML
+function _esXmlMime(mime, fileName) {
+  var m  = String(mime || '').toLowerCase();
+  var fn = String(fileName || '').toLowerCase();
+  if (m === 'text/xml' || m === 'application/xml') return true;
+  if (m === 'application/octet-stream' && fn.indexOf('.xml') === fn.length - 4) return true;
+  return fn.indexOf('.xml') === fn.length - 4;
+}
+
+// Extiende el sheet a ncols columnas si tiene menos (migración lazy)
+function _ensureSheetCols(sheet, ncols, headerLabel) {
+  if (!sheet || !ncols) return;
+  var cur = sheet.getMaxColumns();
+  if (cur < ncols) sheet.insertColumnsAfter(cur, ncols - cur);
+  if (headerLabel) {
+    var hdr = sheet.getRange(2, ncols);
+    if (!hdr.getValue()) {
+      hdr.setValue(headerLabel).setBackground('#546E7A').setFontColor('#FFFFFF').setFontWeight('bold');
+    }
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  WEB APP ENTRY POINT — doPost
@@ -1025,7 +1128,7 @@ function _initIngresosSheet(ss) {
 
   var meta = [
     'METADATA','','','','FECHA','','','MONTOS','','','',
-    'CLASIF FISCAL','','','CLIENTE','','','COMPROBANTE','','','','NOTAS','','',''
+    'CLASIF FISCAL','','','CLIENTE','','','COMPROBANTE','','','','NOTAS','','','','XML'
   ];
   var headers = [
     'id_transaccion','fecha_registro','estado','confianza_ia',
@@ -1034,7 +1137,7 @@ function _initIngresosSheet(ss) {
     'tipo_ingreso','categoria_ingreso','concepto_exento_frm93',
     'nombre_cliente','ruc_cliente','tipo_persona_cliente',
     'num_factura','tipo_comprobante','drive_url','drive_path',
-    'descripcion','notas_internas','flag_revision','dv_cliente'
+    'descripcion','notas_internas','flag_revision','dv_cliente','factura_data'
   ];
 
   sheet.getRange(1, 1, 1, INGRESOS_NCOLS).setValues([meta]);
@@ -1043,7 +1146,7 @@ function _initIngresosSheet(ss) {
   sheet.getRange(2, 1, 1, INGRESOS_NCOLS).setBackground('#546E7A').setFontColor('#FFFFFF').setFontWeight('bold');
   sheet.setFrozenRows(2);
 
-  var w = [170,150,100,100,110,50,80,90,70,90,60,120,140,140,160,110,110,120,110,250,200,300,250,90];
+  var w = [170,150,100,100,110,50,80,90,70,90,60,120,140,140,160,110,110,120,110,250,200,300,250,90,300];
   for (var i = 0; i < w.length; i++) sheet.setColumnWidth(i + 1, w[i]);
   sheet.getRange('H3:J1000').setNumberFormat('#,##0.00');
   Logger.log('✅ Hoja Ingresos creada.');
@@ -1059,7 +1162,7 @@ function _initEgresosSheet(ss) {
 
   var meta = [
     'METADATA','','','FECHA','','','MONTOS','','','','CLASIFICACIÓN','',
-    'PROVEEDOR','','','COMPROBANTE','','','NOTAS','','',''
+    'PROVEEDOR','','','COMPROBANTE','','','NOTAS','','','','XML'
   ];
   var headers = [
     'id_egreso','fecha_registro','estado','fecha_egreso','mes','anio_fiscal',
@@ -1067,7 +1170,7 @@ function _initEgresosSheet(ss) {
     'tipo_egreso','categoria',
     'proveedor','ruc_proveedor','dv_proveedor',
     'num_factura_ref','id_item_cv','drive_url',
-    'descripcion','notas','id_st_item','alcance'
+    'descripcion','notas','id_st_item','alcance','factura_data'
   ];
 
   sheet.getRange(1, 1, 1, EGRESOS_NCOLS).setValues([meta]);
@@ -1078,7 +1181,7 @@ function _initEgresosSheet(ss) {
     .setBackground('#546E7A').setFontColor('#FFFFFF').setFontWeight('bold');
   sheet.setFrozenRows(2);
 
-  var widths = [180,150,100,110,50,80,90,70,90,60,120,130,200,130,80,140,160,260,300,220,160,100];
+  var widths = [180,150,100,110,50,80,90,70,90,60,120,130,200,130,80,140,160,260,300,220,160,100,300];
   for (var i = 0; i < widths.length; i++) sheet.setColumnWidth(i + 1, widths[i]);
   sheet.getRange('G3:I1000').setNumberFormat('#,##0.00');
   Logger.log('✅ Hoja Egresos creada.');
@@ -1333,8 +1436,9 @@ function _handleGetEgresos(params, callback) {
         drive_url:    driveUrl,
         descripcion:  r[COL_E.DESCRIPCION - 1] || '',
         notas:        notas,
-        id_st_item:   (ncols >= COL_E.ID_ST_ITEM) ? (r[COL_E.ID_ST_ITEM - 1] || '') : '',
-        alcance:      (ncols >= COL_E.ALCANCE)    ? (r[COL_E.ALCANCE - 1]    || 'negocio') : 'negocio',
+        id_st_item:   (ncols >= COL_E.ID_ST_ITEM)   ? (r[COL_E.ID_ST_ITEM - 1]   || '') : '',
+        alcance:      (ncols >= COL_E.ALCANCE)      ? (r[COL_E.ALCANCE - 1]      || 'negocio') : 'negocio',
+        factura_data: (ncols >= COL_E.FACTURA_DATA) ? (r[COL_E.FACTURA_DATA - 1] || '') : '',
         _row:         i + 3,
       });
     }
@@ -1470,21 +1574,36 @@ function _handleSubirFacturaEgreso(data) {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     var driveUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
 
+    // Si es XML FE Panamá, parsear ahora que tenemos el blob en memoria
+    var facturaJson = '';
+    if (_esXmlMime(mime, nombre)) {
+      try {
+        var xmlText  = blob.getDataAsString('UTF-8');
+        var parsed   = _parseFeXmlGas(xmlText);
+        facturaJson  = JSON.stringify(parsed);
+      } catch(eXml) {
+        Logger.log('XML parse skipped (egreso ' + egresoId + '): ' + eXml.message);
+      }
+    }
+
     var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var sheet = _initEgresosSheet(ss);
+    _ensureSheetCols(sheet, EGRESOS_NCOLS, 'factura_data');
     var numRows = sheet.getLastRow() - 2;
     if (numRows > 0) {
       var ids = sheet.getRange(3, COL_E.ID, numRows, 1).getValues();
       for (var i = 0; i < ids.length; i++) {
         if (String(ids[i][0]) === egresoId) {
           sheet.getRange(3 + i, COL_E.DRIVE_URL).setValue(driveUrl);
+          if (facturaJson) sheet.getRange(3 + i, COL_E.FACTURA_DATA).setValue(facturaJson);
           break;
         }
       }
     }
     result.success  = true;
     result.driveUrl = driveUrl;
-    Logger.log('📄 Factura subida Drive para ' + egresoId + ': ' + driveUrl);
+    if (facturaJson) result.facturaParsed = true;
+    Logger.log('📄 Factura subida Drive para ' + egresoId + ': ' + driveUrl + (facturaJson ? ' [XML parseado]' : ''));
   } catch(e) {
     result.error = e.message;
     Logger.log('Error subirFacturaEgreso: ' + e.message);
@@ -1512,15 +1631,29 @@ function _handleSubirFacturaIngreso(data) {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     var driveUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
 
+    // Si es XML FE Panamá, parsear ahora que tenemos el blob en memoria
+    var facturaJson = '';
+    if (_esXmlMime(mime, nombre)) {
+      try {
+        var xmlText = blob.getDataAsString('UTF-8');
+        var parsed  = _parseFeXmlGas(xmlText);
+        facturaJson = JSON.stringify(parsed);
+      } catch(eXml) {
+        Logger.log('XML parse skipped (ingreso ' + ingresoId + '): ' + eXml.message);
+      }
+    }
+
     var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var sheet = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
     if (sheet) {
+      _ensureSheetCols(sheet, INGRESOS_NCOLS, 'factura_data');
       var numRows = sheet.getLastRow() - 2;
       if (numRows > 0) {
         var ids = sheet.getRange(3, COL_I.ID_TRANS, numRows, 1).getValues();
         for (var i = 0; i < ids.length; i++) {
           if (String(ids[i][0]) === ingresoId) {
             sheet.getRange(3 + i, COL_I.DRIVE_URL).setValue(driveUrl);
+            if (facturaJson) sheet.getRange(3 + i, COL_I.FACTURA_DATA).setValue(facturaJson);
             break;
           }
         }
@@ -1528,7 +1661,8 @@ function _handleSubirFacturaIngreso(data) {
     }
     result.success  = true;
     result.driveUrl = driveUrl;
-    Logger.log('📄 Comprobante subido Drive para ' + ingresoId + ': ' + driveUrl);
+    if (facturaJson) result.facturaParsed = true;
+    Logger.log('📄 Comprobante subido Drive para ' + ingresoId + ': ' + driveUrl + (facturaJson ? ' [XML parseado]' : ''));
   } catch(e) {
     result.error = e.message;
     Logger.log('Error subirFacturaIngreso: ' + e.message);
@@ -1688,7 +1822,8 @@ function _handleGetIngresos(params, callback) {
     var stMap = maps.stMap;
 
     var numIngRows = sheet.getLastRow() - 2;
-    var data  = sheet.getRange(3, 1, numIngRows, INGRESOS_NCOLS).getValues();
+    var ncols = Math.min(sheet.getLastColumn(), INGRESOS_NCOLS);
+    var data  = sheet.getRange(3, 1, numIngRows, ncols).getValues();
     var items = [];
 
     for (var i = 0; i < data.length; i++) {
@@ -1737,7 +1872,8 @@ function _handleGetIngresos(params, callback) {
         categoria_ingreso: r[COL_I.CATEGORIA - 1]    || '',
         nombre_cliente:    r[COL_I.NOMBRE_CLI - 1]   || '',
         ruc_cliente:       r[COL_I.RUC_CLI - 1]      || '',
-        dv_cliente:        r[COL_I.DV_CLI - 1]       || '',
+        dv_cliente:        (ncols >= COL_I.DV_CLI ? r[COL_I.DV_CLI - 1] : '') || '',
+        factura_data:      (ncols >= COL_I.FACTURA_DATA ? r[COL_I.FACTURA_DATA - 1] : '') || '',
         tipo_persona:      r[COL_I.TIPO_PERSONA - 1] || '',
         num_factura:       r[COL_I.NUM_FACTURA - 1]  || '',
         tipo_comprobante:  r[COL_I.TIPO_COMP - 1]    || '',
@@ -2918,4 +3054,67 @@ function _handleGetPL(params, callback) {
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MIGRACIÓN ONE-SHOT — Parsea XMLs legacy y popula factura_data
+//  Correr manualmente desde el editor GAS:
+//    migrarFacturasXmlLegacy()
+//  Procesa Ingresos y Egresos. Solo toca filas con drive_url cuyo
+//  archivo en Drive sea XML y que aún no tengan factura_data.
+//  Idempotente — saltea filas ya procesadas.
+// ═══════════════════════════════════════════════════════════════
+
+function migrarFacturasXmlLegacy() {
+  var stats = { ingresos: { ok:0, skip:0, err:0 }, egresos: { ok:0, skip:0, err:0 } };
+  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+  function _procesar(sheetName, ncols, idCol, urlCol, dataCol, label) {
+    var sh = ss.getSheetByName(sheetName);
+    if (!sh) { Logger.log('⚠️ Hoja no encontrada: ' + sheetName); return; }
+    _ensureSheetCols(sh, ncols, 'factura_data');
+    var n = sh.getLastRow() - 2;
+    if (n <= 0) return;
+    var actualCols = Math.min(sh.getLastColumn(), ncols);
+    var data = sh.getRange(3, 1, n, actualCols).getValues();
+    for (var i = 0; i < data.length; i++) {
+      var r        = data[i];
+      var rowIdx   = i + 3;
+      var id       = String(r[idCol - 1]  || '').trim();
+      var url      = String(r[urlCol - 1] || '').trim();
+      var existing = (actualCols >= dataCol) ? String(r[dataCol - 1] || '').trim() : '';
+      if (!id || !url) { stats[label].skip++; continue; }
+      if (existing)    { stats[label].skip++; continue; }
+
+      var fileId = null;
+      var m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (m) fileId = m[1];
+      if (!fileId) { var m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/); if (m2) fileId = m2[1]; }
+      if (!fileId) { var m3 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);   if (m3) fileId = m3[1]; }
+      if (!fileId) { stats[label].skip++; continue; }
+
+      try {
+        var file = DriveApp.getFileById(fileId);
+        var name = file.getName();
+        var mime = file.getMimeType();
+        if (!_esXmlMime(mime, name)) { stats[label].skip++; continue; }
+        var xmlText = file.getBlob().getDataAsString('UTF-8');
+        var parsed  = _parseFeXmlGas(xmlText);
+        sh.getRange(rowIdx, dataCol).setValue(JSON.stringify(parsed));
+        stats[label].ok++;
+        Logger.log('✓ ' + label + ' ' + id + ' → ' + (parsed.meta.nroFac || '?'));
+      } catch(e) {
+        stats[label].err++;
+        Logger.log('✗ ' + label + ' ' + id + ' → ' + e.message);
+      }
+    }
+  }
+
+  _procesar(CONFIG.SHEET_INGRESOS, INGRESOS_NCOLS, COL_I.ID_TRANS, COL_I.DRIVE_URL, COL_I.FACTURA_DATA, 'ingresos');
+  _procesar(SHEET_EGRESOS,         EGRESOS_NCOLS,  COL_E.ID,       COL_E.DRIVE_URL, COL_E.FACTURA_DATA, 'egresos');
+
+  Logger.log('═══ RESUMEN MIGRACIÓN ═══');
+  Logger.log('Ingresos: ' + stats.ingresos.ok + ' parseados, ' + stats.ingresos.skip + ' saltados, ' + stats.ingresos.err + ' errores');
+  Logger.log('Egresos : ' + stats.egresos.ok  + ' parseados, ' + stats.egresos.skip  + ' saltados, ' + stats.egresos.err  + ' errores');
+  return stats;
 }
