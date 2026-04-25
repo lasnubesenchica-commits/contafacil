@@ -129,12 +129,18 @@ function _xmlGetAllByLocalName(root, localName) {
   }
   return out;
 }
+function _xmlFindFirst(parent, localName) {
+  if (!parent) return null;
+  var arr = _xmlGetAllByLocalName(parent, localName);
+  return arr.length ? arr[0] : null;
+}
 function _xmlText(root, localName) {
   var arr = _xmlGetAllByLocalName(root, localName);
   return arr.length ? String(arr[0].getText() || '').trim() : '';
 }
 function _xmlChildText(parent, localName) {
   // Igual a _xmlText pero limitado al subárbol del parent
+  if (!parent) return '';
   var d = parent.getDescendants();
   for (var i = 0; i < d.length; i++) {
     var el = d[i].asElement();
@@ -159,17 +165,23 @@ function _parseFeXmlGas(xmlText) {
     data.meta.qrCode   = g('dQRCode');
     data.meta.authCode = g('dProtAut') || g('dCodProt');
 
-    data.emisor.nombre = g('dNombEm') || g('dNomEmi');
-    data.emisor.ruc    = g('dRucEM')  || g('dRucEmi');
-    data.emisor.dv     = g('dDvEm')   || g('dDvEmi');
-    data.emisor.dir    = g('dDirEm')  || g('dDirFis') || g('dDir');
-    data.emisor.tel    = g('dTelEm');
-    data.emisor.email  = g('dEmailEm');
+    // ── Emisor: gEmis > dNombEm + gRucEmi(dRuc, dDV) ─────────────
+    var gEmis   = _xmlFindFirst(root, 'gEmis');
+    var gRucEmi = _xmlFindFirst(gEmis, 'gRucEmi');
+    data.emisor.nombre = _xmlChildText(gEmis, 'dNombEm') || g('dNombEm') || g('dNomEmi');
+    data.emisor.ruc    = _xmlChildText(gRucEmi, 'dRuc') || g('dRucEM') || g('dRucEmi');
+    data.emisor.dv     = _xmlChildText(gRucEmi, 'dDV')  || g('dDvEm')  || g('dDvEmi');
+    data.emisor.dir    = _xmlChildText(gEmis, 'dDirEm') || g('dDirEm') || g('dDirFis') || g('dDir');
+    data.emisor.tel    = _xmlChildText(gEmis, 'dTfnEm') || _xmlChildText(gEmis, 'dTelEm') || g('dTelEm');
+    data.emisor.email  = _xmlChildText(gEmis, 'dCorElectEmi') || _xmlChildText(gEmis, 'dEmailEm') || g('dEmailEm');
 
-    data.receptor.nombre = g('dNombRec') || g('dNomRec');
-    data.receptor.ruc    = g('dRucRec');
-    data.receptor.dv     = g('dDvRec');
-    data.receptor.dir    = g('dDirRec');
+    // ── Receptor: gDatRec > dNombRec + gRucRec(dRuc, dDV) ────────
+    var gDatRec = _xmlFindFirst(root, 'gDatRec');
+    var gRucRec = _xmlFindFirst(gDatRec, 'gRucRec');
+    data.receptor.nombre = _xmlChildText(gDatRec, 'dNombRec') || g('dNombRec') || g('dNomRec');
+    data.receptor.ruc    = _xmlChildText(gRucRec, 'dRuc') || g('dRucRec');
+    data.receptor.dv     = _xmlChildText(gRucRec, 'dDV')  || g('dDvRec');
+    data.receptor.dir    = _xmlChildText(gDatRec, 'dDirecRec') || _xmlChildText(gDatRec, 'dDirRec') || g('dDirRec');
 
     var items = _xmlGetAllByLocalName(root, 'gItem');
     for (var k = 0; k < items.length; k++) {
@@ -3066,16 +3078,14 @@ function _handleGetPL(params, callback) {
 // ═══════════════════════════════════════════════════════════════
 
 // Detecta si el JSON ya guardado en factura_data tiene contenido útil.
-// Si está vacío (parser anterior falló y guardó shape sin datos), reprocesa.
+// Endurecido v2: requiere emisor.ruc (campo obligatorio en FE Panamá).
+// Si está vacío o el parser viejo no lo extrajo, reprocesa.
 function _facturaDataEsUtil(jsonStr) {
   if (!jsonStr) return false;
   try {
     var d = JSON.parse(jsonStr);
     if (!d) return false;
-    if (d.meta && (d.meta.cufe || d.meta.nroFac)) return true;
-    if (d.emisor && (d.emisor.ruc || d.emisor.nombre)) return true;
-    if (d.items && d.items.length > 0) return true;
-    if (d.totales && (d.totales.total || d.totales.neto)) return true;
+    if (d.emisor && d.emisor.ruc) return true;
     return false;
   } catch(_) {
     return false;
