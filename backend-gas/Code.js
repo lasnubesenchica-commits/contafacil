@@ -123,8 +123,8 @@ function _xmlGetAllByLocalName(root, localName) {
   var out = [];
   var d = root.getDescendants();
   for (var i = 0; i < d.length; i++) {
-    if (d[i].getType() !== XmlService.ContentType.ELEMENT) continue;
     var el = d[i].asElement();
+    if (!el) continue;
     if (el.getName() === localName) out.push(el);
   }
   return out;
@@ -137,8 +137,8 @@ function _xmlChildText(parent, localName) {
   // Igual a _xmlText pero limitado al subárbol del parent
   var d = parent.getDescendants();
   for (var i = 0; i < d.length; i++) {
-    if (d[i].getType() !== XmlService.ContentType.ELEMENT) continue;
     var el = d[i].asElement();
+    if (!el) continue;
     if (el.getName() === localName) return String(el.getText() || '').trim();
   }
   return '';
@@ -3065,8 +3065,25 @@ function _handleGetPL(params, callback) {
 //  Idempotente — saltea filas ya procesadas.
 // ═══════════════════════════════════════════════════════════════
 
+// Detecta si el JSON ya guardado en factura_data tiene contenido útil.
+// Si está vacío (parser anterior falló y guardó shape sin datos), reprocesa.
+function _facturaDataEsUtil(jsonStr) {
+  if (!jsonStr) return false;
+  try {
+    var d = JSON.parse(jsonStr);
+    if (!d) return false;
+    if (d.meta && (d.meta.cufe || d.meta.nroFac)) return true;
+    if (d.emisor && (d.emisor.ruc || d.emisor.nombre)) return true;
+    if (d.items && d.items.length > 0) return true;
+    if (d.totales && (d.totales.total || d.totales.neto)) return true;
+    return false;
+  } catch(_) {
+    return false;
+  }
+}
+
 function migrarFacturasXmlLegacy() {
-  var stats = { ingresos: { ok:0, skip:0, err:0 }, egresos: { ok:0, skip:0, err:0 } };
+  var stats = { ingresos: { ok:0, reproc:0, skip:0, err:0 }, egresos: { ok:0, reproc:0, skip:0, err:0 } };
   var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
 
   function _procesar(sheetName, ncols, idCol, urlCol, dataCol, label) {
@@ -3083,8 +3100,13 @@ function migrarFacturasXmlLegacy() {
       var id       = String(r[idCol - 1]  || '').trim();
       var url      = String(r[urlCol - 1] || '').trim();
       var existing = (actualCols >= dataCol) ? String(r[dataCol - 1] || '').trim() : '';
+      var isReproc = false;
       if (!id || !url) { stats[label].skip++; continue; }
-      if (existing)    { stats[label].skip++; continue; }
+      if (existing) {
+        if (_facturaDataEsUtil(existing)) { stats[label].skip++; continue; }
+        // JSON vacío de un intento anterior fallido → reprocesar
+        isReproc = true;
+      }
 
       var fileId = null;
       var m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
@@ -3100,9 +3122,16 @@ function migrarFacturasXmlLegacy() {
         if (!_esXmlMime(mime, name)) { stats[label].skip++; continue; }
         var xmlText = file.getBlob().getDataAsString('UTF-8');
         var parsed  = _parseFeXmlGas(xmlText);
+        // Validar que el parser produjo algo útil antes de escribir
+        if (!_facturaDataEsUtil(JSON.stringify(parsed))) {
+          stats[label].err++;
+          Logger.log('✗ ' + label + ' ' + id + ' → parser regresó shape vacío');
+          continue;
+        }
         sh.getRange(rowIdx, dataCol).setValue(JSON.stringify(parsed));
-        stats[label].ok++;
-        Logger.log('✓ ' + label + ' ' + id + ' → ' + (parsed.meta.nroFac || '?'));
+        if (isReproc) stats[label].reproc++;
+        else          stats[label].ok++;
+        Logger.log((isReproc ? '↻ ' : '✓ ') + label + ' ' + id + ' → ' + (parsed.meta.nroFac || '?'));
       } catch(e) {
         stats[label].err++;
         Logger.log('✗ ' + label + ' ' + id + ' → ' + e.message);
@@ -3114,7 +3143,7 @@ function migrarFacturasXmlLegacy() {
   _procesar(SHEET_EGRESOS,         EGRESOS_NCOLS,  COL_E.ID,       COL_E.DRIVE_URL, COL_E.FACTURA_DATA, 'egresos');
 
   Logger.log('═══ RESUMEN MIGRACIÓN ═══');
-  Logger.log('Ingresos: ' + stats.ingresos.ok + ' parseados, ' + stats.ingresos.skip + ' saltados, ' + stats.ingresos.err + ' errores');
-  Logger.log('Egresos : ' + stats.egresos.ok  + ' parseados, ' + stats.egresos.skip  + ' saltados, ' + stats.egresos.err  + ' errores');
+  Logger.log('Ingresos: ' + stats.ingresos.ok + ' nuevos, ' + stats.ingresos.reproc + ' reprocesados, ' + stats.ingresos.skip + ' saltados, ' + stats.ingresos.err + ' errores');
+  Logger.log('Egresos : ' + stats.egresos.ok  + ' nuevos, ' + stats.egresos.reproc  + ' reprocesados, ' + stats.egresos.skip  + ' saltados, ' + stats.egresos.err  + ' errores');
   return stats;
 }
