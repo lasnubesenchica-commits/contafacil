@@ -6025,6 +6025,7 @@ function rgRenderEgr() {
       itbms:      parseFloat(e.itbms)    || 0,
       total:      parseFloat(e.total)    || 0,
       drive_url:  e.drive_url || '',
+      factura_data: e.factura_data || '',
       descripcion:e.descripcion || '',
       alcance:    e.alcance || 'negocio',
       _id:        e.id_egreso || '',
@@ -6182,7 +6183,9 @@ function rgRenderEgr() {
         </div>`;
     } else {
       const docLink = i.drive_url
-        ? `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`
+        ? (i.factura_data
+            ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaEgreso(event,'${esc(i._id)}');return false" style="font-size:.85rem;color:#1565C0;text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
+            : `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`)
         : '';
       acciones = `<div style="display:flex;gap:.5rem;align-items:center">
         ${docLink}
@@ -6478,6 +6481,28 @@ function rgVerFacturaIngreso(ev, idTrans) {
   _renderFacturaXmlModal(data);
 }
 window.rgVerFacturaIngreso = rgVerFacturaIngreso;
+
+function rgVerFacturaEgreso(ev, idEgreso) {
+  if (ev) ev.preventDefault();
+  const item = (egrItems || []).find(e => e.id_egreso === idEgreso);
+  if (!item) return;
+  const url = item.drive_url || '';
+  if (!item.factura_data) {
+    if (url) window.open(url, '_blank');
+    return;
+  }
+  let data;
+  try { data = JSON.parse(item.factura_data); }
+  catch(e) { if (url) window.open(url, '_blank'); return; }
+  data._driveUrl = url;
+  data._fileName = '';
+  const overlay = document.getElementById('factXmlOverlay');
+  const openBtn = document.getElementById('factXmlOpenBtn');
+  if (overlay) overlay.style.display = 'block';
+  if (openBtn && url) openBtn.href = url;
+  _renderFacturaXmlModal(data);
+}
+window.rgVerFacturaEgreso = rgVerFacturaEgreso;
 
 // ── Abrir modales reutilizando los existentes ─────
 function rgAbrirNuevoEgreso() {
