@@ -1526,7 +1526,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <option value="registrado">✅ Aprobados</option>
       </select>
       <select id="rgEgrAlcanceSel" onchange="rgApplyEgrAlcance(this.value,null)" class="rg-filter-sel">
-        <option value="all">Tipo: Todos</option>
+        <option value="all">Tipo de Gasto: Todos</option>
         <option value="negocio">✅ Deducible</option>
         <option value="personal">🚫 No Deducible</option>
       </select>
@@ -1541,7 +1541,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
         </div>
         <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
-        <button onclick="refreshCurrentSection()" title="Actualizar" style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.28rem .65rem;font-size:1rem;cursor:pointer;line-height:1;font-weight:700">↻</button>
+        <button id="rgRefreshBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar" style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.28rem .65rem;font-size:1rem;cursor:pointer;line-height:1;font-weight:700;transition:opacity .15s,background .15s">↻</button>
       </div>
     </div>
 
@@ -3175,7 +3175,7 @@ function buildMenu() {
   container.innerHTML =
     '<button class="main-tab active" id="tabRegistroGeneral" onclick="switchTab(&quot;registroGeneral&quot;)">📒 Registro Principal</button>' +
     '<button class="main-tab" id="tabDashboard" onclick="switchTab(&quot;dashboard&quot;)">📊 Estado de Resultados</button>' +
-    '<button class="main-tab" id="tabFinanzas" onclick="switchTab(&quot;finanzas&quot;)">💸 Gastos</button>' +
+    '<button class="main-tab" id="tabFinanzas" onclick="switchTab(&quot;finanzas&quot;)" style="display:none">💸 Gastos</button>' +
     '<div class="main-tab-group">' +
       '<button class="main-tab" id="tabContabilidad">🗂 Contabilidad <span class="main-tab-arrow">▾</span></button>' +
       '<div class="dropdown-menu">' +
@@ -3256,14 +3256,37 @@ function switchTab(tab) {
   if (isReporte)              loadReporte(tab.replace('reporte:', ''));
 }
 
-function refreshCurrentSection() {
-  if      (activeTab === 'egresos')          loadEgresos();
-  else if (activeTab === 'ingresos')         loadIngresos();
-  else if (activeTab === 'dashboard')        { plLoaded = false; loadDashboard(); }
-  else if (activeTab === 'proveedores')      loadProveedores();
-  else if (activeTab === 'registroGeneral')  rgRefresh();
-  else if (activeTab.startsWith('reporte:')) loadReporte(activeTab.replace('reporte:', ''), true);
+async function refreshCurrentSection() {
+  if      (activeTab === 'egresos')          return loadEgresos();
+  else if (activeTab === 'ingresos')         return loadIngresos();
+  else if (activeTab === 'dashboard')        { plLoaded = false; return loadDashboard(); }
+  else if (activeTab === 'proveedores')      return loadProveedores();
+  else if (activeTab === 'registroGeneral')  return rgRefresh();
+  else if (activeTab.startsWith('reporte:')) return loadReporte(activeTab.replace('reporte:', ''), true);
 }
+
+// Wrapper con feedback visual — se usa desde botones de refresh
+async function refreshCurrentSectionWithFeedback(btn) {
+  if (!btn || btn.disabled) return;
+  const origText = btn.textContent;
+  const origBg   = btn.style.background;
+  btn.disabled = true;
+  btn.style.opacity = '0.55';
+  btn.style.cursor = 'wait';
+  btn.style.background = '#90A4AE';
+  btn.textContent = '⏳';
+  const start = Date.now();
+  try { await refreshCurrentSection(); } catch(_) { /* swallow */ }
+  // Mínimo 600ms de visual aunque la carga sea instantánea
+  const elapsed = Date.now() - start;
+  if (elapsed < 600) await new Promise(r => setTimeout(r, 600 - elapsed));
+  btn.disabled = false;
+  btn.style.opacity = '';
+  btn.style.cursor = 'pointer';
+  btn.style.background = origBg || '#1565C0';
+  btn.textContent = origText;
+}
+window.refreshCurrentSectionWithFeedback = refreshCurrentSectionWithFeedback;
 
 // ══════════════════════════════════════════════════
 //  CARGAR REPORTE DINÁMICO
@@ -5793,7 +5816,12 @@ function rgRefresh() {
   egrItems = []; ingItems = [];
   _acrData = []; _acrDataLoaded = false;
   plLoaded = false;
-  rgInit();
+  rg_initialized = true;
+  const p1 = loadEgresos().then(() => { if (typeof rgRenderEgr === 'function') rgRenderEgr(); }).catch(() => {});
+  const p2 = loadIngresos().then(() => { if (typeof rgRenderIng === 'function') rgRenderIng(); }).catch(() => {});
+  const p3 = (typeof acrCargarPendientesSilencioso === 'function')
+    ? acrCargarPendientesSilencioso().catch(() => {}) : Promise.resolve();
+  return Promise.all([p1, p2, p3]);
 }
 window.rgRefresh = rgRefresh;
 
