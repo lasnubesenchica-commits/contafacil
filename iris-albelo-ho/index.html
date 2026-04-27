@@ -9247,41 +9247,36 @@ async function verificarSistema() {
   container.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted)"><div class="spinner" style="margin:0 auto .75rem"></div>Verificando...</div>';
 
   const checks = [
-    { label: 'GAS Web App',                key: 'gas' },
-    { label: 'Empresa (RUC)',              key: 'empresa' },
-    { label: 'Email Registro General',     key: 'email_rg' },
-    { label: 'Drive folder',               key: 'drive' },
-    { label: 'CLAUDE_API_KEY',             key: 'api_key' },
-    { label: 'Proveedores configurados',   key: 'proveedores' },
-    { label: 'Trigger sincronización',     key: 'trigger_sync' },
+    { label: 'GAS Web App',              key: 'gas' },
+    { label: 'Empresa',                  key: 'empresa' },
+    { label: 'Email Registro General',   key: 'email_rg' },
+    { label: 'Drive folder',             key: 'drive' },
+    { label: 'Claude API Key',           key: 'api_key' },
+    { label: 'Proveedores auto-detect',  key: 'proveedores' },
+    { label: 'Trigger sincronización',   key: 'trigger_sync' },
   ];
 
   let results = {};
   checks.forEach(c => results[c.key] = { ok: null, msg: '' });
 
   try {
-    const health = await gasJsonp('healthCheck', {});
-    results['gas'] = { ok: true, msg: health.empresa || 'OK' };
-
     const cfg = await gasJsonp('getConfig', {});
+    results['gas'] = { ok: !!cfg.success, msg: cfg.success ? 'Conectado' : 'Sin respuesta' };
     if (cfg.success) {
-      const c = cfg.config || {};
-      results['empresa']  = { ok: !!(c.empresa_ruc),
-                              msg: c.empresa_ruc ? c.empresa_nombre || c.empresa_ruc : '⚠️ RUC no configurado' };
-      results['email_rg'] = { ok: !!(c.email_op_destino && c.email_op_remitente),
-                              msg: (c.email_op_destino && c.email_op_remitente)
-                                   ? c.email_op_remitente + ' → ' + c.email_op_destino
-                                   : (c.email_comprobantes || '⚠️ Sin email — ir a Configuración') };
-      results['drive']    = { ok: !!(c.drive_folder_id),
-                              msg: c.drive_folder_id ? '✅ Configurado' : '⚠️ Sin folder ID' };
-      results['api_key']  = { ok: true, msg: '✅ Configurada' };
-
+      const c    = cfg.config || {};
+      const nomb = c.empresa_nombre || '';
+      const ruc  = c.empresa_ruc    || '';
+      results['empresa']  = { ok: !!ruc,
+                              msg: nomb && ruc ? nomb + ' (' + ruc + ')' : (ruc || '⚠️ Sin RUC') };
+      results['email_rg'] = { ok: !!c.email_op_destino,
+                              msg: c.email_op_destino
+                                   ? (c.email_op_remitente ? c.email_op_remitente + ' → ' + c.email_op_destino : c.email_op_destino)
+                                   : '⚠️ Sin email' };
+      results['drive']    = { ok: !!c.drive_folder_id,
+                              msg: c.drive_folder_id ? 'Configurado' : '⚠️ Sin folder' };
+      results['api_key']  = { ok: true, msg: 'Configurada' };
       const provs = cfg.proveedores || [];
-      const activos = provs.filter(p => p.activo).length;
-      results['proveedores'] = { ok: activos > 0,
-                                 msg: activos > 0 ? activos + ' activo(s) de ' + provs.length : '⚠️ Sin proveedores activos' };
-    } else {
-      results['config'] = { ok: false, msg: cfg.error || 'No encontrada' };
+      results['proveedores'] = { ok: true, msg: provs.length + ' proveedor(es)' };
     }
   } catch(err) {
     results['gas'] = { ok: false, msg: err.message };
@@ -9293,10 +9288,10 @@ async function verificarSistema() {
       gasJsonp('estadoTriggerOp', {}).then(resolve).catch(() => resolve({ activo: false }));
     });
     results['trigger_sync'] = {
-      ok: tSync.activo,
+      ok: !!tSync.activo,
       msg: tSync.activo
-        ? '✅ Activo' + (tSync.ultimo_run ? ' · Último run: ' + tSync.ultimo_run : '')
-        : '⚠️ Inactivo — correr installSyncTrigger() en el editor GAS'
+        ? 'Activo' + (tSync.ultimo_run ? ' · ' + tSync.ultimo_run : '')
+        : '⚠️ Inactivo — correr installSyncTrigger() en GAS'
     };
   } catch(e) {
     results['trigger_sync'] = { ok: false, msg: 'No verificado' };
