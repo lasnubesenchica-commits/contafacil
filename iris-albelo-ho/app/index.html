@@ -589,6 +589,7 @@ select.f-inp { appearance:none; }
 .reg-d-row-main{ min-width:0; }
 .reg-d-row-title{ font-size:.78rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .reg-d-row-meta{ font-size:.65rem;color:var(--muted);margin-top:.15rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap; }
+.reg-d-row-badges{ margin-top:.28rem;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap; }
 .reg-d-row-amt{ font-family:'DM Mono',monospace;font-weight:700;font-size:.85rem;text-align:right; }
 .reg-d-row-amt.egr{ color:#C62828; }
 .reg-d-row-amt.ing{ color:#2E7D32; }
@@ -805,7 +806,6 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
     </div>
     <div class="header-right">
       <button class="hdr-btn" id="btnRefresh" onclick="doRefresh()" title="Actualizar">↻</button>
-      <button class="hdr-btn" onclick="CFG_PANEL.open()" title="Configuración" style="font-size:.8rem">⚙</button>
     </div>
   </header>
 
@@ -1104,8 +1104,8 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
     <button class="nav-item" id="nav-pl" onclick="switchView('pl')">
       <span class="nav-icon">📊</span><span>P&amp;L</span><span class="nav-pip"></span>
     </button>
-    <button class="nav-item" id="nav-gas" onclick="switchView('gastos')">
-      <span class="nav-icon">💸</span><span>Gastos</span><span class="nav-pip"></span>
+    <button class="nav-item" id="nav-cfg" onclick="CFG_PANEL.open()">
+      <span class="nav-icon">⚙</span><span>Config</span><span class="nav-pip"></span>
     </button>
   </nav>
 
@@ -1142,10 +1142,12 @@ document.addEventListener('DOMContentLoaded', () => {
 let currentView = '';
 function switchView(v) {
   currentView = v;
-  ['viewPL','viewRegistros','viewGastos'].forEach(id => document.getElementById(id).style.display = 'none');
-  document.getElementById({ pl:'viewPL', registros:'viewRegistros', gastos:'viewGastos' }[v]).style.display = 'block';
-  ['nav-pl','nav-reg','nav-gas'].forEach(id => document.getElementById(id).classList.remove('active'));
-  document.getElementById({ pl:'nav-pl', registros:'nav-reg', gastos:'nav-gas' }[v]).classList.add('active');
+  ['viewPL','viewRegistros','viewGastos'].forEach(id => { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  var target = document.getElementById({ pl:'viewPL', registros:'viewRegistros', gastos:'viewGastos' }[v]);
+  if (target) target.style.display = 'block';
+  ['nav-pl','nav-reg'].forEach(id => { var el = document.getElementById(id); if (el) el.classList.remove('active'); });
+  var navTarget = document.getElementById({ pl:'nav-pl', registros:'nav-reg' }[v]);
+  if (navTarget) navTarget.classList.add('active');
   if (v === 'pl' && !PL.loaded) PL.load();
   if (v === 'registros') {
     if (!PEND.loaded) PEND.load();
@@ -2216,7 +2218,7 @@ const REGD = (() => {
         ? '<span class="reg-d-badge-est reg">✅ Aprob.</span>'
         : '';
     const alcBadge = alc === 'personal'
-      ? '<span class="reg-d-badge-alc pers">🚫 Pers.</span>'
+      ? '<span class="reg-d-badge-alc pers">🚫 No Ded.</span>'
       : '<span class="reg-d-badge-alc neg">✅ Ded.</span>';
     return `<div class="reg-d-row">
       <div class="reg-d-row-main">
@@ -2224,7 +2226,9 @@ const REGD = (() => {
         <div class="reg-d-row-meta">
           <span>${fecha}</span>
           <span>·</span>
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${esc(cat)}">${esc(cat)}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px" title="${esc(cat)}">${esc(cat)}</span>
+        </div>
+        <div class="reg-d-row-badges">
           ${estBadge}
           ${alcBadge}
         </div>
@@ -3592,20 +3596,20 @@ const PEND = (() => {
 
     <!-- Tabs de configuración -->
     <div id="cfgTabBar" style="
-      display:flex; overflow-x:auto; gap:0;
+      display:flex; gap:0;
       border-bottom:1px solid var(--border);
       background:var(--surface);
-      scrollbar-width:none; -webkit-overflow-scrolling:touch;
-      flex-shrink:0; min-height:0;
+      flex-shrink:0;
     ">
       <style>
-        #cfgTabBar::-webkit-scrollbar { display:none; }
         .cfg-tab {
-          flex-shrink:0; padding:.62rem .9rem;
-          font-size:.72rem; font-weight:600; color:var(--muted);
-          letter-spacing:.03em; border-bottom:2px solid transparent;
+          flex:1; min-width:0; padding:.6rem .25rem; text-align:center;
+          font-size:.68rem; font-weight:600; color:var(--muted);
+          letter-spacing:.02em; border-bottom:2px solid transparent;
           background:none; border-top:none; border-left:none; border-right:none;
-          transition:color .15s, border-color .15s; white-space:nowrap;
+          transition:color .15s, border-color .15s;
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+          cursor:pointer;
         }
         .cfg-tab.active { color:var(--orange); border-bottom-color:var(--orange); }
         /* ── Panels ── */
