@@ -416,6 +416,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
   transition:background .12s;
 }
 .rg-chart-row:hover{background:var(--bg2)}
+.rg-chart-row.active{background:var(--bg2);box-shadow:inset 3px 0 0 var(--orange)}
+.rg-chart-row.active .rg-chart-bar{box-shadow:0 0 0 1px rgba(0,0,0,.08)}
 .rg-chart-lbl{
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);
 }
@@ -5775,19 +5777,22 @@ window.rgShowTab = rgShowTab;
 
 // ── Filtros ───────────────────────────────────────
 function rgApplyEgrFilter(btn, filter) {
-  rg_egr_filter = filter || 'all';
+  const want = filter || 'all';
+  rg_egr_filter = (rg_egr_filter === want && want !== 'all') ? 'all' : want;
   var sel = document.getElementById('rgEgrCatSel');
   if (sel) sel.value = rg_egr_filter;
   rgRenderEgr();
 }
 function rgApplyEgrEstado(btn, estado) {
-  rg_egr_estado = estado || 'all';
+  const want = estado || 'all';
+  rg_egr_estado = (rg_egr_estado === want && want !== 'all') ? 'all' : want;
   var sel = document.getElementById('rgEgrEstadoSel');
   if (sel) sel.value = rg_egr_estado;
   rgRenderEgr();
 }
 function rgApplyEgrAlcance(val, btn) {
-  rg_egr_alcance = val || 'all';
+  const want = val || 'all';
+  rg_egr_alcance = (rg_egr_alcance === want && want !== 'all') ? 'all' : want;
   var sel = document.getElementById('rgEgrAlcanceSel');
   if (sel) sel.value = rg_egr_alcance;
   rgRenderEgr();
@@ -6151,15 +6156,15 @@ function rgRenderEgr() {
   if (wEl) {
     wEl.style.gridTemplateColumns = 'repeat(6,1fr)';
     wEl.innerHTML = [
-      { label:'Pendientes',   val: nPendFilt || '—', color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyEgrEstado(null,'pendiente')" },
-      { label:'Aprobados',    val: nRegFilt  || '—', color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyEgrEstado(null,'registrado')" },
-      { label:'Deducible',     val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'✅', click:"rgApplyEgrAlcance('negocio',null)" },
-      { label:'No Deducible',  val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'🚫', click:"rgApplyEgrAlcance('personal',null)" },
-      { label:'Total gastado',val: fmt$(totFilt),    color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', click:'' },
-      { label:'ITBMS pagado', val: fmt$(itbFilt),    color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:'' },
-    ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}">`+
+      { label:'Pendientes',   val: nPendFilt || '—', color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyEgrEstado(null,'pendiente')",  active: rg_egr_estado === 'pendiente'  },
+      { label:'Aprobados',    val: nRegFilt  || '—', color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyEgrEstado(null,'registrado')", active: rg_egr_estado === 'registrado' },
+      { label:'Deducible',     val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'✅', click:"rgApplyEgrAlcance('negocio',null)",  active: rg_egr_alcance === 'negocio'   },
+      { label:'No Deducible',  val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'🚫', click:"rgApplyEgrAlcance('personal',null)", active: rg_egr_alcance === 'personal'  },
+      { label:'Total gastado',val: fmt$(totFilt),    color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', click:'', active: false },
+      { label:'ITBMS pagado', val: fmt$(itbFilt),    color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:'', active: false },
+    ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}border:2px solid ${w.active ? w.color : 'transparent'};transition:border-color .15s">`+
       `<div style="font-size:1.3rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
-      `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}</div>`+
+      `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}${w.active ? ' ●' : ''}</div>`+
       `</div>`).join('');
   }
 
@@ -6282,7 +6287,8 @@ function rgRenderEgr() {
 
 // ── Acreedor filter ───────────────────────────────────────────
 function rgSetAcreedor(nom) {
-  _rgEgrAcreedor = nom || 'TODOS';
+  const want = nom || 'TODOS';
+  _rgEgrAcreedor = (_rgEgrAcreedor === want && want !== 'TODOS') ? 'TODOS' : want;
   _rgEgrSel.clear();
   var sel = document.getElementById('rgEgrProvSel');
   if (sel) sel.value = _rgEgrAcreedor;
@@ -6341,8 +6347,10 @@ function rgRenderEgrCharts(items) {
       body += sorted.map(c => {
         const lbl = (RG_EGR_CAT_LABELS[c] || c);
         const pct = max > 0 ? Math.max(2, (totals[c] / max) * 100) : 0;
-        return `<div class="rg-chart-row" onclick="rgApplyEgrFilter(null,'${c.replace(/'/g,"\\'")}')" title="${esc(lbl)}">`
-          + `<div class="rg-chart-lbl">${esc(lbl)}</div>`
+        const isActive = rg_egr_filter === c;
+        const dot = isActive ? '<span style="color:var(--orange);font-weight:700">●</span> ' : '';
+        return `<div class="rg-chart-row${isActive ? ' active' : ''}" onclick="rgApplyEgrFilter(null,'${c.replace(/'/g,"\\'")}')" title="${esc(lbl)}${isActive ? ' — click para quitar filtro' : ''}">`
+          + `<div class="rg-chart-lbl">${dot}${esc(lbl)}</div>`
           + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar" style="width:${pct.toFixed(1)}%"></div></div>`
           + `<div class="rg-chart-val">${fmt$(totals[c])}</div></div>`;
       }).join('');
@@ -6367,8 +6375,10 @@ function rgRenderEgrCharts(items) {
     } else {
       body += sorted.map(p => {
         const pct = max > 0 ? Math.max(2, (totals[p] / max) * 100) : 0;
-        return `<div class="rg-chart-row" onclick="rgSetAcreedor('${p.replace(/'/g,"\\'")}')" title="${esc(p)}">`
-          + `<div class="rg-chart-lbl">${esc(p)}</div>`
+        const isActive = _rgEgrAcreedor === p;
+        const dot = isActive ? '<span style="color:#1565C0;font-weight:700">●</span> ' : '';
+        return `<div class="rg-chart-row${isActive ? ' active' : ''}" onclick="rgSetAcreedor('${p.replace(/'/g,"\\'")}')" title="${esc(p)}${isActive ? ' — click para quitar filtro' : ''}">`
+          + `<div class="rg-chart-lbl">${dot}${esc(p)}</div>`
           + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar prov" style="width:${pct.toFixed(1)}%"></div></div>`
           + `<div class="rg-chart-val">${fmt$(totals[p])}</div></div>`;
       }).join('');
