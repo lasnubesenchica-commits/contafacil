@@ -995,7 +995,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <div class="reg-d-accord-detail" id="reg-d-cats-detail"></div>
 
         <div class="reg-d-accord" id="reg-d-accord-provs" onclick="REGD.toggleAccord('provs')">
-          <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span>Top proveedores</span>
+          <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span><span id="reg-d-provs-title">Top proveedores</span></span>
           <span class="reg-d-accord-val" id="reg-d-provs-summary">—</span>
         </div>
         <div class="reg-d-accord-detail" id="reg-d-provs-detail"></div>
@@ -2148,6 +2148,8 @@ const REGD = (() => {
   function _renderTopProvs(items) {
     const det = document.getElementById('reg-d-provs-detail');
     const sum = document.getElementById('reg-d-provs-summary');
+    const ttl = document.getElementById('reg-d-provs-title');
+    if (ttl) ttl.textContent = tipo === 'egr' ? 'Top proveedores' : 'Top clientes';
     const totals = {};
     items.forEach(it => {
       const k = (tipo === 'egr')
@@ -3583,10 +3585,10 @@ const PEND = (() => {
      PANEL DE CONFIGURACIÓN — sheet de pantalla completa
 ════════════════════════════════════════════════════════ -->
 <div class="overlay" id="mConfig">
-  <div class="sheet" style="max-height:100dvh;max-height:100vh;grid-template-rows:auto auto 1fr;height:92dvh;height:92vh">
+  <div class="sheet" style="display:flex;flex-direction:column;max-height:100dvh;max-height:100vh;height:92dvh;height:92vh">
 
     <!-- Cabecera fija -->
-    <div class="sheet-top">
+    <div class="sheet-top" style="flex-shrink:0">
       <div class="sheet-handle"></div>
       <div class="sheet-hdr">
         <span class="sheet-title">⚙ Configuración</span>
@@ -3594,12 +3596,12 @@ const PEND = (() => {
       </div>
     </div>
 
-    <!-- Tabs de configuración -->
+    <!-- Tabs de configuración (sticky arriba) -->
     <div id="cfgTabBar" style="
       display:flex; gap:0;
       border-bottom:1px solid var(--border);
       background:var(--surface);
-      flex-shrink:0;
+      flex-shrink:0; flex-grow:0;
     ">
       <style>
         .cfg-tab {
@@ -3686,7 +3688,7 @@ const PEND = (() => {
     </div>
 
     <!-- Cuerpo scrolleable -->
-    <div class="sheet-body" style="background:var(--bg);min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">
+    <div class="sheet-body" style="background:var(--bg);flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">
 
       <!-- ── EMPRESA ── -->
       <div class="cfg-panel active" id="cfgPanelEmpresa">
