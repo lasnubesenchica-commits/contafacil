@@ -3587,8 +3587,8 @@ const PEND = (() => {
 <div class="overlay" id="mConfig">
   <div class="sheet" style="display:flex;flex-direction:column;max-height:100dvh;max-height:100vh;height:92dvh;height:92vh">
 
-    <!-- Cabecera fija -->
-    <div class="sheet-top" style="flex-shrink:0">
+    <!-- Cabecera fija (override sticky/z-index global para evitar overlap con los tabs en iOS Safari) -->
+    <div class="sheet-top" style="flex-shrink:0;position:relative;z-index:1">
       <div class="sheet-handle"></div>
       <div class="sheet-hdr">
         <span class="sheet-title">⚙ Configuración</span>
@@ -3596,22 +3596,25 @@ const PEND = (() => {
       </div>
     </div>
 
-    <!-- Tabs de configuración (sticky arriba) -->
+    <!-- Tabs de configuración -->
     <div id="cfgTabBar" style="
       display:flex; gap:0;
       border-bottom:1px solid var(--border);
       background:var(--surface);
       flex-shrink:0; flex-grow:0;
+      position:relative; z-index:1;
+      min-height:38px;
     ">
       <style>
         .cfg-tab {
-          flex:1; min-width:0; padding:.6rem .25rem; text-align:center;
+          flex:1; min-width:0; padding:.55rem .25rem; text-align:center;
           font-size:.68rem; font-weight:600; color:var(--muted);
           letter-spacing:.02em; border-bottom:2px solid transparent;
           background:none; border-top:none; border-left:none; border-right:none;
           transition:color .15s, border-color .15s;
           overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-          cursor:pointer;
+          line-height:1.3; cursor:pointer;
+          display:flex; align-items:center; justify-content:center;
         }
         .cfg-tab.active { color:var(--orange); border-bottom-color:var(--orange); }
         /* ── Panels ── */
