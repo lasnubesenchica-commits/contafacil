@@ -4510,8 +4510,7 @@ const CFG_PANEL = (() => {
     const checks = [
       { label:'GAS Web App',              key:'gas' },
       { label:'Empresa (RUC)',            key:'empresa' },
-      { label:'Email Comercialización',   key:'email_op' },
-      { label:'Email Proyectos',          key:'email_st' },
+      { label:'Email Registro General',   key:'email_rg' },
       { label:'Drive folder',             key:'drive' },
       { label:'CLAUDE_API_KEY',           key:'api_key' },
       { label:'Proveedores configurados', key:'proveedores' },
@@ -4522,8 +4521,7 @@ const CFG_PANEL = (() => {
       const c    = data.config || {};
       results.gas        = { ok: data.success,           msg: data.success ? 'Conectado' : 'Sin respuesta' };
       results.empresa    = { ok: !!(c.empresa_ruc),      msg: c.empresa_ruc    ? c.empresa_ruc    : 'No configurado' };
-      results.email_op   = { ok: !!(c.email_op_destino), msg: c.email_op_destino  || 'No configurado' };
-      results.email_st   = { ok: !!(c.email_st_destino), msg: c.email_st_destino  || 'No configurado' };
+      results.email_rg   = { ok: !!(c.email_op_destino), msg: c.email_op_destino  || 'No configurado' };
       results.drive      = { ok: !!(c.drive_folder_id),  msg: c.drive_folder_id   ? 'Configurado' : 'No configurado' };
       results.api_key    = { ok: !!(c.api_key_ok),       msg: c.api_key_ok        ? 'OK' : 'No verificado' };
       results.proveedores= { ok: (c.num_proveedores||0)>0, msg: (c.num_proveedores||0) + ' proveedor(es)' };
