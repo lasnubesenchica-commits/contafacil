@@ -514,6 +514,111 @@ select.f-inp { appearance:none; }
   background:var(--indigo); color:#fff;
   box-shadow:0 1px 4px rgba(26,35,126,.35);
 }
+
+/* ── Toggle Simple/Detallada en Registros ── */
+.reg-view-btn{
+  padding:.26rem .68rem;border-radius:100px;border:0;background:transparent;
+  font-size:.66rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.reg-view-btn.active{ background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1); }
+
+/* ── Vista detallada de Registros ── */
+.reg-mini-btn{
+  padding:.55rem .6rem;border-radius:var(--r);border:1px solid var(--border);
+  font-size:.74rem;font-weight:700;cursor:pointer;background:var(--surface);
+  color:var(--text);text-align:center;
+}
+.reg-mini-btn-egr{ background:linear-gradient(135deg,#FFF3E0 0%,#FFE0B2 100%);border-color:#FFCC80 }
+.reg-mini-btn-ing{ background:linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 100%);border-color:#A5D6A7 }
+.reg-d-widgets{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;
+  padding:.25rem .85rem;
+}
+.reg-d-w{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:.45rem .55rem;text-align:center;cursor:pointer;transition:all .12s;
+}
+.reg-d-w.active{ box-shadow:inset 0 0 0 2px var(--indigo); }
+.reg-d-w-val{ font-family:'Bebas Neue',sans-serif;font-size:1.1rem;line-height:1;color:var(--text); }
+.reg-d-w-lbl{ font-size:.6rem;color:var(--muted);margin-top:.18rem;letter-spacing:.04em;text-transform:uppercase; }
+.reg-d-sel{
+  font-size:.72rem;padding:.36rem .5rem;border:1px solid var(--border);
+  border-radius:var(--r);background:var(--surface);color:var(--text);
+  outline:none;font-family:inherit;width:100%;cursor:pointer;
+}
+.reg-d-tabs{
+  display:flex;gap:.3rem;padding:.35rem .85rem .25rem;
+}
+.reg-d-tab{
+  flex:1;padding:.42rem .5rem;border-radius:100px;border:1px solid var(--border);
+  background:var(--surface);color:var(--muted);font-size:.74rem;font-weight:700;
+  cursor:pointer;transition:all .12s;
+}
+.reg-d-tab.active{ background:var(--indigo);color:#fff;border-color:var(--indigo); }
+.reg-d-accord{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.5rem .85rem;border-top:1px solid var(--border);
+  font-size:.78rem;cursor:pointer;user-select:none;
+}
+.reg-d-accord-lbl{ display:flex;align-items:center;gap:.4rem;color:var(--text); }
+.reg-d-accord-val{ font-size:.7rem;color:var(--muted);font-family:'DM Mono',monospace; }
+.reg-d-accord-chev{ display:inline-block;font-size:.65rem;transition:transform .15s;color:var(--muted); }
+.reg-d-accord.open .reg-d-accord-chev{ transform:rotate(90deg); }
+.reg-d-accord-detail{ display:none;padding:0 .85rem .25rem;background:var(--bg) }
+.reg-d-accord-detail.open{ display:block; }
+.reg-d-accord-row{
+  display:grid;grid-template-columns:1fr 56px;gap:.5rem;padding:.3rem .25rem;
+  font-size:.7rem;border-bottom:1px solid var(--border);
+}
+.reg-d-accord-row:last-child{ border-bottom:none; }
+.reg-d-accord-bar-wrap{ background:var(--bg2);border-radius:3px;height:5px;margin-top:.18rem;overflow:hidden; }
+.reg-d-accord-bar{ background:linear-gradient(90deg,#FFB74D 0%,var(--orange) 100%);height:100%;border-radius:3px; }
+.reg-d-accord-bar.prov{ background:linear-gradient(90deg,#90CAF9 0%,var(--indigo) 100%); }
+.reg-d-accord-val-num{ font-family:'DM Mono',monospace;font-weight:700;text-align:right;color:#1B5E20;font-size:.7rem; }
+.reg-d-refresh{
+  background:var(--indigo);color:#fff;border:none;border-radius:8px;
+  padding:.22rem .55rem;font-size:.85rem;cursor:pointer;line-height:1;font-weight:700;
+  transition:opacity .15s,background .15s;
+}
+.reg-d-row{
+  display:grid;grid-template-columns:1fr auto;gap:.55rem;align-items:center;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:.55rem .65rem;
+}
+.reg-d-row-main{ min-width:0; }
+.reg-d-row-title{ font-size:.78rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.reg-d-row-meta{ font-size:.65rem;color:var(--muted);margin-top:.15rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap; }
+.reg-d-row-amt{ font-family:'DM Mono',monospace;font-weight:700;font-size:.85rem;text-align:right; }
+.reg-d-row-amt.egr{ color:#C62828; }
+.reg-d-row-amt.ing{ color:#2E7D32; }
+.reg-d-row-actions{ display:flex;gap:.25rem;margin-top:.3rem;justify-content:flex-end; }
+.reg-d-row-actions .ic-btn{
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:.22rem .42rem;font-size:.72rem;cursor:pointer;line-height:1;
+}
+.reg-d-row-actions .ic-btn.edit{ color:#1565C0;border-color:#BBDEFB; }
+.reg-d-row-actions .ic-btn.del{  color:#B71C1C;border-color:#FFCDD2; }
+.reg-d-empty{ padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.75rem; }
+.reg-d-badge-est{ font-size:.6rem;font-weight:700;padding:.06rem .35rem;border-radius:4px; }
+.reg-d-badge-est.pend{ background:#FFF9C4;color:#795548; }
+.reg-d-badge-est.reg{  background:#E8F5E9;color:#1B5E20; }
+.reg-d-badge-alc{ font-size:.6rem;font-weight:700;padding:.06rem .35rem;border-radius:4px; }
+.reg-d-badge-alc.neg{ background:#E8F5E9;color:#1B5E20; }
+.reg-d-badge-alc.pers{ background:#FBE9E7;color:#BF360C; }
+
+/* ── Visor XML factura ── */
+.xmlv-section{ background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .75rem;margin-bottom:.45rem; }
+.xmlv-h{ font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:.25rem; }
+.xmlv-name{ font-size:.85rem;font-weight:700;color:var(--text); }
+.xmlv-meta{ font-size:.7rem;color:var(--muted);margin-top:.12rem; }
+.xmlv-item{ padding:.4rem 0;border-bottom:1px solid var(--border); }
+.xmlv-item:last-child{ border-bottom:none; }
+.xmlv-item-desc{ font-size:.74rem;color:var(--text);margin-bottom:.18rem; }
+.xmlv-item-meta{ display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);font-family:'DM Mono',monospace; }
+.xmlv-totales{ background:var(--bg2);border-radius:var(--r);padding:.55rem .75rem;margin-top:.5rem; }
+.xmlv-tot-row{ display:flex;justify-content:space-between;font-size:.74rem;padding:.18rem 0;font-family:'DM Mono',monospace; }
+.xmlv-tot-row.total{ border-top:1px solid var(--border);margin-top:.18rem;padding-top:.4rem;font-size:.92rem;font-weight:700;color:var(--text); }
 .pl-ytd-badge {
   font-family:'DM Mono',monospace; font-size:.58rem; font-weight:700;
   letter-spacing:.07em; text-transform:uppercase;
@@ -792,11 +897,19 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 
     <!-- REGISTROS -->
     <div id="viewRegistros" style="display:none">
-      <div style="padding:.85rem .85rem .38rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem">Ingresos y gastos · desde cámara o galería</div>
+      <div style="padding:.85rem .85rem .38rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem" id="reg-subtitle">Ingresos y gastos · desde cámara o galería</div>
+        </div>
+        <div class="reg-view-toggle" style="display:flex;background:var(--bg2);border-radius:100px;padding:2px;flex-shrink:0">
+          <button class="reg-view-btn active" id="reg-view-simple" onclick="REGVIEW.set('simple')">Simple</button>
+          <button class="reg-view-btn"        id="reg-view-detalle" onclick="REGVIEW.set('detalle')">Detallada</button>
+        </div>
       </div>
 
+      <!-- ═══════════ VISTA SIMPLE (default) ═══════════ -->
+      <div id="reg-simple-body">
       <!-- Botones de registro (arriba) -->
       <div style="padding:.38rem .85rem .2rem">
         <button class="reg-btn reg-btn-egr" onclick="REG.openEgreso()">
@@ -841,8 +954,64 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <div class="card-list" id="pend-list" style="padding-top:0"></div>
       </div>
       <!-- ───────────────────────────────────── -->
+      </div><!-- /reg-simple-body -->
 
-    </div>
+      <!-- ═══════════ VISTA DETALLADA ═══════════ -->
+      <div id="reg-detalle-body" style="display:none">
+        <!-- Quick action buttons (compactos) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.38rem .85rem .25rem">
+          <button class="reg-mini-btn reg-mini-btn-egr" onclick="REG.openEgreso()">📤 Registrar gasto</button>
+          <button class="reg-mini-btn reg-mini-btn-ing" onclick="REG.openIngreso()">💰 Registrar ingreso</button>
+        </div>
+
+        <!-- Mini-widgets -->
+        <div class="reg-d-widgets" id="reg-d-widgets"></div>
+
+        <!-- Filtros -->
+        <div style="padding:.25rem .85rem .35rem;display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
+          <select id="reg-d-estado" class="reg-d-sel" onchange="REGD.setEstado(this.value)">
+            <option value="all">Estado: Todos</option>
+            <option value="pendiente">⏳ Pendientes</option>
+            <option value="registrado">✅ Aprobados</option>
+          </select>
+          <select id="reg-d-alcance" class="reg-d-sel" onchange="REGD.setAlcance(this.value)">
+            <option value="all">Tipo: Todos</option>
+            <option value="negocio">✅ Deducible</option>
+            <option value="personal">🚫 No Deducible</option>
+          </select>
+        </div>
+
+        <!-- Toggle Egresos | Ingresos -->
+        <div class="reg-d-tabs">
+          <button class="reg-d-tab active" id="reg-d-tab-egr" onclick="REGD.setTipo('egr')">Gastos <span id="reg-d-tab-egr-n"></span></button>
+          <button class="reg-d-tab"        id="reg-d-tab-ing" onclick="REGD.setTipo('ing')">Ingresos <span id="reg-d-tab-ing-n"></span></button>
+        </div>
+
+        <!-- Top categorías / proveedores (accordion compacto) -->
+        <div class="reg-d-accord" id="reg-d-accord-cats" onclick="REGD.toggleAccord('cats')">
+          <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span>Top categorías</span>
+          <span class="reg-d-accord-val" id="reg-d-cats-summary">—</span>
+        </div>
+        <div class="reg-d-accord-detail" id="reg-d-cats-detail"></div>
+
+        <div class="reg-d-accord" id="reg-d-accord-provs" onclick="REGD.toggleAccord('provs')">
+          <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span>Top proveedores</span>
+          <span class="reg-d-accord-val" id="reg-d-provs-summary">—</span>
+        </div>
+        <div class="reg-d-accord-detail" id="reg-d-provs-detail"></div>
+
+        <!-- Lista de registros -->
+        <div style="padding:.55rem .85rem .18rem;display:flex;align-items:center;gap:.4rem;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:.4rem">
+            <span class="sec-lbl" style="padding:0">Registros</span>
+            <span class="sec-cnt" id="reg-d-list-n">0</span>
+          </div>
+          <button onclick="REGD.refresh(this)" class="reg-d-refresh" id="reg-d-refresh" title="Actualizar">↻</button>
+        </div>
+        <div id="reg-d-list" class="tx-list"></div>
+      </div><!-- /reg-detalle-body -->
+
+    </div><!-- /viewRegistros -->
 
     <!-- GASTOS DASHBOARD -->
     <div id="viewGastos" style="display:none">
@@ -955,6 +1124,7 @@ function doLogin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   switchView('registros');
+  if (typeof REGVIEW !== 'undefined') REGVIEW.init();
   loadAll();
 }
 document.addEventListener('DOMContentLoaded', () => {
@@ -977,7 +1147,10 @@ function switchView(v) {
   ['nav-pl','nav-reg','nav-gas'].forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById({ pl:'nav-pl', registros:'nav-reg', gastos:'nav-gas' }[v]).classList.add('active');
   if (v === 'pl' && !PL.loaded) PL.load();
-  if (v === 'registros' && !PEND.loaded) PEND.load();
+  if (v === 'registros') {
+    if (!PEND.loaded) PEND.load();
+    if (typeof REGVIEW !== 'undefined') REGVIEW.init();
+  }
   if (v === 'gastos') GAS.onEnter();
 }
 
@@ -1762,6 +1935,465 @@ const GAS = (() => {
 })();
 
 
+// ════════════════════════════════════════════════════════
+//  MÓDULO REGVIEW — Toggle Simple|Detallada en Registros
+// ════════════════════════════════════════════════════════
+const REGVIEW = (() => {
+  const KEY = 'iris_reg_view';
+  let mode = (function(){ try { return localStorage.getItem(KEY) || 'simple'; } catch(_){ return 'simple'; } })();
+
+  function _apply() {
+    const isDet = mode === 'detalle';
+    document.getElementById('reg-simple-body').style.display  = isDet ? 'none' : '';
+    document.getElementById('reg-detalle-body').style.display = isDet ? '' : 'none';
+    document.getElementById('reg-view-simple').classList.toggle('active', !isDet);
+    document.getElementById('reg-view-detalle').classList.toggle('active', isDet);
+    const sub = document.getElementById('reg-subtitle');
+    if (sub) sub.textContent = isDet
+      ? 'Vista detallada · todos los registros'
+      : 'Ingresos y gastos · desde cámara o galería';
+    if (isDet && typeof REGD !== 'undefined') REGD.onEnter();
+  }
+  function set(v) {
+    mode = v;
+    try { localStorage.setItem(KEY, v); } catch(_){}
+    _apply();
+  }
+  function get() { return mode; }
+  function init() { _apply(); }
+  return { set, get, init };
+})();
+
+
+// ════════════════════════════════════════════════════════
+//  MÓDULO REGD — Vista Detallada de Registros
+//  Carga getEgresos + getIngresos, renderiza widgets, filtros,
+//  toggle tabs, accordeones de top cats/provs, lista con acciones.
+// ════════════════════════════════════════════════════════
+const REGD = (() => {
+  let egr = [], ing = [];
+  let _loaded = false;
+  let tipo    = 'egr';     // 'egr' | 'ing'
+  let estado  = 'all';     // 'all' | 'pendiente' | 'registrado'  (egr only — ingresos no usan esto)
+  let alcance = 'all';     // 'all' | 'negocio' | 'personal'      (egr only)
+  let _accordOpen = { cats: false, provs: false };
+
+  // ── Categorías DGI label ────────────────────────────────────
+  function _catLabel(val) {
+    if (!val) return '—';
+    return dgiLabel(val);  // helper global ya existente
+  }
+
+  // ── Carga de datos ──────────────────────────────────────────
+  async function load() {
+    try {
+      const [eR, iR] = await Promise.all([
+        jsonpGet('getEgresos'),
+        jsonpGet('getIngresos'),
+      ]);
+      egr = (eR && eR.items) ? eR.items.filter(e => String(e.estado||'').toLowerCase() !== 'anulado') : [];
+      ing = (iR && iR.items) ? iR.items.filter(i => String(i.estado||'').toLowerCase() !== 'anulado') : [];
+      _loaded = true;
+    } catch(e) {
+      toast('Error al cargar: ' + e.message, 'err');
+    }
+  }
+
+  function onEnter() {
+    if (!_loaded) {
+      _showLoading();
+      load().then(renderAll);
+    } else {
+      renderAll();
+    }
+  }
+  function _showLoading() {
+    const list = document.getElementById('reg-d-list');
+    if (list) list.innerHTML = '<div class="reg-d-empty">⏳ Cargando…</div>';
+  }
+  async function refresh(btn) {
+    if (btn) {
+      btn.disabled = true; btn.style.opacity = '.55'; btn.style.background = '#90A4AE'; btn.textContent = '⏳';
+    }
+    _loaded = false;
+    const start = Date.now();
+    await load();
+    const elapsed = Date.now() - start;
+    if (elapsed < 600) await new Promise(r => setTimeout(r, 600 - elapsed));
+    renderAll();
+    if (btn) {
+      btn.disabled = false; btn.style.opacity = ''; btn.style.background = ''; btn.textContent = '↻';
+    }
+  }
+
+  // ── Filtros aplicados al set egr ────────────────────────────
+  function _filteredEgr() {
+    let out = egr.slice();
+    if (estado === 'pendiente')  out = out.filter(e => String(e.estado||'').toLowerCase() === 'pendiente');
+    if (estado === 'registrado') out = out.filter(e => String(e.estado||'').toLowerCase() === 'registrado');
+    if (alcance !== 'all')       out = out.filter(e => (e.alcance || 'negocio') === alcance);
+    return out;
+  }
+  function _filteredIng() {
+    return ing.slice();   // ingresos no tienen estado/alcance editable en este flujo
+  }
+
+  // ── Setters de filtros (con toggle por click repetido) ─────
+  function setEstado(v) {
+    const want = v || 'all';
+    estado = (estado === want && want !== 'all') ? 'all' : want;
+    const sel = document.getElementById('reg-d-estado'); if (sel) sel.value = estado;
+    renderAll();
+  }
+  function setAlcance(v) {
+    const want = v || 'all';
+    alcance = (alcance === want && want !== 'all') ? 'all' : want;
+    const sel = document.getElementById('reg-d-alcance'); if (sel) sel.value = alcance;
+    renderAll();
+  }
+  function setTipo(v) {
+    tipo = v;
+    document.getElementById('reg-d-tab-egr').classList.toggle('active', v === 'egr');
+    document.getElementById('reg-d-tab-ing').classList.toggle('active', v === 'ing');
+    renderAll();
+  }
+  function toggleAccord(k) {
+    _accordOpen[k] = !_accordOpen[k];
+    const row = document.getElementById('reg-d-accord-' + k);
+    const det = document.getElementById('reg-d-' + k + '-detail');
+    if (row) row.classList.toggle('open', _accordOpen[k]);
+    if (det) det.classList.toggle('open', _accordOpen[k]);
+  }
+
+  // ── Render ──────────────────────────────────────────────────
+  function renderAll() {
+    const fEgr = _filteredEgr();
+    const fIng = _filteredIng();
+
+    document.getElementById('reg-d-tab-egr-n').textContent = '(' + egr.length + ')';
+    document.getElementById('reg-d-tab-ing-n').textContent = '(' + ing.length + ')';
+
+    _renderWidgets(fEgr);
+    _renderTopCats(tipo === 'egr' ? fEgr : fIng);
+    _renderTopProvs(tipo === 'egr' ? fEgr : fIng);
+    _renderList(tipo === 'egr' ? fEgr : fIng);
+  }
+
+  function _renderWidgets(items) {
+    const wEl = document.getElementById('reg-d-widgets');
+    if (!wEl) return;
+    if (tipo === 'egr') {
+      const nPend  = egr.filter(e => String(e.estado||'').toLowerCase() === 'pendiente').length;
+      const nReg   = egr.filter(e => String(e.estado||'').toLowerCase() === 'registrado').length;
+      const total  = items.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
+      const widgets = [
+        { lbl:'Pendientes', val:nPend || '—', click:() => setEstado('pendiente'),  active:estado==='pendiente'  },
+        { lbl:'Aprobados',  val:nReg  || '—', click:() => setEstado('registrado'), active:estado==='registrado' },
+        { lbl:'Total $',    val:total>0 ? '$'+fmtCompact(total) : '—', click:null, active:false },
+      ];
+      wEl.innerHTML = widgets.map((w,i) =>
+        `<div class="reg-d-w${w.active?' active':''}" ${w.click?'id="reg-d-w-'+i+'"':''} ${w.click?'onclick="REGD._wClick('+i+')"':''}>
+          <div class="reg-d-w-val">${w.val}</div>
+          <div class="reg-d-w-lbl">${w.lbl}</div>
+        </div>`).join('');
+    } else {
+      const total = items.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
+      const itbms = items.reduce((s,i) => s + (parseFloat(i.itbms)||0), 0);
+      const widgets = [
+        { lbl:'Registros', val:items.length || '—', active:false },
+        { lbl:'Total $',   val:total>0 ? '$'+fmtCompact(total) : '—', active:false },
+        { lbl:'ITBMS',     val:itbms>0 ? '$'+fmtCompact(itbms) : '—', active:false },
+      ];
+      wEl.innerHTML = widgets.map(w =>
+        `<div class="reg-d-w${w.active?' active':''}">
+          <div class="reg-d-w-val">${w.val}</div>
+          <div class="reg-d-w-lbl">${w.lbl}</div>
+        </div>`).join('');
+    }
+  }
+  function _wClick(i) {
+    if (i === 0) setEstado('pendiente');
+    else if (i === 1) setEstado('registrado');
+  }
+
+  function _renderTopCats(items) {
+    const det = document.getElementById('reg-d-cats-detail');
+    const sum = document.getElementById('reg-d-cats-summary');
+    const totals = {};
+    items.forEach(it => {
+      const cat = (tipo === 'egr')
+        ? (it.tipo_egreso || it.categoria || '')
+        : (it.categoria_ingreso || it.tipo_ingreso || '');
+      if (!cat) return;
+      totals[cat] = (totals[cat] || 0) + (parseFloat(it.total)||0);
+    });
+    const sorted = Object.keys(totals).sort((a,b) => totals[b]-totals[a]).slice(0, 5);
+    sum.textContent = sorted.length + (sorted.length === 1 ? ' categoría' : ' categorías');
+    if (!sorted.length) { det.innerHTML = '<div class="reg-d-empty">Sin datos</div>'; return; }
+    const max = totals[sorted[0]];
+    det.innerHTML = sorted.map(c => {
+      const lbl = _catLabel(c);
+      const pct = max > 0 ? Math.max(2, (totals[c]/max)*100) : 0;
+      return `<div class="reg-d-accord-row">
+        <div>
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(lbl)}">${esc(lbl)}</div>
+          <div class="reg-d-accord-bar-wrap"><div class="reg-d-accord-bar" style="width:${pct.toFixed(1)}%"></div></div>
+        </div>
+        <div class="reg-d-accord-val-num">${fmtCompactDollar(totals[c])}</div>
+      </div>`;
+    }).join('');
+  }
+  function _renderTopProvs(items) {
+    const det = document.getElementById('reg-d-provs-detail');
+    const sum = document.getElementById('reg-d-provs-summary');
+    const totals = {};
+    items.forEach(it => {
+      const k = (tipo === 'egr')
+        ? String(it.proveedor || '').trim()
+        : String(it.nombre_cliente || '').trim();
+      if (!k) return;
+      totals[k] = (totals[k] || 0) + (parseFloat(it.total)||0);
+    });
+    const sorted = Object.keys(totals).sort((a,b) => totals[b]-totals[a]).slice(0, 5);
+    const lblTipo = tipo === 'egr' ? 'proveedor' : 'cliente';
+    sum.textContent = sorted.length + ' ' + lblTipo + (sorted.length === 1 ? '' : 'es');
+    if (!sorted.length) { det.innerHTML = '<div class="reg-d-empty">Sin datos</div>'; return; }
+    const max = totals[sorted[0]];
+    det.innerHTML = sorted.map(p => {
+      const pct = max > 0 ? Math.max(2, (totals[p]/max)*100) : 0;
+      return `<div class="reg-d-accord-row">
+        <div>
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p)}">${esc(p)}</div>
+          <div class="reg-d-accord-bar-wrap"><div class="reg-d-accord-bar prov" style="width:${pct.toFixed(1)}%"></div></div>
+        </div>
+        <div class="reg-d-accord-val-num">${fmtCompactDollar(totals[p])}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Actualiza también los chevrons de los accordeones (por si se cambió tipo y queremos cerrarlos)
+  function _renderAccordChevrons() {
+    ['cats','provs'].forEach(k => {
+      const row = document.getElementById('reg-d-accord-' + k);
+      const det = document.getElementById('reg-d-' + k + '-detail');
+      if (row) row.classList.toggle('open', _accordOpen[k]);
+      if (det) det.classList.toggle('open', _accordOpen[k]);
+    });
+  }
+
+  function _renderList(items) {
+    document.getElementById('reg-d-list-n').textContent = items.length;
+    const list = document.getElementById('reg-d-list');
+    if (!items.length) {
+      list.innerHTML = '<div class="reg-d-empty">Sin registros</div>';
+      _renderAccordChevrons();
+      return;
+    }
+    items.sort((a,b) => String((tipo==='egr'?b.fecha_egreso:b.fecha_ingreso)||'')
+                          .localeCompare(String((tipo==='egr'?a.fecha_egreso:a.fecha_ingreso)||'')));
+    list.innerHTML = items.map(it => tipo === 'egr' ? _rowEgr(it) : _rowIng(it)).join('');
+    _renderAccordChevrons();
+  }
+
+  function _rowEgr(e) {
+    const fecha = String(e.fecha_egreso||'').slice(0,10);
+    const prov  = e.proveedor || '—';
+    const cat   = _catLabel(e.tipo_egreso || e.categoria || '');
+    const total = parseFloat(e.total) || 0;
+    const est   = String(e.estado||'').toLowerCase();
+    const alc   = e.alcance || 'negocio';
+    const id    = esc(e.id_egreso || '');
+    const url   = e.drive_url || '';
+    const fdat  = e.factura_data || '';
+    const docBtn = url
+      ? (fdat
+         ? `<button class="ic-btn" onclick="REGD.verFactura(event,'${id}','egr')" title="Ver factura electrónica">🧾</button>`
+         : `<button class="ic-btn" onclick="window.open('${esc(url).replace(/'/g,'%27')}','_blank')" title="Ver comprobante">📄</button>`)
+      : '';
+    const estBadge = est === 'pendiente'
+      ? '<span class="reg-d-badge-est pend">⏳ Pend.</span>'
+      : est === 'registrado'
+        ? '<span class="reg-d-badge-est reg">✅ Aprob.</span>'
+        : '';
+    const alcBadge = alc === 'personal'
+      ? '<span class="reg-d-badge-alc pers">🚫 Pers.</span>'
+      : '<span class="reg-d-badge-alc neg">✅ Ded.</span>';
+    return `<div class="reg-d-row">
+      <div class="reg-d-row-main">
+        <div class="reg-d-row-title">${esc(prov)}</div>
+        <div class="reg-d-row-meta">
+          <span>${fecha}</span>
+          <span>·</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${esc(cat)}">${esc(cat)}</span>
+          ${estBadge}
+          ${alcBadge}
+        </div>
+      </div>
+      <div>
+        <div class="reg-d-row-amt egr">-${fmtCompactDollar(total)}</div>
+        <div class="reg-d-row-actions">
+          ${docBtn}
+          <button class="ic-btn del" onclick="REGD.borrar('${id}','egreso')" title="Eliminar">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  function _rowIng(i) {
+    const fecha = String(i.fecha_ingreso||'').slice(0,10);
+    const cli   = i.nombre_cliente || '—';
+    const cat   = _catLabel(i.categoria_ingreso || i.tipo_ingreso || '');
+    const total = parseFloat(i.total) || 0;
+    const id    = esc(i.id_trans || '');
+    const url   = i.drive_url || '';
+    const fdat  = i.factura_data || '';
+    const docBtn = url
+      ? (fdat
+         ? `<button class="ic-btn" onclick="REGD.verFactura(event,'${id}','ing')" title="Ver factura electrónica">🧾</button>`
+         : `<button class="ic-btn" onclick="window.open('${esc(url).replace(/'/g,'%27')}','_blank')" title="Ver comprobante">📄</button>`)
+      : '';
+    return `<div class="reg-d-row">
+      <div class="reg-d-row-main">
+        <div class="reg-d-row-title">${esc(cli)}</div>
+        <div class="reg-d-row-meta">
+          <span>${fecha}</span>
+          <span>·</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${esc(cat)}">${esc(cat)}</span>
+          ${i.num_factura ? '<span style="font-family:DM Mono,monospace">#'+esc(i.num_factura)+'</span>' : ''}
+        </div>
+      </div>
+      <div>
+        <div class="reg-d-row-amt ing">+${fmtCompactDollar(total)}</div>
+        <div class="reg-d-row-actions">
+          ${docBtn}
+          <button class="ic-btn edit" onclick="REGD.editarIngreso('${id}')" title="Editar">✏️</button>
+          <button class="ic-btn del"  onclick="REGD.borrar('${id}','ingreso')" title="Eliminar">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Acciones ────────────────────────────────────────────────
+  async function borrar(id, kind) {
+    if (!confirm('⚠️ ELIMINAR PERMANENTEMENTE\n\nEsto borra la fila del Sheets y no se puede deshacer.\n\n¿Confirmar?')) return;
+    try {
+      const r = await jsonpGet('eliminarRegistro', { tipo: kind, id });
+      if (!r.success) throw new Error(r.error || 'Error desconocido');
+      if (kind === 'egreso')  egr = egr.filter(e => e.id_egreso !== id);
+      if (kind === 'ingreso') ing = ing.filter(i => i.id_trans  !== id);
+      renderAll();
+      toast('🗑️ Eliminado', 'ok');
+    } catch(e) {
+      toast('Error: ' + e.message, 'err');
+    }
+  }
+
+  function editarIngreso(id) {
+    const it = ing.find(i => i.id_trans === id);
+    if (!it) { toast('Registro no encontrado', 'err'); return; }
+    REG.openEditarIngreso(it);
+  }
+
+  function verFactura(ev, id, kind) {
+    if (ev) ev.preventDefault();
+    const it = (kind === 'egr')
+      ? egr.find(e => e.id_egreso === id)
+      : ing.find(i => i.id_trans  === id);
+    if (!it) return;
+    const url = it.drive_url || '';
+    if (!it.factura_data) { if (url) window.open(url, '_blank'); return; }
+    let data;
+    try { data = JSON.parse(it.factura_data); }
+    catch(_) { if (url) window.open(url, '_blank'); return; }
+    data._driveUrl = url;
+    XMLV.open(data);
+  }
+
+  // Actualizar registro local tras una edición exitosa (lo llama REG.submitIngreso)
+  function updateIngresoLocal(updated) {
+    const idx = ing.findIndex(i => i.id_trans === updated.id_trans);
+    if (idx >= 0) ing[idx] = Object.assign({}, ing[idx], updated);
+  }
+  // Invalidar para forzar refresh la próxima vez (tras un nuevo registro)
+  function invalidate() { _loaded = false; }
+
+  return {
+    onEnter, refresh, setEstado, setAlcance, setTipo, toggleAccord,
+    borrar, editarIngreso, verFactura, updateIngresoLocal, invalidate,
+    _wClick,
+  };
+})();
+
+
+// Helpers compactos $ (mobile)
+function fmtCompact(n) {
+  n = parseFloat(n) || 0;
+  if (Math.abs(n) >= 1000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k';
+  return n.toFixed(2);
+}
+function fmtCompactDollar(n) {
+  return '$' + fmtCompact(n);
+}
+
+
+// ════════════════════════════════════════════════════════
+//  MÓDULO XMLV — Visor de factura XML (mobile bottom sheet)
+// ════════════════════════════════════════════════════════
+const XMLV = (() => {
+  function open(data) {
+    const overlay = document.getElementById('mXmlViewer');
+    if (!overlay) return;
+    document.getElementById('xmlv-body').innerHTML = _render(data);
+    document.getElementById('xmlv-drive').href = data._driveUrl || '#';
+    document.getElementById('xmlv-drive').style.display = data._driveUrl ? '' : 'none';
+    openModal('mXmlViewer');
+  }
+  function _render(d) {
+    const e = d.emisor || {}, r = d.receptor || {}, m = d.meta || {}, t = d.totales || {};
+    const fmt$ = n => '$' + (parseFloat(n)||0).toFixed(2);
+    let html = '';
+    html += `<div style="background:var(--bg2);border-radius:var(--r);padding:.65rem .8rem;margin-bottom:.55rem">
+      <div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700">Factura electrónica DGI</div>
+      <div style="font-family:'DM Mono',monospace;font-size:.78rem;font-weight:700;color:var(--text);margin-top:.18rem">${esc(m.nroFac || '—')}</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:.1rem">${esc(m.fecha || '')}</div>
+    </div>`;
+    html += `<div class="xmlv-section">
+      <div class="xmlv-h">Emisor</div>
+      <div class="xmlv-name">${esc(e.nombre || '—')}</div>
+      ${e.ruc ? '<div class="xmlv-meta">RUC ' + esc(e.ruc) + (e.dv ? ' · DV ' + esc(e.dv) : '') + '</div>' : ''}
+      ${e.dir ? '<div class="xmlv-meta">' + esc(e.dir) + '</div>' : ''}
+    </div>`;
+    if (r.nombre || r.ruc) {
+      html += `<div class="xmlv-section">
+        <div class="xmlv-h">Receptor</div>
+        <div class="xmlv-name">${esc(r.nombre || '—')}</div>
+        ${r.ruc ? '<div class="xmlv-meta">RUC ' + esc(r.ruc) + (r.dv ? ' · DV ' + esc(r.dv) : '') + '</div>' : ''}
+      </div>`;
+    }
+    if (d.items && d.items.length) {
+      html += `<div class="xmlv-section">
+        <div class="xmlv-h">Detalle (${d.items.length} ítem${d.items.length === 1 ? '' : 's'})</div>
+        ${d.items.map(it => `<div class="xmlv-item">
+          <div class="xmlv-item-desc">${esc((it.desc || '—').substring(0,80))}</div>
+          <div class="xmlv-item-meta">
+            <span>${(parseFloat(it.cant)||0).toFixed(2)} × ${fmt$(it.prUnit)}</span>
+            <span style="font-weight:700">${fmt$(it.total)}</span>
+          </div>
+        </div>`).join('')}
+      </div>`;
+    }
+    html += `<div class="xmlv-totales">
+      <div class="xmlv-tot-row"><span>Subtotal</span><span>${fmt$(t.neto)}</span></div>
+      <div class="xmlv-tot-row"><span>ITBMS</span><span>${fmt$(t.itbms)}</span></div>
+      <div class="xmlv-tot-row total"><span>Total</span><span>${fmt$(t.total)}</span></div>
+    </div>`;
+    if (m.cufe) {
+      html += `<div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;word-break:break-all;font-family:'DM Mono',monospace"><strong>CUFE:</strong> ${esc(m.cufe)}</div>`;
+    }
+    return html;
+  }
+  return { open };
+})();
+
 
 // ════════════════════════════════════════════════════════
 //  MÓDULO REG — Registros generales (egreso + ingreso)
@@ -2024,7 +2656,9 @@ const REG = (() => {
     openModal('mRegEgreso');
   }
 
-  function openIngreso() {
+  let _ingEditId = null;  // null = crear, set = editar
+
+  function _resetIngForm() {
     ['regIngNfac','regIngDesc','regIngTotal','regIngNombre','regIngRuc','regIngDv','regIngNotas']
       .forEach(id => document.getElementById(id).value = '');
     document.getElementById('regIngCat').value          = 'venta_producto_gravado';
@@ -2039,8 +2673,42 @@ const REG = (() => {
     document.getElementById('regIngAIStatus').style.display = 'none';
     document.getElementById('regIngFile').value         = '';
     _ingFileB64 = null; _ingFileMime = null;
+  }
+
+  function openIngreso() {
+    _ingEditId = null;
+    _resetIngForm();
+    _setIngTitulo(false);
     _loadClientesIng();
     openModal('mRegIngreso');
+  }
+
+  function openEditarIngreso(item) {
+    _ingEditId = item.id_trans;
+    _resetIngForm();
+    document.getElementById('regIngCat').value    = item.categoria_ingreso || item.tipo_ingreso || 'venta_producto_gravado';
+    document.getElementById('regIngDesc').value   = item.descripcion || '';
+    document.getElementById('regIngFecha').value  = String(item.fecha_ingreso || '').slice(0,10);
+    document.getElementById('regIngNfac').value   = item.num_factura || '';
+    document.getElementById('regIngTotal').value  = item.total || '';
+    document.getElementById('regIngSubtotal').value = item.subtotal || '';
+    document.getElementById('regIngItbmsVal').value = item.itbms || '';
+    document.getElementById('regIngItbms').checked = Number(item.itbms || 0) > 0;
+    document.getElementById('regIngNombre').value = item.nombre_cliente || '';
+    document.getElementById('regIngRuc').value    = item.ruc_cliente    || '';
+    document.getElementById('regIngDv').value     = item.dv_cliente     || '';
+    document.getElementById('regIngNotas').value  = item.notas          || '';
+    recalcIng();
+    _setIngTitulo(true);
+    _loadClientesIng();
+    openModal('mRegIngreso');
+  }
+
+  function _setIngTitulo(esEdit) {
+    const hdr = document.querySelector('#mRegIngreso .sheet-title');
+    const btn = document.getElementById('regIngSubmit');
+    if (hdr) hdr.textContent = esEdit ? '✏️ Editar ingreso' : '💰 Registrar ingreso';
+    if (btn) btn.textContent = esEdit ? 'Actualizar ingreso' : 'Guardar ingreso';
   }
 
   // ── Clientes guardados (derivados de getIngresos — cubre todo el histórico) ──
@@ -2164,9 +2832,10 @@ const REG = (() => {
     if (!fecha)  { toast('Ingresa la fecha', 'err');           return; }
     if (!nombre) { toast('Ingresa el nombre del cliente', 'err'); return; }
     const btn = document.getElementById('regIngSubmit');
-    btn.disabled = true; btn.textContent = 'Guardando…';
+    const isEdit = !!_ingEditId;
+    btn.disabled = true; btn.textContent = isEdit ? 'Actualizando…' : 'Guardando…';
     try {
-      const r = await jsonpGet('registrarIngresoManual', {
+      const payload = {
         fecha,
         categoria:   document.getElementById('regIngCat').value,
         descripcion: document.getElementById('regIngDesc').value.trim(),
@@ -2178,10 +2847,18 @@ const REG = (() => {
         ruc:         document.getElementById('regIngRuc').value.trim(),
         dv:          document.getElementById('regIngDv').value.trim(),
         notas:       document.getElementById('regIngNotas').value.trim(),
-      });
+      };
+      let r;
+      if (isEdit) {
+        payload.id = _ingEditId;
+        r = await jsonpGet('actualizarIngreso', payload);
+      } else {
+        r = await jsonpGet('registrarIngresoManual', payload);
+      }
       if (!r.success) throw new Error(r.error || 'Error al guardar');
-      toast('Ingreso registrado ✓', 'ok');
-      _clientesCache = null;  // invalidar para incluir el cliente recién guardado
+      toast(isEdit ? 'Ingreso actualizado ✓' : 'Ingreso registrado ✓', 'ok');
+      _clientesCache = null;  // invalidar para incluir el cliente recién guardado/editado
+      if (typeof REGD !== 'undefined') REGD.invalidate();
       closeModal('mRegIngreso');
       if (_ingFileB64) {
         const ext      = _ingFileMime === 'application/pdf' ? 'pdf' : 'jpg';
@@ -2199,7 +2876,7 @@ const REG = (() => {
           .catch(err => toast('⚠️ Red: ' + err.message, 'err'));
       }
     } catch(e) { toast('Error: ' + e.message, 'err'); }
-    btn.disabled = false; btn.textContent = 'Guardar ingreso';
+    btn.disabled = false; btn.textContent = _ingEditId ? 'Actualizar ingreso' : 'Guardar ingreso';
   }
 
   let _eAlcanceMismatch = false;
@@ -2241,7 +2918,7 @@ const REG = (() => {
     }
   }
 
-  return { openEgreso, openIngreso, onEgrFile, onIngFile,
+  return { openEgreso, openIngreso, openEditarIngreso, onEgrFile, onIngFile,
            submitEgreso, submitIngreso,
            recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts, setAlcance,
            pickCliente, onNombreCliInput };
@@ -2875,6 +3552,25 @@ const PEND = (() => {
       <button class="sheet-submit" id="regIngSubmit" onclick="REG.submitIngreso()"
               style="background:var(--green);margin:0">Guardar ingreso</button>
       <button class="sheet-footer-cancel" onclick="closeModal('mRegIngreso')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL VISOR XML — Factura electrónica DGI Panamá
+════════════════════════════════════════════════════════ -->
+<div class="overlay" id="mXmlViewer">
+  <div class="sheet" style="max-height:92dvh;max-height:92vh">
+    <div class="sheet-top"><div class="sheet-handle"></div>
+      <div class="sheet-hdr">
+        <span class="sheet-title">📄 Factura electrónica</span>
+        <button class="sheet-close" onclick="closeModal('mXmlViewer')">✕</button>
+      </div>
+    </div>
+    <div class="sheet-body" id="xmlv-body"></div>
+    <div class="sheet-footer">
+      <a id="xmlv-drive" href="#" target="_blank" class="sheet-submit" style="background:var(--indigo);margin:0;text-decoration:none;display:flex;align-items:center;justify-content:center">↗ Abrir en Drive</a>
+      <button class="sheet-footer-cancel" onclick="closeModal('mXmlViewer')">Cerrar</button>
     </div>
   </div>
 </div>
