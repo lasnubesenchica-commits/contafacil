@@ -692,6 +692,87 @@ footer {
   display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
 }
 
+/* HERO SOLO BUTTON */
+.btn-hero-solo {
+  background: linear-gradient(135deg, var(--blue) 0%, #1d4ed8 100%);
+  color: var(--white); border: none; border-radius: 100px;
+  padding: 14px 28px; font-size: 15px; font-weight: 800;
+  cursor: pointer; text-decoration: none; display: inline-block;
+  font-family: 'Nunito', sans-serif;
+  box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+  transition: all 0.2s;
+}
+.btn-hero-solo:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(59,130,246,0.5); }
+
+/* PANAMA 2026 STRIP */
+.panama-strip {
+  padding: 4.5rem 3rem;
+  background: linear-gradient(135deg, var(--ink) 0%, #312e81 55%, #1e3a8a 100%);
+  position: relative; overflow: hidden;
+  color: var(--white);
+}
+.panama-strip-glow1 {
+  position: absolute; width: 520px; height: 520px;
+  background: radial-gradient(circle, rgba(249,115,22,0.20) 0%, transparent 70%);
+  top: -120px; right: -120px; pointer-events: none;
+}
+.panama-strip-glow2 {
+  position: absolute; width: 420px; height: 420px;
+  background: radial-gradient(circle, rgba(20,184,166,0.16) 0%, transparent 70%);
+  bottom: -120px; left: -60px; pointer-events: none;
+}
+.panama-strip-inner {
+  max-width: 1100px; margin: 0 auto; position: relative; z-index: 1;
+  display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 3rem; align-items: center;
+}
+.panama-strip-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 100px; padding: 6px 14px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 1.1rem;
+  color: var(--white);
+}
+.panama-strip h2 {
+  font-size: clamp(1.7rem, 3vw, 2.3rem);
+  font-weight: 900; color: var(--white);
+  letter-spacing: -0.02em; line-height: 1.18; margin-bottom: 1rem;
+}
+.panama-strip h2 .accent-orange {
+  background: linear-gradient(135deg, var(--orange), #fbbf24);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; font-style: italic;
+}
+.panama-strip p {
+  font-size: 0.98rem; color: rgba(255,255,255,0.78);
+  line-height: 1.7; font-weight: 500; max-width: 500px;
+}
+.panama-strip p strong { color: var(--white); font-weight: 800; }
+.panama-chips {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+}
+.panama-chip {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px; padding: 1rem 1.15rem;
+  transition: all 0.2s;
+}
+.panama-chip:hover {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(249,115,22,0.45);
+  transform: translateY(-3px);
+}
+.panama-chip-num {
+  font-size: 1.35rem; font-weight: 900; color: var(--white);
+  letter-spacing: -0.02em; line-height: 1; margin-bottom: 6px;
+}
+.panama-chip-num .chip-orange { color: var(--orange); }
+.panama-chip-label {
+  font-size: 11.5px; color: rgba(255,255,255,0.7);
+  font-weight: 600; line-height: 1.4;
+}
+
 /* LANG */
 body.es .en { display: none !important; }
 body.es .es { display: inline !important; }
@@ -712,6 +793,8 @@ body:not(.es) .es { display: none !important; }
   .track-divider { padding: 3rem 1.5rem 0; }
   .solo-testimonial-wrap { padding: 3rem 1.5rem; }
   .solo-testimonial { padding: 1.75rem; }
+  .panama-strip { padding: 3rem 1.5rem; }
+  .panama-strip-inner { grid-template-columns: 1fr; gap: 2rem; }
   .stats-bar { gap: 0; flex-wrap: wrap; }
   .stat-item { min-width: 50%; border-right: none; border-bottom: 1px solid var(--border); padding: 1rem; }
   footer { flex-direction: column; gap: 6px; }
@@ -750,25 +833,25 @@ body:not(.es) .es { display: none !important; }
   <div class="hero-inner">
     <div class="hero-left">
       <div class="hero-badge">
-        🤖 <span class="en">AI-Powered · DGI Compliant · Panama</span>
-             <span class="es">IA · Cumplimiento DGI · Panamá</span>
+        🇵🇦 <span class="en">Panama Native · DGI 2026 Ready</span>
+             <span class="es">Hecho para Panamá · DGI 2026</span>
       </div>
       <h1>
-        <span class="en">Your invoices,<br><span class="accent">finally connected.</span></span>
-        <span class="es">Tus facturas,<br><span class="accent">finalmente conectadas.</span></span>
+        <span class="en">Your books,<br><span class="accent">finally closed.</span></span>
+        <span class="es">Tu contabilidad,<br><span class="accent">finalmente cerrada.</span></span>
       </h1>
       <p class="hero-sub">
-        <span class="en">BalanceClip uses AI to automatically match every purchase invoice to its sale — with full DGI compliance built in.</span>
-        <span class="es">BalanceClip usa IA para vincular automáticamente cada factura de compra con su venta — con cumplimiento DGI incluido.</span>
+        <span class="en">Zero manual entry. DGI-native. One platform, two products: <strong>Trade</strong> for buy-and-sell businesses, <strong>Solo</strong> for entrepreneurs.</span>
+        <span class="es">Cero entrada manual. DGI nativo. Una plataforma, dos productos: <strong>Trade</strong> para empresas y <strong>Solo</strong> para emprendedores.</span>
       </p>
       <div class="hero-actions">
-        <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
-          <span class="en">Request Pricing — It's Free to Try</span>
-          <span class="es">Solicitar Precio</span>
+        <a href="#trade" class="btn-hero-primary">
+          <span class="en">I'm a Business → Trade</span>
+          <span class="es">Soy Empresa → Trade</span>
         </a>
-        <a href="#how" class="btn-hero-outline">
-          <span class="en">See How It Works</span>
-          <span class="es">Cómo Funciona</span>
+        <a href="#solo" class="btn-hero-solo">
+          <span class="en">I'm an Entrepreneur → Solo</span>
+          <span class="es">Soy Emprendedor → Solo</span>
         </a>
       </div>
       <div class="hero-trust">
@@ -915,6 +998,43 @@ body:not(.es) .es { display: none !important; }
           <span class="en">See Solo →</span><span class="es">Ver Solo →</span>
         </span>
       </a>
+    </div>
+  </div>
+</section>
+
+<!-- PANAMA NATIVE 2026 STRIP -->
+<section class="panama-strip">
+  <div class="panama-strip-glow1"></div>
+  <div class="panama-strip-glow2"></div>
+  <div class="panama-strip-inner">
+    <div>
+      <span class="panama-strip-tag">🇵🇦 <span class="en">Panama Native · DGI 2026</span><span class="es">Panamá Nativo · DGI 2026</span></span>
+      <h2>
+        <span class="en">Built for Panama. <span class="accent-orange">Ready for 2026.</span></span>
+        <span class="es">Hecho para Panamá. <span class="accent-orange">Listo para 2026.</span></span>
+      </h2>
+      <p>
+        <span class="en">Starting January 2026, DGI capped the free invoicer at <strong>B/.36,000/year</strong>. Growing entrepreneurs need an authorized provider — one that handles ITBMS, e-Tax 2.0 and RUC/DV out of the box. Both Trade and Solo run on the same DGI-native rails.</span>
+        <span class="es">Desde enero 2026, la DGI limitó el facturador gratuito a <strong>B/.36,000 al año</strong>. Si tu negocio crece, necesitas un proveedor autorizado — y uno que maneje ITBMS, e-Tax 2.0 y RUC/DV de fábrica. Trade y Solo corren sobre los mismos rieles DGI nativos.</span>
+      </p>
+    </div>
+    <div class="panama-chips">
+      <div class="panama-chip">
+        <div class="panama-chip-num">ITBMS <span class="chip-orange">7%</span></div>
+        <div class="panama-chip-label"><span class="en">Auto-calculated · taxable / exempt split</span><span class="es">Auto-calculado · gravado / exento</span></div>
+      </div>
+      <div class="panama-chip">
+        <div class="panama-chip-num">e-Tax <span class="chip-orange">2.0</span></div>
+        <div class="panama-chip-label"><span class="en">Native FE01 &amp; FE04 support</span><span class="es">Soporte FE01 y FE04 nativo</span></div>
+      </div>
+      <div class="panama-chip">
+        <div class="panama-chip-num">RUC / DV</div>
+        <div class="panama-chip-label"><span class="en">Person, company, foreigner — auto-detected</span><span class="es">Natural, jurídica, extranjera — auto-detectado</span></div>
+      </div>
+      <div class="panama-chip">
+        <div class="panama-chip-num">B/.36k<span class="chip-orange">+</span></div>
+        <div class="panama-chip-label"><span class="en">Ready for the new DGI threshold</span><span class="es">Listo para el nuevo umbral DGI</span></div>
+      </div>
     </div>
   </div>
 </section>
