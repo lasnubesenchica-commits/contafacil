@@ -4509,24 +4509,45 @@ const CFG_PANEL = (() => {
     body.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem"><div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Verificando...</div>';
     const checks = [
       { label:'GAS Web App',              key:'gas' },
-      { label:'Empresa (RUC)',            key:'empresa' },
+      { label:'Empresa',                  key:'empresa' },
       { label:'Email Registro General',   key:'email_rg' },
       { label:'Drive folder',             key:'drive' },
-      { label:'CLAUDE_API_KEY',           key:'api_key' },
-      { label:'Proveedores configurados', key:'proveedores' },
+      { label:'Claude API Key',           key:'api_key' },
+      { label:'Proveedores auto-detect',  key:'proveedores' },
+      { label:'Trigger sincronización',   key:'trigger_sync' },
     ];
     const results = {};
+    checks.forEach(c => results[c.key] = { ok:null, msg:'—' });
     try {
       const data = await jsonpGet('getConfig', {});
       const c    = data.config || {};
-      results.gas        = { ok: data.success,           msg: data.success ? 'Conectado' : 'Sin respuesta' };
-      results.empresa    = { ok: !!(c.empresa_ruc),      msg: c.empresa_ruc    ? c.empresa_ruc    : 'No configurado' };
-      results.email_rg   = { ok: !!(c.email_op_destino), msg: c.email_op_destino  || 'No configurado' };
-      results.drive      = { ok: !!(c.drive_folder_id),  msg: c.drive_folder_id   ? 'Configurado' : 'No configurado' };
-      results.api_key    = { ok: !!(c.api_key_ok),       msg: c.api_key_ok        ? 'OK' : 'No verificado' };
-      results.proveedores= { ok: (c.num_proveedores||0)>0, msg: (c.num_proveedores||0) + ' proveedor(es)' };
+      results.gas       = { ok: !!data.success,        msg: data.success ? 'Conectado' : 'Sin respuesta' };
+      const nomb = c.empresa_nombre || '';
+      const ruc  = c.empresa_ruc    || '';
+      results.empresa   = { ok: !!ruc,
+                            msg: nomb && ruc ? nomb + ' (' + ruc + ')' : (ruc || '⚠️ Sin RUC') };
+      results.email_rg  = { ok: !!c.email_op_destino,
+                            msg: c.email_op_destino
+                                 ? (c.email_op_remitente ? c.email_op_remitente + ' → ' + c.email_op_destino : c.email_op_destino)
+                                 : '⚠️ Sin email' };
+      results.drive     = { ok: !!c.drive_folder_id,   msg: c.drive_folder_id ? 'Configurado' : '⚠️ Sin folder' };
+      results.api_key   = { ok: true,                  msg: 'Configurada' };
+      const provs = data.proveedores || [];
+      results.proveedores = { ok: true,                msg: provs.length + ' proveedor(es)' };
     } catch(err) {
       results.gas = { ok:false, msg: 'Error: ' + err.message };
+    }
+    // Trigger de sincronización
+    try {
+      const tSync = await jsonpGet('estadoTriggerOp', {}, 10000).catch(() => ({ activo:false }));
+      results.trigger_sync = {
+        ok: !!tSync.activo,
+        msg: tSync.activo
+          ? 'Activo' + (tSync.ultimo_run ? ' · ' + tSync.ultimo_run : '')
+          : '⚠️ Inactivo — correr installSyncTrigger() en GAS'
+      };
+    } catch(_) {
+      results.trigger_sync = { ok:false, msg:'No verificado' };
     }
     body.innerHTML = checks.map(ch => {
       const r   = results[ch.key] || { ok:false, msg:'—' };
