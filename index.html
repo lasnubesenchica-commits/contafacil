@@ -542,6 +542,156 @@ footer {
   background: var(--white);
 }
 
+/* PATH SELECTOR */
+.path-selector {
+  padding: 5rem 3rem 1rem;
+  background: var(--white);
+}
+.path-selector-inner {
+  max-width: 1100px; margin: 0 auto; text-align: center;
+}
+.path-selector .section-tag { background: rgba(20,184,166,0.12); color: var(--teal); }
+.path-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1.5rem; margin-top: 2.5rem; text-align: left;
+}
+.path-card {
+  border-radius: 24px;
+  padding: 2.25rem 2rem;
+  border: 2px solid var(--border);
+  transition: all 0.25s;
+  text-decoration: none;
+  display: block; color: inherit;
+  position: relative; overflow: hidden;
+}
+.path-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.10);
+}
+.path-trade {
+  background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+  border-color: rgba(249,115,22,0.3);
+}
+.path-trade:hover { border-color: var(--orange); }
+.path-solo {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: rgba(59,130,246,0.3);
+}
+.path-solo:hover { border-color: var(--blue); }
+.path-icon {
+  width: 56px; height: 56px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; margin-bottom: 1.25rem;
+  background: var(--white);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.path-tag {
+  display: inline-block; font-size: 11px; font-weight: 800;
+  padding: 4px 12px; border-radius: 100px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+.path-trade .path-tag { background: rgba(249,115,22,0.18); color: var(--orange); }
+.path-solo .path-tag { background: rgba(59,130,246,0.18); color: var(--blue); }
+.path-card h3 {
+  font-size: 1.55rem; font-weight: 900; margin-bottom: 0.5rem;
+  letter-spacing: -0.02em; color: var(--ink);
+}
+.path-sub {
+  font-size: 0.95rem; color: var(--ink2); font-weight: 600;
+  margin-bottom: 1.25rem; line-height: 1.5;
+}
+.path-features {
+  list-style: none; margin-bottom: 1.5rem;
+}
+.path-features li {
+  font-size: 0.88rem; color: var(--ink2); font-weight: 500;
+  padding: 4px 0; display: flex; gap: 10px; align-items: center;
+}
+.path-features li::before {
+  content: "✓"; color: var(--teal); font-weight: 900; font-size: 14px; flex-shrink: 0;
+}
+.path-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 800; font-size: 14px;
+  padding: 10px 20px; border-radius: 100px;
+  transition: all 0.2s;
+}
+.path-trade .path-cta { background: var(--orange); color: var(--white); }
+.path-solo .path-cta { background: var(--blue); color: var(--white); }
+.path-card:hover .path-cta { transform: translateX(4px); }
+
+/* TRACK DIVIDER */
+.track-divider {
+  text-align: center; padding: 5rem 3rem 0;
+  max-width: 900px; margin: 0 auto;
+}
+.track-pill {
+  display: inline-block;
+  padding: 6px 18px; border-radius: 100px;
+  font-size: 12px; font-weight: 800;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  margin-bottom: 1rem; color: var(--white);
+}
+.trade-pill { background: var(--orange); }
+.solo-pill { background: var(--blue); }
+.track-divider h2 {
+  font-size: clamp(1.7rem, 3vw, 2.2rem); margin-bottom: 0.5rem;
+}
+.track-divider p {
+  color: var(--ink2); font-weight: 500; max-width: 560px;
+  margin: 0 auto; font-size: 1rem;
+}
+
+/* SOLO SECTION VARIANTS */
+.section-solo { background: linear-gradient(180deg, #fafafa 0%, #eff6ff 100%); }
+.section-solo .section-tag { background: var(--blue-light); color: var(--blue); }
+.section-solo .how-num { color: var(--blue); }
+.section-solo .how-card:hover { border-color: rgba(59,130,246,0.25); }
+.section-solo .feature-card:hover { border-color: rgba(59,130,246,0.25); }
+.icon-blue { background: linear-gradient(135deg, #eff6ff, #bfdbfe); }
+
+/* SOLO TESTIMONIAL */
+.solo-testimonial-wrap { padding: 5rem 3rem; background: var(--white); }
+.solo-testimonial {
+  max-width: 720px; margin: 0 auto;
+  background: linear-gradient(135deg, #f0f9ff 0%, #faf5ff 100%);
+  border-radius: 24px;
+  padding: 2.5rem;
+  border-left: 4px solid var(--blue);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+.solo-testimonial blockquote {
+  font-size: 1.15rem; color: var(--ink); line-height: 1.65;
+  font-weight: 600; font-style: italic; margin-bottom: 1.5rem;
+}
+.testimonial-author { display: flex; align-items: center; gap: 12px; }
+.solo-author-avatar {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  color: var(--white); font-weight: 900; font-size: 17px;
+}
+.solo-author-name { font-size: 14px; font-weight: 800; color: var(--ink); }
+.solo-author-role { font-size: 12px; color: var(--ink3); font-weight: 600; }
+
+/* WHATSAPP BUTTON */
+.btn-whatsapp {
+  background: #25d366; color: var(--white); border: none;
+  border-radius: 100px; padding: 14px 26px;
+  font-size: 15px; font-weight: 800;
+  cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Nunito', sans-serif;
+  box-shadow: 0 6px 20px rgba(37,211,102,0.35);
+  transition: all 0.2s;
+}
+.btn-whatsapp:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,211,102,0.45); background: #1ebe5a; }
+.cta-actions {
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+}
+
 /* LANG */
 body.es .en { display: none !important; }
 body.es .es { display: inline !important; }
@@ -557,6 +707,11 @@ body:not(.es) .es { display: none !important; }
   .section { padding: 4rem 1.5rem; }
   .how-grid { grid-template-columns: 1fr; }
   .features-grid, .who-grid { grid-template-columns: 1fr; }
+  .path-selector { padding: 3rem 1.5rem 0.5rem; }
+  .path-grid { grid-template-columns: 1fr; }
+  .track-divider { padding: 3rem 1.5rem 0; }
+  .solo-testimonial-wrap { padding: 3rem 1.5rem; }
+  .solo-testimonial { padding: 1.75rem; }
   .stats-bar { gap: 0; flex-wrap: wrap; }
   .stat-item { min-width: 50%; border-right: none; border-bottom: 1px solid var(--border); padding: 1rem; }
   footer { flex-direction: column; gap: 6px; }
@@ -572,9 +727,9 @@ body:not(.es) .es { display: none !important; }
     Balance<span class="logo-clip">Clip</span>
   </a>
   <ul class="nav-links">
+    <li><a href="#trade"><span class="en">Trade</span><span class="es">Trade</span></a></li>
+    <li><a href="#solo"><span class="en">Solo</span><span class="es">Solo</span></a></li>
     <li><a href="#how"><span class="en">How It Works</span><span class="es">Cómo Funciona</span></a></li>
-    <li><a href="#features"><span class="en">Features</span><span class="es">Funciones</span></a></li>
-    <li><a href="#who"><span class="en">Pricing</span><span class="es">Precios</span></a></li>
   </ul>
   <div class="nav-right">
     <button class="lang-btn active" onclick="setLang('en')" id="btn-en">EN</button>
@@ -713,6 +868,70 @@ body:not(.es) .es { display: none !important; }
   </div>
 </div>
 
+<!-- PATH SELECTOR -->
+<section class="path-selector" id="paths">
+  <div class="path-selector-inner">
+    <span class="section-tag"><span class="en">Choose Your Path</span><span class="es">Elige tu Camino</span></span>
+    <h2>
+      <span class="en">Two products. One promise: zero manual entry.</span>
+      <span class="es">Dos productos. Una promesa: cero entrada manual.</span>
+    </h2>
+    <p class="section-desc" style="margin: 0.75rem auto 0;">
+      <span class="en">Pick the BalanceClip that fits your operation.</span>
+      <span class="es">Elige el BalanceClip que encaja con tu operación.</span>
+    </p>
+    <div class="path-grid">
+      <a href="#trade" class="path-card path-trade">
+        <div class="path-icon">📦</div>
+        <span class="path-tag">Trade</span>
+        <h3>BalanceClip Trade</h3>
+        <p class="path-sub">
+          <span class="en">For buy-and-sell businesses. We clip every purchase invoice to its sale.</span>
+          <span class="es">Para empresas que compran y venden. Cruzamos cada factura de compra con su venta.</span>
+        </p>
+        <ul class="path-features">
+          <li><span class="en">AI invoice matching (purchase ↔ sale)</span><span class="es">Cruce con IA (compra ↔ venta)</span></li>
+          <li><span class="en">Real-time P&amp;L, COGS &amp; AR</span><span class="es">P&amp;L, costo de ventas y CxC en tiempo real</span></li>
+          <li><span class="en">Multi-client dashboard for CPAs</span><span class="es">Panel multi-cliente para contadores</span></li>
+        </ul>
+        <span class="path-cta">
+          <span class="en">See Trade →</span><span class="es">Ver Trade →</span>
+        </span>
+      </a>
+      <a href="#solo" class="path-card path-solo">
+        <div class="path-icon">📸</div>
+        <span class="path-tag">Solo</span>
+        <h3>BalanceClip Solo</h3>
+        <p class="path-sub">
+          <span class="en">For solo entrepreneurs. We never lose a deductible expense again.</span>
+          <span class="es">Para emprendedores. Nunca más pierdas un gasto deducible.</span>
+        </p>
+        <ul class="path-features">
+          <li><span class="en">Auto-capture invoices from Gmail</span><span class="es">Captura automática desde Gmail</span></li>
+          <li><span class="en">Photo a paper receipt — categorized for you</span><span class="es">Foto al recibo — categorizamos por ti</span></li>
+          <li><span class="en">Year-end report ready for your accountant</span><span class="es">Cierre anual listo para tu contable</span></li>
+        </ul>
+        <span class="path-cta">
+          <span class="en">See Solo →</span><span class="es">Ver Solo →</span>
+        </span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- TRADE TRACK DIVIDER -->
+<div class="track-divider" id="trade">
+  <span class="track-pill trade-pill">Track 01 · Trade</span>
+  <h2>
+    <span class="en">Buy-and-sell, finally connected.</span>
+    <span class="es">Compra y venta, finalmente conectadas.</span>
+  </h2>
+  <p>
+    <span class="en">For commercializers, distributors, importers and contractors who run hundreds of invoices a month.</span>
+    <span class="es">Para comercializadoras, distribuidoras, importadoras y contratistas que mueven cientos de facturas al mes.</span>
+  </p>
+</div>
+
 <!-- HOW IT WORKS -->
 <section class="section" id="how">
   <div class="section-inner">
@@ -829,6 +1048,133 @@ body:not(.es) .es { display: none !important; }
   </div>
 </section>
 
+<!-- SOLO TRACK DIVIDER -->
+<div class="track-divider" id="solo">
+  <span class="track-pill solo-pill">Track 02 · Solo</span>
+  <h2>
+    <span class="en">Your profit, without losing a single receipt.</span>
+    <span class="es">Tu rentabilidad, sin perder un solo recibo.</span>
+  </h2>
+  <p>
+    <span class="en">For solo entrepreneurs, freelancers and independent professionals who file their own tax return — or hand it to an accountant once a year.</span>
+    <span class="es">Para emprendedores, freelancers y profesionales independientes que presentan su propia renta — o se la entregan al contable una vez al año.</span>
+  </p>
+</div>
+
+<!-- HOW IT WORKS · SOLO -->
+<section class="section section-solo" id="how-solo">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">How Solo Works</span><span class="es">Cómo Funciona Solo</span></span>
+    <h2>
+      <span class="en">Stop losing receipts.<br>Let your phone do the bookkeeping.</span>
+      <span class="es">Deja de perder recibos.<br>Tu móvil lleva la contabilidad.</span>
+    </h2>
+    <p class="section-desc">
+      <span class="en">In Panama, entrepreneurs overpay income tax because they lose the paper trail. BalanceClip Solo never loses one.</span>
+      <span class="es">En Panamá, los emprendedores pagan más renta porque pierden los soportes. BalanceClip Solo no pierde ninguno.</span>
+    </p>
+    <div class="how-grid">
+      <div class="how-card">
+        <div class="how-num">01</div>
+        <div class="how-icon icon-blue">📨</div>
+        <h3><span class="en">Connect Your Gmail</span><span class="es">Conecta tu Gmail</span></h3>
+        <p><span class="en">Every 15 minutes we read invoices arriving in your inbox and archive them in your Drive. You do nothing.</span><span class="es">Cada 15 minutos leemos las facturas que llegan a tu correo y las archivamos en tu Drive. Tú no haces nada.</span></p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">02</div>
+        <div class="how-icon icon-purple">📸</div>
+        <h3><span class="en">Photo Your Paper Receipt</span><span class="es">Foto al Recibo</span></h3>
+        <p><span class="en">Paid cash for fuel or lunch? One photo from your phone and we categorize it across 18 deductible expense types.</span><span class="es">¿Pagaste combustible o un almuerzo en efectivo? Una foto desde el móvil y lo categorizamos entre 18 rubros deducibles.</span></p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">03</div>
+        <div class="how-icon icon-teal">📅</div>
+        <h3><span class="en">Hand It to Your Accountant</span><span class="es">Entrega a tu Contable</span></h3>
+        <p><span class="en">In March, download a clean report of income, deductible expenses and ITBMS. Your accountant just files.</span><span class="es">En marzo descargas un reporte ordenado de ingresos, gastos deducibles e ITBMS. Tu contable solo presenta.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES · SOLO -->
+<section class="section section-solo" id="features-solo">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">Solo Features</span><span class="es">Funciones de Solo</span></span>
+    <h2>
+      <span class="en">Built for the way entrepreneurs actually work.</span>
+      <span class="es">Pensado para cómo trabajan los emprendedores.</span>
+    </h2>
+    <p class="section-desc">
+      <span class="en">No bookkeeping skills required. Just a phone and a Gmail account.</span>
+      <span class="es">Sin saber de contabilidad. Solo un móvil y una cuenta de Gmail.</span>
+    </p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon icon-blue">📨</div>
+        <div>
+          <h4><span class="en">Gmail Auto-Capture</span><span class="es">Captura Auto Gmail</span></h4>
+          <p><span class="en">We scan your inbox every 15 minutes and pull every invoice PDF into Drive — automatically.</span><span class="es">Revisamos tu bandeja cada 15 minutos y archivamos cada PDF de factura en Drive — solo.</span></p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon icon-purple">📸</div>
+        <div>
+          <h4><span class="en">Receipt OCR</span><span class="es">OCR de Recibos</span></h4>
+          <p><span class="en">Photo any paper receipt — we extract amount, date, vendor and ITBMS, no typing.</span><span class="es">Foto a cualquier recibo — extraemos monto, fecha, proveedor e ITBMS, sin teclear.</span></p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon icon-teal">🏷️</div>
+        <div>
+          <h4><span class="en">18 Deductible Categories</span><span class="es">18 Categorías Deducibles</span></h4>
+          <p><span class="en">Fuel, rent, payroll, insurance, utilities — pre-mapped to Panama's deductible rubrics.</span><span class="es">Combustible, alquiler, nómina, seguros, servicios — mapeados a los rubros deducibles de Panamá.</span></p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon icon-orange">💰</div>
+        <div>
+          <h4><span class="en">Cash Flow Dashboard</span><span class="es">Panel de Flujo de Caja</span></h4>
+          <p><span class="en">Best month, worst month, monthly average. Know if you're winning — every Monday.</span><span class="es">Mejor mes, peor mes, promedio mensual. Sabes si vas ganando — cada lunes.</span></p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon icon-blue">🧾</div>
+        <div>
+          <h4><span class="en">Monthly ITBMS</span><span class="es">ITBMS Mensual</span></h4>
+          <p><span class="en">Auto-split between taxable and exempt. See exactly what you owe DGI each month.</span><span class="es">Separación automática gravado/exento. Ves exactamente cuánto le debes a la DGI cada mes.</span></p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon icon-purple">📅</div>
+        <div>
+          <h4><span class="en">Year-End Close</span><span class="es">Cierre Anual</span></h4>
+          <p><span class="en">One-click export of income, deductibles and ITBMS — your accountant gets a clean package.</span><span class="es">Exporta ingresos, deducibles e ITBMS en un clic — tu contable recibe un paquete limpio.</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLO TESTIMONIAL -->
+<section class="solo-testimonial-wrap">
+  <div class="solo-testimonial">
+    <blockquote>
+      <span class="en">“Before, I used to overpay income tax because I'd lose half my receipts. Now I just snap a photo, my accountant gets everything organized, and I sleep at night.”</span>
+      <span class="es">“Antes pagaba más renta de la que debía porque perdía la mitad de los recibos. Ahora solo tomo foto, mi contable recibe todo ordenado y duermo tranquila.”</span>
+    </blockquote>
+    <div class="testimonial-author">
+      <div class="solo-author-avatar">M</div>
+      <div>
+        <div class="solo-author-name">María R.</div>
+        <div class="solo-author-role">
+          <span class="en">Freelance Entrepreneur · Panama City</span>
+          <span class="es">Emprendedora Freelance · Ciudad de Panamá</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- CLIENTS -->
 <section class="clients-section">
   <p class="clients-label"><span class="en">Trusted by</span><span class="es">Con la confianza de</span></p>
@@ -844,11 +1190,18 @@ body:not(.es) .es { display: none !important; }
   <div class="cta-decor1"></div>
   <div class="cta-decor2"></div>
   <div class="cta-inner">
-    <h2><span class="en">Ready to clip your first invoice?</span><span class="es">¿Listo para hacer tu primer clip?</span></h2>
-    <p><span class="en">Join the companies already running on BalanceClip.</span><span class="es">Únete a las empresas que ya operan con BalanceClip.</span></p>
-    <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
-      <span class="en">Request Pricing →</span><span class="es">Solicitar Precio →</span>
-    </a>
+    <h2><span class="en">Trade or Solo? We'll help you choose in 5 minutes.</span><span class="es">¿Trade o Solo? Te ayudamos a elegir en 5 minutos.</span></h2>
+    <p><span class="en">Email us, or WhatsApp directly. We answer in Panama time.</span><span class="es">Escríbenos por correo o WhatsApp. Respondemos en hora Panamá.</span></p>
+    <div class="cta-actions">
+      <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
+        <span class="en">✉️ Email Us →</span><span class="es">✉️ Enviar Correo →</span>
+      </a>
+      <a href="https://wa.me/50769812266" target="_blank" rel="noopener" class="btn-whatsapp">
+        <span>💬</span>
+        <span class="en">WhatsApp +507 6981-2266</span>
+        <span class="es">WhatsApp +507 6981-2266</span>
+      </a>
+    </div>
   </div>
 </section>
 
