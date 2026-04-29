@@ -8221,21 +8221,11 @@ function erRender() {
   body.innerHTML = `
     <!-- INGRESOS -->
     <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="ing" onclick="erToggleSection('ing')">
-      <span class="er-row-label">${chevron} Ingresos neto (sin ITBMS) ${countLbl(ingresos.length)}</span>
+      <span class="er-row-label">${chevron} Ingresos bruto ${countLbl(ingresos.length)}</span>
       ${fmtAmt(totalIngNeto, 'green')}
     </div>
     <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-ing">
       ${detIngHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin registros</span></div>'}
-    </div>
-
-    <!-- COSTOS -->
-    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="cogs" onclick="erToggleSection('cogs')">
-      <span class="er-row-label">${chevron} Costo de servicios ${countLbl(cogsItems.length + cogsOpItems.length)}</span>
-      ${fmtAmt(-cogsTotal, cogsTotal > 0 ? 'red' : 'green')}
-    </div>
-    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-cogs">
-      ${detCogsST}${detCogsOp || ''}
-      ${(!detCogsST && !detCogsOp) ? '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin registros</span></div>' : ''}
     </div>
 
     <!-- UTILIDAD BRUTA -->
@@ -8244,35 +8234,14 @@ function erRender() {
       ${fmtSubtotalAmt(utilBruta, utilBruta >= 0 ? 'green' : 'red')}
     </div>
 
-    <!-- GASTOS OPERATIVOS -->
+    <!-- GASTOS OPERATIVOS — agrupados por categoría (solo deducibles) -->
     <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="gas" onclick="erToggleSection('gas')">
       <span class="er-row-label">${chevron} Gastos operativos ${countLbl(gastosItems.length)}</span>
       ${fmtAmt(-gastosTotal, gastosTotal > 0 ? 'purple' : 'green')}
     </div>
     <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-gas">
-      ${dedBarHtml}
-      ${detGasHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin gastos operativos en este período</span></div>'}
+      ${catDetailHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin gastos operativos en este período</span></div>'}
     </div>
-
-    <!-- POR CATEGORÍA -->
-    ${catEntries.length > 0 ? `
-    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="cat" onclick="erToggleSection('cat')">
-      <span class="er-row-label">${chevron} Distribución por categoría ${countLbl(catEntries.length)}</span>
-      <span style="font-size:.7rem;color:var(--chrome);font-family:'DM Mono',monospace">desglose</span>
-    </div>
-    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-cat">
-      ${catDetailHtml}
-    </div>` : ''}
-
-    <!-- TOP PROVEEDORES -->
-    ${top5Prov.length > 0 ? `
-    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="prov" onclick="erToggleSection('prov')">
-      <span class="er-row-label">${chevron} Principales proveedores ${countLbl(top5Prov.length)}</span>
-      <span style="font-size:.7rem;color:var(--chrome);font-family:'DM Mono',monospace">desglose</span>
-    </div>
-    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-prov">
-      ${provDetailHtml}
-    </div>` : ''}
 
     <!-- UTILIDAD NETA -->
     <div class="er-neta-row">
