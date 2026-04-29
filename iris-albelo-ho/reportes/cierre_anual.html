@@ -206,7 +206,52 @@
 .ca-dgi-val.muted  { color: var(--muted, #94a3b8); font-weight: 400; font-style: italic; }
 
 /* ═══════════ BREAKDOWN TABLES ═══════════════════ */
-.ca-breakdown { margin-top: .75rem; }
+.ca-breakdown { margin-top: .75rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ca-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -1.5rem; padding: 0 1.5rem; }
+
+/* ═══════════ EMAIL MODAL ═══════════ */
+.ca-modal-bg {
+  position: fixed; inset: 0; background: rgba(15,23,42,.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; padding: 1rem;
+}
+.ca-modal {
+  background: var(--white,#fff); border-radius: 12px;
+  width: 100%; max-width: 540px; box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;
+}
+.ca-modal-hdr {
+  padding: .9rem 1.2rem; border-bottom: 1px solid var(--border,#e2e8f0);
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 700; font-size: .95rem;
+}
+.ca-modal-x {
+  background: none; border: none; font-size: 1.4rem; cursor: pointer;
+  color: var(--muted,#64748b); line-height: 1; padding: 0 .25rem;
+}
+.ca-modal-body { padding: 1rem 1.2rem; overflow-y: auto; }
+.ca-modal-row { margin-bottom: .85rem; display: flex; flex-direction: column; gap: .3rem; }
+.ca-modal-row label { font-size: .78rem; font-weight: 600; color: var(--text,#1a2535); }
+.ca-modal-row input,
+.ca-modal-row textarea {
+  width: 100%; padding: .55rem .7rem; border: 1px solid var(--border,#e2e8f0);
+  border-radius: 6px; font-family: inherit; font-size: .85rem; box-sizing: border-box;
+  background: var(--white,#fff); color: var(--text,#1a2535);
+}
+.ca-modal-row input:focus,
+.ca-modal-row textarea:focus { outline: none; border-color: #1565C0; }
+.ca-modal-err { font-size: .72rem; color: #C62828; min-height: 1em; }
+.ca-modal-info {
+  background: var(--bg,#f8fafc); border-radius: 6px; padding: .6rem .8rem;
+  font-size: .76rem; color: var(--muted,#475569); line-height: 1.5; margin-top: .35rem;
+}
+.ca-modal-foot {
+  padding: .7rem 1.2rem; border-top: 1px solid var(--border,#e2e8f0);
+  display: flex; justify-content: flex-end; gap: .5rem;
+}
+.ca-btn-primary { background: #1565C0; color: #fff; border-color: #1565C0; }
+.ca-btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+@media print { .ca-modal-bg { display: none !important; } }
 .ca-breakdown-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
 .ca-breakdown-table th {
   font-family: 'DM Mono', monospace; font-size: .57rem; letter-spacing: .04em;
@@ -310,6 +355,44 @@
       Vencimiento declaración: <strong>31 de marzo</strong> del año siguiente
     </div>
     <button class="ca-btn ca-btn-print" onclick="caPrint()">🖨️ Imprimir / Guardar PDF</button>
+    <button class="ca-btn ca-btn-email" onclick="caOpenEmailModal()" style="background:#1565C0;color:#fff;border-color:#1565C0">📧 Enviar por email</button>
+  </div>
+
+  <!-- EMAIL MODAL -->
+  <div id="caEmailModal" class="ca-modal-bg" style="display:none">
+    <div class="ca-modal">
+      <div class="ca-modal-hdr">
+        <span>📧 Enviar Cierre Anual por email</span>
+        <button class="ca-modal-x" onclick="caCloseEmailModal()">×</button>
+      </div>
+      <div class="ca-modal-body">
+        <div class="ca-modal-row">
+          <label>Año</label>
+          <span id="caEmailYear" style="font-weight:700">—</span>
+        </div>
+        <div class="ca-modal-row">
+          <label>Destinatarios <span style="color:var(--muted);font-weight:400">(uno o varios, separados por coma)</span></label>
+          <input type="text" id="caEmailTo" placeholder="contador@example.com, socio@example.com" autocomplete="email">
+          <div id="caEmailToErr" class="ca-modal-err"></div>
+        </div>
+        <div class="ca-modal-row">
+          <label>Mensaje opcional</label>
+          <textarea id="caEmailMsg" rows="3" placeholder="Mensaje al destinatario (opcional)"></textarea>
+        </div>
+        <div class="ca-modal-info">
+          El correo incluye:
+          <ul style="margin:.3rem 0 0 1.1rem;padding:0">
+            <li>Resumen del cierre anual en el cuerpo del mensaje (HTML)</li>
+            <li>Adjunto Excel con detalle de ingresos y gastos</li>
+            <li>Link al folder de Drive con los comprobantes</li>
+          </ul>
+        </div>
+      </div>
+      <div class="ca-modal-foot">
+        <button class="ca-btn" onclick="caCloseEmailModal()">Cancelar</button>
+        <button id="caEmailSendBtn" class="ca-btn ca-btn-primary" onclick="caSendEmail()">Enviar</button>
+      </div>
+    </div>
   </div>
 
   <!-- REPORT PAGE -->
@@ -793,7 +876,7 @@ function caRender() {
           <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1;color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}">${fmt(Math.abs(d.itbmsNeto))}</div>
         </div>
       </div>
-      <table class="ca-mes-table">
+      <div class="ca-table-scroll"><table class="ca-mes-table">
         <thead>
           <tr>
             <th>Mes</th>
@@ -824,7 +907,7 @@ function caRender() {
             <td style="font-weight:700;color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}"><strong>${fmt(Math.abs(d.itbmsNeto))}</strong> <span style="font-size:.65rem">${d.itbmsNeto>=0?'▲ Pagar':'▼ Favor'}</span></td>
           </tr>
         </tfoot>
-      </table>
+      </table></div>
     </div>
 
     <!-- SECCIÓN 5: EGRESOS POR MES -->
@@ -834,7 +917,7 @@ function caRender() {
         <span class="ca-section-title">Egresos por mes</span>
         <span class="ca-section-subtitle">Solo meses con movimiento</span>
       </div>
-      <table class="ca-mes-table">
+      <div class="ca-table-scroll"><table class="ca-mes-table">
         <thead>
           <tr>
             <th>Mes</th>
@@ -868,7 +951,7 @@ function caRender() {
             <td style="font-weight:700;color:${d.rentaNeta>=0?'#2E7D32':'#C62828'}"><strong>${fmt(d.rentaNeta)}</strong></td>
           </tr>
         </tfoot>
-      </table>
+      </table></div>
     </div>
 
     <!-- SECCIÓN 6: CUENTAS POR COBRAR AL CIERRE -->
@@ -926,6 +1009,75 @@ function caPrint() {
   document.title = old;
 }
 window.caPrint = caPrint;
+
+// ── Email modal ───────────────────────────────────
+function caOpenEmailModal() {
+  document.getElementById('caEmailYear').textContent = ca_year;
+  document.getElementById('caEmailTo').value  = '';
+  document.getElementById('caEmailMsg').value = '';
+  document.getElementById('caEmailToErr').textContent = '';
+  document.getElementById('caEmailSendBtn').disabled = false;
+  document.getElementById('caEmailSendBtn').textContent = 'Enviar';
+  document.getElementById('caEmailModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('caEmailTo').focus(), 50);
+}
+window.caOpenEmailModal = caOpenEmailModal;
+
+function caCloseEmailModal() {
+  document.getElementById('caEmailModal').style.display = 'none';
+}
+window.caCloseEmailModal = caCloseEmailModal;
+
+function _caParseEmails(s) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const list = String(s||'').split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+  const ok = [], bad = [];
+  list.forEach(e => (re.test(e) ? ok : bad).push(e));
+  return { ok, bad };
+}
+
+async function caSendEmail() {
+  const errEl = document.getElementById('caEmailToErr');
+  const btn   = document.getElementById('caEmailSendBtn');
+  const raw   = document.getElementById('caEmailTo').value;
+  const msg   = document.getElementById('caEmailMsg').value;
+  const { ok, bad } = _caParseEmails(raw);
+
+  errEl.textContent = '';
+  if (!ok.length) { errEl.textContent = 'Ingresa al menos un email válido.'; return; }
+  if (bad.length) { errEl.textContent = 'Emails inválidos: ' + bad.join(', '); return; }
+
+  btn.disabled    = true;
+  btn.textContent = 'Enviando…';
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({
+        action:  'enviarReporteCierre',
+        year:    ca_year,
+        emails:  ok.join(','),
+        mensaje: msg,
+      }),
+    }).then(r => r.json()).catch(() => null);
+
+    if (!res || !res.success) {
+      const errMsg = (res && res.error) ? res.error : 'Error al enviar (verifica que el backend tenga el endpoint enviarReporteCierre).';
+      errEl.textContent = errMsg;
+      btn.disabled    = false;
+      btn.textContent = 'Reintentar';
+      return;
+    }
+    btn.textContent = '✅ Enviado';
+    setTimeout(caCloseEmailModal, 1200);
+  } catch (e) {
+    errEl.textContent = 'Error de red: ' + (e.message || e);
+    btn.disabled    = false;
+    btn.textContent = 'Reintentar';
+  }
+}
+window.caSendEmail = caSendEmail;
 
 // ── Helpers ──────────────────────────────────────
 function fmt(n) {
