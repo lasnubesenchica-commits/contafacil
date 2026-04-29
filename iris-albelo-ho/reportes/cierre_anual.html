@@ -340,6 +340,21 @@ const MESES_C = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct',
 let ca_ing = [], ca_egr = [], ca_sts = [];
 let ca_year = new Date().getFullYear() - 1; // default: año anterior (ya cerrado)
 
+// Helpers — extraer año/mes desde fecha cuando los campos explícitos faltan
+// (alinea con la lógica del P&L para que los totales coincidan)
+function _caAnio(e) {
+  const direct = Number(e.anio || e.anio_fiscal);
+  if (direct) return direct;
+  const m = String(e.fecha_egreso || e.fecha_ingreso || '').match(/^(\d{4})/);
+  return m ? Number(m[1]) : 0;
+}
+function _caMes(e) {
+  const direct = Number(e.mes);
+  if (direct) return direct;
+  const m = String(e.fecha_egreso || e.fecha_ingreso || '').match(/^\d{4}-(\d{2})/);
+  return m ? Number(m[1]) : 0;
+}
+
 // ── JSONP ─────────────────────────────────────────
 function caJsonp(action) {
   return new Promise((resolve, reject) => {
@@ -393,8 +408,8 @@ async function caLoad() {
 
 function caPopulateYears() {
   const years = new Set();
-  ca_ing.forEach(i => { if (i.anio_fiscal) years.add(Number(i.anio_fiscal)); });
-  ca_egr.forEach(e => { const y = Number(e.anio||e.anio_fiscal); if (y) years.add(y); });
+  ca_ing.forEach(i => { const y = _caAnio(i); if (y) years.add(y); });
+  ca_egr.forEach(e => { const y = _caAnio(e); if (y) years.add(y); });
   if (!years.size) years.add(new Date().getFullYear());
   const sel = document.getElementById('caSelAnio');
   sel.innerHTML = [...years].sort((a,b)=>b-a)
@@ -411,8 +426,8 @@ window.caApply = caApply;
 // ── CÁLCULOS ──────────────────────────────────────
 function caCalc() {
   const y = ca_year;
-  const ing = ca_ing.filter(i => Number(i.anio_fiscal) === y);
-  const egr = ca_egr.filter(e => Number(e.anio||e.anio_fiscal) === y);
+  const ing = ca_ing.filter(i => _caAnio(i) === y);
+  const egr = ca_egr.filter(e => _caAnio(e) === y);
   const sts = ca_sts.filter(st => {
     return Number(st.anio||0) === y || Number(st.anio_ingreso||0) === y;
   });
@@ -470,8 +485,8 @@ function caCalc() {
   // ── ITBMS mensual ─────────────────────────────
   const itbmsPorMes = Array.from({length:12}, (_,i) => {
     const m = i + 1;
-    const ingM = ing.filter(x => Number(x.mes) === m);
-    const egrM = egr.filter(x => Number(x.mes) === m);
+    const ingM = ing.filter(x => _caMes(x) === m);
+    const egrM = egr.filter(x => _caMes(x) === m);
     const cobrado = ingM.reduce((s,x) => s+Number(x.itbms||0), 0);
     const pagado  = egrM.filter(x=>x.tipo_egreso!=='credito_fiscal').reduce((s,x)=>s+Number(x.itbms||0),0);
     const credito = egrM.filter(x=>x.tipo_egreso==='credito_fiscal').reduce((s,x)=>s+Number(x.total||0),0);
@@ -481,10 +496,10 @@ function caCalc() {
   // ── Egresos por mes ───────────────────────────
   const egrPorMes = Array.from({length:12}, (_,i) => {
     const m = i + 1;
-    const egrM = egrNormal.filter(e => Number(e.mes) === m);
+    const egrM = egrNormal.filter(e => _caMes(e) === m);
     const costoM   = egrM.filter(e=>COSTO_KEYS.includes(e.tipo_egreso)).reduce((s,e)=>s+Number(e.total||0),0);
     const gastosM  = egrM.filter(e=>!COSTO_KEYS.includes(e.tipo_egreso)).reduce((s,e)=>s+Number(e.total||0),0);
-    const ingM     = ing.filter(x => Number(x.mes) === m).reduce((s,x)=>s+Number(x.subtotal||0),0);
+    const ingM     = ing.filter(x => _caMes(x) === m).reduce((s,x)=>s+Number(x.subtotal||0),0);
     return { m, costoM, gastosM, totalM: costoM+gastosM, ingM };
   }).filter(r => r.totalM > 0 || r.ingM > 0);
 
