@@ -892,6 +892,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .er-detail-item-label { color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:1rem; }
 .er-detail-item-sub   { font-size:.68rem;color:var(--chrome);margin-left:.4rem; }
 .er-detail-item-amt   { font-family:'DM Mono',monospace;font-size:.8rem;font-weight:600;white-space:nowrap;color:var(--text); }
+.er-cat-row:hover     { background:var(--bg2); }
+.er-cat-chevron       { font-size:.6rem;color:var(--chrome);transition:transform .2s;display:inline-block;margin-right:.2rem; }
+.er-cat-row.expanded .er-cat-chevron { transform:rotate(90deg); }
+.er-cat-items         { display:none;background:var(--bg2); }
+.er-cat-items.open    { display:block; }
+.er-cat-subitem       { padding-left:3.5rem; }
 
 .pl-kpi-row {
   display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem;
@@ -8054,6 +8060,17 @@ function erToggleSection(section) {
   row.classList.toggle('expanded', !isOpen);
 }
 
+function erToggleCat(cat, ev) {
+  if (ev) ev.stopPropagation();
+  const wrap = document.getElementById('er-cat-items-' + cat);
+  const row  = document.querySelector('.er-cat-row[data-cat="' + cat + '"]');
+  if (!wrap || !row) return;
+  const isOpen = wrap.classList.contains('open');
+  wrap.classList.toggle('open', !isOpen);
+  row.classList.toggle('expanded', !isOpen);
+}
+window.erToggleCat = erToggleCat;
+
 function erRender() {
   const body = document.getElementById('erBody');
   const periodoEl = document.getElementById('erPeriodoLabel');
@@ -8108,9 +8125,10 @@ function erRender() {
   const catMap = {};
   gastosItems.forEach(e => {
     const cat = e.tipo_egreso || 'otros_deducibles';
-    if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
+    if (!catMap[cat]) catMap[cat] = { total: 0, count: 0, items: [] };
     catMap[cat].total += parseFloat(e.total) || 0;
     catMap[cat].count++;
+    catMap[cat].items.push(e);
   });
   const catEntries = Object.entries(catMap).sort((a, b) => b[1].total - a[1].total);
 
@@ -8190,18 +8208,29 @@ function erRender() {
     </div>`;
   }).join('');
 
-  // ── Detalle Categorías ──
+  // ── Detalle Categorías (clicable, despliega items) ──
   const catDetailHtml = catEntries.map(([cat, d]) => {
     const label = esc(EGR_LABEL[cat] || cat);
     const color = EGR_COLORS[cat] || '#9E9E9E';
     const pct   = gastosTotal > 0 ? (d.total / gastosTotal * 100).toFixed(1) : '0.0';
-    return `<div class="er-detail-item">
+    const safeCat = String(cat).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const itemsHtml = d.items.map(e => {
+      const desc = e.descripcion ? esc(e.descripcion.substring(0, 60)) : '—';
+      const prov = e.proveedor ? `<span class="er-detail-item-sub">${esc(e.proveedor)}</span>` : '';
+      return `<div class="er-detail-item er-cat-subitem">
+        <span class="er-detail-item-label">${desc}${prov}</span>
+        <span class="er-detail-item-amt">${plFmt(parseFloat(e.total) || 0)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="er-detail-item er-cat-row" data-cat="${safeCat}" onclick="erToggleCat('${safeCat}', event)" style="cursor:pointer">
       <span class="er-detail-item-label" style="color:var(--text)">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:.4rem;vertical-align:middle;flex-shrink:0"></span>${label}
+        <span class="er-cat-chevron">▶</span>
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin:0 .4rem;vertical-align:middle;flex-shrink:0"></span>${label}
         <span class="er-detail-item-sub">${d.count} gasto${d.count !== 1 ? 's' : ''} · ${pct}%</span>
       </span>
       <span class="er-detail-item-amt">${plFmt(d.total)}</span>
-    </div>`;
+    </div>
+    <div class="er-cat-items" id="er-cat-items-${safeCat}">${itemsHtml}</div>`;
   }).join('');
 
   // ── Detalle Top proveedores ──
@@ -8683,61 +8712,42 @@ function plRenderBarChart(year) {
     if (m >= 0 && m < 12) egrByMes[m] += parseFloat(e.total) || 0;
   });
 
-  // COGS en gráfica: según dimensión activa
-  // general → egresos misceláneos por mes
-  // proyectos/todos → ST_Items por mes
-  // comercializacion → egresos CV-OP por mes (generalmente vacío en CEYCO)
+  // Costos en gráfica: exclusivamente gastos NO deducibles (alcance = 'personal') por mes
   const cogsData = new Array(12).fill(0);
-  if (plTipo === 'general') {
-    // Egresos misceláneos agrupados por mes
-    egrYear.forEach(e => {
-      const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
-      if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
-    });
-  } else {
-    // ST_Items agrupados por mes (proyectos / todos)
-    plStItems.filter(si => {
-      if ((parseInt(si.anio) || 0) !== year) return false;
-      if ((si.item.tipo || '') === 'credito_fiscal') return false;
-      if (year === plYear && plMonth !== 'ytd' && (parseInt(si.mes) || 0) !== plMonth) return false;
-      if (plTipo === 'comercializacion') return false; // ST es Proyectos
-      return true;
-    }).forEach(si => {
-      const m = (parseInt(si.mes) || 0) - 1;
-      if (m >= 0 && m < 12) {
-        const tr = parseFloat(si.item.total_real)     || 0;
-        const tc = parseFloat(si.item.total_cotizado) || 0;
-        cogsData[m] += tr > 0 ? tr : tc;
-      }
-    });
-    // CV-OP para comercializacion/todos
-    if (plTipo === 'todos' || plTipo === 'comercializacion') {
-      egrYear.filter(e => {
-        const idCV = String(e.id_item_cv || '');
-        return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
-      }).forEach(e => {
-        const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
-        if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
-      });
+  plEgresos.filter(e => {
+    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    if ((e.alcance || 'negocio') !== 'personal') return false;
+    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== year) return false;
+    if (year === plYear && plTipo !== 'todos') {
+      if (_plClasifEgreso(e) !== plTipo) return false;
     }
-    // Gastos generales (misceláneos) en todos — se suman al COGS consolidado
-    if (plTipo === 'todos') {
-      plEgresos.filter(e => {
-        if (String(e.estado || '').toLowerCase() === 'anulado') return false;
-        if ((parseInt(e.anio) || _anioDesfecha(e.fecha_egreso)) !== year) return false;
-        return _plClasifEgreso(e) === 'general';
-      }).forEach(e => {
-        const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
-        if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
-      });
-    }
-  }
+    return true;
+  }).forEach(e => {
+    const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
+    if (m >= 0 && m < 12) cogsData[m] += parseFloat(e.total) || 0;
+  });
 
-  for (let m = 0; m < 12; m++) utilData[m] = ingData[m] - cogsData[m];
+  // Utilidad (línea) = Utilidad neta del P&L = Ingresos − Gastos operativos deducibles
+  const gastosOpByMes = new Array(12).fill(0);
+  plEgresos.filter(e => {
+    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    if ((e.alcance || 'negocio') === 'personal') return false;
+    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== year) return false;
+    if (year === plYear && plTipo !== 'todos') {
+      if (_plClasifEgreso(e) !== plTipo) return false;
+    }
+    return _plClasifEgreso(e) === 'general';
+  }).forEach(e => {
+    const m = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
+    if (m >= 0 && m < 12) gastosOpByMes[m] += parseFloat(e.total) || 0;
+  });
+  for (let m = 0; m < 12; m++) utilData[m] = ingData[m] - gastosOpByMes[m];
 
   const activeMes = plMonth === 'ytd' ? -1 : plMonth - 1;
   const ingColors  = meses.map((_,i) => i === activeMes ? '#E05A00' : 'rgba(224,90,0,.5)');
-  const cogsColors = meses.map((_,i) => i === activeMes ? '#BF360C' : 'rgba(191,54,12,.4)');
+  const cogsColors = meses.map((_,i) => i === activeMes ? '#6A1B9A' : 'rgba(106,27,154,.4)');
   const utilColors = meses.map((_,i) => {
     const v = utilData[i];
     if (i === activeMes) return v >= 0 ? '#2E7D32' : '#C62828';
@@ -8752,7 +8762,7 @@ function plRenderBarChart(year) {
       labels: meses,
       datasets: [
         { label: 'Ingresos', data: ingData,  backgroundColor: ingColors,  borderRadius: 3 },
-        { label: 'COGS',     data: cogsData, backgroundColor: cogsColors, borderRadius: 3 },
+        { label: 'Costos',   data: cogsData, backgroundColor: cogsColors, borderRadius: 3 },
         {
           label: 'Utilidad',
           data: utilData,
