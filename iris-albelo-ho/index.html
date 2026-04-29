@@ -1557,6 +1557,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <div id="rgEgrBulkBar" style="display:none;align-items:center;gap:.75rem;padding:.45rem 1.5rem;background:#E8F5E9;border-bottom:2px solid #2E7D32">
       <span id="rgEgrBulkCount" style="font-size:.82rem;font-weight:700;color:#1B5E20"></span>
       <button onclick="rgBulkAprobar()" style="padding:.28rem .75rem;background:#2E7D32;color:#fff;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">✅ Aprobar seleccionados</button>
+      <button onclick="rgBulkCategoriaOpen(event)" style="padding:.28rem .75rem;background:#6A1B9A;color:#fff;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">📋 Cambiar categoría</button>
       <button onclick="rgBulkEliminar()" style="padding:.28rem .75rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">🗑 Eliminar</button>
       <button onclick="_rgEgrSel.clear();rgRenderEgr()" style="margin-left:auto;padding:.28rem .6rem;background:none;border:none;font-size:.9rem;cursor:pointer;color:var(--muted)" title="Deseleccionar todo">✕</button>
     </div>
@@ -5666,6 +5667,7 @@ const RG_EGR_CAT_LABELS = (() => {
   m['planilla_empleados']     = '👤 Planilla';
   m['financiero_bancario']    = '🏦 Financiero';
   m['otros_gastos_generales'] = '📋 Otros gastos';
+  m['sin_clasificar']         = '❓ Sin clasificar';
   // Catálogo DGI actual — leer desde CATEGORIAS_GASTO_DGI
   CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.emoji + ' ' + c.label; });
   return m;
@@ -5694,8 +5696,7 @@ function rgRenderCatSelect(preFilterItems) {
   const counts = {};
   const totals = {};
   preFilterItems.forEach(i => {
-    const cat = i.tipo_egreso || i.categoria || '';
-    if (!cat) return;
+    const cat = i.tipo_egreso || i.categoria || 'sin_clasificar';
     counts[cat] = (counts[cat] || 0) + 1;
     totals[cat] = (totals[cat] || 0) + (parseFloat(i.total) || 0);
   });
@@ -6119,7 +6120,7 @@ function rgRenderEgr() {
   if (rg_egr_estado === 'registrado') items = items.filter(i => i._tipo === 'registrado');
   if (rg_egr_alcance !== 'all')       items = items.filter(i => (i.alcance || 'negocio') === rg_egr_alcance);
   rgRenderCatSelect(items);
-  if (rg_egr_filter  !== 'all')       items = items.filter(i => (i.tipo_egreso || i.categoria) === rg_egr_filter);
+  if (rg_egr_filter  !== 'all')       items = items.filter(i => ((i.tipo_egreso || i.categoria) || 'sin_clasificar') === rg_egr_filter);
   if (q) items = items.filter(i =>
     [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
   );
@@ -6500,6 +6501,73 @@ async function rgBulkEliminar() {
   rgRenderEgr();
 }
 window.rgBulkEliminar = rgBulkEliminar;
+
+// ── Bulk reclasificar categoría ───────────────────────────────
+function rgBulkCategoriaOpen(ev) {
+  ev.stopPropagation();
+  if (!_rgEgrSel.size) return;
+  _catDropJustOpened = true;
+  const trigger = ev.currentTarget;
+  const rect    = trigger.getBoundingClientRect();
+  const drop    = _getCatDropEl();
+  _positionDrop(drop, rect);
+  const n = _rgEgrSel.size;
+  drop.innerHTML =
+    `<div class="cat-chip-dropdown-title">Cambiar categoría · ${n} seleccionado${n !== 1 ? 's' : ''}</div>` +
+    TODAS_CATEGORIAS_EGR.map(c => `
+      <div class="cat-chip-option" onclick="rgBulkCategoriaSelect('${c.valor}')">
+        <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+        <span style="font-size:.9rem;flex-shrink:0">${c.emoji || ''}</span>
+        ${c.label}
+      </div>`
+    ).join('');
+  drop.classList.add('open');
+}
+window.rgBulkCategoriaOpen = rgBulkCategoriaOpen;
+
+async function rgBulkCategoriaSelect(nuevoValor) {
+  const drop = _getCatDropEl();
+  const ids  = [..._rgEgrSel];
+  if (!ids.length) { drop.classList.remove('open'); return; }
+  drop.innerHTML = `<div class="cat-chip-saving">⏳ Actualizando ${ids.length}...</div>`;
+  let ok = 0, errN = 0;
+  for (const id of ids) {
+    try {
+      const isPend = _acrData.some(i => String(i.id) === id);
+      if (isPend) {
+        await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'actualizarPendienteAcr', id, categoria: nuevoValor }),
+        });
+        const idx = _acrData.findIndex(i => String(i.id) === id);
+        if (idx !== -1) _acrData[idx].categoria = nuevoValor;
+        ok++;
+      } else {
+        const data = await gasJsonp('actualizarCategoriaEgreso', { id, categoria: nuevoValor });
+        if (data && data.success === false) { errN++; continue; }
+        const idx = egrItems.findIndex(i => String(i.id_egreso) === String(id));
+        if (idx !== -1) {
+          egrItems[idx].tipo_egreso = nuevoValor;
+          egrItems[idx].categoria   = nuevoValor;
+        }
+        const pe = (typeof plEgresos !== 'undefined') ? plEgresos.find(e => String(e.id_egreso) === String(id)) : null;
+        if (pe) pe.tipo_egreso = nuevoValor;
+        ok++;
+      }
+    } catch(e) { errN++; }
+  }
+  drop.classList.remove('open');
+  _rgEgrSel.clear();
+  showToast(`✅ ${ok} actualizado${ok !== 1 ? 's' : ''}${errN ? `, ${errN} errores` : ''}`);
+  rgRenderEgr();
+  if (typeof plLoaded !== 'undefined' && plLoaded) {
+    if (typeof plRenderTblGastos === 'function') plRenderTblGastos('');
+    if (typeof erRender === 'function')          erRender();
+    if (typeof renderDashboard === 'function')   renderDashboard();
+  }
+}
+window.rgBulkCategoriaSelect = rgBulkCategoriaSelect;
 
 function rgRenderIng() {
   const q    = (document.getElementById('rgSearchIng') || {value:''}).value.toLowerCase().trim();
@@ -7086,6 +7154,7 @@ const EGR_COLORS = {
   tecnologia_software:      '#0277BD',
   capacitacion:             '#2E7D32',
   otros_deducibles:         '#AEAEB2',
+  sin_clasificar:           '#FF6F00',
   // Deducibles Personales
   deducibles_personales:           '#6A1B9A',
   gastos_medicos:                  '#AD1457',
@@ -7115,6 +7184,7 @@ const EGR_LABEL = (() => {
     credito_fiscal:         'Crédito fiscal',
     costo_operativo:        'Costo operativo',
     servicios:              'Servicios',
+    sin_clasificar:         '❓ Sin clasificar',
   };
   CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.label; });
   return m;
@@ -8124,7 +8194,7 @@ function erRender() {
   // ── Categorías ──────────────────────────────────────────────────
   const catMap = {};
   gastosItems.forEach(e => {
-    const cat = e.tipo_egreso || 'otros_deducibles';
+    const cat = e.tipo_egreso || 'sin_clasificar';
     if (!catMap[cat]) catMap[cat] = { total: 0, count: 0, items: [] };
     catMap[cat].total += parseFloat(e.total) || 0;
     catMap[cat].count++;
