@@ -372,7 +372,11 @@ async function caLoad() {
       const e = String(i.estado||'').toLowerCase();
       return e === 'confirmado' || e === 'abono' || e === 'pendiente';
     });
-    ca_egr = egrRes.items || [];
+    // Excluir egresos anulados y gastos personales (no deducibles) — alinea con P&L
+    ca_egr = (egrRes.items || []).filter(e =>
+      String(e.estado||'').toLowerCase() !== 'anulado' &&
+      (e.alcance || 'negocio') !== 'personal'
+    );
     ca_sts = (stRes.items || []).filter(st => st.estado !== 'cancelado');
 
     caPopulateYears();
@@ -442,10 +446,10 @@ function caCalc() {
   const totalCredFisc  = egrCredito.reduce((s,e) => s+Number(e.total||0), 0);
   const itbmsNeto      = totalITBMSCobrado - totalITBMSPag - totalCredFisc;
 
-  // Breakdown por tipo de egreso
+  // Breakdown por tipo de egreso — items sin tipo van a "Sin clasificar" (alineado con P&L)
   const egrPorTipo = {};
   egrNormal.forEach(e => {
-    const k = e.tipo_egreso || 'otros_deducibles';
+    const k = e.tipo_egreso || 'sin_clasificar';
     if (!egrPorTipo[k]) egrPorTipo[k] = { total: 0, itbms: 0, n: 0 };
     egrPorTipo[k].total += Number(e.total||0);
     egrPorTipo[k].itbms += Number(e.itbms||0);
@@ -545,6 +549,7 @@ const EGR_LABELS = {
   seguros:                  'Seguros',
   gastos_financieros:       'Gastos financieros',
   otros_deducibles:         'Otros gastos deducibles',
+  sin_clasificar:           'Sin clasificar',
   servicios_profesionales:  'Honorarios / Servicios profesionales',
   costo_operativo:          'Costos operativos generales',
 };

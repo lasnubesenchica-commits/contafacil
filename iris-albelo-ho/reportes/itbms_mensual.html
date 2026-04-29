@@ -615,6 +615,7 @@ function itbRenderRecibidas(egr, total) {
     nomina: 'Nómina', servicios: 'Servicios', combustible_transporte: 'Combustible',
     honorarios_profesionales: 'Honorarios', mantenimiento_reparacion: 'Mantenimiento',
     otros_deducibles: 'Otros',
+    sin_clasificar: 'Sin clasificar',
   };
 
   let rows = '';
@@ -623,7 +624,7 @@ function itbRenderRecibidas(egr, total) {
     const origenBadge = esST
       ? '<span class="itb-badge proy">PROY</span>'
       : '<span class="itb-badge com">COM</span>';
-    const tipoLabel = EGR_LABELS[e.tipo_egreso] || e.tipo_egreso || '—';
+    const tipoLabel = EGR_LABELS[e.tipo_egreso] || e.tipo_egreso || 'Sin clasificar';
     rows += `<tr>
       <td style="font-size:.78rem;color:var(--muted)">${e.fecha_egreso || '—'}</td>
       <td><span style="font-family:'DM Mono',monospace;font-size:.78rem">${itbEsc(e.num_fac_ref||'—')}</span></td>
