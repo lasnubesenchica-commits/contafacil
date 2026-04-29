@@ -5857,7 +5857,7 @@ function catChipLabel(valor) {
 
 // Construir la celda chip clickeable
 function buildCatChip(item) {
-  const catVal = item.tipo_egreso || item.categoria || '';
+  const catVal = item.tipo_egreso || item.categoria || 'sin_clasificar';
   const label = catChipLabel(catVal);
   const id    = esc(item._id);
   const tipo  = item._tipo; // 'pendiente' | 'registrado'
@@ -6081,7 +6081,7 @@ function rgRenderEgr() {
       fecha:      String(e.fecha_egreso||'').substring(0,10),
       proveedor:  e.proveedor || '—',
       num_fac:    e.num_fac_ref || '—',
-      categoria:  e.tipo_egreso || e.categoria || '',
+      categoria:  e.tipo_egreso || '',
       subtotal:   parseFloat(e.subtotal) || 0,
       itbms:      parseFloat(e.itbms)    || 0,
       total:      parseFloat(e.total)    || 0,
