@@ -573,11 +573,11 @@ footer {
   border-color: rgba(249,115,22,0.3);
 }
 .path-trade:hover { border-color: var(--orange); }
-.path-solo {
+.path-pro {
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   border-color: rgba(59,130,246,0.3);
 }
-.path-solo:hover { border-color: var(--blue); }
+.path-pro:hover { border-color: var(--blue); }
 .path-icon {
   width: 56px; height: 56px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
@@ -592,7 +592,7 @@ footer {
   margin-bottom: 0.75rem;
 }
 .path-trade .path-tag { background: rgba(249,115,22,0.18); color: var(--orange); }
-.path-solo .path-tag { background: rgba(59,130,246,0.18); color: var(--blue); }
+.path-pro .path-tag { background: rgba(59,130,246,0.18); color: var(--blue); }
 .path-card h3 {
   font-size: 1.55rem; font-weight: 900; margin-bottom: 0.5rem;
   letter-spacing: -0.02em; color: var(--ink);
@@ -618,7 +618,7 @@ footer {
   transition: all 0.2s;
 }
 .path-trade .path-cta { background: var(--orange); color: var(--white); }
-.path-solo .path-cta { background: var(--blue); color: var(--white); }
+.path-pro .path-cta { background: var(--blue); color: var(--white); }
 .path-card:hover .path-cta { transform: translateX(4px); }
 
 /* TRACK DIVIDER */
@@ -634,7 +634,7 @@ footer {
   margin-bottom: 1rem; color: var(--white);
 }
 .trade-pill { background: var(--orange); }
-.solo-pill { background: var(--blue); }
+.pro-pill { background: var(--blue); }
 .track-divider h2 {
   font-size: clamp(1.7rem, 3vw, 2.2rem); margin-bottom: 0.5rem;
 }
@@ -643,17 +643,17 @@ footer {
   margin: 0 auto; font-size: 1rem;
 }
 
-/* SOLO SECTION VARIANTS */
-.section-solo { background: linear-gradient(180deg, #fafafa 0%, #eff6ff 100%); }
-.section-solo .section-tag { background: var(--blue-light); color: var(--blue); }
-.section-solo .how-num { color: var(--blue); }
-.section-solo .how-card:hover { border-color: rgba(59,130,246,0.25); }
-.section-solo .feature-card:hover { border-color: rgba(59,130,246,0.25); }
+/* PRO SECTION VARIANTS */
+.section-pro { background: linear-gradient(180deg, #fafafa 0%, #eff6ff 100%); }
+.section-pro .section-tag { background: var(--blue-light); color: var(--blue); }
+.section-pro .how-num { color: var(--blue); }
+.section-pro .how-card:hover { border-color: rgba(59,130,246,0.25); }
+.section-pro .feature-card:hover { border-color: rgba(59,130,246,0.25); }
 .icon-blue { background: linear-gradient(135deg, #eff6ff, #bfdbfe); }
 
-/* SOLO TESTIMONIAL */
-.solo-testimonial-wrap { padding: 5rem 3rem; background: var(--white); }
-.solo-testimonial {
+/* PRO TESTIMONIAL */
+.pro-testimonial-wrap { padding: 5rem 3rem; background: var(--white); }
+.pro-testimonial {
   max-width: 720px; margin: 0 auto;
   background: linear-gradient(135deg, #f0f9ff 0%, #faf5ff 100%);
   border-radius: 24px;
@@ -662,19 +662,19 @@ footer {
   text-align: left;
   box-shadow: var(--shadow);
 }
-.solo-testimonial blockquote {
+.pro-testimonial blockquote {
   font-size: 1.15rem; color: var(--ink); line-height: 1.65;
   font-weight: 600; font-style: italic; margin-bottom: 1.5rem;
 }
 .testimonial-author { display: flex; align-items: center; gap: 12px; }
-.solo-author-avatar {
+.pro-author-avatar {
   width: 46px; height: 46px; border-radius: 50%;
   background: linear-gradient(135deg, var(--blue), var(--purple));
   display: flex; align-items: center; justify-content: center;
   color: var(--white); font-weight: 900; font-size: 17px;
 }
-.solo-author-name { font-size: 14px; font-weight: 800; color: var(--ink); }
-.solo-author-role { font-size: 12px; color: var(--ink3); font-weight: 600; }
+.pro-author-name { font-size: 14px; font-weight: 800; color: var(--ink); }
+.pro-author-role { font-size: 12px; color: var(--ink3); font-weight: 600; }
 
 /* WHATSAPP BUTTON */
 .btn-whatsapp {
@@ -692,8 +692,8 @@ footer {
   display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
 }
 
-/* HERO SOLO BUTTON */
-.btn-hero-solo {
+/* HERO PRO BUTTON */
+.btn-hero-pro {
   background: linear-gradient(135deg, var(--blue) 0%, #1d4ed8 100%);
   color: var(--white); border: none; border-radius: 100px;
   padding: 14px 28px; font-size: 15px; font-weight: 800;
@@ -702,7 +702,7 @@ footer {
   box-shadow: 0 6px 20px rgba(59,130,246,0.4);
   transition: all 0.2s;
 }
-.btn-hero-solo:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(59,130,246,0.5); }
+.btn-hero-pro:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(59,130,246,0.5); }
 
 /* PANAMA 2026 STRIP */
 .panama-strip {
@@ -791,8 +791,8 @@ body:not(.es) .es { display: none !important; }
   .path-selector { padding: 3rem 1.5rem 0.5rem; }
   .path-grid { grid-template-columns: 1fr; }
   .track-divider { padding: 3rem 1.5rem 0; }
-  .solo-testimonial-wrap { padding: 3rem 1.5rem; }
-  .solo-testimonial { padding: 1.75rem; }
+  .pro-testimonial-wrap { padding: 3rem 1.5rem; }
+  .pro-testimonial { padding: 1.75rem; }
   .panama-strip { padding: 3rem 1.5rem; }
   .panama-strip-inner { grid-template-columns: 1fr; gap: 2rem; }
   .stats-bar { gap: 0; flex-wrap: wrap; }
@@ -811,7 +811,7 @@ body:not(.es) .es { display: none !important; }
   </a>
   <ul class="nav-links">
     <li><a href="#trade"><span class="en">Trade</span><span class="es">Trade</span></a></li>
-    <li><a href="#solo"><span class="en">Solo</span><span class="es">Solo</span></a></li>
+    <li><a href="#pro"><span class="en">Pro</span><span class="es">Pro</span></a></li>
     <li><a href="#how"><span class="en">How It Works</span><span class="es">Cómo Funciona</span></a></li>
   </ul>
   <div class="nav-right">
@@ -841,17 +841,17 @@ body:not(.es) .es { display: none !important; }
         <span class="es">Tu contabilidad,<br><span class="accent">finalmente cerrada.</span></span>
       </h1>
       <p class="hero-sub">
-        <span class="en">Zero manual entry. DGI-native. One platform, two products: <strong>Trade</strong> for buy-and-sell businesses, <strong>Solo</strong> for entrepreneurs.</span>
-        <span class="es">Cero entrada manual. DGI nativo. Una plataforma, dos productos: <strong>Trade</strong> para empresas y <strong>Solo</strong> para emprendedores.</span>
+        <span class="en">Zero manual entry. DGI-native. <strong>Trade</strong> if you buy and sell products. <strong>Pro</strong> if you bill for your time or services.</span>
+        <span class="es">Cero entrada manual. DGI nativo. <strong>Trade</strong> si compras y vendes productos. <strong>Pro</strong> si cobras por tu tiempo o servicios.</span>
       </p>
       <div class="hero-actions">
         <a href="#trade" class="btn-hero-primary">
-          <span class="en">I'm a Business → Trade</span>
-          <span class="es">Soy Empresa → Trade</span>
+          <span class="en">I buy &amp; sell → Trade</span>
+          <span class="es">Compro y vendo → Trade</span>
         </a>
-        <a href="#solo" class="btn-hero-solo">
-          <span class="en">I'm an Entrepreneur → Solo</span>
-          <span class="es">Soy Emprendedor → Solo</span>
+        <a href="#pro" class="btn-hero-pro">
+          <span class="en">I bill my time → Pro</span>
+          <span class="es">Cobro por mi tiempo → Pro</span>
         </a>
       </div>
       <div class="hero-trust">
@@ -967,10 +967,10 @@ body:not(.es) .es { display: none !important; }
       <a href="/trade" class="path-card path-trade">
         <div class="path-icon">📦</div>
         <span class="path-tag">Trade</span>
-        <h3>BalanceClip Trade</h3>
+        <h3><span class="en">I buy and sell products</span><span class="es">Compro y vendo productos</span></h3>
         <p class="path-sub">
-          <span class="en">For buy-and-sell businesses. We clip every purchase invoice to its sale.</span>
-          <span class="es">Para empresas que compran y venden. Cruzamos cada factura de compra con su venta.</span>
+          <span class="en">Retail, wholesale, distribution, import. We clip every purchase invoice to its sale.</span>
+          <span class="es">Al detal, por mayor, distribución, importación. Cruzamos cada factura de compra con su venta.</span>
         </p>
         <ul class="path-features">
           <li><span class="en">AI invoice matching (purchase ↔ sale)</span><span class="es">Cruce con IA (compra ↔ venta)</span></li>
@@ -981,13 +981,13 @@ body:not(.es) .es { display: none !important; }
           <span class="en">See Trade →</span><span class="es">Ver Trade →</span>
         </span>
       </a>
-      <a href="/solo" class="path-card path-solo">
-        <div class="path-icon">📸</div>
-        <span class="path-tag">Solo</span>
-        <h3>BalanceClip Solo</h3>
+      <a href="/pro" class="path-card path-pro">
+        <div class="path-icon">💼</div>
+        <span class="path-tag">Pro</span>
+        <h3><span class="en">I bill for my time or services</span><span class="es">Cobro por mi tiempo o servicios</span></h3>
         <p class="path-sub">
-          <span class="en">For solo entrepreneurs. We never lose a deductible expense again.</span>
-          <span class="es">Para emprendedores. Nunca más pierdas un gasto deducible.</span>
+          <span class="en">Consultants, service providers, salaried professionals. We never lose a deductible expense again.</span>
+          <span class="es">Consultores, prestadores de servicios, asalariados. Nunca más pierdas un gasto deducible.</span>
         </p>
         <ul class="path-features">
           <li><span class="en">Auto-capture invoices from Gmail</span><span class="es">Captura automática desde Gmail</span></li>
@@ -995,7 +995,7 @@ body:not(.es) .es { display: none !important; }
           <li><span class="en">Year-end report ready for your accountant</span><span class="es">Cierre anual listo para tu contable</span></li>
         </ul>
         <span class="path-cta">
-          <span class="en">See Solo →</span><span class="es">Ver Solo →</span>
+          <span class="en">See Pro →</span><span class="es">Ver Pro →</span>
         </span>
       </a>
     </div>
@@ -1014,8 +1014,8 @@ body:not(.es) .es { display: none !important; }
         <span class="es">Hecho para Panamá. <span class="accent-orange">Listo para 2026.</span></span>
       </h2>
       <p>
-        <span class="en">Starting January 2026, DGI capped the free invoicer at <strong>B/.36,000/year</strong>. Growing entrepreneurs need an authorized provider — one that handles ITBMS, e-Tax 2.0 and RUC/DV out of the box. Both Trade and Solo run on the same DGI-native rails.</span>
-        <span class="es">Desde enero 2026, la DGI limitó el facturador gratuito a <strong>B/.36,000 al año</strong>. Si tu negocio crece, necesitas un proveedor autorizado — y uno que maneje ITBMS, e-Tax 2.0 y RUC/DV de fábrica. Trade y Solo corren sobre los mismos rieles DGI nativos.</span>
+        <span class="en">Starting January 2026, DGI capped the free invoicer at <strong>B/.36,000/year</strong>. Growing businesses and professionals need an authorized provider — one that handles ITBMS, e-Tax 2.0 and RUC/DV out of the box. Both Trade and Pro run on the same DGI-native rails.</span>
+        <span class="es">Desde enero 2026, la DGI limitó el facturador gratuito a <strong>B/.36,000 al año</strong>. Si tu negocio o tu práctica crece, necesitas un proveedor autorizado — y uno que maneje ITBMS, e-Tax 2.0 y RUC/DV de fábrica. Trade y Pro corren sobre los mismos rieles DGI nativos.</span>
       </p>
     </div>
     <div class="panama-chips">
@@ -1168,30 +1168,30 @@ body:not(.es) .es { display: none !important; }
   </div>
 </section>
 
-<!-- SOLO TRACK DIVIDER -->
-<div class="track-divider" id="solo">
-  <span class="track-pill solo-pill">Track 02 · Solo</span>
+<!-- PRO TRACK DIVIDER -->
+<div class="track-divider" id="pro">
+  <span class="track-pill pro-pill">Track 02 · Pro</span>
   <h2>
-    <span class="en">Your profit, without losing a single receipt.</span>
-    <span class="es">Tu rentabilidad, sin perder un solo recibo.</span>
+    <span class="en">If you bill for your time, stop overpaying renta.</span>
+    <span class="es">Si cobras por tu tiempo, deja de pagar renta de más.</span>
   </h2>
   <p>
-    <span class="en">For solo entrepreneurs, freelancers and independent professionals who file their own tax return — or hand it to an accountant once a year.</span>
-    <span class="es">Para emprendedores, freelancers y profesionales independientes que presentan su propia renta — o se la entregan al contable una vez al año.</span>
+    <span class="en">For consultants, service providers and salaried professionals who file their own renta — or hand it to an accountant once a year.</span>
+    <span class="es">Para consultores, prestadores de servicios y asalariados que presentan su propia renta — o se la entregan al contable una vez al año.</span>
   </p>
 </div>
 
-<!-- HOW IT WORKS · SOLO -->
-<section class="section section-solo" id="how-solo">
+<!-- HOW IT WORKS · PRO -->
+<section class="section section-pro" id="how-pro">
   <div class="section-inner">
-    <span class="section-tag"><span class="en">How Solo Works</span><span class="es">Cómo Funciona Solo</span></span>
+    <span class="section-tag"><span class="en">How Pro Works</span><span class="es">Cómo Funciona Pro</span></span>
     <h2>
       <span class="en">Stop losing receipts.<br>Let your phone do the bookkeeping.</span>
       <span class="es">Deja de perder recibos.<br>Tu móvil lleva la contabilidad.</span>
     </h2>
     <p class="section-desc">
-      <span class="en">In Panama, entrepreneurs overpay income tax because they lose the paper trail. BalanceClip Solo never loses one.</span>
-      <span class="es">En Panamá, los emprendedores pagan más renta porque pierden los soportes. BalanceClip Solo no pierde ninguno.</span>
+      <span class="en">In Panama, professionals overpay income tax because they lose the paper trail. BalanceClip Pro never loses one.</span>
+      <span class="es">En Panamá, los profesionales pagan más renta porque pierden los soportes. BalanceClip Pro no pierde ninguno.</span>
     </p>
     <div class="how-grid">
       <div class="how-card">
@@ -1216,17 +1216,17 @@ body:not(.es) .es { display: none !important; }
   </div>
 </section>
 
-<!-- FEATURES · SOLO -->
-<section class="section section-solo" id="features-solo">
+<!-- FEATURES · PRO -->
+<section class="section section-pro" id="features-pro">
   <div class="section-inner">
-    <span class="section-tag"><span class="en">Solo Features</span><span class="es">Funciones de Solo</span></span>
+    <span class="section-tag"><span class="en">Pro Features</span><span class="es">Funciones de Pro</span></span>
     <h2>
-      <span class="en">Built for the way entrepreneurs actually work.</span>
-      <span class="es">Pensado para cómo trabajan los emprendedores.</span>
+      <span class="en">Built for the way professionals actually work.</span>
+      <span class="es">Pensado para cómo trabajan los profesionales.</span>
     </h2>
     <p class="section-desc">
       <span class="en">No bookkeeping skills required. Just a phone and a Gmail account.</span>
-      <span class="es">Sin saber de contabilidad. Solo un móvil y una cuenta de Gmail.</span>
+      <span class="es">Sin saber de contabilidad. Basta un móvil y una cuenta de Gmail.</span>
     </p>
     <div class="features-grid">
       <div class="feature-card">
@@ -1275,20 +1275,20 @@ body:not(.es) .es { display: none !important; }
   </div>
 </section>
 
-<!-- SOLO TESTIMONIAL -->
-<section class="solo-testimonial-wrap">
-  <div class="solo-testimonial">
+<!-- PRO TESTIMONIAL -->
+<section class="pro-testimonial-wrap">
+  <div class="pro-testimonial">
     <blockquote>
       <span class="en">“Before, I used to overpay income tax because I'd lose half my receipts. Now I just snap a photo, my accountant gets everything organized, and I sleep at night.”</span>
       <span class="es">“Antes pagaba más renta de la que debía porque perdía la mitad de los recibos. Ahora solo tomo foto, mi contable recibe todo ordenado y duermo tranquila.”</span>
     </blockquote>
     <div class="testimonial-author">
-      <div class="solo-author-avatar">M</div>
+      <div class="pro-author-avatar">M</div>
       <div>
-        <div class="solo-author-name">María R.</div>
-        <div class="solo-author-role">
-          <span class="en">Freelance Entrepreneur · Panama City</span>
-          <span class="es">Emprendedora Freelance · Ciudad de Panamá</span>
+        <div class="pro-author-name">María R.</div>
+        <div class="pro-author-role">
+          <span class="en">Freelance Designer · Panama City</span>
+          <span class="es">Diseñadora Freelance · Ciudad de Panamá</span>
         </div>
       </div>
     </div>
@@ -1310,7 +1310,7 @@ body:not(.es) .es { display: none !important; }
   <div class="cta-decor1"></div>
   <div class="cta-decor2"></div>
   <div class="cta-inner">
-    <h2><span class="en">Trade or Solo? We'll help you choose in 5 minutes.</span><span class="es">¿Trade o Solo? Te ayudamos a elegir en 5 minutos.</span></h2>
+    <h2><span class="en">Trade or Pro? We'll help you choose in 5 minutes.</span><span class="es">¿Trade o Pro? Te ayudamos a elegir en 5 minutos.</span></h2>
     <p><span class="en">Email us, or WhatsApp directly. We answer in Panama time.</span><span class="es">Escríbenos por correo o WhatsApp. Respondemos en hora Panamá.</span></p>
     <div class="cta-actions">
       <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
