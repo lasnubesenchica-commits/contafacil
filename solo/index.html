@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BalanceClip Solo — Your profit, without losing a single receipt.</title>
+<meta name="description" content="BalanceClip Solo captures every Gmail invoice and paper receipt for Panama freelancers. Year-end report ready for your accountant. DGI-native.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --orange: #f97316;
+  --orange2: #fb923c;
+  --orange-light: #fff7ed;
+  --blue: #3b82f6;
+  --blue-dark: #1d4ed8;
+  --blue-light: #eff6ff;
+  --purple: #8b5cf6;
+  --teal: #14b8a6;
+  --ink: #1e1b4b;
+  --ink2: #4b5563;
+  --ink3: #9ca3af;
+  --white: #ffffff;
+  --bg: #fafafa;
+  --border: rgba(0,0,0,0.08);
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+}
+html { scroll-behavior: smooth; }
+body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--ink); font-size: 16px; line-height: 1.6; overflow-x: hidden; }
+
+/* NAV */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 3rem; background: rgba(255,255,255,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); box-shadow: 0 2px 16px rgba(0,0,0,0.04); }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 1.4rem; font-weight: 900; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
+.logo-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--orange) 0%, var(--orange2) 100%); display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 12px rgba(249,115,22,0.35); }
+.logo-clip { color: var(--orange); }
+.nav-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
+.nav-links a { text-decoration: none; color: var(--ink2); font-size: 14px; font-weight: 600; transition: color 0.2s; }
+.nav-links a:hover { color: var(--blue); }
+.nav-links a.active { color: var(--blue); }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.lang-btn { background: none; border: 1.5px solid var(--border); border-radius: 100px; padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--ink3); transition: all 0.15s; font-family: 'Nunito', sans-serif; }
+.lang-btn.active, .lang-btn:hover { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.btn-signin { background: none; color: var(--ink); border: 1.5px solid var(--border); border-radius: 100px; padding: 9px 22px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: 'Nunito', sans-serif; }
+.btn-signin:hover { border-color: var(--blue); color: var(--blue); }
+.btn-cta { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%); color: var(--white); border: none; border-radius: 100px; padding: 10px 22px; font-size: 13px; font-weight: 800; cursor: pointer; text-decoration: none; transition: all 0.2s; display: inline-block; font-family: 'Nunito', sans-serif; box-shadow: 0 4px 16px rgba(59,130,246,0.35); }
+.btn-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59,130,246,0.45); }
+
+/* HERO */
+.hero { min-height: 70vh; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #ede9fe 100%); display: flex; align-items: center; padding: 9rem 3rem 5rem; position: relative; overflow: hidden; }
+.hero-glow { position: absolute; width: 520px; height: 520px; background: radial-gradient(circle, rgba(59,130,246,0.20) 0%, transparent 70%); top: -120px; right: 80px; pointer-events: none; }
+.hero-inner { max-width: 1100px; margin: 0 auto; width: 100%; position: relative; z-index: 1; }
+.crumb { font-size: 13px; font-weight: 700; color: var(--ink3); margin-bottom: 1rem; }
+.crumb a { color: var(--ink2); text-decoration: none; }
+.crumb a:hover { color: var(--blue); }
+.crumb .sep { margin: 0 8px; color: var(--ink3); }
+.crumb .current { color: var(--blue); }
+.hero-pill { display: inline-block; background: var(--white); border: 1.5px solid rgba(59,130,246,0.25); border-radius: 100px; padding: 6px 16px; font-size: 12px; font-weight: 800; color: var(--blue); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 1.25rem; box-shadow: 0 4px 16px rgba(59,130,246,0.15); }
+h1 { font-size: clamp(2.4rem, 4.5vw, 3.6rem); font-weight: 900; line-height: 1.18; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 1.25rem; max-width: 780px; }
+h1 .accent { background: linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-style: italic; }
+.hero-sub { font-size: 1.1rem; color: var(--ink2); max-width: 640px; line-height: 1.7; font-weight: 500; margin-bottom: 2rem; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-hero-primary { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%); color: var(--white); border: none; border-radius: 100px; padding: 14px 28px; font-size: 15px; font-weight: 800; cursor: pointer; text-decoration: none; display: inline-block; font-family: 'Nunito', sans-serif; box-shadow: 0 6px 20px rgba(59,130,246,0.4); transition: all 0.2s; }
+.btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(59,130,246,0.5); }
+.btn-whatsapp { background: #25d366; color: var(--white); border: none; border-radius: 100px; padding: 14px 26px; font-size: 15px; font-weight: 800; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-family: 'Nunito', sans-serif; box-shadow: 0 6px 20px rgba(37,211,102,0.35); transition: all 0.2s; }
+.btn-whatsapp:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,211,102,0.45); background: #1ebe5a; }
+
+/* SECTIONS BASE */
+.section { padding: 5rem 3rem; }
+.section-inner { max-width: 1100px; margin: 0 auto; }
+.section-alt { background: linear-gradient(180deg, #fafafa 0%, #eff6ff 100%); }
+.section-tag { display: inline-block; background: var(--blue-light); color: var(--blue); border-radius: 100px; padding: 5px 16px; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 1rem; }
+h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 900; line-height: 1.18; letter-spacing: -0.02em; margin-bottom: 1rem; }
+h3 { font-size: 1.15rem; font-weight: 800; color: var(--ink); }
+.section-desc { font-size: 1.05rem; color: var(--ink2); max-width: 620px; line-height: 1.7; font-weight: 500; margin-bottom: 3rem; }
+
+/* FOOTER */
+footer { padding: 1.75rem 3rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); font-size: 13px; color: var(--ink3); font-weight: 600; background: var(--white); }
+
+/* LANG */
+body.es .en { display: none !important; }
+body.es .es { display: inline !important; }
+body:not(.es) .es { display: none !important; }
+
+/* RESPONSIVE BASE */
+@media (max-width: 900px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-links { display: none; }
+  .hero { padding: 7rem 1.5rem 4rem; }
+  .section { padding: 3.5rem 1.5rem; }
+  footer { flex-direction: column; gap: 6px; }
+}
+/* WHO */
+.who-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+.who-card { background: var(--white); border-radius: 20px; padding: 1.75rem; border: 1.5px solid var(--border); transition: all 0.2s; }
+.who-card:hover { transform: translateY(-3px); border-color: rgba(59,130,246,0.3); box-shadow: var(--shadow-lg); }
+.who-emoji { font-size: 32px; margin-bottom: 0.75rem; }
+.who-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.4rem; }
+.who-card p { font-size: 0.9rem; color: var(--ink2); line-height: 1.6; font-weight: 500; }
+@media (max-width: 900px) { .who-grid { grid-template-columns: 1fr; } }
+
+/* FLOW */
+.flow-list { display: flex; flex-direction: column; gap: 14px; max-width: 820px; margin: 2rem auto 0; }
+.flow-step { background: var(--white); border-radius: 16px; padding: 1.5rem; border: 1.5px solid var(--border); display: flex; gap: 1.25rem; align-items: flex-start; }
+.flow-num { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: var(--white); font-weight: 900; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+.flow-step h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: 0.4rem; }
+.flow-step p { font-size: 0.9rem; color: var(--ink2); line-height: 1.6; font-weight: 500; }
+.flow-step .flow-time { font-size: 12px; color: var(--blue); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.5rem; display: inline-block; }
+
+/* CATEGORIES */
+.cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 2rem; }
+.cat-chip { background: var(--white); border: 1.5px solid var(--border); border-radius: 12px; padding: 0.85rem 1rem; display: flex; gap: 10px; align-items: center; transition: all 0.2s; }
+.cat-chip:hover { border-color: rgba(59,130,246,0.35); transform: translateY(-2px); box-shadow: var(--shadow); }
+.cat-chip-emoji { font-size: 18px; flex-shrink: 0; }
+.cat-chip-label { font-size: 0.85rem; font-weight: 700; color: var(--ink); }
+@media (max-width: 900px) { .cat-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .cat-grid { grid-template-columns: 1fr; } }
+/* PRICING */
+.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 2.5rem; }
+.price-card { background: var(--white); border-radius: 20px; padding: 2rem 1.75rem; border: 2px solid var(--border); transition: all 0.2s; position: relative; display: flex; flex-direction: column; }
+.price-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.price-card.featured { border-color: var(--blue); box-shadow: 0 12px 32px rgba(59,130,246,0.18); }
+.price-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: var(--white); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+.price-name { font-size: 0.85rem; font-weight: 800; color: var(--blue); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
+.price-amount { font-size: 2.4rem; font-weight: 900; color: var(--ink); letter-spacing: -0.02em; line-height: 1; margin-bottom: 0.25rem; }
+.price-amount .price-cur { font-size: 1rem; font-weight: 700; color: var(--ink3); vertical-align: top; }
+.price-amount .price-per { font-size: 0.9rem; font-weight: 600; color: var(--ink3); }
+.price-tag { font-size: 0.85rem; color: var(--ink2); font-weight: 600; margin-bottom: 1.5rem; }
+.price-list { list-style: none; margin-bottom: 1.75rem; flex: 1; }
+.price-list li { font-size: 0.88rem; color: var(--ink2); font-weight: 500; padding: 6px 0; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+.price-list li::before { content: "✓"; color: var(--teal); font-weight: 900; flex-shrink: 0; }
+.price-cta { display: block; text-align: center; padding: 12px 20px; border-radius: 100px; font-weight: 800; font-size: 14px; text-decoration: none; transition: all 0.2s; }
+.price-cta-outline { border: 2px solid var(--blue); color: var(--blue); background: var(--white); }
+.price-cta-outline:hover { background: var(--blue); color: var(--white); }
+.price-cta-fill { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%); color: var(--white); box-shadow: 0 4px 14px rgba(59,130,246,0.35); }
+.price-cta-fill:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(59,130,246,0.45); }
+.price-note { font-size: 13px; color: var(--ink3); font-weight: 600; margin-top: 1.5rem; text-align: center; }
+@media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; } }
+
+/* FAQ */
+.faq-list { display: flex; flex-direction: column; gap: 12px; max-width: 820px; margin: 2rem auto 0; }
+.faq-item { background: var(--white); border: 1.5px solid var(--border); border-radius: 16px; padding: 1.1rem 1.4rem; transition: all 0.2s; }
+.faq-item[open] { border-color: rgba(59,130,246,0.35); box-shadow: var(--shadow); }
+.faq-item summary { font-size: 1rem; font-weight: 800; color: var(--ink); cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: "+"; color: var(--blue); font-size: 1.4rem; font-weight: 700; line-height: 1; transition: transform 0.2s; }
+.faq-item[open] summary::after { content: "−"; }
+.faq-item p { font-size: 0.92rem; color: var(--ink2); font-weight: 500; line-height: 1.65; margin-top: 0.85rem; }
+
+/* CONTACT CTA */
+.contact-cta { padding: 5rem 3rem; background: linear-gradient(135deg, var(--ink) 0%, #1e3a8a 100%); color: var(--white); text-align: center; position: relative; overflow: hidden; }
+.contact-cta-glow { position: absolute; width: 500px; height: 500px; background: radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 70%); top: -150px; right: -100px; pointer-events: none; }
+.contact-cta-inner { max-width: 640px; margin: 0 auto; position: relative; z-index: 1; }
+.contact-cta h2 { color: var(--white); margin-bottom: 0.75rem; }
+.contact-cta p { color: rgba(255,255,255,0.75); font-size: 1.05rem; font-weight: 500; margin-bottom: 2rem; }
+.contact-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+@media (max-width: 900px) { .contact-cta { padding: 3.5rem 1.5rem; } }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-icon">📎</div>
+    Balance<span class="logo-clip">Clip</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="/trade">Trade</a></li>
+    <li><a href="/solo" class="active">Solo</a></li>
+    <li><a href="/#how"><span class="en">How It Works</span><span class="es">Cómo Funciona</span></a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="lang-btn active" onclick="setLang('en')" id="btn-en">EN</button>
+    <button class="lang-btn" onclick="setLang('es')" id="btn-es">ES</button>
+    <a href="mailto:hello@balanceclip.net?subject=BalanceClip%20Solo" class="btn-signin">
+      <span class="en">Sign In</span><span class="es">Ingresar</span>
+    </a>
+    <a href="#contact" class="btn-cta">
+      <span class="en">Try Solo →</span><span class="es">Probar Solo →</span>
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-inner">
+    <div class="crumb">
+      <a href="/">BalanceClip</a> <span class="sep">›</span> <span class="current">Solo</span>
+    </div>
+    <span class="hero-pill">📸 Track 02 · Solo</span>
+    <h1>
+      <span class="en">Your profit, <span class="accent">without losing a single receipt.</span></span>
+      <span class="es">Tu rentabilidad, <span class="accent">sin perder un solo recibo.</span></span>
+    </h1>
+    <p class="hero-sub">
+      <span class="en">For Panama freelancers, designers, consultants and independent professionals. Connect Gmail, snap your paper receipts, and walk into March with a clean year-end report your accountant can file in minutes.</span>
+      <span class="es">Para freelancers, diseñadoras, consultores y profesionales independientes en Panamá. Conecta Gmail, fotografía tus recibos de papel y llega a marzo con un cierre anual limpio que tu contable presenta en minutos.</span>
+    </p>
+    <div class="hero-actions">
+      <a href="#pricing" class="btn-hero-primary">
+        <span class="en">See Pricing →</span><span class="es">Ver Precios →</span>
+      </a>
+      <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Solo" target="_blank" rel="noopener" class="btn-whatsapp">
+        <span>💬</span>
+        <span class="en">WhatsApp Us</span>
+        <span class="es">WhatsApp</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- WHO IS SOLO FOR -->
+<section class="section">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">Who Solo Is For</span><span class="es">Para Quién es Solo</span></span>
+    <h2><span class="en">If you invoice your own clients, this is for you.</span><span class="es">Si tú mismo le facturas a tus clientes, esto es para ti.</span></h2>
+    <p class="section-desc">
+      <span class="en">Designed for the entrepreneur who runs the business and also has to do the books — without becoming an accountant.</span>
+      <span class="es">Pensado para el emprendedor que lleva el negocio y la contabilidad — sin tener que volverse contador.</span>
+    </p>
+    <div class="who-grid">
+      <div class="who-card">
+        <div class="who-emoji">🎨</div>
+        <h3><span class="en">Designers &amp; Creatives</span><span class="es">Diseñadoras y Creativos</span></h3>
+        <p><span class="en">Studio receipts, software subscriptions, equipment, freelance subcontractors — every deductible captured before it gets lost in your inbox.</span><span class="es">Recibos del estudio, suscripciones de software, equipo, freelancers que subcontratas — cada gasto deducible queda capturado antes de perderse en tu correo.</span></p>
+      </div>
+      <div class="who-card">
+        <div class="who-emoji">💼</div>
+        <h3><span class="en">Consultants &amp; Coaches</span><span class="es">Consultores y Coaches</span></h3>
+        <p><span class="en">High-margin service revenue means high taxable income. Solo makes sure every legitimate expense — fuel, travel, office, training — lands on your return.</span><span class="es">Ingresos por servicios con alto margen significan más renta gravable. Solo se asegura que cada gasto legítimo — combustible, viajes, oficina, capacitación — entre en tu declaración.</span></p>
+      </div>
+      <div class="who-card">
+        <div class="who-emoji">🛠️</div>
+        <h3><span class="en">Independent Technicians</span><span class="es">Técnicos Independientes</span></h3>
+        <p><span class="en">Plumbers, AC techs, mechanics, electricians: cash receipts for parts and fuel, vendor invoices for inventory. Solo handles the mix.</span><span class="es">Plomeros, técnicos AC, mecánicos, electricistas: recibos en efectivo de repuestos y combustible, facturas de proveedor por inventario. Solo maneja la mezcla.</span></p>
+      </div>
+      <div class="who-card">
+        <div class="who-emoji">⚖️</div>
+        <h3><span class="en">Lawyers, Accountants &amp; Pros</span><span class="es">Abogados, Contadores y Profesionales</span></h3>
+        <p><span class="en">Bar/membership fees, courthouse expenses, office, gas, parking. Solo files them under the right deductible rubric so your year-end is clean.</span><span class="es">Membresías, gastos de tribunales, oficina, combustible, parqueo. Solo los archiva bajo el rubro deducible correcto para que tu cierre quede limpio.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW THE FLOW WORKS -->
+<section class="section section-alt">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">The Flow</span><span class="es">El Flujo</span></span>
+    <h2><span class="en">From Gmail to year-end, in four moves.</span><span class="es">De Gmail al cierre anual, en cuatro pasos.</span></h2>
+    <p class="section-desc">
+      <span class="en">No data entry. No spreadsheets. Your phone is the office.</span>
+      <span class="es">Sin entrada de datos. Sin hojas de cálculo. Tu móvil es la oficina.</span>
+    </p>
+    <div class="flow-list">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div>
+          <h3><span class="en">Connect your Gmail (one-time)</span><span class="es">Conecta tu Gmail (una vez)</span></h3>
+          <p><span class="en">Sign in with Google, grant read-only access. We never send mail on your behalf — we only read invoice attachments and forward them to your Drive folder.</span><span class="es">Inicia sesión con Google, da acceso de solo lectura. Nunca enviamos correos por ti — solo leemos los adjuntos de facturas y los archivamos en tu carpeta de Drive.</span></p>
+          <span class="flow-time"><span class="en">≈ 2 minutes, once</span><span class="es">≈ 2 min, una vez</span></span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div>
+          <h3><span class="en">We scan every 15 minutes</span><span class="es">Revisamos cada 15 minutos</span></h3>
+          <p><span class="en">New invoice in your inbox? We pull the PDF, extract supplier, RUC, amount, ITBMS, date and line items, and file it under the right deductible category — automatically.</span><span class="es">¿Llegó una factura a tu bandeja? Extraemos el PDF, sacamos proveedor, RUC, monto, ITBMS, fecha y líneas, y lo archivamos bajo el rubro deducible correcto — automáticamente.</span></p>
+          <span class="flow-time"><span class="en">Background, you do nothing</span><span class="es">En segundo plano, tú no haces nada</span></span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div>
+          <h3><span class="en">Snap your paper receipts</span><span class="es">Foto a los recibos de papel</span></h3>
+          <p><span class="en">Cash for fuel, lunch with a client, a tool from the hardware store? One photo from your phone. We OCR amount, date, vendor and ITBMS — no typing.</span><span class="es">¿Combustible en efectivo, almuerzo con cliente, herramienta de la ferretería? Una foto desde tu móvil. Hacemos OCR de monto, fecha, proveedor e ITBMS — sin teclear.</span></p>
+          <span class="flow-time"><span class="en">≈ 5 seconds per receipt</span><span class="es">≈ 5 segundos por recibo</span></span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div>
+          <h3><span class="en">In March, hand it to your accountant</span><span class="es">En marzo, se lo entregas a tu contable</span></h3>
+          <p><span class="en">One-click export: income, deductibles by rubric, monthly ITBMS, all receipts in a clean folder. Your accountant just files. You stop overpaying.</span><span class="es">Exportación de un clic: ingresos, deducibles por rubro, ITBMS mensual, todos los soportes en carpeta limpia. Tu contable solo presenta. Tú dejas de pagar de más.</span></p>
+          <span class="flow-time"><span class="en">≈ 10 minutes total</span><span class="es">≈ 10 minutos total</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 18 CATEGORIES -->
+<section class="section">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">Deductible Categories</span><span class="es">Rubros Deducibles</span></span>
+    <h2><span class="en">18 deductibles, mapped to Panama tax law.</span><span class="es">18 rubros deducibles, mapeados a la ley panameña.</span></h2>
+    <p class="section-desc">
+      <span class="en">Every receipt lands on the right line of your return. No guessing, no "miscellaneous."</span>
+      <span class="es">Cada recibo cae en la línea correcta de tu declaración. Sin adivinar, sin "varios."</span>
+    </p>
+    <div class="cat-grid">
+      <div class="cat-chip"><span class="cat-chip-emoji">⛽</span><span class="cat-chip-label"><span class="en">Fuel</span><span class="es">Combustible</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">🏠</span><span class="cat-chip-label"><span class="en">Office Rent</span><span class="es">Alquiler Oficina</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">💡</span><span class="cat-chip-label"><span class="en">Utilities</span><span class="es">Servicios Públicos</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">📞</span><span class="cat-chip-label"><span class="en">Phone &amp; Internet</span><span class="es">Teléfono e Internet</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">👥</span><span class="cat-chip-label"><span class="en">Payroll</span><span class="es">Nómina</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">🛡️</span><span class="cat-chip-label"><span class="en">Insurance</span><span class="es">Seguros</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">🛠️</span><span class="cat-chip-label"><span class="en">Tools &amp; Materials</span><span class="es">Herramientas y Materiales</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">💻</span><span class="cat-chip-label"><span class="en">Software / SaaS</span><span class="es">Software / SaaS</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">✈️</span><span class="cat-chip-label"><span class="en">Travel</span><span class="es">Viajes</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">🍽️</span><span class="cat-chip-label"><span class="en">Client Meals</span><span class="es">Atención Clientes</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">📚</span><span class="cat-chip-label"><span class="en">Training</span><span class="es">Capacitación</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">📣</span><span class="cat-chip-label"><span class="en">Marketing</span><span class="es">Mercadeo</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">🚗</span><span class="cat-chip-label"><span class="en">Vehicle Maint.</span><span class="es">Mant. Vehículo</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">🏥</span><span class="cat-chip-label"><span class="en">Medical / SS</span><span class="es">Médico / Seguro Social</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">⚖️</span><span class="cat-chip-label"><span class="en">Legal &amp; Accounting</span><span class="es">Legal y Contabilidad</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">🏦</span><span class="cat-chip-label"><span class="en">Bank Fees</span><span class="es">Comisiones Bancarias</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">🪪</span><span class="cat-chip-label"><span class="en">Licenses &amp; Permits</span><span class="es">Licencias y Permisos</span></span></div>
+      <div class="cat-chip"><span class="cat-chip-emoji">📦</span><span class="cat-chip-label"><span class="en">Other Deductibles</span><span class="es">Otros Deducibles</span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section section-alt" id="pricing">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">Pricing</span><span class="es">Precios</span></span>
+    <h2><span class="en">Built for one entrepreneur. Priced like one.</span><span class="es">Hecho para un emprendedor. Cuesta como uno.</span></h2>
+    <p class="section-desc">
+      <span class="en">Monthly, in USD. Cancel anytime. Includes Gmail capture, photo OCR, and the year-end export.</span>
+      <span class="es">Mensual, en USD. Cancela cuando quieras. Incluye captura desde Gmail, OCR por foto y exportación anual.</span>
+    </p>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="price-name">Lite</div>
+        <div class="price-amount"><span class="price-cur">$</span>9<span class="price-per">/mo</span></div>
+        <div class="price-tag"><span class="en">Up to 30 receipts/month</span><span class="es">Hasta 30 recibos/mes</span></div>
+        <ul class="price-list">
+          <li><span class="en">Gmail auto-capture</span><span class="es">Captura automática Gmail</span></li>
+          <li><span class="en">Photo OCR for paper receipts</span><span class="es">OCR por foto para recibos</span></li>
+          <li><span class="en">18 deductible categories</span><span class="es">18 rubros deducibles</span></li>
+          <li><span class="en">Monthly ITBMS summary</span><span class="es">Resumen ITBMS mensual</span></li>
+          <li><span class="en">Year-end export (PDF + Excel)</span><span class="es">Cierre anual (PDF + Excel)</span></li>
+        </ul>
+        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Solo%20Lite" target="_blank" rel="noopener" class="price-cta price-cta-outline">
+          <span class="en">Start with Lite</span><span class="es">Empezar con Lite</span>
+        </a>
+      </div>
+      <div class="price-card featured">
+        <span class="price-badge"><span class="en">Most Popular</span><span class="es">Más Popular</span></span>
+        <div class="price-name">Pro</div>
+        <div class="price-amount"><span class="price-cur">$</span>19<span class="price-per">/mo</span></div>
+        <div class="price-tag"><span class="en">Unlimited receipts &amp; invoices</span><span class="es">Recibos y facturas ilimitados</span></div>
+        <ul class="price-list">
+          <li><span class="en">Everything in Lite</span><span class="es">Todo lo de Lite</span></li>
+          <li><span class="en">Cash flow dashboard</span><span class="es">Panel de flujo de caja</span></li>
+          <li><span class="en">Income tracking (your invoices out)</span><span class="es">Ingresos (tus facturas emitidas)</span></li>
+          <li><span class="en">Accountant-ready monthly report</span><span class="es">Reporte mensual para tu contable</span></li>
+          <li><span class="en">WhatsApp support</span><span class="es">Soporte por WhatsApp</span></li>
+        </ul>
+        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Solo%20Pro" target="_blank" rel="noopener" class="price-cta price-cta-fill">
+          <span class="en">Try Pro</span><span class="es">Probar Pro</span>
+        </a>
+      </div>
+      <div class="price-card">
+        <div class="price-name">Pro + Filing</div>
+        <div class="price-amount"><span class="en">Custom</span><span class="es">A medida</span></div>
+        <div class="price-tag"><span class="en">Pro plus a partner accountant who files for you</span><span class="es">Pro más un contador asociado que te presenta</span></div>
+        <ul class="price-list">
+          <li><span class="en">Everything in Pro</span><span class="es">Todo lo de Pro</span></li>
+          <li><span class="en">Partner accountant included</span><span class="es">Contador asociado incluido</span></li>
+          <li><span class="en">Monthly ITBMS filed for you</span><span class="es">ITBMS mensual presentado por ti</span></li>
+          <li><span class="en">Annual income tax filed for you</span><span class="es">Renta anual presentada por ti</span></li>
+          <li><span class="en">Quarterly review call</span><span class="es">Llamada de revisión trimestral</span></li>
+        </ul>
+        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Solo%20con%20presentaci%C3%B3n%20incluida" target="_blank" rel="noopener" class="price-cta price-cta-outline">
+          <span class="en">Get a Quote</span><span class="es">Solicitar Cotización</span>
+        </a>
+      </div>
+    </div>
+    <p class="price-note">
+      <span class="en">All plans include the 7-day free trial. No card required to start.</span>
+      <span class="es">Todos los planes incluyen 7 días gratis. No se requiere tarjeta para empezar.</span>
+    </p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="section-inner">
+    <span class="section-tag">FAQ</span>
+    <h2><span class="en">The questions everyone asks first.</span><span class="es">Las preguntas que todos hacen primero.</span></h2>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary><span class="en">Do I need to be a "natural person" registered with DGI?</span><span class="es">¿Tengo que estar inscrita como persona natural en la DGI?</span></summary>
+        <p><span class="en">If you invoice clients, yes — you should already have a RUC. Solo works for any natural-person taxpayer (and small jurídicas too). If you're not registered yet, our partner accountants can sort that for you.</span><span class="es">Si le facturas a clientes, sí — ya deberías tener RUC. Solo funciona para cualquier persona natural (y jurídicas pequeñas también). Si aún no estás inscrita, nuestros contadores asociados te lo gestionan.</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">Is reading my Gmail safe?</span><span class="es">¿Es seguro que lean mi Gmail?</span></summary>
+        <p><span class="en">We use Google's official OAuth with read-only scope. We never send mail, never read personal threads — only attachments that look like invoices/receipts. You can revoke access from your Google account at any time.</span><span class="es">Usamos OAuth oficial de Google con permisos de solo lectura. Nunca enviamos correos, nunca leemos hilos personales — solo adjuntos que parecen facturas/recibos. Puedes revocar el acceso desde tu cuenta Google cuando quieras.</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">What happens with the new B/.36,000 DGI cap in 2026?</span><span class="es">¿Qué pasa con el nuevo tope de B/.36,000 de la DGI en 2026?</span></summary>
+        <p><span class="en">Starting January 2026, DGI capped the free invoicer at B/.36,000/year. If your business grows past that, you need an authorized provider. BalanceClip is built on the same DGI-native rails — Solo today, seamless upgrade to Trade tomorrow.</span><span class="es">Desde enero 2026 la DGI limitó el facturador gratuito a B/.36,000 al año. Si tu negocio supera eso, necesitas un proveedor autorizado. BalanceClip corre sobre los mismos rieles DGI-nativos — Solo hoy, salto sin fricción a Trade mañana.</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">Do I need to know accounting?</span><span class="es">¿Tengo que saber contabilidad?</span></summary>
+        <p><span class="en">No. If you can take a photo and check your email, you can run Solo. The 18 categories are pre-mapped — we suggest, you confirm. Your accountant gets a clean package in March.</span><span class="es">No. Si sabes tomar una foto y revisar tu correo, sabes usar Solo. Los 18 rubros vienen pre-mapeados — nosotros sugerimos, tú confirmas. Tu contador recibe un paquete limpio en marzo.</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">Can I share access with my accountant?</span><span class="es">¿Puedo compartir el acceso con mi contador?</span></summary>
+        <p><span class="en">Yes. Add your accountant as a read-only viewer. They see everything: receipts, deductibles by category, monthly ITBMS. No more "send me your folder" emails.</span><span class="es">Sí. Agrega a tu contador como espectador de solo lectura. Ve todo: recibos, deducibles por rubro, ITBMS mensual. Se acabaron los correos de "mándame la carpeta".</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">What if I outgrow Solo?</span><span class="es">¿Y si Solo se me queda pequeño?</span></summary>
+        <p><span class="en">Click upgrade. Your data, categories and history move to BalanceClip Trade — same login, more horsepower for the buy/sell cycle.</span><span class="es">Haces clic en actualizar. Tus datos, rubros e historial se mueven a BalanceClip Trade — mismo acceso, más potencia para el ciclo compra/venta.</span></p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT CTA -->
+<section class="contact-cta" id="contact">
+  <div class="contact-cta-glow"></div>
+  <div class="contact-cta-inner">
+    <h2><span class="en">Stop overpaying income tax.</span><span class="es">Deja de pagar renta de más.</span></h2>
+    <p>
+      <span class="en">7-day free trial. No card required. We answer in Panama time.</span>
+      <span class="es">7 días gratis. Sin tarjeta. Respondemos en hora Panamá.</span>
+    </p>
+    <div class="contact-actions">
+      <a href="mailto:hello@balanceclip.net?subject=BalanceClip%20Solo%20-%20Trial" class="btn-hero-primary">
+        <span class="en">✉️ Email Us</span><span class="es">✉️ Enviar Correo</span>
+      </a>
+      <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Solo" target="_blank" rel="noopener" class="btn-whatsapp">
+        <span>💬</span>
+        <span class="en">WhatsApp +507 6981-2266</span>
+        <span class="es">WhatsApp +507 6981-2266</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>© 2026 BalanceClip</span>
+  <span><span class="en">Built in Panama 🇵🇦</span><span class="es">Hecho en Panamá 🇵🇦</span></span>
+</footer>
+
+<script>
+function setLang(lang) {
+  document.body.classList.toggle('es', lang === 'es');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('btn-es').classList.toggle('active', lang === 'es');
+  localStorage.setItem('bc-lang', lang);
+}
+const saved = localStorage.getItem('bc-lang');
+if (saved) setLang(saved);
+else if (navigator.language.toLowerCase().startsWith('es')) setLang('es');
+</script>
+</body>
+</html>
