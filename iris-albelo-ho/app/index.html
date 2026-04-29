@@ -481,6 +481,9 @@ select.f-inp { appearance:none; }
 .pl-stmt-detail-item:last-child { border-bottom:none; }
 .pl-stmt-detail-lbl { color:var(--muted); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:.5rem; }
 .pl-stmt-detail-amt { font-family:'DM Mono',monospace; font-size:.72rem; font-weight:600; white-space:nowrap; color:var(--text); flex-shrink:0; }
+.pl-cat-row.open .pl-cat-chev { transform:rotate(90deg); }
+.pl-cat-items { display:none; }
+.pl-cat-items.open { display:block; }
 
 .pl-statement { margin:.55rem .85rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r2); overflow:hidden; }
 .pl-stmt-hdr {
@@ -860,7 +863,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         </div>
         <!-- Ingresos — acordeón -->
         <div class="pl-stmt-row accordeon" id="pl-s-ing-row" onclick="PL.toggleSection('ing')">
-          <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Ingresos neto (sin ITBMS)</span>
+          <span class="pl-stmt-lbl"><span class="pl-stmt-chevron">▶</span>Ingresos bruto</span>
           <span class="pl-stmt-val green" id="pl-s-ing">—</span>
         </div>
         <div class="pl-stmt-detail" id="pl-s-ing-detail"></div>
@@ -1240,6 +1243,7 @@ function dgiLabel(valor) {
     servicios:'⚡ Servicios', gastos_personal:'👤 Nómina',
     planilla_empleados:'👤 Planilla', financiero_bancario:'🏦 Financiero',
     otros_gastos_generales:'📋 Otros gastos',
+    sin_clasificar:'❓ Sin clasificar',
   };
   return leg[valor] || valor || '—';
 }
@@ -1443,53 +1447,45 @@ const PL = (() => {
       cogsDetEl.innerHTML = cogsRows;
     }
 
-    // Detalle acordeón — Gastos operativos
+    // Detalle acordeón — Gastos operativos (agrupados por categoría · solo deducibles)
     const gasDetEl = document.getElementById('pl-s-gas-detail');
     if (gasDetEl) {
-      const gasItems = d.egresos_gasto || [];
-      const gasTotal = gasItems.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
+      const allGas    = d.egresos_gasto || [];
+      const gasItems  = allGas.filter(g => (g.alcance || 'negocio') !== 'personal');
+      const gasTotal  = gasItems.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
 
-      // Deducible / no-deducible split
-      const dedTotal   = gasItems.filter(g => (g.alcance || 'negocio') !== 'personal').reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
-      const nodedTotal = gasItems.filter(g => g.alcance === 'personal').reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
-      const dedBarHtml = gasItems.length > 0 ? `
-        <div style="display:flex;gap:.5rem;align-items:center;padding:.35rem .6rem;background:var(--bg);border-radius:6px;margin:.3rem 0;font-size:.72rem;flex-wrap:wrap">
-          <span style="color:var(--green);font-weight:700">✅ ${fmt(dedTotal)}</span>
-          <span style="color:var(--muted)">deducibles</span>
-          ${nodedTotal > 0 ? `<span style="margin-left:auto;color:#E65100;font-weight:700">🚫 ${fmt(nodedTotal)}</span><span style="color:var(--muted)">no deducibles</span>` : ''}
-        </div>` : '';
-
-      // Items con etiqueta DGI
-      const gasRows = gasItems.map(g => {
-        const catLbl  = dgiLabel(g.tipo_egreso || g.categoria || '');
-        const desc    = g.descripcion ? g.descripcion.substring(0, 35) : '';
-        const badge   = g.alcance === 'personal' ? ' 🚫' : '';
-        const monto   = parseFloat(g.total) || 0;
-        return `<div class="pl-stmt-detail-item">
-          <span class="pl-stmt-detail-lbl">${catLbl}${badge}${desc ? '<br><span style="font-size:.68rem;color:var(--muted)">' + esc(desc) + '</span>' : ''}</span>
-          <span class="pl-stmt-detail-amt">${fmt(monto)}</span>
-        </div>`;
-      }).join('') || '<div class="pl-stmt-detail-item"><span class="pl-stmt-detail-lbl" style="color:var(--chrome)">Sin gastos operativos</span></div>';
-
-      // Distribución por categoría
+      // Agrupar por categoría con sus items
       const catMap = {};
       gasItems.forEach(g => {
-        const cat = g.tipo_egreso || g.categoria || 'otros_deducibles';
-        if (!catMap[cat]) catMap[cat] = 0;
-        catMap[cat] += parseFloat(g.total) || 0;
+        const cat = g.tipo_egreso || 'sin_clasificar';
+        if (!catMap[cat]) catMap[cat] = { total: 0, count: 0, items: [] };
+        catMap[cat].total += parseFloat(g.total) || 0;
+        catMap[cat].count++;
+        catMap[cat].items.push(g);
       });
-      const catEntries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
-      const catHtml = catEntries.length > 1 ? `
-        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--chrome);padding:.4rem 0 .2rem">Por categoría</div>` +
-        catEntries.map(([cat, tot]) => {
-          const pct = gasTotal > 0 ? (tot / gasTotal * 100).toFixed(0) : '0';
-          return `<div class="pl-stmt-detail-item">
-            <span class="pl-stmt-detail-lbl" style="font-size:.75rem">${dgiLabel(cat)} <span style="color:var(--chrome)">${pct}%</span></span>
-            <span class="pl-stmt-detail-amt">${fmt(tot)}</span>
-          </div>`;
-        }).join('') : '';
+      const catEntries = Object.entries(catMap).sort((a, b) => b[1].total - a[1].total);
 
-      gasDetEl.innerHTML = dedBarHtml + gasRows + catHtml;
+      gasDetEl.innerHTML = catEntries.length ? catEntries.map(([cat, info]) => {
+        const safeCat = String(cat).replace(/[^a-zA-Z0-9_-]/g, '_');
+        const pct     = gasTotal > 0 ? (info.total / gasTotal * 100).toFixed(0) : '0';
+        const itemsHtml = info.items.map(g => {
+          const desc = g.descripcion ? esc(g.descripcion.substring(0, 50)) : '—';
+          const prov = g.proveedor ? `<span style="font-size:.65rem;color:var(--chrome);margin-left:.3rem">${esc(g.proveedor)}</span>` : '';
+          return `<div class="pl-stmt-detail-item" style="padding-left:2rem;background:var(--bg)">
+            <span class="pl-stmt-detail-lbl">${desc}${prov}</span>
+            <span class="pl-stmt-detail-amt">${fmt(parseFloat(g.total) || 0)}</span>
+          </div>`;
+        }).join('');
+        return `<div class="pl-stmt-detail-item pl-cat-row" data-cat="${safeCat}" onclick="PL.toggleCat('${safeCat}', event)" style="cursor:pointer">
+            <span class="pl-stmt-detail-lbl">
+              <span class="pl-stmt-chevron pl-cat-chev">▶</span>
+              ${dgiLabel(cat)}
+              <span style="font-size:.65rem;color:var(--chrome);margin-left:.3rem">${info.count} · ${pct}%</span>
+            </span>
+            <span class="pl-stmt-detail-amt">${fmt(info.total)}</span>
+          </div>
+          <div class="pl-cat-items" id="pl-cat-items-${safeCat}">${itemsHtml}</div>`;
+      }).join('') : '<div class="pl-stmt-detail-item"><span class="pl-stmt-detail-lbl" style="color:var(--chrome)">Sin gastos deducibles en este período</span></div>';
     }
 
     renderTx();
@@ -1685,6 +1681,16 @@ const PL = (() => {
     if (rowEl) rowEl.classList.toggle('open', !isOpen);
   }
 
+  function toggleCat(safeCat, ev) {
+    if (ev) ev.stopPropagation();
+    const wrap = document.getElementById('pl-cat-items-' + safeCat);
+    const row  = document.querySelector('.pl-cat-row[data-cat="' + safeCat + '"]');
+    if (!wrap || !row) return;
+    const isOpen = wrap.classList.contains('open');
+    wrap.classList.toggle('open', !isOpen);
+    row.classList.toggle('open', !isOpen);
+  }
+
   function toggleExpandAll() {
     _erExpandido = !_erExpandido;
     ['ing','cogs','gas'].forEach(sec => {
@@ -1748,7 +1754,7 @@ const PL = (() => {
     }
   }
 
-  return { load, prev, next, setMode, showTable, switchVista, toggleSection, toggleExpandAll, abrirReclasif, confirmarReclasif,
+  return { load, prev, next, setMode, showTable, switchVista, toggleSection, toggleCat, toggleExpandAll, abrirReclasif, confirmarReclasif,
            get loaded()   { return _loaded; },
            get periodos() { return periodos; },
            get año()      { return año; },
@@ -1805,7 +1811,7 @@ const GAS = (() => {
     // Category map
     const catMap = {};
     items.forEach(g => {
-      const cat = g.tipo_egreso || g.categoria || 'otros_deducibles';
+      const cat = g.tipo_egreso || g.categoria || 'sin_clasificar';
       catMap[cat] = (catMap[cat] || 0) + (parseFloat(g.total) || 0);
     });
     const catEntries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
@@ -2124,7 +2130,7 @@ const REGD = (() => {
     const totals = {};
     items.forEach(it => {
       const cat = (tipo === 'egr')
-        ? (it.tipo_egreso || it.categoria || '')
+        ? (it.tipo_egreso || it.categoria || 'sin_clasificar')
         : (it.categoria_ingreso || it.tipo_ingreso || '');
       if (!cat) return;
       totals[cat] = (totals[cat] || 0) + (parseFloat(it.total)||0);
@@ -2202,7 +2208,7 @@ const REGD = (() => {
   function _rowEgr(e) {
     const fecha = String(e.fecha_egreso||'').slice(0,10);
     const prov  = e.proveedor || '—';
-    const cat   = _catLabel(e.tipo_egreso || e.categoria || '');
+    const cat   = _catLabel(e.tipo_egreso || e.categoria || 'sin_clasificar');
     const total = parseFloat(e.total) || 0;
     const est   = String(e.estado||'').toLowerCase();
     const alc   = e.alcance || 'negocio';
