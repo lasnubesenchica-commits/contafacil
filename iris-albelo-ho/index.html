@@ -1792,6 +1792,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="pl-month-pill" data-m="11" onclick="selectPlMonth(11)">Nov</button>
       <button class="pl-month-pill" data-m="12" onclick="selectPlMonth(12)">Dic</button>
     </div>
+    <button id="plRefreshBtn" onclick="plRefresh(this)" title="Actualizar datos del P&amp;L"
+      style="margin-left:auto;background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
+      <span id="plRefreshIcon">↻</span> <span>Actualizar</span>
+    </button>
   </div>
 
   <!-- KPI ROW -->
@@ -6341,8 +6345,7 @@ function rgRenderEgrCharts(items) {
   if (catEl) {
     const totals = {};
     items.forEach(i => {
-      const cat = i.tipo_egreso || i.categoria || '';
-      if (!cat) return;
+      const cat = i.tipo_egreso || i.categoria || 'sin_clasificar';
       totals[cat] = (totals[cat] || 0) + (parseFloat(i.total) || 0);
     });
     const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
@@ -7189,6 +7192,30 @@ const EGR_LABEL = (() => {
   CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.label; });
   return m;
 })();
+
+async function plRefresh(btn) {
+  plLoaded = false;
+  egrItems = [];
+  ingItems = [];
+  if (btn) {
+    btn.disabled = true;
+    const ic = document.getElementById('plRefreshIcon');
+    if (ic) ic.style.animation = 'spin 1s linear infinite';
+  }
+  try {
+    await loadDashboard();
+    showToast('✅ P&L actualizado');
+  } catch (e) {
+    showToast('⚠️ ' + (e && e.message ? e.message : 'Error al actualizar'));
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      const ic = document.getElementById('plRefreshIcon');
+      if (ic) ic.style.animation = '';
+    }
+  }
+}
+window.plRefresh = plRefresh;
 
 async function loadDashboard() {
   if (plLoaded) { renderDashboard(); return; }
