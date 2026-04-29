@@ -97,7 +97,49 @@ body:not(.es) .es { display: none !important; }
 .usecase-pain { background: var(--orange-light); border-left: 3px solid var(--orange); padding: 0.6rem 0.85rem; border-radius: 6px; font-size: 0.82rem; color: var(--ink); font-weight: 600; }
 .usecase-pain strong { color: var(--orange); }
 @media (max-width: 900px) { .usecases-grid { grid-template-columns: 1fr; } }
-/* PRICING */
+/* FLOW (how the clip works) */
+.flow-list { display: flex; flex-direction: column; gap: 14px; max-width: 820px; margin: 2.5rem auto 0; }
+.flow-step { background: var(--white); border-radius: 16px; padding: 1.5rem; border: 1.5px solid var(--border); display: flex; gap: 1.25rem; align-items: flex-start; transition: all 0.2s; }
+.flow-step:hover { border-color: rgba(249,115,22,0.3); transform: translateY(-2px); box-shadow: var(--shadow); }
+.flow-num { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--orange), #f59e0b); color: var(--white); font-weight: 900; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(249,115,22,0.3); }
+.flow-step h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: 0.4rem; }
+.flow-step p { font-size: 0.9rem; color: var(--ink2); line-height: 1.6; font-weight: 500; }
+.flow-step .flow-time { font-size: 12px; color: var(--orange); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.5rem; display: inline-block; }
+
+/* DASHBOARD GRID */
+.dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 2rem; }
+.dash-chip { background: var(--white); border: 1.5px solid var(--border); border-radius: 12px; padding: 0.85rem 1rem; display: flex; gap: 10px; align-items: center; transition: all 0.2s; }
+.dash-chip:hover { border-color: rgba(249,115,22,0.35); transform: translateY(-2px); box-shadow: var(--shadow); }
+.dash-chip-emoji { font-size: 18px; flex-shrink: 0; }
+.dash-chip-label { font-size: 0.85rem; font-weight: 700; color: var(--ink); }
+@media (max-width: 900px) { .dash-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .dash-grid { grid-template-columns: 1fr; } }
+
+/* PRICING CALLOUT */
+.price-callout {
+  max-width: 540px; margin: 2.5rem auto 0;
+  background: var(--white); border: 2px solid rgba(249,115,22,0.25);
+  border-radius: 24px; padding: 2.25rem 2rem;
+  text-align: center; box-shadow: 0 12px 36px rgba(249,115,22,0.10);
+}
+.price-callout-num {
+  font-size: 3.4rem; font-weight: 900; color: var(--ink);
+  letter-spacing: -0.03em; line-height: 1; margin-bottom: 0.25rem;
+}
+.price-callout-num .price-callout-per {
+  font-size: 1.1rem; font-weight: 700; color: var(--ink3); margin-left: 4px;
+}
+.price-callout-tag {
+  font-size: 12px; font-weight: 700; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.5rem;
+}
+.price-callout .btn-whatsapp { margin-bottom: 1rem; }
+.price-callout-mail {
+  display: block; font-size: 13px; color: var(--ink3); font-weight: 600;
+  text-decoration: none; transition: color 0.2s;
+}
+.price-callout-mail:hover { color: var(--orange); }
+/* legacy pricing grid (kept harmless if reused) */
 .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 2.5rem; }
 .price-card { background: var(--white); border-radius: 20px; padding: 2rem 1.75rem; border: 2px solid var(--border); transition: all 0.2s; position: relative; display: flex; flex-direction: column; }
 .price-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
@@ -206,26 +248,102 @@ body:not(.es) .es { display: none !important; }
         <div class="usecase-emoji">🚚</div>
         <h3><span class="en">Distributors</span><span class="es">Distribuidoras</span></h3>
         <p><span class="en">High-volume buy/sell with the same SKU passing through. We track each lot, margin and ITBMS — even when the same item moves five times.</span><span class="es">Alto volumen comprando y vendiendo el mismo SKU. Trazamos cada lote, margen e ITBMS — aunque el mismo artículo se mueva cinco veces.</span></p>
-        <div class="usecase-pain"><strong>Pain:</strong> <span class="en">Hundreds of FE01s a month, no time to reconcile.</span><span class="es">Cientos de FE01 al mes, sin tiempo de cuadrar.</span></div>
+        <div class="usecase-pain"><strong><span class="en">Problem:</span><span class="es">Problema:</span></strong> <span class="en">Hundreds of FE01s a month, no time to reconcile.</span><span class="es">Cientos de FE01 al mes, sin tiempo de cuadrar.</span></div>
       </div>
       <div class="usecase-card">
         <div class="usecase-emoji">📦</div>
         <h3><span class="en">Importers</span><span class="es">Importadoras</span></h3>
         <p><span class="en">Foreign-supplier invoices in USD, customs (DMCE), local sale in PAB with ITBMS. Trade ties supplier cost to landed cost to sale price.</span><span class="es">Facturas de proveedor en USD, aduana (DMCE), venta local en PAB con ITBMS. Trade conecta costo proveedor → costo en aduana → precio de venta.</span></p>
-        <div class="usecase-pain"><strong>Pain:</strong> <span class="en">True margin per shipment is invisible until year-end.</span><span class="es">El margen real por embarque solo se ve a fin de año.</span></div>
+        <div class="usecase-pain"><strong><span class="en">Problem:</span><span class="es">Problema:</span></strong> <span class="en">True margin per shipment is invisible until year-end.</span><span class="es">El margen real por embarque solo se ve a fin de año.</span></div>
       </div>
       <div class="usecase-card">
         <div class="usecase-emoji">🛒</div>
         <h3><span class="en">Commercializers &amp; Retail</span><span class="es">Comercializadoras y Retail</span></h3>
         <p><span class="en">Mixed counter sales + B2B invoicing. Trade splits exempt vs taxable ITBMS, handles returns and credit notes, and keeps the SKU ledger.</span><span class="es">Mostrador + venta B2B mezcladas. Trade separa ITBMS gravado/exento, maneja devoluciones y notas de crédito, y lleva el control por SKU.</span></p>
-        <div class="usecase-pain"><strong>Pain:</strong> <span class="en">Cash counter never matches the electronic books.</span><span class="es">El mostrador en efectivo nunca cuadra con la contabilidad electrónica.</span></div>
+        <div class="usecase-pain"><strong><span class="en">Problem:</span><span class="es">Problema:</span></strong> <span class="en">Cash counter never matches the electronic books.</span><span class="es">El mostrador en efectivo nunca cuadra con la contabilidad electrónica.</span></div>
       </div>
       <div class="usecase-card">
         <div class="usecase-emoji">🏗️</div>
         <h3><span class="en">Contractors &amp; Service Cos.</span><span class="es">Contratistas y Servicios</span></h3>
         <p><span class="en">Project-based billing where a single PO triggers months of supplier invoices. Trade clusters every cost back to the customer invoice.</span><span class="es">Facturación por proyecto: una sola orden dispara meses de facturas de proveedor. Trade agrupa cada costo a la factura del cliente.</span></p>
-        <div class="usecase-pain"><strong>Pain:</strong> <span class="en">"Did we lose money on that job?" — answered next quarter.</span><span class="es">"¿Perdimos plata en esa obra?" — la respuesta llega el otro trimestre.</span></div>
+        <div class="usecase-pain"><strong><span class="en">Problem:</span><span class="es">Problema:</span></strong> <span class="en">"Did we lose money on that job?" — answered next quarter.</span><span class="es">"¿Perdimos plata en esa obra?" — la respuesta llega el otro trimestre.</span></div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW THE CLIP WORKS -->
+<section class="section">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">How the Clip Works</span><span class="es">Cómo Funciona el Clip</span></span>
+    <h2><span class="en">From PO to P&amp;L, in four moves.</span><span class="es">De la orden de compra al P&amp;L, en cuatro pasos.</span></h2>
+    <p class="section-desc">
+      <span class="en">No spreadsheets. No re-keying. Every invoice closes its loop automatically.</span>
+      <span class="es">Sin hojas de cálculo. Sin re-tipear. Cada factura cierra su ciclo automáticamente.</span>
+    </p>
+    <div class="flow-list">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div>
+          <h3><span class="en">Invoice arrives</span><span class="es">La factura llega</span></h3>
+          <p><span class="en">From Gmail, Google Drive, or you upload it. PDF, XML (FE01/FE04) or image — we read every format Panama uses.</span><span class="es">Desde Gmail, Google Drive, o la subes tú. PDF, XML (FE01/FE04) o imagen — leemos cada formato que se usa en Panamá.</span></p>
+          <span class="flow-time"><span class="en">Continuous, every 15 min</span><span class="es">Continuo, cada 15 min</span></span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div>
+          <h3><span class="en">AI extracts every field</span><span class="es">La IA extrae cada campo</span></h3>
+          <p><span class="en">Vendor, RUC/DV, line items, ITBMS taxable/exempt split, dates, currency. No re-keying — the data lands structured.</span><span class="es">Proveedor, RUC/DV, líneas, separación ITBMS gravado/exento, fechas, moneda. Sin re-tipear — la data llega estructurada.</span></p>
+          <span class="flow-time"><span class="en">≈ 3 seconds per invoice</span><span class="es">≈ 3 segundos por factura</span></span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div>
+          <h3><span class="en">AI clips it to its matching sale</span><span class="es">La IA la cruza con su venta</span></h3>
+          <p><span class="en">Using vendor, date window, SKU and amount, we tie each purchase to the sale (or POS line) that consumed it. You only review the edge cases.</span><span class="es">Por proveedor, ventana de fecha, SKU y monto, atamos cada compra con la venta (o línea de POS) que la consumió. Tú solo revisas los casos borde.</span></p>
+          <span class="flow-time"><span class="en">Auto · review on uncertain matches</span><span class="es">Automático · revisas solo si hay duda</span></span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div>
+          <h3><span class="en">P&amp;L, COGS &amp; AR rebuild themselves</span><span class="es">P&amp;L, costo de ventas y CxC se reconstruyen solos</span></h3>
+          <p><span class="en">Margin per SKU, fiscal credit, accounts receivable, monthly ITBMS — all live. Always audit-ready, always DGI-compliant.</span><span class="es">Margen por SKU, crédito fiscal, cuentas por cobrar, ITBMS mensual — todo en vivo. Siempre listo para auditoría, siempre en regla con DGI.</span></p>
+          <span class="flow-time"><span class="en">Real-time</span><span class="es">Tiempo real</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT YOU SEE IN YOUR DASHBOARD -->
+<section class="section section-alt">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">What you see</span><span class="es">Lo que ves</span></span>
+    <h2><span class="en">Sixteen dashboards. Always live.</span><span class="es">Dieciséis paneles. Siempre en vivo.</span></h2>
+    <p class="section-desc">
+      <span class="en">The reports your accountant used to send you weeks late — now updating themselves every time an invoice lands.</span>
+      <span class="es">Los reportes que tu contador te enviaba con semanas de retraso — ahora se actualizan solos cada vez que llega una factura.</span>
+    </p>
+    <div class="dash-grid">
+      <div class="dash-chip"><span class="dash-chip-emoji">📈</span><span class="dash-chip-label"><span class="en">Margin by SKU</span><span class="es">Margen por SKU</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">💰</span><span class="dash-chip-label"><span class="en">Daily &amp; Monthly P&amp;L</span><span class="es">P&amp;L diario y mensual</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">📦</span><span class="dash-chip-label"><span class="en">COGS by line</span><span class="es">Costo de ventas por línea</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">🏷️</span><span class="dash-chip-label"><span class="en">Top vendors</span><span class="es">Top proveedores</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">👤</span><span class="dash-chip-label"><span class="en">Top clients</span><span class="es">Top clientes</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">⏳</span><span class="dash-chip-label"><span class="en">AR aging</span><span class="es">Antigüedad de saldos (CxC)</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">🧾</span><span class="dash-chip-label"><span class="en">Monthly ITBMS</span><span class="es">ITBMS mensual</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">🔁</span><span class="dash-chip-label"><span class="en">Credit notes log</span><span class="es">Bitácora notas de crédito</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">🏢</span><span class="dash-chip-label"><span class="en">Multi-warehouse stock</span><span class="es">Inventario multi-bodega</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">📅</span><span class="dash-chip-label"><span class="en">Inventory aging</span><span class="es">Antigüedad de inventario</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">📋</span><span class="dash-chip-label"><span class="en">Open POs</span><span class="es">Órdenes de compra abiertas</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">🔮</span><span class="dash-chip-label"><span class="en">Cash flow forecast</span><span class="es">Pronóstico de caja</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">🎯</span><span class="dash-chip-label"><span class="en">Per-project profit</span><span class="es">Rentabilidad por proyecto</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">👥</span><span class="dash-chip-label"><span class="en">Multi-client cockpit (CPA)</span><span class="es">Consola multi-cliente (Contadores)</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">🪪</span><span class="dash-chip-label"><span class="en">DGI compliance</span><span class="es">Estado DGI</span></span></div>
+      <div class="dash-chip"><span class="dash-chip-emoji">🗂️</span><span class="dash-chip-label"><span class="en">Audit trail</span><span class="es">Bitácora de auditoría</span></span></div>
     </div>
   </div>
 </section>
@@ -234,63 +352,27 @@ body:not(.es) .es { display: none !important; }
 <section class="section section-alt" id="pricing">
   <div class="section-inner">
     <span class="section-tag"><span class="en">Pricing</span><span class="es">Precios</span></span>
-    <h2><span class="en">Pricing that scales with your invoice volume.</span><span class="es">Precio que escala con tu volumen de facturas.</span></h2>
-    <p class="section-desc">
-      <span class="en">Monthly, in USD. Cancel anytime. Implementation included on every plan.</span>
-      <span class="es">Mensual, en USD. Cancela cuando quieras. Implementación incluida en todos los planes.</span>
+    <h2><span class="en">From $45/month.</span><span class="es">Desde $45/mes.</span></h2>
+    <p class="section-desc" style="margin-bottom: 0;">
+      <span class="en">A formal quote depends on invoice volume, number of users and modules. WhatsApp us — we answer in Panama time.</span>
+      <span class="es">Una cotización formal depende del volumen de facturas, usuarios y módulos. Escríbenos por WhatsApp — respondemos en hora Panamá.</span>
     </p>
-    <div class="pricing-grid">
-      <div class="price-card">
-        <div class="price-name">Starter</div>
-        <div class="price-amount"><span class="price-cur">$</span>89<span class="price-per">/mo</span></div>
-        <div class="price-tag"><span class="en">Up to 200 invoices/month</span><span class="es">Hasta 200 facturas/mes</span></div>
-        <ul class="price-list">
-          <li><span class="en">AI invoice clipping</span><span class="es">Cruce de facturas con IA</span></li>
-          <li><span class="en">DGI-native ITBMS &amp; e-Tax 2.0</span><span class="es">ITBMS y e-Tax 2.0 nativos</span></li>
-          <li><span class="en">P&amp;L, COGS &amp; AR dashboards</span><span class="es">P&amp;L, costo de ventas y CxC</span></li>
-          <li><span class="en">1 company, 2 users</span><span class="es">1 empresa, 2 usuarios</span></li>
-          <li><span class="en">Email support</span><span class="es">Soporte por email</span></li>
-        </ul>
-        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Trade%20Starter" target="_blank" rel="noopener" class="price-cta price-cta-outline">
-          <span class="en">Start with Starter</span><span class="es">Empezar con Starter</span>
-        </a>
+    <div class="price-callout">
+      <div class="price-callout-num">$45<span class="price-callout-per">/mo</span></div>
+      <div class="price-callout-tag">
+        <span class="en">Starting price · monthly · USD</span>
+        <span class="es">Precio inicial · mensual · USD</span>
       </div>
-      <div class="price-card featured">
-        <span class="price-badge"><span class="en">Most Popular</span><span class="es">Más Popular</span></span>
-        <div class="price-name">Business</div>
-        <div class="price-amount"><span class="price-cur">$</span>249<span class="price-per">/mo</span></div>
-        <div class="price-tag"><span class="en">Up to 1,000 invoices/month</span><span class="es">Hasta 1,000 facturas/mes</span></div>
-        <ul class="price-list">
-          <li><span class="en">Everything in Starter</span><span class="es">Todo lo de Starter</span></li>
-          <li><span class="en">Credit notes &amp; returns</span><span class="es">Notas de crédito y devoluciones</span></li>
-          <li><span class="en">Multi-warehouse / SKU ledger</span><span class="es">Multi-bodega / control SKU</span></li>
-          <li><span class="en">Up to 3 companies, 8 users</span><span class="es">Hasta 3 empresas, 8 usuarios</span></li>
-          <li><span class="en">WhatsApp + email support</span><span class="es">Soporte WhatsApp + email</span></li>
-        </ul>
-        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Trade%20Business" target="_blank" rel="noopener" class="price-cta price-cta-fill">
-          <span class="en">Talk to Sales</span><span class="es">Hablar con Ventas</span>
-        </a>
-      </div>
-      <div class="price-card">
-        <div class="price-name">CPA / Multi-Client</div>
-        <div class="price-amount"><span class="en">Custom</span><span class="es">A medida</span></div>
-        <div class="price-tag"><span class="en">For accounting firms managing multiple clients</span><span class="es">Para firmas contables con varios clientes</span></div>
-        <ul class="price-list">
-          <li><span class="en">Everything in Business</span><span class="es">Todo lo de Business</span></li>
-          <li><span class="en">Unlimited client companies</span><span class="es">Empresas cliente ilimitadas</span></li>
-          <li><span class="en">Per-client billing &amp; isolation</span><span class="es">Facturación y aislamiento por cliente</span></li>
-          <li><span class="en">SLA + onboarding sessions</span><span class="es">SLA + sesiones de implementación</span></li>
-          <li><span class="en">Dedicated account manager</span><span class="es">Gerente de cuenta dedicado</span></li>
-        </ul>
-        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Trade%20para%20mi%20firma%20contable" target="_blank" rel="noopener" class="price-cta price-cta-outline">
-          <span class="en">Request a Quote</span><span class="es">Solicitar Cotización</span>
-        </a>
-      </div>
+      <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20cotizar%20BalanceClip%20Trade" target="_blank" rel="noopener" class="btn-whatsapp">
+        <span>💬</span>
+        <span class="en">WhatsApp · Get a Quote</span>
+        <span class="es">WhatsApp · Cotizar</span>
+      </a>
+      <a href="mailto:hello@balanceclip.net?subject=BalanceClip%20Trade%20-%20Cotización" class="price-callout-mail">
+        <span class="en">or email hello@balanceclip.net</span>
+        <span class="es">o escríbenos a hello@balanceclip.net</span>
+      </a>
     </div>
-    <p class="price-note">
-      <span class="en">Prices in USD. ITBMS not included where applicable. Annual plans receive 2 months free.</span>
-      <span class="es">Precios en USD. ITBMS no incluido donde aplique. Planes anuales reciben 2 meses gratis.</span>
-    </p>
   </div>
 </section>
 

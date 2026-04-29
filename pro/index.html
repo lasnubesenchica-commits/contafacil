@@ -108,6 +108,65 @@ body:not(.es) .es { display: none !important; }
 .flow-step p { font-size: 0.9rem; color: var(--ink2); line-height: 1.6; font-weight: 500; }
 .flow-step .flow-time { font-size: 12px; color: var(--blue); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.5rem; display: inline-block; }
 
+/* CAPTURE DEMO (photo → form → save) */
+.capture-demo {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: stretch; gap: 0.85rem; margin-top: 2.5rem;
+}
+.capture-frame {
+  background: var(--white); border-radius: 20px;
+  padding: 2rem 1.25rem 1.5rem; border: 1.5px solid var(--border);
+  text-align: center; position: relative;
+  transition: all 0.3s;
+  display: flex; flex-direction: column;
+}
+.capture-frame:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: rgba(59,130,246,0.35); }
+.capture-step {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  color: var(--white); font-weight: 900; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+}
+.capture-icon { font-size: 38px; margin-bottom: 0.4rem; }
+.capture-title { font-size: 0.95rem; font-weight: 800; color: var(--ink); margin-bottom: 1rem; }
+.capture-mock {
+  background: #f8fafc; border: 1px dashed rgba(59,130,246,0.25);
+  border-radius: 10px; padding: 0.85rem 0.95rem;
+  font-size: 11px; color: var(--ink2); font-weight: 600;
+  text-align: left; line-height: 1.55;
+  flex: 1;
+}
+.capture-receipt-line { padding: 1px 0; font-family: ui-monospace, 'SF Mono', monospace; font-size: 10.5px; }
+.capture-receipt-sep { border-top: 1px dashed rgba(0,0,0,0.18); margin: 4px 0; }
+.capture-form-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; align-items: baseline; }
+.capture-form-key { color: var(--ink3); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+.capture-form-val { color: var(--ink); font-weight: 700; font-size: 11px; text-align: right; }
+.capture-form-val.highlight { color: var(--blue); }
+.capture-save {
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  color: var(--white); border-radius: 10px;
+  padding: 0.7rem 0.5rem; font-size: 12px; font-weight: 800;
+  text-align: center; letter-spacing: 0.04em;
+  box-shadow: 0 4px 14px rgba(59,130,246,0.35);
+  animation: pulse 2.4s ease-in-out infinite;
+  margin-top: 0.5rem;
+}
+.capture-saved {
+  font-size: 11px; color: var(--teal); font-weight: 800;
+  margin-top: 0.6rem; letter-spacing: 0.04em;
+}
+.capture-arrow {
+  font-size: 1.6rem; color: var(--blue); font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  animation: pulse 2s ease-in-out infinite;
+}
+@media (max-width: 760px) {
+  .capture-demo { grid-template-columns: 1fr; gap: 0.4rem; }
+  .capture-arrow { transform: rotate(90deg); padding: 0.5rem 0; }
+}
+
 /* CATEGORIES */
 .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 2rem; }
 .cat-chip { background: var(--white); border: 1.5px solid var(--border); border-radius: 12px; padding: 0.85rem 1rem; display: flex; gap: 10px; align-items: center; transition: all 0.2s; }
@@ -116,7 +175,31 @@ body:not(.es) .es { display: none !important; }
 .cat-chip-label { font-size: 0.85rem; font-weight: 700; color: var(--ink); }
 @media (max-width: 900px) { .cat-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .cat-grid { grid-template-columns: 1fr; } }
-/* PRICING */
+/* PRICING CALLOUT */
+.price-callout {
+  max-width: 540px; margin: 2.5rem auto 0;
+  background: var(--white); border: 2px solid rgba(59,130,246,0.25);
+  border-radius: 24px; padding: 2.25rem 2rem;
+  text-align: center; box-shadow: 0 12px 36px rgba(59,130,246,0.10);
+}
+.price-callout-num {
+  font-size: 3.4rem; font-weight: 900; color: var(--ink);
+  letter-spacing: -0.03em; line-height: 1; margin-bottom: 0.25rem;
+}
+.price-callout-num .price-callout-per {
+  font-size: 1.1rem; font-weight: 700; color: var(--ink3); margin-left: 4px;
+}
+.price-callout-tag {
+  font-size: 12px; font-weight: 700; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.5rem;
+}
+.price-callout .btn-whatsapp { margin-bottom: 1rem; }
+.price-callout-mail {
+  display: block; font-size: 13px; color: var(--ink3); font-weight: 600;
+  text-decoration: none; transition: color 0.2s;
+}
+.price-callout-mail:hover { color: var(--blue); }
+/* legacy pricing grid (kept harmless if reused) */
 .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 2.5rem; }
 .price-card { background: var(--white); border-radius: 20px; padding: 2rem 1.75rem; border: 2px solid var(--border); transition: all 0.2s; position: relative; display: flex; flex-direction: column; }
 .price-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
@@ -292,6 +375,87 @@ body:not(.es) .es { display: none !important; }
   </div>
 </section>
 
+<!-- CAPTURE DEMO -->
+<section class="section">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">Manual capture</span><span class="es">Captura manual</span></span>
+    <h2><span class="en">Photo. Form fills itself. Save.</span><span class="es">Foto. El formulario se llena solo. Guardar.</span></h2>
+    <p class="section-desc">
+      <span class="en">When the receipt isn't in your inbox, you don't have to type. Snap it from your phone — every field auto-fills. Three taps, you're done.</span>
+      <span class="es">Cuando el recibo no llega al correo, tú no tecleas. Sácale foto desde tu móvil — cada campo se rellena solo. Tres toques y listo.</span>
+    </p>
+    <div class="capture-demo">
+
+      <!-- Frame 1: Photo of receipt -->
+      <div class="capture-frame">
+        <div class="capture-step">1</div>
+        <div class="capture-icon">📸</div>
+        <div class="capture-title"><span class="en">Photo</span><span class="es">Foto al recibo</span></div>
+        <div class="capture-mock">
+          <div class="capture-receipt-line" style="text-align:center;font-weight:800;">FARMACIAS ARROCHA</div>
+          <div class="capture-receipt-line" style="text-align:center;font-size:9.5px;color:var(--ink3);">Costa del Este · 28-04-2026</div>
+          <div class="capture-receipt-sep"></div>
+          <div class="capture-receipt-line">PARACETAMOL    $5.50</div>
+          <div class="capture-receipt-line">ANTIBIÓTICO   $35.00</div>
+          <div class="capture-receipt-line">PROTECTOR      $2.00</div>
+          <div class="capture-receipt-sep"></div>
+          <div class="capture-receipt-line" style="font-weight:800;">TOTAL         $42.50</div>
+          <div class="capture-receipt-line" style="font-size:9.5px;">ITBMS 7%       $2.78</div>
+        </div>
+      </div>
+
+      <div class="capture-arrow">→</div>
+
+      <!-- Frame 2: Auto-filled form -->
+      <div class="capture-frame">
+        <div class="capture-step">2</div>
+        <div class="capture-icon">📋</div>
+        <div class="capture-title"><span class="en">Form auto-fills</span><span class="es">Formulario auto-llenado</span></div>
+        <div class="capture-mock">
+          <div class="capture-form-row">
+            <span class="capture-form-key"><span class="en">Vendor</span><span class="es">Proveedor</span></span>
+            <span class="capture-form-val">Farmacias Arrocha</span>
+          </div>
+          <div class="capture-form-row">
+            <span class="capture-form-key"><span class="en">Date</span><span class="es">Fecha</span></span>
+            <span class="capture-form-val">28-04-2026</span>
+          </div>
+          <div class="capture-form-row">
+            <span class="capture-form-key"><span class="en">Total</span><span class="es">Total</span></span>
+            <span class="capture-form-val">$42.50</span>
+          </div>
+          <div class="capture-form-row">
+            <span class="capture-form-key">ITBMS</span>
+            <span class="capture-form-val">$2.78</span>
+          </div>
+          <div class="capture-form-row">
+            <span class="capture-form-key"><span class="en">Category</span><span class="es">Rubro</span></span>
+            <span class="capture-form-val highlight"><span class="en">Medical</span><span class="es">Gastos Médicos</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="capture-arrow">→</div>
+
+      <!-- Frame 3: Save -->
+      <div class="capture-frame">
+        <div class="capture-step">3</div>
+        <div class="capture-icon">✅</div>
+        <div class="capture-title"><span class="en">Save</span><span class="es">Guardar</span></div>
+        <div class="capture-mock" style="display:flex;flex-direction:column;justify-content:center;">
+          <div class="capture-save">
+            <span class="en">SAVE EXPENSE</span><span class="es">GUARDAR GASTO</span>
+          </div>
+          <div class="capture-saved">
+            ✓ <span class="en">Saved · added to deductibles</span><span class="es">Guardado · sumado a deducibles</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- 18 CATEGORIES -->
 <section class="section">
   <div class="section-inner">
@@ -328,63 +492,27 @@ body:not(.es) .es { display: none !important; }
 <section class="section section-alt" id="pricing">
   <div class="section-inner">
     <span class="section-tag"><span class="en">Pricing</span><span class="es">Precios</span></span>
-    <h2><span class="en">Built for one professional. Priced like one.</span><span class="es">Hecho para un profesional. Cuesta como uno.</span></h2>
-    <p class="section-desc">
-      <span class="en">Monthly, in USD. Cancel anytime. Includes Gmail capture, photo OCR, and the year-end export.</span>
-      <span class="es">Mensual, en USD. Cancela cuando quieras. Incluye captura desde Gmail, OCR por foto y exportación anual.</span>
+    <h2><span class="en">From $45/month.</span><span class="es">Desde $45/mes.</span></h2>
+    <p class="section-desc" style="margin-bottom: 0;">
+      <span class="en">A formal quote depends on your volume and whether you want filing included. WhatsApp us — we answer in Panama time.</span>
+      <span class="es">Una cotización formal depende de tu volumen y si quieres presentación incluida. Escríbenos por WhatsApp — respondemos en hora Panamá.</span>
     </p>
-    <div class="pricing-grid">
-      <div class="price-card">
-        <div class="price-name">Lite</div>
-        <div class="price-amount"><span class="price-cur">$</span>9<span class="price-per">/mo</span></div>
-        <div class="price-tag"><span class="en">Up to 30 receipts/month</span><span class="es">Hasta 30 recibos/mes</span></div>
-        <ul class="price-list">
-          <li><span class="en">Gmail auto-capture</span><span class="es">Captura automática Gmail</span></li>
-          <li><span class="en">Photo OCR for paper receipts</span><span class="es">OCR por foto para recibos</span></li>
-          <li><span class="en">18 deductible categories</span><span class="es">18 rubros deducibles</span></li>
-          <li><span class="en">Monthly ITBMS summary</span><span class="es">Resumen ITBMS mensual</span></li>
-          <li><span class="en">Year-end export (PDF + Excel)</span><span class="es">Cierre anual (PDF + Excel)</span></li>
-        </ul>
-        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Pro%20Lite" target="_blank" rel="noopener" class="price-cta price-cta-outline">
-          <span class="en">Start with Lite</span><span class="es">Empezar con Lite</span>
-        </a>
+    <div class="price-callout">
+      <div class="price-callout-num">$45<span class="price-callout-per">/mo</span></div>
+      <div class="price-callout-tag">
+        <span class="en">Starting price · monthly · USD</span>
+        <span class="es">Precio inicial · mensual · USD</span>
       </div>
-      <div class="price-card featured">
-        <span class="price-badge"><span class="en">Most Popular</span><span class="es">Más Popular</span></span>
-        <div class="price-name">Plus</div>
-        <div class="price-amount"><span class="price-cur">$</span>19<span class="price-per">/mo</span></div>
-        <div class="price-tag"><span class="en">Unlimited receipts &amp; invoices</span><span class="es">Recibos y facturas ilimitados</span></div>
-        <ul class="price-list">
-          <li><span class="en">Everything in Lite</span><span class="es">Todo lo de Lite</span></li>
-          <li><span class="en">Cash flow dashboard</span><span class="es">Panel de flujo de caja</span></li>
-          <li><span class="en">Income tracking (your invoices out)</span><span class="es">Ingresos (tus facturas emitidas)</span></li>
-          <li><span class="en">Accountant-ready monthly report</span><span class="es">Reporte mensual para tu contable</span></li>
-          <li><span class="en">WhatsApp support</span><span class="es">Soporte por WhatsApp</span></li>
-        </ul>
-        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Pro%20Plus" target="_blank" rel="noopener" class="price-cta price-cta-fill">
-          <span class="en">Try Plus</span><span class="es">Probar Plus</span>
-        </a>
-      </div>
-      <div class="price-card">
-        <div class="price-name">Filing</div>
-        <div class="price-amount"><span class="en">Custom</span><span class="es">A medida</span></div>
-        <div class="price-tag"><span class="en">Plus, with a partner accountant who files for you</span><span class="es">Plus, con un contador asociado que te presenta</span></div>
-        <ul class="price-list">
-          <li><span class="en">Everything in Plus</span><span class="es">Todo lo de Plus</span></li>
-          <li><span class="en">Partner accountant included</span><span class="es">Contador asociado incluido</span></li>
-          <li><span class="en">Monthly ITBMS filed for you</span><span class="es">ITBMS mensual presentado por ti</span></li>
-          <li><span class="en">Annual income tax filed for you</span><span class="es">Renta anual presentada por ti</span></li>
-          <li><span class="en">Quarterly review call</span><span class="es">Llamada de revisión trimestral</span></li>
-        </ul>
-        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Pro%20con%20presentaci%C3%B3n%20incluida" target="_blank" rel="noopener" class="price-cta price-cta-outline">
-          <span class="en">Get a Quote</span><span class="es">Solicitar Cotización</span>
-        </a>
-      </div>
+      <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20cotizar%20BalanceClip%20Pro" target="_blank" rel="noopener" class="btn-whatsapp">
+        <span>💬</span>
+        <span class="en">WhatsApp · Get a Quote</span>
+        <span class="es">WhatsApp · Cotizar</span>
+      </a>
+      <a href="mailto:hello@balanceclip.net?subject=BalanceClip%20Pro%20-%20Cotización" class="price-callout-mail">
+        <span class="en">or email hello@balanceclip.net</span>
+        <span class="es">o escríbenos a hello@balanceclip.net</span>
+      </a>
     </div>
-    <p class="price-note">
-      <span class="en">All plans include the 7-day free trial. No card required to start.</span>
-      <span class="es">Todos los planes incluyen 7 días gratis. No se requiere tarjeta para empezar.</span>
-    </p>
   </div>
 </section>
 
