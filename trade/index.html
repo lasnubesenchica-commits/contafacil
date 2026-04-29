@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BalanceClip Trade — Buy-and-sell, finally connected.</title>
+<meta name="description" content="BalanceClip Trade clips every purchase invoice to its sale. Built for distributors, importers and contractors in Panama. DGI-native.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --orange: #f97316;
+  --orange2: #fb923c;
+  --orange-light: #fff7ed;
+  --blue: #3b82f6;
+  --teal: #14b8a6;
+  --ink: #1e1b4b;
+  --ink2: #4b5563;
+  --ink3: #9ca3af;
+  --white: #ffffff;
+  --bg: #fafafa;
+  --border: rgba(0,0,0,0.08);
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+}
+html { scroll-behavior: smooth; }
+body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--ink); font-size: 16px; line-height: 1.6; overflow-x: hidden; }
+
+/* NAV */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 3rem; background: rgba(255,255,255,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); box-shadow: 0 2px 16px rgba(0,0,0,0.04); }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 1.4rem; font-weight: 900; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
+.logo-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--orange) 0%, var(--orange2) 100%); display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 12px rgba(249,115,22,0.35); }
+.logo-clip { color: var(--orange); }
+.nav-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
+.nav-links a { text-decoration: none; color: var(--ink2); font-size: 14px; font-weight: 600; transition: color 0.2s; }
+.nav-links a:hover, .nav-links a.active { color: var(--orange); }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.lang-btn { background: none; border: 1.5px solid var(--border); border-radius: 100px; padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--ink3); transition: all 0.15s; font-family: 'Nunito', sans-serif; }
+.lang-btn.active, .lang-btn:hover { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.btn-signin { background: none; color: var(--ink); border: 1.5px solid var(--border); border-radius: 100px; padding: 9px 22px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: 'Nunito', sans-serif; }
+.btn-signin:hover { border-color: var(--orange); color: var(--orange); }
+.btn-cta { background: linear-gradient(135deg, var(--orange) 0%, #f59e0b 100%); color: var(--white); border: none; border-radius: 100px; padding: 10px 22px; font-size: 13px; font-weight: 800; cursor: pointer; text-decoration: none; transition: all 0.2s; display: inline-block; font-family: 'Nunito', sans-serif; box-shadow: 0 4px 16px rgba(249,115,22,0.35); }
+.btn-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(249,115,22,0.45); }
+
+/* HERO */
+.hero { min-height: 70vh; background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 50%, #fef3c7 100%); display: flex; align-items: center; padding: 9rem 3rem 5rem; position: relative; overflow: hidden; }
+.hero-glow { position: absolute; width: 520px; height: 520px; background: radial-gradient(circle, rgba(249,115,22,0.20) 0%, transparent 70%); top: -120px; right: 80px; pointer-events: none; }
+.hero-inner { max-width: 1100px; margin: 0 auto; width: 100%; position: relative; z-index: 1; }
+.crumb { font-size: 13px; font-weight: 700; color: var(--ink3); margin-bottom: 1rem; }
+.crumb a { color: var(--ink2); text-decoration: none; }
+.crumb a:hover { color: var(--orange); }
+.crumb .sep { margin: 0 8px; color: var(--ink3); }
+.crumb .current { color: var(--orange); }
+.hero-pill { display: inline-block; background: var(--white); border: 1.5px solid rgba(249,115,22,0.25); border-radius: 100px; padding: 6px 16px; font-size: 12px; font-weight: 800; color: var(--orange); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 1.25rem; box-shadow: 0 4px 16px rgba(249,115,22,0.15); }
+h1 { font-size: clamp(2.4rem, 4.5vw, 3.6rem); font-weight: 900; line-height: 1.18; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 1.25rem; max-width: 780px; }
+h1 .accent { background: linear-gradient(135deg, var(--orange) 0%, #f59e0b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-style: italic; }
+.hero-sub { font-size: 1.1rem; color: var(--ink2); max-width: 640px; line-height: 1.7; font-weight: 500; margin-bottom: 2rem; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-hero-primary { background: linear-gradient(135deg, var(--orange) 0%, #f59e0b 100%); color: var(--white); border: none; border-radius: 100px; padding: 14px 28px; font-size: 15px; font-weight: 800; cursor: pointer; text-decoration: none; display: inline-block; font-family: 'Nunito', sans-serif; box-shadow: 0 6px 20px rgba(249,115,22,0.4); transition: all 0.2s; }
+.btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(249,115,22,0.5); }
+.btn-whatsapp { background: #25d366; color: var(--white); border: none; border-radius: 100px; padding: 14px 26px; font-size: 15px; font-weight: 800; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-family: 'Nunito', sans-serif; box-shadow: 0 6px 20px rgba(37,211,102,0.35); transition: all 0.2s; }
+.btn-whatsapp:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,211,102,0.45); background: #1ebe5a; }
+
+/* SECTIONS BASE */
+.section { padding: 5rem 3rem; }
+.section-inner { max-width: 1100px; margin: 0 auto; }
+.section-alt { background: linear-gradient(180deg, #fafafa 0%, #fff7ed 100%); }
+.section-tag { display: inline-block; background: var(--orange-light); color: var(--orange); border-radius: 100px; padding: 5px 16px; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 1rem; }
+h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 900; line-height: 1.18; letter-spacing: -0.02em; margin-bottom: 1rem; }
+h3 { font-size: 1.15rem; font-weight: 800; color: var(--ink); }
+.section-desc { font-size: 1.05rem; color: var(--ink2); max-width: 620px; line-height: 1.7; font-weight: 500; margin-bottom: 3rem; }
+
+/* FOOTER */
+footer { padding: 1.75rem 3rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); font-size: 13px; color: var(--ink3); font-weight: 600; background: var(--white); }
+
+/* LANG */
+body.es .en { display: none !important; }
+body.es .es { display: inline !important; }
+body:not(.es) .es { display: none !important; }
+
+/* RESPONSIVE BASE */
+@media (max-width: 900px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-links { display: none; }
+  .hero { padding: 7rem 1.5rem 4rem; }
+  .section { padding: 3.5rem 1.5rem; }
+  footer { flex-direction: column; gap: 6px; }
+}
+/* USE CASES */
+.usecases-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+.usecase-card { background: var(--white); border-radius: 20px; padding: 1.75rem; border: 1.5px solid var(--border); transition: all 0.2s; }
+.usecase-card:hover { transform: translateY(-3px); border-color: rgba(249,115,22,0.3); box-shadow: var(--shadow-lg); }
+.usecase-emoji { font-size: 32px; margin-bottom: 0.75rem; }
+.usecase-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.4rem; }
+.usecase-card p { font-size: 0.9rem; color: var(--ink2); line-height: 1.6; font-weight: 500; margin-bottom: 0.85rem; }
+.usecase-pain { background: var(--orange-light); border-left: 3px solid var(--orange); padding: 0.6rem 0.85rem; border-radius: 6px; font-size: 0.82rem; color: var(--ink); font-weight: 600; }
+.usecase-pain strong { color: var(--orange); }
+@media (max-width: 900px) { .usecases-grid { grid-template-columns: 1fr; } }
+/* PRICING */
+.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 2.5rem; }
+.price-card { background: var(--white); border-radius: 20px; padding: 2rem 1.75rem; border: 2px solid var(--border); transition: all 0.2s; position: relative; display: flex; flex-direction: column; }
+.price-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.price-card.featured { border-color: var(--orange); box-shadow: 0 12px 32px rgba(249,115,22,0.18); }
+.price-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--orange), #f59e0b); color: var(--white); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; box-shadow: 0 4px 12px rgba(249,115,22,0.3); }
+.price-name { font-size: 0.85rem; font-weight: 800; color: var(--orange); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
+.price-amount { font-size: 2.4rem; font-weight: 900; color: var(--ink); letter-spacing: -0.02em; line-height: 1; margin-bottom: 0.25rem; }
+.price-amount .price-cur { font-size: 1rem; font-weight: 700; color: var(--ink3); vertical-align: top; }
+.price-amount .price-per { font-size: 0.9rem; font-weight: 600; color: var(--ink3); }
+.price-tag { font-size: 0.85rem; color: var(--ink2); font-weight: 600; margin-bottom: 1.5rem; }
+.price-list { list-style: none; margin-bottom: 1.75rem; flex: 1; }
+.price-list li { font-size: 0.88rem; color: var(--ink2); font-weight: 500; padding: 6px 0; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+.price-list li::before { content: "✓"; color: var(--teal); font-weight: 900; flex-shrink: 0; }
+.price-cta { display: block; text-align: center; padding: 12px 20px; border-radius: 100px; font-weight: 800; font-size: 14px; text-decoration: none; transition: all 0.2s; }
+.price-cta-outline { border: 2px solid var(--orange); color: var(--orange); background: var(--white); }
+.price-cta-outline:hover { background: var(--orange); color: var(--white); }
+.price-cta-fill { background: linear-gradient(135deg, var(--orange) 0%, #f59e0b 100%); color: var(--white); box-shadow: 0 4px 14px rgba(249,115,22,0.35); }
+.price-cta-fill:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(249,115,22,0.45); }
+.price-note { font-size: 13px; color: var(--ink3); font-weight: 600; margin-top: 1.5rem; text-align: center; }
+@media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; } }
+/* FAQ */
+.faq-list { display: flex; flex-direction: column; gap: 12px; max-width: 820px; margin: 2rem auto 0; }
+.faq-item { background: var(--white); border: 1.5px solid var(--border); border-radius: 16px; padding: 1.1rem 1.4rem; transition: all 0.2s; }
+.faq-item[open] { border-color: rgba(249,115,22,0.35); box-shadow: var(--shadow); }
+.faq-item summary { font-size: 1rem; font-weight: 800; color: var(--ink); cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: "+"; color: var(--orange); font-size: 1.4rem; font-weight: 700; line-height: 1; transition: transform 0.2s; }
+.faq-item[open] summary::after { content: "−"; }
+.faq-item p { font-size: 0.92rem; color: var(--ink2); font-weight: 500; line-height: 1.65; margin-top: 0.85rem; }
+
+/* CONTACT CTA */
+.contact-cta { padding: 5rem 3rem; background: linear-gradient(135deg, var(--ink) 0%, #312e81 100%); color: var(--white); text-align: center; position: relative; overflow: hidden; }
+.contact-cta-glow { position: absolute; width: 500px; height: 500px; background: radial-gradient(circle, rgba(249,115,22,0.20) 0%, transparent 70%); top: -150px; right: -100px; pointer-events: none; }
+.contact-cta-inner { max-width: 640px; margin: 0 auto; position: relative; z-index: 1; }
+.contact-cta h2 { color: var(--white); margin-bottom: 0.75rem; }
+.contact-cta p { color: rgba(255,255,255,0.75); font-size: 1.05rem; font-weight: 500; margin-bottom: 2rem; }
+.contact-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+@media (max-width: 900px) { .contact-cta { padding: 3.5rem 1.5rem; } }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-icon">📎</div>
+    Balance<span class="logo-clip">Clip</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="/trade" class="active">Trade</a></li>
+    <li><a href="/solo">Solo</a></li>
+    <li><a href="/#how"><span class="en">How It Works</span><span class="es">Cómo Funciona</span></a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="lang-btn active" onclick="setLang('en')" id="btn-en">EN</button>
+    <button class="lang-btn" onclick="setLang('es')" id="btn-es">ES</button>
+    <a href="mailto:hello@balanceclip.net?subject=BalanceClip%20Trade" class="btn-signin">
+      <span class="en">Sign In</span><span class="es">Ingresar</span>
+    </a>
+    <a href="#contact" class="btn-cta">
+      <span class="en">Talk to Sales →</span><span class="es">Hablar con Ventas →</span>
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-inner">
+    <div class="crumb">
+      <a href="/">BalanceClip</a> <span class="sep">›</span> <span class="current">Trade</span>
+    </div>
+    <span class="hero-pill">📦 Track 01 · Trade</span>
+    <h1>
+      <span class="en">Buy-and-sell, <span class="accent">finally connected.</span></span>
+      <span class="es">Compra y venta, <span class="accent">finalmente conectadas.</span></span>
+    </h1>
+    <p class="hero-sub">
+      <span class="en">For distributors, importers, commercializers and contractors who run hundreds of invoices a month. BalanceClip Trade reads each purchase invoice, finds its matching sale, and closes the cycle — automatically.</span>
+      <span class="es">Para distribuidoras, importadoras, comercializadoras y contratistas que mueven cientos de facturas al mes. BalanceClip Trade lee cada factura de compra, encuentra su venta y cierra el ciclo — automáticamente.</span>
+    </p>
+    <div class="hero-actions">
+      <a href="#pricing" class="btn-hero-primary">
+        <span class="en">See Pricing →</span><span class="es">Ver Precios →</span>
+      </a>
+      <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Trade" target="_blank" rel="noopener" class="btn-whatsapp">
+        <span>💬</span>
+        <span class="en">WhatsApp Sales</span>
+        <span class="es">WhatsApp Ventas</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- USE CASES -->
+<section class="section">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">Use Cases</span><span class="es">Casos de Uso</span></span>
+    <h2><span class="en">Built for the way Panama trades.</span><span class="es">Pensado para cómo se comercia en Panamá.</span></h2>
+    <p class="section-desc">
+      <span class="en">Four operations, one common problem: matching every purchase to its sale before the month closes.</span>
+      <span class="es">Cuatro operaciones, un problema en común: cruzar cada compra con su venta antes de que cierre el mes.</span>
+    </p>
+    <div class="usecases-grid">
+      <div class="usecase-card">
+        <div class="usecase-emoji">🚚</div>
+        <h3><span class="en">Distributors</span><span class="es">Distribuidoras</span></h3>
+        <p><span class="en">High-volume buy/sell with the same SKU passing through. We track each lot, margin and ITBMS — even when the same item moves five times.</span><span class="es">Alto volumen comprando y vendiendo el mismo SKU. Trazamos cada lote, margen e ITBMS — aunque el mismo artículo se mueva cinco veces.</span></p>
+        <div class="usecase-pain"><strong>Pain:</strong> <span class="en">Hundreds of FE01s a month, no time to reconcile.</span><span class="es">Cientos de FE01 al mes, sin tiempo de cuadrar.</span></div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-emoji">📦</div>
+        <h3><span class="en">Importers</span><span class="es">Importadoras</span></h3>
+        <p><span class="en">Foreign-supplier invoices in USD, customs (DMCE), local sale in PAB with ITBMS. Trade ties supplier cost to landed cost to sale price.</span><span class="es">Facturas de proveedor en USD, aduana (DMCE), venta local en PAB con ITBMS. Trade conecta costo proveedor → costo en aduana → precio de venta.</span></p>
+        <div class="usecase-pain"><strong>Pain:</strong> <span class="en">True margin per shipment is invisible until year-end.</span><span class="es">El margen real por embarque solo se ve a fin de año.</span></div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-emoji">🛒</div>
+        <h3><span class="en">Commercializers &amp; Retail</span><span class="es">Comercializadoras y Retail</span></h3>
+        <p><span class="en">Mixed counter sales + B2B invoicing. Trade splits exempt vs taxable ITBMS, handles returns and credit notes, and keeps the SKU ledger.</span><span class="es">Mostrador + venta B2B mezcladas. Trade separa ITBMS gravado/exento, maneja devoluciones y notas de crédito, y lleva el control por SKU.</span></p>
+        <div class="usecase-pain"><strong>Pain:</strong> <span class="en">Cash counter never matches the electronic books.</span><span class="es">El mostrador en efectivo nunca cuadra con la contabilidad electrónica.</span></div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-emoji">🏗️</div>
+        <h3><span class="en">Contractors &amp; Service Cos.</span><span class="es">Contratistas y Servicios</span></h3>
+        <p><span class="en">Project-based billing where a single PO triggers months of supplier invoices. Trade clusters every cost back to the customer invoice.</span><span class="es">Facturación por proyecto: una sola orden dispara meses de facturas de proveedor. Trade agrupa cada costo a la factura del cliente.</span></p>
+        <div class="usecase-pain"><strong>Pain:</strong> <span class="en">"Did we lose money on that job?" — answered next quarter.</span><span class="es">"¿Perdimos plata en esa obra?" — la respuesta llega el otro trimestre.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section section-alt" id="pricing">
+  <div class="section-inner">
+    <span class="section-tag"><span class="en">Pricing</span><span class="es">Precios</span></span>
+    <h2><span class="en">Pricing that scales with your invoice volume.</span><span class="es">Precio que escala con tu volumen de facturas.</span></h2>
+    <p class="section-desc">
+      <span class="en">Monthly, in USD. Cancel anytime. Implementation included on every plan.</span>
+      <span class="es">Mensual, en USD. Cancela cuando quieras. Implementación incluida en todos los planes.</span>
+    </p>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="price-name">Starter</div>
+        <div class="price-amount"><span class="price-cur">$</span>89<span class="price-per">/mo</span></div>
+        <div class="price-tag"><span class="en">Up to 200 invoices/month</span><span class="es">Hasta 200 facturas/mes</span></div>
+        <ul class="price-list">
+          <li><span class="en">AI invoice clipping</span><span class="es">Cruce de facturas con IA</span></li>
+          <li><span class="en">DGI-native ITBMS &amp; e-Tax 2.0</span><span class="es">ITBMS y e-Tax 2.0 nativos</span></li>
+          <li><span class="en">P&amp;L, COGS &amp; AR dashboards</span><span class="es">P&amp;L, costo de ventas y CxC</span></li>
+          <li><span class="en">1 company, 2 users</span><span class="es">1 empresa, 2 usuarios</span></li>
+          <li><span class="en">Email support</span><span class="es">Soporte por email</span></li>
+        </ul>
+        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Trade%20Starter" target="_blank" rel="noopener" class="price-cta price-cta-outline">
+          <span class="en">Start with Starter</span><span class="es">Empezar con Starter</span>
+        </a>
+      </div>
+      <div class="price-card featured">
+        <span class="price-badge"><span class="en">Most Popular</span><span class="es">Más Popular</span></span>
+        <div class="price-name">Business</div>
+        <div class="price-amount"><span class="price-cur">$</span>249<span class="price-per">/mo</span></div>
+        <div class="price-tag"><span class="en">Up to 1,000 invoices/month</span><span class="es">Hasta 1,000 facturas/mes</span></div>
+        <ul class="price-list">
+          <li><span class="en">Everything in Starter</span><span class="es">Todo lo de Starter</span></li>
+          <li><span class="en">Credit notes &amp; returns</span><span class="es">Notas de crédito y devoluciones</span></li>
+          <li><span class="en">Multi-warehouse / SKU ledger</span><span class="es">Multi-bodega / control SKU</span></li>
+          <li><span class="en">Up to 3 companies, 8 users</span><span class="es">Hasta 3 empresas, 8 usuarios</span></li>
+          <li><span class="en">WhatsApp + email support</span><span class="es">Soporte WhatsApp + email</span></li>
+        </ul>
+        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Trade%20Business" target="_blank" rel="noopener" class="price-cta price-cta-fill">
+          <span class="en">Talk to Sales</span><span class="es">Hablar con Ventas</span>
+        </a>
+      </div>
+      <div class="price-card">
+        <div class="price-name">CPA / Multi-Client</div>
+        <div class="price-amount"><span class="en">Custom</span><span class="es">A medida</span></div>
+        <div class="price-tag"><span class="en">For accounting firms managing multiple clients</span><span class="es">Para firmas contables con varios clientes</span></div>
+        <ul class="price-list">
+          <li><span class="en">Everything in Business</span><span class="es">Todo lo de Business</span></li>
+          <li><span class="en">Unlimited client companies</span><span class="es">Empresas cliente ilimitadas</span></li>
+          <li><span class="en">Per-client billing &amp; isolation</span><span class="es">Facturación y aislamiento por cliente</span></li>
+          <li><span class="en">SLA + onboarding sessions</span><span class="es">SLA + sesiones de implementación</span></li>
+          <li><span class="en">Dedicated account manager</span><span class="es">Gerente de cuenta dedicado</span></li>
+        </ul>
+        <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Trade%20para%20mi%20firma%20contable" target="_blank" rel="noopener" class="price-cta price-cta-outline">
+          <span class="en">Request a Quote</span><span class="es">Solicitar Cotización</span>
+        </a>
+      </div>
+    </div>
+    <p class="price-note">
+      <span class="en">Prices in USD. ITBMS not included where applicable. Annual plans receive 2 months free.</span>
+      <span class="es">Precios en USD. ITBMS no incluido donde aplique. Planes anuales reciben 2 meses gratis.</span>
+    </p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="section-inner">
+    <span class="section-tag">FAQ</span>
+    <h2><span class="en">Questions, before you call us.</span><span class="es">Preguntas antes de llamarnos.</span></h2>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary><span class="en">How does the AI clip actually work?</span><span class="es">¿Cómo funciona el clip con IA?</span></summary>
+        <p><span class="en">We read your purchase invoices from Gmail or Drive, extract supplier, amount, ITBMS and line items, then match each one to the sale invoice (or POS line) that consumed it — using vendor, date window and SKU/description similarity. You only review the edge cases.</span><span class="es">Leemos tus facturas de compra desde Gmail o Drive, extraemos proveedor, monto, ITBMS y líneas, y cruzamos cada una con la factura de venta (o línea de POS) que la consumió — usando proveedor, ventana de fecha y similitud por SKU/descripción. Tú solo revisas los casos borde.</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">Do I need to migrate my old data?</span><span class="es">¿Tengo que migrar mi data vieja?</span></summary>
+        <p><span class="en">No. You can start clean from any month. If you want history, we ingest from Excel, QuickBooks or your previous system during onboarding — typically 1 to 3 days.</span><span class="es">No. Puedes arrancar desde cualquier mes con la pizarra en blanco. Si quieres historial, ingestamos desde Excel, QuickBooks o tu sistema anterior durante la implementación — normalmente 1 a 3 días.</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">Is it really compliant with Panama DGI?</span><span class="es">¿De verdad cumple con la DGI de Panamá?</span></summary>
+        <p><span class="en">Yes. BalanceClip is DGI-native: ITBMS at 7% with taxable/exempt split, FE01 and FE04 read natively, RUC/DV validation for natural, legal and foreign entities, credit notes linked to originals. We're built for the 2026 e-Tax 2.0 baseline.</span><span class="es">Sí. BalanceClip es DGI-nativo: ITBMS al 7% con separación gravado/exento, lectura FE01 y FE04, validación RUC/DV para naturales, jurídicas y extranjeras, notas de crédito ligadas a su factura original. Construido para el estándar e-Tax 2.0 de 2026.</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">What if my purchase invoice arrives months after the sale?</span><span class="es">¿Y si la factura de compra llega meses después de la venta?</span></summary>
+        <p><span class="en">Trade keeps the sale flagged "awaiting cost" and rebalances P&amp;L the moment the matching invoice lands — even retroactively across closed months, with full audit trail.</span><span class="es">Trade deja la venta marcada "esperando costo" y rebalancea el P&amp;L en el momento en que llega la factura — aún retroactivamente en meses cerrados, con bitácora completa.</span></p>
+      </details>
+      <details class="faq-item">
+        <summary><span class="en">Can my accountant access it too?</span><span class="es">¿Mi contador también puede acceder?</span></summary>
+        <p><span class="en">Yes. Add them as a user — read-only or editor. CPAs running multiple clients should look at the CPA / Multi-Client tier, which gives them one cockpit for all the firms they serve.</span><span class="es">Sí. Agrégalo como usuario — solo lectura o editor. Si tu contador maneja varios clientes, mira el plan CPA / Multi-Cliente: una sola consola para todas las empresas que atiende.</span></p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT CTA -->
+<section class="contact-cta" id="contact">
+  <div class="contact-cta-glow"></div>
+  <div class="contact-cta-inner">
+    <h2><span class="en">Let's clip your invoices.</span><span class="es">Vamos a cruzar tus facturas.</span></h2>
+    <p>
+      <span class="en">15-minute walkthrough. No slides. We answer in Panama time.</span>
+      <span class="es">Demo de 15 minutos. Sin presentaciones. Respondemos en hora Panamá.</span>
+    </p>
+    <div class="contact-actions">
+      <a href="mailto:hello@balanceclip.net?subject=BalanceClip%20Trade%20-%20Demo" class="btn-hero-primary">
+        <span class="en">✉️ Email Us</span><span class="es">✉️ Enviar Correo</span>
+      </a>
+      <a href="https://wa.me/50769812266?text=Hola%2C%20me%20interesa%20BalanceClip%20Trade" target="_blank" rel="noopener" class="btn-whatsapp">
+        <span>💬</span>
+        <span class="en">WhatsApp +507 6981-2266</span>
+        <span class="es">WhatsApp +507 6981-2266</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>© 2026 BalanceClip</span>
+  <span><span class="en">Built in Panama 🇵🇦</span><span class="es">Hecho en Panamá 🇵🇦</span></span>
+</footer>
+
+<script>
+function setLang(lang) {
+  document.body.classList.toggle('es', lang === 'es');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('btn-es').classList.toggle('active', lang === 'es');
+  localStorage.setItem('bc-lang', lang);
+}
+const saved = localStorage.getItem('bc-lang');
+if (saved) setLang(saved);
+else if (navigator.language.toLowerCase().startsWith('es')) setLang('es');
+</script>
+</body>
+</html>
