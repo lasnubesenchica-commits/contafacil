@@ -1467,25 +1467,32 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
 
 // ── AUTH — login deshabilitado, se activa en deployment ──────
-// ── AUTH — Opción 1: password local + recordar dispositivo ──
-const AUTH_KEY_HASH   = 'bc_pwd_hash';
+// ── AUTH — Opción 2: password global en backend + dispositivo recordado ──
 const AUTH_KEY_AUTHED = 'bc_authed';
+let _authHasPassword = null; // se carga del backend al iniciar
 
-async function _authHash(pwd) {
-  const buf = new TextEncoder().encode(pwd);
-  const dig = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(dig))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
-}
-function _authStored()   { try { return localStorage.getItem(AUTH_KEY_HASH)   || ''; } catch (e) { return ''; } }
 function _authIsAuthed() { try { return localStorage.getItem(AUTH_KEY_AUTHED) === '1'; } catch (e) { return false; } }
-function _authSetHash(h) { try { localStorage.setItem(AUTH_KEY_HASH, h); } catch (e) {} }
 function _authMark()     { try { localStorage.setItem(AUTH_KEY_AUTHED, '1'); } catch (e) {} }
 function _authUnmark()   { try { localStorage.removeItem(AUTH_KEY_AUTHED); } catch (e) {} }
-function _authClear()    { try { localStorage.removeItem(AUTH_KEY_HASH); localStorage.removeItem(AUTH_KEY_AUTHED); } catch (e) {} }
+
+async function _authBackendPost(action, body) {
+  const res = await fetch(GAS_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:    JSON.stringify(Object.assign({ action: action }, body || {})),
+  });
+  return res.json();
+}
+
+async function _authFetchState() {
+  try {
+    const r = await jsonpGet('getAuthState', {}, 12000);
+    return !!(r && r.success && r.hasPassword);
+  } catch (e) { return false; }
+}
 
 function _renderLoginMode() {
-  const setup = !_authStored();
+  const setup = _authHasPassword === false;
   const sub   = document.getElementById('loginSub');
   const hint  = document.getElementById('loginModeHint');
   const pwd   = document.getElementById('loginPwd');
@@ -1495,7 +1502,7 @@ function _renderLoginMode() {
   const err   = document.getElementById('loginError');
   if (setup) {
     if (sub)   sub.textContent  = 'Configura tu contraseña';
-    if (hint)  hint.textContent = 'Primera vez en este dispositivo. Quedará recordada y no la pediremos cada vez que entres.';
+    if (hint)  hint.textContent = 'Primera vez configurando el sistema. Esta contraseña la usarás desde cualquier dispositivo.';
     if (pwd)   pwd.setAttribute('placeholder', 'Mínimo 4 caracteres');
     if (pwd2)  pwd2.style.display = 'block';
     if (btn)   btn.textContent = 'Guardar y entrar';
@@ -1521,28 +1528,49 @@ function _enterApp() {
 
 async function doLogin() {
   const err  = document.getElementById('loginError');
+  const btn  = document.getElementById('loginBtn');
   const pwd  = document.getElementById('loginPwd').value;
   const pwd2 = (document.getElementById('loginPwd2') || {}).value || '';
-  const hash = _authStored();
 
   function _err(msg) { if (err) { err.textContent = msg; err.style.display = 'block'; } }
+  function _busy(on, label) {
+    if (!btn) return;
+    btn.disabled = !!on;
+    if (on) { btn._oldText = btn.textContent; btn.textContent = label || 'Procesando…'; }
+    else if (btn._oldText) { btn.textContent = btn._oldText; }
+  }
 
-  if (!hash) {
+  if (_authHasPassword === false) {
     if (!pwd || pwd.length < 4) { _err('La contraseña debe tener al menos 4 caracteres'); return; }
     if (pwd !== pwd2)            { _err('Las contraseñas no coinciden'); return; }
-    _authSetHash(await _authHash(pwd));
-    _authMark();
-    document.getElementById('loginPwd').value  = '';
-    document.getElementById('loginPwd2').value = '';
-    _enterApp();
+    _busy(true, 'Guardando…');
+    try {
+      const r = await _authBackendPost('setPassword', { password: pwd });
+      if (!r || !r.success) { _err((r && r.error) || 'No se pudo configurar'); _busy(false); return; }
+      _authHasPassword = true;
+      _authMark();
+      document.getElementById('loginPwd').value  = '';
+      document.getElementById('loginPwd2').value = '';
+      _enterApp();
+    } catch (e) { _err('Error de red'); _busy(false); }
     return;
   }
 
-  const h = await _authHash(pwd);
-  if (h !== hash) { _err('Contraseña incorrecta'); document.getElementById('loginPwd').value = ''; return; }
-  _authMark();
-  document.getElementById('loginPwd').value = '';
-  _enterApp();
+  if (!pwd) { _err('Ingresa tu contraseña'); return; }
+  _busy(true, 'Verificando…');
+  try {
+    const r = await _authBackendPost('verifyPassword', { password: pwd });
+    if (!r || !r.success) { _err((r && r.error) || 'No se pudo verificar'); _busy(false); return; }
+    if (!r.valid) {
+      _err('Contraseña incorrecta');
+      document.getElementById('loginPwd').value = '';
+      _busy(false);
+      return;
+    }
+    _authMark();
+    document.getElementById('loginPwd').value = '';
+    _enterApp();
+  } catch (e) { _err('Error de red'); _busy(false); }
 }
 
 function logout() {
@@ -1553,33 +1581,30 @@ function logout() {
 }
 
 function loginReset() {
-  if (!confirm('Esto borrará la contraseña configurada y tendrás que configurar una nueva. ¿Continuar?')) return;
-  _authClear();
-  _renderLoginMode();
+  alert(
+    'Por seguridad, el reset de contraseña requiere intervención del equipo BalanceClip.\n\n' +
+    'Escríbenos por WhatsApp al +507 6981-2266 desde el remitente registrado de tu empresa ' +
+    'para que verifiquemos tu identidad y reseteemos la contraseña.'
+  );
 }
 window.loginReset = loginReset;
 
 async function authChangePwd() {
   const actual = prompt('Contraseña actual:');
   if (actual == null) return;
-  if (await _authHash(actual) !== _authStored()) { toast('Contraseña actual incorrecta', 'err'); return; }
   const nueva = prompt('Nueva contraseña (mínimo 4 caracteres):');
   if (!nueva || nueva.length < 4) { toast('Contraseña muy corta', 'err'); return; }
-  const conf = prompt('Repite la nueva contraseña:');
+  const conf  = prompt('Repite la nueva contraseña:');
   if (nueva !== conf) { toast('No coinciden', 'err'); return; }
-  _authSetHash(await _authHash(nueva));
-  toast('✅ Contraseña actualizada');
+  try {
+    const r = await _authBackendPost('setPassword', { password: nueva, currentPassword: actual });
+    if (!r || !r.success) { toast('⚠️ ' + ((r && r.error) || 'No se pudo cambiar'), 'err'); return; }
+    toast('✅ Contraseña actualizada');
+  } catch (e) { toast('Error de red', 'err'); }
 }
 window.authChangePwd = authChangePwd;
 
-function authForgetDevice() {
-  if (!confirm('La próxima vez que entres tendrás que escribir tu contraseña. ¿Continuar?')) return;
-  _authUnmark();
-  toast('✅ Dispositivo olvidado');
-}
-window.authForgetDevice = authForgetDevice;
-
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Cargar branding desde config_operaciones antes del login
   jsonpGet('getConfig', {}).then(d => {
     if (d.success) {
@@ -1587,12 +1612,18 @@ document.addEventListener('DOMContentLoaded', () => {
       window._appRucCliente = (d.config && d.config.empresa_ruc) ? d.config.empresa_ruc.trim() : '';
     }
   }).catch(() => {});
-  if (_authStored() && _authIsAuthed()) {
+
+  // Mostrar login screen mientras consultamos el backend
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+
+  _authHasPassword = await _authFetchState();
+
+  if (_authHasPassword && _authIsAuthed()) {
     _enterApp();
-  } else {
-    _renderLoginMode();
-    document.getElementById('loginScreen').style.display = 'flex';
+    return;
   }
+  _renderLoginMode();
 });
 
 // ── NAVEGACIÓN ────────────────────────────────

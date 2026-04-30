@@ -355,6 +355,11 @@ function doPost(e) {
     if (action === 'categorizarTransaccionesOFX') return _handleCategorizarTransaccionesOFX(data);
     if (action === 'importarLoteOFX')             return _handleImportarLoteOFX(data);
 
+    // ── AUTH (password global) ──────────────────────────────────
+    if (action === 'verifyPassword')              return _handleVerifyPassword(data);
+    if (action === 'setPassword')                 return _handleSetPassword(data);
+    if (action === 'resetPassword')               return _handleResetPassword(data);
+
     // ── REPORTES por email ──────────────────────────────────────
     if (action === 'enviarReporteCierre')         return _handleEnviarReporteCierre(data);
 
@@ -674,6 +679,9 @@ function doGet(e) {
     // ── Estado de triggers (consumido por panel Sistema) ────────
     if (action === 'estadoTriggerOp')                 return _handleEstadoTriggerOp(params, callback);
     if (action === 'estadoTriggerST')                 return _handleEstadoTriggerST(params, callback);
+
+    // ── AUTH (estado público) ───────────────────────────────────
+    if (action === 'getAuthState')                    return _handleGetAuthState(params, callback);
 
     // ── Default: health check ───────────────────────────────────
     return ContentService
