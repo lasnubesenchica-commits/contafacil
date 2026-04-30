@@ -1544,12 +1544,13 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="topnav-badge" id="appHeaderBadge">BalanceClip</div>
     </div>
     <div class="topnav-right">
-      <button class="bc-tour-btn" id="btnTourRG" onclick="rgStartTour()" title="Tour guiado del Registro General">
-        <span style="font-size:.95rem;line-height:1">❓</span><span>Tour</span>
+      <button class="bc-tour-btn" id="btnTourRG" onclick="rgStartTour()" title="Tour guiado del Registro General"
+        style="border-color:#1565C0;color:#1565C0">
+        <span style="font-size:.95rem;line-height:1">🗺️</span><span>Tour guiado</span>
       </button>
-      <button class="bc-tour-btn" id="btnWizardCaptura" onclick="captWizardOpen()" title="Wizard: configurar captura automática de facturas"
+      <button class="bc-tour-btn" id="btnWizardCaptura" onclick="captWizardOpen()" title="Configurar captura automática de facturas con IA"
         style="border-color:var(--orange);color:var(--orange)">
-        <span style="font-size:.95rem;line-height:1">🧙</span><span>Captura automática</span>
+        <span style="font-size:.95rem;line-height:1">✨</span><span>Captura automática</span>
       </button>
       <button class="topnav-gear" onclick="cfgPanelOpen()" title="Configuración">⚙</button>
       <span class="topnav-logout" onclick="logout()">Salir →</span>
@@ -2928,8 +2929,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
   <div class="capt-wrap">
     <div class="capt-hdr">
       <div>
-        <div class="capt-hdr-eyebrow">Wizard</div>
-        <div class="capt-hdr-title">🧙 Captura automática de facturas</div>
+        <div class="capt-hdr-eyebrow">Asistente IA</div>
+        <div class="capt-hdr-title">✨ Captura automática de facturas</div>
       </div>
       <button class="capt-x" onclick="captWizardClose()" title="Cerrar">×</button>
     </div>
@@ -11335,28 +11336,32 @@ async function ofxImport_procesar() {
   function captVerificarReenvio(btn) {
     if (!btn) btn = {};
     btn.disabled = true; var oldTxt = btn.textContent; btn.textContent = 'Verificando…';
-    _setVerify('captVerifyA', 'muted', 'Consultando estado del email de entrada…');
+    _setVerify('captVerifyA', 'muted', 'Consultando inbox de BalanceClip…');
     if (typeof jsonpGet !== 'function') {
       _setVerify('captVerifyA', 'warn',
-        'No se pudo consultar el backend. Si ya avisaste por WhatsApp, espera la confirmación.');
+        'No se pudo consultar el backend. Refresca la página e inténtalo de nuevo.');
       btn.disabled = false; btn.textContent = oldTxt; return;
     }
-    jsonpGet('getConfig', {}, 12000)
+    jsonpGet('verificarReenvioGmail', {}, 25000)
       .then(function (r) {
-        var c = (r && r.config) || {};
-        var dest = (c.email_op_destino || c.email_acr_destino || '').trim();
-        if (dest) {
+        if (!r || r.success === false) {
+          _setVerify('captVerifyA', 'warn',
+            '⚠️ ' + ((r && r.error) || 'No se pudo verificar el reenvío.'));
+          return;
+        }
+        if (r.status === 'ok') {
           _setVerify('captVerifyA', 'ok',
-            '✓ <b>Email de entrada configurado:</b> <code>' + dest + '</code><br>' +
-            '<span style="color:var(--muted,#64748b);font-size:.78rem">' +
-            'Esta es una verificación aproximada — confirma que tu cuenta tiene el alias asignado, ' +
-            'pero no comprueba directamente con Gmail si Google ya aprobó el reenvío. ' +
-            'Si avisaste por WhatsApp y no recibes confirmación, vuelve a escribirnos.' +
-            '</span>');
+            '✅ <b>Reenvío activo</b> — detectamos ' + r.count +
+            ' correo(s) desde <code>' + r.rem + '</code> en los últimos 90 días.' +
+            (r.last ? '<br><span style="color:var(--muted,#64748b);font-size:.78rem">Último: ' + r.last + '</span>' : ''));
+        } else if (r.status === 'pendiente') {
+          _setVerify('captVerifyA', 'muted',
+            '🟡 <b>Setup en cola</b> — el alias <code>' + r.dest + '</code> está configurado ' +
+            'para tu remitente <code>' + r.rem + '</code>, pero <b>aún no llega ningún correo</b>. ' +
+            'Esto es normal si acabas de configurar — vuelve a verificar después de recibir tu próxima factura.');
         } else {
           _setVerify('captVerifyA', 'warn',
-            '⚠️ Aún no veo el email de entrada en la configuración. ' +
-            'Si ya avisaste por WhatsApp, espera unos minutos y vuelve a verificar.');
+            '⚠️ <b>Falta configuración</b>: ' + (r.msg || 'completa los campos en Configuración → Automático.'));
         }
       })
       .catch(function (e) {
