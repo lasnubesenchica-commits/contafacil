@@ -1830,3 +1830,88 @@ function _jsonpAcr(obj, callback) {
 function _jsonAcr(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  VERIFICAR REENVÍO GMAIL — chequeo end-to-end
+//
+//  Lee el inbox de facturas@balanceclip.net (cuenta donde corre el
+//  Apps Script) y busca correos enviados desde el remitente
+//  registrado del cliente (cfg.email_*_remitente). Si encuentra al
+//  menos uno, el reenvío está activo.
+//
+//  3 estados:
+//  - status=ok        → uno o más correos detectados (count, last)
+//  - status=pendiente → alias configurado pero aún no llega ningún
+//                       correo del remitente (esperando primera factura)
+//  - status=falta     → falta config (email_*_destino o
+//                       email_*_remitente vacío)
+// ═══════════════════════════════════════════════════════════════
+
+function _handleVerificarReenvioGmail(params, callback) {
+  try {
+    var cfg = _getConfig();
+    var dest = (cfg.email_acr_destino  || cfg.email_op_destino  || cfg.email_comprobantes || '').trim();
+    var rem  = (cfg.email_acr_remitente || cfg.email_op_remitente || '').trim();
+
+    if (!dest || !rem) {
+      return _jsonpAcr({
+        success: true,
+        status:  'falta',
+        dest:    dest,
+        rem:     rem,
+        msg:     'Falta configurar email_destino y/o email_remitente en Configuración → Automático.',
+      }, callback);
+    }
+
+    // Buscar mensajes en el inbox del Apps Script (facturas@balanceclip.net)
+    // que provengan del remitente registrado y tengan adjunto.
+    // Limitamos a los últimos 90 días para que la consulta sea rápida.
+    var query = 'from:' + rem + ' has:attachment newer_than:90d';
+    Logger.log('🔎 verificarReenvioGmail query: ' + query);
+    var threads = GmailApp.search(query, 0, 50);
+    var count = 0;
+    var lastMs = 0;
+
+    for (var t = 0; t < threads.length; t++) {
+      var msgs = threads[t].getMessages();
+      for (var m = 0; m < msgs.length; m++) {
+        var msg = msgs[m];
+        var fromAddr = String(msg.getFrom() || '').toLowerCase();
+        if (fromAddr.indexOf(rem.toLowerCase()) === -1) continue;
+        count++;
+        var d = msg.getDate();
+        var ms = d ? d.getTime() : 0;
+        if (ms > lastMs) lastMs = ms;
+      }
+    }
+
+    if (count > 0) {
+      var lastIso = lastMs ? Utilities.formatDate(new Date(lastMs), 'America/Panama', 'yyyy-MM-dd HH:mm') : '';
+      return _jsonpAcr({
+        success: true,
+        status:  'ok',
+        dest:    dest,
+        rem:     rem,
+        count:   count,
+        last:    lastIso,
+        msg:     'Reenvío activo · ' + count + ' correo(s) detectado(s) en los últimos 90 días.',
+      }, callback);
+    }
+
+    return _jsonpAcr({
+      success: true,
+      status:  'pendiente',
+      dest:    dest,
+      rem:     rem,
+      count:   0,
+      msg:     'Alias configurado, pero aún no llega ningún correo desde ' + rem +
+               '. Vuelve a verificar cuando recibas la primera factura.',
+    }, callback);
+  } catch (err) {
+    Logger.log('❌ verificarReenvioGmail: ' + err.message);
+    return _jsonpAcr({
+      success: false,
+      error:   err.message,
+    }, callback);
+  }
+}

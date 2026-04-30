@@ -654,6 +654,7 @@ function doGet(e) {
     if (action === 'rechazarAcreedor')      return _handleRechazarAcreedor(params, callback);
     if (action === 'eliminarPendienteAcr')  return _handleEliminarPendienteAcr(params, callback);
     if (action === 'sincronizarAcreedores') return _handleSincronizarAcreedores(params, callback);
+    if (action === 'verificarReenvioGmail') return _handleVerificarReenvioGmail(params, callback);
     if (action === 'getCategorias')         return _handleGetCategorias(params, callback);
 
     // ── INICIALIZACIÓN ──────────────────────────────────────────
