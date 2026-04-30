@@ -562,6 +562,22 @@ footer {
 .track-benefits li::before {
   content: "✓"; color: var(--teal); font-weight: 900; font-size: 14px; flex-shrink: 0;
 }
+.track-price {
+  display: flex; align-items: baseline; gap: 6px;
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 0.85rem;
+  padding-top: 0.5rem; border-top: 1px dashed rgba(0,0,0,0.08);
+}
+.track-price-label {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--ink3); text-transform: uppercase;
+}
+.track-price-num {
+  font-size: 1.4rem; font-weight: 900; color: var(--ink); letter-spacing: -0.02em;
+}
+.track-price-per {
+  font-size: 0.8rem; font-weight: 600; color: var(--ink3);
+}
 .track-cta-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 14px 22px; border-radius: 100px;
@@ -819,6 +835,12 @@ body:not(.es) .es { display: none !important; }
           <li><span class="en">Multi-client dashboard for CPAs</span><span class="es">Panel multi-cliente para contadores</span></li>
         </ul>
 
+        <div class="track-price">
+          <span class="track-price-label"><span class="en">From</span><span class="es">Desde</span></span>
+          <span class="track-price-num">$149</span>
+          <span class="track-price-per">/mes</span>
+        </div>
+
         <span class="track-cta-btn">
           <span class="en">See BalanceClip Trade →</span><span class="es">Ver BalanceClip Trade →</span>
         </span>
@@ -892,6 +914,12 @@ body:not(.es) .es { display: none !important; }
           <li><span class="en">Photo a paper receipt — 18 deductible rubrics</span><span class="es">Foto al recibo — 18 rubros deducibles</span></li>
           <li><span class="en">Year-end report ready for your accountant</span><span class="es">Cierre anual listo para tu contable</span></li>
         </ul>
+
+        <div class="track-price">
+          <span class="track-price-label"><span class="en">From</span><span class="es">Desde</span></span>
+          <span class="track-price-num">$19</span>
+          <span class="track-price-per">/mes</span>
+        </div>
 
         <span class="track-cta-btn">
           <span class="en">See BalanceClip Pro →</span><span class="es">Ver BalanceClip Pro →</span>
