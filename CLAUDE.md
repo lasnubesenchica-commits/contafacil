@@ -8,7 +8,6 @@ multiple clients.
 - Each client lives at `balanceclip.net/<client-slug>/` (desktop) and
   `balanceclip.net/<client-slug>/app/` (mobile).
 - `.nojekyll` is present so GitHub Pages serves files as-is.
-- `netlify.toml` and `netlify/functions/` are legacy — **not in use**.
 
 ## Backend (Google Apps Script)
 - Code lives in `backend-gas/`. One Apps Script project per client
