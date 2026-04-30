@@ -1525,12 +1525,19 @@ tr:hover td{background:rgba(0,0,0,.015)}
 <div id="loginScreen">
   <div class="login-card">
     <div class="login-logo">Iris Albelo Ho</div>
-    <div class="login-sub">Panel de administración</div>
-    <label class="login-label">Contraseña</label>
-    <input type="password" class="login-input" id="loginPwd" placeholder="••••••••"
+    <div class="login-sub" id="loginSub">Panel de administración</div>
+    <div class="login-mode-hint" id="loginModeHint" style="font-size:.75rem;color:var(--muted);margin:.4rem 0 .8rem;line-height:1.5"></div>
+    <label class="login-label" id="loginLabel">Contraseña</label>
+    <input type="password" class="login-input" id="loginPwd" placeholder="••••••••" autocomplete="current-password"
       onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="login-btn" onclick="doLogin()">Ingresar</button>
-    <div class="login-error" id="loginError">Contraseña incorrecta</div>
+    <input type="password" class="login-input" id="loginPwd2" placeholder="Repite la contraseña" autocomplete="new-password"
+      style="display:none;margin-top:.5rem"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Ingresar</button>
+    <div class="login-error" id="loginError" style="display:none">Contraseña incorrecta</div>
+    <div id="loginResetWrap" style="margin-top:.7rem;font-size:.7rem;color:var(--chrome);text-align:center;display:none">
+      <a href="javascript:void(0)" onclick="loginReset()" style="color:var(--muted)">¿Olvidaste tu contraseña? Reset (borra el dispositivo)</a>
+    </div>
   </div>
 </div>
 
@@ -2616,6 +2623,19 @@ tr:hover td{background:rgba(0,0,0,.015)}
       </div>
 
       <div class="setup-card">
+        <div class="setup-card-title">🔐 Acceso a este dispositivo</div>
+        <div style="font-size:.82rem;color:var(--muted);line-height:1.55;margin-bottom:.85rem">
+          La contraseña queda recordada en este dispositivo y no se pide en cada visita.
+          Si quieres dejar de confiar en este dispositivo (por ejemplo prestaste el equipo)
+          o cambiar la contraseña, usa los botones de abajo.
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="authChangePwd()">🔑 Cambiar contraseña</button>
+          <button class="btn-secondary" onclick="logout()" style="border-color:#FFCDD2;color:#B71C1C">🚪 Cerrar sesión</button>
+        </div>
+      </div>
+
+      <div class="setup-card">
         <div class="setup-card-title">🔗 URLs del Sistema</div>
         <div class="setup-grid cols1">
           <div class="setup-field">
@@ -3680,36 +3700,160 @@ function buildMenu() {
 }
 
 // ══════════════════════════════════════════════════
-const AUTO_LOGIN = true;  // ← false para volver a pedir contraseña
+//  AUTH — Opción 1: password local + recordar dispositivo
+//
+//  Storage:
+//   - bc_pwd_hash:  SHA-256 hex de la contraseña (set una sola vez)
+//   - bc_authed:    '1' si el dispositivo está autorizado
+//
+//  Flujo:
+//   - Si no hay hash → modo SETUP (configurar contraseña + repetir)
+//   - Si hay hash y no authed → modo UNLOCK (validar contraseña)
+//   - Si hay hash y authed → bypass total (entrar)
+// ══════════════════════════════════════════════════
+const AUTH_KEY_HASH   = 'bc_pwd_hash';
+const AUTH_KEY_AUTHED = 'bc_authed';
 
-function doLogin() {
-  if (AUTO_LOGIN) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    buildMenu();
-    switchTab('registroGeneral');
-    // Cargar nombre comercial para el header
-    gasJsonp('getConfig', {}).then(d => {
-      if (d.success) {
-        _applyHeaderDesktop(d.config || {});
-        RUC_CLIENTE = (d.config && d.config.empresa_ruc) ? d.config.empresa_ruc.trim() : '';
-      }
-    }).catch(() => {});
+async function _authHash(pwd) {
+  const buf = new TextEncoder().encode(pwd);
+  const dig = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(dig))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function _authStored()   { try { return localStorage.getItem(AUTH_KEY_HASH)   || ''; } catch (e) { return ''; } }
+function _authIsAuthed() { try { return localStorage.getItem(AUTH_KEY_AUTHED) === '1'; } catch (e) { return false; } }
+function _authSetHash(h) { try { localStorage.setItem(AUTH_KEY_HASH, h); } catch (e) {} }
+function _authMark()     { try { localStorage.setItem(AUTH_KEY_AUTHED, '1'); } catch (e) {} }
+function _authUnmark()   { try { localStorage.removeItem(AUTH_KEY_AUTHED); } catch (e) {} }
+function _authClear()    { try { localStorage.removeItem(AUTH_KEY_HASH); localStorage.removeItem(AUTH_KEY_AUTHED); } catch (e) {} }
+
+function _renderLoginMode() {
+  const hash    = _authStored();
+  const setup   = !hash;
+  const sub     = document.getElementById('loginSub');
+  const hint    = document.getElementById('loginModeHint');
+  const label   = document.getElementById('loginLabel');
+  const pwd     = document.getElementById('loginPwd');
+  const pwd2    = document.getElementById('loginPwd2');
+  const btn     = document.getElementById('loginBtn');
+  const reset   = document.getElementById('loginResetWrap');
+  if (setup) {
+    if (sub)   sub.textContent   = 'Configura tu contraseña';
+    if (hint)  hint.textContent  = 'Esta es la primera vez en este dispositivo. Escribe una contraseña — quedará recordada y no la pediremos en cada visita.';
+    if (label) label.textContent = 'Nueva contraseña';
+    if (pwd)   pwd.setAttribute('placeholder', 'Mínimo 4 caracteres');
+    if (pwd)   pwd.setAttribute('autocomplete', 'new-password');
+    if (pwd2)  pwd2.style.display = '';
+    if (btn)   btn.textContent = 'Guardar y entrar';
+    if (reset) reset.style.display = 'none';
   } else {
-    document.getElementById('loginError').style.display = 'block';
-    document.getElementById('loginPwd').value = '';
+    if (sub)   sub.textContent   = 'Desbloquear dispositivo';
+    if (hint)  hint.textContent  = 'Ingresa tu contraseña una vez. Después no la pediremos hasta que cierres sesión manualmente.';
+    if (label) label.textContent = 'Contraseña';
+    if (pwd)   pwd.setAttribute('placeholder', '••••••••');
+    if (pwd)   pwd.setAttribute('autocomplete', 'current-password');
+    if (pwd2)  pwd2.style.display = 'none';
+    if (btn)   btn.textContent = 'Ingresar';
+    if (reset) reset.style.display = 'block';
   }
+  const err = document.getElementById('loginError');
+  if (err) err.style.display = 'none';
 }
-function logout() {
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
+
+function _enterApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  buildMenu();
+  switchTab('registroGeneral');
+  gasJsonp('getConfig', {}).then(d => {
+    if (d.success) {
+      _applyHeaderDesktop(d.config || {});
+      RUC_CLIENTE = (d.config && d.config.empresa_ruc) ? d.config.empresa_ruc.trim() : '';
+    }
+  }).catch(() => {});
+}
+
+async function doLogin() {
+  const err  = document.getElementById('loginError');
+  const pwd  = document.getElementById('loginPwd').value;
+  const pwd2 = (document.getElementById('loginPwd2') || {}).value || '';
+  const hash = _authStored();
+
+  function _showErr(msg) {
+    if (!err) return;
+    err.textContent = msg;
+    err.style.display = 'block';
+  }
+
+  if (!hash) {
+    // SETUP
+    if (!pwd || pwd.length < 4) { _showErr('La contraseña debe tener al menos 4 caracteres'); return; }
+    if (pwd !== pwd2)            { _showErr('Las contraseñas no coinciden'); return; }
+    const h = await _authHash(pwd);
+    _authSetHash(h); _authMark();
+    document.getElementById('loginPwd').value  = '';
+    document.getElementById('loginPwd2').value = '';
+    _enterApp();
+    return;
+  }
+
+  // UNLOCK
+  const h = await _authHash(pwd);
+  if (h !== hash) { _showErr('Contraseña incorrecta'); document.getElementById('loginPwd').value = ''; return; }
+  _authMark();
   document.getElementById('loginPwd').value = '';
+  _enterApp();
 }
-// Auto-login en modo desarrollo — esperar DOM
+
+function logout() {
+  _authUnmark();
+  document.getElementById('app').style.display = 'none';
+  const ls = document.getElementById('loginScreen');
+  if (ls) ls.style.display = 'flex';
+  _renderLoginMode();
+}
+
+// "¿Olvidaste tu contraseña?" — borra el hash y vuelve a setup
+function loginReset() {
+  if (!confirm('Esto borrará la contraseña configurada y tendrás que configurar una nueva. ¿Continuar?')) return;
+  _authClear();
+  _renderLoginMode();
+}
+window.loginReset = loginReset;
+
+// Cambiar contraseña sin perder sesión
+async function authChangePwd() {
+  const actual = prompt('Ingresa tu contraseña actual:');
+  if (actual == null) return;
+  const hAct = await _authHash(actual);
+  if (hAct !== _authStored()) { showToast('Contraseña actual incorrecta'); return; }
+  const nueva = prompt('Nueva contraseña (mínimo 4 caracteres):');
+  if (!nueva || nueva.length < 4) { showToast('Contraseña muy corta'); return; }
+  const conf = prompt('Repite la nueva contraseña:');
+  if (nueva !== conf) { showToast('Las contraseñas no coinciden'); return; }
+  _authSetHash(await _authHash(nueva));
+  showToast('✅ Contraseña actualizada');
+}
+window.authChangePwd = authChangePwd;
+
+// Olvidar dispositivo: pide login en próxima visita pero conserva el hash
+function authForgetDevice() {
+  if (!confirm('La próxima vez que entres tendrás que escribir tu contraseña. ¿Continuar?')) return;
+  _authUnmark();
+  showToast('✅ Dispositivo olvidado. Cierra sesión cuando termines.');
+}
+window.authForgetDevice = authForgetDevice;
+
 document.addEventListener('DOMContentLoaded', function() {
   var lp = document.getElementById('loginPwd');
   if (lp) lp.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
-  if (AUTO_LOGIN) doLogin();
+  // Si el dispositivo ya está autorizado → bypass total
+  if (_authStored() && _authIsAuthed()) {
+    _enterApp();
+  } else {
+    _renderLoginMode();
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
 });
 
 
