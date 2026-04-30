@@ -9852,13 +9852,14 @@ async function verificarSistema() {
       gasJsonp('estadoTriggerOp', {}).then(resolve).catch(() => resolve({ activo: false }));
     });
     results['trigger_sync'] = {
-      ok: !!tSync.activo,
-      msg: tSync.activo
-        ? 'Activo' + (tSync.ultimo_run ? ' · ' + tSync.ultimo_run : '')
-        : '⚠️ Inactivo — correr installSyncTrigger() en GAS'
+      ok:     !!tSync.activo,
+      activo: !!tSync.activo,
+      msg:    tSync.activo
+        ? 'Activo · cada 15 min' + (tSync.ultimo_run ? ' · ' + tSync.ultimo_run : '')
+        : '⚠️ Inactivo'
     };
   } catch(e) {
-    results['trigger_sync'] = { ok: false, msg: 'No verificado' };
+    results['trigger_sync'] = { ok: false, activo: false, msg: 'No verificado' };
   }
 
   // Renderizar
@@ -9866,6 +9867,22 @@ async function verificarSistema() {
     const r   = results[c.key] || { ok: null, msg: '' };
     const dot = r.ok === null ? 'grey' : (r.ok ? 'green' : 'orange');
     const ico = r.ok === null ? '⏳' : (r.ok ? '✅' : '⚠️');
+
+    // Caso especial — trigger_sync trae botones de activar/desactivar
+    if (c.key === 'trigger_sync') {
+      const btnLabel = r.activo ? '⏸ Desactivar' : '▶ Activar';
+      const btnFn    = r.activo ? 'desactivarTriggerSync' : 'activarTriggerSync';
+      const btnColor = r.activo ? '#BF360C' : '#1B5E20';
+      return '<div class="setup-status-row" style="margin-bottom:.5rem;align-items:flex-start">' +
+        '<div class="setup-status-dot ' + dot + '" style="margin-top:.35rem"></div>' +
+        '<div style="flex:1;display:flex;flex-direction:column;gap:.25rem">' +
+          '<span style="font-size:.85rem"><strong>' + c.label + '</strong></span>' +
+          '<span style="font-size:.78rem;color:var(--muted)">' + ico + ' ' + r.msg + '</span>' +
+          '<button onclick="' + btnFn + '(this)" style="margin-top:.25rem;align-self:flex-start;font-size:.74rem;padding:.3rem .7rem;border:1px solid ' + btnColor + ';color:' + btnColor + ';background:transparent;border-radius:6px;cursor:pointer;font-weight:600">' + btnLabel + '</button>' +
+        '</div>' +
+      '</div>';
+    }
+
     return '<div class="setup-status-row" style="margin-bottom:.5rem">' +
       '<div class="setup-status-dot ' + dot + '"></div>' +
       '<span style="flex:1;font-size:.85rem"><strong>' + c.label + '</strong></span>' +
@@ -9873,6 +9890,44 @@ async function verificarSistema() {
       '</div>';
   }).join('');
 }
+
+// ── Activar / desactivar trigger de sincronización ──────────
+async function activarTriggerSync(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Activando…'; }
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'instalarTriggerOp', intervalo: 15 }),
+    }).then(r => r.json()).catch(() => null);
+    if (!res || !res.success) throw new Error((res && res.error) || 'No se pudo activar');
+    showToast('✅ Trigger activado · sincroniza cada 15 min');
+    verificarSistema();
+  } catch (err) {
+    showToast('⚠️ ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = '▶ Activar'; }
+  }
+}
+window.activarTriggerSync = activarTriggerSync;
+
+async function desactivarTriggerSync(btn) {
+  if (!confirm('¿Desactivar el trigger? Los emails dejarán de procesarse automáticamente cada 15 minutos. Podrás seguir sincronizando manualmente con el botón Actualizar.')) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Desactivando…'; }
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'removerTriggerOp' }),
+    }).then(r => r.json()).catch(() => null);
+    if (!res || !res.success) throw new Error((res && res.error) || 'No se pudo desactivar');
+    showToast('⏸ Trigger desactivado');
+    verificarSistema();
+  } catch (err) {
+    showToast('⚠️ ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⏸ Desactivar'; }
+  }
+}
+window.desactivarTriggerSync = desactivarTriggerSync;
 </script>
 
 <!-- ═══════════ MODAL DESGLOSE ITBMS DGI ═══════════ -->
