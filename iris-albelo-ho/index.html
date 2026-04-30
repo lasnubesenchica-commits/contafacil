@@ -2132,22 +2132,22 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <div class="setup-grid cols1" style="margin-bottom:.75rem">
           <div class="setup-field full">
             <label>Nombre de la empresa</label>
-            <input type="text" id="cfgEmpresaNombre" placeholder="Consultores Electrotécnicos y Contratistas, S.A.">
+            <input type="text" id="cfgEmpresaNombre" placeholder="Cargando datos…">
           </div>
           <div class="setup-field full" style="margin-top:.5rem">
             <label>Nombre comercial</label>
-            <input type="text" id="cfgEmpresaComercial" placeholder="IE" maxlength="16">
+            <input type="text" id="cfgEmpresaComercial" placeholder="Cargando datos…" maxlength="16">
             <span class="setup-hint">Aparece en el encabezado de la app. Si está vacío se calculan las iniciales del nombre.</span>
           </div>
         </div>
         <div class="setup-grid">
           <div class="setup-field">
             <label>RUC</label>
-            <input type="text" id="cfgEmpresaRuc" placeholder="2470636-1-814806">
+            <input type="text" id="cfgEmpresaRuc" placeholder="Cargando datos…">
           </div>
           <div class="setup-field">
             <label>DV</label>
-            <input type="text" id="cfgEmpresaDv" placeholder="06" style="max-width:120px">
+            <input type="text" id="cfgEmpresaDv" placeholder="Cargando datos…" style="max-width:120px">
           </div>
         </div>
       </div>
@@ -5429,6 +5429,17 @@ async function loadSetupConfig() {
     _setVal('cfgEmpresaComercial',  c.empresa_comercial    || '');
     _setVal('cfgEmpresaRuc',        c.empresa_ruc          || '');
     _setVal('cfgEmpresaDv',         c.empresa_dv           || '');
+
+    // Reemplazar el placeholder "Cargando datos…" por hints útiles
+    // (sólo se ven si el campo queda vacío — empresas nuevas)
+    var _setPh = function(id, ph) {
+      var el = document.getElementById(id);
+      if (el) el.setAttribute('placeholder', ph);
+    };
+    _setPh('cfgEmpresaNombre',    'Nombre legal completo');
+    _setPh('cfgEmpresaComercial', 'Ej. IE, BC, ABC');
+    _setPh('cfgEmpresaRuc',       'Ej. 8-NNN-NNNN');
+    _setPh('cfgEmpresaDv',        'Ej. 06');
     _setVal('cfgEmailOpDestino',    c.email_op_destino     || '');
     _setVal('cfgEmailOpRemitente',  c.email_op_remitente   || '');
     _setVal('cfgDriveFolderId',     c.drive_folder_id      || '');
