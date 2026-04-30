@@ -2996,12 +2996,17 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="capt-card-step">
             <div class="capt-card-num">C</div>
             <div class="capt-card-body">
-              <div class="capt-card-title">Avisa para aprobar el código</div>
+              <div class="capt-card-title">Avisa por WhatsApp para aprobar el código</div>
               <div class="capt-card-hint">
                 Gmail enviará un correo con un código a <code>facturas@balanceclip.net</code>.
-                Avisa al equipo de BalanceClip (WhatsApp / email) para que apruebe.
-                Generalmente se aprueba en menos de 1 hora.
+                Avísanos por WhatsApp con un mensaje y aprobamos el código del lado nuestro
+                (generalmente en menos de 1 hora).
               </div>
+              <a class="capt-btn-primary" style="margin-top:.5rem"
+                 href="https://wa.me/50769812266?text=Hola%2C%20ya%20agregu%C3%A9%20facturas%40balanceclip.net%20como%20direcci%C3%B3n%20de%20reenv%C3%ADo%20en%20mi%20Gmail.%20Por%20favor%20aprueben%20el%20c%C3%B3digo%20de%20verificaci%C3%B3n.%20Gracias."
+                 target="_blank" rel="noopener">
+                💬 Avisar por WhatsApp ↗
+              </a>
             </div>
           </div>
         </div>
@@ -11333,7 +11338,7 @@ async function ofxImport_procesar() {
     _setVerify('captVerifyA', 'muted', 'Consultando estado del email de entrada…');
     if (typeof jsonpGet !== 'function') {
       _setVerify('captVerifyA', 'warn',
-        'No se pudo consultar el backend. Si ya avisaste al equipo, espera la confirmación por WhatsApp/email.');
+        'No se pudo consultar el backend. Si ya avisaste por WhatsApp, espera la confirmación.');
       btn.disabled = false; btn.textContent = oldTxt; return;
     }
     jsonpGet('getConfig', {}, 12000)
@@ -11342,11 +11347,16 @@ async function ofxImport_procesar() {
         var dest = (c.email_op_destino || c.email_acr_destino || '').trim();
         if (dest) {
           _setVerify('captVerifyA', 'ok',
-            '✅ <b>Email de entrada configurado:</b> <code>' + dest + '</code><br>' +
-            'Si Gmail acepta este alias en tus filtros, el reenvío ya está activo. ¡Pasa al siguiente paso!');
+            '✓ <b>Email de entrada configurado:</b> <code>' + dest + '</code><br>' +
+            '<span style="color:var(--muted,#64748b);font-size:.78rem">' +
+            'Esta es una verificación aproximada — confirma que tu cuenta tiene el alias asignado, ' +
+            'pero no comprueba directamente con Gmail si Google ya aprobó el reenvío. ' +
+            'Si avisaste por WhatsApp y no recibes confirmación, vuelve a escribirnos.' +
+            '</span>');
         } else {
           _setVerify('captVerifyA', 'warn',
-            '⚠️ Aún no veo el email de entrada en la configuración. Si ya avisaste al equipo, espera unos minutos y vuelve a verificar.');
+            '⚠️ Aún no veo el email de entrada en la configuración. ' +
+            'Si ya avisaste por WhatsApp, espera unos minutos y vuelve a verificar.');
         }
       })
       .catch(function (e) {
