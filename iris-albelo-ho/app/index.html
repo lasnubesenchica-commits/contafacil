@@ -54,13 +54,14 @@
 }
 
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
-html { -webkit-text-size-adjust:100%; }
+html { -webkit-text-size-adjust:100%; overflow-x:hidden; }
 body {
   font-family:'DM Sans',sans-serif;
   background:var(--bg); color:var(--text);
   min-height:100vh; min-height:100dvh;
   -webkit-font-smoothing:antialiased;
   overscroll-behavior-y:contain;
+  overflow-x:hidden;
 }
 button { font-family:'DM Sans',sans-serif; cursor:pointer; border:none; background:none; }
 input,select,textarea { font-family:'DM Sans',sans-serif; }
@@ -3923,15 +3924,15 @@ const PEND = (() => {
      PANEL DE CONFIGURACIÓN — sheet de pantalla completa
 ════════════════════════════════════════════════════════ -->
 <div class="overlay" id="mConfig" onclick="if(event.target===this)CFG_PANEL.close()">
-  <div class="sheet" style="display:flex;flex-direction:column;max-height:100dvh;max-height:100vh;height:92dvh;height:92vh">
+  <div class="sheet" style="display:flex;flex-direction:column;max-height:100dvh;max-height:100vh;height:92dvh;height:92vh;box-sizing:border-box">
 
     <!-- Cabecera fija (override sticky/z-index global para evitar overlap con los tabs en iOS Safari) -->
     <div class="sheet-top" style="flex-shrink:0;position:relative;z-index:1">
-      <div class="sheet-handle"></div>
-      <div class="sheet-hdr">
+      <div class="sheet-handle" onclick="CFG_PANEL.close()" style="cursor:pointer;width:60px;height:8px;padding:6px 0;background-clip:content-box"></div>
+      <div class="sheet-hdr" style="padding-left:max(1rem, env(safe-area-inset-left, 1rem));padding-right:max(1rem, env(safe-area-inset-right, 1rem))">
         <span class="sheet-title">⚙ Configuración</span>
         <button class="sheet-close" onclick="CFG_PANEL.close()"
-          style="width:auto;height:32px;padding:0 .8rem;border-radius:16px;background:var(--bg2);color:var(--text);font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.3rem">
+          style="width:auto;height:34px;padding:0 .85rem;border-radius:17px;background:var(--text);color:#fff;font-size:.8rem;font-weight:700;display:inline-flex;align-items:center;gap:.35rem;flex-shrink:0">
           <span>✕</span><span>Cerrar</span>
         </button>
       </div>
