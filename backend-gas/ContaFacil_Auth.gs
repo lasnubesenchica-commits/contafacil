@@ -54,8 +54,27 @@ function _authReadStoredHash() {
 }
 
 function _authWriteHash(hash) {
-  // Reusa _handleGuardarConfig para que invalide el cache automáticamente
-  _handleGuardarConfig({ password_hash: String(hash || '') });
+  // Escribimos directo a config_operaciones porque _handleGuardarConfig
+  // tiene una whitelist de claves que no incluye password_hash.
+  // Mantenemos esto fuera de esa whitelist a propósito (no queremos exponer
+  // password_hash al endpoint público de guardarConfig).
+  var ss    = SpreadsheetApp.openById(CONFIG_OP.SHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_CONFIG_OP) || _initConfigSheet(ss);
+  var rows  = sheet.getDataRange().getValues();
+  var rowIdx = -1;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim() === AUTH_KEY) { rowIdx = i + 1; break; }
+  }
+  if (rowIdx > 0) {
+    sheet.getRange(rowIdx, 2).setValue(String(hash || ''));
+  } else {
+    var newRow = sheet.getLastRow() + 1;
+    sheet.getRange(newRow, 1).setValue(AUTH_KEY);
+    sheet.getRange(newRow, 2).setValue(String(hash || ''));
+  }
+  // Invalidar cache de config (consumido por _authReadStoredHash)
+  try { _cfgCacheOp = null; } catch (e) {}
+  Logger.log('🔐 password_hash ' + (hash ? 'set' : 'cleared') + ' en config_operaciones row ' + (rowIdx > 0 ? rowIdx : 'NEW'));
 }
 
 // ── GET handlers ─────────────────────────────────────────────
