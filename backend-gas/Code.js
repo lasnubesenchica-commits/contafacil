@@ -355,6 +355,9 @@ function doPost(e) {
     if (action === 'categorizarTransaccionesOFX') return _handleCategorizarTransaccionesOFX(data);
     if (action === 'importarLoteOFX')             return _handleImportarLoteOFX(data);
 
+    // ── REPORTES por email ──────────────────────────────────────
+    if (action === 'enviarReporteCierre')         return _handleEnviarReporteCierre(data);
+
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';
     if (data.voucherBase64 && data.voucherName) {
