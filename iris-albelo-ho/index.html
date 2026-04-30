@@ -3700,36 +3700,50 @@ function buildMenu() {
 }
 
 // ══════════════════════════════════════════════════
-//  AUTH — Opción 1: password local + recordar dispositivo
+//  AUTH — Opción 2: password global en backend + dispositivo recordado
 //
-//  Storage:
-//   - bc_pwd_hash:  SHA-256 hex de la contraseña (set una sola vez)
+//  Backend:
+//   - getAuthState  (GET)  → { hasPassword: bool }
+//   - verifyPassword (POST) → { valid: bool }
+//   - setPassword    (POST) → { success } (currentPassword si ya hay una)
+//
+//  Storage local (solo para evitar re-login en el mismo dispositivo):
 //   - bc_authed:    '1' si el dispositivo está autorizado
 //
 //  Flujo:
-//   - Si no hay hash → modo SETUP (configurar contraseña + repetir)
-//   - Si hay hash y no authed → modo UNLOCK (validar contraseña)
-//   - Si hay hash y authed → bypass total (entrar)
+//   - getAuthState al cargar → sabemos si hay password configurada
+//   - Si no hay password configurada en backend → modo SETUP
+//   - Si hay password y bc_authed === '1' → bypass total
+//   - Si hay password y bc_authed != '1' → modo UNLOCK
+//   - Reset solo borra el flag local; el backend solo se resetea con
+//     token de admin (ver setScriptProperty AUTH_RESET_TOKEN)
 // ══════════════════════════════════════════════════
-const AUTH_KEY_HASH   = 'bc_pwd_hash';
 const AUTH_KEY_AUTHED = 'bc_authed';
 
-async function _authHash(pwd) {
-  const buf = new TextEncoder().encode(pwd);
-  const dig = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(dig))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
-}
-function _authStored()   { try { return localStorage.getItem(AUTH_KEY_HASH)   || ''; } catch (e) { return ''; } }
+let _authHasPassword = null; // se carga del backend al iniciar
+
 function _authIsAuthed() { try { return localStorage.getItem(AUTH_KEY_AUTHED) === '1'; } catch (e) { return false; } }
-function _authSetHash(h) { try { localStorage.setItem(AUTH_KEY_HASH, h); } catch (e) {} }
 function _authMark()     { try { localStorage.setItem(AUTH_KEY_AUTHED, '1'); } catch (e) {} }
 function _authUnmark()   { try { localStorage.removeItem(AUTH_KEY_AUTHED); } catch (e) {} }
-function _authClear()    { try { localStorage.removeItem(AUTH_KEY_HASH); localStorage.removeItem(AUTH_KEY_AUTHED); } catch (e) {} }
+
+async function _authBackendPost(action, body) {
+  const res = await fetch(GAS_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:    JSON.stringify(Object.assign({ action: action }, body || {})),
+  });
+  return res.json();
+}
+
+async function _authFetchState() {
+  try {
+    const r = await gasJsonp('getAuthState', {});
+    return !!(r && r.success && r.hasPassword);
+  } catch (e) { return false; }
+}
 
 function _renderLoginMode() {
-  const hash    = _authStored();
-  const setup   = !hash;
+  const setup   = _authHasPassword === false;
   const sub     = document.getElementById('loginSub');
   const hint    = document.getElementById('loginModeHint');
   const label   = document.getElementById('loginLabel');
@@ -3775,34 +3789,55 @@ function _enterApp() {
 
 async function doLogin() {
   const err  = document.getElementById('loginError');
+  const btn  = document.getElementById('loginBtn');
   const pwd  = document.getElementById('loginPwd').value;
   const pwd2 = (document.getElementById('loginPwd2') || {}).value || '';
-  const hash = _authStored();
 
   function _showErr(msg) {
     if (!err) return;
     err.textContent = msg;
     err.style.display = 'block';
   }
+  function _busy(on, label) {
+    if (!btn) return;
+    btn.disabled = !!on;
+    if (on) { btn._oldText = btn.textContent; btn.textContent = label || 'Procesando…'; }
+    else if (btn._oldText) { btn.textContent = btn._oldText; }
+  }
 
-  if (!hash) {
-    // SETUP
+  // SETUP — primer dispositivo en configurar el sistema
+  if (_authHasPassword === false) {
     if (!pwd || pwd.length < 4) { _showErr('La contraseña debe tener al menos 4 caracteres'); return; }
     if (pwd !== pwd2)            { _showErr('Las contraseñas no coinciden'); return; }
-    const h = await _authHash(pwd);
-    _authSetHash(h); _authMark();
-    document.getElementById('loginPwd').value  = '';
-    document.getElementById('loginPwd2').value = '';
-    _enterApp();
+    _busy(true, 'Guardando…');
+    try {
+      const r = await _authBackendPost('setPassword', { password: pwd });
+      if (!r || !r.success) { _showErr((r && r.error) || 'No se pudo configurar'); _busy(false); return; }
+      _authHasPassword = true;
+      _authMark();
+      document.getElementById('loginPwd').value  = '';
+      document.getElementById('loginPwd2').value = '';
+      _enterApp();
+    } catch (e) { _showErr('Error de red'); _busy(false); }
     return;
   }
 
-  // UNLOCK
-  const h = await _authHash(pwd);
-  if (h !== hash) { _showErr('Contraseña incorrecta'); document.getElementById('loginPwd').value = ''; return; }
-  _authMark();
-  document.getElementById('loginPwd').value = '';
-  _enterApp();
+  // UNLOCK — verificar contra el backend
+  if (!pwd) { _showErr('Ingresa tu contraseña'); return; }
+  _busy(true, 'Verificando…');
+  try {
+    const r = await _authBackendPost('verifyPassword', { password: pwd });
+    if (!r || !r.success) { _showErr((r && r.error) || 'No se pudo verificar'); _busy(false); return; }
+    if (!r.valid) {
+      _showErr('Contraseña incorrecta');
+      document.getElementById('loginPwd').value = '';
+      _busy(false);
+      return;
+    }
+    _authMark();
+    document.getElementById('loginPwd').value = '';
+    _enterApp();
+  } catch (e) { _showErr('Error de red'); _busy(false); }
 }
 
 function logout() {
@@ -3813,47 +3848,51 @@ function logout() {
   _renderLoginMode();
 }
 
-// "¿Olvidaste tu contraseña?" — borra el hash y vuelve a setup
+// "¿Olvidaste tu contraseña?" — solo el equipo BalanceClip puede resetear
+// el password en el backend. Le explicamos al usuario el procedimiento.
 function loginReset() {
-  if (!confirm('Esto borrará la contraseña configurada y tendrás que configurar una nueva. ¿Continuar?')) return;
-  _authClear();
-  _renderLoginMode();
+  alert(
+    'Por seguridad, el reset de contraseña requiere intervención del equipo BalanceClip.\n\n' +
+    'Escríbenos por WhatsApp al +507 6981-2266 desde el remitente registrado de tu empresa ' +
+    'para que verifiquemos tu identidad y reseteemos la contraseña.'
+  );
 }
 window.loginReset = loginReset;
 
-// Cambiar contraseña sin perder sesión
+// Cambiar contraseña — exige la actual + nueva 2 veces; backend valida.
 async function authChangePwd() {
   const actual = prompt('Ingresa tu contraseña actual:');
   if (actual == null) return;
-  const hAct = await _authHash(actual);
-  if (hAct !== _authStored()) { showToast('Contraseña actual incorrecta'); return; }
   const nueva = prompt('Nueva contraseña (mínimo 4 caracteres):');
   if (!nueva || nueva.length < 4) { showToast('Contraseña muy corta'); return; }
-  const conf = prompt('Repite la nueva contraseña:');
+  const conf  = prompt('Repite la nueva contraseña:');
   if (nueva !== conf) { showToast('Las contraseñas no coinciden'); return; }
-  _authSetHash(await _authHash(nueva));
-  showToast('✅ Contraseña actualizada');
+  try {
+    const r = await _authBackendPost('setPassword', { password: nueva, currentPassword: actual });
+    if (!r || !r.success) { showToast('⚠️ ' + ((r && r.error) || 'No se pudo cambiar')); return; }
+    showToast('✅ Contraseña actualizada');
+  } catch (e) { showToast('Error de red'); }
 }
 window.authChangePwd = authChangePwd;
 
-// Olvidar dispositivo: pide login en próxima visita pero conserva el hash
-function authForgetDevice() {
-  if (!confirm('La próxima vez que entres tendrás que escribir tu contraseña. ¿Continuar?')) return;
-  _authUnmark();
-  showToast('✅ Dispositivo olvidado. Cierra sesión cuando termines.');
-}
-window.authForgetDevice = authForgetDevice;
-
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   var lp = document.getElementById('loginPwd');
   if (lp) lp.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
-  // Si el dispositivo ya está autorizado → bypass total
-  if (_authStored() && _authIsAuthed()) {
+
+  // Mostrar login screen mientras consultamos el backend (evita flash al app)
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+
+  _authHasPassword = await _authFetchState();
+
+  // Si el backend tiene password Y este dispositivo ya está autorizado → bypass
+  if (_authHasPassword && _authIsAuthed()) {
     _enterApp();
-  } else {
-    _renderLoginMode();
-    document.getElementById('loginScreen').style.display = 'flex';
+    return;
   }
+  // Si el backend tiene password pero este dispositivo no → UNLOCK
+  // Si el backend no tiene password → SETUP
+  _renderLoginMode();
 });
 
 
