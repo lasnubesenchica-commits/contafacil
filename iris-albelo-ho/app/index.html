@@ -4215,6 +4215,14 @@ const PEND = (() => {
       </div>
 
     </div><!-- /sheet-body -->
+
+    <!-- Footer fijo: botón Cerrar siempre visible -->
+    <div style="flex-shrink:0;padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom, 0px));background:var(--surface);border-top:1px solid var(--border);box-shadow:0 -2px 8px rgba(0,0,0,.04)">
+      <button onclick="CFG_PANEL.close()"
+        style="width:100%;padding:.85rem;background:var(--text);color:#fff;border:none;border-radius:10px;font-size:.92rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
+        <span style="font-size:1rem;line-height:1">✕</span><span>Cerrar configuración</span>
+      </button>
+    </div>
   </div>
 </div>
 
