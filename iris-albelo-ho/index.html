@@ -6358,8 +6358,8 @@ function rgRenderEgr() {
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
       <td>${estadoBadge} ${i.alcance === 'personal'
-        ? `<span onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','negocio')" title="Clic: marcar Deducible" style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">🚫 No Deducible</span>`
-        : `<span onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','personal')" title="Clic: marcar No Deducible" style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">✅ Deducible</span>`
+        ? `<span class="bc-alc-chip" onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','negocio')" title="Clic: marcar Deducible" style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">🚫 No Deducible</span>`
+        : `<span class="bc-alc-chip" onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','personal')" title="Clic: marcar No Deducible" style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">✅ Deducible</span>`
       }</td>
       <td>${acciones}</td>
     </tr>`;
@@ -10615,10 +10615,57 @@ async function ofxImport_procesar() {
           description:
             '<p>Cada fila es un gasto: fecha, proveedor, factura, ' +
             'categoría DGI, montos e ITBMS.</p>' +
-            '<p><b>Click en el chip de categoría</b> para reclasificarlo. ' +
-            'Marca varias filas con el checkbox para acciones <b>en masa</b> ' +
-            '(aprobar, eliminar, cambiar categoría).</p>',
+            '<p>En los próximos pasos te muestro las acciones rápidas que ' +
+            'puedes hacer directamente desde aquí.</p>',
           side: 'top',
+        },
+      },
+      {
+        element: '#rgEgrTable .cat-chip-label',
+        popover: {
+          title: 'Cambiar categoría de un gasto',
+          description:
+            '<p>Click sobre el <b>chip de categoría</b> en cualquier fila ' +
+            'para reclasificarla. Aparece un menú con todas las categorías ' +
+            'DGI; elige la nueva y se guarda al instante.</p>' +
+            '<p>Útil cuando la IA o el clasificador automático asignó la ' +
+            'categoría incorrecta.</p>',
+          side: 'top',
+        },
+        onHighlightStarted: function () {
+          var el = document.querySelector('#rgEgrTable .cat-chip-label');
+          if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        },
+      },
+      {
+        element: '#rgEgrTable .bc-alc-chip',
+        popover: {
+          title: 'Deducible vs No Deducible',
+          description:
+            '<p>Click sobre la etiqueta <b>✅ Deducible</b> o ' +
+            '<b>🚫 No Deducible</b> para alternarla.</p>' +
+            '<p>Los <b>no deducibles</b> (gastos personales) se excluyen de ' +
+            'tu Estado de Resultados y del cálculo de ISR, pero se ' +
+            'conservan como referencia.</p>',
+          side: 'top',
+        },
+        onHighlightStarted: function () {
+          var el = document.querySelector('#rgEgrTable .bc-alc-chip');
+          if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        },
+      },
+      {
+        element: '#rgEgrSelAll',
+        popover: {
+          title: 'Selección múltiple (bulk edit)',
+          description:
+            '<p>Marca el checkbox del <b>encabezado</b> para seleccionar ' +
+            'todas las filas, o los checkboxes individuales de cada fila ' +
+            'para escoger varias.</p>' +
+            '<p>Aparecerá una barra verde arriba con tres acciones ' +
+            'masivas: <b>Aprobar</b>, <b>Eliminar</b> y ' +
+            '<b>Cambiar categoría</b> de todas a la vez.</p>',
+          side: 'right',
         },
       },
       {
