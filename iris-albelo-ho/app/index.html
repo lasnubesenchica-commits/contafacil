@@ -963,7 +963,18 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
   <div class="login-card">
     <div class="login-logo" id="loginLogo">…</div>
     <div class="login-sub" id="loginSub">Registro General</div>
+    <div id="loginModeHint" style="font-size:.78rem;color:var(--muted);margin:.5rem 0 .8rem;line-height:1.5;text-align:center;padding:0 1rem"></div>
+    <input type="password" id="loginPwd" placeholder="••••••••" autocomplete="current-password"
+      style="width:calc(100% - 2rem);max-width:300px;margin:0 1rem .5rem;padding:.7rem .9rem;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;font-size:.95rem;font-family:inherit;text-align:center;letter-spacing:.1em;outline:none"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="loginPwd2" placeholder="Repite la contraseña" autocomplete="new-password"
+      style="display:none;width:calc(100% - 2rem);max-width:300px;margin:.2rem 1rem .5rem;padding:.7rem .9rem;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;font-size:.95rem;font-family:inherit;text-align:center;letter-spacing:.1em;outline:none"
+      onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()" id="loginBtn">Entrar</button>
+    <div id="loginError" style="display:none;color:#FFAB91;font-size:.8rem;margin-top:.6rem;text-align:center"></div>
+    <div id="loginResetWrap" style="margin-top:.7rem;font-size:.72rem;color:rgba(255,255,255,.55);text-align:center;display:none;padding:0 1rem">
+      <a href="javascript:void(0)" onclick="loginReset()" style="color:rgba(255,255,255,.7);text-decoration:underline">¿Olvidaste tu contraseña? Reset</a>
+    </div>
   </div>
 </div>
 
@@ -1456,13 +1467,118 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
 
 // ── AUTH — login deshabilitado, se activa en deployment ──────
-function doLogin() {
+// ── AUTH — Opción 1: password local + recordar dispositivo ──
+const AUTH_KEY_HASH   = 'bc_pwd_hash';
+const AUTH_KEY_AUTHED = 'bc_authed';
+
+async function _authHash(pwd) {
+  const buf = new TextEncoder().encode(pwd);
+  const dig = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(dig))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function _authStored()   { try { return localStorage.getItem(AUTH_KEY_HASH)   || ''; } catch (e) { return ''; } }
+function _authIsAuthed() { try { return localStorage.getItem(AUTH_KEY_AUTHED) === '1'; } catch (e) { return false; } }
+function _authSetHash(h) { try { localStorage.setItem(AUTH_KEY_HASH, h); } catch (e) {} }
+function _authMark()     { try { localStorage.setItem(AUTH_KEY_AUTHED, '1'); } catch (e) {} }
+function _authUnmark()   { try { localStorage.removeItem(AUTH_KEY_AUTHED); } catch (e) {} }
+function _authClear()    { try { localStorage.removeItem(AUTH_KEY_HASH); localStorage.removeItem(AUTH_KEY_AUTHED); } catch (e) {} }
+
+function _renderLoginMode() {
+  const setup = !_authStored();
+  const sub   = document.getElementById('loginSub');
+  const hint  = document.getElementById('loginModeHint');
+  const pwd   = document.getElementById('loginPwd');
+  const pwd2  = document.getElementById('loginPwd2');
+  const btn   = document.getElementById('loginBtn');
+  const reset = document.getElementById('loginResetWrap');
+  const err   = document.getElementById('loginError');
+  if (setup) {
+    if (sub)   sub.textContent  = 'Configura tu contraseña';
+    if (hint)  hint.textContent = 'Primera vez en este dispositivo. Quedará recordada y no la pediremos cada vez que entres.';
+    if (pwd)   pwd.setAttribute('placeholder', 'Mínimo 4 caracteres');
+    if (pwd2)  pwd2.style.display = 'block';
+    if (btn)   btn.textContent = 'Guardar y entrar';
+    if (reset) reset.style.display = 'none';
+  } else {
+    if (sub)   sub.textContent  = 'Desbloquear';
+    if (hint)  hint.textContent = 'Ingresa tu contraseña una vez. No la pediremos hasta que cierres sesión.';
+    if (pwd)   pwd.setAttribute('placeholder', '••••••••');
+    if (pwd2)  pwd2.style.display = 'none';
+    if (btn)   btn.textContent = 'Entrar';
+    if (reset) reset.style.display = 'block';
+  }
+  if (err) err.style.display = 'none';
+}
+
+function _enterApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   switchView('registros');
   if (typeof REGVIEW !== 'undefined') REGVIEW.init();
   loadAll();
 }
+
+async function doLogin() {
+  const err  = document.getElementById('loginError');
+  const pwd  = document.getElementById('loginPwd').value;
+  const pwd2 = (document.getElementById('loginPwd2') || {}).value || '';
+  const hash = _authStored();
+
+  function _err(msg) { if (err) { err.textContent = msg; err.style.display = 'block'; } }
+
+  if (!hash) {
+    if (!pwd || pwd.length < 4) { _err('La contraseña debe tener al menos 4 caracteres'); return; }
+    if (pwd !== pwd2)            { _err('Las contraseñas no coinciden'); return; }
+    _authSetHash(await _authHash(pwd));
+    _authMark();
+    document.getElementById('loginPwd').value  = '';
+    document.getElementById('loginPwd2').value = '';
+    _enterApp();
+    return;
+  }
+
+  const h = await _authHash(pwd);
+  if (h !== hash) { _err('Contraseña incorrecta'); document.getElementById('loginPwd').value = ''; return; }
+  _authMark();
+  document.getElementById('loginPwd').value = '';
+  _enterApp();
+}
+
+function logout() {
+  _authUnmark();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  _renderLoginMode();
+}
+
+function loginReset() {
+  if (!confirm('Esto borrará la contraseña configurada y tendrás que configurar una nueva. ¿Continuar?')) return;
+  _authClear();
+  _renderLoginMode();
+}
+window.loginReset = loginReset;
+
+async function authChangePwd() {
+  const actual = prompt('Contraseña actual:');
+  if (actual == null) return;
+  if (await _authHash(actual) !== _authStored()) { toast('Contraseña actual incorrecta', 'err'); return; }
+  const nueva = prompt('Nueva contraseña (mínimo 4 caracteres):');
+  if (!nueva || nueva.length < 4) { toast('Contraseña muy corta', 'err'); return; }
+  const conf = prompt('Repite la nueva contraseña:');
+  if (nueva !== conf) { toast('No coinciden', 'err'); return; }
+  _authSetHash(await _authHash(nueva));
+  toast('✅ Contraseña actualizada');
+}
+window.authChangePwd = authChangePwd;
+
+function authForgetDevice() {
+  if (!confirm('La próxima vez que entres tendrás que escribir tu contraseña. ¿Continuar?')) return;
+  _authUnmark();
+  toast('✅ Dispositivo olvidado');
+}
+window.authForgetDevice = authForgetDevice;
+
 document.addEventListener('DOMContentLoaded', () => {
   // Cargar branding desde config_operaciones antes del login
   jsonpGet('getConfig', {}).then(d => {
@@ -1471,7 +1587,12 @@ document.addEventListener('DOMContentLoaded', () => {
       window._appRucCliente = (d.config && d.config.empresa_ruc) ? d.config.empresa_ruc.trim() : '';
     }
   }).catch(() => {});
-  document.getElementById('loginBtn').addEventListener('click', doLogin);
+  if (_authStored() && _authIsAuthed()) {
+    _enterApp();
+  } else {
+    _renderLoginMode();
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
 });
 
 // ── NAVEGACIÓN ────────────────────────────────
@@ -4210,6 +4331,19 @@ const PEND = (() => {
           </div>
           <div style="padding:.5rem .9rem .9rem">
             <button class="cfg-btn-sec" style="width:100%" onclick="CFG_PANEL.verificar()">↺ Verificar ahora</button>
+          </div>
+        </div>
+
+        <div class="cfg-card">
+          <div class="cfg-card-hdr">🔐 Acceso a este dispositivo</div>
+          <div class="cfg-card-body">
+            <div style="font-size:.78rem;color:var(--muted);line-height:1.55;margin-bottom:.7rem">
+              La contraseña queda recordada en este celular. No se pide en cada visita.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:.5rem">
+              <button class="cfg-btn-sec" style="width:100%" onclick="authChangePwd()">🔑 Cambiar contraseña</button>
+              <button class="cfg-btn-sec" style="width:100%;border-color:#FFCDD2;color:#B71C1C" onclick="logout()">🚪 Cerrar sesión</button>
+            </div>
           </div>
         </div>
       </div>
