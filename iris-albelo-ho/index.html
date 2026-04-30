@@ -3801,8 +3801,14 @@ async function doLogin() {
   function _busy(on, label) {
     if (!btn) return;
     btn.disabled = !!on;
-    if (on) { btn._oldText = btn.textContent; btn.textContent = label || 'Procesando…'; }
-    else if (btn._oldText) { btn.textContent = btn._oldText; }
+    if (on) {
+      btn.textContent = label || 'Procesando…';
+    } else {
+      // Restaurar al label correcto según el modo actual (no depender de un
+      // _oldText que se puede corromper si hay clicks rápidos consecutivos).
+      const setup = _authHasPassword === false;
+      btn.textContent = setup ? 'Guardar y entrar' : 'Ingresar';
+    }
   }
 
   // SETUP — primer dispositivo en configurar el sistema
