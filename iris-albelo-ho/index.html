@@ -22,6 +22,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Driver.js — guided tour -->
+<link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css">
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
 
 <style>
 :root {
@@ -1244,6 +1247,61 @@ tr:hover td{background:rgba(0,0,0,.015)}
   #app { padding-top: 0 !important; }
   #sectionReporte { display: block !important; }
 }
+
+/* ── Tour guiado (Driver.js) ─────────────────────── */
+.driver-popover.bc-tour {
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(15,23,42,.18);
+  border: 1px solid var(--border, #e2e8f0);
+  font-family: 'DM Sans', sans-serif;
+  max-width: 360px;
+}
+.driver-popover.bc-tour .driver-popover-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem; letter-spacing: .04em;
+  color: var(--text, #1a2535);
+}
+.driver-popover.bc-tour .driver-popover-description {
+  font-size: .82rem; line-height: 1.5; color: var(--muted, #475569);
+}
+.driver-popover.bc-tour .driver-popover-progress-text {
+  font-family: 'DM Mono', monospace; font-size: .68rem;
+  color: var(--chrome, #94a3b8); letter-spacing: .04em;
+}
+.driver-popover.bc-tour button.driver-popover-next-btn,
+.driver-popover.bc-tour button.driver-popover-prev-btn,
+.driver-popover.bc-tour button.driver-popover-close-btn {
+  font-family: 'DM Sans', sans-serif; font-weight: 600;
+  font-size: .78rem; padding: .42rem .9rem; border-radius: 7px;
+  border: 1px solid transparent; cursor: pointer;
+  transition: opacity .15s, background .15s;
+  text-shadow: none;
+}
+.driver-popover.bc-tour button.driver-popover-next-btn {
+  background: var(--orange, #E05A00); color: #fff; border-color: var(--orange, #E05A00);
+}
+.driver-popover.bc-tour button.driver-popover-next-btn:hover { opacity: .9; }
+.driver-popover.bc-tour button.driver-popover-prev-btn {
+  background: var(--bg, #f1f5f9); color: var(--text, #1a2535); border-color: var(--border, #e2e8f0);
+}
+.driver-popover.bc-tour button.driver-popover-close-btn {
+  color: var(--muted, #64748b);
+}
+.driver-popover.bc-tour .driver-popover-arrow-side-top.driver-popover-arrow,
+.driver-popover.bc-tour .driver-popover-arrow-side-bottom.driver-popover-arrow,
+.driver-popover.bc-tour .driver-popover-arrow-side-left.driver-popover-arrow,
+.driver-popover.bc-tour .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-color: var(--border, #e2e8f0) transparent transparent transparent;
+}
+.driver-overlay { background: rgba(15,23,42,.55) !important; }
+.bc-tour-btn {
+  background: transparent; border: 1px solid var(--border, #e2e8f0);
+  color: var(--muted, #64748b); border-radius: 7px;
+  padding: .3rem .72rem; font-size: .76rem; font-weight: 600;
+  cursor: pointer; transition: background .15s, color .15s;
+  display: inline-flex; align-items: center; gap: .35rem;
+}
+.bc-tour-btn:hover { background: var(--bg, #f8fafc); color: var(--text, #1a2535); }
 </style>
 </head>
 <body>
@@ -1271,6 +1329,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="topnav-badge" id="appHeaderBadge">BalanceClip</div>
     </div>
     <div class="topnav-right">
+      <button class="bc-tour-btn" id="btnTourRG" onclick="rgStartTour()" title="Tour guiado del Registro General">
+        <span style="font-size:.95rem;line-height:1">❓</span><span>Tour</span>
+      </button>
       <button class="topnav-gear" onclick="cfgPanelOpen()" title="Configuración">⚙</button>
       <span class="topnav-logout" onclick="logout()">Salir →</span>
     </div>
@@ -1507,7 +1568,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
 
     <!-- ── Toolbar: 5 dropdowns ────────────────────────────── -->
-    <div class="op-toolbar" style="flex-wrap:wrap;gap:.5rem">
+    <div id="rgEgrFiltersBar" class="op-toolbar" style="flex-wrap:wrap;gap:.5rem">
       <select id="rgEgrFechaMode" onchange="rgApplyEgrFecha(this.value)" class="rg-filter-sel">
         <option value="all">📅 Todas las fechas</option>
         <option value="7">Últimos 7 días</option>
@@ -1548,7 +1609,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <span class="search-icon">🔍</span>
           <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
         </div>
-        <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso"
+        <button id="rgRegistrarGastoBtn" class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso"
           style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
           <span style="font-size:.95rem;line-height:1">+</span><span>Registrar gasto</span>
         </button>
@@ -10456,6 +10517,191 @@ async function ofxImport_procesar() {
   }
   _ofxShowStep(4);
 }
+</script>
+
+<!-- ════════════════════════════════════════════════════════
+     TOUR GUIADO — Registro General (Driver.js)
+════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  var TOUR_KEY = 'bc_rg_tour_v1';
+
+  function _tourSteps() {
+    return [
+      {
+        popover: {
+          title: '¡Bienvenido a BalanceClip!',
+          description:
+            '<p>Este es tu <b>Registro General</b>: aquí registras ' +
+            'todos los ingresos y gastos de tu negocio.</p>' +
+            '<p>Te muestro los puntos clave en 9 pasos. Puedes saltar ' +
+            'el tour cuando quieras y volver a verlo desde el botón ' +
+            '<b>❓ Tour</b> arriba a la derecha.</p>',
+        },
+      },
+      {
+        element: '#tabRegistroGeneral',
+        popover: {
+          title: 'Registro Principal',
+          description:
+            'Estás aquí. Es donde captures cada ingreso/gasto. ' +
+            'Es el punto de entrada de toda la información contable.',
+          side: 'bottom',
+        },
+      },
+      {
+        element: '#rgEgrFiltersBar',
+        popover: {
+          title: 'Filtros',
+          description:
+            'Filtra los registros por <b>fecha</b>, <b>categoría DGI</b>, ' +
+            '<b>proveedor</b>, <b>estado</b> (pendiente/aprobado) o ' +
+            '<b>tipo</b> (deducible/personal).',
+          side: 'bottom',
+        },
+      },
+      {
+        element: '#rgEgrChartCat',
+        popover: {
+          title: 'Top categorías',
+          description:
+            'Resumen visual de en qué se va más plata. Click en cualquier ' +
+            'barra para filtrar la tabla por esa categoría.',
+          side: 'right',
+        },
+      },
+      {
+        element: '#rgRegistrarGastoBtn',
+        popover: {
+          title: 'Registrar un gasto',
+          description:
+            '<p>Crea un nuevo gasto manualmente o sube una foto/PDF de la ' +
+            'factura — la <b>IA</b> llena los datos automáticamente y solo ' +
+            'tienes que confirmar.</p>',
+          side: 'left',
+        },
+      },
+      {
+        element: '#rgRefreshBtn',
+        popover: {
+          title: 'Actualizar datos',
+          description:
+            'Si registraste algo en otro dispositivo o llegó factura por ' +
+            'email, toca aquí para refrescar la tabla.',
+          side: 'left',
+        },
+      },
+      {
+        element: '#rgEgrTable',
+        popover: {
+          title: 'Tabla de gastos',
+          description:
+            '<p>Cada fila es un gasto: fecha, proveedor, factura, ' +
+            'categoría DGI, montos e ITBMS.</p>' +
+            '<p><b>Click en el chip de categoría</b> para reclasificarlo. ' +
+            'Marca varias filas con el checkbox para acciones <b>en masa</b> ' +
+            '(aprobar, eliminar, cambiar categoría).</p>',
+          side: 'top',
+        },
+      },
+      {
+        element: '#rgTabIngBtn',
+        popover: {
+          title: 'Tab Ingresos',
+          description:
+            'Cambia aquí para ver y registrar las facturas que <b>emites</b> ' +
+            'a tus clientes. La lógica es similar a Gastos.',
+          side: 'bottom',
+        },
+      },
+      {
+        element: '#tabDashboard',
+        popover: {
+          title: 'Estado de Resultados (P&L)',
+          description:
+            'Cuando tengas datos cargados, ve al <b>P&L</b> para ver tu ' +
+            'rentabilidad por período: ingresos brutos, gastos operativos ' +
+            'y utilidad neta.',
+          side: 'bottom',
+        },
+      },
+      {
+        popover: {
+          title: '¡Listo!',
+          description:
+            '<p>Eso es lo esencial. Cualquier duda, abre el tour otra vez ' +
+            'desde <b>❓ Tour</b>.</p>' +
+            '<p>Si necesitas ayuda con conceptos contables, tu CPA puede ' +
+            'enviarte el <b>Cierre Anual</b> y la <b>Declaración de ITBMS</b> ' +
+            'desde el menú <b>🗂 Contabilidad</b>.</p>',
+        },
+      },
+    ];
+  }
+
+  function _tourEnsureContext() {
+    // Asegura que estemos en el tab "Registro Principal" sub-tab Egresos.
+    try {
+      if (typeof switchTab === 'function') switchTab('registroGeneral');
+      if (typeof rgShowTab === 'function') rgShowTab('egr');
+    } catch (e) { /* swallow */ }
+  }
+
+  function rgStartTour() {
+    if (typeof window.driver === 'undefined' || !window.driver.js) {
+      console.warn('Driver.js no cargado');
+      return;
+    }
+    _tourEnsureContext();
+    // Pequeño delay para que el DOM se reacomode tras el switch de tab
+    setTimeout(function () {
+      var d = window.driver.js.driver({
+        showProgress: true,
+        progressText: 'Paso {{current}} de {{total}}',
+        nextBtnText:  'Siguiente →',
+        prevBtnText:  '← Anterior',
+        doneBtnText:  'Listo',
+        popoverClass: 'bc-tour',
+        allowClose:   true,
+        steps:        _tourSteps(),
+        onDestroyed:  function () {
+          try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) {}
+        },
+      });
+      d.drive();
+    }, 120);
+  }
+  window.rgStartTour = rgStartTour;
+
+  // Auto-show la primera vez. Esperamos a que el login termine y la app
+  // esté visible. Comprobamos cada 500ms hasta máx 8s.
+  function _maybeAutoStart() {
+    try {
+      if (localStorage.getItem(TOUR_KEY)) return;
+    } catch (e) { /* localStorage bloqueado → no auto-start */ return; }
+    var attempts = 0;
+    var iv = setInterval(function () {
+      attempts++;
+      var visible = document.getElementById('rgEgrFiltersBar');
+      if (visible && visible.offsetParent !== null) {
+        clearInterval(iv);
+        rgStartTour();
+      } else if (attempts >= 16) {
+        clearInterval(iv);
+      }
+    }, 500);
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(_maybeAutoStart, 800);
+  } else {
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(_maybeAutoStart, 800);
+    });
+  }
+})();
 </script>
 
 
