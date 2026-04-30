@@ -1317,6 +1317,206 @@ tr:hover td{background:rgba(0,0,0,.015)}
   display: inline-flex; align-items: center; gap: .35rem;
 }
 .bc-tour-btn:hover { background: var(--bg, #f8fafc); color: var(--text, #1a2535); }
+
+/* ── Wizard Captura Automática ─────────────────────────── */
+.capt-bg {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(15,23,42,.65);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+.capt-wrap {
+  background: var(--white, #fff); border-radius: 14px;
+  width: 100%; max-width: 760px; max-height: 92vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.28);
+  overflow: hidden;
+}
+.capt-hdr {
+  background: linear-gradient(135deg, #1a2535 0%, #2c3e50 100%);
+  color: #fff;
+  padding: 1.1rem 1.6rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.capt-hdr-eyebrow {
+  font-family: 'DM Mono', monospace; font-size: .65rem;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.55); margin-bottom: 4px;
+}
+.capt-hdr-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.45rem;
+  letter-spacing: .04em; color: #fff;
+}
+.capt-x {
+  background: transparent; border: none; color: rgba(255,255,255,.6);
+  font-size: 1.7rem; cursor: pointer; line-height: 1; padding: 0 .35rem;
+  border-radius: 6px; transition: color .15s, background .15s;
+}
+.capt-x:hover { color: #fff; background: rgba(255,255,255,.08); }
+
+.capt-stepper {
+  display: flex; align-items: center; gap: 6px;
+  padding: .8rem 1.6rem; background: var(--bg, #f8fafc);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  font-size: .75rem; color: var(--muted, #64748b);
+  flex-wrap: wrap;
+}
+.capt-step-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: .25rem .55rem; border-radius: 100px;
+  background: var(--white, #fff); border: 1px solid var(--border, #e2e8f0);
+  font-weight: 600;
+}
+.capt-step-pill > span {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--border, #e2e8f0); color: var(--muted, #64748b);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .68rem; font-weight: 700;
+}
+.capt-step-pill.active { background: var(--orange, #E05A00); color: #fff; border-color: var(--orange, #E05A00); }
+.capt-step-pill.active > span { background: rgba(255,255,255,.25); color: #fff; }
+.capt-step-pill.done { background: #2E7D32; color: #fff; border-color: #2E7D32; }
+.capt-step-pill.done > span { background: rgba(255,255,255,.25); color: #fff; }
+.capt-step-line {
+  flex: 1 1 20px; height: 2px; min-width: 14px;
+  background: var(--border, #e2e8f0);
+}
+
+.capt-body {
+  padding: 1.4rem 1.8rem 1.2rem;
+  overflow-y: auto; flex: 1;
+}
+.capt-step { display: none; }
+.capt-step.active { display: block; }
+.capt-h2 {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem;
+  letter-spacing: .03em; color: var(--text, #1a2535);
+  margin: 0 0 .35rem;
+}
+.capt-lead {
+  font-size: .92rem; color: var(--text, #1a2535);
+  line-height: 1.55; margin: 0 0 1.1rem;
+}
+.capt-lead code, .capt-overview code, .capt-card-hint code {
+  background: var(--bg, #f1f5f9); padding: .1rem .35rem;
+  border-radius: 4px; font-family: 'DM Mono', monospace;
+  font-size: .85em; color: var(--text, #1a2535);
+}
+.capt-overview {
+  list-style: none; counter-reset: capt-li;
+  padding: 0; margin: 0 0 1rem;
+}
+.capt-overview li {
+  counter-increment: capt-li;
+  position: relative; padding: .6rem .8rem .6rem 2.6rem;
+  font-size: .9rem; line-height: 1.55; color: var(--text, #1a2535);
+  border-left: 3px solid var(--orange, #E05A00);
+  background: var(--bg, #f8fafc); border-radius: 0 6px 6px 0;
+  margin-bottom: .5rem;
+}
+.capt-overview li::before {
+  content: counter(capt-li);
+  position: absolute; left: .8rem; top: 50%; transform: translateY(-50%);
+  width: 1.4rem; height: 1.4rem; border-radius: 50%;
+  background: var(--orange, #E05A00); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .75rem;
+}
+
+.capt-card {
+  border: 1px solid var(--border, #e2e8f0); border-radius: 10px;
+  padding: .4rem 0; background: var(--white, #fff);
+  margin: 0 0 1rem;
+}
+.capt-card-step {
+  display: flex; gap: .9rem;
+  padding: .85rem 1rem;
+  border-top: 1px solid var(--bg, #f1f5f9);
+}
+.capt-card-step:first-child { border-top: none; }
+.capt-card-num {
+  flex-shrink: 0;
+  width: 1.85rem; height: 1.85rem; border-radius: 50%;
+  background: var(--text, #1a2535); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: .82rem;
+}
+.capt-card-body { flex: 1; min-width: 0; }
+.capt-card-title { font-weight: 600; font-size: .9rem; color: var(--text, #1a2535); margin-bottom: .35rem; }
+.capt-card-hint { font-size: .82rem; color: var(--muted, #475569); line-height: 1.55; }
+
+.capt-email-box {
+  display: flex; align-items: center; gap: .55rem;
+  background: var(--bg, #f8fafc);
+  border: 1.5px dashed var(--orange, #E05A00); border-radius: 8px;
+  padding: .55rem .85rem; flex-wrap: wrap;
+}
+.capt-email-box code {
+  flex: 1; min-width: 0;
+  font-family: 'DM Mono', monospace; font-size: .92rem; font-weight: 700;
+  color: var(--orange, #E05A00); background: transparent;
+  word-break: break-all;
+}
+
+.capt-tip {
+  background: #FFF8E1; border-left: 3px solid #FFA000;
+  border-radius: 0 6px 6px 0;
+  padding: .6rem .85rem; font-size: .82rem; color: #5D4037;
+  line-height: 1.55; margin: .8rem 0;
+}
+
+.capt-check {
+  display: flex; align-items: flex-start; gap: .55rem;
+  padding: .65rem .8rem; border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px; cursor: pointer;
+  font-size: .88rem; color: var(--text, #1a2535);
+  transition: background .15s, border-color .15s;
+  margin: .5rem 0;
+}
+.capt-check:hover { background: var(--bg, #f8fafc); }
+.capt-check input { margin-top: 2px; cursor: pointer; flex-shrink: 0; }
+.capt-check input:checked + span { font-weight: 600; }
+
+.capt-btn-primary,
+.capt-btn-secondary {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .5rem 1rem; border-radius: 8px;
+  font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: .85rem;
+  cursor: pointer; transition: opacity .15s, background .15s, border-color .15s;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.capt-btn-primary {
+  background: var(--orange, #E05A00); color: #fff; border-color: var(--orange, #E05A00);
+}
+.capt-btn-primary:hover { opacity: .9; }
+.capt-btn-secondary {
+  background: var(--bg, #f8fafc); color: var(--text, #1a2535); border-color: var(--border, #e2e8f0);
+}
+.capt-btn-secondary:hover { background: var(--white, #fff); border-color: var(--muted, #94a3b8); }
+.capt-btn-verify { margin-top: .65rem; }
+
+.capt-verify-result {
+  margin-top: .5rem; min-height: 1.2em;
+  font-size: .82rem; line-height: 1.5;
+}
+.capt-verify-result.ok { color: #1B5E20; }
+.capt-verify-result.warn { color: #BF360C; }
+.capt-verify-result.muted { color: var(--muted, #64748b); }
+
+.capt-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: .85rem 1.6rem;
+  border-top: 1px solid var(--border, #e2e8f0); background: var(--bg, #f8fafc);
+}
+.capt-step-counter {
+  font-family: 'DM Mono', monospace; font-size: .72rem;
+  color: var(--muted, #64748b); letter-spacing: .04em;
+}
+.capt-footer .capt-btn-secondary[disabled],
+.capt-footer .capt-btn-primary[disabled] {
+  opacity: .4; cursor: not-allowed;
+}
 </style>
 </head>
 <body>
@@ -1346,6 +1546,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <div class="topnav-right">
       <button class="bc-tour-btn" id="btnTourRG" onclick="rgStartTour()" title="Tour guiado del Registro General">
         <span style="font-size:.95rem;line-height:1">❓</span><span>Tour</span>
+      </button>
+      <button class="bc-tour-btn" id="btnWizardCaptura" onclick="captWizardOpen()" title="Wizard: configurar captura automática de facturas"
+        style="border-color:var(--orange);color:var(--orange)">
+        <span style="font-size:.95rem;line-height:1">🧙</span><span>Captura automática</span>
       </button>
       <button class="topnav-gear" onclick="cfgPanelOpen()" title="Configuración">⚙</button>
       <span class="topnav-logout" onclick="logout()">Salir →</span>
@@ -2716,6 +2920,184 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     WIZARD: Captura automática de facturas (modal full-screen)
+═══════════════════════════════════════════════════════════════ -->
+<div id="captWizard" class="capt-bg" style="display:none">
+  <div class="capt-wrap">
+    <div class="capt-hdr">
+      <div>
+        <div class="capt-hdr-eyebrow">Wizard</div>
+        <div class="capt-hdr-title">🧙 Captura automática de facturas</div>
+      </div>
+      <button class="capt-x" onclick="captWizardClose()" title="Cerrar">×</button>
+    </div>
+
+    <div class="capt-stepper" id="captStepper">
+      <div class="capt-step-pill" data-s="1"><span>1</span> Bienvenida</div>
+      <div class="capt-step-line"></div>
+      <div class="capt-step-pill" data-s="2"><span>2</span> Reenvío Gmail</div>
+      <div class="capt-step-line"></div>
+      <div class="capt-step-pill" data-s="3"><span>3</span> Filtro por proveedor</div>
+      <div class="capt-step-line"></div>
+      <div class="capt-step-pill" data-s="4"><span>4</span> ¡Listo!</div>
+    </div>
+
+    <div class="capt-body" id="captBody">
+      <!-- ─── STEP 1: Welcome ─── -->
+      <section class="capt-step" data-step="1">
+        <h2 class="capt-h2">Vamos a configurar la captura automática</h2>
+        <p class="capt-lead">
+          En vez de registrar facturas a mano, el sistema las leerá directamente
+          desde tu Gmail. Te toma <b>~5 minutos</b> y se hace una sola vez.
+        </p>
+        <ol class="capt-overview">
+          <li><b>Reenvío</b> — agregas <code>facturas@balanceclip.net</code> como dirección de reenvío en tu Gmail. Esto se aprueba una vez.</li>
+          <li><b>Filtro</b> — desde un correo de un proveedor real, creas un filtro que reenvíe solo sus facturas a esa dirección. Repites por cada proveedor.</li>
+          <li><b>¡Listo!</b> — las próximas facturas aparecerán en el panel de Pendientes automáticamente.</li>
+        </ol>
+        <div class="capt-tip">
+          💡 Puedes salir y volver al wizard en cualquier momento — guardamos tu progreso.
+        </div>
+      </section>
+
+      <!-- ─── STEP 2: Reenvío ─── -->
+      <section class="capt-step" data-step="2">
+        <h2 class="capt-h2">Paso 1 — Agregar dirección de reenvío</h2>
+        <p class="capt-lead">
+          En tu Gmail, agrega <code>facturas@balanceclip.net</code> como dirección de reenvío.
+          Gmail enviará un código de verificación que el equipo de BalanceClip aprobará por ti.
+        </p>
+
+        <div class="capt-card">
+          <div class="capt-card-step">
+            <div class="capt-card-num">A</div>
+            <div class="capt-card-body">
+              <div class="capt-card-title">Copia esta dirección</div>
+              <div class="capt-email-box">
+                <code id="captEmailDestino">facturas@balanceclip.net</code>
+                <button class="capt-btn-secondary" onclick="captCopyEmail()">📋 Copiar</button>
+              </div>
+            </div>
+          </div>
+          <div class="capt-card-step">
+            <div class="capt-card-num">B</div>
+            <div class="capt-card-body">
+              <div class="capt-card-title">Abre la configuración de Gmail</div>
+              <a class="capt-btn-primary" href="https://mail.google.com/mail/u/0/#settings/fwdandpop" target="_blank" rel="noopener">
+                Abrir Gmail → Reenvío y POP/IMAP ↗
+              </a>
+              <div class="capt-card-hint">
+                Una vez ahí: <b>"Agregar dirección de reenvío"</b> → pegar el email → <b>Siguiente</b>.
+              </div>
+            </div>
+          </div>
+          <div class="capt-card-step">
+            <div class="capt-card-num">C</div>
+            <div class="capt-card-body">
+              <div class="capt-card-title">Avisa para aprobar el código</div>
+              <div class="capt-card-hint">
+                Gmail enviará un correo con un código a <code>facturas@balanceclip.net</code>.
+                Avisa al equipo de BalanceClip (WhatsApp / email) para que apruebe.
+                Generalmente se aprueba en menos de 1 hora.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <label class="capt-check">
+          <input type="checkbox" id="captChkPasoA" onchange="captSaveProgress()">
+          <span>Ya agregué la dirección y avisé al equipo BalanceClip.</span>
+        </label>
+
+        <button class="capt-btn-secondary capt-btn-verify" onclick="captVerificarReenvio(this)">
+          🔍 Verificar si ya está aprobado
+        </button>
+        <div class="capt-verify-result" id="captVerifyA"></div>
+      </section>
+
+      <!-- ─── STEP 3: Filtro ─── -->
+      <section class="capt-step" data-step="3">
+        <h2 class="capt-h2">Paso 2 — Crear filtro por proveedor</h2>
+        <p class="capt-lead">
+          Desde cualquier correo real de un proveedor, le dices a Gmail
+          "reenvía a <code>facturas@balanceclip.net</code> los correos de este remitente
+          que tengan adjunto". Repites por cada proveedor.
+        </p>
+
+        <div class="capt-card">
+          <div class="capt-card-step">
+            <div class="capt-card-num">1</div>
+            <div class="capt-card-body">
+              <div class="capt-card-title">Abre un correo del proveedor</div>
+              <div class="capt-card-hint">
+                Ve a Gmail y abre cualquier factura recibida. Por ejemplo, una factura de un proveedor habitual.
+              </div>
+            </div>
+          </div>
+          <div class="capt-card-step">
+            <div class="capt-card-num">2</div>
+            <div class="capt-card-body">
+              <div class="capt-card-title">Menú "⋮" arriba a la derecha del correo</div>
+              <div class="capt-card-hint">
+                Click en <b>⋮ → Filtrar mensajes de este tipo</b>.
+                Gmail pre-llena el remitente automáticamente.
+              </div>
+            </div>
+          </div>
+          <div class="capt-card-step">
+            <div class="capt-card-num">3</div>
+            <div class="capt-card-body">
+              <div class="capt-card-title">Marca "Tiene adjunto" → Crear filtro</div>
+              <div class="capt-card-hint">
+                En la siguiente pantalla, marca <b>Reenviar a:</b> y elige
+                <code>facturas@balanceclip.net</code> → <b>Crear filtro</b>.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="capt-tip">
+          🔁 Repite los 3 pasos por cada proveedor que quieras capturar. El filtro queda guardado en Gmail y aplica a todos los correos futuros — no necesitas hacerlo de nuevo.
+        </div>
+
+        <label class="capt-check">
+          <input type="checkbox" id="captChkPasoB" onchange="captSaveProgress()">
+          <span>Ya creé al menos un filtro para un proveedor.</span>
+        </label>
+
+        <button class="capt-btn-secondary capt-btn-verify" onclick="captProbarSync(this)">
+          🔍 Probar sincronización ahora
+        </button>
+        <div class="capt-verify-result" id="captVerifyB"></div>
+      </section>
+
+      <!-- ─── STEP 4: Done ─── -->
+      <section class="capt-step" data-step="4">
+        <h2 class="capt-h2">¡Captura automática activada!</h2>
+        <p class="capt-lead">
+          De ahora en adelante, cada vez que un proveedor con filtro envíe una
+          factura, aparecerá en <b>Registro General → Pendientes</b> lista para aprobar.
+        </p>
+        <ul class="capt-overview">
+          <li>Si quieres agregar otro proveedor, vuelve al wizard y repite el <b>Paso 2</b>.</li>
+          <li>Si un proveedor genera mucho ruido, en <b>Configuración → Automático → Proveedores detectados</b> puedes desactivarlo con su toggle.</li>
+          <li>El sistema sincroniza cada 15 minutos automáticamente, o puedes forzarlo con el botón <b>↻ Actualizar</b>.</li>
+        </ul>
+        <div class="capt-tip" style="background:#E8F5E9;border-color:#A5D6A7;color:#1B5E20">
+          ✓ Listo. Ya no tienes que registrar facturas a mano si vienen por email.
+        </div>
+      </section>
+    </div>
+
+    <div class="capt-footer">
+      <button class="capt-btn-secondary" id="captBtnPrev" onclick="captWizardPrev()">← Anterior</button>
+      <span class="capt-step-counter" id="captStepCounter">Paso 1 de 4</span>
+      <button class="capt-btn-primary"   id="captBtnNext" onclick="captWizardNext()">Siguiente →</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════ MODAL: MOVER A INVENTARIO ═══════════ -->
 <div class="modal-overlay" id="invModalOverlay" onclick="if(event.target===this)closeInvModal()">
@@ -10814,6 +11196,206 @@ async function ofxImport_procesar() {
       setTimeout(_maybeAutoStart, 800);
     });
   }
+})();
+</script>
+
+<!-- ════════════════════════════════════════════════════════
+     WIZARD: Captura automática de facturas (lógica)
+════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'bc_capt_wizard_v1';
+  var TOTAL_STEPS = 4;
+  var _step = 1;
+
+  function _$(id) { return document.getElementById(id); }
+
+  function _saveProgress() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        step:       _step,
+        chkPasoA:   !!(_$('captChkPasoA') && _$('captChkPasoA').checked),
+        chkPasoB:   !!(_$('captChkPasoB') && _$('captChkPasoB').checked),
+        updatedAt:  Date.now(),
+      }));
+    } catch (e) { /* localStorage bloqueado */ }
+  }
+
+  function _loadProgress() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+
+  function _renderStepper() {
+    var pills = document.querySelectorAll('#captStepper .capt-step-pill');
+    pills.forEach(function (p) {
+      var s = parseInt(p.getAttribute('data-s'));
+      p.classList.toggle('active', s === _step);
+      p.classList.toggle('done',   s <  _step);
+    });
+    var sc = _$('captStepCounter');
+    if (sc) sc.textContent = 'Paso ' + _step + ' de ' + TOTAL_STEPS;
+    var prevBtn = _$('captBtnPrev');
+    var nextBtn = _$('captBtnNext');
+    if (prevBtn) prevBtn.disabled = (_step === 1);
+    if (nextBtn) nextBtn.textContent = (_step === TOTAL_STEPS) ? 'Cerrar' : 'Siguiente →';
+  }
+
+  function _renderStep() {
+    var sections = document.querySelectorAll('#captBody .capt-step');
+    sections.forEach(function (s) {
+      s.classList.toggle('active', parseInt(s.getAttribute('data-step')) === _step);
+    });
+    var body = _$('captBody');
+    if (body) body.scrollTop = 0;
+    _renderStepper();
+  }
+
+  function captWizardOpen() {
+    var saved = _loadProgress();
+    if (saved && saved.step >= 1 && saved.step <= TOTAL_STEPS) {
+      _step = saved.step;
+      var a = _$('captChkPasoA'); if (a) a.checked = !!saved.chkPasoA;
+      var b = _$('captChkPasoB'); if (b) b.checked = !!saved.chkPasoB;
+    } else {
+      _step = 1;
+    }
+    // Pre-llenar el email destino con el config si está disponible
+    try {
+      var cfgDest = document.getElementById('guiaEmailDestino');
+      var dest    = (cfgDest && cfgDest.textContent.trim()) || 'facturas@balanceclip.net';
+      var captDest = _$('captEmailDestino');
+      if (captDest) captDest.textContent = dest;
+    } catch (e) {}
+
+    _$('captWizard').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    _renderStep();
+  }
+  window.captWizardOpen = captWizardOpen;
+
+  function captWizardClose() {
+    _$('captWizard').style.display = 'none';
+    document.body.style.overflow = '';
+    _saveProgress();
+  }
+  window.captWizardClose = captWizardClose;
+
+  function captWizardNext() {
+    if (_step >= TOTAL_STEPS) { captWizardClose(); return; }
+    _step++;
+    _saveProgress();
+    _renderStep();
+  }
+  window.captWizardNext = captWizardNext;
+
+  function captWizardPrev() {
+    if (_step <= 1) return;
+    _step--;
+    _saveProgress();
+    _renderStep();
+  }
+  window.captWizardPrev = captWizardPrev;
+
+  function captSaveProgress() { _saveProgress(); }
+  window.captSaveProgress = captSaveProgress;
+
+  function captCopyEmail() {
+    var el = _$('captEmailDestino');
+    if (!el) return;
+    var v = el.textContent.trim();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(v)
+        .then(function () { showToast('✅ Email copiado'); })
+        .catch(function () { showToast('Copia: ' + v); });
+    } else {
+      showToast('Copia: ' + v);
+    }
+  }
+  window.captCopyEmail = captCopyEmail;
+
+  // ── Verificaciones contra el backend ─────────────────────
+  function _setVerify(elId, kind, html) {
+    var el = _$(elId);
+    if (!el) return;
+    el.className = 'capt-verify-result ' + (kind || '');
+    el.innerHTML = html;
+  }
+
+  function captVerificarReenvio(btn) {
+    if (!btn) btn = {};
+    btn.disabled = true; var oldTxt = btn.textContent; btn.textContent = 'Verificando…';
+    _setVerify('captVerifyA', 'muted', 'Consultando estado del email de entrada…');
+    if (typeof jsonpGet !== 'function') {
+      _setVerify('captVerifyA', 'warn',
+        'No se pudo consultar el backend. Si ya avisaste al equipo, espera la confirmación por WhatsApp/email.');
+      btn.disabled = false; btn.textContent = oldTxt; return;
+    }
+    jsonpGet('getConfig', {}, 12000)
+      .then(function (r) {
+        var c = (r && r.config) || {};
+        var dest = (c.email_op_destino || c.email_acr_destino || '').trim();
+        if (dest) {
+          _setVerify('captVerifyA', 'ok',
+            '✅ <b>Email de entrada configurado:</b> <code>' + dest + '</code><br>' +
+            'Si Gmail acepta este alias en tus filtros, el reenvío ya está activo. ¡Pasa al siguiente paso!');
+        } else {
+          _setVerify('captVerifyA', 'warn',
+            '⚠️ Aún no veo el email de entrada en la configuración. Si ya avisaste al equipo, espera unos minutos y vuelve a verificar.');
+        }
+      })
+      .catch(function (e) {
+        _setVerify('captVerifyA', 'warn',
+          '⚠️ No pude verificar (' + (e && e.message ? e.message : 'red') + '). Reintenta en un momento.');
+      })
+      .finally(function () { btn.disabled = false; btn.textContent = oldTxt; });
+  }
+  window.captVerificarReenvio = captVerificarReenvio;
+
+  function captProbarSync(btn) {
+    if (!btn) btn = {};
+    btn.disabled = true; var oldTxt = btn.textContent; btn.textContent = 'Sincronizando…';
+    _setVerify('captVerifyB', 'muted', 'Buscando facturas pendientes en Gmail…');
+    if (typeof jsonpGet !== 'function') {
+      _setVerify('captVerifyB', 'warn',
+        'No se pudo correr la sincronización. Refresca la página e inténtalo de nuevo.');
+      btn.disabled = false; btn.textContent = oldTxt; return;
+    }
+    jsonpGet('sincronizarEmails', {}, 60000)
+      .then(function (r) {
+        if (!r || r.success === false) {
+          _setVerify('captVerifyB', 'warn',
+            '⚠️ La sincronización falló: ' + (r && r.error ? r.error : 'sin respuesta'));
+          return;
+        }
+        var s = r.stats || {};
+        var nuevos     = parseInt(s.nuevos) || 0;
+        var procesados = parseInt(s.procesados) || 0;
+        if (nuevos > 0) {
+          _setVerify('captVerifyB', 'ok',
+            '✅ <b>' + nuevos + ' factura' + (nuevos === 1 ? '' : 's') + ' nueva' + (nuevos === 1 ? '' : 's') + '</b> capturada' + (nuevos === 1 ? '' : 's') + '. ' +
+            'Revísalas en Registro General → Pendientes.');
+        } else if (procesados > 0) {
+          _setVerify('captVerifyB', 'muted',
+            '✓ Sincronización OK. No había facturas nuevas pero sí procesé ' + procesados + ' email(s) ya conocidos. ' +
+            'Cuando llegue una factura del proveedor para el que creaste el filtro, aparecerá aquí.');
+        } else {
+          _setVerify('captVerifyB', 'muted',
+            'No se encontraron correos nuevos. Asegúrate de que el filtro Gmail está creado y prueba después de recibir una factura nueva.');
+        }
+      })
+      .catch(function (e) {
+        _setVerify('captVerifyB', 'warn',
+          '⚠️ Error: ' + (e && e.message ? e.message : 'red'));
+      })
+      .finally(function () { btn.disabled = false; btn.textContent = oldTxt; });
+  }
+  window.captProbarSync = captProbarSync;
 })();
 </script>
 
