@@ -1548,8 +1548,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <span class="search-icon">🔍</span>
           <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
         </div>
-        <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso">+</button>
-        <button id="rgRefreshBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar" style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.28rem .65rem;font-size:1rem;cursor:pointer;line-height:1;font-weight:700;transition:opacity .15s,background .15s">↻</button>
+        <button class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso"
+          style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
+          <span style="font-size:.95rem;line-height:1">+</span><span>Registrar gasto</span>
+        </button>
+        <button id="rgRefreshBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar"
+          style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
+          <span id="rgRefreshIcon">↻</span><span>Actualizar</span>
+        </button>
       </div>
     </div>
 
@@ -1611,7 +1617,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- Header + botón nuevo -->
     <div class="section-hdr-row">
       <span class="section-hdr-lbl">Ingresos generales</span>
-      <button class="section-hdr-add ing" onclick="rgAbrirNuevoIngreso()" title="Registrar ingreso">+</button>
+      <button class="section-hdr-add ing" onclick="rgAbrirNuevoIngreso()" title="Registrar ingreso"
+        style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
+        <span style="font-size:.95rem;line-height:1">+</span><span>Registrar ingreso</span>
+      </button>
     </div>
     <!-- Tabla -->
     <div class="op-table-wrap">
