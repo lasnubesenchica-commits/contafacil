@@ -216,14 +216,27 @@ function _sincronizarEmailsAcreedores() {
               ruc:           parsed.ruc_proveedor    || '',
               categoria_def: parsed.categoria_sugerida || ''
             };
-            // Aplicar preferencia guardada por el usuario (si existe)
-            var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+            // Buscar acreedor existente o auto-crearlo (queda activo por defecto).
+            // El usuario puede luego desactivarlo desde Configuración → Automático
+            // para descartar futuras facturas del mismo proveedor.
+            var pref = _findOrAutoCreateAcreedor(
+              acreedor.nombre,
+              acreedor.ruc,
+              acreedor.categoria_def
+            );
+            if (pref && pref.activo === false) {
+              Logger.log('⏭ Acreedor ' + pref.nombre + ' está desactivado — factura ignorada.');
+              _registrarClaveAcreedor(ss, clave, msgId, fileName);
+              continue;
+            }
             if (pref && pref.categoria_def) {
               acreedor.id           = pref.id;
               acreedor.categoria_def = pref.categoria_def;
               if (pref.desc_default) parsed.descripcion = pref.desc_default;
               parsed.categoria_sugerida = pref.categoria_def;
               Logger.log('🎯 Preferencia aplicada: ' + acreedor.nombre + ' → ' + pref.categoria_def);
+            } else if (pref) {
+              acreedor.id = pref.id;
             }
             var driveUrl = _guardarPdfAcreedor(pdfBytes, fileName, acreedor.nombre, cfg);
 
@@ -491,6 +504,54 @@ function _buscarPreferenciaAcreedor(nombre, ruc) {
     if ((lista[j].nombre || '').toLowerCase().trim() === nomLower) return lista[j];
   }
   return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTO-CREATE — crea un acreedor si no existe en Acreedores_Config
+//  Devuelve siempre el acreedor (existente o nuevo) con flag activo.
+//  Usado por la sincronización de emails para que el panel
+//  Configuración → Automático se llene solo.
+// ═══════════════════════════════════════════════════════════════
+function _findOrAutoCreateAcreedor(nombre, ruc, categoriaDef) {
+  // 1. Buscar en la lista existente
+  var existing = _buscarPreferenciaAcreedor(nombre, ruc);
+  if (existing) return existing;
+
+  // 2. No existe → crear con activo=true
+  try {
+    _acreedoresCache = null;
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_ACREEDORES_CONFIG);
+    if (!sheet) {
+      Logger.log('⚠️ No se pudo auto-crear acreedor: hoja Acreedores_Config no existe.');
+      return null;
+    }
+
+    var ahora   = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd');
+    var lastRow = sheet.getLastRow();
+    var seq     = lastRow <= 2 ? 1 : lastRow - 1;
+    var id      = 'AUTO-' + ahora.replace(/-/g,'') + '-' + String(seq).padStart(3,'0');
+
+    var fila = new Array(ACR_NCOLS).fill('');
+    fila[COL_ACR.ID - 1]            = id;
+    fila[COL_ACR.NOMBRE - 1]        = String(nombre || '').trim() || 'Proveedor sin nombre';
+    fila[COL_ACR.RUC - 1]           = String(ruc || '').trim();
+    fila[COL_ACR.CATEGORIA_DEF - 1] = String(categoriaDef || 'otros_deducibles');
+    fila[COL_ACR.ACTIVO - 1]        = 'true';
+    fila[COL_ACR.FECHA_ALTA - 1]    = ahora;
+    fila[COL_ACR.NOTAS - 1]         = JSON.stringify({ origen: 'auto_email', fecha: ahora });
+    sheet.appendRow(fila);
+
+    Logger.log('🆕 Acreedor auto-creado: ' + fila[COL_ACR.NOMBRE - 1] +
+               (fila[COL_ACR.RUC - 1] ? ' (RUC ' + fila[COL_ACR.RUC - 1] + ')' : ''));
+
+    // Forzar invalidación del cache para que la próxima búsqueda lo encuentre
+    _acreedoresCache = null;
+    return _buscarPreferenciaAcreedor(fila[COL_ACR.NOMBRE - 1], fila[COL_ACR.RUC - 1]);
+  } catch (err) {
+    Logger.log('❌ Error auto-creando acreedor: ' + err.message);
+    return null;
+  }
 }
 
 function _handleGuardarPreferencia(data) {
@@ -1347,12 +1408,18 @@ function _handleProcesarEmailGmail(data) {
       id: 'LIBRE', nombre: parsed.nombre_proveedor || attFilename,
       ruc: parsed.ruc_proveedor || '', categoria_def: parsed.categoria_sugerida || ''
     };
-    var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+    var pref = _findOrAutoCreateAcreedor(acreedor.nombre, acreedor.ruc, acreedor.categoria_def);
+    if (pref && pref.activo === false) {
+      Logger.log('⏭ Acreedor ' + pref.nombre + ' desactivado — factura ignorada (procesarEmail).');
+      return _jsonAcr({ ok: true, skipped: true, reason: 'acreedor_desactivado' });
+    }
     if (pref && pref.categoria_def) {
       acreedor.id            = pref.id;
       acreedor.categoria_def = pref.categoria_def;
       if (pref.desc_default) parsed.descripcion = pref.desc_default;
       parsed.categoria_sugerida = pref.categoria_def;
+    } else if (pref) {
+      acreedor.id = pref.id;
     }
     if (parsed.num_factura && _pendienteYaExiste(parsed.num_factura, acreedor.id)) {
       return _jsonAcr({ ok: true, skipped: true, reason: 'duplicado' });
@@ -1439,12 +1506,19 @@ function _handleImportarHistorialGmail(data) {
           id: 'LIBRE', nombre: parsed.nombre_proveedor || att.filename,
           ruc: parsed.ruc_proveedor || '', categoria_def: parsed.categoria_sugerida || ''
         };
-        var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+        var pref = _findOrAutoCreateAcreedor(acreedor.nombre, acreedor.ruc, acreedor.categoria_def);
+        if (pref && pref.activo === false) {
+          Logger.log('⏭ Acreedor ' + pref.nombre + ' desactivado — factura ignorada (importHist).');
+          stats.ignorados = (stats.ignorados || 0) + 1;
+          continue;
+        }
         if (pref && pref.categoria_def) {
           acreedor.id            = pref.id;
           acreedor.categoria_def = pref.categoria_def;
           if (pref.desc_default) parsed.descripcion = pref.desc_default;
           parsed.categoria_sugerida = pref.categoria_def;
+        } else if (pref) {
+          acreedor.id = pref.id;
         }
 
         if (parsed.num_factura && _pendienteYaExiste(parsed.num_factura, acreedor.id)) {
@@ -1542,19 +1616,25 @@ function _handleImportarFacturaGmail(data) {
     // Parse with Claude
     var parsed = _claudeParsearFacturaLibre(fileBase64, fileName);
 
-    // Build synthetic acreedor (look for saved preference first)
+    // Build synthetic acreedor (look up or auto-create in Acreedores_Config)
     var acreedor = {
       id:            'LIBRE',
       nombre:        parsed.nombre_proveedor || emailFrom || fileName,
       ruc:           parsed.ruc_proveedor    || '',
       categoria_def: parsed.categoria_sugerida || ''
     };
-    var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+    var pref = _findOrAutoCreateAcreedor(acreedor.nombre, acreedor.ruc, acreedor.categoria_def);
+    if (pref && pref.activo === false) {
+      Logger.log('⏭ Acreedor ' + pref.nombre + ' desactivado — factura ignorada (importGmail).');
+      return _jsonAcr({ ok: true, id: '', skipped: true, reason: 'acreedor_desactivado' });
+    }
     if (pref && pref.categoria_def) {
       acreedor.id            = pref.id;
       acreedor.categoria_def = pref.categoria_def;
       if (pref.desc_default) parsed.descripcion = pref.desc_default;
       parsed.categoria_sugerida = pref.categoria_def;
+    } else if (pref) {
+      acreedor.id = pref.id;
     }
 
     // Dedup: same invoice number for same acreedor
