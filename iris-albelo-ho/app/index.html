@@ -3706,21 +3706,21 @@ const PEND = (() => {
           <div class="cfg-card-body">
             <div class="f-grp">
               <label class="f-lbl">Nombre de la empresa</label>
-              <input type="text" class="f-inp" id="cfgEmpresaNombre" placeholder="Consultores Electrotécnicos y Contratistas, S.A.">
+              <input type="text" class="f-inp" id="cfgEmpresaNombre" placeholder="Cargando datos…">
             </div>
             <div class="f-grp">
               <label class="f-lbl">Nombre comercial</label>
-              <input type="text" class="f-inp" id="cfgEmpresaComercial" placeholder="IE" maxlength="16">
+              <input type="text" class="f-inp" id="cfgEmpresaComercial" placeholder="Cargando datos…" maxlength="16">
               <div style="font-size:.65rem;color:var(--chrome);margin-top:.25rem">Aparece en el encabezado. Si está vacío se calculan las iniciales del nombre.</div>
             </div>
             <div class="f-grid">
               <div class="f-grp">
                 <label class="f-lbl">RUC</label>
-                <input type="text" class="f-inp" id="cfgEmpresaRuc" placeholder="2470636-1-814806">
+                <input type="text" class="f-inp" id="cfgEmpresaRuc" placeholder="Cargando datos…">
               </div>
               <div class="f-grp">
                 <label class="f-lbl">DV</label>
-                <input type="text" class="f-inp" id="cfgEmpresaDv" placeholder="06" maxlength="4">
+                <input type="text" class="f-inp" id="cfgEmpresaDv" placeholder="Cargando datos…" maxlength="4">
               </div>
             </div>
           </div>
@@ -3808,14 +3808,17 @@ const PEND = (() => {
           <button class="cfg-btn-save" id="cfgBtnSt" onclick="CFG_PANEL.saveST()">💾 Guardar</button>
         </div>
 
-        <!-- Gastos configurados -->
+        <!-- Proveedores detectados -->
         <div class="cfg-card">
           <div class="cfg-card-hdr" style="display:flex;align-items:center;justify-content:space-between">
-            <span>🏦 Gastos configurados</span>
-            <button onclick="CFG_PANEL.abrirNuevoGasto()" style="font-size:.7rem;font-weight:700;color:var(--orange);background:var(--orange-bg);border:none;border-radius:6px;padding:.28rem .65rem;cursor:pointer">+ Agregar</button>
+            <span>🏦 Proveedores detectados</span>
+            <button onclick="CFG_PANEL.abrirNuevoGasto()" style="font-size:.7rem;font-weight:700;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.28rem .65rem;cursor:pointer">+ Manual</button>
           </div>
           <div class="cfg-card-body" style="padding:.5rem .9rem .9rem">
-            <div style="font-size:.74rem;color:var(--muted);margin-bottom:.75rem">Gastos cuyas facturas el sistema detecta automáticamente desde email.</div>
+            <div style="font-size:.74rem;color:var(--muted);margin-bottom:.75rem;line-height:1.5">
+              Lista auto-poblada: cada vez que llega una factura nueva, el proveedor aparece aquí con el toggle <b>activo</b>.
+              El toggle funciona como regla <b>aceptar/ignorar</b> futuras facturas — si lo desactivas, los próximos correos del mismo proveedor se descartan automáticamente.
+            </div>
             <div id="cfgGastoGrid" style="display:flex;flex-direction:column;gap:.6rem">
               <div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem"><div style="font-size:1.2rem;margin-bottom:.4rem">⏳</div>Cargando...</div>
             </div>
@@ -4105,6 +4108,12 @@ const CFG_PANEL = (() => {
       _sv('cfgEmpresaComercial', c.empresa_comercial    || '');
       _sv('cfgEmpresaRuc',       c.empresa_ruc          || '');
       _sv('cfgEmpresaDv',        c.empresa_dv           || '');
+      // Reemplazar "Cargando datos…" por hints útiles para empresas nuevas
+      var _ph = function(id, v){ var el = document.getElementById(id); if (el) el.setAttribute('placeholder', v); };
+      _ph('cfgEmpresaNombre',    'Nombre legal completo');
+      _ph('cfgEmpresaComercial', 'Ej. IE, BC, ABC');
+      _ph('cfgEmpresaRuc',       'Ej. 8-NNN-NNNN');
+      _ph('cfgEmpresaDv',        'Ej. 06');
       _sv('cfgDriveFolderId',    c.drive_folder_id      || '');
       _sv('cfgEmailOpDestino',   c.email_op_destino     || '');
       _sv('cfgEmailOpRemitente', c.email_op_remitente   || '');
@@ -4232,7 +4241,7 @@ const CFG_PANEL = (() => {
       if (!data.success) throw new Error(data.error);
       const items = data.items || [];
       if (!items.length) {
-        grid.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.78rem">Sin gastos configurados. Toca "+ Agregar" para añadir el primero.</div>';
+        grid.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.78rem;line-height:1.55">Aún no se ha detectado ningún proveedor.<br>El primero aparecerá automáticamente cuando llegue su primera factura por email.</div>';
         return;
       }
       const catLabel = v => {
@@ -4547,17 +4556,31 @@ const CFG_PANEL = (() => {
     try {
       const tSync = await jsonpGet('estadoTriggerOp', {}, 10000).catch(() => ({ activo:false }));
       results.trigger_sync = {
-        ok: !!tSync.activo,
+        ok:     !!tSync.activo,
+        activo: !!tSync.activo,
         msg: tSync.activo
-          ? 'Activo' + (tSync.ultimo_run ? ' · ' + tSync.ultimo_run : '')
-          : '⚠️ Inactivo — correr installSyncTrigger() en GAS'
+          ? 'Activo · cada 15 min' + (tSync.ultimo_run ? ' · ' + tSync.ultimo_run : '')
+          : '⚠️ Inactivo'
       };
     } catch(_) {
-      results.trigger_sync = { ok:false, msg:'No verificado' };
+      results.trigger_sync = { ok:false, activo:false, msg:'No verificado' };
     }
     body.innerHTML = checks.map(ch => {
       const r   = results[ch.key] || { ok:false, msg:'—' };
       const col = r.ok ? 'var(--green)' : 'var(--red)';
+      // Fila especial: trigger_sync trae botón inline
+      if (ch.key === 'trigger_sync') {
+        const lbl = r.activo ? '⏸ Desactivar' : '▶ Activar';
+        const fn  = r.activo ? 'CFG_PANEL.desactivarTrigger' : 'CFG_PANEL.activarTrigger';
+        const bc  = r.activo ? '#BF360C' : '#1B5E20';
+        return `<div class="cfg-check-row" style="flex-direction:column;align-items:stretch;gap:.4rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+            <span style="color:var(--text)">${ch.label}</span>
+            <span style="font-size:.72rem;color:${col};font-weight:600;text-align:right">${r.msg}</span>
+          </div>
+          <button onclick="${fn}(this)" style="align-self:flex-start;font-size:.72rem;padding:.32rem .7rem;border:1px solid ${bc};color:${bc};background:transparent;border-radius:6px;cursor:pointer;font-weight:600">${lbl}</button>
+        </div>`;
+      }
       return `<div class="cfg-check-row">
         <span style="color:var(--text)">${ch.label}</span>
         <span style="font-size:.72rem;color:${col};font-weight:600">${r.msg}</span>
@@ -4756,10 +4779,46 @@ const CFG_PANEL = (() => {
     }
   }
 
+  // ── Activar / desactivar trigger de sincronización ──────────
+  async function activarTrigger(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Activando…'; }
+    try {
+      const res = await fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body:    JSON.stringify({ action: 'instalarTriggerOp', intervalo: 15 }),
+      }).then(r => r.json()).catch(() => null);
+      if (!res || !res.success) throw new Error((res && res.error) || 'No se pudo activar');
+      toast('✅ Trigger activado · cada 15 min');
+      verificar();
+    } catch (err) {
+      toast('⚠️ ' + err.message, 'err');
+      if (btn) { btn.disabled = false; btn.textContent = '▶ Activar'; }
+    }
+  }
+  async function desactivarTrigger(btn) {
+    if (!confirm('¿Desactivar el trigger? Los emails dejarán de procesarse cada 15 minutos. Podrás seguir sincronizando manualmente.')) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Desactivando…'; }
+    try {
+      const res = await fetch(GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body:    JSON.stringify({ action: 'removerTriggerOp' }),
+      }).then(r => r.json()).catch(() => null);
+      if (!res || !res.success) throw new Error((res && res.error) || 'No se pudo desactivar');
+      toast('⏸ Trigger desactivado');
+      verificar();
+    } catch (err) {
+      toast('⚠️ ' + err.message, 'err');
+      if (btn) { btn.disabled = false; btn.textContent = '⏸ Desactivar'; }
+    }
+  }
+
   return { open, close, switchTab, load, saveEmpresa, saveComercial, saveST,
            syncAuto, gmailAuth, gmailBuscar, gmailProcesar,
            toggleGasto, abrirNuevoGasto, cerrarNuevoGasto,
            analizarFacturaGasto, guardarGasto, verificar,
+           activarTrigger, desactivarTrigger,
            abrirNuevoProv, cerrarNuevoProv, editarProv,
            provHandleFile, provAnalizarFactura, guardarProv, toggleProv,
            applyHeaderPublic: _applyHeader };
