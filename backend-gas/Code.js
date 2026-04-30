@@ -671,6 +671,10 @@ function doGet(e) {
     if (action === 'instalarTriggerProyectos')        return _handleInstalarTriggerST({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerAcreedores')       return _handleInstalarTriggerAcr({ intervalo: params.intervalo || '15' });
 
+    // ── Estado de triggers (consumido por panel Sistema) ────────
+    if (action === 'estadoTriggerOp')                 return _handleEstadoTriggerOp(params, callback);
+    if (action === 'estadoTriggerST')                 return _handleEstadoTriggerST(params, callback);
+
     // ── Default: health check ───────────────────────────────────
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'OK', ts: new Date().toISOString() }))
