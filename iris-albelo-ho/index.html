@@ -10588,6 +10588,18 @@ async function ofxImport_procesar() {
         },
       },
       {
+        element: '#rgEgrChartProv',
+        popover: {
+          title: 'Top proveedores',
+          description:
+            '<p>Mismo resumen pero por <b>proveedor / acreedor</b>. ' +
+            'Útil para ver a quién le compras más.</p>' +
+            '<p>Click en cualquier barra filtra la tabla por ese proveedor; ' +
+            'click otra vez quita el filtro.</p>',
+          side: 'left',
+        },
+      },
+      {
         element: '#rgRegistrarGastoBtn',
         popover: {
           title: 'Registrar un gasto',
@@ -10690,14 +10702,30 @@ async function ofxImport_procesar() {
         },
       },
       {
+        element: '#tabContabilidad',
+        popover: {
+          title: 'Menú Contabilidad',
+          description:
+            '<p>Aquí encuentras los reportes formales que usa tu CPA para ' +
+            'cumplir con DGI:</p>' +
+            '<p><b>🧾 Declaración ITBMS</b> — desglose mensual de lo que ' +
+            'cobraste y pagaste de ITBMS. Es la base de la declaración ' +
+            'mensual del Formulario 430 (a presentar en los primeros 15 ' +
+            'días del mes siguiente).</p>' +
+            '<p><b>📁 Cierre Anual</b> — resumen completo del año fiscal ' +
+            '(ingresos brutos, costos, gastos deducibles, renta neta, ISR ' +
+            'estimado al 25%) en formato listo para preparar la Declaración ' +
+            'Jurada de Renta. Incluye botón para enviarlo por email a tu ' +
+            'CPA con un Excel adjunto del detalle de ingresos y gastos.</p>',
+          side: 'bottom',
+        },
+      },
+      {
         popover: {
           title: '¡Listo!',
           description:
             '<p>Eso es lo esencial. Cualquier duda, abre el tour otra vez ' +
-            'desde <b>❓ Tour</b>.</p>' +
-            '<p>Si necesitas ayuda con conceptos contables, tu CPA puede ' +
-            'enviarte el <b>Cierre Anual</b> y la <b>Declaración de ITBMS</b> ' +
-            'desde el menú <b>🗂 Contabilidad</b>.</p>',
+            'desde <b>❓ Tour</b> arriba a la derecha.</p>',
         },
       },
     ];
