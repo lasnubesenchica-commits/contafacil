@@ -358,6 +358,14 @@ function doPost(e) {
     // ── REPORTES por email ──────────────────────────────────────
     if (action === 'enviarReporteCierre')         return _handleEnviarReporteCierre(data);
 
+    // ── TRIGGERS de sincronización ──────────────────────────────
+    // (handlers definidos en ContaFacil_Operaciones.js — los exponemos aquí
+    // porque Code.js es el único entry point real de doPost)
+    if (action === 'instalarTriggerOp')           return _handleInstalarTriggerOp(data);
+    if (action === 'removerTriggerOp')            return _handleRemoverTriggerOp(data);
+    if (action === 'instalarTriggerST')           return _handleInstalarTriggerST(data);
+    if (action === 'removerTriggerST')            return _handleRemoverTriggerST(data);
+
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';
     if (data.voucherBase64 && data.voucherName) {
