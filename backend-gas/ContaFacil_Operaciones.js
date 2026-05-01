@@ -532,18 +532,20 @@ function ejecutarSincronizacionOp() {
 }
 
 // Equivalente a _esReenvioPermitidoAcr pero para el flujo Comercialización.
-// Validamos contra el reenviador registrado (email_op_remitente), no contra
-// el From: original (que es el proveedor que emitió la factura).
+// Acepta el remitente exacto en headers Y el rewrite +caf_= de Gmail.
 function _esReenvioPermitidoOp(msg) {
   var cfg = {};
   try { cfg = _getConfig(); } catch(e) {}
   var rem = String(cfg.email_op_remitente || '').trim().toLowerCase();
   if (!rem) return true;
+  var localPart = rem.split('@')[0] || rem;
+  var pat_caf   = localPart + '+caf_';
   try {
-    var raw = String(msg.getRawContent() || '');
-    var headerEnd = raw.indexOf('\n\n');
-    var headers = headerEnd > 0 ? raw.substring(0, headerEnd).toLowerCase() : raw.toLowerCase();
-    return headers.indexOf(rem) !== -1;
+    var raw = String(msg.getRawContent() || '').toLowerCase();
+    var head = raw.substring(0, 12000);
+    if (head.indexOf(rem) !== -1)     return true;
+    if (head.indexOf(pat_caf) !== -1) return true;
+    return false;
   } catch (e) {
     return true;
   }
