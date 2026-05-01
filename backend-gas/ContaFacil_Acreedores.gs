@@ -151,13 +151,13 @@ function _getEmailAcrQuery() {
   // contra los headers X-Forwarded-For / Return-Path / Delivered-To
   // del raw content del mensaje.
   //
-  // NOTA: NO usamos -label:cf_acreedor_procesado en el query — la dedup
-  // ocurre a nivel attachment via _pendientePorMsgIdFileName(), que es
-  // más confiable. Confiar solo en la label generaba el bug de "0 threads
-  // encontrados" cuando un run previo aplicaba la label sin completar el
-  // procesamiento (no había forma de reprocesar sin limpiar la label
-  // manualmente).
-  var base = 'to:' + dest + ' has:attachment';
+  // Excluimos threads ya procesados con la label cf_acreedor_procesado
+  // para evitar iteración redundante. Si un thread quedó "stuck" con la
+  // label pero sin pendientes registrados, _handleResetLabelsAcreedores()
+  // lo limpia (PR #156). La dedup a nivel attachment vía
+  // _pendientePorMsgIdFileName sigue siendo el guard final por si la
+  // label se cae o un thread es re-leído.
+  var base = 'to:' + dest + ' has:attachment -label:' + LABEL_ACREEDOR;
   Logger.log('📧 Query Acreedores: to:' + dest);
   return base;
 }
@@ -173,8 +173,21 @@ function _getEmailAcrQuery() {
 function _esReenvioPermitidoAcr(msg) {
   var cfg = {};
   try { cfg = _getConfig(); } catch(e) {}
+
+  // Modo estricto opt-in: solo si el cliente lo activa explícitamente.
+  // Por defecto aceptamos cualquier mensaje que haya llegado al alias
+  // privado (el `to:` del query ya es el gate). Esto soporta el caso
+  // real de Iris donde el contador (finanzas@contecpma.com) reenvía
+  // facturas manualmente — esos correos llegan al alias correcto pero
+  // no llevan los headers del remitente registrado.
+  var estricto = String(cfg.email_acr_estricto || 'false').toLowerCase() === 'true';
+  if (!estricto) return true;
+
   var rem = String(cfg.email_acr_remitente || cfg.email_op_remitente || '').trim().toLowerCase();
-  if (!rem) return true; // sin remitente configurado → no filtramos
+  if (!rem) return true;
+
+  var localPart = rem.split('@')[0] || rem;
+  var pat_caf   = localPart + '+caf_';
 
   // Aceptamos cualquiera de estos marcadores como evidencia de que el email
   // fue reenviado por el remitente registrado:
@@ -195,7 +208,7 @@ function _esReenvioPermitidoAcr(msg) {
     return false;
   } catch (e) {
     Logger.log('  ⚠️ No se pudo leer raw content para validar reenviador: ' + e.message);
-    return true; // si falla la lectura, permitimos (mejor procesar de más que de menos)
+    return true;
   }
 }
 
@@ -288,6 +301,20 @@ function _sincronizarEmailsAcreedores() {
           stats.ignorados = (stats.ignorados || 0) + 1;
           continue;
         }
+
+        // Diagnóstico temporal: loguear cada attachment del thread con
+        // su name/mime/size para detectar casos raros (PDFs vacíos,
+        // facturas DGI sólo XML, etc.). Quitar cuando ya no haga falta.
+        try {
+          var _subjDbg = String(msg.getSubject() || '').substring(0, 60);
+          Logger.log('  📎 msg=' + msgId + ' | subj=' + _subjDbg + ' | atts=' + attachments.length);
+          for (var _d = 0; _d < attachments.length; _d++) {
+            var _a = attachments[_d];
+            var _sz = -1;
+            try { _sz = _a.getBytes().length; } catch(eSz){ _sz = 'ERR:' + eSz.message; }
+            Logger.log('     [' + _d + '] name=' + _a.getName() + ' | mime=' + _a.getContentType() + ' | bytes=' + _sz);
+          }
+        } catch(eDbg) { Logger.log('  ⚠️ debug attachments: ' + eDbg.message); }
 
         for (var a = 0; a < attachments.length; a++) {
           var att  = attachments[a];
