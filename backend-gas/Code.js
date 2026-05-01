@@ -346,6 +346,7 @@ function doPost(e) {
     if (action === 'analizarFacturaAcreedor')    return _handleAnalizarFacturaAcreedor(data);
     if (action === 'actualizarPendienteAcr')     return _handleActualizarPendienteAcr(data);
     if (action === 'guardarPreferenciaAcreedor') return _handleGuardarPreferencia(data);
+    if (action === 'resetLabelsAcreedores')      return _handleResetLabelsAcreedores(data);
     if (action === 'subirFacturaEgreso')         return _handleSubirFacturaEgreso(data);
     if (action === 'subirFacturaIngreso')         return _handleSubirFacturaIngreso(data);
     if (action === 'importarFacturaGmail')        return _handleImportarFacturaGmail(data);
