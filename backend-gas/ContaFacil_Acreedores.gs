@@ -291,6 +291,20 @@ function _sincronizarEmailsAcreedores() {
           continue;
         }
 
+        // Diagnóstico temporal: loguear cada attachment del thread con
+        // su name/mime/size para detectar casos raros (PDFs vacíos,
+        // facturas DGI sólo XML, etc.). Quitar cuando ya no haga falta.
+        try {
+          var _subjDbg = String(msg.getSubject() || '').substring(0, 60);
+          Logger.log('  📎 msg=' + msgId + ' | subj=' + _subjDbg + ' | atts=' + attachments.length);
+          for (var _d = 0; _d < attachments.length; _d++) {
+            var _a = attachments[_d];
+            var _sz = -1;
+            try { _sz = _a.getBytes().length; } catch(eSz){ _sz = 'ERR:' + eSz.message; }
+            Logger.log('     [' + _d + '] name=' + _a.getName() + ' | mime=' + _a.getContentType() + ' | bytes=' + _sz);
+          }
+        } catch(eDbg) { Logger.log('  ⚠️ debug attachments: ' + eDbg.message); }
+
         for (var a = 0; a < attachments.length; a++) {
           var att  = attachments[a];
           var mime = att.getContentType() || '';
