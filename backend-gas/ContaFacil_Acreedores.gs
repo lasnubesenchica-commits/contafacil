@@ -173,29 +173,31 @@ function _getEmailAcrQuery() {
 function _esReenvioPermitidoAcr(msg) {
   var cfg = {};
   try { cfg = _getConfig(); } catch(e) {}
-  var rem = String(cfg.email_acr_remitente || cfg.email_op_remitente || '').trim().toLowerCase();
-  if (!rem) return true; // sin remitente configurado → no filtramos
 
-  // Aceptamos cualquiera de estos marcadores como evidencia de que el email
-  // fue reenviado por el remitente registrado:
-  //   1. <rem> exacto                     — X-Forwarded-For, Delivered-To
-  //   2. <localpart>+caf_=...@<domain>    — Gmail confirmed-auto-forwarder
-  //                                          rewrite del Return-Path
-  //   3. resent-from: <rem>               — header Resent-From explícito
+  // Modo estricto opt-in: solo si el cliente lo activa explícitamente.
+  // Por defecto aceptamos cualquier mensaje que haya llegado al alias
+  // privado (el `to:` del query ya es el gate). Esto soporta el caso
+  // real de Iris donde el contador (finanzas@contecpma.com) reenvía
+  // facturas manualmente — esos correos llegan al alias correcto pero
+  // no llevan los headers del remitente registrado.
+  var estricto = String(cfg.email_acr_estricto || 'false').toLowerCase() === 'true';
+  if (!estricto) return true;
+
+  var rem = String(cfg.email_acr_remitente || cfg.email_op_remitente || '').trim().toLowerCase();
+  if (!rem) return true;
+
   var localPart = rem.split('@')[0] || rem;
   var pat_caf   = localPart + '+caf_';
 
   try {
     var raw = String(msg.getRawContent() || '').toLowerCase();
-    // Header block está al inicio. Limitamos a 12k para evitar leer body
-    // grandes (PDFs base64 inflados pueden ser MB).
     var head = raw.substring(0, 12000);
     if (head.indexOf(rem) !== -1)     return true;
     if (head.indexOf(pat_caf) !== -1) return true;
     return false;
   } catch (e) {
     Logger.log('  ⚠️ No se pudo leer raw content para validar reenviador: ' + e.message);
-    return true; // si falla la lectura, permitimos (mejor procesar de más que de menos)
+    return true;
   }
 }
 
