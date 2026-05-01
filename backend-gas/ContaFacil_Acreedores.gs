@@ -189,8 +189,19 @@ function _esReenvioPermitidoAcr(msg) {
   var localPart = rem.split('@')[0] || rem;
   var pat_caf   = localPart + '+caf_';
 
+  // Aceptamos cualquiera de estos marcadores como evidencia de que el email
+  // fue reenviado por el remitente registrado:
+  //   1. <rem> exacto                     — X-Forwarded-For, Delivered-To
+  //   2. <localpart>+caf_=...@<domain>    — Gmail confirmed-auto-forwarder
+  //                                          rewrite del Return-Path
+  //   3. resent-from: <rem>               — header Resent-From explícito
+  var localPart = rem.split('@')[0] || rem;
+  var pat_caf   = localPart + '+caf_';
+
   try {
     var raw = String(msg.getRawContent() || '').toLowerCase();
+    // Header block está al inicio. Limitamos a 12k para evitar leer body
+    // grandes (PDFs base64 inflados pueden ser MB).
     var head = raw.substring(0, 12000);
     if (head.indexOf(rem) !== -1)     return true;
     if (head.indexOf(pat_caf) !== -1) return true;
