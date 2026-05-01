@@ -54,7 +54,18 @@ function ejecutarSincronizacionUnificada() {
     try { cfg = _getConfig(); } catch (e) {}
 
     // ── Flujo 1: Comercialización (Retail) ──
-    var hasOp = !!(cfg.email_op_destino || cfg.email_comprobantes);
+    // El flujo Comercialización solo aplica si el cliente tiene Proveedores
+    // Retail registrados — la detección de "factura emitida" vs "proveedor"
+    // se basa en RUC/nombre de proveedores conocidos. Sin proveedores
+    // configurados, todos los emails caen como "desconocido" y se
+    // descartan iterando todos los threads (gasto inútil que además puede
+    // cortar el quota de ejecución antes de llegar a Acreedores).
+    var hasOp = false;
+    try {
+      var provs = (typeof _getTodosProveedores === 'function') ? _getTodosProveedores() : [];
+      hasOp = !!(cfg.email_op_destino || cfg.email_comprobantes) && provs.length > 0;
+    } catch (eP) { hasOp = false; }
+
     if (hasOp) {
       try {
         var statsOp = sincronizarEmails();
@@ -63,7 +74,7 @@ function ejecutarSincronizacionUnificada() {
         Logger.log('  ✗ Comercialización error: ' + errOp.message);
       }
     } else {
-      Logger.log('  ⏭ Comercialización: sin email_op_destino — saltado');
+      Logger.log('  ⏭ Comercialización: sin Proveedores Retail registrados — saltado');
     }
 
     // ── Flujo 2: Registro General / Acreedores ──
