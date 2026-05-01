@@ -176,12 +176,23 @@ function _esReenvioPermitidoAcr(msg) {
   var rem = String(cfg.email_acr_remitente || cfg.email_op_remitente || '').trim().toLowerCase();
   if (!rem) return true; // sin remitente configurado → no filtramos
 
+  // Aceptamos cualquiera de estos marcadores como evidencia de que el email
+  // fue reenviado por el remitente registrado:
+  //   1. <rem> exacto                     — X-Forwarded-For, Delivered-To
+  //   2. <localpart>+caf_=...@<domain>    — Gmail confirmed-auto-forwarder
+  //                                          rewrite del Return-Path
+  //   3. resent-from: <rem>               — header Resent-From explícito
+  var localPart = rem.split('@')[0] || rem;
+  var pat_caf   = localPart + '+caf_';
+
   try {
-    var raw = String(msg.getRawContent() || '');
-    // Solo el header block (antes del primer \n\n)
-    var headerEnd = raw.indexOf('\n\n');
-    var headers = headerEnd > 0 ? raw.substring(0, headerEnd).toLowerCase() : raw.toLowerCase();
-    return headers.indexOf(rem) !== -1;
+    var raw = String(msg.getRawContent() || '').toLowerCase();
+    // Header block está al inicio. Limitamos a 12k para evitar leer body
+    // grandes (PDFs base64 inflados pueden ser MB).
+    var head = raw.substring(0, 12000);
+    if (head.indexOf(rem) !== -1)     return true;
+    if (head.indexOf(pat_caf) !== -1) return true;
+    return false;
   } catch (e) {
     Logger.log('  ⚠️ No se pudo leer raw content para validar reenviador: ' + e.message);
     return true; // si falla la lectura, permitimos (mejor procesar de más que de menos)
@@ -269,7 +280,11 @@ function _sincronizarEmailsAcreedores() {
 
         // ── Validar que el mensaje haya llegado vía el reenviador permitido ──
         if (!_esReenvioPermitidoAcr(msg)) {
-          Logger.log('  ⏭ Mensaje ' + msgId + ' descartado: no proviene del reenviador registrado');
+          var _subj = '';
+          try { _subj = String(msg.getSubject() || '').substring(0, 80); } catch(eS){}
+          var _from = '';
+          try { _from = String(msg.getFrom() || '').substring(0, 60); } catch(eF){}
+          Logger.log('  ⏭ Descartado (no reenviador): ' + msgId + ' | from=' + _from + ' | subject=' + _subj);
           stats.ignorados = (stats.ignorados || 0) + 1;
           continue;
         }
