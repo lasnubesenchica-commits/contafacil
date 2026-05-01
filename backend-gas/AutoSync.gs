@@ -30,6 +30,62 @@ function syncEmailsTrigger() {
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+//  Trigger unificado — procesa AMBOS flujos según config:
+//    1. Comercialización / Retail (email_op_*)
+//    2. Registro General / Acreedores (email_acr_*)
+//  Cada cliente solo paga el costo de los flujos que tiene
+//  configurados; los que no tengan email destino se saltan.
+//
+//  ESTE es el handler al que apunta el toggle "Trigger
+//  sincronización" del panel Configuración → Sistema.
+// ════════════════════════════════════════════════════════════════
+function ejecutarSincronizacionUnificada() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) {
+    Logger.log('Otra ejecucion en curso — abortando');
+    return;
+  }
+  try {
+    var ts = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+    Logger.log('🔄 Sync unificada · ' + ts);
+
+    var cfg = {};
+    try { cfg = _getConfig(); } catch (e) {}
+
+    // ── Flujo 1: Comercialización (Retail) ──
+    var hasOp = !!(cfg.email_op_destino || cfg.email_comprobantes);
+    if (hasOp) {
+      try {
+        var statsOp = sincronizarEmails();
+        Logger.log('  ✓ Comercialización: ' + JSON.stringify(statsOp));
+      } catch (errOp) {
+        Logger.log('  ✗ Comercialización error: ' + errOp.message);
+      }
+    } else {
+      Logger.log('  ⏭ Comercialización: sin email_op_destino — saltado');
+    }
+
+    // ── Flujo 2: Registro General / Acreedores ──
+    var hasAcr = !!(cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes);
+    if (hasAcr && typeof _sincronizarEmailsAcreedores === 'function') {
+      try {
+        var statsAcr = _sincronizarEmailsAcreedores();
+        Logger.log('  ✓ Registro General: ' + JSON.stringify(statsAcr));
+      } catch (errAcr) {
+        Logger.log('  ✗ Registro General error: ' + errAcr.message);
+      }
+    } else if (!hasAcr) {
+      Logger.log('  ⏭ Registro General: sin email destino — saltado');
+    }
+
+  } catch (err) {
+    Logger.log('ejecutarSincronizacionUnificada ERROR: ' + err.message);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function installSyncTrigger() {
   var triggers = ScriptApp.getProjectTriggers();
   for (var i = 0; i < triggers.length; i++) {
