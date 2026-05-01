@@ -151,13 +151,13 @@ function _getEmailAcrQuery() {
   // contra los headers X-Forwarded-For / Return-Path / Delivered-To
   // del raw content del mensaje.
   //
-  // NOTA: NO usamos -label:cf_acreedor_procesado en el query — la dedup
-  // ocurre a nivel attachment via _pendientePorMsgIdFileName(), que es
-  // más confiable. Confiar solo en la label generaba el bug de "0 threads
-  // encontrados" cuando un run previo aplicaba la label sin completar el
-  // procesamiento (no había forma de reprocesar sin limpiar la label
-  // manualmente).
-  var base = 'to:' + dest + ' has:attachment';
+  // Excluimos threads ya procesados con la label cf_acreedor_procesado
+  // para evitar iteración redundante. Si un thread quedó "stuck" con la
+  // label pero sin pendientes registrados, _handleResetLabelsAcreedores()
+  // lo limpia (PR #156). La dedup a nivel attachment vía
+  // _pendientePorMsgIdFileName sigue siendo el guard final por si la
+  // label se cae o un thread es re-leído.
+  var base = 'to:' + dest + ' has:attachment -label:' + LABEL_ACREEDOR;
   Logger.log('📧 Query Acreedores: to:' + dest);
   return base;
 }
