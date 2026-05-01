@@ -531,20 +531,37 @@ function ejecutarSincronizacionOp() {
   }
 }
 
+// Equivalente a _esReenvioPermitidoAcr pero para el flujo Comercialización.
+// Validamos contra el reenviador registrado (email_op_remitente), no contra
+// el From: original (que es el proveedor que emitió la factura).
+function _esReenvioPermitidoOp(msg) {
+  var cfg = {};
+  try { cfg = _getConfig(); } catch(e) {}
+  var rem = String(cfg.email_op_remitente || '').trim().toLowerCase();
+  if (!rem) return true;
+  try {
+    var raw = String(msg.getRawContent() || '');
+    var headerEnd = raw.indexOf('\n\n');
+    var headers = headerEnd > 0 ? raw.substring(0, headerEnd).toLowerCase() : raw.toLowerCase();
+    return headers.indexOf(rem) !== -1;
+  } catch (e) {
+    return true;
+  }
+}
+
 function sincronizarEmails() {
   var cfg   = _getConfig();
   var stats = { procesados: 0, nuevos: 0, vinculados: 0, ignorados: 0, errores: [] };
   var pendientesEmitidas = [];
 
   // ── Construir query Gmail ────────────────────────────────────
+  // NO filtramos por from: aquí — lo validamos en el loop con
+  // _esReenvioPermitidoOp() para soportar la cadena de reenvío
+  // (auto-forward del cliente → alias central → cuenta del script).
   var query;
-  if (cfg.email_op_destino && cfg.email_op_remitente) {
-    query = 'to:' + cfg.email_op_destino + ' from:' + cfg.email_op_remitente +
-            ' has:attachment -label:procesado_cf_op';
-    Logger.log('📧 Query Retail: to:' + cfg.email_op_destino + ' from:' + cfg.email_op_remitente);
-  } else if (cfg.email_op_destino) {
+  if (cfg.email_op_destino) {
     query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op';
-    Logger.log('📧 Query Retail (sin remitente): to:' + cfg.email_op_destino);
+    Logger.log('📧 Query Retail: to:' + cfg.email_op_destino);
   } else if (cfg.email_comprobantes) {
     query = 'to:' + cfg.email_comprobantes + ' has:attachment -label:procesado_cf_op';
     Logger.log('📧 Query Retail (legado): to:' + cfg.email_comprobantes);
@@ -561,6 +578,12 @@ function sincronizarEmails() {
     for (var m = 0; m < messages.length; m++) {
       var msg = messages[m];
       try {
+        // Validar reenviador permitido (headers raw del mensaje).
+        if (!_esReenvioPermitidoOp(msg)) {
+          Logger.log('  ⏭ Mensaje descartado: no proviene del reenviador registrado');
+          stats.ignorados = (stats.ignorados || 0) + 1;
+          continue;
+        }
         var attachments = msg.getAttachments();
         var from        = msg.getFrom() || '';
         var date        = msg.getDate();

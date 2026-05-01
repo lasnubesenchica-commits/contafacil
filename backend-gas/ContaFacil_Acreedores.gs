@@ -137,24 +137,50 @@ function _getEmailAcrQuery() {
   // Prioridad 2: fallback a los de Comercialización
   // Prioridad 3: legado email_comprobantes
   var dest = cfg.email_acr_destino  || cfg.email_op_destino  || cfg.email_comprobantes || '';
-  var rem  = cfg.email_acr_remitente || cfg.email_op_remitente || '';
 
   if (!dest) {
     Logger.log('Acreedores: email destino no configurado');
     return null;
   }
 
-  var base;
-  if (dest && rem) {
-    base = 'to:' + dest + ' from:' + rem + ' has:attachment';
-    Logger.log('📧 Query Acreedores: to:' + dest + ' from:' + rem);
-  } else {
-    base = 'to:' + dest + ' has:attachment';
-    Logger.log('📧 Query Acreedores (sin remitente): to:' + dest);
-  }
+  // IMPORTANTE: NO filtramos por `from:` aquí. Las facturas llegan de
+  // múltiples proveedores (PEDIDOSYA, FedEx, Arrocha, etc.) — el campo
+  // From: es siempre el proveedor que emitió la factura. El "remitente
+  // permitido" es el reenviador (cuenta del cliente que auto-forwardea
+  // a facturas@balanceclip.net) y se valida en _esReenvioPermitidoAcr()
+  // contra los headers X-Forwarded-For / Return-Path / Delivered-To
+  // del raw content del mensaje.
+  var base = 'to:' + dest + ' has:attachment';
+  Logger.log('📧 Query Acreedores: to:' + dest);
 
   // Excluir: lo que Comercialización ya procesó Y lo que Acreedores ya procesó
   return base + ' -label:procesado_cf_op -label:' + LABEL_ACREEDOR;
+}
+
+// Verifica que el email haya sido REENVIADO desde el remitente registrado.
+// Aceptamos cualquiera de estos marcadores en los headers raw:
+//   - X-Forwarded-For: <remitente> ...
+//   - Return-Path: <remitente>+caf_=...@gmail.com  (Gmail confirmed-auto-forwarder)
+//   - Delivered-To: <remitente>
+// Esto soporta el caso real donde una persona reenvía facturas de
+// múltiples proveedores a un alias central (facturas@balanceclip.net),
+// sin abrir la puerta a spam de cualquier remitente.
+function _esReenvioPermitidoAcr(msg) {
+  var cfg = {};
+  try { cfg = _getConfig(); } catch(e) {}
+  var rem = String(cfg.email_acr_remitente || cfg.email_op_remitente || '').trim().toLowerCase();
+  if (!rem) return true; // sin remitente configurado → no filtramos
+
+  try {
+    var raw = String(msg.getRawContent() || '');
+    // Solo el header block (antes del primer \n\n)
+    var headerEnd = raw.indexOf('\n\n');
+    var headers = headerEnd > 0 ? raw.substring(0, headerEnd).toLowerCase() : raw.toLowerCase();
+    return headers.indexOf(rem) !== -1;
+  } catch (e) {
+    Logger.log('  ⚠️ No se pudo leer raw content para validar reenviador: ' + e.message);
+    return true; // si falla la lectura, permitimos (mejor procesar de más que de menos)
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -184,6 +210,13 @@ function _sincronizarEmailsAcreedores() {
         var msgId              = msg.getId();
         var todosListos        = true;   // sin errores de parse = ok para poner label
         var tieneAlgunAcreedor = false;  // al menos un adjunto fue de acreedor
+
+        // ── Validar que el mensaje haya llegado vía el reenviador permitido ──
+        if (!_esReenvioPermitidoAcr(msg)) {
+          Logger.log('  ⏭ Mensaje ' + msgId + ' descartado: no proviene del reenviador registrado');
+          stats.ignorados = (stats.ignorados || 0) + 1;
+          continue;
+        }
 
         for (var a = 0; a < attachments.length; a++) {
           var att  = attachments[a];
