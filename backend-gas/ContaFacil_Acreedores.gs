@@ -184,6 +184,57 @@ function _esReenvioPermitidoAcr(msg) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  RESET LABELS — utilidad de mantenimiento
+//
+//  Quita las labels cf_acreedor_procesado y procesado_cf_op de
+//  todos los threads que matchean el email destino. Se usa cuando
+//  hubo runs previos que aplicaron labels sin procesar
+//  correctamente (ej. el bug del from: filter pre-fix).
+//
+//  Disponible vía POST { action:'resetLabelsAcreedores' } desde
+//  el panel Configuración o ejecutable manual desde el editor.
+// ═══════════════════════════════════════════════════════════════
+function _handleResetLabelsAcreedores(data) {
+  try {
+    var cfg = _getConfig();
+    var dest = (cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes || '').trim();
+    if (!dest) {
+      return _jsonAcr({ success: false, error: 'Email destino no configurado' });
+    }
+
+    var query = 'to:' + dest + ' has:attachment (label:' + LABEL_ACREEDOR + ' OR label:procesado_cf_op)';
+    var threads = GmailApp.search(query, 0, 200);
+    Logger.log('🧹 Reset labels: encontrados ' + threads.length + ' threads para limpiar.');
+
+    var labelAcr = _getOrCreateLabelAcr(LABEL_ACREEDOR);
+    var labelOp  = null;
+    try { labelOp = GmailApp.getUserLabelByName('procesado_cf_op'); } catch (e) {}
+
+    var removed = 0;
+    for (var i = 0; i < threads.length; i++) {
+      try { threads[i].removeLabel(labelAcr); } catch (e) {}
+      if (labelOp) {
+        try { threads[i].removeLabel(labelOp); } catch (e) {}
+      }
+      removed++;
+    }
+
+    Logger.log('🧹 Labels removidas de ' + removed + ' threads. La próxima sync los reprocesará.');
+    return _jsonAcr({ success: true, threads: removed });
+  } catch (err) {
+    Logger.log('❌ resetLabelsAcreedores: ' + err.message);
+    return _jsonAcr({ success: false, error: err.message });
+  }
+}
+
+// Ejecutable directo desde el editor de Apps Script si el usuario quiere
+// disparar la limpieza manualmente sin frontend.
+function resetLabelsAcreedoresManual() {
+  var res = _handleResetLabelsAcreedores({});
+  Logger.log(res.getContent());
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  SINCRONIZAR EMAILS — v2.0
 // ═══════════════════════════════════════════════════════════════
 
