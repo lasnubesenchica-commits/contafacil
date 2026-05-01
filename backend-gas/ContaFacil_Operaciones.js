@@ -1234,11 +1234,18 @@ function _handleMarcarCostoOperativo(params, callback) {
   return _jsonp(result, callback);
 }
 
+// Lista de handler names que el trigger "Op" pudo haber usado en versiones
+// anteriores. Cualquiera de estos cuenta como "trigger activo" en el estado,
+// y todos se borran al desactivar para no dejar triggers huérfanos cuando
+// migramos del nombre viejo al unificado.
+var _TRIGGER_OP_HANDLERS = ['ejecutarSincronizacionUnificada', 'ejecutarSincronizacionOp', 'syncEmailsTrigger'];
+var _TRIGGER_OP_PRIMARY  = 'ejecutarSincronizacionUnificada';
+
 function _handleEstadoTriggerOp(params, callback) {
   var result = { success: true, activo: false, intervalo: null };
   var triggers = ScriptApp.getProjectTriggers();
   for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'ejecutarSincronizacionOp') {
+    if (_TRIGGER_OP_HANDLERS.indexOf(triggers[i].getHandlerFunction()) !== -1) {
       result.activo = true;
       break;
     }
@@ -1301,8 +1308,9 @@ function _handleInstalarTriggerOp(data) {
   try {
     var intervalo = parseInt(data.intervalo || '15', 10);
     _removerTriggerOp();
-    ScriptApp.newTrigger('ejecutarSincronizacionOp').timeBased().everyMinutes(intervalo).create();
+    ScriptApp.newTrigger(_TRIGGER_OP_PRIMARY).timeBased().everyMinutes(intervalo).create();
     result.success = true;
+    Logger.log('Trigger instalado · ' + _TRIGGER_OP_PRIMARY + ' cada ' + intervalo + ' min');
   } catch(err) { result.error = err.message; }
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -1313,13 +1321,19 @@ function _handleRemoverTriggerOp(data) {
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// Borra TODOS los triggers conocidos del flujo "Op", incluyendo nombres
+// históricos (ejecutarSincronizacionOp, syncEmailsTrigger) — así un cliente
+// que tenía el trigger viejo queda limpio al re-activar.
 function _removerTriggerOp() {
   var triggers = ScriptApp.getProjectTriggers();
+  var n = 0;
   for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'ejecutarSincronizacionOp') {
+    if (_TRIGGER_OP_HANDLERS.indexOf(triggers[i].getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(triggers[i]);
+      n++;
     }
   }
+  if (n) Logger.log('Triggers Op removidos: ' + n);
 }
 
 // ═══════════════════════════════════════════════════════════════
