@@ -53,20 +53,17 @@ function ejecutarSincronizacionUnificada() {
     var cfg = {};
     try { cfg = _getConfig(); } catch (e) {}
 
-    // ── Flujo 1: Comercialización (Retail) ──
-    // El flujo Comercialización solo aplica si el cliente tiene Proveedores
-    // Retail registrados — la detección de "factura emitida" vs "proveedor"
-    // se basa en RUC/nombre de proveedores conocidos. Sin proveedores
-    // configurados, todos los emails caen como "desconocido" y se
-    // descartan iterando todos los threads (gasto inútil que además puede
-    // cortar el quota de ejecución antes de llegar a Acreedores).
-    var hasOp = false;
-    try {
-      var provs = (typeof _getTodosProveedores === 'function') ? _getTodosProveedores() : [];
-      hasOp = !!(cfg.email_op_destino || cfg.email_comprobantes) && provs.length > 0;
-    } catch (eP) { hasOp = false; }
+    // ── Flags por cliente — qué flujos corren ──
+    // Por defecto: solo Acreedores (caso Iris y la mayoría de clientes Pro).
+    // Para activar Comercialización en un cliente (ej. CEYCO), agregar fila
+    // en config_operaciones: flow_comercializacion = true.
+    // El flag de Acreedores también es opt-out por si algún cliente
+    // quisiera deshabilitarlo (raro).
+    var flagAcr = String(cfg.flow_acreedor || 'true').toLowerCase() !== 'false';
+    var flagOp  = String(cfg.flow_comercializacion || 'false').toLowerCase() === 'true';
 
-    if (hasOp) {
+    // ── Flujo 1: Comercialización (Retail) ──
+    if (flagOp && (cfg.email_op_destino || cfg.email_comprobantes)) {
       try {
         var statsOp = sincronizarEmails();
         Logger.log('  ✓ Comercialización: ' + JSON.stringify(statsOp));
@@ -74,18 +71,20 @@ function ejecutarSincronizacionUnificada() {
         Logger.log('  ✗ Comercialización error: ' + errOp.message);
       }
     } else {
-      Logger.log('  ⏭ Comercialización: sin Proveedores Retail registrados — saltado');
+      Logger.log('  ⏭ Comercialización: deshabilitado (flow_comercializacion != true)');
     }
 
     // ── Flujo 2: Registro General / Acreedores ──
     var hasAcr = !!(cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes);
-    if (hasAcr && typeof _sincronizarEmailsAcreedores === 'function') {
+    if (flagAcr && hasAcr && typeof _sincronizarEmailsAcreedores === 'function') {
       try {
         var statsAcr = _sincronizarEmailsAcreedores();
         Logger.log('  ✓ Registro General: ' + JSON.stringify(statsAcr));
       } catch (errAcr) {
         Logger.log('  ✗ Registro General error: ' + errAcr.message);
       }
+    } else if (!flagAcr) {
+      Logger.log('  ⏭ Registro General: deshabilitado (flow_acreedor=false)');
     } else if (!hasAcr) {
       Logger.log('  ⏭ Registro General: sin email destino — saltado');
     }

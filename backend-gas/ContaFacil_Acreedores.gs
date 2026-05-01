@@ -150,11 +150,16 @@ function _getEmailAcrQuery() {
   // a facturas@balanceclip.net) y se valida en _esReenvioPermitidoAcr()
   // contra los headers X-Forwarded-For / Return-Path / Delivered-To
   // del raw content del mensaje.
+  //
+  // NOTA: NO usamos -label:cf_acreedor_procesado en el query — la dedup
+  // ocurre a nivel attachment via _pendientePorMsgIdFileName(), que es
+  // más confiable. Confiar solo en la label generaba el bug de "0 threads
+  // encontrados" cuando un run previo aplicaba la label sin completar el
+  // procesamiento (no había forma de reprocesar sin limpiar la label
+  // manualmente).
   var base = 'to:' + dest + ' has:attachment';
   Logger.log('📧 Query Acreedores: to:' + dest);
-
-  // Excluir: lo que Comercialización ya procesó Y lo que Acreedores ya procesó
-  return base + ' -label:procesado_cf_op -label:' + LABEL_ACREEDOR;
+  return base;
 }
 
 // Verifica que el email haya sido REENVIADO desde el remitente registrado.
