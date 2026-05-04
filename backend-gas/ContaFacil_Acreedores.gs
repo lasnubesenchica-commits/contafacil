@@ -278,6 +278,108 @@ function resetLabelsAcreedoresManual() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  PARSER XML DGI PANAMA — fallback cuando el PDF adjunto está vacío
+//
+//  Algunos proveedores (Petróleos Delta, PedidosYa, webposonline, etc)
+//  envían factura electrónica donde el PDF adjunto pesa 0 bytes y el
+//  documento real es el XML firmado por DGI. El XML tiene todos los
+//  campos estructurados, así que es MÁS confiable que OCR vía Claude.
+// ═══════════════════════════════════════════════════════════════
+
+function _findXmlAdjuntoEnLista(attachments) {
+  for (var i = 0; i < attachments.length; i++) {
+    var att  = attachments[i];
+    var name = (att.getName() || '').toLowerCase();
+    var mime = String(att.getContentType() || '').toLowerCase();
+    if (mime === 'text/xml' || mime === 'application/xml' || name.indexOf('.xml') !== -1) {
+      return att;
+    }
+  }
+  return null;
+}
+
+// Helper namespace-agnostic — busca un child por nombre local sin
+// importar el xmlns. Las facturas DGI usan dos namespaces anidados
+// y XmlService los maneja, pero es más robusto buscar por nombre.
+function _xmlChild(parent, name) {
+  if (!parent) return null;
+  var children = parent.getChildren();
+  for (var i = 0; i < children.length; i++) {
+    if (children[i].getName() === name) return children[i];
+  }
+  return null;
+}
+
+function _xmlText(parent, name) {
+  var c = _xmlChild(parent, name);
+  return c ? String(c.getText() || '').trim() : '';
+}
+
+function _parseFacturaXmlDgi(xmlString) {
+  // Strip BOM si está presente
+  if (xmlString && xmlString.charCodeAt(0) === 0xFEFF) {
+    xmlString = xmlString.substring(1);
+  }
+
+  var doc  = XmlService.parse(xmlString);
+  var root = doc.getRootElement(); // rContFe
+
+  // Navegar rContFe → xFe → rFE → gDGen / gItem / gTot
+  var xFe = _xmlChild(root, 'xFe');
+  if (!xFe) throw new Error('XML no contiene <xFe>');
+  var rFE = _xmlChild(xFe, 'rFE');
+  if (!rFE) throw new Error('XML no contiene <rFE>');
+
+  var gDGen = _xmlChild(rFE, 'gDGen');
+  if (!gDGen) throw new Error('XML no contiene <gDGen>');
+
+  // Emisor
+  var gEmis    = _xmlChild(gDGen, 'gEmis');
+  var gRucEmi  = gEmis ? _xmlChild(gEmis, 'gRucEmi') : null;
+  var rucEmi   = gRucEmi ? _xmlText(gRucEmi, 'dRuc') : '';
+  var dvEmi    = gRucEmi ? _xmlText(gRucEmi, 'dDV')  : '';
+  var nombEm   = gEmis   ? _xmlText(gEmis, 'dNombEm') : '';
+
+  // Receptor
+  var gDatRec  = _xmlChild(gDGen, 'gDatRec');
+  var gRucRec  = gDatRec ? _xmlChild(gDatRec, 'gRucRec') : null;
+  var rucRec   = gRucRec ? _xmlText(gRucRec, 'dRuc') : '';
+
+  // Documento
+  var dNroDF    = _xmlText(gDGen, 'dNroDF');
+  var dPtoFacDF = _xmlText(gDGen, 'dPtoFacDF');
+  var dFechaEm  = _xmlText(gDGen, 'dFechaEm');
+  var fecha     = dFechaEm ? dFechaEm.substring(0, 10) : '';
+
+  // Totales
+  var gTot      = _xmlChild(rFE, 'gTot');
+  var subtotal  = gTot ? parseFloat(_xmlText(gTot, 'dTotNeto'))  : 0;
+  var itbms     = gTot ? parseFloat(_xmlText(gTot, 'dTotITBMS')) : 0;
+  var total     = gTot ? parseFloat(_xmlText(gTot, 'dVTot'))     : 0;
+
+  // Descripción del primer item
+  var gItem        = _xmlChild(rFE, 'gItem');
+  var descripcion  = gItem ? _xmlText(gItem, 'dDescProd') : '';
+
+  // Construir num_factura: PtoFac-NroDF (formato Panameño)
+  var numFactura = dPtoFacDF ? (dPtoFacDF + '-' + dNroDF) : dNroDF;
+
+  return {
+    nombre_proveedor:    nombEm || '',
+    ruc_proveedor:       rucEmi ? (rucEmi + (dvEmi ? '-' + dvEmi : '')) : '',
+    ruc_receptor:        rucRec || '',
+    num_factura:         numFactura || '',
+    fecha:               fecha,
+    subtotal:            isNaN(subtotal) ? 0 : subtotal,
+    itbms:               isNaN(itbms)    ? 0 : itbms,
+    total:               isNaN(total)    ? 0 : total,
+    descripcion:         descripcion || '',
+    categoria_sugerida: '',  // El XML no infiere categoría — usuario clasifica manualmente
+    confianza_categoria: 0
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  SINCRONIZAR EMAILS — v2.0
 // ═══════════════════════════════════════════════════════════════
 
@@ -345,12 +447,45 @@ function _sincronizarEmailsAcreedores() {
           }
 
           var pdfBytes = att.getBytes();
-          var pdfB64   = Utilities.base64Encode(pdfBytes);
+          var parsed;
 
-          // ── Parsear con Claude — extrae proveedor y datos en una sola llamada ──
-          tieneAlgunAcreedor = true;
+          // ── Caso PDF vacío: facturas electrónicas DGI Panamá donde el ──
+          // ── proveedor adjunta el PDF como placeholder de 0 bytes y el ──
+          // ── XML firmado es el documento real (Petróleos Delta, PedidosYa, ──
+          // ── webposonline, etc). Fallback: parsear el XML directamente. ──
+          if (pdfBytes.length === 0) {
+            Logger.log('  ⚠️ PDF vacío: ' + fileName + ' — buscando XML hermano…');
+            var xmlAtt = _findXmlAdjuntoEnLista(attachments);
+            if (!xmlAtt) {
+              Logger.log('  ✗ Sin XML hermano — saltando ' + fileName);
+              todosListos = false;
+              continue;
+            }
+            try {
+              parsed = _parseFacturaXmlDgi(xmlAtt.getDataAsString());
+              Logger.log('  ✓ Parsed via XML DGI: ' + parsed.nombre_proveedor + ' / ' + parsed.num_factura + ' / ' + parsed.total);
+            } catch (eXml) {
+              Logger.log('  ✗ Error parseando XML DGI: ' + eXml.message);
+              todosListos = false;
+              stats.errores.push({ msgId: msgId, file: fileName, error: 'XML: ' + eXml.message });
+              continue;
+            }
+            tieneAlgunAcreedor = true;
+          } else {
+            // ── Path normal: PDF con contenido → Claude vision ──
+            tieneAlgunAcreedor = true;
+            var pdfB64 = Utilities.base64Encode(pdfBytes);
+            try {
+              parsed = _claudeParsearFacturaLibre(pdfB64, fileName);
+            } catch (eClaude) {
+              Logger.log('  ✗ Claude error: ' + eClaude.message);
+              todosListos = false;
+              stats.errores.push({ msgId: msgId, file: fileName, error: 'Claude: ' + eClaude.message });
+              continue;
+            }
+          }
+
           try {
-            var parsed   = _claudeParsearFacturaLibre(pdfB64, fileName);
             var acreedor = {
               id:            'LIBRE',
               nombre:        parsed.nombre_proveedor || fileName,
