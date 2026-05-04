@@ -585,6 +585,42 @@
       </div>
     </div>
 
+    <div class="section-label" style="margin-top:24px">Email pipeline</div>
+    <div class="form-grid">
+      <div class="field span2">
+        <label>Email del cliente que reenvía facturas <span class="req">*</span></label>
+        <input type="email" id="clientForwarderEmail" placeholder="cliente@gmail.com"/>
+        <span class="field-hint">El cliente reenvía facturas desde este email a <code>facturas@balanceclip.net</code>. <strong>CRÍTICO</strong>: solo emails con este remitente serán procesados (filtro estricto). Distinto del admin email.</span>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:24px">Módulos activos</div>
+    <div class="form-grid">
+      <div class="field span2">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="flow_acreedor" checked style="width:auto;margin:0"/>
+          <span>Registro General / Acreedores (recomendado, opt-out)</span>
+        </label>
+        <span class="field-hint">Procesa facturas de proveedores para gastos deducibles. Activado por defecto.</span>
+      </div>
+      <div class="field span2">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="flow_comercializacion" style="width:auto;margin:0"/>
+          <span>Comercialización / Retail</span>
+        </label>
+        <span class="field-hint">Solo si el cliente vende productos y procesa órdenes de compra retail. Tildar para activar.</span>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:24px">Credenciales del sistema</div>
+    <div class="form-grid">
+      <div class="field span2">
+        <label>Claude API Key <span class="req">*</span></label>
+        <input type="password" id="claudeApiKey" placeholder="sk-ant-…" style="font-family:var(--mono);font-size:12px"/>
+        <span class="field-hint">API key de Anthropic para parsing de facturas. Se setea como Script Property automáticamente al final del provisioning.</span>
+      </div>
+    </div>
+
     <div class="section-label" style="margin-top:24px">GitHub</div>
     <div class="form-grid">
       <div class="field span2">
@@ -885,22 +921,31 @@ function updateProgress() {
 function goStep2() {
   var errors = [];
   var vals = {
-    negocio:           document.getElementById('negocio').value.trim(),
-    empresa_comercial: document.getElementById('empresa_comercial').value.trim(),
-    adminEmail:        document.getElementById('adminEmail').value.trim(),
-    waNum:             document.getElementById('waNum').value.trim(),
-    empresa_ruc:       document.getElementById('empresa_ruc').value.trim(),
-    empresa_dv:        document.getElementById('empresa_dv').value.trim(),
-    itbms:             document.getElementById('itbms').value,
-    prefix:            document.getElementById('prefix').value.trim().toUpperCase(),
-    githubPat:         document.getElementById('githubPat').value.trim(),
+    negocio:              document.getElementById('negocio').value.trim(),
+    empresa_comercial:    document.getElementById('empresa_comercial').value.trim(),
+    adminEmail:           document.getElementById('adminEmail').value.trim(),
+    waNum:                document.getElementById('waNum').value.trim(),
+    empresa_ruc:          document.getElementById('empresa_ruc').value.trim(),
+    empresa_dv:           document.getElementById('empresa_dv').value.trim(),
+    itbms:                document.getElementById('itbms').value,
+    prefix:               document.getElementById('prefix').value.trim().toUpperCase(),
+    clientForwarderEmail: document.getElementById('clientForwarderEmail').value.trim(),
+    flow_acreedor:        document.getElementById('flow_acreedor').checked,
+    flow_comercializacion: document.getElementById('flow_comercializacion').checked,
+    claudeApiKey:         document.getElementById('claudeApiKey').value.trim(),
+    githubPat:             document.getElementById('githubPat').value.trim(),
   };
 
-  if (!vals.negocio)      errors.push('Nombre del negocio es requerido');
-  if (!vals.adminEmail)   errors.push('Email admin es requerido');
-  if (!vals.empresa_ruc)  errors.push('RUC es requerido');
-  if (!vals.prefix)       errors.push('Prefijo de IDs es requerido');
-  if (!vals.githubPat)    errors.push('GitHub Personal Access Token es requerido');
+  if (!vals.negocio)              errors.push('Nombre del negocio es requerido');
+  if (!vals.adminEmail)           errors.push('Email admin es requerido');
+  if (!vals.empresa_ruc)          errors.push('RUC es requerido');
+  if (!vals.prefix)               errors.push('Prefijo de IDs es requerido');
+  if (!vals.clientForwarderEmail) errors.push('Email del cliente que reenvía facturas es requerido');
+  if (!vals.claudeApiKey)         errors.push('Claude API key es requerido');
+  if (!vals.githubPat)            errors.push('GitHub Personal Access Token es requerido');
+  if (!vals.flow_acreedor && !vals.flow_comercializacion) {
+    errors.push('Activá al menos un módulo (Registro General o Comercialización)');
+  }
 
   var errEl = document.getElementById('err1');
   if (errors.length) {
@@ -1259,6 +1304,34 @@ function injectConfig(files) {
       source = source.replace(/SHEET_ID:\s*'[^']*'/, "SHEET_ID: '" + s.sheetId + "'");
     }
 
+    // Defensa: garantizar que appsscript.json declare los oauthScopes
+    // explícitamente. Sin esto el static analyzer de Apps Script puede
+    // omitir Gmail al pedir autorización (lo aprendimos hoy).
+    // Si el manifest del repo ya los trae, se mantienen idempotente.
+    if (f.name === 'appsscript') {
+      try {
+        var manifest = JSON.parse(source);
+        var requiredScopes = [
+          'https://www.googleapis.com/auth/gmail.modify',
+          'https://www.googleapis.com/auth/drive',
+          'https://www.googleapis.com/auth/spreadsheets',
+          'https://www.googleapis.com/auth/script.external_request',
+          'https://www.googleapis.com/auth/script.scriptapp',
+          'https://www.googleapis.com/auth/script.send_mail',
+          'https://www.googleapis.com/auth/userinfo.email'
+        ];
+        var existing = manifest.oauthScopes || [];
+        var merged = existing.slice();
+        requiredScopes.forEach(function(sc) {
+          if (merged.indexOf(sc) === -1) merged.push(sc);
+        });
+        manifest.oauthScopes = merged;
+        source = JSON.stringify(manifest, null, 2);
+      } catch (eMan) {
+        // Si el manifest no es JSON válido, dejamos pasar sin tocarlo.
+      }
+    }
+
     return { name: f.name, type: f.type, source: source };
   });
 }
@@ -1430,8 +1503,14 @@ async function registerInGitHub(scriptId, deploymentId) {
 //  guardarConfigInicial — pre-poblar Config_Operaciones en GAS
 // ═══════════════════════════════════════════════════════════
 async function guardarConfigInicial(webAppUrl) {
-  var clientId = (STATE.negocio || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  var bcEmail  = clientId + '@balanceclip.net';
+  // Modelo A — Buzón compartido facturas@balanceclip.net.
+  // Cada cliente discrimina por `email_*_remitente` (su propio
+  // forwarder). El remitente DEBE ser el email real del cliente
+  // que reenvía facturas, NO el admin email — sino el sistema
+  // pierde la capacidad de discriminar entre clientes en el buzón
+  // compartido (lo aprendimos hoy con el bug Iris/CEYCO).
+  var SHARED_INBOX = 'facturas@balanceclip.net';
+  var forwarder    = STATE.clientForwarderEmail;
   var payload = {
     action:             'guardarConfig',
     empresa_nombre:     STATE.negocio,
@@ -1442,12 +1521,17 @@ async function guardarConfigInicial(webAppUrl) {
     drive_folder_id:    STATE.folderId,
     itbms_rate:         STATE.itbms,
     prefijo_id:         STATE.prefix,
-    email_op_destino:    bcEmail,
-    email_op_remitente:  STATE.adminEmail,
-    email_st_destino:    bcEmail,
-    email_st_remitente:  STATE.adminEmail,
-    email_acr_destino:   bcEmail,
-    email_acr_remitente: STATE.adminEmail,
+    // Buzón destino — el mismo para todos los clientes en Modelo A
+    email_op_destino:    SHARED_INBOX,
+    email_st_destino:    SHARED_INBOX,
+    email_acr_destino:   SHARED_INBOX,
+    // Remitente autorizado — el del cliente, NO el admin
+    email_op_remitente:  forwarder,
+    email_st_remitente:  forwarder,
+    email_acr_remitente: forwarder,
+    // Módulos activos
+    flow_acreedor:         STATE.flow_acreedor         ? 'true' : 'false',
+    flow_comercializacion: STATE.flow_comercializacion ? 'true' : 'false',
   };
   var res = await fetch(webAppUrl, {
     method: 'POST',
@@ -1550,19 +1634,25 @@ function buildOutputs() {
     ? s.sheetUrl.replace('/edit', '') + '/edit#gid=0'
     : null;
 
+  var moduloTexto = [];
+  if (s.flow_acreedor)         moduloTexto.push('Registro General');
+  if (s.flow_comercializacion) moduloTexto.push('Comercialización');
+  var moduloDesc = moduloTexto.length
+    ? 'Procesa emails cada 15 min para: <strong>' + moduloTexto.join(' + ') + '</strong>. El trigger respeta los flags <code>flow_*</code> en config_operaciones.'
+    : 'Sin módulos activos — el trigger no procesará emails. Activá al menos uno en config_operaciones.';
+
   var checkItems = [
     {
-      title: 'Configurar CLAUDE_API_KEY en Script Properties',
-      desc: 'En el editor GAS: ícono de engranaje → Script Properties → Agregar propiedad CLAUDE_API_KEY con tu API key de Anthropic.',
-      link: scriptPropsUrl || gasEditorUrl,
-      linkText: 'Abrir Script Properties →',
-    },
-    {
-      title: 'Inicializar hojas y triggers',
-      desc: 'Abrí el editor GAS y ejecutá <code>inicializarSistema()</code> una vez para autorizar los permisos de Google. Después podés usar el botón de abajo para inicializar desde acá.',
+      title: 'Inicializar sistema + setear credenciales',
+      desc: 'Inicializa hojas + setea CLAUDE_API_KEY como Script Property + autogenera AUTH_RESET_TOKEN. <strong>Si es la primera vez</strong> y el editor GAS no autorizó scopes todavía, abrí el editor y corré <code>forzarAutorizacionScopes()</code> una vez para aceptar los permisos completos (Gmail, Drive, Sheets).',
       link: gasEditorUrl,
       linkText: 'Abrir editor GAS →',
       hasInitBtn: true,
+    },
+    {
+      title: 'Activar sync automático (trigger unificado)',
+      desc: moduloDesc + ' La función <code>ejecutarSincronizacionUnificada</code> corre cada 15 minutos.',
+      hasTriggerBtn: 'unificado',
     },
     {
       title: s.adminUrl ? 'Verificar carpeta admin en GitHub Pages' : 'Configurar GAS_URL en la carpeta admin',
@@ -1575,32 +1665,23 @@ function buildOutputs() {
       linkText: s.adminUrl ? 'Abrir admin →' : 'Abrir Web App →',
     },
     {
-      title: 'Inicializar y verificar Config_Operaciones',
-      desc: 'Este paso falla en proyectos nuevos porque el script GAS necesita autorización previa. <strong>Flujo correcto:</strong> (1) Corré <code>inicializarSistema()</code> en el editor GAS para autorizar permisos → (2) usá el botón de abajo para poblar la config automáticamente.',
+      title: 'Re-poblar Config_Operaciones (si es necesario)',
+      desc: 'El config se pre-pobló durante el provisioning (destino + remitente + flags de módulos). Usá este botón si necesitás re-aplicar la config (ej. después de un re-init manual del Sheet).',
       link: s.sheetUrl,
       linkText: 'Abrir Google Sheet →',
       hasRetryConfigBtn: true,
-    },
-    {
-      title: 'Activar trigger Comercialización',
-      desc: 'Instala el trigger que revisa el Gmail del cliente cada 15 min buscando facturas de proveedores. Solo activar si el cliente usa el módulo de Comercialización.',
-      hasTriggerBtn: 'comercializacion',
-    },
-    {
-      title: 'Activar trigger Proyectos (ST)',
-      desc: 'Instala el trigger que procesa emails de Servicios Técnicos cada 15 min. Solo activar si el cliente usa el módulo de Proyectos.',
-      hasTriggerBtn: 'proyectos',
-    },
-    {
-      title: 'Activar trigger Registro General',
-      desc: 'Instala el trigger que procesa emails de Acreedores/Registro General cada 15 min. Solo activar si el cliente usa Registro General.',
-      hasTriggerBtn: 'acreedores',
     },
     {
       title: 'Health check del Web App',
       desc: 'Abrir la URL en el browser — debe responder JSON con success:true y los datos de la empresa.',
       link: healthCheckUrl,
       linkText: 'Abrir health check →',
+    },
+    {
+      title: 'Compartir URL del dashboard con el cliente',
+      desc: 'Dashboard del cliente: <code>' + (s.adminUrl || 'https://balanceclip.net/&lt;clientId&gt;/') + '</code>. El primer login hace SETUP de password (auth Option 2). Compartí también el AUTH_RESET_TOKEN al admin (mostrado al inicializar) para reset de password.',
+      link: s.adminUrl,
+      linkText: s.adminUrl ? 'Abrir dashboard →' : null,
     },
   ];
 
@@ -1651,17 +1732,35 @@ async function inicializarSistemaRemoto() {
   var btn = document.getElementById('btnInicializarSistema');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Inicializando...'; }
   try {
-    var resp = await fetch(STATE.webAppUrl + '?action=inicializarSistema');
+    // POST con credenciales: el handler las setea como Script Properties.
+    // CLAUDE_API_KEY se inyecta acá — evita el paso manual del editor GAS.
+    // AUTH_RESET_TOKEN se autogenera en backend si no se pasa, y se devuelve
+    // en la respuesta para que el admin lo guarde.
+    var resp = await fetch(STATE.webAppUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action:        'inicializarSistema',
+        claudeApiKey:  STATE.claudeApiKey || '',
+      }),
+    });
     var data = await resp.json();
     if (data.success) {
+      // Guardar el AUTH_RESET_TOKEN devuelto para mostrarlo al admin.
+      if (data.authResetToken) {
+        STATE.authResetToken = data.authResetToken;
+      }
       if (btn) { btn.textContent = '✅ Sistema inicializado'; btn.style.background = 'var(--green)'; }
+      if (data.authResetToken) {
+        alert('Sistema inicializado.\n\nGuardá este AUTH_RESET_TOKEN en lugar seguro (necesario para reset de password de admin):\n\n' + data.authResetToken);
+      }
     } else {
       if (btn) { btn.disabled = false; btn.textContent = '⚙ Inicializar hojas y triggers →'; }
       alert('Error: ' + (data.message || 'desconocido'));
     }
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '⚙ Inicializar hojas y triggers →'; }
-    alert('Error de red: ' + e.message + '\n\nAsegurate de haber ejecutado inicializarSistema() en el editor GAS primero para autorizar los permisos.');
+    alert('Error de red: ' + e.message + '\n\nSi es la primera vez, abrí el editor GAS y corré forzarAutorizacionScopes() una vez para aceptar los permisos completos.');
   }
 }
 
@@ -1670,26 +1769,23 @@ async function activarTrigger(tipo) {
     alert('No hay Web App URL. Completá el provisioning primero.');
     return;
   }
-  var acciones = {
-    comercializacion: 'instalarTriggerComercializacion',
-    proyectos:        'instalarTriggerProyectos',
-    acreedores:       'instalarTriggerAcreedores',
-  };
-  var accion = acciones[tipo];
-  if (!accion) return;
+  // El único trigger soportado es el unificado. Los handlers viejos
+  // (instalarTriggerComercializacion / Proyectos / Acreedores) quedan
+  // como legacy en el backend pero el provisioner ya no los expone.
+  // ejecutarSincronizacionUnificada respeta los flags flow_* del config.
   var btn = document.getElementById('btnTrigger_' + tipo);
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Activando...'; }
   try {
-    var resp = await fetch(STATE.webAppUrl + '?action=' + accion);
+    var resp = await fetch(STATE.webAppUrl + '?action=installSyncTrigger');
     var data = await resp.json();
     if (data.success) {
-      if (btn) { btn.textContent = '✅ Trigger activo'; btn.style.background = 'var(--green)'; }
+      if (btn) { btn.textContent = '✅ Trigger activo (cada 15 min)'; btn.style.background = 'var(--green)'; }
     } else {
-      if (btn) { btn.disabled = false; btn.textContent = '▶ Activar trigger →'; }
-      alert('Error: ' + (data.error || 'desconocido') + '\n\nAsegurate de haber ejecutado inicializarSistema() en el editor GAS primero.');
+      if (btn) { btn.disabled = false; btn.textContent = '▶ Activar sync automático →'; }
+      alert('Error: ' + (data.error || data.message || 'desconocido'));
     }
   } catch (e) {
-    if (btn) { btn.disabled = false; btn.textContent = '▶ Activar trigger →'; }
+    if (btn) { btn.disabled = false; btn.textContent = '▶ Activar sync automático →'; }
     alert('Error de red: ' + e.message);
   }
 }
@@ -1702,12 +1798,17 @@ function restart() {
     bcFolderId: null,
     negocio: '', empresa_comercial: '', adminEmail: '', waNum: '',
     empresa_ruc: '', empresa_dv: '', itbms: '0.07', prefix: 'RP', githubPat: '',
+    clientForwarderEmail: '', flow_acreedor: true, flow_comercializacion: false,
+    claudeApiKey: '', authResetToken: null,
   };
   // Reset form
-  ['negocio','empresa_comercial','adminEmail','waNum','empresa_ruc','empresa_dv','prefix','manualToken','clientId','githubPat'].forEach(function(id) {
+  ['negocio','empresa_comercial','adminEmail','waNum','empresa_ruc','empresa_dv','prefix','manualToken','clientId','githubPat','clientForwarderEmail','claudeApiKey'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
+  // Reset checkboxes
+  var fa = document.getElementById('flow_acreedor');         if (fa) fa.checked = true;
+  var fc = document.getElementById('flow_comercializacion'); if (fc) fc.checked = false;
   document.getElementById('itbms').value = '0.07';
   document.getElementById('authStatus').classList.remove('show');
   document.getElementById('btnNext2').disabled = true;

@@ -294,6 +294,8 @@ function doPost(e) {
     }
     // ── CONFIGURACIÓN OPERACIONES ──────────────────────────────
     if (action === 'guardarConfig') return _handleGuardarConfig(data);
+    if (action === 'inicializarSistema') return _handleInicializarSistema(data, '');
+    if (action === 'installSyncTrigger') return _handleInstallUnifiedSyncTrigger(data, '');
     // ── PROVEEDORES ────────────────────────────────────────────
     if (action === 'analizarFacturaEjemplo') return _handleAnalizarFacturaEjemplo(data);
     if (action === 'guardarProveedor')       return _handleGuardarProveedor(data);
@@ -673,6 +675,7 @@ function doGet(e) {
 
     // ── INICIALIZACIÓN ──────────────────────────────────────────
     if (action === 'inicializarSistema')              return _handleInicializarSistema(params, callback);
+    if (action === 'installSyncTrigger')              return _handleInstallUnifiedSyncTrigger(params, callback);
     if (action === 'instalarTriggerComercializacion') return _handleInstalarTriggerOp({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerProyectos')        return _handleInstalarTriggerST({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerAcreedores')       return _handleInstalarTriggerAcr({ intervalo: params.intervalo || '15' });
@@ -1255,9 +1258,27 @@ function inicializarSistema() {
 }
 
 function _handleInicializarSistema(params, callback) {
-  var result = { success: false, message: '' };
+  var result = { success: false, message: '', authResetToken: null };
   try {
     inicializarSistema();
+
+    // Guardar credenciales del provisioner si vienen en el request.
+    // El provisioner las pasa una sola vez al final del setup para
+    // evitar que el admin tenga que entrar manualmente al editor GAS
+    // a setear Script Properties después del deploy.
+    var props = PropertiesService.getScriptProperties();
+    if (params && params.claudeApiKey) {
+      props.setProperty('CLAUDE_API_KEY', String(params.claudeApiKey));
+    }
+    if (params && params.authResetToken) {
+      props.setProperty('AUTH_RESET_TOKEN', String(params.authResetToken));
+    } else if (!props.getProperty('AUTH_RESET_TOKEN')) {
+      // Auto-generar si no existe ni viene en params
+      var generated = Utilities.getUuid().replace(/-/g, '');
+      props.setProperty('AUTH_RESET_TOKEN', generated);
+      result.authResetToken = generated;
+    }
+
     result.success = true;
     result.message = 'Sistema inicializado correctamente.';
   } catch (e) {
