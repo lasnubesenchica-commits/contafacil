@@ -110,6 +110,42 @@ function installSyncTrigger() {
   Logger.log('Trigger instalado — cada 15 minutos');
 }
 
+// ════════════════════════════════════════════════════════════════
+//  Trigger UNIFICADO — recomendado para clientes nuevos.
+//  Instala ejecutarSincronizacionUnificada que respeta los flags
+//  flow_acreedor / flow_comercializacion del config_operaciones.
+//  Limpia cualquier trigger legacy (syncEmailsTrigger) o duplicado
+//  para evitar doble procesamiento del inbox.
+// ════════════════════════════════════════════════════════════════
+function installUnifiedSyncTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  var legacy = ['syncEmailsTrigger', 'ejecutarSincronizacionUnificada'];
+  for (var i = 0; i < triggers.length; i++) {
+    if (legacy.indexOf(triggers[i].getHandlerFunction()) !== -1) {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('ejecutarSincronizacionUnificada')
+    .timeBased()
+    .everyMinutes(15)
+    .create();
+  Logger.log('✓ Trigger unificado instalado — cada 15 min');
+  return { success: true, function: 'ejecutarSincronizacionUnificada', intervalo: 15 };
+}
+
+function _handleInstallUnifiedSyncTrigger(data, callback) {
+  var result;
+  try {
+    result = installUnifiedSyncTrigger();
+  } catch (e) {
+    result = { success: false, error: e.message };
+    Logger.log('Error instalando trigger unificado: ' + e.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
 function pauseSyncTrigger() {
   var triggers = ScriptApp.getProjectTriggers();
   var count = 0;
