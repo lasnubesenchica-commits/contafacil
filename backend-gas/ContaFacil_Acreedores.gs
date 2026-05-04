@@ -143,23 +143,43 @@ function _getEmailAcrQuery() {
     return null;
   }
 
-  // IMPORTANTE: NO filtramos por `from:` aquí. Las facturas llegan de
-  // múltiples proveedores (PEDIDOSYA, FedEx, Arrocha, etc.) — el campo
-  // From: es siempre el proveedor que emitió la factura. El "remitente
-  // permitido" es el reenviador (cuenta del cliente que auto-forwardea
-  // a facturas@balanceclip.net) y se valida en _esReenvioPermitidoAcr()
-  // contra los headers X-Forwarded-For / Return-Path / Delivered-To
-  // del raw content del mensaje.
+  // Query AMPLIO + validación de destino en código.
   //
-  // Excluimos threads ya procesados con la label cf_acreedor_procesado
-  // para evitar iteración redundante. Si un thread quedó "stuck" con la
-  // label pero sin pendientes registrados, _handleResetLabelsAcreedores()
-  // lo limpia (PR #156). La dedup a nivel attachment vía
-  // _pendientePorMsgIdFileName sigue siendo el guard final por si la
-  // label se cae o un thread es re-leído.
-  var base = 'to:' + dest + ' has:attachment -label:' + LABEL_ACREEDOR;
-  Logger.log('📧 Query Acreedores: to:' + dest);
+  // Por qué amplio: Gmail NO indexa de forma confiable el alias destino
+  // cuando el email viene por una cadena de auto-forward (proveedor →
+  // gmail personal del cliente → caf_ → alias → hostinger → inbox).
+  // En esos casos `to:<alias>` no matchea aunque el header
+  // X-Forwarded-To / Received: for <alias> esté presente. Caso real:
+  // factura PedidosYA #0044590513 confirmada visible en inbox pero
+  // invisible para `to:`, `deliveredto:` y free-text del alias.
+  //
+  // Cubrimos ambos casos:
+  //   1. Envíos directos al alias — siempre los matchea Gmail.
+  //   2. Auto-forwards en cadena — NO los matchea Gmail; los detectamos
+  //      validando que el alias aparezca en los headers del mensaje
+  //      (función `_emailDestinoEsAlias` antes de procesar).
+  //
+  // `newer_than:14d` acota el universo a un periodo razonable. El
+  // trigger corre cada 15 min, así que 14d cubre cualquier rezago.
+  // Para backfill inicial se puede subir manualmente.
+  var base = 'has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
+  Logger.log('📧 Query Acreedores (broad): ' + base + ' | dest=' + dest);
   return base;
+}
+
+// Valida que el mensaje haya sido entregado/reenviado al alias
+// configurado, escaneando el bloque de headers del raw content.
+// Necesario porque el query es amplio (ver _getEmailAcrQuery).
+function _emailDestinoEsAlias(msg, dest) {
+  if (!dest) return true;
+  try {
+    var raw  = String(msg.getRawContent() || '').toLowerCase();
+    var head = raw.substring(0, 12000);
+    return head.indexOf(String(dest).toLowerCase()) !== -1;
+  } catch (e) {
+    Logger.log('  ⚠️ No se pudo validar destino: ' + e.message);
+    return false;
+  }
 }
 
 // Verifica que el email haya sido REENVIADO desde el remitente registrado.
@@ -278,7 +298,8 @@ function _sincronizarEmailsAcreedores() {
   try { cfg = _getConfig(); } catch(e) {}
 
   var label   = _getOrCreateLabelAcr(LABEL_ACREEDOR);
-  var threads = GmailApp.search(query, 0, 50);
+  var dest    = (cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes || '').trim();
+  var threads = GmailApp.search(query, 0, 100);
   Logger.log('📬 Threads para Acreedores: ' + threads.length);
 
   for (var t = 0; t < threads.length; t++) {
@@ -286,8 +307,17 @@ function _sincronizarEmailsAcreedores() {
     for (var m = 0; m < messages.length; m++) {
       var msg = messages[m];
       try {
+        var msgId = msg.getId();
+
+        // ── Validar que el mensaje fue entregado al alias configurado ──
+        // (El query es amplio, así que filtramos aquí los emails del
+        //  inbox que no son para nuestro alias.)
+        if (!_emailDestinoEsAlias(msg, dest)) {
+          stats.ignorados = (stats.ignorados || 0) + 1;
+          continue;
+        }
+
         var attachments        = msg.getAttachments();
-        var msgId              = msg.getId();
         var todosListos        = true;   // sin errores de parse = ok para poner label
         var tieneAlgunAcreedor = false;  // al menos un adjunto fue de acreedor
 
