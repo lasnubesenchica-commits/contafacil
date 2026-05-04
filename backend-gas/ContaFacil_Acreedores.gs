@@ -162,8 +162,36 @@ function _getEmailAcrQuery() {
   // `newer_than:14d` acota el universo a un periodo razonable. El
   // trigger corre cada 15 min, así que 14d cubre cualquier rezago.
   // Para backfill inicial se puede subir manualmente.
-  var base = 'has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
-  Logger.log('📧 Query Acreedores (broad): ' + base + ' | dest=' + dest);
+  // Estrategia de query — dos modos según config:
+  //
+  // MODO LABEL (recomendado, post-Workspace migration):
+  //   Si `email_acr_label` está configurado, el buzón Workspace ya
+  //   etiquetó los emails relevantes via filtro nativo (ej. label
+  //   "cf-iris" para todo lo reenviado por i.edilsa31). El query es
+  //   limpio: `label:<label> has:attachment -label:<processed>`.
+  //   La validación de destino (`_emailDestinoEsAlias`) se omite
+  //   porque el filtro de Workspace ya pre-cualificó el mensaje.
+  //
+  // MODO LEGACY (pre-Workspace, single-mailbox compartido):
+  //   Si no hay `email_acr_label`, fallback al query amplio
+  //   `has:attachment newer_than:14d` con validación de destino
+  //   en código. Necesario porque Gmail no indexa de forma confiable
+  //   el alias cuando el email viene por auto-forward en cadena
+  //   (proveedor → gmail personal → caf_ → alias → forwarder → inbox).
+  //   Caso real: factura PedidosYA #0044590513 invisible para
+  //   `to:`/`deliveredto:`/free-text del alias.
+  //
+  // En ambos modos, `_esReenvioPermitidoAcr` aplica defense-in-depth
+  // validando que el remitente registrado aparezca en headers.
+  var inboxLabel = String(cfg.email_acr_label || '').trim();
+  var base;
+  if (inboxLabel) {
+    base = 'label:' + inboxLabel + ' has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
+    Logger.log('📧 Query Acreedores (label-scoped): ' + base);
+  } else {
+    base = 'has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
+    Logger.log('📧 Query Acreedores (broad legacy): ' + base + ' | dest=' + dest);
+  }
   return base;
 }
 
@@ -291,9 +319,10 @@ function _sincronizarEmailsAcreedores() {
   var cfg = {};
   try { cfg = _getConfig(); } catch(e) {}
 
-  var label   = _getOrCreateLabelAcr(LABEL_ACREEDOR);
-  var dest    = (cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes || '').trim();
-  var threads = GmailApp.search(query, 0, 100);
+  var label      = _getOrCreateLabelAcr(LABEL_ACREEDOR);
+  var dest       = (cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes || '').trim();
+  var inboxLabel = String(cfg.email_acr_label || '').trim();
+  var threads    = GmailApp.search(query, 0, 100);
   Logger.log('📬 Threads para Acreedores: ' + threads.length);
 
   for (var t = 0; t < threads.length; t++) {
@@ -304,9 +333,9 @@ function _sincronizarEmailsAcreedores() {
         var msgId = msg.getId();
 
         // ── Validar que el mensaje fue entregado al alias configurado ──
-        // (El query es amplio, así que filtramos aquí los emails del
-        //  inbox que no son para nuestro alias.)
-        if (!_emailDestinoEsAlias(msg, dest)) {
+        // Solo en modo legacy (sin email_acr_label). En modo label el
+        // filtro nativo de Workspace ya pre-cualificó el mensaje.
+        if (!inboxLabel && !_emailDestinoEsAlias(msg, dest)) {
           stats.ignorados = (stats.ignorados || 0) + 1;
           continue;
         }

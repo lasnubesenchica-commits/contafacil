@@ -55,6 +55,26 @@ deploy list yet.
 - Frontend stores `bc_authed=1` in `localStorage` to suppress
   re-prompt on the same device after a successful unlock.
 
+## Email pipeline (Acreedores / Comercialización)
+- Inbound mail for all clients lands at the Workspace mailbox
+  `facturas@balanceclip.net` (Google Workspace, MX = Google).
+- Workspace Gmail filters apply per-client labels on receipt
+  (e.g. `cf-iris` for everything matching Iris's forwarder, `cf-ceyco`
+  for CEYCO, etc.). The filter trigger is typically free-text match
+  of the configured `email_acr_remitente` so it catches both direct
+  forwards and Gmail caf_ rewrites.
+- Each client's `config_operaciones` has:
+  - `email_acr_destino` — the alias the client forwards to (legacy
+    `to:` matching) — `facturas@balanceclip.net` for all clients now.
+  - `email_acr_remitente` — the authorized forwarder address (e.g.
+    Iris's personal Gmail). Validated in code per-message.
+  - `email_acr_label` — the Gmail label applied by Workspace filter.
+    When present, the script queries `label:<X>` directly (efficient).
+    When absent, falls back to broad search + dest header validation
+    (legacy compat).
+- Apps Script projects must be authorized by `facturas@balanceclip.net`
+  to read its inbox. Triggers are installed under that user.
+
 ## Conventions
 - Spanish UI copy, English code/comments.
 - Open PRs (squash merge), don't push directly to `main`.
