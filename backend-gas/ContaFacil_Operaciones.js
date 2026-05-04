@@ -560,8 +560,19 @@ function sincronizarEmails() {
   // NO filtramos por from: aquí — lo validamos en el loop con
   // _esReenvioPermitidoOp() para soportar la cadena de reenvío
   // (auto-forward del cliente → alias central → cuenta del script).
+  //
+  // MULTI-TENANT: si `email_op_label` está seteado en config, usamos
+  // ese label como filtro principal. CRÍTICO en buzones Workspace
+  // compartidos (`facturas@balanceclip.net`) entre varios clientes —
+  // sin label-scoping, el trigger de CEYCO podría procesar emails de
+  // Iris (Comercialización es opt-in y tomaría cualquier email del
+  // buzón con `to:` matching, robando facturas de otro cliente).
   var query;
-  if (cfg.email_op_destino) {
+  var inboxLabelOp = String(cfg.email_op_label || '').trim();
+  if (inboxLabelOp) {
+    query = 'label:' + inboxLabelOp + ' has:attachment -label:procesado_cf_op';
+    Logger.log('📧 Query Retail (label-scoped): ' + query);
+  } else if (cfg.email_op_destino) {
     query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op';
     Logger.log('📧 Query Retail: to:' + cfg.email_op_destino);
   } else if (cfg.email_comprobantes) {
