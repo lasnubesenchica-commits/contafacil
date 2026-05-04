@@ -1176,7 +1176,7 @@ async function goStep3() {
     updateLog(l6, '⚠️', 'No se pudo registrar en GitHub: ' + e.message + ' — hacelo manual');
   }
 
-  // 7. Crear carpeta admin del cliente (copia de ceyco/ con GAS_URL reemplazado)
+  // 7. Crear carpeta admin del cliente (copia de iris-albelo-ho/ con GAS_URL reemplazado)
   var clientId = STATE.negocio.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   var l7 = addLog('', 'Creando carpeta admin del cliente...', '', true);
   await sleep(300);
@@ -1434,7 +1434,11 @@ async function createGasProject(files) {
 }
 
 async function createAdminFolder(clientId, webAppUrl) {
-  var DIRS = ['ceyco', 'ceyco/app', 'ceyco/reportes'];
+  // Template base: iris-albelo-ho/ (estructura de cliente típico de
+  // Modelo A — solo Acreedores, sin Comercialización). Si el cliente
+  // nuevo activa Comercialización, los reportes generales sirven igual.
+  var TEMPLATE = 'iris-albelo-ho';
+  var DIRS = [TEMPLATE, TEMPLATE + '/app', TEMPLATE + '/reportes'];
   var SKIP = ['deploy.html'];  // archivos que no se copian
 
   for (var dir of DIRS) {
@@ -1456,18 +1460,18 @@ async function createAdminFolder(clientId, webAppUrl) {
         );
       }
 
-      // Reemplazar branding CEYCO con el nombre del cliente
-      content = content.replace(/Admin — CEYCO/g, 'Admin — ' + STATE.negocio);
-      content = content.replace(/>CEYCO</g, '>' + STATE.negocio + '<');
-      content = content.replace(/placeholder="CEYCO"/g, 'placeholder="' + STATE.prefix + '"');
+      // Reemplazar branding "Iris Albelo Ho" con el nombre del cliente
+      content = content.replace(/Admin — Iris Albelo Ho/g, 'Admin — ' + STATE.negocio);
+      content = content.replace(/Iris Albelo Ho · Registro General/g, STATE.negocio + ' · Registro General');
+      content = content.replace(/>Iris Albelo Ho</g, '>' + STATE.negocio + '<');
 
-      // Reemplazar mobile redirect hardcodeado (meta http-equiv refresh)
+      // Reemplazar mobile redirect hardcodeado a iris-albelo-ho
       content = content.replace(
         /<meta http-equiv="refresh" content="0;url=https:\/\/balanceclip\.net\/[^"]*">/g,
         '<meta http-equiv="refresh" content="0;url=https://balanceclip.net/' + clientId + '/app">'
       );
 
-      var newPath = item.path.replace(/^ceyco\//, clientId + '/');
+      var newPath = item.path.replace(new RegExp('^' + TEMPLATE + '/'), clientId + '/');
       await githubPutFile(newPath, content, 'provisioner: admin ' + clientId, null);
     }
   }
@@ -1601,7 +1605,7 @@ function buildOutputs() {
       title: s.adminUrl ? 'Carpeta admin creada en GitHub' : 'Carpeta admin — pendiente (crear manualmente)',
       desc: s.adminUrl
         ? 'Admin URL: ' + s.adminUrl
-        : 'Copiar carpeta ceyco/ a ' + (s.negocio || 'cliente').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '/ y reemplazar GAS_URL.',
+        : 'Copiar carpeta iris-albelo-ho/ a ' + (s.negocio || 'cliente').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '/ y reemplazar GAS_URL.',
       link: s.adminUrl,
       linkText: 'Abrir admin →',
     },
@@ -1659,8 +1663,8 @@ function buildOutputs() {
       desc: s.adminUrl
         ? 'La carpeta admin fue creada con GAS_URL ya inyectado. Verificar que GitHub Pages esté activo en el repo.'
         : (s.webAppUrl
-          ? 'Web App URL: ' + s.webAppUrl + ' — copiar ceyco/ a la carpeta del cliente y reemplazar GAS_URL.'
-          : 'Primero completar el deploy GAS, luego copiar ceyco/ al cliente y reemplazar GAS_URL.'),
+          ? 'Web App URL: ' + s.webAppUrl + ' — copiar iris-albelo-ho/ a la carpeta del cliente y reemplazar GAS_URL.'
+          : 'Primero completar el deploy GAS, luego copiar iris-albelo-ho/ al cliente y reemplazar GAS_URL.'),
       link: s.adminUrl || s.webAppUrl,
       linkText: s.adminUrl ? 'Abrir admin →' : 'Abrir Web App →',
     },
