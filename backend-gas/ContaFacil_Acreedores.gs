@@ -190,18 +190,21 @@ function _emailDestinoEsAlias(msg, dest) {
 // Esto soporta el caso real donde una persona reenvía facturas de
 // múltiples proveedores a un alias central (facturas@balanceclip.net),
 // sin abrir la puerta a spam de cualquier remitente.
+// Verifica que el email haya sido REENVIADO desde el remitente registrado
+// en config (`email_acr_remitente`). Aceptamos como evidencia cualquiera
+// de estos marcadores en los headers raw:
+//   1. <rem> exacto                     — X-Forwarded-For, Delivered-To,
+//                                          Resent-From, Received: from
+//   2. <localpart>+caf_=...@<domain>    — Gmail confirmed-auto-forwarder
+//                                          rewrite del Return-Path (caso
+//                                          de auto-forward Gmail nativo)
+//
+// Si no hay remitente configurado en cfg → return true (instalación
+// sin restricción de origen). Si está configurado y el email no muestra
+// ningún marcador → rechazamos.
 function _esReenvioPermitidoAcr(msg) {
   var cfg = {};
   try { cfg = _getConfig(); } catch(e) {}
-
-  // Modo estricto opt-in: solo si el cliente lo activa explícitamente.
-  // Por defecto aceptamos cualquier mensaje que haya llegado al alias
-  // privado (el `to:` del query ya es el gate). Esto soporta el caso
-  // real de Iris donde el contador (finanzas@contecpma.com) reenvía
-  // facturas manualmente — esos correos llegan al alias correcto pero
-  // no llevan los headers del remitente registrado.
-  var estricto = String(cfg.email_acr_estricto || 'false').toLowerCase() === 'true';
-  if (!estricto) return true;
 
   var rem = String(cfg.email_acr_remitente || cfg.email_op_remitente || '').trim().toLowerCase();
   if (!rem) return true;
@@ -209,21 +212,12 @@ function _esReenvioPermitidoAcr(msg) {
   var localPart = rem.split('@')[0] || rem;
   var pat_caf   = localPart + '+caf_';
 
-  // Aceptamos cualquiera de estos marcadores como evidencia de que el email
-  // fue reenviado por el remitente registrado:
-  //   1. <rem> exacto                     — X-Forwarded-For, Delivered-To
-  //   2. <localpart>+caf_=...@<domain>    — Gmail confirmed-auto-forwarder
-  //                                          rewrite del Return-Path
-  //   3. resent-from: <rem>               — header Resent-From explícito
-  var localPart = rem.split('@')[0] || rem;
-  var pat_caf   = localPart + '+caf_';
-
   try {
-    var raw = String(msg.getRawContent() || '').toLowerCase();
+    var raw  = String(msg.getRawContent() || '').toLowerCase();
     // Header block está al inicio. Limitamos a 12k para evitar leer body
     // grandes (PDFs base64 inflados pueden ser MB).
     var head = raw.substring(0, 12000);
-    if (head.indexOf(rem) !== -1)     return true;
+    if (head.indexOf(rem)     !== -1) return true;
     if (head.indexOf(pat_caf) !== -1) return true;
     return false;
   } catch (e) {
@@ -331,20 +325,6 @@ function _sincronizarEmailsAcreedores() {
           stats.ignorados = (stats.ignorados || 0) + 1;
           continue;
         }
-
-        // Diagnóstico temporal: loguear cada attachment del thread con
-        // su name/mime/size para detectar casos raros (PDFs vacíos,
-        // facturas DGI sólo XML, etc.). Quitar cuando ya no haga falta.
-        try {
-          var _subjDbg = String(msg.getSubject() || '').substring(0, 60);
-          Logger.log('  📎 msg=' + msgId + ' | subj=' + _subjDbg + ' | atts=' + attachments.length);
-          for (var _d = 0; _d < attachments.length; _d++) {
-            var _a = attachments[_d];
-            var _sz = -1;
-            try { _sz = _a.getBytes().length; } catch(eSz){ _sz = 'ERR:' + eSz.message; }
-            Logger.log('     [' + _d + '] name=' + _a.getName() + ' | mime=' + _a.getContentType() + ' | bytes=' + _sz);
-          }
-        } catch(eDbg) { Logger.log('  ⚠️ debug attachments: ' + eDbg.message); }
 
         for (var a = 0; a < attachments.length; a++) {
           var att  = attachments[a];
@@ -883,7 +863,13 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   var rucRec = String(parsed.ruc_receptor || '').replace(/\s/g, '');
   var _cfgAcr = _getConfig();
   var rucCli = String(_cfgAcr && _cfgAcr.empresa_ruc ? _cfgAcr.empresa_ruc : '').replace(/\s/g, '');
-  var alcancePend = (rucRec && rucCli && rucRec === rucCli) ? 'negocio' : (rucRec ? 'personal' : 'negocio');
+  // Alcance:
+  //   negocio  → deducible (factura a nombre de la empresa: rucRec coincide con empresa_ruc)
+  //   personal → no deducible (factura a consumidor final / a otra persona)
+  // Si la factura no trae RUC del receptor (consumidor final, "Cliente
+  // Genérico", etc.) en Panamá NO es ITBMS-acreditable ni deducible
+  // del impuesto sobre la renta del negocio. Default 'personal'.
+  var alcancePend = (rucRec && rucCli && rucRec === rucCli) ? 'negocio' : 'personal';
   fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra + ' | alcance:' + alcancePend;
   fila[COL_PEND.EGRESO_ID - 1]   = '';
   fila[COL_PEND.MSG_ID - 1]      = clave || msgId || '';
