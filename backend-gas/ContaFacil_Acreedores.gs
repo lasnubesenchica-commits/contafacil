@@ -162,8 +162,30 @@ function _getEmailAcrQuery() {
   // `newer_than:14d` acota el universo a un periodo razonable. El
   // trigger corre cada 15 min, así que 14d cubre cualquier rezago.
   // Para backfill inicial se puede subir manualmente.
-  var base = 'has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
-  Logger.log('📧 Query Acreedores (broad): ' + base + ' | dest=' + dest);
+  // Estrategia de query — dos modos:
+  //
+  // MODO LABEL (multi-cliente Workspace):
+  //   Si `email_acr_label` está configurado, el filtro nativo del
+  //   buzón Workspace ya etiquetó los emails de ESTE cliente. Query
+  //   directo: `label:<X> has:attachment -label:<processed>`. Esto
+  //   AISLA cada cliente en un buzón compartido (crítico para evitar
+  //   que el script de Iris robe emails de CEYCO o viceversa).
+  //
+  // MODO BROAD (legado, single-tenant):
+  //   Sin `email_acr_label`, query amplio + validación
+  //   `_emailDestinoEsAlias` en código. Necesario porque Gmail no
+  //   indexa de forma confiable el alias en cadenas de auto-forward.
+  //
+  // En ambos modos `_esReenvioPermitidoAcr` aplica defense-in-depth.
+  var inboxLabel = String(cfg.email_acr_label || '').trim();
+  var base;
+  if (inboxLabel) {
+    base = 'label:' + inboxLabel + ' has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
+    Logger.log('📧 Query Acreedores (label-scoped): ' + base);
+  } else {
+    base = 'has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
+    Logger.log('📧 Query Acreedores (broad): ' + base + ' | dest=' + dest);
+  }
   return base;
 }
 
@@ -393,9 +415,10 @@ function _sincronizarEmailsAcreedores() {
   var cfg = {};
   try { cfg = _getConfig(); } catch(e) {}
 
-  var label   = _getOrCreateLabelAcr(LABEL_ACREEDOR);
-  var dest    = (cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes || '').trim();
-  var threads = GmailApp.search(query, 0, 100);
+  var label      = _getOrCreateLabelAcr(LABEL_ACREEDOR);
+  var dest       = (cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes || '').trim();
+  var inboxLabel = String(cfg.email_acr_label || '').trim();
+  var threads    = GmailApp.search(query, 0, 100);
   Logger.log('📬 Threads para Acreedores: ' + threads.length);
 
   for (var t = 0; t < threads.length; t++) {
@@ -406,9 +429,9 @@ function _sincronizarEmailsAcreedores() {
         var msgId = msg.getId();
 
         // ── Validar que el mensaje fue entregado al alias configurado ──
-        // (El query es amplio, así que filtramos aquí los emails del
-        //  inbox que no son para nuestro alias.)
-        if (!_emailDestinoEsAlias(msg, dest)) {
+        // Solo en modo broad (sin email_acr_label). En modo label el
+        // filtro nativo de Workspace ya pre-cualificó el mensaje.
+        if (!inboxLabel && !_emailDestinoEsAlias(msg, dest)) {
           stats.ignorados = (stats.ignorados || 0) + 1;
           continue;
         }
