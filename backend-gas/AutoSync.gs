@@ -121,3 +121,30 @@ function pauseSyncTrigger() {
   }
   Logger.log(count > 0 ? 'Sync pausado' : 'No habia trigger activo');
 }
+
+// ════════════════════════════════════════════════════════════════
+//  HELPER — forzar autorización completa de scopes
+//
+//  ejecutarSincronizacionUnificada llama a las funciones de sync
+//  vía `typeof X === 'function'` para no romper si un módulo no
+//  está cargado. Este patrón evita que el static analyzer de Apps
+//  Script detecte la dependencia a GmailApp/DriveApp, y por tanto
+//  el dialog inicial de autorización NO pide esos scopes. Cuando
+//  el trigger corre después, falla con "permission denied".
+//
+//  Esta función llama EXPLÍCITAMENTE a Gmail+Drive+Sheets para que
+//  Apps Script detecte todos los scopes y los pida en el primer run.
+//
+//  Cuando provisiones un cliente nuevo (o copies un script), corre
+//  esta función una vez desde el editor:
+//     Run → forzarAutorizacionScopes → Allow all permissions.
+//  Después el trigger tiene autorización completa.
+// ════════════════════════════════════════════════════════════════
+function forzarAutorizacionScopes() {
+  var info = { gmail: 0, drive: 0, sheet: '' };
+  try { info.gmail = GmailApp.getUserLabels().length; } catch(e) { info.gmail = 'ERR: ' + e.message; }
+  try { info.drive = DriveApp.getRootFolder() ? 1 : 0; } catch(e) { info.drive = 'ERR: ' + e.message; }
+  try { info.sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getName(); } catch(e) { info.sheet = 'ERR: ' + e.message; }
+  Logger.log('✅ Scopes autorizados — ' + JSON.stringify(info));
+  return info;
+}
