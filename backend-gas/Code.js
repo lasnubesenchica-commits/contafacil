@@ -1401,25 +1401,14 @@ function _handleEnviarOnboarding(data) {
     var forwarderEmail = data.forwarderEmail || cfg.email_acr_remitente || '';
     var sharedInbox    = cfg.email_acr_destino || 'facturas@balanceclip.net';
 
-    var subject = '🎉 Tu sistema BalanceClip está listo';
-    var html =
-      '<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a1a2e">' +
-      '<h2 style="color:#D04E00;margin-top:0">¡Hola ' + _escHtml(clientName) + '!</h2>' +
-      '<p>Tu sistema BalanceClip ya está operativo. Acá los datos para empezar:</p>' +
-      '<h3 style="margin-top:32px">📊 Tu dashboard</h3>' +
-      (dashboardUrl ? '<p><a href="' + dashboardUrl + '" style="color:#D04E00;font-weight:600">' + dashboardUrl + '</a></p>' : '<p><em>(URL pendiente)</em></p>') +
-      '<p>Al primer login te va a pedir crear un password — ese queda como tu admin password.</p>' +
-      '<h3 style="margin-top:32px">📧 Configurar reenvío de facturas</h3>' +
-      '<p>Para que el sistema procese tus facturas automáticamente, configura un filtro en tu Gmail (<strong>' + _escHtml(forwarderEmail) + '</strong>) que reenvíe a:</p>' +
-      '<p style="text-align:center"><code style="background:#f1f3f5;padding:8px 14px;border-radius:6px;font-size:14px">' + _escHtml(sharedInbox) + '</code></p>' +
-      (authResetToken
-        ? '<h3 style="margin-top:32px">🔑 Token de recuperación</h3>' +
-          '<p>Guardá este token en lugar seguro. Lo necesitás si olvidás tu password:</p>' +
-          '<p style="text-align:center"><code style="background:#f1f3f5;padding:8px 14px;border-radius:6px;font-size:11px;word-break:break-all">' + _escHtml(authResetToken) + '</code></p>'
-        : '') +
-      '<hr style="border:none;border-top:1px solid #dee2e6;margin:32px 0">' +
-      '<p style="color:#6c757d;font-size:12px">Sistema operado por BalanceClip — <a href="https://balanceclip.net" style="color:#6c757d">balanceclip.net</a></p>' +
-      '</body></html>';
+    var subject = '🎉 Tu sistema BalanceClip está listo, ' + clientName;
+    var html    = _buildOnboardingEmailHtml({
+      clientName:     clientName,
+      dashboardUrl:   dashboardUrl,
+      authResetToken: authResetToken,
+      forwarderEmail: forwarderEmail,
+      sharedInbox:    sharedInbox
+    });
 
     MailApp.sendEmail({
       to:       clientEmail,
@@ -1433,6 +1422,179 @@ function _handleEnviarOnboarding(data) {
     result.error = e.message;
   }
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  Plantilla HTML del onboarding email — diseño profesional con
+//  layout en tablas (compatible con todos los email clients) y
+//  pasos detallados de forwarding setup (espejados del wizard
+//  de Captura Automática del dashboard).
+// ════════════════════════════════════════════════════════════════
+function _buildOnboardingEmailHtml(p) {
+  var clientName     = _escHtml(p.clientName || 'Cliente');
+  var dashboardUrl   = String(p.dashboardUrl || '');
+  var dashboardSafe  = _escHtml(dashboardUrl);
+  var authResetToken = _escHtml(p.authResetToken || '');
+  var forwarderEmail = _escHtml(p.forwarderEmail || '');
+  var sharedInbox    = _escHtml(p.sharedInbox || 'facturas@balanceclip.net');
+  var fwdSettingsUrl = 'https://mail.google.com/mail/u/0/#settings/fwdandpop';
+  var waMsg = encodeURIComponent('Hola, soy ' + (p.clientName || 'cliente nuevo') + '. Ya agregué facturas@balanceclip.net como dirección de reenvío en mi Gmail. Por favor aprueben el código de verificación. Gracias.');
+  var waLink = 'https://wa.me/50769812266?text=' + waMsg;
+
+  // Helpers de estilo para mantener consistencia
+  var bgPage    = '#F8F9FA';
+  var orange    = '#D04E00';
+  var orangeDk  = '#A33D00';
+  var textDk    = '#1A1A2E';
+  var muted     = '#6C757D';
+  var border    = '#DEE2E6';
+  var surface   = '#FFFFFF';
+  var surface2  = '#F1F3F5';
+
+  // Card de paso reutilizable
+  function stepCard(num, title, body) {
+    return '' +
+      '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 12px;border:1px solid ' + border + ';border-radius:10px;background:' + surface + '">' +
+        '<tr>' +
+          '<td width="44" valign="top" style="padding:18px 0 18px 18px">' +
+            '<div style="width:32px;height:32px;border-radius:50%;background:' + orange + ';color:#fff;font-weight:700;font-size:14px;text-align:center;line-height:32px;font-family:Arial,sans-serif">' + num + '</div>' +
+          '</td>' +
+          '<td valign="top" style="padding:18px 18px 18px 12px;font-family:Arial,sans-serif">' +
+            '<div style="font-weight:600;font-size:15px;color:' + textDk + ';margin-bottom:6px">' + title + '</div>' +
+            '<div style="font-size:13px;color:' + muted + ';line-height:1.55">' + body + '</div>' +
+          '</td>' +
+        '</tr>' +
+      '</table>';
+  }
+
+  function sectionHeader(emoji, title) {
+    return '' +
+      '<div style="margin:32px 0 14px;padding-bottom:8px;border-bottom:2px solid ' + orange + '">' +
+        '<span style="font-size:20px;margin-right:8px">' + emoji + '</span>' +
+        '<span style="font-size:17px;font-weight:700;color:' + textDk + ';font-family:Arial,sans-serif">' + title + '</span>' +
+      '</div>';
+  }
+
+  return '' +
+'<!DOCTYPE html>' +
+'<html><head><meta charset="UTF-8"></head>' +
+'<body style="margin:0;padding:0;background:' + bgPage + ';font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:' + textDk + '">' +
+  '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:' + bgPage + ';padding:32px 16px">' +
+    '<tr><td align="center">' +
+
+      '<table cellpadding="0" cellspacing="0" border="0" width="640" style="max-width:640px;width:100%;background:' + surface + ';border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06)">' +
+
+        // ── HEADER (banner con branding) ──
+        '<tr><td style="background:linear-gradient(135deg,' + orange + ' 0%,' + orangeDk + ' 100%);padding:28px 32px;color:#fff;font-family:Arial,sans-serif">' +
+          '<div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;opacity:0.85;margin-bottom:4px">BalanceClip</div>' +
+          '<div style="font-size:22px;font-weight:700;margin-bottom:4px">¡Bienvenido, ' + clientName + '!</div>' +
+          '<div style="font-size:14px;opacity:0.92">Tu sistema de contabilidad inteligente está activo</div>' +
+        '</td></tr>' +
+
+        // ── BODY ──
+        '<tr><td style="padding:32px">' +
+
+          '<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:' + textDk + '">' +
+            'Acabamos de configurar tu sistema. En pocos pasos vas a estar capturando facturas automáticamente desde tu Gmail.' +
+          '</p>' +
+
+          // ── DASHBOARD ──
+          sectionHeader('📊', 'Tu dashboard') +
+          '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+            'Acá vas a ver todas tus facturas, gastos, reportes ITBMS y declaración anual:' +
+          '</p>' +
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 14px"><tr><td align="center">' +
+            '<a href="' + dashboardSafe + '" style="display:inline-block;padding:14px 28px;background:' + orange + ';color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;font-family:Arial,sans-serif">Abrir mi dashboard →</a>' +
+          '</td></tr></table>' +
+          '<p style="margin:14px 0 0;font-size:13px;color:' + muted + ';line-height:1.55">' +
+            '<strong>Primer login:</strong> te va a pedir crear un password — ese queda como tu admin password.<br>' +
+            '<strong>URL directo:</strong> <a href="' + dashboardSafe + '" style="color:' + orange + ';word-break:break-all">' + dashboardSafe + '</a>' +
+          '</p>' +
+
+          // ── PASO 1: Agregar dirección de reenvío ──
+          sectionHeader('📧', 'Paso 1 — Agregar dirección de reenvío') +
+          '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+            'En tu Gmail (<strong>' + forwarderEmail + '</strong>) vas a agregar <strong>' + sharedInbox + '</strong> como dirección de reenvío. Solo se hace <strong>una vez</strong>.' +
+          '</p>' +
+
+          stepCard('A', 'Copiá esta dirección',
+            '<div style="background:' + surface2 + ';padding:10px 14px;border-radius:6px;font-family:Consolas,Monaco,monospace;font-size:14px;color:' + textDk + ';margin-top:6px;display:inline-block">' + sharedInbox + '</div>'
+          ) +
+
+          stepCard('B', 'Abrí la configuración de Gmail',
+            '<a href="' + fwdSettingsUrl + '" style="display:inline-block;padding:9px 16px;background:' + textDk + ';color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin:6px 0 8px;font-family:Arial,sans-serif">Abrir Gmail → Reenvío y POP/IMAP ↗</a>' +
+            '<br>Una vez ahí: <strong>"Agregar dirección de reenvío"</strong> → pegá <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Siguiente</strong>.'
+          ) +
+
+          stepCard('C', 'Avisanos por WhatsApp para aprobar el código',
+            'Gmail va a mandar un correo con código de verificación a <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code>. Avisanos por WhatsApp y aprobamos el código del lado nuestro (generalmente en menos de 1 hora).' +
+            '<br><a href="' + waLink + '" style="display:inline-block;padding:9px 16px;background:#25D366;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-top:8px;font-family:Arial,sans-serif">💬 Avisar por WhatsApp ↗</a>'
+          ) +
+
+          // ── PASO 2: Filtros por proveedor ──
+          sectionHeader('🔍', 'Paso 2 — Crear filtro por proveedor') +
+          '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+            'Desde cualquier correo real de un proveedor, le decís a Gmail: <em>"reenviá a ' + sharedInbox + ' los correos de este remitente que tengan adjunto"</em>. Repetís por cada proveedor.' +
+          '</p>' +
+
+          stepCard('1', 'Abrí un correo del proveedor',
+            'Andá a Gmail y abrí cualquier factura recibida (por ejemplo, una factura de un proveedor habitual).'
+          ) +
+
+          stepCard('2', 'Menú "⋮" arriba a la derecha del correo',
+            'Click en <strong>⋮ → Filtrar mensajes de este tipo</strong>. Gmail pre-llena el remitente automáticamente.'
+          ) +
+
+          stepCard('3', 'Marcá "Tiene adjunto" → Crear filtro',
+            'En la siguiente pantalla, marcá <strong>Reenviar a:</strong> y elegí <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Crear filtro</strong>.'
+          ) +
+
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 0;background:#FFF8E6;border-left:3px solid #E65100;border-radius:6px"><tr><td style="padding:12px 14px;font-size:13px;color:' + textDk + ';line-height:1.55;font-family:Arial,sans-serif">' +
+            '🔁 <strong>Repetí los 3 pasos por cada proveedor</strong> que quieras capturar. El filtro queda guardado en Gmail y aplica a todos los correos futuros — no necesitás hacerlo de nuevo.' +
+          '</td></tr></table>' +
+
+          // ── TOKEN DE RECUPERACIÓN ──
+          (authResetToken ? (
+            sectionHeader('🔑', 'Token de recuperación') +
+            '<p style="margin:0 0 12px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+              'Guardá este token en lugar seguro (gestor de passwords, papel, etc). Lo necesitás <strong>solo si olvidás tu password</strong> de admin:' +
+            '</p>' +
+            '<div style="background:' + surface2 + ';border:1px dashed ' + border + ';padding:14px 16px;border-radius:8px;font-family:Consolas,Monaco,monospace;font-size:12px;color:' + textDk + ';word-break:break-all;text-align:center">' + authResetToken + '</div>'
+          ) : '') +
+
+          // ── ¿QUÉ SIGUE? ──
+          sectionHeader('🚀', '¿Qué sigue?') +
+          '<ol style="margin:0;padding-left:20px;font-size:14px;color:' + textDk + ';line-height:1.7">' +
+            '<li>Hacé los Pasos 1 y 2 arriba (toma ~5 minutos por proveedor)</li>' +
+            '<li>Esperá la primera factura — el sistema la captura en hasta 15 min</li>' +
+            '<li>Aprobá la factura desde tu dashboard en <strong>Registro General → Pendientes</strong></li>' +
+            '<li>Al final del mes / año, los reportes ITBMS y Cierre Anual se generan automáticamente</li>' +
+          '</ol>' +
+
+        '</td></tr>' +
+
+        // ── FOOTER ──
+        '<tr><td style="background:' + surface2 + ';padding:20px 32px;border-top:1px solid ' + border + ';font-family:Arial,sans-serif">' +
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
+            '<td style="font-size:12px;color:' + muted + ';line-height:1.6">' +
+              '<strong>¿Dudas?</strong><br>' +
+              'Escribinos por WhatsApp: <a href="' + waLink + '" style="color:' + orange + '">+507 6981-2266</a>' +
+            '</td>' +
+            '<td align="right" style="font-size:11px;color:' + muted + ';letter-spacing:1px;text-transform:uppercase">' +
+              '<a href="https://balanceclip.net" style="color:' + muted + ';text-decoration:none">balanceclip.net</a>' +
+            '</td>' +
+          '</tr></table>' +
+        '</td></tr>' +
+
+      '</table>' +
+
+      '<div style="font-size:11px;color:' + muted + ';margin-top:16px;font-family:Arial,sans-serif">' +
+        'BalanceClip — Sistema de contabilidad operado por Las Nubes en Chica' +
+      '</div>' +
+
+    '</td></tr>' +
+  '</table>' +
+'</body></html>';
 }
 
 function _escHtml(s) {

@@ -1267,8 +1267,16 @@ async function correrHealthCheck() {
 
 async function enviarOnboardingEmail() {
   if (!STATE.webAppUrl) return alert('No hay Web App URL.');
-  var clientEmail = STATE.adminEmail;
-  if (!confirm('Enviar onboarding email a ' + clientEmail + '?\n\nIncluye: URL del dashboard, AUTH_RESET_TOKEN, instrucciones de forwarding setup.')) return;
+  // Destinatario: el email del cliente que reenvía facturas (no el admin
+  // del negocio — ese puede ser el contador o un email genérico). El
+  // forwarder es quien necesita las instrucciones de setup en su Gmail.
+  var clientEmail = STATE.clientForwarderEmail || STATE.adminEmail;
+  if (!clientEmail) return alert('No hay email del cliente que reenvía facturas. Volvé a Step 1.');
+  if (!confirm('Enviar onboarding email a ' + clientEmail + '?\n\nIncluye: URL del dashboard, AUTH_RESET_TOKEN, instrucciones detalladas de forwarding setup.')) return;
+
+  var slug         = (STATE.negocio || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  // URL pública (custom domain) en lugar del github.io directo
+  var dashboardUrl = 'https://balanceclip.net/' + slug + '/';
 
   var btn = document.getElementById('btnEnviarOnboarding');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando…'; }
@@ -1280,7 +1288,7 @@ async function enviarOnboardingEmail() {
         action:         'enviarOnboarding',
         clientEmail:    clientEmail,
         clientName:     STATE.negocio,
-        dashboardUrl:   STATE.adminUrl || '',
+        dashboardUrl:   dashboardUrl,
         authResetToken: STATE.authResetToken || '',
         forwarderEmail: STATE.clientForwarderEmail || ''
       })
@@ -1844,7 +1852,7 @@ function buildOutputs() {
     },
     {
       title: 'Enviar onboarding email al cliente',
-      desc: 'Manda un email a <code>' + (s.adminEmail || '(admin email)') + '</code> con URL del dashboard, AUTH_RESET_TOKEN y instrucciones de forwarding setup. El email se envía desde la cuenta dueña del Web App (<code>facturas@balanceclip.net</code>) usando MailApp.',
+      desc: 'Manda un email a <code>' + (s.clientForwarderEmail || '(forwarder email)') + '</code> con URL del dashboard <code>https://balanceclip.net/' + ((s.negocio || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || '&lt;slug&gt;') + '/</code>, AUTH_RESET_TOKEN e instrucciones detalladas de forwarding setup (Paso 1: agregar dirección + Paso 2: crear filtro). El email se envía desde la cuenta dueña del Web App (<code>facturas@balanceclip.net</code>).',
       hasOnboardingEmailBtn: true,
     },
     {
