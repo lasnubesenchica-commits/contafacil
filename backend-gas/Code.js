@@ -1449,6 +1449,7 @@ function _buildOnboardingEmailHtml(p) {
   var bgPage    = '#F8F9FA';
   var orange    = '#D04E00';
   var orangeDk  = '#A33D00';
+  var blue      = '#1565C0';
   var textDk    = '#1A1A2E';
   var muted     = '#6C757D';
   var border    = '#DEE2E6';
@@ -1508,11 +1509,11 @@ function _buildOnboardingEmailHtml(p) {
             'Acá vas a ver todas tus facturas, gastos, reportes ITBMS y declaración anual:' +
           '</p>' +
           '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 14px"><tr><td align="center">' +
-            '<a href="' + dashboardSafe + '" style="display:inline-block;padding:14px 28px;background:' + orange + ';color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;font-family:Arial,sans-serif">Abrir mi dashboard →</a>' +
+            '<a href="' + dashboardSafe + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 28px;background:' + orange + ';color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;font-family:Arial,sans-serif">Abrir mi dashboard →</a>' +
           '</td></tr></table>' +
           '<p style="margin:14px 0 0;font-size:13px;color:' + muted + ';line-height:1.55">' +
             '<strong>Primer login:</strong> te va a pedir crear un password — ese queda como tu admin password.<br>' +
-            '<strong>URL directo:</strong> <a href="' + dashboardSafe + '" style="color:' + orange + ';word-break:break-all">' + dashboardSafe + '</a>' +
+            '<strong>URL directo:</strong> <a href="' + dashboardSafe + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + ';word-break:break-all">' + dashboardSafe + '</a>' +
           '</p>' +
 
           // ── PASO 1: Agregar dirección de reenvío ──
@@ -1526,13 +1527,13 @@ function _buildOnboardingEmailHtml(p) {
           ) +
 
           stepCard('B', 'Abrí la configuración de Gmail',
-            '<a href="' + fwdSettingsUrl + '" style="display:inline-block;padding:9px 16px;background:' + textDk + ';color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin:6px 0 8px;font-family:Arial,sans-serif">Abrir Gmail → Reenvío y POP/IMAP ↗</a>' +
+            '<a href="' + fwdSettingsUrl + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:9px 16px;background:' + textDk + ';color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin:6px 0 8px;font-family:Arial,sans-serif">Abrir Gmail → Reenvío y POP/IMAP ↗</a>' +
             '<br>Una vez ahí: <strong>"Agregar dirección de reenvío"</strong> → pegá <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Siguiente</strong>.'
           ) +
 
           stepCard('C', 'Avisanos por WhatsApp para aprobar el código',
             'Gmail va a mandar un correo con código de verificación a <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code>. Avisanos por WhatsApp y aprobamos el código del lado nuestro (generalmente en menos de 1 hora).' +
-            '<br><a href="' + waLink + '" style="display:inline-block;padding:9px 16px;background:#25D366;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-top:8px;font-family:Arial,sans-serif">💬 Avisar por WhatsApp ↗</a>'
+            '<br><a href="' + waLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:9px 16px;background:#25D366;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-top:8px;font-family:Arial,sans-serif">💬 Avisar por WhatsApp ↗</a>'
           ) +
 
           // ── PASO 2: Filtros por proveedor ──
@@ -1555,6 +1556,32 @@ function _buildOnboardingEmailHtml(p) {
 
           '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 0;background:#FFF8E6;border-left:3px solid #E65100;border-radius:6px"><tr><td style="padding:12px 14px;font-size:13px;color:' + textDk + ';line-height:1.55;font-family:Arial,sans-serif">' +
             '🔁 <strong>Repetí los 3 pasos por cada proveedor</strong> que quieras capturar. El filtro queda guardado en Gmail y aplica a todos los correos futuros — no necesitás hacerlo de nuevo.' +
+          '</td></tr></table>' +
+
+          // ── ALTERNATIVA: Captura manual con foto ──
+          sectionHeader('📸', 'Alternativa rápida: subí una foto desde tu celular') +
+          '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+            '¿Tenés una factura física en papel, o un PDF que recibiste por WhatsApp? No hace falta que la reenvíes por mail — la podés subir directo desde el dashboard:' +
+          '</p>' +
+
+          stepCard('1', 'Abrí tu dashboard',
+            'Entrá desde tu celular o computadora a <a href="' + dashboardSafe + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + '">' + dashboardSafe + '</a>'
+          ) +
+
+          stepCard('2', 'Click en "+ Registrar gasto"',
+            'En el módulo Registro General, vas a ver un botón <strong>"+ Registrar gasto"</strong>. Hacé click ahí.'
+          ) +
+
+          stepCard('3', 'Tomá una foto o subí el PDF',
+            'Desde el celular, podés <strong>tomar la foto en el momento</strong> con la cámara. Desde la PC, arrastrá el archivo o seleccionalo. Funciona con <strong>JPG, PNG o PDF</strong>.'
+          ) +
+
+          stepCard('4', 'La IA llena los datos automáticamente',
+            'En unos segundos la IA extrae proveedor, RUC, número de factura, fecha, subtotal, ITBMS y total. Vos solo confirmás los datos y categoría → guardar.'
+          ) +
+
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 0;background:#E3F2FD;border-left:3px solid ' + blue + ';border-radius:6px"><tr><td style="padding:12px 14px;font-size:13px;color:' + textDk + ';line-height:1.55;font-family:Arial,sans-serif">' +
+            '💡 <strong>Tip</strong>: el reenvío por Gmail (Pasos 1 y 2) es ideal para facturas <em>recurrentes</em> — proveedores que te facturan todos los meses. La foto manual es ideal para gastos <em>únicos</em> o facturas en papel que no recibís por email.' +
           '</td></tr></table>' +
 
           // ── TOKEN DE RECUPERACIÓN ──
@@ -1582,10 +1609,10 @@ function _buildOnboardingEmailHtml(p) {
           '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
             '<td style="font-size:12px;color:' + muted + ';line-height:1.6">' +
               '<strong>¿Dudas?</strong><br>' +
-              'Escribinos por WhatsApp: <a href="' + waLink + '" style="color:' + orange + '">+507 6981-2266</a>' +
+              'Escribinos por WhatsApp: <a href="' + waLink + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + '">+507 6981-2266</a>' +
             '</td>' +
             '<td align="right" style="font-size:11px;color:' + muted + ';letter-spacing:1px;text-transform:uppercase">' +
-              '<a href="https://balanceclip.net" style="color:' + muted + ';text-decoration:none">balanceclip.net</a>' +
+              '<a href="https://balanceclip.net" target="_blank" rel="noopener noreferrer" style="color:' + muted + ';text-decoration:none">balanceclip.net</a>' +
             '</td>' +
           '</tr></table>' +
         '</td></tr>' +
