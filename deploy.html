@@ -662,6 +662,8 @@
         <span class="scope-tag">drive.file</span>
         <span class="scope-tag">script.projects</span>
         <span class="scope-tag">script.deployments</span>
+        <span class="scope-tag">gmail.labels</span>
+        <span class="scope-tag">gmail.settings.basic</span>
       </div>
 
       <div style="margin-bottom:16px">
@@ -678,7 +680,7 @@
           <strong>Cómo obtener el Refresh Token:</strong><br>
           1. Abrí <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--orange2)">OAuth 2.0 Playground</a><br>
           2. Ícono de engranaje → "Use your own OAuth credentials" → ingresá Client ID y Client Secret<br>
-          3. Seleccioná los scopes: <code style="font-size:11px">spreadsheets</code> · <code style="font-size:11px">drive.file</code> · <code style="font-size:11px">script.projects</code> · <code style="font-size:11px">script.deployments</code><br>
+          3. Seleccioná los scopes: <code style="font-size:11px">spreadsheets</code> · <code style="font-size:11px">drive.file</code> · <code style="font-size:11px">script.projects</code> · <code style="font-size:11px">script.deployments</code> · <code style="font-size:11px">gmail.labels</code> · <code style="font-size:11px">gmail.settings.basic</code><br>
           4. "Authorize APIs" → "Exchange authorization code for tokens" → copiá el <code style="font-size:11px">refresh_token</code>
         </div>
         <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Client Secret</label>
@@ -974,6 +976,10 @@ function startOAuth() {
     'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/script.projects',
     'https://www.googleapis.com/auth/script.deployments',
+    // Gmail labels + filters — para crear el label cf-<slug> y el filtro
+    // que clasifica los emails reenviados al buzón compartido por cliente.
+    'https://www.googleapis.com/auth/gmail.labels',
+    'https://www.googleapis.com/auth/gmail.settings.basic',
   ].join(' ');
 
   var redirectUri = window.location.origin || 'http://localhost';
@@ -1154,6 +1160,18 @@ async function goStep3() {
     return;
   }
 
+  // 5a. Crear label + filtro Workspace (multi-tenant scoping)
+  var slugForLabel = STATE.negocio.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  var l5a = addLog('', 'Creando label + filtro Workspace (cf-' + slugForLabel + ')...', '', true);
+  STATE.workspaceLabel = null;
+  try {
+    var lf = await crearLabelYFiltroWorkspace(STATE.clientForwarderEmail, slugForLabel);
+    STATE.workspaceLabel = lf.labelName;
+    updateLog(l5a, '✅', 'Label "' + lf.labelName + '" + filtro creados', 'from:' + STATE.clientForwarderEmail);
+  } catch(e) {
+    updateLog(l5a, '⚠️', 'No se pudo crear label/filtro: ' + e.message + ' — el sync seguirá funcionando vía remitente strict, pero sin defense-in-depth');
+  }
+
   // 5b. Pre-poblar Config_Operaciones con datos del cliente
   if (STATE.webAppUrl) {
     var l5b = addLog('', 'Pre-poblando Config_Operaciones...', '', true);
@@ -1189,7 +1207,7 @@ async function goStep3() {
     updateLog(l7, '⚠️', 'No se pudo crear carpeta admin: ' + e.message + ' — hacelo manual');
   }
 
-  // 7. Done
+  // 8. Done
   await sleep(200);
   addLog('🎉', 'Cliente provisionado exitosamente');
 
@@ -1200,6 +1218,84 @@ async function goStep3() {
   document.getElementById('res-gasProjectId').textContent = STATE.gasProjectId || '—';
   document.getElementById('res-webAppUrl').textContent   = STATE.webAppUrl || '(pendiente — activar manualmente)';
   document.getElementById('step3Results').style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Health check — corre al final de Step 4 una vez el admin
+//  inicializa el sistema. Llama el endpoint healthCheck del nuevo
+//  Web App y muestra estado de cada componente como traffic light.
+// ═══════════════════════════════════════════════════════════
+async function correrHealthCheck() {
+  if (!STATE.webAppUrl) return alert('No hay Web App URL.');
+  var btn = document.getElementById('btnHealthCheck');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Verificando…'; }
+  try {
+    var resp = await fetch(STATE.webAppUrl + '?action=healthCheck');
+    var hc = await resp.json();
+    var box = document.getElementById('healthCheckResult');
+    if (!box) return;
+
+    function row(label, ok, detail) {
+      var color = ok ? '#2E7D32' : '#C62828';
+      var icon  = ok ? '✓' : '✗';
+      return '<div style="display:flex;align-items:start;gap:10px;padding:6px 0;border-bottom:1px dashed #DEE2E6">' +
+        '<span style="color:' + color + ';font-weight:700;min-width:18px">' + icon + '</span>' +
+        '<div style="flex:1"><strong>' + label + '</strong>' +
+        (detail ? '<div style="color:#6C757D;font-size:11px;margin-top:2px">' + detail + '</div>' : '') +
+        '</div></div>';
+    }
+    var html =
+      row('Sheet',  hc.sheet.ok,  hc.sheet.ok  ? hc.sheet.name + ' · ' + hc.sheet.tabCount + ' pestañas' : (hc.sheet.error || 'error')) +
+      row('Drive',  hc.drive.ok,  hc.drive.ok  ? hc.drive.folderName : (hc.drive.error || 'error')) +
+      row('Gmail',  hc.gmail.ok,  hc.gmail.ok  ? hc.gmail.labelCount + ' labels' : (hc.gmail.error || 'error')) +
+      row('Config', hc.config.ok, hc.config.ok ? hc.config.empresa_nombre + ' · forwarder=' + hc.config.forwarder + ' · label=' + (hc.config.email_acr_label || '(sin label)') : (hc.config.error || 'error')) +
+      row('Triggers', (hc.triggers || []).some(function(t){ return t.function === 'ejecutarSincronizacionUnificada'; }), (hc.triggers || []).map(function(t){ return t.function; }).join(', ') || 'ninguno instalado') +
+      row('CLAUDE_API_KEY', hc.scriptProperties.CLAUDE_API_KEY === 'set', hc.scriptProperties.CLAUDE_API_KEY) +
+      row('AUTH_RESET_TOKEN', hc.scriptProperties.AUTH_RESET_TOKEN === 'set', hc.scriptProperties.AUTH_RESET_TOKEN);
+
+    var overallColor = hc.overall === 'healthy' ? '#2E7D32' : (hc.overall === 'degraded' ? '#E65100' : '#C62828');
+    box.innerHTML =
+      '<div style="margin-top:12px;padding:14px;border:1px solid #DEE2E6;border-radius:8px;background:#FFF">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="color:' + overallColor + ';font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:1px">Estado: ' + hc.overall + '</span></div>' +
+      html + '</div>';
+    if (btn) { btn.textContent = '↻ Re-verificar'; btn.disabled = false; }
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '🩺 Health check'; }
+    alert('Error: ' + e.message);
+  }
+}
+
+async function enviarOnboardingEmail() {
+  if (!STATE.webAppUrl) return alert('No hay Web App URL.');
+  var clientEmail = STATE.adminEmail;
+  if (!confirm('Enviar onboarding email a ' + clientEmail + '?\n\nIncluye: URL del dashboard, AUTH_RESET_TOKEN, instrucciones de forwarding setup.')) return;
+
+  var btn = document.getElementById('btnEnviarOnboarding');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando…'; }
+  try {
+    var resp = await fetch(STATE.webAppUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action:         'enviarOnboarding',
+        clientEmail:    clientEmail,
+        clientName:     STATE.negocio,
+        dashboardUrl:   STATE.adminUrl || '',
+        authResetToken: STATE.authResetToken || '',
+        forwarderEmail: STATE.clientForwarderEmail || ''
+      })
+    });
+    var data = await resp.json();
+    if (data.success) {
+      if (btn) { btn.textContent = '✅ Enviado a ' + data.sentTo; btn.style.background = 'var(--green)'; }
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = '📧 Enviar onboarding email'; }
+      alert('Error: ' + (data.error || 'desconocido'));
+    }
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '📧 Enviar onboarding email'; }
+    alert('Error de red: ' + e.message);
+  }
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -1504,6 +1600,67 @@ async function registerInGitHub(scriptId, deploymentId) {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  crearLabelYFiltroWorkspace — crea el label cf-<slug> y un
+//  filtro Gmail en el buzón compartido (facturas@balanceclip.net)
+//  que aplica el label a todo email que contenga el remitente
+//  autorizado. Esto activa el modo label-scoped per-cliente
+//  (PR #168), aislando los emails entre clientes.
+//
+//  Idempotente: si label/filtro ya existen, los reutiliza.
+//  Requiere scopes: gmail.labels + gmail.settings.basic.
+// ═══════════════════════════════════════════════════════════
+async function crearLabelYFiltroWorkspace(forwarderEmail, slug) {
+  var labelName = 'cf-' + slug;
+
+  // ── 1. Crear label (o reutilizar si ya existe) ──
+  var labelId = null;
+  var labelRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/labels', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + STATE.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: labelName,
+      labelListVisibility: 'labelShow',
+      messageListVisibility: 'show'
+    })
+  });
+  var labelData = await labelRes.json();
+  if (labelData.id) {
+    labelId = labelData.id;
+  } else if (labelData.error && (labelData.error.code === 409 || /already exists/i.test(labelData.error.message || ''))) {
+    // Ya existe — buscarlo en la lista
+    var listRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/labels', {
+      headers: { 'Authorization': 'Bearer ' + STATE.token }
+    });
+    var listData = await listRes.json();
+    var existing = (listData.labels || []).find(function (l) { return l.name === labelName; });
+    if (existing) labelId = existing.id;
+  } else if (labelData.error) {
+    throw new Error('Label: ' + labelData.error.message);
+  }
+  if (!labelId) throw new Error('No se pudo crear ni encontrar label ' + labelName);
+
+  // ── 2. Crear filtro: si el email contiene el remitente, aplicar label ──
+  // Gmail filter "query" hace búsqueda libre en headers + body — matchea
+  // el forwarder tanto en From, como en X-Forwarded-For, Return-Path, etc.
+  // (es lo equivalente a "Has the words" en la UI).
+  var filterRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/settings/filters', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + STATE.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      criteria: { from: forwarderEmail },  // matchea From: header (cubre el caso normal)
+      action:   { addLabelIds: [labelId] }
+    })
+  });
+  var filterData = await filterRes.json();
+  // Si ya existe un filtro idéntico, Gmail responde con error que ignoramos
+  if (filterData.error && !/already.*exists/i.test(filterData.error.message || '')) {
+    throw new Error('Filtro: ' + filterData.error.message);
+  }
+
+  return { labelName: labelName, labelId: labelId, filterId: filterData.id || null };
+}
+
+// ═══════════════════════════════════════════════════════════
 //  guardarConfigInicial — pre-poblar Config_Operaciones en GAS
 // ═══════════════════════════════════════════════════════════
 async function guardarConfigInicial(webAppUrl) {
@@ -1515,6 +1672,8 @@ async function guardarConfigInicial(webAppUrl) {
   // compartido (lo aprendimos hoy con el bug Iris/CEYCO).
   var SHARED_INBOX = 'facturas@balanceclip.net';
   var forwarder    = STATE.clientForwarderEmail;
+  var clientId     = (STATE.negocio || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  var label        = STATE.workspaceLabel || ('cf-' + clientId);
   var payload = {
     action:             'guardarConfig',
     empresa_nombre:     STATE.negocio,
@@ -1533,6 +1692,9 @@ async function guardarConfigInicial(webAppUrl) {
     email_op_remitente:  forwarder,
     email_st_remitente:  forwarder,
     email_acr_remitente: forwarder,
+    // Label scoping (multi-tenant defense-in-depth — PR #168)
+    email_acr_label:    label,
+    email_op_label:     STATE.flow_comercializacion ? label : '',
     // Módulos activos
     flow_acreedor:         STATE.flow_acreedor         ? 'true' : 'false',
     flow_comercializacion: STATE.flow_comercializacion ? 'true' : 'false',
@@ -1677,13 +1839,17 @@ function buildOutputs() {
     },
     {
       title: 'Health check del Web App',
-      desc: 'Abrir la URL en el browser — debe responder JSON con success:true y los datos de la empresa.',
-      link: healthCheckUrl,
-      linkText: 'Abrir health check →',
+      desc: 'Verifica todos los componentes (Sheet, Drive, Gmail, Config, Triggers, Script Properties) en una sola llamada.',
+      hasHealthCheckBtn: true,
+    },
+    {
+      title: 'Enviar onboarding email al cliente',
+      desc: 'Manda un email a <code>' + (s.adminEmail || '(admin email)') + '</code> con URL del dashboard, AUTH_RESET_TOKEN y instrucciones de forwarding setup. El email se envía desde la cuenta dueña del Web App (<code>facturas@balanceclip.net</code>) usando MailApp.',
+      hasOnboardingEmailBtn: true,
     },
     {
       title: 'Compartir URL del dashboard con el cliente',
-      desc: 'Dashboard del cliente: <code>' + (s.adminUrl || 'https://balanceclip.net/&lt;clientId&gt;/') + '</code>. El primer login hace SETUP de password (auth Option 2). Compartí también el AUTH_RESET_TOKEN al admin (mostrado al inicializar) para reset de password.',
+      desc: 'Dashboard del cliente: <code>' + (s.adminUrl || 'https://balanceclip.net/&lt;clientId&gt;/') + '</code>. El primer login hace SETUP de password (auth Option 2). El AUTH_RESET_TOKEN (mostrado al inicializar) sirve para reset de password.',
       link: s.adminUrl,
       linkText: s.adminUrl ? 'Abrir dashboard →' : null,
     },
@@ -1706,6 +1872,12 @@ function buildOutputs() {
           : '') +
         (item.hasTriggerBtn
           ? '<button id="btnTrigger_' + item.hasTriggerBtn + '" onclick="activarTrigger(\'' + item.hasTriggerBtn + '\')" style="margin-top:10px;padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">▶ Activar trigger →</button>'
+          : '') +
+        (item.hasHealthCheckBtn
+          ? '<button id="btnHealthCheck" onclick="correrHealthCheck()" style="margin-top:10px;padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🩺 Health check</button><div id="healthCheckResult"></div>'
+          : '') +
+        (item.hasOnboardingEmailBtn
+          ? '<button id="btnEnviarOnboarding" onclick="enviarOnboardingEmail()" style="margin-top:10px;padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">📧 Enviar onboarding email</button>'
           : '') +
       '</div>';
     checklist.appendChild(div);
