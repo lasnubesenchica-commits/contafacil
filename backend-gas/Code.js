@@ -296,6 +296,8 @@ function doPost(e) {
     if (action === 'guardarConfig') return _handleGuardarConfig(data);
     if (action === 'inicializarSistema') return _handleInicializarSistema(data, '');
     if (action === 'installSyncTrigger') return _handleInstallUnifiedSyncTrigger(data, '');
+    if (action === 'healthCheck')        return _handleHealthCheck(data, '');
+    if (action === 'enviarOnboarding')   return _handleEnviarOnboarding(data);
     // ── PROVEEDORES ────────────────────────────────────────────
     if (action === 'analizarFacturaEjemplo') return _handleAnalizarFacturaEjemplo(data);
     if (action === 'guardarProveedor')       return _handleGuardarProveedor(data);
@@ -676,6 +678,7 @@ function doGet(e) {
     // ── INICIALIZACIÓN ──────────────────────────────────────────
     if (action === 'inicializarSistema')              return _handleInicializarSistema(params, callback);
     if (action === 'installSyncTrigger')              return _handleInstallUnifiedSyncTrigger(params, callback);
+    if (action === 'healthCheck')                     return _handleHealthCheck(params, callback);
     if (action === 'instalarTriggerComercializacion') return _handleInstalarTriggerOp({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerProyectos')        return _handleInstalarTriggerST({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerAcreedores')       return _handleInstalarTriggerAcr({ intervalo: params.intervalo || '15' });
@@ -1288,6 +1291,152 @@ function _handleInicializarSistema(params, callback) {
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  HEALTH CHECK — verifica el estado del provisioning end-to-end.
+//  Llamado por el provisioner (deploy.html) al final del setup para
+//  confirmar que todo quedó conectado correctamente. Devuelve estado
+//  por componente sin exponer secretos (solo "set"/"missing" para
+//  Script Properties).
+// ════════════════════════════════════════════════════════════════
+function _handleHealthCheck(params, callback) {
+  var result = {
+    sheet:    { ok: false },
+    drive:    { ok: false },
+    gmail:    { ok: false },
+    config:   { ok: false },
+    triggers: [],
+    scriptProperties: {},
+    overall:  'unknown'
+  };
+
+  try {
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    result.sheet.ok       = true;
+    result.sheet.name     = ss.getName();
+    result.sheet.tabCount = ss.getSheets().length;
+  } catch (e) {
+    result.sheet.error = e.message;
+  }
+
+  try {
+    if (CONFIG.VOUCHER_FOLDER_ID) {
+      var folder = DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID);
+      result.drive.ok         = true;
+      result.drive.folderName = folder.getName();
+    } else {
+      result.drive.error = 'VOUCHER_FOLDER_ID no configurado';
+    }
+  } catch (e) {
+    result.drive.error = e.message;
+  }
+
+  try {
+    var labels = GmailApp.getUserLabels();
+    result.gmail.ok         = true;
+    result.gmail.labelCount = labels.length;
+  } catch (e) {
+    result.gmail.error = e.message;
+  }
+
+  try {
+    var cfg = _getConfig();
+    result.config.ok                    = true;
+    result.config.empresa_nombre        = cfg.empresa_nombre || '';
+    result.config.forwarder             = cfg.email_acr_remitente || cfg.email_op_remitente || '';
+    result.config.destino               = cfg.email_acr_destino || cfg.email_op_destino || '';
+    result.config.flow_acreedor         = String(cfg.flow_acreedor || 'true').toLowerCase() !== 'false';
+    result.config.flow_comercializacion = String(cfg.flow_comercializacion || 'false').toLowerCase() === 'true';
+    result.config.email_acr_label       = cfg.email_acr_label || null;
+    result.config.email_op_label        = cfg.email_op_label  || null;
+  } catch (e) {
+    result.config.error = e.message;
+  }
+
+  try {
+    var trigs = ScriptApp.getProjectTriggers();
+    result.triggers = trigs.map(function (t) {
+      return {
+        function: t.getHandlerFunction(),
+        type:     String(t.getEventType())
+      };
+    });
+  } catch (e) {
+    result.triggersError = e.message;
+  }
+
+  // Solo verifica que existan, NO expone los valores.
+  var props = PropertiesService.getScriptProperties();
+  ['CLAUDE_API_KEY', 'AUTH_RESET_TOKEN'].forEach(function (k) {
+    result.scriptProperties[k] = props.getProperty(k) ? 'set' : 'missing';
+  });
+
+  var coreChecks = [result.sheet.ok, result.drive.ok, result.gmail.ok, result.config.ok];
+  if (coreChecks.every(function (x) { return x; })) result.overall = 'healthy';
+  else if (coreChecks.some(function (x) { return x; })) result.overall = 'degraded';
+  else result.overall = 'unhealthy';
+
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ENVIAR ONBOARDING EMAIL — manda al cliente su URL de dashboard,
+//  AUTH_RESET_TOKEN y instrucciones de forwarding setup. Llamado
+//  por el provisioner al final del setup.
+// ════════════════════════════════════════════════════════════════
+function _handleEnviarOnboarding(data) {
+  var result = { success: false };
+  try {
+    data = data || {};
+    var clientEmail = String(data.clientEmail || '').trim();
+    if (!clientEmail) throw new Error('clientEmail es requerido');
+
+    var cfg = _getConfig();
+    var clientName     = data.clientName     || cfg.empresa_nombre || 'Cliente';
+    var dashboardUrl   = data.dashboardUrl   || '';
+    var authResetToken = data.authResetToken || '';
+    var forwarderEmail = data.forwarderEmail || cfg.email_acr_remitente || '';
+    var sharedInbox    = cfg.email_acr_destino || 'facturas@balanceclip.net';
+
+    var subject = '🎉 Tu sistema BalanceClip está listo';
+    var html =
+      '<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a1a2e">' +
+      '<h2 style="color:#D04E00;margin-top:0">¡Hola ' + _escHtml(clientName) + '!</h2>' +
+      '<p>Tu sistema BalanceClip ya está operativo. Acá los datos para empezar:</p>' +
+      '<h3 style="margin-top:32px">📊 Tu dashboard</h3>' +
+      (dashboardUrl ? '<p><a href="' + dashboardUrl + '" style="color:#D04E00;font-weight:600">' + dashboardUrl + '</a></p>' : '<p><em>(URL pendiente)</em></p>') +
+      '<p>Al primer login te va a pedir crear un password — ese queda como tu admin password.</p>' +
+      '<h3 style="margin-top:32px">📧 Configurar reenvío de facturas</h3>' +
+      '<p>Para que el sistema procese tus facturas automáticamente, configura un filtro en tu Gmail (<strong>' + _escHtml(forwarderEmail) + '</strong>) que reenvíe a:</p>' +
+      '<p style="text-align:center"><code style="background:#f1f3f5;padding:8px 14px;border-radius:6px;font-size:14px">' + _escHtml(sharedInbox) + '</code></p>' +
+      (authResetToken
+        ? '<h3 style="margin-top:32px">🔑 Token de recuperación</h3>' +
+          '<p>Guardá este token en lugar seguro. Lo necesitás si olvidás tu password:</p>' +
+          '<p style="text-align:center"><code style="background:#f1f3f5;padding:8px 14px;border-radius:6px;font-size:11px;word-break:break-all">' + _escHtml(authResetToken) + '</code></p>'
+        : '') +
+      '<hr style="border:none;border-top:1px solid #dee2e6;margin:32px 0">' +
+      '<p style="color:#6c757d;font-size:12px">Sistema operado por BalanceClip — <a href="https://balanceclip.net" style="color:#6c757d">balanceclip.net</a></p>' +
+      '</body></html>';
+
+    MailApp.sendEmail({
+      to:       clientEmail,
+      subject:  subject,
+      htmlBody: html
+    });
+
+    result.success = true;
+    result.sentTo  = clientEmail;
+  } catch (e) {
+    result.error = e.message;
+  }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function _escHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function _handleInstalarTriggerAcr(data) {
