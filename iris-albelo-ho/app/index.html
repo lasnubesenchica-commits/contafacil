@@ -3019,26 +3019,73 @@ const REG = (() => {
   let _egrFileB64  = null;
   let _egrFileMime = null;
 
+  // ── Estado del modal mobile: empty / loading / ready / manual ──
+  function _setEgrState(state) {
+    const hero    = document.getElementById('regEgrZone');
+    const loading = document.getElementById('regEgrLoadingPanel');
+    const compact = document.getElementById('regEgrZoneCompact');
+    const form    = document.getElementById('regEgrFormWrap');
+    const footer  = document.getElementById('regEgrFooter');
+    if (!hero) return;
+    hero.style.display    = (state === 'empty')                                ? '' : 'none';
+    loading.style.display = (state === 'loading')                              ? '' : 'none';
+    compact.style.display = (state === 'ready')                                ? 'flex' : 'none';
+    form.style.display    = (state === 'ready' || state === 'manual')          ? '' : 'none';
+    footer.style.display  = (state === 'ready' || state === 'manual')          ? '' : 'none';
+  }
+
+  function _setEgrMode(mode) {
+    const btnAi  = document.getElementById('regEgrModeAi');
+    const btnMan = document.getElementById('regEgrModeManual');
+    if (!btnAi || !btnMan) return;
+    if (mode === 'ai') {
+      btnAi.style.background  = 'var(--white,#fff)';
+      btnAi.style.color       = 'var(--text)';
+      btnAi.style.fontWeight  = '700';
+      btnAi.style.boxShadow   = '0 1px 2px rgba(0,0,0,.06)';
+      btnMan.style.background = 'transparent';
+      btnMan.style.color      = 'var(--muted)';
+      btnMan.style.fontWeight = '600';
+      btnMan.style.boxShadow  = 'none';
+      _setEgrState('empty');
+    } else {
+      btnMan.style.background = 'var(--white,#fff)';
+      btnMan.style.color      = 'var(--text)';
+      btnMan.style.fontWeight = '700';
+      btnMan.style.boxShadow  = '0 1px 2px rgba(0,0,0,.06)';
+      btnAi.style.background  = 'transparent';
+      btnAi.style.color       = 'var(--muted)';
+      btnAi.style.fontWeight  = '600';
+      btnAi.style.boxShadow   = 'none';
+      _setEgrState('manual');
+    }
+  }
+
+  function _egrShowPhase(text, percent) {
+    const p = document.getElementById('regEgrLoadingPhase');
+    const b = document.getElementById('regEgrLoadingBar');
+    if (p) p.textContent = text;
+    if (b) b.style.width = percent + '%';
+  }
+
   async function _procesarArchivoEgr(file) {
-    const zone   = document.getElementById('regEgrZone');
-    const lbl    = document.getElementById('regEgrZoneLbl');
-    const status = document.getElementById('regEgrAIStatus');
-    zone.classList.add('analyzing');
-    lbl.textContent = `📎 ${file.name} — analizando con IA…`;
-    status.style.display = 'block';
-    status.style.color   = 'var(--indigo)';
-    status.textContent   = '⏳ Extrayendo datos de la factura…';
+    _setEgrState('loading');
+    _egrShowPhase('📤 Subiendo factura…', 10);
+    const chip = document.getElementById('regEgrFileChip');
+    if (chip) chip.textContent = file.name;
 
     const reader = new FileReader();
     reader.onload = async ev => {
       let b64  = ev.target.result.split(',')[1];
       let mime = file.type || 'image/jpeg';
+      _egrShowPhase('🔍 Leyendo el documento…', 30);
       if (mime !== 'application/pdf' && ev.target.result.length > 900_000) {
         try { const r = await _comprimirImg(ev.target.result, 1200); b64 = r.split(',')[1]; mime = 'image/jpeg'; }
         catch(e) {}
       }
       _egrFileB64  = b64;
       _egrFileMime = mime;
+      _egrShowPhase('🤖 La IA está extrayendo los datos…', 65);
       try {
         const r = await fetch(GAS_URL, {
           method: 'POST',
@@ -3047,31 +3094,50 @@ const REG = (() => {
         });
         const d = await r.json();
         if (!d.success) throw new Error(d.error || 'No se pudo analizar');
+        _egrShowPhase('✓ Listo', 100);
+
         // Llenar campos
-        if (d.num_factura) document.getElementById('regEgrNfac').value  = d.num_factura;
-        if (d.fecha)       document.getElementById('regEgrFecha').value = d.fecha;
-        if (d.proveedor)   document.getElementById('regEgrProv').value  = d.proveedor;
-        if (d.ruc_proveedor) document.getElementById('regEgrRuc').value = d.ruc_proveedor;
-        if (d.dv_proveedor)  document.getElementById('regEgrDv').value  = d.dv_proveedor;
-        if (d.categoria_gasto) {
-          _setEgrCatMob(d.categoria_gasto);
-        }
+        if (d.num_factura)   document.getElementById('regEgrNfac').value  = d.num_factura;
+        if (d.fecha)         document.getElementById('regEgrFecha').value = d.fecha;
+        if (d.proveedor)     document.getElementById('regEgrProv').value  = d.proveedor;
+        if (d.ruc_proveedor) document.getElementById('regEgrRuc').value   = d.ruc_proveedor;
+        if (d.dv_proveedor)  document.getElementById('regEgrDv').value    = d.dv_proveedor;
+        if (d.categoria_gasto) _setEgrCatMob(d.categoria_gasto);
         if (d.total) {
           document.getElementById('regEgrTotal').value = d.total;
           if (d.itbms && parseFloat(d.itbms) > 0) document.getElementById('regEgrItbms').checked = true;
           recalcEgr();
         }
-        // Auto-detectar alcance según RUC receptor + mostrar categoría sugerida
-        const alcMsg = _autoDetectAlcance(d.ruc_receptor, d.nombre_receptor);
-        const catMsg = d.categoria_gasto ? (' · ' + dgiLabel(d.categoria_gasto)) : '';
-        zone.classList.remove('analyzing'); zone.classList.add('has-file');
 
-        status.style.color = 'var(--green)';
-        status.textContent = '✅ ' + alcMsg + catMsg;
+        // Descripción autollenada — prioridad:
+        //   1. descripcion_corta (narrativa, e.g. "Combustible Estación Terpel Albrook")
+        //   2. (nombre_comercial || proveedor) + items
+        //   3. nombre_comercial / proveedor solo
+        let descAuto = '';
+        if (d.descripcion_corta) {
+          descAuto = d.descripcion_corta;
+        } else if (Array.isArray(d.items) && d.items.length) {
+          const descs = [...new Set(d.items.map(i => i.descripcion).filter(Boolean))];
+          const lead  = d.nombre_comercial || d.proveedor || '';
+          descAuto    = (lead ? lead + ' — ' : '') + descs.join(', ');
+        } else if (d.nombre_comercial || d.proveedor) {
+          descAuto = d.nombre_comercial || d.proveedor;
+        }
+        if (descAuto) document.getElementById('regEgrDesc').value = descAuto.substring(0, 120);
+
+        _autoDetectAlcance(d.ruc_receptor, d.nombre_receptor);
+        // Pequeño delay para que el usuario vea "✓ Listo"
+        setTimeout(() => _setEgrState('ready'), 350);
       } catch(err) {
-        zone.classList.remove('analyzing');
-        status.style.color = 'var(--red)';
-        status.textContent = '⚠️ ' + err.message;
+        const p  = document.getElementById('regEgrLoadingPhase');
+        const sp = document.getElementById('regEgrLoadingSpinner');
+        if (sp) sp.style.display = 'none';
+        if (p) {
+          p.style.color = 'var(--red)';
+          p.innerHTML = '⚠️ No pudimos leer la factura<div style="font-size:.7rem;font-weight:400;color:var(--muted);margin-top:.35rem">' + (err.message || '') + '</div>' +
+            '<button onclick="REG.setEgrMode(\'manual\')" style="margin-top:.7rem;background:var(--orange);color:#fff;border:none;border-radius:6px;padding:.4rem .8rem;font-size:.74rem;font-weight:700;cursor:pointer;font-family:inherit">✏️ Llenar manual</button> ' +
+            '<button onclick="REG.setEgrMode(\'ai\')" style="margin-top:.7rem;background:var(--white,#fff);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:.4rem .8rem;font-size:.74rem;font-weight:600;cursor:pointer;font-family:inherit">↺ Otra factura</button>';
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -3147,13 +3213,15 @@ const REG = (() => {
     document.getElementById('regEgrItbmsTag').style.display = 'none';
     document.getElementById('regEgrSubtotal').value     = '';
     document.getElementById('regEgrItbmsVal').value     = '';
-    document.getElementById('regEgrZone').className     = 'reg-upload-zone';
-    document.getElementById('regEgrZoneLbl').textContent = 'Adjuntar factura — foto o PDF';
-    document.getElementById('regEgrAIStatus').style.display = 'none';
     document.getElementById('regEgrFile').value         = '';
     _egrFileB64 = null; _egrFileMime = null;
     _eAlcanceMismatch = false;
     setAlcance('negocio', true);
+    // Reset visual: modo IA empty + loading panel reseteado
+    if (typeof _setEgrMode === 'function') _setEgrMode('ai');
+    const sp = document.getElementById('regEgrLoadingSpinner'); if (sp) sp.style.display = '';
+    const lp = document.getElementById('regEgrLoadingPhase');   if (lp) { lp.style.color = ''; lp.textContent = '📤 Subiendo factura…'; }
+    const lb = document.getElementById('regEgrLoadingBar');     if (lb) lb.style.width = '10%';
     openModal('mRegEgreso');
   }
 
@@ -3278,13 +3346,19 @@ const REG = (() => {
   function onIngFile(input) { if (input.files[0]) _procesarArchivoIng(input.files[0]); }
 
   // ── Submit egreso ─────────────────────────────────────
-  async function submitEgreso() {
-    const total = parseFloat(document.getElementById('regEgrTotal').value) || 0;
-    const fecha = document.getElementById('regEgrFecha').value;
+  async function submitEgreso(opts) {
+    opts = opts || {};
+    const andNew = !!opts.andNew;
+    const total  = parseFloat(document.getElementById('regEgrTotal').value) || 0;
+    const fecha  = document.getElementById('regEgrFecha').value;
     if (!total) { toast('Ingresa el total', 'err'); return; }
     if (!fecha) { toast('Ingresa la fecha', 'err'); return; }
-    const btn = document.getElementById('regEgrSubmit');
-    btn.disabled = true; btn.textContent = 'Guardando…';
+    const btn  = document.getElementById('regEgrSubmit');
+    const btn2 = document.getElementById('regEgrSubmitNew');
+    [btn, btn2].forEach(b => { if (b) { b._origText = b.textContent; b.disabled = true; b.textContent = 'Guardando…'; }});
+    // Snapshot del archivo antes de resetear (para upload async)
+    const _b64ForUpload  = _egrFileB64;
+    const _mimeForUpload = _egrFileMime;
     try {
       const _catEfectiva = _getEgrCatEfectivo();
       const r = await jsonpGet('registrarEgresoOperativo', {
@@ -3304,14 +3378,20 @@ const REG = (() => {
       });
       if (!r.success) throw new Error(r.error || 'Error al guardar');
       toast('Egreso registrado ✓', 'ok');
-      closeModal('mRegEgreso');
-      if (_egrFileB64) {
-        const ext      = _egrFileMime === 'application/pdf' ? 'pdf' : 'jpg';
+      // Cerrar o resetear según andNew
+      if (andNew) {
+        // Reabrir el modal en estado empty (limpio para nueva captura)
+        openEgreso();
+      } else {
+        closeModal('mRegEgreso');
+      }
+      if (_b64ForUpload) {
+        const ext      = _mimeForUpload === 'application/pdf' ? 'pdf' : 'jpg';
         const fileName = (r.egresoId || 'egreso') + '.' + ext;
         fetch(GAS_URL, {
           method:  'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body:    JSON.stringify({ action: 'subirFacturaEgreso', egreso_id: r.egresoId, file_b64: _egrFileB64, file_mime: _egrFileMime, file_name: fileName }),
+          body:    JSON.stringify({ action: 'subirFacturaEgreso', egreso_id: r.egresoId, file_b64: _b64ForUpload, file_mime: _mimeForUpload, file_name: fileName }),
         })
           .then(res => res.json())
           .then(d => {
@@ -3321,7 +3401,7 @@ const REG = (() => {
           .catch(err => toast('⚠️ Red: ' + err.message, 'err'));
       }
     } catch(e) { toast('Error: ' + e.message, 'err'); }
-    btn.disabled = false; btn.textContent = '💾 Guardar gasto';
+    [btn, btn2].forEach(b => { if (b) { b.disabled = false; if (b._origText) b.textContent = b._origText; }});
   }
 
   // ── Submit ingreso ────────────────────────────────────
@@ -3422,6 +3502,7 @@ const REG = (() => {
   return { openEgreso, openIngreso, openEditarIngreso, onEgrFile, onIngFile,
            submitEgreso, submitIngreso,
            recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts, setAlcance,
+           setEgrMode: _setEgrMode,
            pickCliente, onNombreCliInput };
 })();
 
@@ -3856,16 +3937,61 @@ const PEND = (() => {
     </div></div>
     <div class="sheet-body">
 
-      <!-- Zona IA — cámara / galería -->
-      <div class="reg-upload-zone" id="regEgrZone" onclick="document.getElementById('regEgrFile').click()">
-        <input type="file" id="regEgrFile" accept="image/*,application/pdf"
-               style="display:none" onchange="REG.onEgrFile(this)">
-        <div class="reg-upload-icon">📎</div>
-        <div id="regEgrZoneLbl">Adjuntar factura — foto o PDF</div>
-        <div style="font-size:.65rem;color:var(--chrome);margin-top:.22rem">Cámara · Galería · PDF</div>
-        <div id="regEgrAIStatus" style="display:none;margin-top:.38rem;font-size:.72rem"></div>
+      <!-- ── Toggle modo IA / Manual ── -->
+      <div id="regEgrModeToggle" style="display:flex;background:var(--bg2);border-radius:10px;padding:3px;gap:3px;margin-bottom:.85rem">
+        <button id="regEgrModeAi" type="button" onclick="REG.setEgrMode('ai')"
+          style="flex:1;padding:.5rem .6rem;border-radius:8px;border:none;background:var(--white,#fff);color:var(--text);font-weight:700;font-size:.78rem;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06);font-family:inherit">
+          🤖 Capturar con IA
+        </button>
+        <button id="regEgrModeManual" type="button" onclick="REG.setEgrMode('manual')"
+          style="flex:1;padding:.5rem .6rem;border-radius:8px;border:none;background:transparent;color:var(--muted);font-weight:600;font-size:.78rem;cursor:pointer;font-family:inherit">
+          ✏️ Llenar manual
+        </button>
       </div>
 
+      <!-- ── Dropzone HERO (modo IA, estado inicial) ── -->
+      <div id="regEgrZone" class="reg-upload-zone"
+           onclick="document.getElementById('regEgrFile').click()"
+           style="border:2px dashed var(--border);border-radius:14px;padding:1.5rem .9rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg2);margin-bottom:.85rem">
+        <input type="file" id="regEgrFile" accept="image/*,application/pdf"
+               style="display:none" onchange="REG.onEgrFile(this)">
+        <div style="font-size:2.2rem;line-height:1;margin-bottom:.4rem">📄</div>
+        <div style="font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:.3rem" id="regEgrZoneLbl">Subí tu factura o recibo</div>
+        <div style="font-size:.74rem;color:var(--muted);line-height:1.5;margin-bottom:.65rem">
+          La <strong style="color:var(--orange)">IA</strong> extrae proveedor, monto, fecha, ITBMS y categoría. Solo confirmás y guardás.
+        </div>
+        <div style="display:inline-block;background:var(--orange);color:#fff;padding:.5rem 1rem;border-radius:8px;font-weight:700;font-size:.78rem">
+          📎 Tomar foto o elegir archivo
+        </div>
+        <div style="font-size:.66rem;color:var(--muted);margin-top:.4rem">JPG · PNG · PDF</div>
+        <div id="regEgrAIStatus" style="display:none;margin-top:.4rem;font-size:.72rem"></div>
+      </div>
+
+      <!-- ── Loading panel ── -->
+      <div id="regEgrLoadingPanel" style="display:none;border:1px solid var(--border);border-radius:14px;padding:1.5rem .85rem;text-align:center;background:linear-gradient(135deg,#FFF8E6 0%,#F1F3F5 100%);margin-bottom:.85rem">
+        <div id="regEgrLoadingSpinner" style="width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin .9s linear infinite;margin:0 auto .7rem"></div>
+        <div id="regEgrLoadingPhase" style="font-weight:700;color:var(--text);font-size:.86rem;margin-bottom:.4rem">📤 Subiendo factura…</div>
+        <div style="height:5px;background:var(--bg2);border-radius:5px;overflow:hidden;max-width:230px;margin:0 auto">
+          <div id="regEgrLoadingBar" style="height:100%;width:10%;background:var(--orange);border-radius:5px;transition:width .4s ease"></div>
+        </div>
+        <div style="font-size:.66rem;color:var(--muted);margin-top:.55rem">Suele tomar 5-15 segundos</div>
+      </div>
+
+      <!-- ── Dropzone COMPACT post-parse ── -->
+      <div id="regEgrZoneCompact" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:.55rem .75rem;margin-bottom:.85rem;align-items:center;gap:.55rem">
+        <span style="font-size:1.05rem">✓</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.74rem;font-weight:700;color:var(--text)">Factura analizada</div>
+          <div id="regEgrFileChip" style="font-size:.66rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        </div>
+        <button type="button" onclick="document.getElementById('regEgrFile').click()"
+          style="background:var(--white,#fff);border:1px solid var(--border);border-radius:6px;padding:.3rem .55rem;font-size:.68rem;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit">
+          📄 Otro
+        </button>
+      </div>
+
+      <!-- ── Form (oculto en modo IA estado empty/loading) ── -->
+      <div id="regEgrFormWrap" style="display:none">
       <div class="f-grp">
         <label class="f-lbl">Categoría</label>
         <select class="f-inp" id="regEgrCat" onchange="REG.inferTipoEgr()">
@@ -3949,10 +4075,13 @@ const PEND = (() => {
         </div>
       </div>
       <div id="regEgrAlcHint" style="font-size:.7rem;color:var(--muted);padding:0 .25rem .25rem">Deducible · gastos de empresa, proveedores, insumos, servicios · aplica a DGI</div>
+      </div><!-- /regEgrFormWrap -->
     </div>
-    <div class="sheet-footer">
-      <button class="sheet-submit" id="regEgrSubmit" onclick="REG.submitEgreso()"
-              style="background:var(--red);margin:0">💾 Guardar gasto</button>
+    <div class="sheet-footer" id="regEgrFooter" style="display:none">
+      <button class="sheet-submit" id="regEgrSubmit" onclick="REG.submitEgreso({andNew:false})"
+              style="background:#6A1B9A;margin:0">💾 Guardar y cerrar</button>
+      <button class="sheet-submit" id="regEgrSubmitNew" onclick="REG.submitEgreso({andNew:true})"
+              style="background:var(--orange);margin:.4rem 0 0">💾 Guardar y subir otra</button>
       <button class="sheet-footer-cancel" onclick="closeModal('mRegEgreso')">Cancelar</button>
     </div>
   </div>
