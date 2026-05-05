@@ -298,6 +298,8 @@ function doPost(e) {
     if (action === 'installSyncTrigger') return _handleInstallUnifiedSyncTrigger(data, '');
     if (action === 'healthCheck')        return _handleHealthCheck(data, '');
     if (action === 'enviarOnboarding')   return _handleEnviarOnboarding(data);
+    if (action === 'runSyncNow')         return _handleRunSyncNow(data, '');
+    if (action === 'getConfigSummary')   return _handleGetConfigSummary(data, '');
     // ── PROVEEDORES ────────────────────────────────────────────
     if (action === 'analizarFacturaEjemplo') return _handleAnalizarFacturaEjemplo(data);
     if (action === 'guardarProveedor')       return _handleGuardarProveedor(data);
@@ -679,6 +681,8 @@ function doGet(e) {
     if (action === 'inicializarSistema')              return _handleInicializarSistema(params, callback);
     if (action === 'installSyncTrigger')              return _handleInstallUnifiedSyncTrigger(params, callback);
     if (action === 'healthCheck')                     return _handleHealthCheck(params, callback);
+    if (action === 'runSyncNow')                      return _handleRunSyncNow(params, callback);
+    if (action === 'getConfigSummary')                return _handleGetConfigSummary(params, callback);
     if (action === 'instalarTriggerComercializacion') return _handleInstalarTriggerOp({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerProyectos')        return _handleInstalarTriggerST({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerAcreedores')       return _handleInstalarTriggerAcr({ intervalo: params.intervalo || '15' });
@@ -1599,6 +1603,62 @@ function _buildOnboardingEmailHtml(p) {
 
 function _escHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RUN SYNC NOW — disparar manualmente ejecutarSincronizacionUnificada
+//  desde el admin panel. Devuelve los stats de Acreedores/Comercialización
+//  para que el operador vea inmediatamente cuántos threads se procesaron.
+// ════════════════════════════════════════════════════════════════
+function _handleRunSyncNow(params, callback) {
+  var result = { success: false, ranAt: '', durationMs: 0 };
+  var t0 = Date.now();
+  try {
+    if (typeof ejecutarSincronizacionUnificada !== 'function') {
+      throw new Error('ejecutarSincronizacionUnificada no está definida en este script');
+    }
+    ejecutarSincronizacionUnificada();
+    result.success    = true;
+    result.ranAt      = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+    result.durationMs = Date.now() - t0;
+  } catch (e) {
+    result.error      = e.message;
+    result.durationMs = Date.now() - t0;
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GET CONFIG SUMMARY — vista detalle del config_operaciones del
+//  cliente para el admin panel. NO incluye secrets (CLAUDE_API_KEY,
+//  AUTH_RESET_TOKEN, password_hash). Solo campos operacionales.
+// ════════════════════════════════════════════════════════════════
+function _handleGetConfigSummary(params, callback) {
+  var result = { success: false, config: {} };
+  try {
+    var cfg    = _getConfig();
+    var safe   = {};
+    var fields = [
+      'empresa_nombre', 'empresa_comercial', 'empresa_ruc', 'empresa_dv',
+      'email_acr_destino', 'email_acr_remitente', 'email_acr_label',
+      'email_op_destino',  'email_op_remitente',  'email_op_label',
+      'email_st_destino',  'email_st_remitente',
+      'email_comprobantes', 'drive_folder_id', 'itbms_rate', 'prefijo_id',
+      'flow_acreedor', 'flow_comercializacion'
+    ];
+    fields.forEach(function (f) {
+      safe[f] = cfg[f] !== undefined ? cfg[f] : null;
+    });
+    result.success = true;
+    result.config  = safe;
+  } catch (e) {
+    result.error = e.message;
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
 function _handleInstalarTriggerAcr(data) {

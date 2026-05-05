@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BalanceClip — Admin Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #F8F9FA;
+    --surface:  #FFFFFF;
+    --surface2: #F1F3F5;
+    --border:   #DEE2E6;
+    --border2:  #CED4DA;
+    --orange:   #D04E00;
+    --orange2:  #E8620A;
+    --green:    #2E7D32;
+    --blue:     #1565C0;
+    --yellow:   #E65100;
+    --red:      #C62828;
+    --text:     #1A1A2E;
+    --muted:    #6C757D;
+    --mono:     'DM Mono', monospace;
+    --sans:     'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--sans);
+    min-height: 100vh; padding: 0 0 80px;
+  }
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex; align-items: center; gap: 16px;
+    position: sticky; top: 0;
+    background: rgba(248,249,250,0.97);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+  .header-logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--orange);
+    letter-spacing: 3px;
+    font-weight: 500;
+  }
+  .header-sep { color: var(--border2); }
+  .header-title { font-size: 13px; color: var(--muted); letter-spacing: 1px; }
+  .header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .btn {
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    padding: 8px 14px; border-radius: 6px; font-family: var(--sans); font-size: 12px;
+    font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex;
+    align-items: center; gap: 6px; transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--orange); color: var(--orange); }
+  .btn-primary { background: var(--orange); color: #fff; border-color: var(--orange); }
+  .btn-primary:hover { background: var(--orange2); border-color: var(--orange2); color: #fff; }
+  .btn-ghost { background: transparent; border-color: var(--border); }
+  .btn-sm { padding: 6px 10px; font-size: 11px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 40px 0; }
+
+  .summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .stat-num { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .stat-card.ok    .stat-num { color: var(--green); }
+  .stat-card.warn  .stat-num { color: var(--yellow); }
+  .stat-card.fail  .stat-num { color: var(--red); }
+  .stat-card.total .stat-num { color: var(--text); }
+
+  .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--muted); font-weight: 600; margin: 28px 0 12px;
+  }
+
+  .client-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; margin-bottom: 14px;
+  }
+  .client-head {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .client-name { font-size: 17px; font-weight: 700; }
+  .client-slug {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    background: var(--surface2); padding: 3px 8px; border-radius: 4px;
+  }
+  .client-status {
+    margin-left: auto; padding: 4px 10px; border-radius: 12px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .client-status.healthy     { background: #E8F5E9; color: var(--green); }
+  .client-status.degraded    { background: #FFF3E0; color: var(--yellow); }
+  .client-status.unhealthy   { background: #FFEBEE; color: var(--red); }
+  .client-status.unreachable { background: #F1F3F5; color: var(--muted); }
+  .client-status.loading     { background: #E3F2FD; color: var(--blue); }
+
+  .client-meta {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px 24px; font-size: 12px; margin-bottom: 14px;
+  }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .meta-value { color: var(--text); word-break: break-word; }
+  .meta-value.code { font-family: var(--mono); font-size: 11px; }
+  .meta-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    background: var(--surface2); color: var(--muted); margin-right: 4px;
+  }
+  .meta-pill.on { background: #E8F5E9; color: var(--green); }
+  .meta-pill.off { background: #F1F3F5; color: var(--muted); }
+
+  .client-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; padding-top: 14px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(26,26,46,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 200;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 12px; padding: 28px;
+    max-width: 520px; width: 90%; max-height: 86vh; overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  }
+  .modal h2 { font-size: 18px; margin-bottom: 8px; }
+  .modal-desc { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  .modal label {
+    display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin: 12px 0 4px;
+  }
+  .modal input {
+    width: 100%; padding: 8px 10px; font-size: 13px; border: 1px solid var(--border2);
+    border-radius: 6px; font-family: var(--sans);
+  }
+  .modal input:focus { outline: none; border-color: var(--orange); }
+  .modal-actions {
+    display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;
+    padding-top: 16px; border-top: 1px solid var(--border);
+  }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: #fff; padding: 12px 18px; border-radius: 8px;
+    font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.18); z-index: 300;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .toast.active { opacity: 1; }
+  .toast.error { background: var(--red); }
+  .toast.success { background: var(--green); }
+
+  .config-detail { font-size: 12px; }
+  .config-detail dl { display: grid; grid-template-columns: 1fr 2fr; gap: 6px 14px; }
+  .config-detail dt { color: var(--muted); font-size: 11px; }
+  .config-detail dd { color: var(--text); font-family: var(--mono); font-size: 11px; word-break: break-all; }
+
+  .empty-state {
+    text-align: center; padding: 40px; color: var(--muted); font-size: 13px;
+    background: var(--surface); border: 1px dashed var(--border); border-radius: 10px;
+  }
+
+  @media (max-width: 600px) {
+    .header { padding: 16px 16px; }
+    .container { padding: 16px 16px 0; }
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    .header-actions { width: 100%; margin-top: 8px; }
+    .client-status { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-logo">BALANCECLIP</span>
+  <span class="header-sep">/</span>
+  <span class="header-title">Admin Panel</span>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="loadAll()">↻ Refresh</button>
+    <a class="btn btn-primary btn-sm" href="deploy.html">+ Nuevo cliente</a>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="summary">
+    <div class="stat-card total"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Total clientes</div></div>
+    <div class="stat-card ok"><div class="stat-num" id="statOk">—</div><div class="stat-label">Healthy</div></div>
+    <div class="stat-card warn"><div class="stat-num" id="statWarn">—</div><div class="stat-label">Degraded</div></div>
+    <div class="stat-card fail"><div class="stat-num" id="statFail">—</div><div class="stat-label">Unreachable</div></div>
+  </div>
+
+  <div class="section-label">Clientes</div>
+  <div id="clientsList">
+    <div class="empty-state">⏳ Cargando lista de clientes…</div>
+  </div>
+
+</div>
+
+<!-- Resend Email Modal -->
+<div class="modal-overlay" id="modalResend">
+  <div class="modal">
+    <h2>Re-enviar onboarding email</h2>
+    <p class="modal-desc">Manda el email de bienvenida con dashboard URL + instrucciones de forwarding setup.</p>
+    <label>Destinatario (email del cliente)</label>
+    <input type="email" id="resendEmail" placeholder="cliente@gmail.com">
+    <label>Nombre del negocio</label>
+    <input type="text" id="resendName">
+    <label>Forwarder email (en headers del mail)</label>
+    <input type="email" id="resendForwarder" placeholder="igual al destinatario, normalmente">
+    <label>AUTH_RESET_TOKEN (opcional, si lo tenés guardado)</label>
+    <input type="text" id="resendAuthToken" placeholder="(si vacío, no se incluye)">
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modalResend')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="sendResend()">📧 Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Config Detail Modal -->
+<div class="modal-overlay" id="modalConfig">
+  <div class="modal">
+    <h2>Configuración detallada</h2>
+    <p class="modal-desc">Vista del config_operaciones (sin secrets).</p>
+    <div class="config-detail" id="configDetailBody">—</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modalConfig')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const REPO          = 'lasnubesenchica-commits/contafacil';
+const BRANCH        = 'main';
+const CLIENTS_URL   = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/clients.json';
+const PUBLIC_DOMAIN = 'https://balanceclip.net';
+
+let CLIENTS = [];
+let HEALTH  = {};   // slug → healthCheck JSON
+let RESEND_CTX = null; // active client for the resend modal
+
+// ──────────────────────────────────────────────────────────
+//  Load
+// ──────────────────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('clientsList').innerHTML = '<div class="empty-state">⏳ Cargando lista de clientes…</div>';
+  try {
+    // Cache-bust por timestamp para que GitHub Pages no nos sirva una versión vieja
+    const res = await fetch(CLIENTS_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' al leer clients.json');
+    const data = await res.json();
+    CLIENTS = data.clientes || [];
+    HEALTH = {};
+    renderClients();  // primera pasada con loading state
+    // Cargar healthCheck en paralelo
+    await Promise.all(CLIENTS.map(c => loadHealth(c)));
+    renderClients();  // refresh con datos
+    renderSummary();
+  } catch (e) {
+    document.getElementById('clientsList').innerHTML =
+      '<div class="empty-state" style="color:var(--red)">❌ Error: ' + e.message + '</div>';
+  }
+}
+
+async function loadHealth(client) {
+  const url = webAppUrl(client) + '?action=healthCheck';
+  try {
+    const res = await fetch(url);
+    HEALTH[client.id] = await res.json();
+  } catch (e) {
+    HEALTH[client.id] = { overall: 'unreachable', error: e.message };
+  }
+}
+
+function webAppUrl(client) {
+  return 'https://script.google.com/macros/s/' + client.deploymentId + '/exec';
+}
+
+// ──────────────────────────────────────────────────────────
+//  Render
+// ──────────────────────────────────────────────────────────
+function renderSummary() {
+  let total = CLIENTS.length, ok = 0, warn = 0, fail = 0;
+  CLIENTS.forEach(c => {
+    const hc = HEALTH[c.id];
+    if (!hc) return;
+    if (hc.overall === 'healthy')   ok++;
+    else if (hc.overall === 'degraded') warn++;
+    else fail++;
+  });
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statOk').textContent    = ok;
+  document.getElementById('statWarn').textContent  = warn;
+  document.getElementById('statFail').textContent  = fail;
+}
+
+function renderClients() {
+  const list = document.getElementById('clientsList');
+  if (!CLIENTS.length) {
+    list.innerHTML = '<div class="empty-state">No hay clientes registrados todavía. <a href="deploy.html">+ Provisionar el primero</a></div>';
+    return;
+  }
+  list.innerHTML = CLIENTS.map(c => renderClient(c)).join('');
+}
+
+function renderClient(client) {
+  const hc       = HEALTH[client.id];
+  const overall  = hc ? hc.overall : 'loading';
+  const dashUrl  = PUBLIC_DOMAIN + '/' + client.id + '/';
+  const gasUrl   = 'https://script.google.com/d/' + client.scriptId + '/edit';
+  const sheetId  = (hc && hc.sheet && hc.sheet.ok) ? null : null; // backend doesn't expose sheetId in healthCheck
+  const cfg      = hc && hc.config && hc.config.ok ? hc.config : {};
+  const trgs     = (hc && hc.triggers) || [];
+  const props    = (hc && hc.scriptProperties) || {};
+  const hasSync  = trgs.some(t => t.function === 'ejecutarSincronizacionUnificada');
+
+  const statusLabel = overall === 'loading'     ? '⏳ Cargando…' :
+                      overall === 'healthy'     ? '✓ Healthy' :
+                      overall === 'degraded'    ? '⚠ Degraded' :
+                      overall === 'unreachable' ? '⊘ Unreachable' :
+                      '✗ Unhealthy';
+
+  const flowAcr = cfg.flow_acreedor !== false;
+  const flowOp  = cfg.flow_comercializacion === true;
+
+  return `
+    <div class="client-card">
+      <div class="client-head">
+        <div class="client-name">${escapeHtml(client.nombre)}</div>
+        <span class="client-slug">${escapeHtml(client.id)}</span>
+        <span class="client-status ${overall}">${statusLabel}</span>
+      </div>
+
+      <div class="client-meta">
+        <div class="meta-item">
+          <span class="meta-label">Forwarder</span>
+          <span class="meta-value code">${escapeHtml(cfg.forwarder || '—')}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Destino</span>
+          <span class="meta-value code">${escapeHtml(cfg.destino || '—')}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Label scoping</span>
+          <span class="meta-value code">${escapeHtml(cfg.email_acr_label || '(sin label)')}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Módulos</span>
+          <span class="meta-value">
+            <span class="meta-pill ${flowAcr ? 'on' : 'off'}">Acreedores</span>
+            <span class="meta-pill ${flowOp  ? 'on' : 'off'}">Comercialización</span>
+          </span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Trigger sync</span>
+          <span class="meta-value">${hasSync ? '<span class="meta-pill on">activo</span>' : '<span class="meta-pill off">no instalado</span>'}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Sheet</span>
+          <span class="meta-value">${hc && hc.sheet && hc.sheet.ok ? escapeHtml(hc.sheet.name) + ' · ' + hc.sheet.tabCount + ' pestañas' : '—'}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Drive folder</span>
+          <span class="meta-value">${hc && hc.drive && hc.drive.ok ? escapeHtml(hc.drive.folderName) : '—'}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Script Properties</span>
+          <span class="meta-value">
+            <span class="meta-pill ${props.CLAUDE_API_KEY === 'set' ? 'on' : 'off'}">CLAUDE_API_KEY</span>
+            <span class="meta-pill ${props.AUTH_RESET_TOKEN === 'set' ? 'on' : 'off'}">AUTH_RESET</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="client-actions">
+        <a class="btn btn-sm" href="${dashUrl}" target="_blank">🔗 Dashboard</a>
+        <a class="btn btn-sm" href="${gasUrl}" target="_blank">📜 Apps Script</a>
+        <button class="btn btn-sm" onclick="openResend('${client.id}')">📧 Re-enviar email</button>
+        <button class="btn btn-sm" onclick="forceSyncNow('${client.id}', this)">▶ Forzar sync</button>
+        <button class="btn btn-sm" onclick="refreshHealth('${client.id}', this)">🩺 Health check</button>
+        <button class="btn btn-sm" onclick="viewConfig('${client.id}')">⚙ Config</button>
+      </div>
+    </div>
+  `;
+}
+
+// ──────────────────────────────────────────────────────────
+//  Actions
+// ──────────────────────────────────────────────────────────
+function openResend(slug) {
+  const client = CLIENTS.find(c => c.id === slug);
+  const cfg    = (HEALTH[slug] && HEALTH[slug].config) || {};
+  RESEND_CTX = client;
+  document.getElementById('resendEmail').value     = cfg.forwarder || '';
+  document.getElementById('resendName').value      = cfg.empresa_nombre || client.nombre || '';
+  document.getElementById('resendForwarder').value = cfg.forwarder || '';
+  document.getElementById('resendAuthToken').value = '';
+  openModal('modalResend');
+}
+
+async function sendResend() {
+  if (!RESEND_CTX) return;
+  const slug = RESEND_CTX.id;
+  const payload = {
+    action:         'enviarOnboarding',
+    clientEmail:    document.getElementById('resendEmail').value.trim(),
+    clientName:     document.getElementById('resendName').value.trim(),
+    dashboardUrl:   PUBLIC_DOMAIN + '/' + slug + '/',
+    forwarderEmail: document.getElementById('resendForwarder').value.trim(),
+    authResetToken: document.getElementById('resendAuthToken').value.trim()
+  };
+  if (!payload.clientEmail) return toast('Falta destinatario', 'error');
+
+  toast('Enviando…', '');
+  try {
+    const res = await fetch(webAppUrl(RESEND_CTX), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ Email enviado a ' + data.sentTo, 'success');
+      closeModal('modalResend');
+    } else {
+      toast('Error: ' + (data.error || 'desconocido'), 'error');
+    }
+  } catch (e) {
+    toast('Error de red: ' + e.message, 'error');
+  }
+}
+
+async function forceSyncNow(slug, btn) {
+  const client = CLIENTS.find(c => c.id === slug);
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Sync…';
+  try {
+    const res = await fetch(webAppUrl(client) + '?action=runSyncNow');
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ Sync ejecutado en ' + (data.durationMs/1000).toFixed(1) + 's — refrescá el dashboard del cliente para ver los nuevos pendientes', 'success');
+    } else {
+      toast('Sync falló: ' + (data.error || 'desconocido'), 'error');
+    }
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
+async function refreshHealth(slug, btn) {
+  const client = CLIENTS.find(c => c.id === slug);
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳…';
+  await loadHealth(client);
+  renderClients();
+  renderSummary();
+  btn.disabled = false; btn.textContent = original;
+  toast('Health refreshed', 'success');
+}
+
+async function viewConfig(slug) {
+  const client = CLIENTS.find(c => c.id === slug);
+  const body = document.getElementById('configDetailBody');
+  body.innerHTML = '⏳ Cargando…';
+  openModal('modalConfig');
+  try {
+    const res = await fetch(webAppUrl(client) + '?action=getConfigSummary');
+    const data = await res.json();
+    if (!data.success) {
+      body.innerHTML = '<div style="color:var(--red)">Error: ' + escapeHtml(data.error || 'desconocido') + '</div>';
+      return;
+    }
+    const cfg = data.config || {};
+    const rows = Object.keys(cfg).map(k =>
+      '<dt>' + escapeHtml(k) + '</dt><dd>' + escapeHtml(String(cfg[k] === null ? '—' : cfg[k])) + '</dd>'
+    ).join('');
+    body.innerHTML = '<dl>' + rows + '</dl>';
+  } catch (e) {
+    body.innerHTML = '<div style="color:var(--red)">Error de red: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+//  UI helpers
+// ──────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+function toast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast active' + (kind ? ' ' + kind : '');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.classList.remove('active'), 3000);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Click backdrop to close
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('active'); });
+});
+
+// Init
+loadAll();
+</script>
+</body>
+</html>
