@@ -246,6 +246,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
   animation:spin .8s linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes eSpin{to{transform:rotate(360deg)}}
+#eDropZoneHero:hover{border-color:var(--orange)!important;background:var(--bg)!important}
 
 /* ── MODAL DETALLE ── */
 .modal-overlay{
@@ -3393,19 +3395,65 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="modal-close" onclick="closeEgresoModal()">✕</button>
     </div>
     <div class="modal-body">
-      <!-- Zona de carga de factura con IA -->
-      <div style="border:2px dashed var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;text-align:center;cursor:pointer;transition:border-color .2s"
-           id="eDropZone"
-           ondragover="event.preventDefault();this.style.borderColor='var(--orange)'"
-           ondragleave="this.style.borderColor='var(--border)'"
-           ondrop="handleEgresoFileDrop(event)"
-           onclick="document.getElementById('eFacturaInput').click()">
-        <input type="file" id="eFacturaInput" accept="image/*,application/pdf" style="display:none" onchange="handleEgresoFileSelect(event)">
-        <div id="eDropLabel" style="color:var(--muted);font-size:.85rem">
-          📎 Adjuntar factura (imagen o PDF) — la IA llenará los campos automáticamente
-        </div>
-        <div id="eAIStatus" style="display:none;margin-top:.5rem"></div>
+
+      <!-- ── Toggle modo IA / Manual ── -->
+      <div id="eModeToggle" style="display:flex;background:var(--bg2);border-radius:10px;padding:3px;gap:3px;margin-bottom:1rem">
+        <button id="eModeAi" type="button" onclick="eSetMode('ai')"
+          style="flex:1;padding:.55rem .75rem;border-radius:8px;border:none;background:var(--white);color:var(--text);font-weight:700;font-size:.82rem;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06);font-family:inherit">
+          🤖 Capturar con IA
+        </button>
+        <button id="eModeManual" type="button" onclick="eSetMode('manual')"
+          style="flex:1;padding:.55rem .75rem;border-radius:8px;border:none;background:transparent;color:var(--muted);font-weight:600;font-size:.82rem;cursor:pointer;font-family:inherit">
+          ✏️ Llenar manual
+        </button>
       </div>
+
+      <!-- ── Dropzone HERO (estado inicial en modo IA) ── -->
+      <div id="eDropZoneHero"
+           ondragover="event.preventDefault();this.style.borderColor='var(--orange)';this.style.background='var(--bg)'"
+           ondragleave="this.style.borderColor='var(--border)';this.style.background='var(--bg2)'"
+           ondrop="handleEgresoFileDrop(event)"
+           onclick="document.getElementById('eFacturaInput').click()"
+           style="border:2px dashed var(--border);border-radius:14px;padding:2.25rem 1.25rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg2);margin-bottom:1rem">
+        <input type="file" id="eFacturaInput" accept="image/*,application/pdf" style="display:none" onchange="handleEgresoFileSelect(event)">
+        <div style="font-size:2.5rem;line-height:1;margin-bottom:.5rem">📄</div>
+        <div style="font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:.35rem">Subí tu factura o recibo</div>
+        <div style="font-size:.84rem;color:var(--muted);max-width:380px;margin:0 auto .85rem;line-height:1.5">
+          La <strong style="color:var(--orange)">IA</strong> extrae automáticamente: proveedor, RUC, fecha, monto, ITBMS y categoría. Vos solo confirmás y guardás.
+        </div>
+        <div style="display:inline-block;background:var(--orange);color:#fff;padding:.55rem 1.1rem;border-radius:8px;font-weight:700;font-size:.85rem;margin-bottom:.5rem">
+          📎 Elegir archivo o tomar foto
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.35rem">
+          JPG · PNG · PDF — hasta 10MB · arrastrá el archivo o hacé click acá
+        </div>
+      </div>
+
+      <!-- ── Loading panel (durante el parsing) ── -->
+      <div id="eLoadingPanel" style="display:none;border:1px solid var(--border);border-radius:14px;padding:2rem 1rem;text-align:center;background:linear-gradient(135deg,#FFF8E6 0%,#F1F3F5 100%);margin-bottom:1rem">
+        <div id="eLoadingSpinner" style="width:42px;height:42px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:eSpin .9s linear infinite;margin:0 auto .85rem"></div>
+        <div id="eLoadingPhase" style="font-weight:700;color:var(--text);font-size:.95rem;margin-bottom:.45rem">📤 Subiendo factura…</div>
+        <div style="height:6px;background:var(--bg2);border-radius:6px;overflow:hidden;max-width:280px;margin:0 auto">
+          <div id="eLoadingBar" style="height:100%;width:10%;background:var(--orange);border-radius:6px;transition:width .4s ease"></div>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.65rem">Suele tomar 5-15 segundos</div>
+      </div>
+
+      <!-- ── Dropzone COMPACT (después del parse) ── -->
+      <div id="eDropZoneCompact" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:.65rem .85rem;margin-bottom:1rem;display:none;align-items:center;gap:.65rem;flex-wrap:wrap">
+        <span style="font-size:1.15rem">✓</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.78rem;font-weight:700;color:var(--text)">Factura analizada por IA</div>
+          <div id="eFileChip" style="font-size:.7rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        </div>
+        <button type="button" onclick="document.getElementById('eFacturaInput').click()"
+          style="background:var(--white);border:1px solid var(--border);border-radius:6px;padding:.35rem .65rem;font-size:.72rem;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit">
+          📄 Otro archivo
+        </button>
+      </div>
+
+      <!-- ── Form completo (oculto inicialmente en modo IA) ── -->
+      <div id="eFormWrap" style="display:none">
       <div class="modal-section">
         <div class="modal-grid">
           <div class="modal-field full">
@@ -3503,6 +3551,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
           </div>
         </div>
       </div>
+      </div><!-- /eFormWrap -->
+
     </div>
     <input type="hidden" id="eAlcance" value="negocio">
     <div id="egresoAlcanceWrap" style="margin:.5rem 1.25rem .25rem;padding:.55rem .85rem;background:var(--bg);border-radius:7px;display:flex;align-items:center;gap:.75rem">
@@ -3525,8 +3575,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
         Recordar categoría y descripción para futuras facturas de <strong id="eRecordarNombre">este proveedor</strong>
       </label>
     </div>
-    <div class="modal-actions">
-      <button class="btn-primary" style="background:#6A1B9A" onclick="guardarEgresoOperativo()">💾 Guardar egreso</button>
+    <div class="modal-actions" id="eFormActions" style="display:none">
+      <button class="btn-primary" style="background:#6A1B9A" onclick="guardarEgresoOperativo({ andNew:false })">💾 Guardar y cerrar</button>
+      <button class="btn-primary" style="background:var(--orange)" onclick="guardarEgresoOperativo({ andNew:true })">💾 Guardar y subir otra</button>
       <button class="btn-secondary" onclick="closeEgresoModal()">Cancelar</button>
     </div>
   </div>
@@ -4173,7 +4224,9 @@ function renderEgresoTable(items) {
 // ══════════════════════════════════════════════════
 //  NUEVO EGRESO OPERATIVO — MODAL
 // ══════════════════════════════════════════════════
-async function guardarEgresoOperativo() {
+async function guardarEgresoOperativo(opts) {
+  opts = opts || {};
+  const andNew      = !!opts.andNew;
   const descripcion = document.getElementById('eDescripcion').value.trim();
   const total       = parseFloat(document.getElementById('eTotal').value) || 0;
   const fecha       = document.getElementById('eFecha').value;
@@ -4184,9 +4237,9 @@ async function guardarEgresoOperativo() {
   // Asegurar que eTipoHidden esté actualizado
   inferirTipoEgreso();
 
-  const btn = document.querySelector('#egresoModalOverlay .btn-primary');
-  btn.disabled    = true;
-  btn.textContent = '⏳ Guardando...';
+  // Disable both save buttons
+  const saveBtns = document.querySelectorAll('#egresoModalOverlay .btn-primary');
+  saveBtns.forEach(b => { b._origText = b.textContent; b.disabled = true; b.textContent = '⏳ Guardando…'; });
 
   try {
     const data = await gasJsonp('registrarEgresoOperativo', {
@@ -4223,19 +4276,20 @@ async function guardarEgresoOperativo() {
       }
     }
 
-    closeEgresoModal();
     plLoaded = false;   // invalidar cache P&L
     // Bug 1: refresh both Egresos tab AND Registro General tab
     egrItems = []; loadEgresos().then(() => { if (rg_initialized) rgRenderEgr(); });
 
     // Bug 2: upload file to Drive if one was attached
-    if (egresoFileB64) {
-      const ext      = egresoFileMime === 'application/pdf' ? 'pdf' : 'jpg';
+    const _fileB64ForUpload  = egresoFileB64;
+    const _fileMimeForUpload = egresoFileMime;
+    if (_fileB64ForUpload) {
+      const ext      = _fileMimeForUpload === 'application/pdf' ? 'pdf' : 'jpg';
       const fileName = (data.egresoId || 'egreso') + '.' + ext;
       fetch(GAS_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body:    JSON.stringify({ action: 'subirFacturaEgreso', egreso_id: data.egresoId, file_b64: egresoFileB64, file_mime: egresoFileMime, file_name: fileName }),
+        body:    JSON.stringify({ action: 'subirFacturaEgreso', egreso_id: data.egresoId, file_b64: _fileB64ForUpload, file_mime: _fileMimeForUpload, file_name: fileName }),
       })
         .then(r => r.json())
         .then(d => {
@@ -4248,11 +4302,21 @@ async function guardarEgresoOperativo() {
         })
         .catch(() => {});
     }
+
+    // Cerrar el modal o resetear para subir otra
+    if (andNew) {
+      eResetModal();
+    } else {
+      closeEgresoModal();
+    }
   } catch(err) {
     showToast('⚠️ ' + err.message);
   }
-  btn.disabled    = false;
-  btn.textContent = '💾 Guardar egreso';
+  // Restore save buttons
+  document.querySelectorAll('#egresoModalOverlay .btn-primary').forEach(b => {
+    b.disabled = false;
+    if (b._origText) b.textContent = b._origText;
+  });
 }
 
 function closeEgresoModal() {
@@ -5110,15 +5174,85 @@ var egresoFileMime = null;
 var egresoIAItems  = [];
 var _eAlcanceMismatch = false;   // true = IA detectó RUC distinto al cliente → Personal sugerido
 
+// ── Estados del modal: empty / loading / ready / manual ──
+// empty   = modo IA inicial, dropzone hero visible
+// loading = procesando archivo, fases narradas
+// ready   = factura analizada, dropzone compacto + form llenado
+// manual  = modo manual, sin dropzone, form vacío
+function eSetState(state) {
+  var hero    = document.getElementById('eDropZoneHero');
+  var loading = document.getElementById('eLoadingPanel');
+  var compact = document.getElementById('eDropZoneCompact');
+  var form    = document.getElementById('eFormWrap');
+  var actions = document.getElementById('eFormActions');
+  if (!hero) return;
+  hero.style.display    = (state === 'empty')                                  ? '' : 'none';
+  loading.style.display = (state === 'loading')                                ? '' : 'none';
+  compact.style.display = (state === 'ready')                                  ? 'flex' : 'none';
+  form.style.display    = (state === 'ready' || state === 'manual')            ? '' : 'none';
+  actions.style.display = (state === 'ready' || state === 'manual')            ? '' : 'none';
+}
+
+function eSetMode(mode) {
+  var btnAi  = document.getElementById('eModeAi');
+  var btnMan = document.getElementById('eModeManual');
+  if (!btnAi || !btnMan) return;
+  if (mode === 'ai') {
+    btnAi.style.background  = 'var(--white)';
+    btnAi.style.color       = 'var(--text)';
+    btnAi.style.fontWeight  = '700';
+    btnAi.style.boxShadow   = '0 1px 2px rgba(0,0,0,.06)';
+    btnMan.style.background = 'transparent';
+    btnMan.style.color      = 'var(--muted)';
+    btnMan.style.fontWeight = '600';
+    btnMan.style.boxShadow  = 'none';
+    eSetState('empty');
+  } else {
+    btnMan.style.background = 'var(--white)';
+    btnMan.style.color      = 'var(--text)';
+    btnMan.style.fontWeight = '700';
+    btnMan.style.boxShadow  = '0 1px 2px rgba(0,0,0,.06)';
+    btnAi.style.background  = 'transparent';
+    btnAi.style.color       = 'var(--muted)';
+    btnAi.style.fontWeight  = '600';
+    btnAi.style.boxShadow   = 'none';
+    eSetState('manual');
+  }
+}
+
+function eShowPhase(text, percent) {
+  var p = document.getElementById('eLoadingPhase');
+  var b = document.getElementById('eLoadingBar');
+  if (p) p.textContent = text;
+  if (b) b.style.width = percent + '%';
+}
+
+function eResetModal() {
+  // Reset state + clear file references + clear form (without closing modal)
+  egresoFileB64  = null;
+  egresoFileMime = null;
+  egresoIAItems  = [];
+  document.getElementById('eFacturaInput').value = '';
+  // Limpiar campos del form
+  ['eNumFac','eFecha','eProveedor','eRucProv','eDvProv','eDescripcion','eNotas','eTotal','eSubtotal','eItbms']
+    .forEach(function(id){ var el = document.getElementById(id); if (el) el.value = ''; });
+  var chk = document.getElementById('eItbmsCheck'); if (chk) chk.checked = false;
+  var desg = document.getElementById('eDesglose'); if (desg) desg.style.display = 'none';
+  var its  = document.getElementById('eItemsSection'); if (its) its.style.display = 'none';
+  // Volver a modo IA → estado empty
+  eSetMode('ai');
+}
+
 function handleEgresoFileDrop(e) {
   e.preventDefault();
-  document.getElementById('eDropZone').style.borderColor = 'var(--border)';
-  const file = e.dataTransfer.files[0];
+  var hero = document.getElementById('eDropZoneHero');
+  if (hero) { hero.style.borderColor = 'var(--border)'; hero.style.background = 'var(--bg2)'; }
+  var file = e.dataTransfer.files[0];
   if (file) procesarArchivoEgreso(file);
 }
 
 function handleEgresoFileSelect(e) {
-  const file = e.target.files[0];
+  var file = e.target.files[0];
   if (file) procesarArchivoEgreso(file);
 }
 
@@ -5140,10 +5274,18 @@ function _comprimirImagen(dataUrl, maxWidth) {
 }
 
 function procesarArchivoEgreso(file) {
+  // Pasar al estado loading + setear chip con nombre del archivo
+  eSetState('loading');
+  eShowPhase('📤 Subiendo factura…', 10);
+  var chip = document.getElementById('eFileChip');
+  if (chip) chip.textContent = file.name;
+
   const reader = new FileReader();
   reader.onload = async function(ev) {
     let b64  = ev.target.result.split(',')[1];
     let mime = file.type || 'image/jpeg';
+
+    eShowPhase('🔍 Leyendo el documento…', 30);
 
     // Si es imagen (no PDF) y es grande, redimensionar antes de enviar al GAS
     if (mime !== 'application/pdf' && ev.target.result.length > 1_000_000) {
@@ -5157,19 +5299,26 @@ function procesarArchivoEgreso(file) {
     egresoFileB64  = b64;
     egresoFileMime = mime;
 
-    document.getElementById('eDropLabel').innerHTML =
-      `📎 <strong>${esc(file.name)}</strong> — analizando con IA...`;
-    const status = document.getElementById('eAIStatus');
-    status.style.display = 'block';
-    status.innerHTML = '<span style="color:var(--orange)">⏳ Extrayendo datos de la factura...</span>';
+    eShowPhase('🤖 La IA está extrayendo los datos…', 65);
 
     try {
       const parsed = await analizarFacturaEgresoConClaude(b64, mime);
+      eShowPhase('✓ Listo', 100);
       llenarCamposEgreso(parsed);
-      const alcMsg = eAutoDetectAlcance(parsed);
-      status.innerHTML = '<span style="color:var(--green)">✅ Datos extraídos — ' + alcMsg + '</span>';
+      eAutoDetectAlcance(parsed);
+      // Pequeño delay para que el usuario vea el "Listo" antes del switch
+      setTimeout(function(){ eSetState('ready'); }, 350);
     } catch(err) {
-      status.innerHTML = '<span style="color:var(--red)">⚠️ ' + esc(err.message) + '</span>';
+      // Falla → mostrar error en el loading panel y dar opción de fallback manual
+      var p = document.getElementById('eLoadingPhase');
+      var sp = document.getElementById('eLoadingSpinner');
+      if (sp) sp.style.display = 'none';
+      if (p) {
+        p.style.color = 'var(--red)';
+        p.innerHTML = '⚠️ No pudimos leer la factura<div style="font-size:.78rem;font-weight:400;color:var(--muted);margin-top:.4rem">' + esc(err.message) + '</div>' +
+          '<button onclick="eSetMode(\'manual\')" style="margin-top:.85rem;background:var(--orange);color:#fff;border:none;border-radius:6px;padding:.45rem .9rem;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit">✏️ Llenar manual</button> ' +
+          '<button onclick="eSetState(\'empty\')" style="margin-top:.85rem;background:var(--white);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit">↺ Intentar con otra factura</button>';
+      }
     }
   };
   reader.readAsDataURL(file);
@@ -5208,18 +5357,20 @@ async function analizarFacturaEgresoConClaude(b64, mime) {
   console.log('parseFacturaEgreso:', data);
   if (!data.success) throw new Error(data.error || 'El servidor no pudo analizar la factura');
   return {
-    num_factura:     data.num_factura     || null,
-    fecha:           data.fecha           || null,
-    proveedor:       data.proveedor       || null,
-    ruc_proveedor:   data.ruc_proveedor   || null,
-    dv_proveedor:    data.dv_proveedor    || null,
-    ruc_receptor:    data.ruc_receptor    || null,
-    nombre_receptor: data.nombre_receptor || null,
-    subtotal:        data.subtotal        || null,
-    itbms:           data.itbms           || null,
-    total:           data.total           || null,
-    categoria_gasto: data.categoria_gasto || null,
-    items:           data.items           || [],
+    num_factura:       data.num_factura       || null,
+    fecha:             data.fecha             || null,
+    proveedor:         data.proveedor         || null,
+    nombre_comercial:  data.nombre_comercial  || null,
+    descripcion_corta: data.descripcion_corta || null,
+    ruc_proveedor:     data.ruc_proveedor     || null,
+    dv_proveedor:      data.dv_proveedor      || null,
+    ruc_receptor:      data.ruc_receptor      || null,
+    nombre_receptor:   data.nombre_receptor   || null,
+    subtotal:          data.subtotal          || null,
+    itbms:             data.itbms             || null,
+    total:             data.total             || null,
+    categoria_gasto:   data.categoria_gasto   || null,
+    items:             data.items             || [],
   };
 }
 
@@ -5245,14 +5396,26 @@ function llenarCamposEgreso(parsed) {
     recalcEgreso();
   }
 
-  // Descripción automática: proveedor + resumen de ítems únicos
-  if (parsed.items && parsed.items.length) {
+  // Descripción automática — prioridad:
+  //   1. descripcion_corta de la IA (narrativa, ej. "Combustible Estación Terpel Albrook")
+  //   2. nombre_comercial + items (si hay)
+  //   3. proveedor (razón social) + items
+  //   4. solo proveedor
+  let descAuto = '';
+  if (parsed.descripcion_corta) {
+    descAuto = parsed.descripcion_corta;
+  } else if (parsed.items && parsed.items.length) {
     egresoIAItems = parsed.items;
     const descsUnicas = [...new Set(parsed.items.map(i=>i.descripcion).filter(Boolean))];
-    const proveedor   = parsed.proveedor ? parsed.proveedor + ' — ' : '';
-    const desc        = proveedor + descsUnicas.join(', ');
-    if (desc) document.getElementById('eDescripcion').value = desc.substring(0,120);
+    const lead = parsed.nombre_comercial || parsed.proveedor || '';
+    descAuto   = (lead ? lead + ' — ' : '') + descsUnicas.join(', ');
+  } else if (parsed.nombre_comercial || parsed.proveedor) {
+    descAuto = parsed.nombre_comercial || parsed.proveedor;
+  }
+  if (descAuto) document.getElementById('eDescripcion').value = descAuto.substring(0, 120);
 
+  if (parsed.items && parsed.items.length) {
+    egresoIAItems = parsed.items;
     const section = document.getElementById('eItemsSection');
     const list    = document.getElementById('eItemsList');
     section.style.display = 'block';
@@ -5348,8 +5511,6 @@ function abrirModalNuevoEgreso() {
   document.getElementById('eRucProv').value     = '';
   document.getElementById('eDvProv').value      = '';
   document.getElementById('eNotas').value       = '';
-  document.getElementById('eDropLabel').innerHTML = '📎 Adjuntar factura (imagen o PDF) — la IA llenará los campos automáticamente';
-  document.getElementById('eAIStatus').style.display  = 'none';
   document.getElementById('eItemsSection').style.display = 'none';
   document.getElementById('eFacturaInput').value = '';
   egresoFileB64 = null; egresoFileMime = null; egresoIAItems = [];
@@ -5360,6 +5521,12 @@ function abrirModalNuevoEgreso() {
   const chkRec = document.getElementById('eChkRecordar');
   if (chkRec) chkRec.checked = false;
   document.getElementById('eRecordarNombre').textContent = 'este proveedor';
+  // Reset visual: modo IA, estado empty (dropzone hero protagonista)
+  if (typeof eSetMode === 'function') eSetMode('ai');
+  // Reset loading panel (en caso de venir de un fail anterior)
+  var sp = document.getElementById('eLoadingSpinner'); if (sp) sp.style.display = '';
+  var lp = document.getElementById('eLoadingPhase');   if (lp) { lp.style.color = ''; lp.textContent = '📤 Subiendo factura…'; }
+  var lb = document.getElementById('eLoadingBar');     if (lb) lb.style.width = '10%';
   document.getElementById('egresoModalOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }

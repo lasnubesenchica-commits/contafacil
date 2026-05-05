@@ -2575,7 +2575,8 @@ function _handleParseFacturaEgreso(data) {
     var prompt =
       'Eres un extractor de datos de facturas panameñas (DGI e-Tax 2.0 y facturas tradicionales). ' +
       'Analiza esta factura y responde SOLO con JSON válido, sin markdown ni texto adicional:\n' +
-      '{"num_factura":"","fecha":"YYYY-MM-DD","proveedor":"","ruc_proveedor":"","dv_proveedor":"",' +
+      '{"num_factura":"","fecha":"YYYY-MM-DD","proveedor":"","nombre_comercial":"","descripcion_corta":"",' +
+      '"ruc_proveedor":"","dv_proveedor":"",' +
       '"ruc_receptor":"","nombre_receptor":"","subtotal":0,"itbms":0,"total":0,' +
       '"categoria_gasto":"","' +
       'items":[{"descripcion":"","cantidad":1,"precio_unitario":0,"itbms":0,"total":0}]}\n' +
@@ -2585,23 +2586,47 @@ function _handleParseFacturaEgreso(data) {
       '  NUNCA confundir: el RUC del EMISOR está en la cabecera junto al nombre del negocio.\n' +
       '                   el RUC del RECEPTOR está después de "Cliente:" o "RUC:" en la sección del cliente.\n' +
       '\nREGLAS:\n' +
-      '1. proveedor = nombre del EMISOR (cabecera, parte SUPERIOR del documento), NO del receptor/cliente.\n' +
-      '2. ruc_proveedor = RUC del EMISOR (cabecera). Formatos posibles:\n' +
+      '1. proveedor = razón social legal del EMISOR (cabecera, parte SUPERIOR del documento), NO del receptor/cliente.\n' +
+      '   Ejemplo: "ORLYN, S.A." (es la entidad legal).\n' +
+      '2. nombre_comercial = nombre comercial / fantasía / sucursal visible en el recibo, distinto de la razón social.\n' +
+      '   Es el nombre que el cliente reconoce, no la entidad legal.\n' +
+      '   Ejemplos:\n' +
+      '     "ORLYN, S.A. ESTACION TERPEL ALBROOK CANFIELD" → nombre_comercial="Estación Terpel Albrook Canfield"\n' +
+      '     "DELIVERY HERO PANAMA (E-COMMERCE) S.A." → nombre_comercial="PedidosYa" (si está visible en el header/logo)\n' +
+      '     "FARMACIAS ARROCHA, S.A." → nombre_comercial="Farmacia Arrocha"\n' +
+      '   null si NO hay nombre comercial distinto del legal.\n' +
+      '3. descripcion_corta = una frase narrativa de 4-8 palabras que un humano escribiría para describir este gasto.\n' +
+      '   Combiná: la categoría natural del producto/servicio comprado + nombre comercial (o razón social si no hay comercial).\n' +
+      '   Empezá con la categoría natural (sustantivo común), seguida del lugar/marca.\n' +
+      '   Ejemplos buenos:\n' +
+      '     • "Combustible Estación Terpel Albrook"\n' +
+      '     • "Almuerzo Restaurante La Casa del Marisco"\n' +
+      '     • "Útiles oficina PriceSmart"\n' +
+      '     • "Honorarios contables Conte CPMA"\n' +
+      '     • "Materiales construcción Cochez"\n' +
+      '     • "Medicinas Farmacia Arrocha"\n' +
+      '     • "Servicio delivery PedidosYa"\n' +
+      '   Ejemplos malos (NO hacer):\n' +
+      '     • "ACT95 CA #06" (literal del item, no narrativo)\n' +
+      '     • "ORLYN, S.A. — ACT95 CA #06" (frankenstein)\n' +
+      '     • "Factura de gasolina" (genérico, sin lugar)\n' +
+      '   Esta es la descripción que aparece en el dashboard del cliente — debe ser legible y útil.\n' +
+      '4. ruc_proveedor = RUC del EMISOR (cabecera). Formatos posibles:\n' +
       '   "N-20-606 DV 09"        → ruc_proveedor="N-20-606",      dv_proveedor="09"\n' +
       '   "8-517-1400 DV 85"      → ruc_proveedor="8-517-1400",    dv_proveedor="85"\n' +
       '   "1891245-1-720993 DV 32"→ ruc_proveedor="1891245-1-720993", dv_proveedor="32"\n' +
       '   "155604-1-409777 DV 44" → ruc_proveedor="155604-1-409777",  dv_proveedor="44"\n' +
       '   Persona jurídica: formato largo con tres segmentos (ej: XXXXXX-1-YYYYYY).\n' +
-      '3. dv_proveedor = SOLO el número después de "DV" en la cabecera del EMISOR. Nunca el DV del cliente.\n' +
-      '4. ruc_receptor = RUC del RECEPTOR (sección "Cliente:", parte media/inferior). Solo dígitos y guiones, sin DV.\n' +
-      '5. nombre_receptor = nombre del receptor/cliente.\n' +
-      '6. fecha en formato YYYY-MM-DD.\n' +
-      '7. subtotal = monto antes de ITBMS | itbms = impuesto | total = monto final.\n' +
-      '8. items[].descripcion: descripción de los productos/servicios comprados.\n' +
-      '9. categoria_gasto = elige el valor que MEJOR describe este gasto según los productos/servicios y el nombre del proveedor.\n' +
-      '   Valores válidos (elige exactamente uno):\n' + catValues + '\n' +
-      '   Si no encaja en ninguna categoría específica usa "otros_deducibles".\n' +
-      '10. Montos como números, no strings. null solo si el campo realmente no existe.';
+      '5. dv_proveedor = SOLO el número después de "DV" en la cabecera del EMISOR. Nunca el DV del cliente.\n' +
+      '6. ruc_receptor = RUC del RECEPTOR (sección "Cliente:", parte media/inferior). Solo dígitos y guiones, sin DV.\n' +
+      '7. nombre_receptor = nombre del receptor/cliente.\n' +
+      '8. fecha en formato YYYY-MM-DD.\n' +
+      '9. subtotal = monto antes de ITBMS | itbms = impuesto | total = monto final.\n' +
+      '10. items[].descripcion: descripción de los productos/servicios comprados (LITERAL del recibo, sin reformular).\n' +
+      '11. categoria_gasto = elige el valor que MEJOR describe este gasto según los productos/servicios y el nombre del proveedor.\n' +
+      '    Valores válidos (elige exactamente uno):\n' + catValues + '\n' +
+      '    Si no encaja en ninguna categoría específica usa "otros_deducibles".\n' +
+      '12. Montos como números, no strings. null solo si el campo realmente no existe.';
 
     var payload = {
       model:      'claude-sonnet-4-20250514',
@@ -2642,19 +2667,21 @@ function _handleParseFacturaEgreso(data) {
 
     return ContentService
       .createTextOutput(JSON.stringify({
-        success:         true,
-        num_factura:     parsed.num_factura     || null,
-        fecha:           parsed.fecha           || null,
-        proveedor:       parsed.proveedor       || null,
-        ruc_proveedor:   parsed.ruc_proveedor   || null,
-        dv_proveedor:    parsed.dv_proveedor    || null,
-        ruc_receptor:    parsed.ruc_receptor    || null,
-        nombre_receptor: parsed.nombre_receptor || null,
-        subtotal:        parsed.subtotal        || null,
-        itbms:           parsed.itbms           || null,
-        total:           parsed.total           || null,
-        categoria_gasto: catGasto,
-        items:           Array.isArray(parsed.items) ? parsed.items : [],
+        success:           true,
+        num_factura:       parsed.num_factura       || null,
+        fecha:             parsed.fecha             || null,
+        proveedor:         parsed.proveedor         || null,
+        nombre_comercial:  parsed.nombre_comercial  || null,
+        descripcion_corta: parsed.descripcion_corta || null,
+        ruc_proveedor:     parsed.ruc_proveedor     || null,
+        dv_proveedor:      parsed.dv_proveedor      || null,
+        ruc_receptor:      parsed.ruc_receptor      || null,
+        nombre_receptor:   parsed.nombre_receptor   || null,
+        subtotal:          parsed.subtotal          || null,
+        itbms:             parsed.itbms             || null,
+        total:             parsed.total             || null,
+        categoria_gasto:   catGasto,
+        items:             Array.isArray(parsed.items) ? parsed.items : [],
       }))
       .setMimeType(ContentService.MimeType.JSON);
 
