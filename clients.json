@@ -20,6 +20,13 @@
       "scriptId": "11L8ZKLB2Q58JlC6DGO5Fu1hBn0qFjidxRRY5P3DT_4nm_ssqTqnEc9jv",
       "gasDir": "backend-gas",
       "deploymentId": "AKfycbzkjexs8N_BgJR8tGApP1U9ATdX91tDz4gChqXHPyOnSzI9FsoJ1-QEORDLqVO2sRTZ"
+    },
+    {
+      "id": "david-miguel-collado",
+      "nombre": "David Miguel Collado",
+      "scriptId": "1x8weJAITaa37VTlBtUyUnaSexvIvxWvBaw75rQIk6gS6Y_FMBGR6ERNM",
+      "gasDir": "backend-gas",
+      "deploymentId": "AKfycbwQ3G1GMFLO8gjcE_LixN1DBDlterHtsRBgNyYZHlC-joB-DMJqoShS9nHz_VMUqHze"
     }
   ]
 }
