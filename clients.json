@@ -13,6 +13,13 @@
       "scriptId": "1lspRUV4nWAzliuQbUzx_ZbcSkjQhX_9-M9JzHAiRZzvzP4D-nvxFSFsI",
       "gasDir": "backend-gas",
       "deploymentId": "AKfycbyqdFIXT3D2R9TtKffI2L0xcFB1kLGJY6Lz7MvxFtg_gk6xx86LjsTAJU-h5nn1XWJX"
+    },
+    {
+      "id": "glorimar-lasso",
+      "nombre": "Glorimar Lasso",
+      "scriptId": "1_Dra6A9OAnkmkcWrco10iI1zUbroop0RVbMmtIGerFMbYzsjElzKYURS",
+      "gasDir": "backend-gas",
+      "deploymentId": "AKfycbwiL8kZfMKgbeOaH6vGEkBs9oZ_eCqyPc0Kg_y757PbtZjyAyDRF6I3WCgI6FvSFng1"
     }
   ]
 }
