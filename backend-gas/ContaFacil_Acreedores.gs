@@ -20,7 +20,8 @@
 
 var SHEET_ACREEDORES_CONFIG  = 'Acreedores_Config';
 var SHEET_ACREEDORES_PENDING = 'Acreedores_Pending';
-var LABEL_ACREEDOR           = 'cf_acreedor_procesado';
+var LABEL_ACREEDOR           = 'cf_acreedor_procesado';   // thread completamente procesado
+var LABEL_ACREEDOR_PENDING   = 'cf_acreedor_pending';     // thread con rate limit, pendiente de retry
 
 var CATEGORIAS_ACREEDOR = [
   { valor: 'nomina',                   label: 'Nómina / Salarios (L42)'               },
@@ -267,17 +268,22 @@ function _handleResetLabelsAcreedores(data) {
       return _jsonAcr({ success: false, error: 'Email destino no configurado' });
     }
 
-    var query = 'to:' + dest + ' has:attachment (label:' + LABEL_ACREEDOR + ' OR label:procesado_cf_op)';
+    var query = 'to:' + dest + ' has:attachment (label:' + LABEL_ACREEDOR + ' OR label:' + LABEL_ACREEDOR_PENDING + ' OR label:procesado_cf_op)';
     var threads = GmailApp.search(query, 0, 200);
     Logger.log('🧹 Reset labels: encontrados ' + threads.length + ' threads para limpiar.');
 
-    var labelAcr = _getOrCreateLabelAcr(LABEL_ACREEDOR);
-    var labelOp  = null;
+    var labelAcr     = _getOrCreateLabelAcr(LABEL_ACREEDOR);
+    var labelPending = null;
+    try { labelPending = GmailApp.getUserLabelByName(LABEL_ACREEDOR_PENDING); } catch (e) {}
+    var labelOp = null;
     try { labelOp = GmailApp.getUserLabelByName('procesado_cf_op'); } catch (e) {}
 
     var removed = 0;
     for (var i = 0; i < threads.length; i++) {
       try { threads[i].removeLabel(labelAcr); } catch (e) {}
+      if (labelPending) {
+        try { threads[i].removeLabel(labelPending); } catch (e) {}
+      }
       if (labelOp) {
         try { threads[i].removeLabel(labelOp); } catch (e) {}
       }
@@ -754,16 +760,22 @@ function _sincronizarEmailsAcreedores() {
 
         // ── Decisión de label ───────────────────────────────────
         if (tieneRateLimit) {
-          // Errores transitorios de Claude — NO marcamos el thread como
-          // procesado para que el próximo run reintente las facturas
-          // que fallaron. Las que sí se procesaron quedan deduplicadas
-          // por _pendientePorMsgIdFileName, así que el reintento solo
-          // toca las pendientes.
-          Logger.log('⏸ Rate limit de Claude — thread NO se marca, próximo run reintentará las pendientes.');
+          // Rate limit transitorio de Claude — marcar el thread como
+          // PENDING para que sea visible en el inbox y el próximo run
+          // lo reintente. Dedup attachment-level salta las que ya
+          // están guardadas, retry solo las que faltan.
+          var pendingLabel = _getOrCreateLabelAcr(LABEL_ACREEDOR_PENDING);
+          threads[t].addLabel(pendingLabel);
+          Logger.log('⏸ Rate limit de Claude — thread marcado cf_acreedor_pending para retry en próximo run.');
         } else if (tieneAlgunAcreedor) {
           // Tiene acreedores — consumir el thread (errores permanentes
           // como PDF corrupto NO deben loopar infinitamente).
           threads[t].addLabel(label);
+          // Si venía de un retry exitoso, quitar el pending label.
+          try {
+            var prevPending = GmailApp.getUserLabelByName(LABEL_ACREEDOR_PENDING);
+            if (prevPending) threads[t].removeLabel(prevPending);
+          } catch (eRem) {}
           Logger.log(todosListos
             ? '✅ Label cf_acreedor_procesado aplicado.'
             : '⚠️  Label cf_acreedor_procesado aplicado (con errores parciales no-transitorios).');
