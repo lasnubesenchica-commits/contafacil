@@ -626,6 +626,7 @@ function _sincronizarEmailsAcreedores() {
         attachments            = _expandirEmlAdjuntos(attachments);
         var todosListos        = true;   // sin errores de parse = ok para poner label
         var tieneAlgunAcreedor = false;  // al menos un adjunto fue de acreedor
+        var tieneRateLimit     = false;  // 429 de Claude — error transitorio, NO marcar thread
 
         // ── Validar que el mensaje haya llegado vía el reenviador permitido ──
         if (!_esReenvioPermitidoAcr(msg)) {
@@ -688,9 +689,16 @@ function _sincronizarEmailsAcreedores() {
             try {
               parsed = _claudeParsearFacturaLibre(pdfB64, fileName);
             } catch (eClaude) {
-              Logger.log('  ✗ Claude error: ' + eClaude.message);
+              // Distinguir errores transitorios (429 rate limit, 503,
+              // network) de errores permanentes (PDF corrupto, etc).
+              // Los transitorios NO deben consumir el thread —
+              // queremos que el próximo run reintente.
+              var msgErr     = String(eClaude.message || '');
+              var isTransient = /\b429\b|rate_limit|503|temporarily|timeout|Failed to fetch/i.test(msgErr);
+              Logger.log('  ✗ Claude error: ' + msgErr + (isTransient ? ' (transitorio — thread NO se marcará)' : ''));
               todosListos = false;
-              stats.errores.push({ msgId: msgId, file: fileName, error: 'Claude: ' + eClaude.message });
+              if (isTransient) tieneRateLimit = true;
+              stats.errores.push({ msgId: msgId, file: fileName, error: 'Claude: ' + msgErr });
               continue;
             }
           }
@@ -745,12 +753,20 @@ function _sincronizarEmailsAcreedores() {
         stats.procesados++;
 
         // ── Decisión de label ───────────────────────────────────
-        if (tieneAlgunAcreedor) {
-          // Tiene acreedores — consumir el thread independientemente de errores parciales
+        if (tieneRateLimit) {
+          // Errores transitorios de Claude — NO marcamos el thread como
+          // procesado para que el próximo run reintente las facturas
+          // que fallaron. Las que sí se procesaron quedan deduplicadas
+          // por _pendientePorMsgIdFileName, así que el reintento solo
+          // toca las pendientes.
+          Logger.log('⏸ Rate limit de Claude — thread NO se marca, próximo run reintentará las pendientes.');
+        } else if (tieneAlgunAcreedor) {
+          // Tiene acreedores — consumir el thread (errores permanentes
+          // como PDF corrupto NO deben loopar infinitamente).
           threads[t].addLabel(label);
           Logger.log(todosListos
             ? '✅ Label cf_acreedor_procesado aplicado.'
-            : '⚠️  Label cf_acreedor_procesado aplicado (con errores parciales).');
+            : '⚠️  Label cf_acreedor_procesado aplicado (con errores parciales no-transitorios).');
         } else {
           // Todo ignorado — no consumir el thread
           Logger.log('⏭ Thread sin acreedores — sin label.');
