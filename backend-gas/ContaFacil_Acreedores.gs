@@ -300,6 +300,188 @@ function resetLabelsAcreedoresManual() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  PARSER MIME — soporte para bulk forward (.eml adjuntos)
+//
+//  Caso de uso: cuando el cliente selecciona N facturas en Gmail web
+//  y usa "Reenviar como datos adjuntos", Gmail empaqueta cada email
+//  como un attachment de tipo message/rfc822 (.eml). El email
+//  contenedor llega a facturas@balanceclip.net con N adjuntos .eml,
+//  cada uno con su propio PDF/XML de factura adentro.
+//
+//  _expandirEmlAdjuntos toma la lista de attachments del mensaje
+//  outer y devuelve una lista plana donde cada .eml fue parseado
+//  recursivamente y sus PDFs/XMLs internos fueron extraídos. El
+//  resto del pipeline procesa esos adjuntos sintéticos como si
+//  hubieran sido attachments directos del email outer.
+// ═══════════════════════════════════════════════════════════════
+
+function _expandirEmlAdjuntos(attachments) {
+  var out = [];
+  for (var i = 0; i < attachments.length; i++) {
+    var att  = attachments[i];
+    var name = String(att.getName() || '').toLowerCase();
+    var mime = String(att.getContentType() || '').toLowerCase();
+    var isEml = mime === 'message/rfc822' || name.endsWith('.eml');
+    if (!isEml) { out.push(att); continue; }
+    try {
+      var raw   = att.getDataAsString();
+      var inner = _parseEmlInnerAttachments(raw);
+      Logger.log('  📦 .eml expandido: ' + att.getName() + ' → ' + inner.length + ' adjunto(s) interno(s)');
+      for (var j = 0; j < inner.length; j++) out.push(inner[j]);
+    } catch (e) {
+      Logger.log('  ⚠️ No pude expandir .eml ' + att.getName() + ': ' + e.message);
+    }
+  }
+  return out;
+}
+
+// Parsea un .eml (raw MIME) y extrae todos los PDFs / XMLs como
+// objetos compatibles con la interfaz de GmailAttachment. Recursivo:
+// soporta múltiples niveles de multipart y .eml anidados.
+function _parseEmlInnerAttachments(raw) {
+  return _parseMimeBody(raw);
+}
+
+function _parseMimeBody(raw) {
+  var result = [];
+  if (!raw) return result;
+
+  var headerEnd = raw.search(/\r?\n\r?\n/);
+  if (headerEnd === -1) return result;
+  var headers = raw.substring(0, headerEnd);
+  var body    = raw.substring(headerEnd).replace(/^\r?\n\r?\n/, '');
+
+  var ct = _mimeHeader(headers, 'Content-Type');
+  if (!ct) return result;
+
+  if (/multipart\//i.test(ct)) {
+    var bMatch = ct.match(/boundary\s*=\s*"?([^";\r\n]+)"?/i);
+    if (!bMatch) return result;
+    var boundary = '--' + bMatch[1];
+    var parts = body.split(boundary);
+    for (var p = 1; p < parts.length; p++) {
+      var part = parts[p];
+      // Skip closing boundary (which has -- after the dashes)
+      if (part.charAt(0) === '-' && part.charAt(1) === '-') continue;
+      part = part.replace(/^\r?\n/, '');
+      var subs = _parseMimePart(part);
+      for (var s = 0; s < subs.length; s++) result.push(subs[s]);
+    }
+    return result;
+  }
+
+  // Single-part top — parse as a part
+  return _parseMimePart(raw);
+}
+
+function _parseMimePart(rawPart) {
+  var result = [];
+  var headerEnd = rawPart.search(/\r?\n\r?\n/);
+  if (headerEnd === -1) return result;
+  var headers = rawPart.substring(0, headerEnd);
+  var body    = rawPart.substring(headerEnd).replace(/^\r?\n\r?\n/, '');
+
+  var ct = _mimeHeader(headers, 'Content-Type');
+  if (!ct) return result;
+  var ctLow = ct.toLowerCase();
+
+  // Recurse into nested multipart
+  if (/multipart\//i.test(ct)) {
+    var bMatch = ct.match(/boundary\s*=\s*"?([^";\r\n]+)"?/i);
+    if (!bMatch) return result;
+    var boundary = '--' + bMatch[1];
+    var parts = body.split(boundary);
+    for (var p = 1; p < parts.length; p++) {
+      var part = parts[p];
+      if (part.charAt(0) === '-' && part.charAt(1) === '-') continue;
+      part = part.replace(/^\r?\n/, '');
+      var subs = _parseMimePart(part);
+      for (var s = 0; s < subs.length; s++) result.push(subs[s]);
+    }
+    return result;
+  }
+
+  // Recurse into nested message/rfc822 (forwarded email inside forwarded email)
+  if (/message\/rfc822/i.test(ct)) {
+    var nested = _parseMimeBody(body);
+    for (var n = 0; n < nested.length; n++) result.push(nested[n]);
+    return result;
+  }
+
+  // Leaf part — extract filename + content type
+  var fileName = '';
+  var disp = _mimeHeader(headers, 'Content-Disposition');
+  if (disp) {
+    var fnMatch = disp.match(/filename\s*=\s*"?([^";\r\n]+)"?/i);
+    if (fnMatch) fileName = fnMatch[1].trim();
+  }
+  if (!fileName) {
+    var nMatch = ct.match(/name\s*=\s*"?([^";\r\n]+)"?/i);
+    if (nMatch) fileName = nMatch[1].trim();
+  }
+
+  var contentType = ctLow.split(';')[0].trim();
+  var fnLow       = fileName.toLowerCase();
+
+  var isPdf = contentType === 'application/pdf' || contentType === 'application/x-pdf' || fnLow.endsWith('.pdf');
+  var isXml = contentType === 'text/xml' || contentType === 'application/xml' || fnLow.endsWith('.xml');
+  var isOctet = contentType === 'application/octet-stream' && (fnLow.endsWith('.pdf') || fnLow.endsWith('.xml'));
+
+  if (!isPdf && !isXml && !isOctet) return result;
+  if (!fileName) fileName = isPdf ? 'inner.pdf' : 'inner.xml';
+
+  var enc = _mimeHeader(headers, 'Content-Transfer-Encoding') || '7bit';
+  enc = enc.toLowerCase().split(';')[0].trim();
+
+  var bytes;
+  try {
+    if (enc === 'base64') {
+      var clean = body.replace(/[\r\n\s]/g, '');
+      bytes = Utilities.base64Decode(clean);
+    } else if (enc === 'quoted-printable') {
+      bytes = Utilities.newBlob(_decodeQuotedPrintable(body)).getBytes();
+    } else {
+      // 7bit / 8bit / binary — pass through
+      bytes = Utilities.newBlob(body).getBytes();
+    }
+  } catch (e) {
+    Logger.log('  ⚠️ No pude decodear ' + fileName + ' (' + enc + '): ' + e.message);
+    return result;
+  }
+
+  var finalContentType = isXml ? (contentType === 'application/xml' ? 'application/xml' : 'text/xml')
+                              : 'application/pdf';
+
+  // Build attachment-like object compatible with GmailAttachment interface
+  // (the existing pipeline calls getBytes / getName / getContentType / getDataAsString)
+  result.push((function (b, n, c) {
+    return {
+      _isSyntheticEml: true,
+      getBytes:        function () { return b; },
+      getName:         function () { return n; },
+      getContentType:  function () { return c; },
+      getDataAsString: function () { return Utilities.newBlob(b).getDataAsString('UTF-8'); }
+    };
+  })(bytes, fileName, finalContentType));
+
+  return result;
+}
+
+function _mimeHeader(headers, name) {
+  // Find header by name, unfold continuation lines (CRLF + WSP)
+  var re = new RegExp('^' + name + '\\s*:\\s*([^\\r\\n]+(?:\\r?\\n[ \\t][^\\r\\n]+)*)', 'im');
+  var m  = headers.match(re);
+  if (!m) return null;
+  return m[1].replace(/\r?\n[ \t]+/g, ' ').trim();
+}
+
+function _decodeQuotedPrintable(s) {
+  return String(s || '')
+    .replace(/=\r?\n/g, '')                                                                              // soft line break
+    .replace(/=([0-9A-F]{2})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); });
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  PARSER XML DGI PANAMA — fallback cuando el PDF adjunto está vacío
 //
 //  Algunos proveedores (Petróleos Delta, PedidosYa, webposonline, etc)
@@ -437,6 +619,11 @@ function _sincronizarEmailsAcreedores() {
         }
 
         var attachments        = msg.getAttachments();
+        // Expandir bulk forwards: si el email contiene .eml/message/rfc822
+        // como attachments (caso "Forward as attachment" en Gmail web),
+        // los reemplazamos por sus PDFs/XMLs internos. El resto del
+        // pipeline trata cada uno como si hubiera llegado solo.
+        attachments            = _expandirEmlAdjuntos(attachments);
         var todosListos        = true;   // sin errores de parse = ok para poner label
         var tieneAlgunAcreedor = false;  // al menos un adjunto fue de acreedor
 
