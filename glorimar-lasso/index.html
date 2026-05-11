@@ -9653,11 +9653,15 @@ function plRenderBarChart(year) {
     if (m >= 0 && m < 12) egrByMes[m] += parseFloat(e.total) || 0;
   });
 
-  // Costos en gráfica: exclusivamente gastos NO deducibles (alcance = 'personal') por mes
+  // Costos en gráfica: gastos operativos del negocio (DEDUCIBLES,
+  // alcance = 'negocio'), excluyendo personales. Consistente con
+  // el cálculo de Utilidad más abajo y con el card "Gastos
+  // Operativos" del header (que muestra el total con el subtotal
+  // personal indicado aparte).
   const cogsData = new Array(12).fill(0);
   plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
-    if ((e.alcance || 'negocio') !== 'personal') return false;
+    if ((e.alcance || 'negocio') === 'personal') return false;
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
     if (!eAnio || eAnio !== year) return false;
     if (year === plYear && plTipo !== 'todos') {
