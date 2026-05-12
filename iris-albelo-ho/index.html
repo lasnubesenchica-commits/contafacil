@@ -396,6 +396,55 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .btn-sync:hover{opacity:.88}
 .btn-sync:disabled{opacity:.5;cursor:not-allowed}
 
+/* ═══════════════════════════════════════════════════════════════
+   REGISTRO GENERAL — ZONAS visuales (Resumen / Insights / Filtros
+   / Detalle). Cada zona es una "card" con título arriba para
+   separar las regiones del dashboard sin reordenar el flujo.
+   ═══════════════════════════════════════════════════════════════ */
+.rg-zone{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:12px;margin:1rem 1.5rem;overflow:hidden;
+  box-shadow:0 1px 2px rgba(26,26,46,.025);
+}
+.rg-zone-head{
+  display:flex;align-items:center;justify-content:space-between;gap:.75rem;
+  padding:.7rem 1.1rem;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,#FAFAFB 0%,var(--white) 100%);
+}
+.rg-zone-title{
+  font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--chrome);font-weight:600;
+  display:flex;align-items:center;gap:.45rem;
+}
+.rg-zone-title-icon{font-size:.95rem}
+.rg-zone-actions{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.rg-zone-body{padding:.85rem 1.1rem}
+.rg-zone-body.flush{padding:0}
+.rg-zone-body.dense{padding:.5rem .65rem}
+@media (max-width:600px){
+  .rg-zone{margin:.65rem .75rem;border-radius:10px}
+  .rg-zone-head{padding:.6rem .8rem;flex-wrap:wrap}
+  .rg-zone-body{padding:.65rem .8rem}
+}
+
+/* Pill-style sub-tabs (Gastos / Ingresos / Planilla) — más visibles
+   que los underline-only para diferenciarlas de los main-tabs. */
+.rg-pill-tabs{
+  display:inline-flex;gap:.3rem;background:var(--bg);padding:.25rem;
+  border-radius:11px;border:1px solid var(--border);
+}
+.rg-pill-tab{
+  padding:.5rem 1.1rem;font-size:.82rem;font-weight:700;
+  border:none;border-radius:8px;background:transparent;
+  color:var(--muted);cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;gap:.35rem;font-family:inherit;
+}
+.rg-pill-tab:hover:not(.active){color:var(--text);background:rgba(0,0,0,.025)}
+.rg-pill-tab.active{
+  background:var(--white);color:var(--orange);
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+
 /* ── REGISTRO GENERAL — filtros dropdown ── */
 .rg-filter-sel{
   font-size:.78rem;padding:.32rem .65rem;border:1px solid var(--border);
@@ -1775,41 +1824,64 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 <!-- ═══════════ SECCIÓN: REGISTRO GENERAL ═══════════ -->
 <div id="sectionRegistroGeneral" style="display:none">
-  <div style="padding:1rem 2rem .5rem;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem">
-    <span style="font-size:1.15rem">📒</span>
-    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text)">Registro General</span>
-    <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">— Ingresos y egresos misceláneos no vinculados a Proyectos ni Comercialización</span>
+  <!-- Header de sección — título prominente + subtitle corto -->
+  <div style="padding:1.1rem 1.75rem .85rem;background:var(--white);border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:baseline;gap:.55rem;flex-wrap:wrap">
+      <span style="font-size:1.3rem;line-height:1">📒</span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.04em;color:var(--text);line-height:1">Registro General</span>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:.25rem;line-height:1.45">
+      Captura inteligente de facturas para tu declaración DGI — la IA clasifica, calcula ITBMS y prepara tu cierre anual.
+    </div>
   </div>
 
-  <!-- Tabs internos -->
-  <div style="display:flex;gap:0;background:var(--white);border-bottom:2px solid var(--border);padding:0 2rem">
-    <button id="rgTabEgrBtn" onclick="rgShowTab('egr')"
-      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--orange);color:var(--orange);margin-bottom:-2px;transition:all .15s">
-      📤 Gastos
-    </button>
-    <button id="rgTabIngBtn" onclick="rgShowTab('ing')"
-      style="padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
-      💰 Ingresos
-    </button>
-    <button id="rgTabPlBtn" onclick="rgShowTab('pl')"
-      style="display:none;padding:.65rem 1.25rem;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px;transition:all .15s">
-      👤 Planilla
-    </button>
+  <!-- Sub-tabs pill (Gastos / Ingresos / Planilla) — clara diferencia con main-tabs -->
+  <div style="padding:.85rem 1.75rem 0;background:var(--white)">
+    <div class="rg-pill-tabs">
+      <button id="rgTabEgrBtn" class="rg-pill-tab active" onclick="rgShowTab('egr')">📤 Gastos</button>
+      <button id="rgTabIngBtn" class="rg-pill-tab"        onclick="rgShowTab('ing')">💰 Ingresos</button>
+      <button id="rgTabPlBtn"  class="rg-pill-tab"        onclick="rgShowTab('pl')"  style="display:none">👤 Planilla</button>
+    </div>
   </div>
 
   <!-- TAB: EGRESOS -->
-  <div id="rgTabEgr">
-    <!-- ── Widgets top ──────────────────────────────────────── -->
-    <div id="rgEgrWidgets" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;padding:1rem 1.5rem;background:var(--bg);border-bottom:1px solid var(--border)"></div>
+  <div id="rgTabEgr" style="padding-top:.25rem">
+    <!-- ── ZONA 1: Resumen del período (KPIs) ──────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">📊</span> Resumen del período</div>
+      </div>
+      <div class="rg-zone-body dense">
+        <div id="rgEgrWidgets" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem"></div>
+      </div>
+    </section>
 
-    <!-- ── Mini-charts: Top categorías + Top proveedores ───── -->
-    <div id="rgEgrCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;padding:0 1.5rem 1rem;background:var(--bg);border-bottom:1px solid var(--border)">
-      <div class="rg-chart-card" id="rgEgrChartCat"></div>
-      <div class="rg-chart-card" id="rgEgrChartProv"></div>
-    </div>
+    <!-- ── ZONA 2: Insights (Top categorías + Top proveedores) ── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">🎯</span> Insights — qué pesa más</div>
+      </div>
+      <div class="rg-zone-body">
+        <div id="rgEgrCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div class="rg-chart-card" id="rgEgrChartCat"></div>
+          <div class="rg-chart-card" id="rgEgrChartProv"></div>
+        </div>
+      </div>
+    </section>
 
-    <!-- ── Toolbar: 5 dropdowns ────────────────────────────── -->
-    <div id="rgEgrFiltersBar" class="op-toolbar" style="flex-wrap:wrap;gap:.5rem">
+    <!-- ── ZONA 3: Filtros + búsqueda ──────────────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">🔍</span> Filtros y búsqueda</div>
+        <div class="rg-zone-actions">
+          <div class="search-wrap" style="max-width:270px">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
+          </div>
+        </div>
+      </div>
+      <div class="rg-zone-body dense">
+        <div id="rgEgrFiltersBar" class="op-toolbar" style="flex-wrap:wrap;gap:.5rem;padding:0">
       <select id="rgEgrFechaMode" onchange="rgApplyEgrFecha(this.value)" class="rg-filter-sel">
         <option value="all">📅 Todas las fechas</option>
         <option value="7">Últimos 7 días</option>
@@ -1840,26 +1912,26 @@ tr:hover td{background:rgba(0,0,0,.015)}
         <option value="negocio">✅ Deducible</option>
         <option value="personal">🚫 No Deducible</option>
       </select>
-    </div>
-
-    <!-- ── Header sección + nuevo ──────────────────────────── -->
-    <div class="section-hdr-row">
-      <span class="section-hdr-lbl">Egresos generales</span>
-      <div style="display:flex;align-items:center;gap:.5rem">
-        <div class="search-wrap" style="max-width:270px">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="rgSearchEgr" class="filter-search" placeholder="Buscar egreso o proveedor..." oninput="rgRenderEgr()">
         </div>
-        <button id="rgRegistrarGastoBtn" class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso"
-          style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
-          <span style="font-size:.95rem;line-height:1">+</span><span>Registrar gasto</span>
-        </button>
-        <button id="rgRefreshBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar"
-          style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
-          <span id="rgRefreshIcon">↻</span><span>Actualizar</span>
-        </button>
       </div>
-    </div>
+    </section>
+
+    <!-- ── ZONA 4: Egresos detallados (tabla) ──────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">📋</span> Egresos detallados</div>
+        <div class="rg-zone-actions">
+          <button id="rgRegistrarGastoBtn" class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso"
+            style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
+            <span style="font-size:.95rem;line-height:1">+</span><span>Registrar gasto</span>
+          </button>
+          <button id="rgRefreshBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar"
+            style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
+            <span id="rgRefreshIcon">↻</span><span>Actualizar</span>
+          </button>
+        </div>
+      </div>
+      <div class="rg-zone-body flush">
 
     <!-- ── Bulk actions bar ─────────────────────────────────── -->
     <div id="rgEgrBulkBar" style="display:none;align-items:center;gap:.75rem;padding:.45rem 1.5rem;background:#E8F5E9;border-bottom:2px solid #2E7D32">
@@ -1893,6 +1965,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </tbody>
       </table>
     </div>
+      </div><!-- /rg-zone-body -->
+    </section>
   </div><!-- /rgTabEgr -->
 
   <!-- TAB: INGRESOS -->
