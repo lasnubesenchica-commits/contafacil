@@ -554,8 +554,9 @@ function caCalc() {
     egrPorTipo[k].n++;
   });
 
-  // Costo de ventas = costo_mercancia + costo_servicio_tecnico + impuesto_importacion
-  const COSTO_KEYS = ['costo_mercancia','costo_servicio_tecnico','impuesto_importacion'];
+  // Costo de ventas = costo_mercancia (L28-34) + costo_servicio_tecnico (L35)
+  //                 + impuesto_importacion (L35) + otros_costos_venta (L35 Anexo 94)
+  const COSTO_KEYS = ['costo_mercancia','costo_servicio_tecnico','impuesto_importacion','otros_costos_venta'];
   const totalCostoVentas = COSTO_KEYS.reduce((s,k) => s + (egrPorTipo[k]?.total||0), 0);
 
   // Gastos deducibles = todo lo que no es costo de ventas ni credito_fiscal

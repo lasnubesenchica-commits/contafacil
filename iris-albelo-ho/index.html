@@ -3460,6 +3460,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
             <label>Categoría</label>
             <select id="eCategoria" onchange="inferirTipoEgreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
               <option value="costo_mercancia" disabled>(automático — desde Operaciones)</option>
+              <option value="otros_costos_venta">🛒 Otros costos de venta ocasional (L35 Anexo 94)</option>
+              <option disabled>──── Gastos operativos ────</option>
               <option value="nomina">👤 Nómina / Salarios (L42)</option>
               <option value="prestaciones_laborales">👥 Prestaciones laborales (L43)</option>
               <option value="gastos_representacion">🤝 Gastos de representación (L44)</option>
@@ -8311,7 +8313,21 @@ function renderDashboard() {
     }
     return _plClasifEgreso(e) === 'general';
   });
-  const gastosGral = _egresosGralFiltrados.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  // Categorías que son COSTOS DIRECTOS de venta (Línea 35 Anexo 94), no
+  // gastos operativos. Para clientes sin módulo Comercialización que
+  // ocasionalmente venden producto físico sin inventario formal.
+  const _COSTOS_GRAL_KEYS = ['otros_costos_venta'];
+  const _esCostoDirectoGral = e => _COSTOS_GRAL_KEYS.includes(e.tipo_egreso || e.categoria);
+
+  const cogsGral = _egresosGralFiltrados
+    .filter(_esCostoDirectoGral)
+    .reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  cogsTotal += cogsGral;   // entra como Costo de Ventas → reduce Utilidad Bruta
+
+  const gastosGral = _egresosGralFiltrados
+    .filter(e => !_esCostoDirectoGral(e))
+    .reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
 
   const totalEgr    = egresos.reduce((s,e) => s + (parseFloat(e.total)||0), 0);
   const itbmsEgr    = egresos.reduce((s,e) => s + (parseFloat(e.itbms)||0), 0);
