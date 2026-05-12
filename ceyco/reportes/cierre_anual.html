@@ -102,7 +102,7 @@
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,.06);
-  max-width: 860px; margin: 0 auto;
+  max-width: 1080px; margin: 0 auto;
   overflow: hidden;
 }
 
@@ -131,7 +131,6 @@
 .ca-report-title-period { font-size: .78rem; color: rgba(255,255,255,.85); }
 
 /* ═══════════ SECTIONS ════════════════════════════ */
-.ca-section {
 .ca-section {
   padding: 1rem 1.5rem;
 }
@@ -207,19 +206,63 @@
 .ca-dgi-val.muted  { color: var(--muted, #94a3b8); font-weight: 400; font-style: italic; }
 
 /* ═══════════ BREAKDOWN TABLES ═══════════════════ */
-.ca-breakdown { margin-top: .75rem; }
+.ca-breakdown { margin-top: .75rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ca-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -1.5rem; padding: 0 1.5rem; }
+
+/* ═══════════ EMAIL MODAL ═══════════ */
+.ca-modal-bg {
+  position: fixed; inset: 0; background: rgba(15,23,42,.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; padding: 1rem;
+}
+.ca-modal {
+  background: var(--white,#fff); border-radius: 12px;
+  width: 100%; max-width: 540px; box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;
+}
+.ca-modal-hdr {
+  padding: .9rem 1.2rem; border-bottom: 1px solid var(--border,#e2e8f0);
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 700; font-size: .95rem;
+}
+.ca-modal-x {
+  background: none; border: none; font-size: 1.4rem; cursor: pointer;
+  color: var(--muted,#64748b); line-height: 1; padding: 0 .25rem;
+}
+.ca-modal-body { padding: 1rem 1.2rem; overflow-y: auto; }
+.ca-modal-row { margin-bottom: .85rem; display: flex; flex-direction: column; gap: .3rem; }
+.ca-modal-row label { font-size: .78rem; font-weight: 600; color: var(--text,#1a2535); }
+.ca-modal-row input,
+.ca-modal-row textarea {
+  width: 100%; padding: .55rem .7rem; border: 1px solid var(--border,#e2e8f0);
+  border-radius: 6px; font-family: inherit; font-size: .85rem; box-sizing: border-box;
+  background: var(--white,#fff); color: var(--text,#1a2535);
+}
+.ca-modal-row input:focus,
+.ca-modal-row textarea:focus { outline: none; border-color: #1565C0; }
+.ca-modal-err { font-size: .72rem; color: #C62828; min-height: 1em; }
+.ca-modal-info {
+  background: var(--bg,#f8fafc); border-radius: 6px; padding: .6rem .8rem;
+  font-size: .76rem; color: var(--muted,#475569); line-height: 1.5; margin-top: .35rem;
+}
+.ca-modal-foot {
+  padding: .7rem 1.2rem; border-top: 1px solid var(--border,#e2e8f0);
+  display: flex; justify-content: flex-end; gap: .5rem;
+}
+.ca-btn-primary { background: #1565C0; color: #fff; border-color: #1565C0; }
+.ca-btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+@media print { .ca-modal-bg { display: none !important; } }
 .ca-breakdown-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
 .ca-breakdown-table th {
-.ca-breakdown-table th {
   font-family: 'DM Mono', monospace; font-size: .57rem; letter-spacing: .04em;
-  padding: .4rem .6rem; border-bottom: 1px solid var(--border, #e2e8f0);
   padding: .3rem .45rem; border-bottom: 1px solid var(--border, #e2e8f0);
   text-align: left; font-weight: 600; background: var(--bg, #f8fafc); white-space: nowrap;
+}
 .ca-breakdown-table th.num { text-align: right; }
-.ca-breakdown-table td {
 .ca-breakdown-table td {
   padding: .32rem .45rem; border-bottom: 1px solid var(--bg, #f1f5f9);
   vertical-align: middle; font-size: .77rem;
+}
 .ca-breakdown-table td.num {
   text-align: right; font-family: 'DM Mono', monospace;
   font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
@@ -312,6 +355,44 @@
       Vencimiento declaración: <strong>31 de marzo</strong> del año siguiente
     </div>
     <button class="ca-btn ca-btn-print" onclick="caPrint()">🖨️ Imprimir / Guardar PDF</button>
+    <button class="ca-btn ca-btn-email" onclick="caOpenEmailModal()" style="background:#1565C0;color:#fff;border-color:#1565C0">📧 Enviar por email</button>
+  </div>
+
+  <!-- EMAIL MODAL -->
+  <div id="caEmailModal" class="ca-modal-bg" style="display:none">
+    <div class="ca-modal">
+      <div class="ca-modal-hdr">
+        <span>📧 Enviar Cierre Anual por email</span>
+        <button class="ca-modal-x" onclick="caCloseEmailModal()">×</button>
+      </div>
+      <div class="ca-modal-body">
+        <div class="ca-modal-row">
+          <label>Año</label>
+          <span id="caEmailYear" style="font-weight:700">—</span>
+        </div>
+        <div class="ca-modal-row">
+          <label>Destinatarios <span style="color:var(--muted);font-weight:400">(uno o varios, separados por coma)</span></label>
+          <input type="text" id="caEmailTo" placeholder="contador@example.com, socio@example.com" autocomplete="email">
+          <div id="caEmailToErr" class="ca-modal-err"></div>
+        </div>
+        <div class="ca-modal-row">
+          <label>Mensaje opcional</label>
+          <textarea id="caEmailMsg" rows="3" placeholder="Mensaje al destinatario (opcional)"></textarea>
+        </div>
+        <div class="ca-modal-info">
+          El correo incluye:
+          <ul style="margin:.3rem 0 0 1.1rem;padding:0">
+            <li>Resumen del cierre anual en el cuerpo del mensaje (HTML)</li>
+            <li>Adjunto Excel con detalle de ingresos y gastos</li>
+            <li>Link al folder de Drive con los comprobantes</li>
+          </ul>
+        </div>
+      </div>
+      <div class="ca-modal-foot">
+        <button class="ca-btn" onclick="caCloseEmailModal()">Cancelar</button>
+        <button id="caEmailSendBtn" class="ca-btn ca-btn-primary" onclick="caSendEmail()">Enviar</button>
+      </div>
+    </div>
   </div>
 
   <!-- REPORT PAGE -->
@@ -341,6 +422,21 @@ const MESES_C = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct',
 
 let ca_ing = [], ca_egr = [], ca_sts = [];
 let ca_year = new Date().getFullYear() - 1; // default: año anterior (ya cerrado)
+
+// Helpers — extraer año/mes desde fecha cuando los campos explícitos faltan
+// (alinea con la lógica del P&L para que los totales coincidan)
+function _caAnio(e) {
+  const direct = Number(e.anio || e.anio_fiscal);
+  if (direct) return direct;
+  const m = String(e.fecha_egreso || e.fecha_ingreso || '').match(/^(\d{4})/);
+  return m ? Number(m[1]) : 0;
+}
+function _caMes(e) {
+  const direct = Number(e.mes);
+  if (direct) return direct;
+  const m = String(e.fecha_egreso || e.fecha_ingreso || '').match(/^\d{4}-(\d{2})/);
+  return m ? Number(m[1]) : 0;
+}
 
 // ── JSONP ─────────────────────────────────────────
 function caJsonp(action) {
@@ -374,7 +470,11 @@ async function caLoad() {
       const e = String(i.estado||'').toLowerCase();
       return e === 'confirmado' || e === 'abono' || e === 'pendiente';
     });
-    ca_egr = egrRes.items || [];
+    // Excluir egresos anulados y gastos personales (no deducibles) — alinea con P&L
+    ca_egr = (egrRes.items || []).filter(e =>
+      String(e.estado||'').toLowerCase() !== 'anulado' &&
+      (e.alcance || 'negocio') !== 'personal'
+    );
     ca_sts = (stRes.items || []).filter(st => st.estado !== 'cancelado');
 
     caPopulateYears();
@@ -391,8 +491,8 @@ async function caLoad() {
 
 function caPopulateYears() {
   const years = new Set();
-  ca_ing.forEach(i => { if (i.anio_fiscal) years.add(Number(i.anio_fiscal)); });
-  ca_egr.forEach(e => { const y = Number(e.anio||e.anio_fiscal); if (y) years.add(y); });
+  ca_ing.forEach(i => { const y = _caAnio(i); if (y) years.add(y); });
+  ca_egr.forEach(e => { const y = _caAnio(e); if (y) years.add(y); });
   if (!years.size) years.add(new Date().getFullYear());
   const sel = document.getElementById('caSelAnio');
   sel.innerHTML = [...years].sort((a,b)=>b-a)
@@ -409,8 +509,8 @@ window.caApply = caApply;
 // ── CÁLCULOS ──────────────────────────────────────
 function caCalc() {
   const y = ca_year;
-  const ing = ca_ing.filter(i => Number(i.anio_fiscal) === y);
-  const egr = ca_egr.filter(e => Number(e.anio||e.anio_fiscal) === y);
+  const ing = ca_ing.filter(i => _caAnio(i) === y);
+  const egr = ca_egr.filter(e => _caAnio(e) === y);
   const sts = ca_sts.filter(st => {
     return Number(st.anio||0) === y || Number(st.anio_ingreso||0) === y;
   });
@@ -444,18 +544,19 @@ function caCalc() {
   const totalCredFisc  = egrCredito.reduce((s,e) => s+Number(e.total||0), 0);
   const itbmsNeto      = totalITBMSCobrado - totalITBMSPag - totalCredFisc;
 
-  // Breakdown por tipo de egreso
+  // Breakdown por tipo de egreso — items sin tipo van a "Sin clasificar" (alineado con P&L)
   const egrPorTipo = {};
   egrNormal.forEach(e => {
-    const k = e.tipo_egreso || 'otros_deducibles';
+    const k = e.tipo_egreso || 'sin_clasificar';
     if (!egrPorTipo[k]) egrPorTipo[k] = { total: 0, itbms: 0, n: 0 };
     egrPorTipo[k].total += Number(e.total||0);
     egrPorTipo[k].itbms += Number(e.itbms||0);
     egrPorTipo[k].n++;
   });
 
-  // Costo de ventas = costo_mercancia + costo_servicio_tecnico + impuesto_importacion
-  const COSTO_KEYS = ['costo_mercancia','costo_servicio_tecnico','impuesto_importacion'];
+  // Costo de ventas = costo_mercancia (L28-34) + costo_servicio_tecnico (L35)
+  //                 + impuesto_importacion (L35) + otros_costos_venta (L35 Anexo 94)
+  const COSTO_KEYS = ['costo_mercancia','costo_servicio_tecnico','impuesto_importacion','otros_costos_venta'];
   const totalCostoVentas = COSTO_KEYS.reduce((s,k) => s + (egrPorTipo[k]?.total||0), 0);
 
   // Gastos deducibles = todo lo que no es costo de ventas ni credito_fiscal
@@ -468,8 +569,8 @@ function caCalc() {
   // ── ITBMS mensual ─────────────────────────────
   const itbmsPorMes = Array.from({length:12}, (_,i) => {
     const m = i + 1;
-    const ingM = ing.filter(x => Number(x.mes) === m);
-    const egrM = egr.filter(x => Number(x.mes) === m);
+    const ingM = ing.filter(x => _caMes(x) === m);
+    const egrM = egr.filter(x => _caMes(x) === m);
     const cobrado = ingM.reduce((s,x) => s+Number(x.itbms||0), 0);
     const pagado  = egrM.filter(x=>x.tipo_egreso!=='credito_fiscal').reduce((s,x)=>s+Number(x.itbms||0),0);
     const credito = egrM.filter(x=>x.tipo_egreso==='credito_fiscal').reduce((s,x)=>s+Number(x.total||0),0);
@@ -479,10 +580,10 @@ function caCalc() {
   // ── Egresos por mes ───────────────────────────
   const egrPorMes = Array.from({length:12}, (_,i) => {
     const m = i + 1;
-    const egrM = egrNormal.filter(e => Number(e.mes) === m);
+    const egrM = egrNormal.filter(e => _caMes(e) === m);
     const costoM   = egrM.filter(e=>COSTO_KEYS.includes(e.tipo_egreso)).reduce((s,e)=>s+Number(e.total||0),0);
     const gastosM  = egrM.filter(e=>!COSTO_KEYS.includes(e.tipo_egreso)).reduce((s,e)=>s+Number(e.total||0),0);
-    const ingM     = ing.filter(x => Number(x.mes) === m).reduce((s,x)=>s+Number(x.subtotal||0),0);
+    const ingM     = ing.filter(x => _caMes(x) === m).reduce((s,x)=>s+Number(x.subtotal||0),0);
     return { m, costoM, gastosM, totalM: costoM+gastosM, ingM };
   }).filter(r => r.totalM > 0 || r.ingM > 0);
 
@@ -547,6 +648,7 @@ const EGR_LABELS = {
   seguros:                  'Seguros',
   gastos_financieros:       'Gastos financieros',
   otros_deducibles:         'Otros gastos deducibles',
+  sin_clasificar:           'Sin clasificar',
   servicios_profesionales:  'Honorarios / Servicios profesionales',
   costo_operativo:          'Costos operativos generales',
 };
@@ -760,22 +862,22 @@ function caRender() {
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem">
         <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:.75rem 1rem">
           <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.25rem">Total cobrado (año)</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1" style="color:#1565C0">${fmt(d.totalITBMSCobrado)}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1;color:#1565C0">${fmt(d.totalITBMSCobrado)}</div>
         </div>
         <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:.75rem 1rem">
           <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.25rem">Total pagado (año)</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1" style="color:#6A1B9A">${fmt(d.totalITBMSPag)}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1;color:#6A1B9A">${fmt(d.totalITBMSPag)}</div>
         </div>
         <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:.75rem 1rem">
           <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.25rem">Crédito fiscal (año)</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1" style="color:#00695C">${fmt(d.totalCredFisc)}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1;color:#00695C">${fmt(d.totalCredFisc)}</div>
         </div>
         <div style="background:var(--bg,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:.75rem 1rem">
           <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.25rem">Neto declarado a DGI</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1" style="color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}">${fmt(Math.abs(d.itbmsNeto))}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;line-height:1;color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}">${fmt(Math.abs(d.itbmsNeto))}</div>
         </div>
       </div>
-      <table class="ca-mes-table">
+      <div class="ca-table-scroll"><table class="ca-mes-table">
         <thead>
           <tr>
             <th>Mes</th>
@@ -806,7 +908,7 @@ function caRender() {
             <td style="font-weight:700;color:${d.itbmsNeto>=0?'#E65100':'#2E7D32'}"><strong>${fmt(Math.abs(d.itbmsNeto))}</strong> <span style="font-size:.65rem">${d.itbmsNeto>=0?'▲ Pagar':'▼ Favor'}</span></td>
           </tr>
         </tfoot>
-      </table>
+      </table></div>
     </div>
 
     <!-- SECCIÓN 5: EGRESOS POR MES -->
@@ -816,7 +918,7 @@ function caRender() {
         <span class="ca-section-title">Egresos por mes</span>
         <span class="ca-section-subtitle">Solo meses con movimiento</span>
       </div>
-      <table class="ca-mes-table">
+      <div class="ca-table-scroll"><table class="ca-mes-table">
         <thead>
           <tr>
             <th>Mes</th>
@@ -850,7 +952,7 @@ function caRender() {
             <td style="font-weight:700;color:${d.rentaNeta>=0?'#2E7D32':'#C62828'}"><strong>${fmt(d.rentaNeta)}</strong></td>
           </tr>
         </tfoot>
-      </table>
+      </table></div>
     </div>
 
     <!-- SECCIÓN 6: CUENTAS POR COBRAR AL CIERRE -->
@@ -872,13 +974,13 @@ function caRender() {
           <div style="font-size:.7rem;color:var(--muted,#94a3b8);margin-top:.2rem">${d.stPendCobro.length} ST${d.stPendCobro.length!==1?'s':''} · ingreso pendiente de confirmación</div>
         </div>
         <div style="background:var(--bg,#f8fafc);border:1px solid #FFF9C4;border-radius:8px;padding:1rem 1.25rem">
-          <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.35rem" style="color:#F57F17">🔧 Proyectos en ejecución</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;color:#E65100" style="color:#F57F17">${fmt(d.totalEnEjec)}</div>
+          <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#F57F17;margin-bottom:.35rem">🔧 Proyectos en ejecución</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;color:#F57F17">${fmt(d.totalEnEjec)}</div>
           <div style="font-size:.7rem;color:var(--muted,#94a3b8);margin-top:.2rem">${d.stEnEjec.length} ST${d.stEnEjec.length!==1?'s':''} · estimado cotizado, aún no facturado</div>
         </div>
         <div style="background:#F3E5F5;border:1px solid #E1BEE7;border-radius:8px;padding:1rem 1.25rem">
-          <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#64748b);margin-bottom:.35rem" style="color:#6A1B9A">Total cartera</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;color:#E65100" style="color:#6A1B9A">${fmt(d.totalCxCOp+d.totalCxCST)}</div>
+          <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6A1B9A;margin-bottom:.35rem">Total cartera</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1;color:#6A1B9A">${fmt(d.totalCxCOp+d.totalCxCST)}</div>
           <div style="font-size:.7rem;color:var(--muted,#94a3b8);margin-top:.2rem">Facturado pendiente · excluyendo en ejecución</div>
         </div>
       </div>
@@ -908,6 +1010,75 @@ function caPrint() {
   document.title = old;
 }
 window.caPrint = caPrint;
+
+// ── Email modal ───────────────────────────────────
+function caOpenEmailModal() {
+  document.getElementById('caEmailYear').textContent = ca_year;
+  document.getElementById('caEmailTo').value  = '';
+  document.getElementById('caEmailMsg').value = '';
+  document.getElementById('caEmailToErr').textContent = '';
+  document.getElementById('caEmailSendBtn').disabled = false;
+  document.getElementById('caEmailSendBtn').textContent = 'Enviar';
+  document.getElementById('caEmailModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('caEmailTo').focus(), 50);
+}
+window.caOpenEmailModal = caOpenEmailModal;
+
+function caCloseEmailModal() {
+  document.getElementById('caEmailModal').style.display = 'none';
+}
+window.caCloseEmailModal = caCloseEmailModal;
+
+function _caParseEmails(s) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const list = String(s||'').split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+  const ok = [], bad = [];
+  list.forEach(e => (re.test(e) ? ok : bad).push(e));
+  return { ok, bad };
+}
+
+async function caSendEmail() {
+  const errEl = document.getElementById('caEmailToErr');
+  const btn   = document.getElementById('caEmailSendBtn');
+  const raw   = document.getElementById('caEmailTo').value;
+  const msg   = document.getElementById('caEmailMsg').value;
+  const { ok, bad } = _caParseEmails(raw);
+
+  errEl.textContent = '';
+  if (!ok.length) { errEl.textContent = 'Ingresa al menos un email válido.'; return; }
+  if (bad.length) { errEl.textContent = 'Emails inválidos: ' + bad.join(', '); return; }
+
+  btn.disabled    = true;
+  btn.textContent = 'Enviando…';
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({
+        action:  'enviarReporteCierre',
+        year:    ca_year,
+        emails:  ok.join(','),
+        mensaje: msg,
+      }),
+    }).then(r => r.json()).catch(() => null);
+
+    if (!res || !res.success) {
+      const errMsg = (res && res.error) ? res.error : 'Error al enviar (verifica que el backend tenga el endpoint enviarReporteCierre).';
+      errEl.textContent = errMsg;
+      btn.disabled    = false;
+      btn.textContent = 'Reintentar';
+      return;
+    }
+    btn.textContent = '✅ Enviado';
+    setTimeout(caCloseEmailModal, 1200);
+  } catch (e) {
+    errEl.textContent = 'Error de red: ' + (e.message || e);
+    btn.disabled    = false;
+    btn.textContent = 'Reintentar';
+  }
+}
+window.caSendEmail = caSendEmail;
 
 // ── Helpers ──────────────────────────────────────
 function fmt(n) {
