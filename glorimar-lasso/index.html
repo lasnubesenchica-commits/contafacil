@@ -8612,6 +8612,46 @@ function renderDashboard() {
 }
 
 
+
+// ══════════════════════════════════════════════════
+//  ESTADO DE RESULTADOS — vista contable acordeón
+// ══════════════════════════════════════════════════
+var erModoExpandido = false;   // false = compacto, true = todo expandido
+
+function erToggleVista() {
+  erModoExpandido = !erModoExpandido;
+  const btn = document.getElementById('erToggleBtn');
+  btn.textContent = erModoExpandido ? 'Vista compacta' : 'Vista compacta';
+  btn.textContent = erModoExpandido ? 'Colapsar todo'  : 'Vista compacta';
+  // Expandir / colapsar todos los acordeones sin re-renderizar
+  document.querySelectorAll('.er-detail-wrap').forEach(el => {
+    el.classList.toggle('open', erModoExpandido);
+  });
+  document.querySelectorAll('.er-row[data-er-section]').forEach(el => {
+    el.classList.toggle('expanded', erModoExpandido);
+  });
+}
+
+function erToggleSection(section) {
+  const wrap = document.getElementById('er-detail-' + section);
+  const row  = document.querySelector('.er-row[data-er-section="' + section + '"]');
+  if (!wrap || !row) return;
+  const isOpen = wrap.classList.contains('open');
+  wrap.classList.toggle('open', !isOpen);
+  row.classList.toggle('expanded', !isOpen);
+}
+
+function erToggleCat(cat, ev) {
+  if (ev) ev.stopPropagation();
+  const wrap = document.getElementById('er-cat-items-' + cat);
+  const row  = document.querySelector('.er-cat-row[data-cat="' + cat + '"]');
+  if (!wrap || !row) return;
+  const isOpen = wrap.classList.contains('open');
+  wrap.classList.toggle('open', !isOpen);
+  row.classList.toggle('expanded', !isOpen);
+}
+window.erToggleCat = erToggleCat;
+
 function erRender() {
   const body = document.getElementById('erBody');
   const periodoEl = document.getElementById('erPeriodoLabel');
