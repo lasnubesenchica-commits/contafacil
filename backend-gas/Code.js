@@ -2626,6 +2626,7 @@ function _handleParseFacturaEgreso(data) {
       '11. categoria_gasto = elige el valor que MEJOR describe este gasto según los productos/servicios y el nombre del proveedor.\n' +
       '    Valores válidos (elige exactamente uno):\n' + catValues + '\n' +
       '    Si no encaja en ninguna categoría específica usa "otros_deducibles".\n' +
+      '    Si la factura corresponde a un PRODUCTO físico que el cliente probablemente revenderá o ya vendió (mercancía directa para reventa, no insumo operativo), usa "otros_costos_venta" (Línea 35 Anexo 94). Casos típicos: compra al por mayor para reventa, suministros que el cliente comercializa, productos de proveedor mayorista. NO usar para gastos operativos (oficina, gasolina, alquiler).\n' +
       '12. Montos como números, no strings. null solo si el campo realmente no existe.';
 
     var payload = {
@@ -3061,6 +3062,11 @@ var CATEGORIAS_GASTO_DGI = [
   { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',   linea_dgi: '75',    emoji: '💡' },
   { valor: 'tecnologia_software',      label: 'Tecnología y software',            linea_dgi: '76',    emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',         linea_dgi: '76',    emoji: '📚' },
+  // ── Costos directos sin inventario (raro — venta ocasional de producto) ──
+  // L35 del Formulario 94 (Anexo 94 - Otros Costos). Para clientes sin
+  // módulo Comercialización que venden ocasionalmente productos físicos
+  // y necesitan registrar el costo asociado a esa venta.
+  { valor: 'otros_costos_venta',       label: 'Otros costos de venta ocasional',  linea_dgi: '35',    emoji: '🛒' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',          linea_dgi: '77',    emoji: '📋' },
   // ── Deducibles Personales (ISR persona natural) ──
   { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea_dgi: 'DP',  emoji: '👨‍👩‍👧' },
