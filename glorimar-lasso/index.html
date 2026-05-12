@@ -9052,14 +9052,23 @@ function erRender() {
     const idCV = String(e.id_item_cv || '');
     return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
   });
-  const cogsTotal = cogsItems.reduce((s, si) => {
+  // cogsTotal se completa después del filtro de costos en Registro General
+  // (que ocurre más abajo, ya que necesita _esCostoGral); aquí solo
+  // dejamos la base de Proyectos + Comercialización.
+  let cogsTotal = cogsItems.reduce((s, si) => {
     const tr = parseFloat(si.item.total_real) || 0;
     const tc = parseFloat(si.item.total_cotizado) || 0;
     return s + (tr > 0 ? tr : tc);
   }, 0) + cogsOpItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
 
+  // Costos directos en Registro General (Línea 35 Anexo 94) —
+  // categorías que reducen Utilidad Bruta en vez de aparecer como
+  // gastos operativos. Mismo concepto que en renderDashboard().
+  const _ER_COSTOS_GRAL_KEYS = ['otros_costos_venta'];
+  const _esCostoGral = e => _ER_COSTOS_GRAL_KEYS.includes(e.tipo_egreso || e.categoria);
+
   // Gastos operativos — Registro General (solo deducibles, alineado con widget y mobile P&L)
-  const gastosItems = plEgresos.filter(e => {
+  const _allGralFiltrados = plEgresos.filter(e => {
     if (String(e.estado || '').toLowerCase() === 'anulado') return false;
     if ((e.alcance || 'negocio') === 'personal') return false;
     const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
@@ -9070,7 +9079,12 @@ function erRender() {
     }
     return _plClasifEgreso(e) === 'general';
   });
-  const gastosTotal = gastosItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  // Splitear en costos directos (van a cogsTotal) y gastos operativos
+  const cogsGralItems = _allGralFiltrados.filter(_esCostoGral);
+  const gastosItems   = _allGralFiltrados.filter(e => !_esCostoGral(e));
+  const gastosTotal   = gastosItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  // Sumar costos directos del Registro General al cogsTotal global
+  cogsTotal += cogsGralItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
 
   // ── Deducible / No deducible split ──────────────────────────────
   const dedTotal   = gastosItems.filter(e => (e.alcance || 'negocio') !== 'personal')
@@ -9214,11 +9228,17 @@ function erRender() {
       ${detIngHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin registros</span></div>'}
     </div>
 
-    <!-- UTILIDAD BRUTA -->
-    <div class="er-subtotal-row">
-      <span class="er-subtotal-label">Utilidad bruta</span>
-      ${fmtSubtotalAmt(utilBruta, utilBruta >= 0 ? 'green' : 'red')}
-    </div>
+    <!-- COSTO DE VENTAS + UTILIDAD BRUTA — solo si hay costos directos -->
+    ${cogsTotal > 0 ? `
+      <div class="er-row" data-er-section="cos">
+        <span class="er-row-label">Costo de ventas ${countLbl(cogsItems.length + cogsOpItems.length + cogsGralItems.length)}</span>
+        ${fmtAmt(-cogsTotal, 'purple')}
+      </div>
+      <div class="er-subtotal-row">
+        <span class="er-subtotal-label">Utilidad bruta</span>
+        ${fmtSubtotalAmt(utilBruta, utilBruta >= 0 ? 'green' : 'red')}
+      </div>
+    ` : ''}
 
     <!-- GASTOS OPERATIVOS — agrupados por categoría (solo deducibles) -->
     <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="gas" onclick="erToggleSection('gas')">
