@@ -9897,12 +9897,77 @@ var _acrFileB64    = null;    // base64 de la factura ejemplo en el modal de nue
 // Alias — el catálogo de Acreedores ES el catálogo DGI unificado
 const CATEG_ACREEDOR = CATEGORIAS_GASTO_DGI;
 
-function _acrBuildCatOptions(selectId, selected) {
-  const sel = document.getElementById(selectId);
+// ─────────────────────────────────────────────────────────────────
+// RENDER CANÓNICO DE CATEGORÍAS — usado por TODOS los <select> del
+// dashboard (modal Registrar gasto, modal Aprobar pendiente, etc.).
+//
+// Agrupa por sección via <optgroup>:
+//   • Costos directos (poco común) — otros_costos_venta + opcional
+//     costo_mercancia disabled
+//   • Gastos operativos — lo más común
+//   • Deducibles personales — Persona Natural (ISR)
+//
+// Para floating dropdowns (catChipOpen, pl_gasto chip) que no son
+// <select> nativos, ver el render específico en cada uno (mismo
+// agrupamiento pero HTML custom).
+//
+// Opts:
+//   - withLineLabel (bool) — prefija "L<num>" al label (para vistas P&L)
+//   - includeDisabledCostoMercancia (bool) — añade opción 📦 disabled
+//   - emptyFirst (bool) — primera <option> vacía (placeholder)
+// ─────────────────────────────────────────────────────────────────
+const _CAT_SEC_COSTOS = new Set(['otros_costos_venta']);
+const _CAT_SEC_PERSONALES = new Set([
+  'deducibles_personales','gastos_medicos','gastos_escolares',
+  'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'
+]);
+
+function _renderCategoriaSelect(selectEl, selected, opts) {
+  opts = opts || {};
+  const sel = typeof selectEl === 'string' ? document.getElementById(selectEl) : selectEl;
   if (!sel) return;
-  sel.innerHTML = CATEGORIAS_GASTO_DGI.map(c =>
-    `<option value="${c.valor}" ${c.valor === selected ? 'selected' : ''}>${c.emoji} ${c.label}</option>`
-  ).join('');
+
+  const costos     = CATEGORIAS_GASTO_DGI.filter(c =>  _CAT_SEC_COSTOS.has(c.valor));
+  const personales = CATEGORIAS_GASTO_DGI.filter(c =>  _CAT_SEC_PERSONALES.has(c.valor));
+  const operativos = CATEGORIAS_GASTO_DGI.filter(c => !_CAT_SEC_COSTOS.has(c.valor) && !_CAT_SEC_PERSONALES.has(c.valor));
+
+  const opt = c => {
+    const lbl = opts.withLineLabel
+      ? `L${c.linea} · ${c.emoji} ${c.label}`
+      : `${c.emoji} ${c.label}`;
+    return `<option value="${c.valor}"${c.valor === selected ? ' selected' : ''}>${lbl}</option>`;
+  };
+
+  let html = '';
+  if (opts.emptyFirst) html += '<option value="">— Elegí una categoría —</option>';
+
+  // Sección 1: Costos directos
+  if (costos.length || opts.includeDisabledCostoMercancia) {
+    html += '<optgroup label="── Costos directos (poco común) ──">';
+    if (opts.includeDisabledCostoMercancia) {
+      html += '<option value="costo_mercancia" disabled>📦 Costo de mercancía — automático desde Operaciones</option>';
+    }
+    html += costos.map(opt).join('');
+    html += '</optgroup>';
+  }
+  // Sección 2: Gastos operativos
+  html += '<optgroup label="── Gastos operativos (lo más común) ──">';
+  html += operativos.map(opt).join('');
+  html += '</optgroup>';
+  // Sección 3: Deducibles personales
+  if (personales.length) {
+    html += '<optgroup label="── Deducibles personales (Persona Natural) ──">';
+    html += personales.map(opt).join('');
+    html += '</optgroup>';
+  }
+
+  sel.innerHTML = html;
+}
+
+// Alias retrocompatible — todo callsite que usaba _acrBuildCatOptions
+// sigue funcionando, pero ahora pasa por el render canónico con secciones.
+function _acrBuildCatOptions(selectId, selected) {
+  _renderCategoriaSelect(selectId, selected);
 }
 
 // Mapa de categorías acreedor para el render unificado
