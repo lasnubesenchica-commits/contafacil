@@ -8612,6 +8612,553 @@ function renderDashboard() {
 }
 
 
+function erRender() {
+  const body = document.getElementById('erBody');
+  const periodoEl = document.getElementById('erPeriodoLabel');
+  if (!body) return;
+
+  // ── Data: reusar los mismos filtros del P&L ──
+  const ingresos = plFiltrarIngresos();
+  const totalIngNeto = ingresos.reduce((s, i) => s + (parseFloat(i.subtotal) || 0), 0);
+
+  // Costos directos — ST_Items del período
+  const cogsItems = plStItems.filter(si => {
+    const siAnio = parseInt(si.anio) || 0;
+    const siMes  = parseInt(si.mes)  || 0;
+    if (siAnio !== plYear) return false;
+    if (plMonth !== 'ytd' && siMes !== plMonth) return false;
+    if ((si.item.tipo || '') === 'credito_fiscal') return false;
+    return true;
+  });
+  // CV-OP
+  const egresos = plFiltrarEgresos();
+  const cogsOpItems = egresos.filter(e => {
+    const idCV = String(e.id_item_cv || '');
+    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+  });
+  // cogsTotal se completa después del filtro de costos en Registro General
+  // (que ocurre más abajo, ya que necesita _esCostoGral); aquí solo
+  // dejamos la base de Proyectos + Comercialización.
+  let cogsTotal = cogsItems.reduce((s, si) => {
+    const tr = parseFloat(si.item.total_real) || 0;
+    const tc = parseFloat(si.item.total_cotizado) || 0;
+    return s + (tr > 0 ? tr : tc);
+  }, 0) + cogsOpItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  // Costos directos en Registro General (Línea 35 Anexo 94) —
+  // categorías que reducen Utilidad Bruta en vez de aparecer como
+  // gastos operativos. Mismo concepto que en renderDashboard().
+  const _ER_COSTOS_GRAL_KEYS = ['otros_costos_venta'];
+  const _esCostoGral = e => _ER_COSTOS_GRAL_KEYS.includes(e.tipo_egreso || e.categoria);
+
+  // Gastos operativos — Registro General (solo deducibles, alineado con widget y mobile P&L)
+  const _allGralFiltrados = plEgresos.filter(e => {
+    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    if ((e.alcance || 'negocio') === 'personal') return false;
+    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== plYear) return false;
+    if (plMonth !== 'ytd') {
+      const eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
+      if (eMes !== plMonth) return false;
+    }
+    return _plClasifEgreso(e) === 'general';
+  });
+  // Splitear en costos directos (van a cogsTotal) y gastos operativos
+  const cogsGralItems = _allGralFiltrados.filter(_esCostoGral);
+  const gastosItems   = _allGralFiltrados.filter(e => !_esCostoGral(e));
+  const gastosTotal   = gastosItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  // Sumar costos directos del Registro General al cogsTotal global
+  cogsTotal += cogsGralItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  // ── Deducible / No deducible split ──────────────────────────────
+  const dedTotal   = gastosItems.filter(e => (e.alcance || 'negocio') !== 'personal')
+                                .reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+  const nodedTotal = gastosItems.filter(e => (e.alcance || 'negocio') === 'personal')
+                                .reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  // ── Categorías ──────────────────────────────────────────────────
+  const catMap = {};
+  gastosItems.forEach(e => {
+    const cat = e.tipo_egreso || 'sin_clasificar';
+    if (!catMap[cat]) catMap[cat] = { total: 0, count: 0, items: [] };
+    catMap[cat].total += parseFloat(e.total) || 0;
+    catMap[cat].count++;
+    catMap[cat].items.push(e);
+  });
+  const catEntries = Object.entries(catMap).sort((a, b) => b[1].total - a[1].total);
+
+  // ── Top proveedores ─────────────────────────────────────────────
+  const provMap = {};
+  gastosItems.forEach(e => {
+    const prov = (e.proveedor || '').trim() || 'Sin proveedor';
+    if (!provMap[prov]) provMap[prov] = { total: 0, count: 0 };
+    provMap[prov].total += parseFloat(e.total) || 0;
+    provMap[prov].count++;
+  });
+  const top5Prov = Object.entries(provMap).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
+
+  const utilBruta = totalIngNeto - cogsTotal;
+  const utilNeta  = utilBruta - gastosTotal;
+
+  // Período label
+  const periodo = plMonth === 'ytd'
+    ? 'Ene – ' + ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][new Date().getMonth() + 1] + ' ' + plYear
+    : ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][plMonth] + ' ' + plYear;
+  if (periodoEl) periodoEl.textContent = periodo;
+
+  // ── Helpers de filas ──
+  const fmtAmt = (n, cls) =>
+    `<span class="er-row-amount ${cls}">${n < 0 ? '(' + plFmt(Math.abs(n)) + ')' : plFmt(n)}</span>`;
+
+  const fmtSubtotalAmt = (n, cls) =>
+    `<span class="er-subtotal-amount ${cls}">${n < 0 ? '(' + plFmt(Math.abs(n)) + ')' : plFmt(n)}</span>`;
+
+  // ── Detalle Ingresos ──
+  const detIngHtml = ingresos.map(i => {
+    const subtotal = parseFloat(i.subtotal) || 0;
+    const cliente  = esc(i.nombre_cliente || '—');
+    const factura  = i.num_factura ? `<span class="er-detail-item-sub">${esc(i.num_factura)}</span>` : '';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label">${cliente}${factura}</span>
+      <span class="er-detail-item-amt">${plFmt(subtotal)}</span>
+    </div>`;
+  }).join('');
+
+  // ── Detalle Costos — ST_Items + CV-OP ──
+  const detCogsST = cogsItems.map(si => {
+    const it    = si.item;
+    const monto = (parseFloat(it.total_real) || 0) > 0 ? parseFloat(it.total_real) : (parseFloat(it.total_cotizado) || 0);
+    const desc  = esc((it.descripcion || '').substring(0, 60));
+    const origen = `<span class="er-detail-item-sub">${esc(si.id_st || '')}</span>`;
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label">${desc}${origen}</span>
+      <span class="er-detail-item-amt">${plFmt(monto)}</span>
+    </div>`;
+  }).join('');
+  const detCogsOp = cogsOpItems.map(e => {
+    const desc = esc((e.descripcion || '').substring(0, 60));
+    const prov = e.proveedor ? `<span class="er-detail-item-sub">${esc(e.proveedor)}</span>` : '';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label">${desc}${prov}</span>
+      <span class="er-detail-item-amt">${plFmt(parseFloat(e.total) || 0)}</span>
+    </div>`;
+  }).join('');
+
+  // ── Detalle Gastos ──
+  const dedBarHtml = gastosItems.length > 0 ? `
+    <div style="display:flex;gap:.6rem;align-items:center;padding:.5rem .85rem;background:var(--bg);border-radius:6px;margin:.45rem;font-size:.75rem;flex-wrap:wrap">
+      <span style="color:var(--green);font-weight:700">✅ ${plFmt(dedTotal)}</span>
+      <span style="color:var(--muted)">deducibles</span>
+      ${nodedTotal > 0 ? `<span style="margin-left:auto;color:#E65100;font-weight:700">🚫 ${plFmt(nodedTotal)}</span><span style="color:var(--muted)">no deducibles</span>` : ''}
+    </div>` : '';
+
+  const detGasHtml = gastosItems.map(e => {
+    const cat   = esc(EGR_LABEL[e.tipo_egreso] || e.tipo_egreso || '—');
+    const desc  = e.descripcion ? `<span class="er-detail-item-sub">${esc(e.descripcion.substring(0,50))}</span>` : '';
+    const alcBadge = (e.alcance || 'negocio') === 'personal'
+      ? '<span style="font-size:.63rem;color:#E65100;margin-left:.3rem">🚫</span>' : '';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label">${cat}${alcBadge}${desc}</span>
+      <span class="er-detail-item-amt">${plFmt(parseFloat(e.total) || 0)}</span>
+    </div>`;
+  }).join('');
+
+  // ── Detalle Categorías (clicable, despliega items) ──
+  const catDetailHtml = catEntries.map(([cat, d]) => {
+    const label = esc(EGR_LABEL[cat] || cat);
+    const color = EGR_COLORS[cat] || '#9E9E9E';
+    const pct   = gastosTotal > 0 ? (d.total / gastosTotal * 100).toFixed(1) : '0.0';
+    const safeCat = String(cat).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const itemsHtml = d.items.map(e => {
+      const desc = e.descripcion ? esc(e.descripcion.substring(0, 60)) : '—';
+      const prov = e.proveedor ? `<span class="er-detail-item-sub">${esc(e.proveedor)}</span>` : '';
+      return `<div class="er-detail-item er-cat-subitem">
+        <span class="er-detail-item-label">${desc}${prov}</span>
+        <span class="er-detail-item-amt">${plFmt(parseFloat(e.total) || 0)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="er-detail-item er-cat-row" data-cat="${safeCat}" onclick="erToggleCat('${safeCat}', event)" style="cursor:pointer">
+      <span class="er-detail-item-label" style="color:var(--text)">
+        <span class="er-cat-chevron">▶</span>
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin:0 .4rem;vertical-align:middle;flex-shrink:0"></span>${label}
+        <span class="er-detail-item-sub">${d.count} gasto${d.count !== 1 ? 's' : ''} · ${pct}%</span>
+      </span>
+      <span class="er-detail-item-amt">${plFmt(d.total)}</span>
+    </div>
+    <div class="er-cat-items" id="er-cat-items-${safeCat}">${itemsHtml}</div>`;
+  }).join('');
+
+  // ── Detalle Top proveedores ──
+  const provDetailHtml = top5Prov.map(([prov, d]) => {
+    const pct = gastosTotal > 0 ? (d.total / gastosTotal * 100).toFixed(1) : '0.0';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label" style="color:var(--text)">${esc(prov)}
+        <span class="er-detail-item-sub">${d.count} factura${d.count !== 1 ? 's' : ''} · ${pct}%</span>
+      </span>
+      <span class="er-detail-item-amt">${plFmt(d.total)}</span>
+    </div>`;
+  }).join('');
+
+  const chevron = '<span class="er-chevron">▶</span>';
+  const countLbl = (n) => `<span style="font-size:.68rem;color:var(--chrome);margin-left:.35rem">(${n})</span>`;
+
+  body.innerHTML = `
+    <!-- INGRESOS -->
+    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="ing" onclick="erToggleSection('ing')">
+      <span class="er-row-label">${chevron} Ingresos bruto ${countLbl(ingresos.length)}</span>
+      ${fmtAmt(totalIngNeto, 'green')}
+    </div>
+    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-ing">
+      ${detIngHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin registros</span></div>'}
+    </div>
+
+    <!-- COSTO DE VENTAS + UTILIDAD BRUTA — solo si hay costos directos -->
+    ${cogsTotal > 0 ? `
+      <div class="er-row" data-er-section="cos">
+        <span class="er-row-label">Costo de ventas ${countLbl(cogsItems.length + cogsOpItems.length + cogsGralItems.length)}</span>
+        ${fmtAmt(-cogsTotal, 'purple')}
+      </div>
+      <div class="er-subtotal-row">
+        <span class="er-subtotal-label">Utilidad bruta</span>
+        ${fmtSubtotalAmt(utilBruta, utilBruta >= 0 ? 'green' : 'red')}
+      </div>
+    ` : ''}
+
+    <!-- GASTOS OPERATIVOS — agrupados por categoría (solo deducibles) -->
+    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="gas" onclick="erToggleSection('gas')">
+      <span class="er-row-label">${chevron} Gastos operativos ${countLbl(gastosItems.length)}</span>
+      ${fmtAmt(-gastosTotal, gastosTotal > 0 ? 'purple' : 'green')}
+    </div>
+    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-gas">
+      ${catDetailHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin gastos operativos en este período</span></div>'}
+    </div>
+
+    <!-- UTILIDAD NETA -->
+    <div class="er-neta-row">
+      <span class="er-neta-label">Utilidad neta</span>
+      <span class="er-neta-amount ${utilNeta >= 0 ? 'green' : 'red'}">${utilNeta < 0 ? '(' + plFmt(Math.abs(utilNeta)) + ')' : plFmt(utilNeta)}</span>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════════
+//  FINANZAS PERSONALES — Gestión de Gastos
+// ══════════════════════════════════════════════════
+var fnYear  = new Date().getFullYear();
+var fnMonth = 'ytd';
+
+async function loadFinanzas() {
+  if (!plLoaded) await loadDashboard();
+  fnBuildPeriodControls();
+  fnRender();
+}
+
+function fnBuildPeriodControls() {
+  var yearSel = document.getElementById('fnYear');
+  if (!yearSel) return;
+  var years = [];
+  plEgresos.forEach(function(e) {
+    var y = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (y && years.indexOf(y) === -1) years.push(y);
+  });
+  years.sort(function(a,b){ return b-a; });
+  if (!years.length) years = [new Date().getFullYear()];
+  if (years.indexOf(fnYear) === -1) fnYear = years[0];
+  yearSel.innerHTML = years.map(function(y){ return '<option value="'+y+'"'+(y===fnYear?' selected':'')+'>'+y+'</option>'; }).join('');
+  document.getElementById('fnTrendYear').textContent = fnYear;
+
+  var meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var pills  = document.getElementById('fnMonthPills');
+  if (!pills) return;
+  pills.innerHTML = '<button onclick="fnSetMonth(\'ytd\')" class="fn-pill'+(fnMonth==='ytd'?' active':'')+'">Todo el año</button>'
+    + meses.map(function(m,i){
+        return '<button onclick="fnSetMonth('+(i+1)+')" class="fn-pill'+(fnMonth===i+1?' active':'')+'">'+m+'</button>';
+      }).join('');
+}
+
+function fnChangePeriod() {
+  fnYear = parseInt(document.getElementById('fnYear').value);
+  document.getElementById('fnTrendYear').textContent = fnYear;
+  fnBuildPeriodControls();
+  fnRender();
+}
+
+function fnSetMonth(m) {
+  fnMonth = m;
+  fnBuildPeriodControls();
+  fnRender();
+}
+
+function fnGetItems() {
+  return plEgresos.filter(function(e) {
+    if (String(e.estado||'').toLowerCase() === 'anulado') return false;
+    var eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== fnYear) return false;
+    if (fnMonth !== 'ytd') {
+      var eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
+      if (eMes !== fnMonth) return false;
+    }
+    return true;
+  });
+}
+
+function fnRender() {
+  var items    = fnGetItems();
+  var total    = items.reduce(function(s,e){ return s+(parseFloat(e.total)||0); }, 0);
+  var negItems = items.filter(function(e){ return (e.alcance||'negocio') !== 'personal'; });
+  var perItems = items.filter(function(e){ return (e.alcance||'negocio') === 'personal'; });
+  var totalNeg = negItems.reduce(function(s,e){ return s+(parseFloat(e.total)||0); }, 0);
+  var totalPer = perItems.reduce(function(s,e){ return s+(parseFloat(e.total)||0); }, 0);
+
+  // Category map
+  var catMap = {};
+  items.forEach(function(e) {
+    var cat = e.tipo_egreso || e.categoria || 'otros_deducibles';
+    if (!catMap[cat]) catMap[cat] = { total:0, count:0, neg:0, per:0 };
+    var amt = parseFloat(e.total)||0;
+    catMap[cat].total += amt; catMap[cat].count++;
+    if ((e.alcance||'negocio') === 'personal') catMap[cat].per += amt; else catMap[cat].neg += amt;
+  });
+  var catEntries = Object.entries(catMap).sort(function(a,b){ return b[1].total-a[1].total; });
+
+  // Provider map
+  var provMap = {};
+  items.forEach(function(e) {
+    var prov = (e.proveedor||'').trim() || 'Sin proveedor';
+    if (!provMap[prov]) provMap[prov] = { total:0, count:0, neg:0, per:0 };
+    var amt = parseFloat(e.total)||0;
+    provMap[prov].total += amt; provMap[prov].count++;
+    if ((e.alcance||'negocio') === 'personal') provMap[prov].per += amt; else provMap[prov].neg += amt;
+  });
+  var provEntries = Object.entries(provMap).sort(function(a,b){ return b[1].total-a[1].total; });
+
+  fnRenderKpis(items, total, totalNeg, totalPer, catEntries, provEntries);
+  fnRenderDonut(totalNeg, totalPer, total);
+  fnRenderCatBars(catEntries, total);
+  fnRenderTrend();
+  fnRenderCatTable(catEntries, total);
+  fnRenderProvTable(provEntries, total);
+  fnRenderTxTable(items);
+}
+
+function fnRenderKpis(items, total, totalNeg, totalPer, catEntries, provEntries) {
+  var el = document.getElementById('fnKpiRow');
+  if (!el) return;
+  var pctNeg = total > 0 ? (totalNeg/total*100).toFixed(0) : 0;
+  var pctPer = total > 0 ? (totalPer/total*100).toFixed(0) : 0;
+  var topCat  = catEntries[0];
+  var topProv = provEntries[0];
+  el.innerHTML =
+    '<div class="pl-kpi" style="--kpi-accent:var(--text)">'
+      +'<div class="pl-kpi-label">💰 Total gastos</div>'
+      +'<div class="pl-kpi-value">'+plFmt(total)+'</div>'
+      +'<div class="pl-kpi-sub">'+items.length+' transaccion'+(items.length!==1?'es':'')+'</div>'
+    +'</div>'
+    +'<div class="pl-kpi" style="--kpi-accent:#6A1B9A">'
+      +'<div class="pl-kpi-label">💼 Negocio</div>'
+      +'<div class="pl-kpi-value" style="color:#6A1B9A">'+plFmt(totalNeg)+'</div>'
+      +'<div class="pl-kpi-sub"><span class="pl-kpi-tag" style="background:#EDE7F6;color:#4527A0">'+pctNeg+'% del total</span></div>'
+    +'</div>'
+    +'<div class="pl-kpi" style="--kpi-accent:#E65100">'
+      +'<div class="pl-kpi-label">👤 Personal</div>'
+      +'<div class="pl-kpi-value" style="color:#E65100">'+plFmt(totalPer)+'</div>'
+      +'<div class="pl-kpi-sub"><span class="pl-kpi-tag" style="background:#FFF3E0;color:#E65100">'+pctPer+'% del total</span></div>'
+    +'</div>'
+    +(topCat
+      ? '<div class="pl-kpi" style="--kpi-accent:'+(EGR_COLORS[topCat[0]]||'#9E9E9E')+'">'
+          +'<div class="pl-kpi-label">📂 Mayor categoría</div>'
+          +'<div class="pl-kpi-value" style="color:'+(EGR_COLORS[topCat[0]]||'#9E9E9E')+';font-size:.85rem">'+esc(EGR_LABEL[topCat[0]]||topCat[0])+'</div>'
+          +'<div class="pl-kpi-sub">'+plFmt(topCat[1].total)+' · '+topCat[1].count+' gasto'+(topCat[1].count!==1?'s':'')+'</div>'
+        +'</div>'
+      : '<div class="pl-kpi"></div>')
+    +(topProv
+      ? '<div class="pl-kpi" style="--kpi-accent:#1565C0">'
+          +'<div class="pl-kpi-label">🏢 Mayor proveedor</div>'
+          +'<div class="pl-kpi-value" style="color:#1565C0;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(topProv[0])+'</div>'
+          +'<div class="pl-kpi-sub">'+plFmt(topProv[1].total)+' · '+topProv[1].count+' factura'+(topProv[1].count!==1?'s':'')+'</div>'
+        +'</div>'
+      : '<div class="pl-kpi"></div>');
+}
+
+function fnRenderDonut(totalNeg, totalPer, total) {
+  var el = document.getElementById('fnDonutWrap');
+  if (!el) return;
+  var pctNeg = total > 0 ? (totalNeg/total*100) : 0;
+  var pctPer = 100 - pctNeg;
+  el.innerHTML =
+    '<div class="fn-section-hdr">Negocio vs Personal</div>'
+    +'<div style="display:flex;flex-direction:column;align-items:center;gap:.9rem">'
+      +'<div style="position:relative;width:130px;height:130px;flex-shrink:0">'
+        +'<div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(#6A1B9A 0% '+pctNeg.toFixed(2)+'%, #E65100 '+pctNeg.toFixed(2)+'% 100%)"></div>'
+        +'<div style="position:absolute;inset:32px;background:var(--white);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">'
+          +'<span style="font-size:.63rem;font-weight:700;color:var(--muted)">TOTAL</span>'
+          +'<span style="font-size:.75rem;font-weight:700;line-height:1.2">'+plFmt(total)+'</span>'
+        +'</div>'
+      +'</div>'
+      +'<div style="width:100%;display:flex;flex-direction:column;gap:.4rem">'
+        +'<div style="display:flex;align-items:center;gap:.5rem;font-size:.77rem">'
+          +'<span style="width:10px;height:10px;border-radius:50%;background:#6A1B9A;flex-shrink:0"></span>'
+          +'<span style="flex:1;color:var(--muted)">💼 Negocio</span>'
+          +'<span style="font-family:\'DM Mono\',monospace;font-weight:700">'+pctNeg.toFixed(1)+'%</span>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:.5rem;font-size:.77rem">'
+          +'<span style="width:10px;height:10px;border-radius:50%;background:#E65100;flex-shrink:0"></span>'
+          +'<span style="flex:1;color:var(--muted)">👤 Personal</span>'
+          +'<span style="font-family:\'DM Mono\',monospace;font-weight:700">'+pctPer.toFixed(1)+'%</span>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+}
+
+function fnRenderCatBars(catEntries, total) {
+  var el = document.getElementById('fnCatBars');
+  if (!el) return;
+  var top8   = catEntries.slice(0, 8);
+  var maxAmt = top8.length ? top8[0][1].total : 0;
+  el.innerHTML = '<div class="fn-section-hdr">Gastos por categoría</div>'
+    +'<div style="display:flex;flex-direction:column;gap:.5rem">'
+    + top8.map(function(entry) {
+        var cat   = entry[0], d = entry[1];
+        var color = EGR_COLORS[cat] || '#9E9E9E';
+        var label = EGR_LABEL[cat]  || cat;
+        var pct   = maxAmt > 0 ? (d.total/maxAmt*100) : 0;
+        var pctOf = total  > 0 ? (d.total/total*100).toFixed(1) : '0.0';
+        return '<div style="display:flex;align-items:center;gap:.6rem">'
+          +'<div style="width:130px;font-size:.72rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="'+esc(label)+'">'+esc(label)+'</div>'
+          +'<div style="flex:1;background:var(--border);border-radius:3px;height:11px;overflow:hidden">'
+            +'<div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+color+';border-radius:3px"></div>'
+          +'</div>'
+          +'<div style="font-size:.7rem;color:var(--muted);white-space:nowrap;min-width:38px;text-align:right">'+pctOf+'%</div>'
+          +'<div style="font-size:.72rem;font-family:\'DM Mono\',monospace;font-weight:600;white-space:nowrap;min-width:78px;text-align:right">'+plFmt(d.total)+'</div>'
+        +'</div>';
+      }).join('')
+    +'</div>';
+}
+
+function fnRenderTrend() {
+  var el = document.getElementById('fnTrend');
+  if (!el) return;
+  var negData = new Array(12).fill(0);
+  var perData = new Array(12).fill(0);
+  plEgresos.forEach(function(e) {
+    if (String(e.estado||'').toLowerCase() === 'anulado') return;
+    var eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (eAnio !== fnYear) return;
+    var eMes = (parseInt(e.mes) || _mesDesfecha(e.fecha_egreso)) - 1;
+    if (eMes < 0 || eMes > 11) return;
+    var amt = parseFloat(e.total) || 0;
+    if ((e.alcance||'negocio') === 'personal') perData[eMes] += amt; else negData[eMes] += amt;
+  });
+  var meses  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var maxVal = Math.max.apply(null, negData.map(function(n,i){ return n+perData[i]; }));
+  var H = 80;
+  var curM = fnMonth !== 'ytd' ? fnMonth-1 : new Date().getMonth();
+  el.innerHTML = meses.map(function(m, i) {
+    var tot  = negData[i] + perData[i];
+    var negH = maxVal > 0 ? Math.round(negData[i]/maxVal*H) : 0;
+    var perH = maxVal > 0 ? Math.round(perData[i]/maxVal*H) : 0;
+    var isAct = i === curM;
+    return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:26px;cursor:pointer" onclick="fnSetMonth('+(i+1)+')" title="'+m+': '+plFmt(tot)+'">'
+      +'<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:'+H+'px;width:100%;gap:1px">'
+        +(perH > 0 ? '<div style="width:78%;height:'+perH+'px;background:#E65100;border-radius:2px 2px 0 0;opacity:'+(isAct?'1':'.65')+'"></div>' : '')
+        +(negH > 0 ? '<div style="width:78%;height:'+negH+'px;background:#6A1B9A;border-radius:'+(perH>0?'0':'2px 2px')+' 0 0;opacity:'+(isAct?'1':'.65')+'"></div>' : '')
+        +(negH===0&&perH===0 ? '<div style="width:78%;height:2px;background:var(--border)"></div>' : '')
+      +'</div>'
+      +'<div style="font-size:.62rem;color:'+(isAct?'var(--text)':'var(--chrome)')+';font-weight:'+(isAct?'700':'400')+'">'+m+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function fnRenderCatTable(catEntries, total) {
+  var el = document.getElementById('fnCatTable');
+  if (!el) return;
+  el.innerHTML = '<div class="fn-section-hdr">Por categoría</div>'
+    +'<div class="op-table-wrap" style="max-height:300px;overflow-y:auto">'
+    +'<table class="op-table" style="width:100%">'
+    +'<thead><tr><th>Categoría</th><th style="text-align:right">Gastos</th><th style="text-align:right">Total</th><th style="text-align:right">%</th></tr></thead>'
+    +'<tbody>'
+    + catEntries.map(function(entry) {
+        var cat = entry[0], d = entry[1];
+        var color = EGR_COLORS[cat] || '#9E9E9E';
+        var label = EGR_LABEL[cat]  || cat;
+        var pct   = total > 0 ? (d.total/total*100).toFixed(1) : '0.0';
+        return '<tr>'
+          +'<td style="font-size:.8rem">'
+            +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+color+';margin-right:.4rem;vertical-align:middle"></span>'
+            +esc(label)
+            +(d.per > 0 ? '<span style="font-size:.65rem;color:#E65100;margin-left:.35rem">👤 '+plFmt(d.per)+'</span>' : '')
+          +'</td>'
+          +'<td style="text-align:right;font-size:.78rem;color:var(--muted)">'+d.count+'</td>'
+          +'<td style="text-align:right;font-family:\'DM Mono\',monospace;font-size:.8rem;font-weight:600">'+plFmt(d.total)+'</td>'
+          +'<td style="text-align:right;font-size:.75rem;color:var(--muted)">'+pct+'%</td>'
+        +'</tr>';
+      }).join('')
+    +'</tbody></table></div>';
+}
+
+function fnRenderProvTable(provEntries, total) {
+  var el = document.getElementById('fnProvTable');
+  if (!el) return;
+  var top25 = provEntries.slice(0, 25);
+  el.innerHTML = '<div class="fn-section-hdr">Por proveedor</div>'
+    +'<div class="op-table-wrap" style="max-height:300px;overflow-y:auto">'
+    +'<table class="op-table" style="width:100%">'
+    +'<thead><tr><th>Proveedor</th><th style="text-align:right">Fact.</th><th style="text-align:right">Total</th><th style="text-align:right">%</th></tr></thead>'
+    +'<tbody>'
+    + top25.map(function(entry) {
+        var prov = entry[0], d = entry[1];
+        var pct  = total > 0 ? (d.total/total*100).toFixed(1) : '0.0';
+        var badge = d.per > 0 && d.neg > 0
+          ? '<span style="font-size:.63rem;color:var(--muted);margin-left:.3rem">mixto</span>'
+          : d.per > 0 ? '<span style="font-size:.63rem;color:#E65100;margin-left:.3rem">👤</span>' : '';
+        return '<tr>'
+          +'<td style="font-size:.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(prov)+badge+'</td>'
+          +'<td style="text-align:right;font-size:.78rem;color:var(--muted)">'+d.count+'</td>'
+          +'<td style="text-align:right;font-family:\'DM Mono\',monospace;font-size:.8rem;font-weight:600">'+plFmt(d.total)+'</td>'
+          +'<td style="text-align:right;font-size:.75rem;color:var(--muted)">'+pct+'%</td>'
+        +'</tr>';
+      }).join('')
+    +'</tbody></table></div>';
+}
+
+function fnRenderTxTable(items) {
+  var el = document.getElementById('fnTxTable');
+  if (!el) return;
+  var sorted = items.slice().sort(function(a,b) {
+    var da = a.fecha_egreso || a.fecha || '';
+    var db = b.fecha_egreso || b.fecha || '';
+    if (db !== da) return db.localeCompare(da);
+    return (parseFloat(b.total)||0) - (parseFloat(a.total)||0);
+  }).slice(0, 40);
+  el.innerHTML = '<div class="fn-section-hdr">Últimas transacciones</div>'
+    +'<div class="op-table-wrap">'
+    +'<table class="op-table" style="width:100%">'
+    +'<thead><tr><th>Fecha</th><th>Proveedor</th><th>Categoría</th><th>Alcance</th><th style="text-align:right">Total</th></tr></thead>'
+    +'<tbody>'
+    + sorted.map(function(e) {
+        var fecha = (e.fecha_egreso || e.fecha || '—').substring(0,10);
+        var prov  = e.proveedor || '—';
+        var catK  = e.tipo_egreso || e.categoria || '';
+        var cat   = EGR_LABEL[catK] || catK || '—';
+        var color = EGR_COLORS[catK] || '#9E9E9E';
+        var isPer = (e.alcance||'negocio') === 'personal';
+        return '<tr>'
+          +'<td style="font-size:.77rem;color:var(--muted);white-space:nowrap">'+fecha+'</td>'
+          +'<td style="font-size:.8rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(prov)+'</td>'
+          +'<td style="font-size:.77rem">'
+            +'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+color+';margin-right:.3rem;vertical-align:middle"></span>'
+            +esc(cat)
+          +'</td>'
+          +'<td>'+(isPer
+            ? '<span style="font-size:.68rem;background:#FFF3E0;color:#E65100;padding:.1rem .4rem;border-radius:10px;font-weight:600;white-space:nowrap">👤 Personal</span>'
+            : '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.1rem .4rem;border-radius:10px;font-weight:600;white-space:nowrap">💼 Negocio</span>')
+          +'</td>'
+          +'<td style="text-align:right;font-family:\'DM Mono\',monospace;font-size:.82rem;font-weight:600">'+plFmt(parseFloat(e.total)||0)+'</td>'
+        +'</tr>';
+      }).join('')
+    +'</tbody></table></div>';
+}
+
 function plRenderCostRow(totalCogsRef) {
   const el = document.getElementById('plCostRow');
   if (!el) return;
