@@ -8612,6 +8612,181 @@ function renderDashboard() {
 }
 
 
+// ══════════════════════════════════════════════════
+//  ESTADO DE RESULTADOS — vista contable acordeón
+// ══════════════════════════════════════════════════
+var erModoExpandido = false;   // false = compacto, true = todo expandido
+
+function erToggleVista() {
+  erModoExpandido = !erModoExpandido;
+  const btn = document.getElementById('erToggleBtn');
+  btn.textContent = erModoExpandido ? 'Vista compacta' : 'Vista compacta';
+  btn.textContent = erModoExpandido ? 'Colapsar todo'  : 'Vista compacta';
+  // Expandir / colapsar todos los acordeones sin re-renderizar
+  document.querySelectorAll('.er-detail-wrap').forEach(el => {
+    el.classList.toggle('open', erModoExpandido);
+  });
+  document.querySelectorAll('.er-row[data-er-section]').forEach(el => {
+    el.classList.toggle('expanded', erModoExpandido);
+  });
+}
+
+function erToggleSection(section) {
+  const wrap = document.getElementById('er-detail-' + section);
+  const row  = document.querySelector('.er-row[data-er-section="' + section + '"]');
+  if (!wrap || !row) return;
+  const isOpen = wrap.classList.contains('open');
+  wrap.classList.toggle('open', !isOpen);
+  row.classList.toggle('expanded', !isOpen);
+}
+
+function erRender() {
+  const body = document.getElementById('erBody');
+  const periodoEl = document.getElementById('erPeriodoLabel');
+  if (!body) return;
+
+  // ── Data: reusar los mismos filtros del P&L ──
+  const ingresos = plFiltrarIngresos();
+  const totalIngNeto = ingresos.reduce((s, i) => s + (parseFloat(i.subtotal) || 0), 0);
+
+  // Costos directos — ST_Items del período
+  const cogsItems = plStItems.filter(si => {
+    const siAnio = parseInt(si.anio) || 0;
+    const siMes  = parseInt(si.mes)  || 0;
+    if (siAnio !== plYear) return false;
+    if (plMonth !== 'ytd' && siMes !== plMonth) return false;
+    if ((si.item.tipo || '') === 'credito_fiscal') return false;
+    return true;
+  });
+  // CV-OP
+  const egresos = plFiltrarEgresos();
+  const cogsOpItems = egresos.filter(e => {
+    const idCV = String(e.id_item_cv || '');
+    return idCV.startsWith('CV-OP-') && (e.tipo_egreso || '') === 'costo_mercancia';
+  });
+  const cogsTotal = cogsItems.reduce((s, si) => {
+    const tr = parseFloat(si.item.total_real) || 0;
+    const tc = parseFloat(si.item.total_cotizado) || 0;
+    return s + (tr > 0 ? tr : tc);
+  }, 0) + cogsOpItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  // Gastos operativos — Registro General
+  const gastosItems = plEgresos.filter(e => {
+    if (String(e.estado || '').toLowerCase() === 'anulado') return false;
+    const eAnio = parseInt(e.anio) || _anioDesfecha(e.fecha_egreso);
+    if (!eAnio || eAnio !== plYear) return false;
+    if (plMonth !== 'ytd') {
+      const eMes = parseInt(e.mes) || _mesDesfecha(e.fecha_egreso);
+      if (eMes !== plMonth) return false;
+    }
+    return _plClasifEgreso(e) === 'general';
+  });
+  const gastosTotal = gastosItems.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+
+  const utilBruta = totalIngNeto - cogsTotal;
+  const utilNeta  = utilBruta - gastosTotal;
+
+  // Período label
+  const periodo = plMonth === 'ytd'
+    ? 'Ene – ' + ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][new Date().getMonth() + 1] + ' ' + plYear
+    : ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][plMonth] + ' ' + plYear;
+  if (periodoEl) periodoEl.textContent = periodo;
+
+  // ── Helpers de filas ──
+  const fmtAmt = (n, cls) =>
+    `<span class="er-row-amount ${cls}">${n < 0 ? '(' + plFmt(Math.abs(n)) + ')' : plFmt(n)}</span>`;
+
+  const fmtSubtotalAmt = (n, cls) =>
+    `<span class="er-subtotal-amount ${cls}">${n < 0 ? '(' + plFmt(Math.abs(n)) + ')' : plFmt(n)}</span>`;
+
+  // ── Detalle Ingresos ──
+  const detIngHtml = ingresos.map(i => {
+    const subtotal = parseFloat(i.subtotal) || 0;
+    const cliente  = esc(i.nombre_cliente || '—');
+    const factura  = i.num_factura ? `<span class="er-detail-item-sub">${esc(i.num_factura)}</span>` : '';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label">${cliente}${factura}</span>
+      <span class="er-detail-item-amt">${plFmt(subtotal)}</span>
+    </div>`;
+  }).join('');
+
+  // ── Detalle Costos — ST_Items + CV-OP ──
+  const detCogsST = cogsItems.map(si => {
+    const it    = si.item;
+    const monto = (parseFloat(it.total_real) || 0) > 0 ? parseFloat(it.total_real) : (parseFloat(it.total_cotizado) || 0);
+    const desc  = esc((it.descripcion || '').substring(0, 60));
+    const origen = `<span class="er-detail-item-sub">${esc(si.id_st || '')}</span>`;
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label">${desc}${origen}</span>
+      <span class="er-detail-item-amt">${plFmt(monto)}</span>
+    </div>`;
+  }).join('');
+  const detCogsOp = cogsOpItems.map(e => {
+    const desc = esc((e.descripcion || '').substring(0, 60));
+    const prov = e.proveedor ? `<span class="er-detail-item-sub">${esc(e.proveedor)}</span>` : '';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label">${desc}${prov}</span>
+      <span class="er-detail-item-amt">${plFmt(parseFloat(e.total) || 0)}</span>
+    </div>`;
+  }).join('');
+
+  // ── Detalle Gastos ──
+  const detGasHtml = gastosItems.map(e => {
+    const cat   = esc(EGR_LABEL[e.tipo_egreso] || e.tipo_egreso || '—');
+    const desc  = e.descripcion ? `<span class="er-detail-item-sub">${esc(e.descripcion.substring(0,50))}</span>` : '';
+    return `<div class="er-detail-item">
+      <span class="er-detail-item-label">${cat}${desc}</span>
+      <span class="er-detail-item-amt">${plFmt(parseFloat(e.total) || 0)}</span>
+    </div>`;
+  }).join('');
+
+  const chevron = '<span class="er-chevron">▶</span>';
+  const countLbl = (n) => `<span style="font-size:.68rem;color:var(--chrome);margin-left:.35rem">(${n})</span>`;
+
+  body.innerHTML = `
+    <!-- INGRESOS -->
+    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="ing" onclick="erToggleSection('ing')">
+      <span class="er-row-label">${chevron} Ingresos neto (sin ITBMS) ${countLbl(ingresos.length)}</span>
+      ${fmtAmt(totalIngNeto, 'green')}
+    </div>
+    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-ing">
+      ${detIngHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin registros</span></div>'}
+    </div>
+
+    <!-- COSTOS -->
+    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="cogs" onclick="erToggleSection('cogs')">
+      <span class="er-row-label">${chevron} Costo de servicios ${countLbl(cogsItems.length + cogsOpItems.length)}</span>
+      ${fmtAmt(-cogsTotal, cogsTotal > 0 ? 'red' : 'green')}
+    </div>
+    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-cogs">
+      ${detCogsST}${detCogsOp || ''}
+      ${(!detCogsST && !detCogsOp) ? '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin registros</span></div>' : ''}
+    </div>
+
+    <!-- UTILIDAD BRUTA -->
+    <div class="er-subtotal-row">
+      <span class="er-subtotal-label">Utilidad bruta</span>
+      ${fmtSubtotalAmt(utilBruta, utilBruta >= 0 ? 'green' : 'red')}
+    </div>
+
+    <!-- GASTOS OPERATIVOS -->
+    <div class="er-row${erModoExpandido ? ' expanded' : ''}" data-er-section="gas" onclick="erToggleSection('gas')">
+      <span class="er-row-label">${chevron} Gastos operativos ${countLbl(gastosItems.length)}</span>
+      ${fmtAmt(-gastosTotal, gastosTotal > 0 ? 'purple' : 'green')}
+    </div>
+    <div class="er-detail-wrap${erModoExpandido ? ' open' : ''}" id="er-detail-gas">
+      ${detGasHtml || '<div class="er-detail-item"><span class="er-detail-item-label" style="color:var(--chrome)">Sin gastos operativos en este período</span></div>'}
+    </div>
+
+    <!-- UTILIDAD NETA -->
+    <div class="er-neta-row">
+      <span class="er-neta-label">Utilidad neta</span>
+      <span class="er-neta-amount ${utilNeta >= 0 ? 'green' : 'red'}">${utilNeta < 0 ? '(' + plFmt(Math.abs(utilNeta)) + ')' : plFmt(utilNeta)}</span>
+    </div>
+  `;
+}
+
+
 function plRenderCostRow(totalCogsRef) {
   const el = document.getElementById('plCostRow');
   if (!el) return;
