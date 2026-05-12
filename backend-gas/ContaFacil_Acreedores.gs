@@ -20,7 +20,8 @@
 
 var SHEET_ACREEDORES_CONFIG  = 'Acreedores_Config';
 var SHEET_ACREEDORES_PENDING = 'Acreedores_Pending';
-var LABEL_ACREEDOR           = 'cf_acreedor_procesado';
+var LABEL_ACREEDOR           = 'cf_acreedor_procesado';   // thread completamente procesado
+var LABEL_ACREEDOR_PENDING   = 'cf_acreedor_pending';     // thread con rate limit, pendiente de retry
 
 var CATEGORIAS_ACREEDOR = [
   { valor: 'nomina',                   label: 'Nómina / Salarios (L42)'               },
@@ -137,24 +138,455 @@ function _getEmailAcrQuery() {
   // Prioridad 2: fallback a los de Comercialización
   // Prioridad 3: legado email_comprobantes
   var dest = cfg.email_acr_destino  || cfg.email_op_destino  || cfg.email_comprobantes || '';
-  var rem  = cfg.email_acr_remitente || cfg.email_op_remitente || '';
 
   if (!dest) {
     Logger.log('Acreedores: email destino no configurado');
     return null;
   }
 
+  // Query AMPLIO + validación de destino en código.
+  //
+  // Por qué amplio: Gmail NO indexa de forma confiable el alias destino
+  // cuando el email viene por una cadena de auto-forward (proveedor →
+  // gmail personal del cliente → caf_ → alias → hostinger → inbox).
+  // En esos casos `to:<alias>` no matchea aunque el header
+  // X-Forwarded-To / Received: for <alias> esté presente. Caso real:
+  // factura PedidosYA #0044590513 confirmada visible en inbox pero
+  // invisible para `to:`, `deliveredto:` y free-text del alias.
+  //
+  // Cubrimos ambos casos:
+  //   1. Envíos directos al alias — siempre los matchea Gmail.
+  //   2. Auto-forwards en cadena — NO los matchea Gmail; los detectamos
+  //      validando que el alias aparezca en los headers del mensaje
+  //      (función `_emailDestinoEsAlias` antes de procesar).
+  //
+  // `newer_than:14d` acota el universo a un periodo razonable. El
+  // trigger corre cada 15 min, así que 14d cubre cualquier rezago.
+  // Para backfill inicial se puede subir manualmente.
+  // Estrategia de query — dos modos:
+  //
+  // MODO LABEL (multi-cliente Workspace):
+  //   Si `email_acr_label` está configurado, el filtro nativo del
+  //   buzón Workspace ya etiquetó los emails de ESTE cliente. Query
+  //   directo: `label:<X> has:attachment -label:<processed>`. Esto
+  //   AISLA cada cliente en un buzón compartido (crítico para evitar
+  //   que el script de Iris robe emails de CEYCO o viceversa).
+  //
+  // MODO BROAD (legado, single-tenant):
+  //   Sin `email_acr_label`, query amplio + validación
+  //   `_emailDestinoEsAlias` en código. Necesario porque Gmail no
+  //   indexa de forma confiable el alias en cadenas de auto-forward.
+  //
+  // En ambos modos `_esReenvioPermitidoAcr` aplica defense-in-depth.
+  var inboxLabel = String(cfg.email_acr_label || '').trim();
   var base;
-  if (dest && rem) {
-    base = 'to:' + dest + ' from:' + rem + ' has:attachment';
-    Logger.log('📧 Query Acreedores: to:' + dest + ' from:' + rem);
+  if (inboxLabel) {
+    base = 'label:' + inboxLabel + ' has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
+    Logger.log('📧 Query Acreedores (label-scoped): ' + base);
   } else {
-    base = 'to:' + dest + ' has:attachment';
-    Logger.log('📧 Query Acreedores (sin remitente): to:' + dest);
+    base = 'has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
+    Logger.log('📧 Query Acreedores (broad): ' + base + ' | dest=' + dest);
+  }
+  return base;
+}
+
+// Valida que el mensaje haya sido entregado/reenviado al alias
+// configurado, escaneando el bloque de headers del raw content.
+// Necesario porque el query es amplio (ver _getEmailAcrQuery).
+function _emailDestinoEsAlias(msg, dest) {
+  if (!dest) return true;
+  try {
+    var raw  = String(msg.getRawContent() || '').toLowerCase();
+    var head = raw.substring(0, 12000);
+    return head.indexOf(String(dest).toLowerCase()) !== -1;
+  } catch (e) {
+    Logger.log('  ⚠️ No se pudo validar destino: ' + e.message);
+    return false;
+  }
+}
+
+// Verifica que el email haya sido REENVIADO desde el remitente registrado.
+// Aceptamos cualquiera de estos marcadores en los headers raw:
+//   - X-Forwarded-For: <remitente> ...
+//   - Return-Path: <remitente>+caf_=...@gmail.com  (Gmail confirmed-auto-forwarder)
+//   - Delivered-To: <remitente>
+// Esto soporta el caso real donde una persona reenvía facturas de
+// múltiples proveedores a un alias central (facturas@balanceclip.net),
+// sin abrir la puerta a spam de cualquier remitente.
+// Verifica que el email haya sido REENVIADO desde el remitente registrado
+// en config (`email_acr_remitente`). Aceptamos como evidencia cualquiera
+// de estos marcadores en los headers raw:
+//   1. <rem> exacto                     — X-Forwarded-For, Delivered-To,
+//                                          Resent-From, Received: from
+//   2. <localpart>+caf_=...@<domain>    — Gmail confirmed-auto-forwarder
+//                                          rewrite del Return-Path (caso
+//                                          de auto-forward Gmail nativo)
+//
+// Si no hay remitente configurado en cfg → return true (instalación
+// sin restricción de origen). Si está configurado y el email no muestra
+// ningún marcador → rechazamos.
+function _esReenvioPermitidoAcr(msg) {
+  var cfg = {};
+  try { cfg = _getConfig(); } catch(e) {}
+
+  var rem = String(cfg.email_acr_remitente || cfg.email_op_remitente || '').trim().toLowerCase();
+  if (!rem) return true;
+
+  var localPart = rem.split('@')[0] || rem;
+  var pat_caf   = localPart + '+caf_';
+
+  try {
+    var raw  = String(msg.getRawContent() || '').toLowerCase();
+    // Header block está al inicio. Limitamos a 12k para evitar leer body
+    // grandes (PDFs base64 inflados pueden ser MB).
+    var head = raw.substring(0, 12000);
+    if (head.indexOf(rem)     !== -1) return true;
+    if (head.indexOf(pat_caf) !== -1) return true;
+    return false;
+  } catch (e) {
+    Logger.log('  ⚠️ No se pudo leer raw content para validar reenviador: ' + e.message);
+    return true;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RESET LABELS — utilidad de mantenimiento
+//
+//  Quita las labels cf_acreedor_procesado y procesado_cf_op de
+//  todos los threads que matchean el email destino. Se usa cuando
+//  hubo runs previos que aplicaron labels sin procesar
+//  correctamente (ej. el bug del from: filter pre-fix).
+//
+//  Disponible vía POST { action:'resetLabelsAcreedores' } desde
+//  el panel Configuración o ejecutable manual desde el editor.
+// ═══════════════════════════════════════════════════════════════
+function _handleResetLabelsAcreedores(data) {
+  try {
+    var cfg = _getConfig();
+    var dest = (cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes || '').trim();
+    if (!dest) {
+      return _jsonAcr({ success: false, error: 'Email destino no configurado' });
+    }
+
+    var query = 'to:' + dest + ' has:attachment (label:' + LABEL_ACREEDOR + ' OR label:' + LABEL_ACREEDOR_PENDING + ' OR label:procesado_cf_op)';
+    var threads = GmailApp.search(query, 0, 200);
+    Logger.log('🧹 Reset labels: encontrados ' + threads.length + ' threads para limpiar.');
+
+    var labelAcr     = _getOrCreateLabelAcr(LABEL_ACREEDOR);
+    var labelPending = null;
+    try { labelPending = GmailApp.getUserLabelByName(LABEL_ACREEDOR_PENDING); } catch (e) {}
+    var labelOp = null;
+    try { labelOp = GmailApp.getUserLabelByName('procesado_cf_op'); } catch (e) {}
+
+    var removed = 0;
+    for (var i = 0; i < threads.length; i++) {
+      try { threads[i].removeLabel(labelAcr); } catch (e) {}
+      if (labelPending) {
+        try { threads[i].removeLabel(labelPending); } catch (e) {}
+      }
+      if (labelOp) {
+        try { threads[i].removeLabel(labelOp); } catch (e) {}
+      }
+      removed++;
+    }
+
+    Logger.log('🧹 Labels removidas de ' + removed + ' threads. La próxima sync los reprocesará.');
+    return _jsonAcr({ success: true, threads: removed });
+  } catch (err) {
+    Logger.log('❌ resetLabelsAcreedores: ' + err.message);
+    return _jsonAcr({ success: false, error: err.message });
+  }
+}
+
+// Ejecutable directo desde el editor de Apps Script si el usuario quiere
+// disparar la limpieza manualmente sin frontend.
+function resetLabelsAcreedoresManual() {
+  var res = _handleResetLabelsAcreedores({});
+  Logger.log(res.getContent());
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARSER MIME — soporte para bulk forward (.eml adjuntos)
+//
+//  Caso de uso: cuando el cliente selecciona N facturas en Gmail web
+//  y usa "Reenviar como datos adjuntos", Gmail empaqueta cada email
+//  como un attachment de tipo message/rfc822 (.eml). El email
+//  contenedor llega a facturas@balanceclip.net con N adjuntos .eml,
+//  cada uno con su propio PDF/XML de factura adentro.
+//
+//  _expandirEmlAdjuntos toma la lista de attachments del mensaje
+//  outer y devuelve una lista plana donde cada .eml fue parseado
+//  recursivamente y sus PDFs/XMLs internos fueron extraídos. El
+//  resto del pipeline procesa esos adjuntos sintéticos como si
+//  hubieran sido attachments directos del email outer.
+// ═══════════════════════════════════════════════════════════════
+
+function _expandirEmlAdjuntos(attachments) {
+  var out = [];
+  for (var i = 0; i < attachments.length; i++) {
+    var att  = attachments[i];
+    var name = String(att.getName() || '').toLowerCase();
+    var mime = String(att.getContentType() || '').toLowerCase();
+    var isEml = mime === 'message/rfc822' || name.endsWith('.eml');
+    if (!isEml) { out.push(att); continue; }
+    try {
+      var raw   = att.getDataAsString();
+      var inner = _parseEmlInnerAttachments(raw);
+      Logger.log('  📦 .eml expandido: ' + att.getName() + ' → ' + inner.length + ' adjunto(s) interno(s)');
+      for (var j = 0; j < inner.length; j++) out.push(inner[j]);
+    } catch (e) {
+      Logger.log('  ⚠️ No pude expandir .eml ' + att.getName() + ': ' + e.message);
+    }
+  }
+  return out;
+}
+
+// Parsea un .eml (raw MIME) y extrae todos los PDFs / XMLs como
+// objetos compatibles con la interfaz de GmailAttachment. Recursivo:
+// soporta múltiples niveles de multipart y .eml anidados.
+function _parseEmlInnerAttachments(raw) {
+  return _parseMimeBody(raw);
+}
+
+function _parseMimeBody(raw) {
+  var result = [];
+  if (!raw) return result;
+
+  var headerEnd = raw.search(/\r?\n\r?\n/);
+  if (headerEnd === -1) return result;
+  var headers = raw.substring(0, headerEnd);
+  var body    = raw.substring(headerEnd).replace(/^\r?\n\r?\n/, '');
+
+  var ct = _mimeHeader(headers, 'Content-Type');
+  if (!ct) return result;
+
+  if (/multipart\//i.test(ct)) {
+    var bMatch = ct.match(/boundary\s*=\s*"?([^";\r\n]+)"?/i);
+    if (!bMatch) return result;
+    var boundary = '--' + bMatch[1];
+    var parts = body.split(boundary);
+    for (var p = 1; p < parts.length; p++) {
+      var part = parts[p];
+      // Skip closing boundary (which has -- after the dashes)
+      if (part.charAt(0) === '-' && part.charAt(1) === '-') continue;
+      part = part.replace(/^\r?\n/, '');
+      var subs = _parseMimePart(part);
+      for (var s = 0; s < subs.length; s++) result.push(subs[s]);
+    }
+    return result;
   }
 
-  // Excluir: lo que Comercialización ya procesó Y lo que Acreedores ya procesó
-  return base + ' -label:procesado_cf_op -label:' + LABEL_ACREEDOR;
+  // Single-part top — parse as a part
+  return _parseMimePart(raw);
+}
+
+function _parseMimePart(rawPart) {
+  var result = [];
+  var headerEnd = rawPart.search(/\r?\n\r?\n/);
+  if (headerEnd === -1) return result;
+  var headers = rawPart.substring(0, headerEnd);
+  var body    = rawPart.substring(headerEnd).replace(/^\r?\n\r?\n/, '');
+
+  var ct = _mimeHeader(headers, 'Content-Type');
+  if (!ct) return result;
+  var ctLow = ct.toLowerCase();
+
+  // Recurse into nested multipart
+  if (/multipart\//i.test(ct)) {
+    var bMatch = ct.match(/boundary\s*=\s*"?([^";\r\n]+)"?/i);
+    if (!bMatch) return result;
+    var boundary = '--' + bMatch[1];
+    var parts = body.split(boundary);
+    for (var p = 1; p < parts.length; p++) {
+      var part = parts[p];
+      if (part.charAt(0) === '-' && part.charAt(1) === '-') continue;
+      part = part.replace(/^\r?\n/, '');
+      var subs = _parseMimePart(part);
+      for (var s = 0; s < subs.length; s++) result.push(subs[s]);
+    }
+    return result;
+  }
+
+  // Recurse into nested message/rfc822 (forwarded email inside forwarded email)
+  if (/message\/rfc822/i.test(ct)) {
+    var nested = _parseMimeBody(body);
+    for (var n = 0; n < nested.length; n++) result.push(nested[n]);
+    return result;
+  }
+
+  // Leaf part — extract filename + content type
+  var fileName = '';
+  var disp = _mimeHeader(headers, 'Content-Disposition');
+  if (disp) {
+    var fnMatch = disp.match(/filename\s*=\s*"?([^";\r\n]+)"?/i);
+    if (fnMatch) fileName = fnMatch[1].trim();
+  }
+  if (!fileName) {
+    var nMatch = ct.match(/name\s*=\s*"?([^";\r\n]+)"?/i);
+    if (nMatch) fileName = nMatch[1].trim();
+  }
+
+  var contentType = ctLow.split(';')[0].trim();
+  var fnLow       = fileName.toLowerCase();
+
+  var isPdf = contentType === 'application/pdf' || contentType === 'application/x-pdf' || fnLow.endsWith('.pdf');
+  var isXml = contentType === 'text/xml' || contentType === 'application/xml' || fnLow.endsWith('.xml');
+  var isOctet = contentType === 'application/octet-stream' && (fnLow.endsWith('.pdf') || fnLow.endsWith('.xml'));
+
+  if (!isPdf && !isXml && !isOctet) return result;
+  if (!fileName) fileName = isPdf ? 'inner.pdf' : 'inner.xml';
+
+  var enc = _mimeHeader(headers, 'Content-Transfer-Encoding') || '7bit';
+  enc = enc.toLowerCase().split(';')[0].trim();
+
+  var bytes;
+  try {
+    if (enc === 'base64') {
+      var clean = body.replace(/[\r\n\s]/g, '');
+      bytes = Utilities.base64Decode(clean);
+    } else if (enc === 'quoted-printable') {
+      bytes = Utilities.newBlob(_decodeQuotedPrintable(body)).getBytes();
+    } else {
+      // 7bit / 8bit / binary — pass through
+      bytes = Utilities.newBlob(body).getBytes();
+    }
+  } catch (e) {
+    Logger.log('  ⚠️ No pude decodear ' + fileName + ' (' + enc + '): ' + e.message);
+    return result;
+  }
+
+  var finalContentType = isXml ? (contentType === 'application/xml' ? 'application/xml' : 'text/xml')
+                              : 'application/pdf';
+
+  // Build attachment-like object compatible with GmailAttachment interface
+  // (the existing pipeline calls getBytes / getName / getContentType / getDataAsString)
+  result.push((function (b, n, c) {
+    return {
+      _isSyntheticEml: true,
+      getBytes:        function () { return b; },
+      getName:         function () { return n; },
+      getContentType:  function () { return c; },
+      getDataAsString: function () { return Utilities.newBlob(b).getDataAsString('UTF-8'); }
+    };
+  })(bytes, fileName, finalContentType));
+
+  return result;
+}
+
+function _mimeHeader(headers, name) {
+  // Find header by name, unfold continuation lines (CRLF + WSP)
+  var re = new RegExp('^' + name + '\\s*:\\s*([^\\r\\n]+(?:\\r?\\n[ \\t][^\\r\\n]+)*)', 'im');
+  var m  = headers.match(re);
+  if (!m) return null;
+  return m[1].replace(/\r?\n[ \t]+/g, ' ').trim();
+}
+
+function _decodeQuotedPrintable(s) {
+  return String(s || '')
+    .replace(/=\r?\n/g, '')                                                                              // soft line break
+    .replace(/=([0-9A-F]{2})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARSER XML DGI PANAMA — fallback cuando el PDF adjunto está vacío
+//
+//  Algunos proveedores (Petróleos Delta, PedidosYa, webposonline, etc)
+//  envían factura electrónica donde el PDF adjunto pesa 0 bytes y el
+//  documento real es el XML firmado por DGI. El XML tiene todos los
+//  campos estructurados, así que es MÁS confiable que OCR vía Claude.
+// ═══════════════════════════════════════════════════════════════
+
+function _findXmlAdjuntoEnLista(attachments) {
+  for (var i = 0; i < attachments.length; i++) {
+    var att  = attachments[i];
+    var name = (att.getName() || '').toLowerCase();
+    var mime = String(att.getContentType() || '').toLowerCase();
+    if (mime === 'text/xml' || mime === 'application/xml' || name.indexOf('.xml') !== -1) {
+      return att;
+    }
+  }
+  return null;
+}
+
+// Helper namespace-agnostic — busca un child por nombre local sin
+// importar el xmlns. Las facturas DGI usan dos namespaces anidados
+// y XmlService los maneja, pero es más robusto buscar por nombre.
+function _xmlChild(parent, name) {
+  if (!parent) return null;
+  var children = parent.getChildren();
+  for (var i = 0; i < children.length; i++) {
+    if (children[i].getName() === name) return children[i];
+  }
+  return null;
+}
+
+function _xmlText(parent, name) {
+  var c = _xmlChild(parent, name);
+  return c ? String(c.getText() || '').trim() : '';
+}
+
+function _parseFacturaXmlDgi(xmlString) {
+  // Strip BOM si está presente
+  if (xmlString && xmlString.charCodeAt(0) === 0xFEFF) {
+    xmlString = xmlString.substring(1);
+  }
+
+  var doc  = XmlService.parse(xmlString);
+  var root = doc.getRootElement(); // rContFe
+
+  // Navegar rContFe → xFe → rFE → gDGen / gItem / gTot
+  var xFe = _xmlChild(root, 'xFe');
+  if (!xFe) throw new Error('XML no contiene <xFe>');
+  var rFE = _xmlChild(xFe, 'rFE');
+  if (!rFE) throw new Error('XML no contiene <rFE>');
+
+  var gDGen = _xmlChild(rFE, 'gDGen');
+  if (!gDGen) throw new Error('XML no contiene <gDGen>');
+
+  // Emisor
+  var gEmis    = _xmlChild(gDGen, 'gEmis');
+  var gRucEmi  = gEmis ? _xmlChild(gEmis, 'gRucEmi') : null;
+  var rucEmi   = gRucEmi ? _xmlText(gRucEmi, 'dRuc') : '';
+  var dvEmi    = gRucEmi ? _xmlText(gRucEmi, 'dDV')  : '';
+  var nombEm   = gEmis   ? _xmlText(gEmis, 'dNombEm') : '';
+
+  // Receptor
+  var gDatRec  = _xmlChild(gDGen, 'gDatRec');
+  var gRucRec  = gDatRec ? _xmlChild(gDatRec, 'gRucRec') : null;
+  var rucRec   = gRucRec ? _xmlText(gRucRec, 'dRuc') : '';
+
+  // Documento
+  var dNroDF    = _xmlText(gDGen, 'dNroDF');
+  var dPtoFacDF = _xmlText(gDGen, 'dPtoFacDF');
+  var dFechaEm  = _xmlText(gDGen, 'dFechaEm');
+  var fecha     = dFechaEm ? dFechaEm.substring(0, 10) : '';
+
+  // Totales
+  var gTot      = _xmlChild(rFE, 'gTot');
+  var subtotal  = gTot ? parseFloat(_xmlText(gTot, 'dTotNeto'))  : 0;
+  var itbms     = gTot ? parseFloat(_xmlText(gTot, 'dTotITBMS')) : 0;
+  var total     = gTot ? parseFloat(_xmlText(gTot, 'dVTot'))     : 0;
+
+  // Descripción del primer item
+  var gItem        = _xmlChild(rFE, 'gItem');
+  var descripcion  = gItem ? _xmlText(gItem, 'dDescProd') : '';
+
+  // Construir num_factura: PtoFac-NroDF (formato Panameño)
+  var numFactura = dPtoFacDF ? (dPtoFacDF + '-' + dNroDF) : dNroDF;
+
+  return {
+    nombre_proveedor:    nombEm || '',
+    ruc_proveedor:       rucEmi ? (rucEmi + (dvEmi ? '-' + dvEmi : '')) : '',
+    ruc_receptor:        rucRec || '',
+    num_factura:         numFactura || '',
+    fecha:               fecha,
+    subtotal:            isNaN(subtotal) ? 0 : subtotal,
+    itbms:               isNaN(itbms)    ? 0 : itbms,
+    total:               isNaN(total)    ? 0 : total,
+    descripcion:         descripcion || '',
+    categoria_sugerida: '',  // El XML no infiere categoría — usuario clasifica manualmente
+    confianza_categoria: 0
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -171,8 +603,10 @@ function _sincronizarEmailsAcreedores() {
   var cfg = {};
   try { cfg = _getConfig(); } catch(e) {}
 
-  var label   = _getOrCreateLabelAcr(LABEL_ACREEDOR);
-  var threads = GmailApp.search(query, 0, 50);
+  var label      = _getOrCreateLabelAcr(LABEL_ACREEDOR);
+  var dest       = (cfg.email_acr_destino || cfg.email_op_destino || cfg.email_comprobantes || '').trim();
+  var inboxLabel = String(cfg.email_acr_label || '').trim();
+  var threads    = GmailApp.search(query, 0, 100);
   Logger.log('📬 Threads para Acreedores: ' + threads.length);
 
   for (var t = 0; t < threads.length; t++) {
@@ -180,10 +614,36 @@ function _sincronizarEmailsAcreedores() {
     for (var m = 0; m < messages.length; m++) {
       var msg = messages[m];
       try {
+        var msgId = msg.getId();
+
+        // ── Validar que el mensaje fue entregado al alias configurado ──
+        // Solo en modo broad (sin email_acr_label). En modo label el
+        // filtro nativo de Workspace ya pre-cualificó el mensaje.
+        if (!inboxLabel && !_emailDestinoEsAlias(msg, dest)) {
+          stats.ignorados = (stats.ignorados || 0) + 1;
+          continue;
+        }
+
         var attachments        = msg.getAttachments();
-        var msgId              = msg.getId();
+        // Expandir bulk forwards: si el email contiene .eml/message/rfc822
+        // como attachments (caso "Forward as attachment" en Gmail web),
+        // los reemplazamos por sus PDFs/XMLs internos. El resto del
+        // pipeline trata cada uno como si hubiera llegado solo.
+        attachments            = _expandirEmlAdjuntos(attachments);
         var todosListos        = true;   // sin errores de parse = ok para poner label
         var tieneAlgunAcreedor = false;  // al menos un adjunto fue de acreedor
+        var tieneRateLimit     = false;  // 429 de Claude — error transitorio, NO marcar thread
+
+        // ── Validar que el mensaje haya llegado vía el reenviador permitido ──
+        if (!_esReenvioPermitidoAcr(msg)) {
+          var _subj = '';
+          try { _subj = String(msg.getSubject() || '').substring(0, 80); } catch(eS){}
+          var _from = '';
+          try { _from = String(msg.getFrom() || '').substring(0, 60); } catch(eF){}
+          Logger.log('  ⏭ Descartado (no reenviador): ' + msgId + ' | from=' + _from + ' | subject=' + _subj);
+          stats.ignorados = (stats.ignorados || 0) + 1;
+          continue;
+        }
 
         for (var a = 0; a < attachments.length; a++) {
           var att  = attachments[a];
@@ -204,26 +664,79 @@ function _sincronizarEmailsAcreedores() {
           }
 
           var pdfBytes = att.getBytes();
-          var pdfB64   = Utilities.base64Encode(pdfBytes);
+          var parsed;
 
-          // ── Parsear con Claude — extrae proveedor y datos en una sola llamada ──
-          tieneAlgunAcreedor = true;
+          // ── Caso PDF vacío: facturas electrónicas DGI Panamá donde el ──
+          // ── proveedor adjunta el PDF como placeholder de 0 bytes y el ──
+          // ── XML firmado es el documento real (Petróleos Delta, PedidosYa, ──
+          // ── webposonline, etc). Fallback: parsear el XML directamente. ──
+          if (pdfBytes.length === 0) {
+            Logger.log('  ⚠️ PDF vacío: ' + fileName + ' — buscando XML hermano…');
+            var xmlAtt = _findXmlAdjuntoEnLista(attachments);
+            if (!xmlAtt) {
+              Logger.log('  ✗ Sin XML hermano — saltando ' + fileName);
+              todosListos = false;
+              continue;
+            }
+            try {
+              parsed = _parseFacturaXmlDgi(xmlAtt.getDataAsString());
+              Logger.log('  ✓ Parsed via XML DGI: ' + parsed.nombre_proveedor + ' / ' + parsed.num_factura + ' / ' + parsed.total);
+            } catch (eXml) {
+              Logger.log('  ✗ Error parseando XML DGI: ' + eXml.message);
+              todosListos = false;
+              stats.errores.push({ msgId: msgId, file: fileName, error: 'XML: ' + eXml.message });
+              continue;
+            }
+            tieneAlgunAcreedor = true;
+          } else {
+            // ── Path normal: PDF con contenido → Claude vision ──
+            tieneAlgunAcreedor = true;
+            var pdfB64 = Utilities.base64Encode(pdfBytes);
+            try {
+              parsed = _claudeParsearFacturaLibre(pdfB64, fileName);
+            } catch (eClaude) {
+              // Distinguir errores transitorios (429 rate limit, 503,
+              // network) de errores permanentes (PDF corrupto, etc).
+              // Los transitorios NO deben consumir el thread —
+              // queremos que el próximo run reintente.
+              var msgErr     = String(eClaude.message || '');
+              var isTransient = /\b429\b|rate_limit|503|temporarily|timeout|Failed to fetch/i.test(msgErr);
+              Logger.log('  ✗ Claude error: ' + msgErr + (isTransient ? ' (transitorio — thread NO se marcará)' : ''));
+              todosListos = false;
+              if (isTransient) tieneRateLimit = true;
+              stats.errores.push({ msgId: msgId, file: fileName, error: 'Claude: ' + msgErr });
+              continue;
+            }
+          }
+
           try {
-            var parsed   = _claudeParsearFacturaLibre(pdfB64, fileName);
             var acreedor = {
               id:            'LIBRE',
               nombre:        parsed.nombre_proveedor || fileName,
               ruc:           parsed.ruc_proveedor    || '',
               categoria_def: parsed.categoria_sugerida || ''
             };
-            // Aplicar preferencia guardada por el usuario (si existe)
-            var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+            // Buscar acreedor existente o auto-crearlo (queda activo por defecto).
+            // El usuario puede luego desactivarlo desde Configuración → Automático
+            // para descartar futuras facturas del mismo proveedor.
+            var pref = _findOrAutoCreateAcreedor(
+              acreedor.nombre,
+              acreedor.ruc,
+              acreedor.categoria_def
+            );
+            if (pref && pref.activo === false) {
+              Logger.log('⏭ Acreedor ' + pref.nombre + ' está desactivado — factura ignorada.');
+              _registrarClaveAcreedor(ss, clave, msgId, fileName);
+              continue;
+            }
             if (pref && pref.categoria_def) {
               acreedor.id           = pref.id;
               acreedor.categoria_def = pref.categoria_def;
               if (pref.desc_default) parsed.descripcion = pref.desc_default;
               parsed.categoria_sugerida = pref.categoria_def;
               Logger.log('🎯 Preferencia aplicada: ' + acreedor.nombre + ' → ' + pref.categoria_def);
+            } else if (pref) {
+              acreedor.id = pref.id;
             }
             var driveUrl = _guardarPdfAcreedor(pdfBytes, fileName, acreedor.nombre, cfg);
 
@@ -246,12 +759,26 @@ function _sincronizarEmailsAcreedores() {
         stats.procesados++;
 
         // ── Decisión de label ───────────────────────────────────
-        if (tieneAlgunAcreedor) {
-          // Tiene acreedores — consumir el thread independientemente de errores parciales
+        if (tieneRateLimit) {
+          // Rate limit transitorio de Claude — marcar el thread como
+          // PENDING para que sea visible en el inbox y el próximo run
+          // lo reintente. Dedup attachment-level salta las que ya
+          // están guardadas, retry solo las que faltan.
+          var pendingLabel = _getOrCreateLabelAcr(LABEL_ACREEDOR_PENDING);
+          threads[t].addLabel(pendingLabel);
+          Logger.log('⏸ Rate limit de Claude — thread marcado cf_acreedor_pending para retry en próximo run.');
+        } else if (tieneAlgunAcreedor) {
+          // Tiene acreedores — consumir el thread (errores permanentes
+          // como PDF corrupto NO deben loopar infinitamente).
           threads[t].addLabel(label);
+          // Si venía de un retry exitoso, quitar el pending label.
+          try {
+            var prevPending = GmailApp.getUserLabelByName(LABEL_ACREEDOR_PENDING);
+            if (prevPending) threads[t].removeLabel(prevPending);
+          } catch (eRem) {}
           Logger.log(todosListos
             ? '✅ Label cf_acreedor_procesado aplicado.'
-            : '⚠️  Label cf_acreedor_procesado aplicado (con errores parciales).');
+            : '⚠️  Label cf_acreedor_procesado aplicado (con errores parciales no-transitorios).');
         } else {
           // Todo ignorado — no consumir el thread
           Logger.log('⏭ Thread sin acreedores — sin label.');
@@ -493,6 +1020,54 @@ function _buscarPreferenciaAcreedor(nombre, ruc) {
   return null;
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  AUTO-CREATE — crea un acreedor si no existe en Acreedores_Config
+//  Devuelve siempre el acreedor (existente o nuevo) con flag activo.
+//  Usado por la sincronización de emails para que el panel
+//  Configuración → Automático se llene solo.
+// ═══════════════════════════════════════════════════════════════
+function _findOrAutoCreateAcreedor(nombre, ruc, categoriaDef) {
+  // 1. Buscar en la lista existente
+  var existing = _buscarPreferenciaAcreedor(nombre, ruc);
+  if (existing) return existing;
+
+  // 2. No existe → crear con activo=true
+  try {
+    _acreedoresCache = null;
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_ACREEDORES_CONFIG);
+    if (!sheet) {
+      Logger.log('⚠️ No se pudo auto-crear acreedor: hoja Acreedores_Config no existe.');
+      return null;
+    }
+
+    var ahora   = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd');
+    var lastRow = sheet.getLastRow();
+    var seq     = lastRow <= 2 ? 1 : lastRow - 1;
+    var id      = 'AUTO-' + ahora.replace(/-/g,'') + '-' + String(seq).padStart(3,'0');
+
+    var fila = new Array(ACR_NCOLS).fill('');
+    fila[COL_ACR.ID - 1]            = id;
+    fila[COL_ACR.NOMBRE - 1]        = String(nombre || '').trim() || 'Proveedor sin nombre';
+    fila[COL_ACR.RUC - 1]           = String(ruc || '').trim();
+    fila[COL_ACR.CATEGORIA_DEF - 1] = String(categoriaDef || 'otros_deducibles');
+    fila[COL_ACR.ACTIVO - 1]        = 'true';
+    fila[COL_ACR.FECHA_ALTA - 1]    = ahora;
+    fila[COL_ACR.NOTAS - 1]         = JSON.stringify({ origen: 'auto_email', fecha: ahora });
+    sheet.appendRow(fila);
+
+    Logger.log('🆕 Acreedor auto-creado: ' + fila[COL_ACR.NOMBRE - 1] +
+               (fila[COL_ACR.RUC - 1] ? ' (RUC ' + fila[COL_ACR.RUC - 1] + ')' : ''));
+
+    // Forzar invalidación del cache para que la próxima búsqueda lo encuentre
+    _acreedoresCache = null;
+    return _buscarPreferenciaAcreedor(fila[COL_ACR.NOMBRE - 1], fila[COL_ACR.RUC - 1]);
+  } catch (err) {
+    Logger.log('❌ Error auto-creando acreedor: ' + err.message);
+    return null;
+  }
+}
+
 function _handleGuardarPreferencia(data) {
   try {
     var nombre     = String(data.nombre    || '').trim();
@@ -661,7 +1236,13 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   var rucRec = String(parsed.ruc_receptor || '').replace(/\s/g, '');
   var _cfgAcr = _getConfig();
   var rucCli = String(_cfgAcr && _cfgAcr.empresa_ruc ? _cfgAcr.empresa_ruc : '').replace(/\s/g, '');
-  var alcancePend = (rucRec && rucCli && rucRec === rucCli) ? 'negocio' : (rucRec ? 'personal' : 'negocio');
+  // Alcance:
+  //   negocio  → deducible (factura a nombre de la empresa: rucRec coincide con empresa_ruc)
+  //   personal → no deducible (factura a consumidor final / a otra persona)
+  // Si la factura no trae RUC del receptor (consumidor final, "Cliente
+  // Genérico", etc.) en Panamá NO es ITBMS-acreditable ni deducible
+  // del impuesto sobre la renta del negocio. Default 'personal'.
+  var alcancePend = (rucRec && rucCli && rucRec === rucCli) ? 'negocio' : 'personal';
   fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra + ' | alcance:' + alcancePend;
   fila[COL_PEND.EGRESO_ID - 1]   = '';
   fila[COL_PEND.MSG_ID - 1]      = clave || msgId || '';
@@ -1347,12 +1928,18 @@ function _handleProcesarEmailGmail(data) {
       id: 'LIBRE', nombre: parsed.nombre_proveedor || attFilename,
       ruc: parsed.ruc_proveedor || '', categoria_def: parsed.categoria_sugerida || ''
     };
-    var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+    var pref = _findOrAutoCreateAcreedor(acreedor.nombre, acreedor.ruc, acreedor.categoria_def);
+    if (pref && pref.activo === false) {
+      Logger.log('⏭ Acreedor ' + pref.nombre + ' desactivado — factura ignorada (procesarEmail).');
+      return _jsonAcr({ ok: true, skipped: true, reason: 'acreedor_desactivado' });
+    }
     if (pref && pref.categoria_def) {
       acreedor.id            = pref.id;
       acreedor.categoria_def = pref.categoria_def;
       if (pref.desc_default) parsed.descripcion = pref.desc_default;
       parsed.categoria_sugerida = pref.categoria_def;
+    } else if (pref) {
+      acreedor.id = pref.id;
     }
     if (parsed.num_factura && _pendienteYaExiste(parsed.num_factura, acreedor.id)) {
       return _jsonAcr({ ok: true, skipped: true, reason: 'duplicado' });
@@ -1439,12 +2026,19 @@ function _handleImportarHistorialGmail(data) {
           id: 'LIBRE', nombre: parsed.nombre_proveedor || att.filename,
           ruc: parsed.ruc_proveedor || '', categoria_def: parsed.categoria_sugerida || ''
         };
-        var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+        var pref = _findOrAutoCreateAcreedor(acreedor.nombre, acreedor.ruc, acreedor.categoria_def);
+        if (pref && pref.activo === false) {
+          Logger.log('⏭ Acreedor ' + pref.nombre + ' desactivado — factura ignorada (importHist).');
+          stats.ignorados = (stats.ignorados || 0) + 1;
+          continue;
+        }
         if (pref && pref.categoria_def) {
           acreedor.id            = pref.id;
           acreedor.categoria_def = pref.categoria_def;
           if (pref.desc_default) parsed.descripcion = pref.desc_default;
           parsed.categoria_sugerida = pref.categoria_def;
+        } else if (pref) {
+          acreedor.id = pref.id;
         }
 
         if (parsed.num_factura && _pendienteYaExiste(parsed.num_factura, acreedor.id)) {
@@ -1542,19 +2136,25 @@ function _handleImportarFacturaGmail(data) {
     // Parse with Claude
     var parsed = _claudeParsearFacturaLibre(fileBase64, fileName);
 
-    // Build synthetic acreedor (look for saved preference first)
+    // Build synthetic acreedor (look up or auto-create in Acreedores_Config)
     var acreedor = {
       id:            'LIBRE',
       nombre:        parsed.nombre_proveedor || emailFrom || fileName,
       ruc:           parsed.ruc_proveedor    || '',
       categoria_def: parsed.categoria_sugerida || ''
     };
-    var pref = _buscarPreferenciaAcreedor(acreedor.nombre, acreedor.ruc);
+    var pref = _findOrAutoCreateAcreedor(acreedor.nombre, acreedor.ruc, acreedor.categoria_def);
+    if (pref && pref.activo === false) {
+      Logger.log('⏭ Acreedor ' + pref.nombre + ' desactivado — factura ignorada (importGmail).');
+      return _jsonAcr({ ok: true, id: '', skipped: true, reason: 'acreedor_desactivado' });
+    }
     if (pref && pref.categoria_def) {
       acreedor.id            = pref.id;
       acreedor.categoria_def = pref.categoria_def;
       if (pref.desc_default) parsed.descripcion = pref.desc_default;
       parsed.categoria_sugerida = pref.categoria_def;
+    } else if (pref) {
+      acreedor.id = pref.id;
     }
 
     // Dedup: same invoice number for same acreedor
@@ -1749,4 +2349,89 @@ function _jsonpAcr(obj, callback) {
 }
 function _jsonAcr(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  VERIFICAR REENVÍO GMAIL — chequeo end-to-end
+//
+//  Lee el inbox de facturas@balanceclip.net (cuenta donde corre el
+//  Apps Script) y busca correos enviados desde el remitente
+//  registrado del cliente (cfg.email_*_remitente). Si encuentra al
+//  menos uno, el reenvío está activo.
+//
+//  3 estados:
+//  - status=ok        → uno o más correos detectados (count, last)
+//  - status=pendiente → alias configurado pero aún no llega ningún
+//                       correo del remitente (esperando primera factura)
+//  - status=falta     → falta config (email_*_destino o
+//                       email_*_remitente vacío)
+// ═══════════════════════════════════════════════════════════════
+
+function _handleVerificarReenvioGmail(params, callback) {
+  try {
+    var cfg = _getConfig();
+    var dest = (cfg.email_acr_destino  || cfg.email_op_destino  || cfg.email_comprobantes || '').trim();
+    var rem  = (cfg.email_acr_remitente || cfg.email_op_remitente || '').trim();
+
+    if (!dest || !rem) {
+      return _jsonpAcr({
+        success: true,
+        status:  'falta',
+        dest:    dest,
+        rem:     rem,
+        msg:     'Falta configurar email_destino y/o email_remitente en Configuración → Automático.',
+      }, callback);
+    }
+
+    // Buscar mensajes en el inbox del Apps Script (facturas@balanceclip.net)
+    // que provengan del remitente registrado y tengan adjunto.
+    // Limitamos a los últimos 90 días para que la consulta sea rápida.
+    var query = 'from:' + rem + ' has:attachment newer_than:90d';
+    Logger.log('🔎 verificarReenvioGmail query: ' + query);
+    var threads = GmailApp.search(query, 0, 50);
+    var count = 0;
+    var lastMs = 0;
+
+    for (var t = 0; t < threads.length; t++) {
+      var msgs = threads[t].getMessages();
+      for (var m = 0; m < msgs.length; m++) {
+        var msg = msgs[m];
+        var fromAddr = String(msg.getFrom() || '').toLowerCase();
+        if (fromAddr.indexOf(rem.toLowerCase()) === -1) continue;
+        count++;
+        var d = msg.getDate();
+        var ms = d ? d.getTime() : 0;
+        if (ms > lastMs) lastMs = ms;
+      }
+    }
+
+    if (count > 0) {
+      var lastIso = lastMs ? Utilities.formatDate(new Date(lastMs), 'America/Panama', 'yyyy-MM-dd HH:mm') : '';
+      return _jsonpAcr({
+        success: true,
+        status:  'ok',
+        dest:    dest,
+        rem:     rem,
+        count:   count,
+        last:    lastIso,
+        msg:     'Reenvío activo · ' + count + ' correo(s) detectado(s) en los últimos 90 días.',
+      }, callback);
+    }
+
+    return _jsonpAcr({
+      success: true,
+      status:  'pendiente',
+      dest:    dest,
+      rem:     rem,
+      count:   0,
+      msg:     'Alias configurado, pero aún no llega ningún correo desde ' + rem +
+               '. Vuelve a verificar cuando recibas la primera factura.',
+    }, callback);
+  } catch (err) {
+    Logger.log('❌ verificarReenvioGmail: ' + err.message);
+    return _jsonpAcr({
+      success: false,
+      error:   err.message,
+    }, callback);
+  }
 }

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "deploy": "node scripts/deploy-gas.js"
+    "deploy":    "node scripts/deploy-gas.js",
+    "propagate": "node scripts/propagate-frontend.js"
   },
   "dependencies": {
     "googleapis": "^144.0.0"

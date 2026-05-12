@@ -3,16 +3,30 @@
     {
       "id": "ceyco",
       "nombre": "CEYCO",
-      "scriptId": "1H_dz10V_HT6HVSszSCPLCcpvRHZgwkqsd4jaqdS6yxK4vBNkGYB0GXSq",
+      "scriptId": "1YncHtdtu9lJ60xftr7sdDESjiqkOlxlRJNKLePY9RgslxKLslyQ84fr0",
       "gasDir": "backend-gas",
-      "deploymentId": "AKfycbwLGTYAbIhEdbMIbKLZekngmMI62bGG9KprhtO-opQ2DoF8H5UOTCz6R2qBllf2FVBtOw"
+      "deploymentId": "AKfycbxr_kHelzOpNySgC04fsVlDhed4VPeOXVSICIFcOk_4r3NR0D5QQQgnq6mc9ZRMuSRiUA"
     },
     {
       "id": "iris-albelo-ho",
       "nombre": "Iris Albelo Ho",
-      "scriptId": "1iWlU-UyxDCHUOaFCo5YSo0l1eqUyh06F8a3xdEVH5QlypifaZj_vCzwN",
+      "scriptId": "1lspRUV4nWAzliuQbUzx_ZbcSkjQhX_9-M9JzHAiRZzvzP4D-nvxFSFsI",
       "gasDir": "backend-gas",
-      "deploymentId": "AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw"
+      "deploymentId": "AKfycbyqdFIXT3D2R9TtKffI2L0xcFB1kLGJY6Lz7MvxFtg_gk6xx86LjsTAJU-h5nn1XWJX"
+    },
+    {
+      "id": "glorimar-lasso",
+      "nombre": "Glorimar Lasso",
+      "scriptId": "11L8ZKLB2Q58JlC6DGO5Fu1hBn0qFjidxRRY5P3DT_4nm_ssqTqnEc9jv",
+      "gasDir": "backend-gas",
+      "deploymentId": "AKfycbzkjexs8N_BgJR8tGApP1U9ATdX91tDz4gChqXHPyOnSzI9FsoJ1-QEORDLqVO2sRTZ"
+    },
+    {
+      "id": "david-miguel-collado",
+      "nombre": "David Miguel Collado",
+      "scriptId": "1x8weJAITaa37VTlBtUyUnaSexvIvxWvBaw75rQIk6gS6Y_FMBGR6ERNM",
+      "gasDir": "backend-gas",
+      "deploymentId": "AKfycbwQ3G1GMFLO8gjcE_LixN1DBDlterHtsRBgNyYZHlC-joB-DMJqoShS9nHz_VMUqHze"
     }
   ]
 }

@@ -339,9 +339,24 @@ const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
                'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MESES_C = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+// Helpers — extraer año/mes desde fecha cuando los campos explícitos faltan
+// (alinea con la lógica del P&L para que los totales coincidan)
+function _itbAnio(e) {
+  const direct = Number(e.anio || e.anio_fiscal);
+  if (direct) return direct;
+  const m = String(e.fecha_egreso || e.fecha_ingreso || '').match(/^(\d{4})/);
+  return m ? Number(m[1]) : 0;
+}
+function _itbMes(e) {
+  const direct = Number(e.mes);
+  if (direct) return direct;
+  const m = String(e.fecha_egreso || e.fecha_ingreso || '').match(/^\d{4}-(\d{2})/);
+  return m ? Number(m[1]) : 0;
+}
+
 // ── GAS_URL ──────────────────────────────────────
 const GAS_URL = (typeof window.GAS_URL !== 'undefined' && window.GAS_URL)
-             || 'https://script.google.com/macros/s/AKfycbyyuqAUUADKEy7yRSdLnG7s2RLXrM6d6ylkPh5F6kaxmoQKyR48Pw9WsHdWHOI4fVv_aw/exec';
+             || 'https://script.google.com/macros/s/AKfycbyqdFIXT3D2R9TtKffI2L0xcFB1kLGJY6Lz7MvxFtg_gk6xx86LjsTAJU-h5nn1XWJX/exec';
 
 // ── JSONP helper ─────────────────────────────────
 function itbJsonp(action) {
@@ -401,8 +416,8 @@ async function itbLoad() {
 // ── Selectores ───────────────────────────────────
 function itbPopulateYears() {
   const years = new Set();
-  itb_ing.forEach(i => { if (i.anio_fiscal) years.add(Number(i.anio_fiscal)); });
-  itb_egr.forEach(e => { const y = Number(e.anio || e.anio_fiscal); if (y) years.add(y); });
+  itb_ing.forEach(i => { const y = _itbAnio(i); if (y) years.add(y); });
+  itb_egr.forEach(e => { const y = _itbAnio(e); if (y) years.add(y); });
   if (!years.size) years.add(new Date().getFullYear());
 
   const sel = document.getElementById('itbSelAnio');
@@ -416,8 +431,8 @@ function itbRebuildMonths() {
 
   // Detectar qué meses tienen data ese año
   const mesesConData = new Set();
-  itb_ing.filter(i => Number(i.anio_fiscal) === itb_year).forEach(i => { if (i.mes) mesesConData.add(Number(i.mes)); });
-  itb_egr.filter(e => Number(e.anio || e.anio_fiscal) === itb_year).forEach(e => { if (e.mes) mesesConData.add(Number(e.mes)); });
+  itb_ing.filter(i => _itbAnio(i) === itb_year).forEach(i => { const m = _itbMes(i); if (m) mesesConData.add(m); });
+  itb_egr.filter(e => _itbAnio(e) === itb_year).forEach(e => { const m = _itbMes(e); if (m) mesesConData.add(m); });
 
   const sel = document.getElementById('itbSelMes');
   sel.innerHTML = Array.from({length:12}, (_,i) => i+1).map(m => {
@@ -442,10 +457,10 @@ function itbApply() {
 
   // Filtrar por mes y año
   const ing = itb_ing.filter(i =>
-    Number(i.anio_fiscal) === itb_year && Number(i.mes) === itb_mes
+    _itbAnio(i) === itb_year && _itbMes(i) === itb_mes
   );
   const egrTodos = itb_egr.filter(e =>
-    Number(e.anio || e.anio_fiscal) === itb_year && Number(e.mes) === itb_mes
+    _itbAnio(e) === itb_year && _itbMes(e) === itb_mes
   );
 
   // Split egresos: pagado normal vs crédito fiscal
@@ -694,8 +709,8 @@ function itbRenderAnual() {
   let totCobrado = 0, totPagado = 0, totCredito = 0;
 
   const rows = Array.from({length:12}, (_,i) => i+1).map(m => {
-    const ing = itb_ing.filter(i => Number(i.anio_fiscal)===itb_year && Number(i.mes)===m);
-    const egr = itb_egr.filter(e => Number(e.anio||e.anio_fiscal)===itb_year && Number(e.mes)===m);
+    const ing = itb_ing.filter(i => _itbAnio(i)===itb_year && _itbMes(i)===m);
+    const egr = itb_egr.filter(e => _itbAnio(e)===itb_year && _itbMes(e)===m);
 
     const cobrado = ing.reduce((s,i) => s+Number(i.itbms||0), 0);
     const pagado  = egr.filter(e=>e.tipo_egreso!=='credito_fiscal').reduce((s,e)=>s+Number(e.itbms||0),0);

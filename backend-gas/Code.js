@@ -294,6 +294,12 @@ function doPost(e) {
     }
     // ── CONFIGURACIÓN OPERACIONES ──────────────────────────────
     if (action === 'guardarConfig') return _handleGuardarConfig(data);
+    if (action === 'inicializarSistema') return _handleInicializarSistema(data, '');
+    if (action === 'installSyncTrigger') return _handleInstallUnifiedSyncTrigger(data, '');
+    if (action === 'healthCheck')        return _handleHealthCheck(data, '');
+    if (action === 'enviarOnboarding')   return _handleEnviarOnboarding(data);
+    if (action === 'runSyncNow')         return _handleRunSyncNow(data, '');
+    if (action === 'getConfigSummary')   return _handleGetConfigSummary(data, '');
     // ── PROVEEDORES ────────────────────────────────────────────
     if (action === 'analizarFacturaEjemplo') return _handleAnalizarFacturaEjemplo(data);
     if (action === 'guardarProveedor')       return _handleGuardarProveedor(data);
@@ -346,6 +352,7 @@ function doPost(e) {
     if (action === 'analizarFacturaAcreedor')    return _handleAnalizarFacturaAcreedor(data);
     if (action === 'actualizarPendienteAcr')     return _handleActualizarPendienteAcr(data);
     if (action === 'guardarPreferenciaAcreedor') return _handleGuardarPreferencia(data);
+    if (action === 'resetLabelsAcreedores')      return _handleResetLabelsAcreedores(data);
     if (action === 'subirFacturaEgreso')         return _handleSubirFacturaEgreso(data);
     if (action === 'subirFacturaIngreso')         return _handleSubirFacturaIngreso(data);
     if (action === 'importarFacturaGmail')        return _handleImportarFacturaGmail(data);
@@ -354,6 +361,22 @@ function doPost(e) {
     if (action === 'categorizarEmailsGmail')      return _handleCategorizarEmailsGmail(data);
     if (action === 'categorizarTransaccionesOFX') return _handleCategorizarTransaccionesOFX(data);
     if (action === 'importarLoteOFX')             return _handleImportarLoteOFX(data);
+
+    // ── AUTH (password global) ──────────────────────────────────
+    if (action === 'verifyPassword')              return _handleVerifyPassword(data);
+    if (action === 'setPassword')                 return _handleSetPassword(data);
+    if (action === 'resetPassword')               return _handleResetPassword(data);
+
+    // ── REPORTES por email ──────────────────────────────────────
+    if (action === 'enviarReporteCierre')         return _handleEnviarReporteCierre(data);
+
+    // ── TRIGGERS de sincronización ──────────────────────────────
+    // (handlers definidos en ContaFacil_Operaciones.js — los exponemos aquí
+    // porque Code.js es el único entry point real de doPost)
+    if (action === 'instalarTriggerOp')           return _handleInstalarTriggerOp(data);
+    if (action === 'removerTriggerOp')            return _handleRemoverTriggerOp(data);
+    if (action === 'instalarTriggerST')           return _handleInstalarTriggerST(data);
+    if (action === 'removerTriggerST')            return _handleRemoverTriggerST(data);
 
     // ── TIENDA: nueva orden ─────────────────────────────────────
     var voucherUrl = '';
@@ -651,13 +674,25 @@ function doGet(e) {
     if (action === 'rechazarAcreedor')      return _handleRechazarAcreedor(params, callback);
     if (action === 'eliminarPendienteAcr')  return _handleEliminarPendienteAcr(params, callback);
     if (action === 'sincronizarAcreedores') return _handleSincronizarAcreedores(params, callback);
+    if (action === 'verificarReenvioGmail') return _handleVerificarReenvioGmail(params, callback);
     if (action === 'getCategorias')         return _handleGetCategorias(params, callback);
 
     // ── INICIALIZACIÓN ──────────────────────────────────────────
     if (action === 'inicializarSistema')              return _handleInicializarSistema(params, callback);
+    if (action === 'installSyncTrigger')              return _handleInstallUnifiedSyncTrigger(params, callback);
+    if (action === 'healthCheck')                     return _handleHealthCheck(params, callback);
+    if (action === 'runSyncNow')                      return _handleRunSyncNow(params, callback);
+    if (action === 'getConfigSummary')                return _handleGetConfigSummary(params, callback);
     if (action === 'instalarTriggerComercializacion') return _handleInstalarTriggerOp({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerProyectos')        return _handleInstalarTriggerST({ intervalo: params.intervalo || '15' });
     if (action === 'instalarTriggerAcreedores')       return _handleInstalarTriggerAcr({ intervalo: params.intervalo || '15' });
+
+    // ── Estado de triggers (consumido por panel Sistema) ────────
+    if (action === 'estadoTriggerOp')                 return _handleEstadoTriggerOp(params, callback);
+    if (action === 'estadoTriggerST')                 return _handleEstadoTriggerST(params, callback);
+
+    // ── AUTH (estado público) ───────────────────────────────────
+    if (action === 'getAuthState')                    return _handleGetAuthState(params, callback);
 
     // ── Default: health check ───────────────────────────────────
     return ContentService
@@ -1230,14 +1265,423 @@ function inicializarSistema() {
 }
 
 function _handleInicializarSistema(params, callback) {
-  var result = { success: false, message: '' };
+  var result = { success: false, message: '', authResetToken: null };
   try {
     inicializarSistema();
+
+    // Guardar credenciales del provisioner si vienen en el request.
+    // El provisioner las pasa una sola vez al final del setup para
+    // evitar que el admin tenga que entrar manualmente al editor GAS
+    // a setear Script Properties después del deploy.
+    var props = PropertiesService.getScriptProperties();
+    if (params && params.claudeApiKey) {
+      props.setProperty('CLAUDE_API_KEY', String(params.claudeApiKey));
+    }
+    if (params && params.authResetToken) {
+      props.setProperty('AUTH_RESET_TOKEN', String(params.authResetToken));
+    } else if (!props.getProperty('AUTH_RESET_TOKEN')) {
+      // Auto-generar si no existe ni viene en params
+      var generated = Utilities.getUuid().replace(/-/g, '');
+      props.setProperty('AUTH_RESET_TOKEN', generated);
+      result.authResetToken = generated;
+    }
+
     result.success = true;
     result.message = 'Sistema inicializado correctamente.';
   } catch (e) {
     result.message = 'Error: ' + e.message;
     Logger.log('Error inicializarSistema: ' + e.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  HEALTH CHECK — verifica el estado del provisioning end-to-end.
+//  Llamado por el provisioner (deploy.html) al final del setup para
+//  confirmar que todo quedó conectado correctamente. Devuelve estado
+//  por componente sin exponer secretos (solo "set"/"missing" para
+//  Script Properties).
+// ════════════════════════════════════════════════════════════════
+function _handleHealthCheck(params, callback) {
+  var result = {
+    sheet:    { ok: false },
+    drive:    { ok: false },
+    gmail:    { ok: false },
+    config:   { ok: false },
+    triggers: [],
+    scriptProperties: {},
+    overall:  'unknown'
+  };
+
+  try {
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    result.sheet.ok       = true;
+    result.sheet.name     = ss.getName();
+    result.sheet.tabCount = ss.getSheets().length;
+  } catch (e) {
+    result.sheet.error = e.message;
+  }
+
+  try {
+    if (CONFIG.VOUCHER_FOLDER_ID) {
+      var folder = DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID);
+      result.drive.ok         = true;
+      result.drive.folderName = folder.getName();
+    } else {
+      result.drive.error = 'VOUCHER_FOLDER_ID no configurado';
+    }
+  } catch (e) {
+    result.drive.error = e.message;
+  }
+
+  try {
+    var labels = GmailApp.getUserLabels();
+    result.gmail.ok         = true;
+    result.gmail.labelCount = labels.length;
+  } catch (e) {
+    result.gmail.error = e.message;
+  }
+
+  try {
+    var cfg = _getConfig();
+    result.config.ok                    = true;
+    result.config.empresa_nombre        = cfg.empresa_nombre || '';
+    result.config.forwarder             = cfg.email_acr_remitente || cfg.email_op_remitente || '';
+    result.config.destino               = cfg.email_acr_destino || cfg.email_op_destino || '';
+    result.config.flow_acreedor         = String(cfg.flow_acreedor || 'true').toLowerCase() !== 'false';
+    result.config.flow_comercializacion = String(cfg.flow_comercializacion || 'false').toLowerCase() === 'true';
+    result.config.email_acr_label       = cfg.email_acr_label || null;
+    result.config.email_op_label        = cfg.email_op_label  || null;
+  } catch (e) {
+    result.config.error = e.message;
+  }
+
+  try {
+    var trigs = ScriptApp.getProjectTriggers();
+    result.triggers = trigs.map(function (t) {
+      return {
+        function: t.getHandlerFunction(),
+        type:     String(t.getEventType())
+      };
+    });
+  } catch (e) {
+    result.triggersError = e.message;
+  }
+
+  // Solo verifica que existan, NO expone los valores.
+  var props = PropertiesService.getScriptProperties();
+  ['CLAUDE_API_KEY', 'AUTH_RESET_TOKEN'].forEach(function (k) {
+    result.scriptProperties[k] = props.getProperty(k) ? 'set' : 'missing';
+  });
+
+  var coreChecks = [result.sheet.ok, result.drive.ok, result.gmail.ok, result.config.ok];
+  if (coreChecks.every(function (x) { return x; })) result.overall = 'healthy';
+  else if (coreChecks.some(function (x) { return x; })) result.overall = 'degraded';
+  else result.overall = 'unhealthy';
+
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ENVIAR ONBOARDING EMAIL — manda al cliente su URL de dashboard,
+//  AUTH_RESET_TOKEN y instrucciones de forwarding setup. Llamado
+//  por el provisioner al final del setup.
+// ════════════════════════════════════════════════════════════════
+function _handleEnviarOnboarding(data) {
+  var result = { success: false };
+  try {
+    data = data || {};
+    var clientEmail = String(data.clientEmail || '').trim();
+    if (!clientEmail) throw new Error('clientEmail es requerido');
+
+    var cfg = _getConfig();
+    var clientName     = data.clientName     || cfg.empresa_nombre || 'Cliente';
+    var dashboardUrl   = data.dashboardUrl   || '';
+    var authResetToken = data.authResetToken || '';
+    var forwarderEmail = data.forwarderEmail || cfg.email_acr_remitente || '';
+    var sharedInbox    = cfg.email_acr_destino || 'facturas@balanceclip.net';
+
+    var subject = '🎉 Tu sistema BalanceClip está listo, ' + clientName;
+    var html    = _buildOnboardingEmailHtml({
+      clientName:     clientName,
+      dashboardUrl:   dashboardUrl,
+      authResetToken: authResetToken,
+      forwarderEmail: forwarderEmail,
+      sharedInbox:    sharedInbox
+    });
+
+    MailApp.sendEmail({
+      to:       clientEmail,
+      subject:  subject,
+      htmlBody: html
+    });
+
+    result.success = true;
+    result.sentTo  = clientEmail;
+  } catch (e) {
+    result.error = e.message;
+  }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  Plantilla HTML del onboarding email — diseño profesional con
+//  layout en tablas (compatible con todos los email clients) y
+//  pasos detallados de forwarding setup (espejados del wizard
+//  de Captura Automática del dashboard).
+// ════════════════════════════════════════════════════════════════
+function _buildOnboardingEmailHtml(p) {
+  var clientName     = _escHtml(p.clientName || 'Cliente');
+  var dashboardUrl   = String(p.dashboardUrl || '');
+  var dashboardSafe  = _escHtml(dashboardUrl);
+  var authResetToken = _escHtml(p.authResetToken || '');
+  var forwarderEmail = _escHtml(p.forwarderEmail || '');
+  var sharedInbox    = _escHtml(p.sharedInbox || 'facturas@balanceclip.net');
+  var fwdSettingsUrl = 'https://mail.google.com/mail/u/0/#settings/fwdandpop';
+  var waMsg = encodeURIComponent('Hola, soy ' + (p.clientName || 'cliente nuevo') + '. Ya agregué facturas@balanceclip.net como dirección de reenvío en mi Gmail. Por favor aprueben el código de verificación. Gracias.');
+  var waLink = 'https://wa.me/50769812266?text=' + waMsg;
+
+  // Helpers de estilo para mantener consistencia
+  var bgPage    = '#F8F9FA';
+  var orange    = '#D04E00';
+  var orangeDk  = '#A33D00';
+  var blue      = '#1565C0';
+  var textDk    = '#1A1A2E';
+  var muted     = '#6C757D';
+  var border    = '#DEE2E6';
+  var surface   = '#FFFFFF';
+  var surface2  = '#F1F3F5';
+
+  // Card de paso reutilizable
+  function stepCard(num, title, body) {
+    return '' +
+      '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 12px;border:1px solid ' + border + ';border-radius:10px;background:' + surface + '">' +
+        '<tr>' +
+          '<td width="44" valign="top" style="padding:18px 0 18px 18px">' +
+            '<div style="width:32px;height:32px;border-radius:50%;background:' + orange + ';color:#fff;font-weight:700;font-size:14px;text-align:center;line-height:32px;font-family:Arial,sans-serif">' + num + '</div>' +
+          '</td>' +
+          '<td valign="top" style="padding:18px 18px 18px 12px;font-family:Arial,sans-serif">' +
+            '<div style="font-weight:600;font-size:15px;color:' + textDk + ';margin-bottom:6px">' + title + '</div>' +
+            '<div style="font-size:13px;color:' + muted + ';line-height:1.55">' + body + '</div>' +
+          '</td>' +
+        '</tr>' +
+      '</table>';
+  }
+
+  function sectionHeader(emoji, title) {
+    return '' +
+      '<div style="margin:32px 0 14px;padding-bottom:8px;border-bottom:2px solid ' + orange + '">' +
+        '<span style="font-size:20px;margin-right:8px">' + emoji + '</span>' +
+        '<span style="font-size:17px;font-weight:700;color:' + textDk + ';font-family:Arial,sans-serif">' + title + '</span>' +
+      '</div>';
+  }
+
+  return '' +
+'<!DOCTYPE html>' +
+'<html><head><meta charset="UTF-8"></head>' +
+'<body style="margin:0;padding:0;background:' + bgPage + ';font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:' + textDk + '">' +
+  '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:' + bgPage + ';padding:32px 16px">' +
+    '<tr><td align="center">' +
+
+      '<table cellpadding="0" cellspacing="0" border="0" width="640" style="max-width:640px;width:100%;background:' + surface + ';border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06)">' +
+
+        // ── HEADER (banner con branding) ──
+        '<tr><td style="background:linear-gradient(135deg,' + orange + ' 0%,' + orangeDk + ' 100%);padding:28px 32px;color:#fff;font-family:Arial,sans-serif">' +
+          '<div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;opacity:0.85;margin-bottom:4px">BalanceClip</div>' +
+          '<div style="font-size:22px;font-weight:700;margin-bottom:4px">¡Bienvenido, ' + clientName + '!</div>' +
+          '<div style="font-size:14px;opacity:0.92">Tu sistema de contabilidad inteligente está activo</div>' +
+        '</td></tr>' +
+
+        // ── BODY ──
+        '<tr><td style="padding:32px">' +
+
+          '<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:' + textDk + '">' +
+            'Acabamos de configurar tu sistema. En pocos pasos vas a estar capturando facturas automáticamente desde tu Gmail.' +
+          '</p>' +
+
+          // ── DASHBOARD ──
+          sectionHeader('📊', 'Tu dashboard') +
+          '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+            'Acá vas a ver todas tus facturas, gastos, reportes ITBMS y declaración anual:' +
+          '</p>' +
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 14px"><tr><td align="center">' +
+            '<a href="' + dashboardSafe + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 28px;background:' + orange + ';color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;font-family:Arial,sans-serif">Abrir mi dashboard →</a>' +
+          '</td></tr></table>' +
+          '<p style="margin:14px 0 0;font-size:13px;color:' + muted + ';line-height:1.55">' +
+            '<strong>Primer login:</strong> te va a pedir crear un password — ese queda como tu admin password.<br>' +
+            '<strong>URL directo:</strong> <a href="' + dashboardSafe + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + ';word-break:break-all">' + dashboardSafe + '</a>' +
+          '</p>' +
+
+          // ── PASO 1: Agregar dirección de reenvío ──
+          sectionHeader('📧', 'Paso 1 — Agregar dirección de reenvío') +
+          '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+            'En tu Gmail (<strong>' + forwarderEmail + '</strong>) vas a agregar <strong>' + sharedInbox + '</strong> como dirección de reenvío. Solo se hace <strong>una vez</strong>.' +
+          '</p>' +
+
+          stepCard('A', 'Copiá esta dirección',
+            '<div style="background:' + surface2 + ';padding:10px 14px;border-radius:6px;font-family:Consolas,Monaco,monospace;font-size:14px;color:' + textDk + ';margin-top:6px;display:inline-block">' + sharedInbox + '</div>'
+          ) +
+
+          stepCard('B', 'Abrí la configuración de Gmail',
+            '<a href="' + fwdSettingsUrl + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:9px 16px;background:' + textDk + ';color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin:6px 0 8px;font-family:Arial,sans-serif">Abrir Gmail → Reenvío y POP/IMAP ↗</a>' +
+            '<br>Una vez ahí: <strong>"Agregar dirección de reenvío"</strong> → pegá <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Siguiente</strong>.'
+          ) +
+
+          stepCard('C', 'Avisanos por WhatsApp para aprobar el código',
+            'Gmail va a mandar un correo con código de verificación a <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code>. Avisanos por WhatsApp y aprobamos el código del lado nuestro (generalmente en menos de 1 hora).' +
+            '<br><a href="' + waLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:9px 16px;background:#25D366;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-top:8px;font-family:Arial,sans-serif">💬 Avisar por WhatsApp ↗</a>'
+          ) +
+
+          // ── PASO 2: Filtros por proveedor ──
+          sectionHeader('🔍', 'Paso 2 — Crear filtro por proveedor') +
+          '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+            'Desde cualquier correo real de un proveedor, le decís a Gmail: <em>"reenviá a ' + sharedInbox + ' los correos de este remitente que tengan adjunto"</em>. Repetís por cada proveedor.' +
+          '</p>' +
+
+          stepCard('1', 'Abrí un correo del proveedor',
+            'Andá a Gmail y abrí cualquier factura recibida (por ejemplo, una factura de un proveedor habitual).'
+          ) +
+
+          stepCard('2', 'Menú "⋮" arriba a la derecha del correo',
+            'Click en <strong>⋮ → Filtrar mensajes de este tipo</strong>. Gmail pre-llena el remitente automáticamente.'
+          ) +
+
+          stepCard('3', 'Marcá "Tiene adjunto" → Crear filtro',
+            'En la siguiente pantalla, marcá <strong>Reenviar a:</strong> y elegí <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Crear filtro</strong>.'
+          ) +
+
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 0;background:#FFF8E6;border-left:3px solid #E65100;border-radius:6px"><tr><td style="padding:12px 14px;font-size:13px;color:' + textDk + ';line-height:1.55;font-family:Arial,sans-serif">' +
+            '🔁 <strong>Repetí los 3 pasos por cada proveedor</strong> que quieras capturar. El filtro queda guardado en Gmail y aplica a todos los correos futuros — no necesitás hacerlo de nuevo.' +
+          '</td></tr></table>' +
+
+          // ── ALTERNATIVA: Captura manual con foto ──
+          sectionHeader('📸', 'Alternativa rápida: subí una foto desde tu celular') +
+          '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+            '¿Tenés una factura física en papel, o un PDF que recibiste por WhatsApp? No hace falta que la reenvíes por mail — la podés subir directo desde el dashboard:' +
+          '</p>' +
+
+          stepCard('1', 'Abrí tu dashboard',
+            'Entrá desde tu celular o computadora a <a href="' + dashboardSafe + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + '">' + dashboardSafe + '</a>'
+          ) +
+
+          stepCard('2', 'Click en "+ Registrar gasto"',
+            'En el módulo Registro General, vas a ver un botón <strong>"+ Registrar gasto"</strong>. Hacé click ahí.'
+          ) +
+
+          stepCard('3', 'Tomá una foto o subí el PDF',
+            'Desde el celular, podés <strong>tomar la foto en el momento</strong> con la cámara. Desde la PC, arrastrá el archivo o seleccionalo. Funciona con <strong>JPG, PNG o PDF</strong>.'
+          ) +
+
+          stepCard('4', 'La IA llena los datos automáticamente',
+            'En unos segundos la IA extrae proveedor, RUC, número de factura, fecha, subtotal, ITBMS y total. Vos solo confirmás los datos y categoría → guardar.'
+          ) +
+
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 0;background:#E3F2FD;border-left:3px solid ' + blue + ';border-radius:6px"><tr><td style="padding:12px 14px;font-size:13px;color:' + textDk + ';line-height:1.55;font-family:Arial,sans-serif">' +
+            '💡 <strong>Tip</strong>: el reenvío por Gmail (Pasos 1 y 2) es ideal para facturas <em>recurrentes</em> — proveedores que te facturan todos los meses. La foto manual es ideal para gastos <em>únicos</em> o facturas en papel que no recibís por email.' +
+          '</td></tr></table>' +
+
+          // ── TOKEN DE RECUPERACIÓN ──
+          (authResetToken ? (
+            sectionHeader('🔑', 'Token de recuperación') +
+            '<p style="margin:0 0 12px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
+              'Guardá este token en lugar seguro (gestor de passwords, papel, etc). Lo necesitás <strong>solo si olvidás tu password</strong> de admin:' +
+            '</p>' +
+            '<div style="background:' + surface2 + ';border:1px dashed ' + border + ';padding:14px 16px;border-radius:8px;font-family:Consolas,Monaco,monospace;font-size:12px;color:' + textDk + ';word-break:break-all;text-align:center">' + authResetToken + '</div>'
+          ) : '') +
+
+          // ── ¿QUÉ SIGUE? ──
+          sectionHeader('🚀', '¿Qué sigue?') +
+          '<ol style="margin:0;padding-left:20px;font-size:14px;color:' + textDk + ';line-height:1.7">' +
+            '<li>Hacé los Pasos 1 y 2 arriba (toma ~5 minutos por proveedor)</li>' +
+            '<li>Esperá la primera factura — el sistema la captura en hasta 15 min</li>' +
+            '<li>Aprobá la factura desde tu dashboard en <strong>Registro General → Pendientes</strong></li>' +
+            '<li>Al final del mes / año, los reportes ITBMS y Cierre Anual se generan automáticamente</li>' +
+          '</ol>' +
+
+        '</td></tr>' +
+
+        // ── FOOTER ──
+        '<tr><td style="background:' + surface2 + ';padding:20px 32px;border-top:1px solid ' + border + ';font-family:Arial,sans-serif">' +
+          '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
+            '<td style="font-size:12px;color:' + muted + ';line-height:1.6">' +
+              '<strong>¿Dudas?</strong><br>' +
+              'Escribinos por WhatsApp: <a href="' + waLink + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + '">+507 6981-2266</a>' +
+            '</td>' +
+            '<td align="right" style="font-size:11px;color:' + muted + ';letter-spacing:1px;text-transform:uppercase">' +
+              '<a href="https://balanceclip.net" target="_blank" rel="noopener noreferrer" style="color:' + muted + ';text-decoration:none">balanceclip.net</a>' +
+            '</td>' +
+          '</tr></table>' +
+        '</td></tr>' +
+
+      '</table>' +
+
+      '<div style="font-size:11px;color:' + muted + ';margin-top:16px;font-family:Arial,sans-serif">' +
+        'BalanceClip — Sistema de contabilidad operado por Las Nubes en Chica' +
+      '</div>' +
+
+    '</td></tr>' +
+  '</table>' +
+'</body></html>';
+}
+
+function _escHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RUN SYNC NOW — disparar manualmente ejecutarSincronizacionUnificada
+//  desde el admin panel. Devuelve los stats de Acreedores/Comercialización
+//  para que el operador vea inmediatamente cuántos threads se procesaron.
+// ════════════════════════════════════════════════════════════════
+function _handleRunSyncNow(params, callback) {
+  var result = { success: false, ranAt: '', durationMs: 0 };
+  var t0 = Date.now();
+  try {
+    if (typeof ejecutarSincronizacionUnificada !== 'function') {
+      throw new Error('ejecutarSincronizacionUnificada no está definida en este script');
+    }
+    ejecutarSincronizacionUnificada();
+    result.success    = true;
+    result.ranAt      = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
+    result.durationMs = Date.now() - t0;
+  } catch (e) {
+    result.error      = e.message;
+    result.durationMs = Date.now() - t0;
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GET CONFIG SUMMARY — vista detalle del config_operaciones del
+//  cliente para el admin panel. NO incluye secrets (CLAUDE_API_KEY,
+//  AUTH_RESET_TOKEN, password_hash). Solo campos operacionales.
+// ════════════════════════════════════════════════════════════════
+function _handleGetConfigSummary(params, callback) {
+  var result = { success: false, config: {} };
+  try {
+    var cfg    = _getConfig();
+    var safe   = {};
+    var fields = [
+      'empresa_nombre', 'empresa_comercial', 'empresa_ruc', 'empresa_dv',
+      'email_acr_destino', 'email_acr_remitente', 'email_acr_label',
+      'email_op_destino',  'email_op_remitente',  'email_op_label',
+      'email_st_destino',  'email_st_remitente',
+      'email_comprobantes', 'drive_folder_id', 'itbms_rate', 'prefijo_id',
+      'flow_acreedor', 'flow_comercializacion'
+    ];
+    fields.forEach(function (f) {
+      safe[f] = cfg[f] !== undefined ? cfg[f] : null;
+    });
+    result.success = true;
+    result.config  = safe;
+  } catch (e) {
+    result.error = e.message;
   }
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -2131,7 +2575,8 @@ function _handleParseFacturaEgreso(data) {
     var prompt =
       'Eres un extractor de datos de facturas panameñas (DGI e-Tax 2.0 y facturas tradicionales). ' +
       'Analiza esta factura y responde SOLO con JSON válido, sin markdown ni texto adicional:\n' +
-      '{"num_factura":"","fecha":"YYYY-MM-DD","proveedor":"","ruc_proveedor":"","dv_proveedor":"",' +
+      '{"num_factura":"","fecha":"YYYY-MM-DD","proveedor":"","nombre_comercial":"","descripcion_corta":"",' +
+      '"ruc_proveedor":"","dv_proveedor":"",' +
       '"ruc_receptor":"","nombre_receptor":"","subtotal":0,"itbms":0,"total":0,' +
       '"categoria_gasto":"","' +
       'items":[{"descripcion":"","cantidad":1,"precio_unitario":0,"itbms":0,"total":0}]}\n' +
@@ -2141,23 +2586,48 @@ function _handleParseFacturaEgreso(data) {
       '  NUNCA confundir: el RUC del EMISOR está en la cabecera junto al nombre del negocio.\n' +
       '                   el RUC del RECEPTOR está después de "Cliente:" o "RUC:" en la sección del cliente.\n' +
       '\nREGLAS:\n' +
-      '1. proveedor = nombre del EMISOR (cabecera, parte SUPERIOR del documento), NO del receptor/cliente.\n' +
-      '2. ruc_proveedor = RUC del EMISOR (cabecera). Formatos posibles:\n' +
+      '1. proveedor = razón social legal del EMISOR (cabecera, parte SUPERIOR del documento), NO del receptor/cliente.\n' +
+      '   Ejemplo: "ORLYN, S.A." (es la entidad legal).\n' +
+      '2. nombre_comercial = nombre comercial / fantasía / sucursal visible en el recibo, distinto de la razón social.\n' +
+      '   Es el nombre que el cliente reconoce, no la entidad legal.\n' +
+      '   Ejemplos:\n' +
+      '     "ORLYN, S.A. ESTACION TERPEL ALBROOK CANFIELD" → nombre_comercial="Estación Terpel Albrook Canfield"\n' +
+      '     "DELIVERY HERO PANAMA (E-COMMERCE) S.A." → nombre_comercial="PedidosYa" (si está visible en el header/logo)\n' +
+      '     "FARMACIAS ARROCHA, S.A." → nombre_comercial="Farmacia Arrocha"\n' +
+      '   null si NO hay nombre comercial distinto del legal.\n' +
+      '3. descripcion_corta = una frase narrativa de 4-8 palabras que un humano escribiría para describir este gasto.\n' +
+      '   Combiná: la categoría natural del producto/servicio comprado + nombre comercial (o razón social si no hay comercial).\n' +
+      '   Empezá con la categoría natural (sustantivo común), seguida del lugar/marca.\n' +
+      '   Ejemplos buenos:\n' +
+      '     • "Combustible Estación Terpel Albrook"\n' +
+      '     • "Almuerzo Restaurante La Casa del Marisco"\n' +
+      '     • "Útiles oficina PriceSmart"\n' +
+      '     • "Honorarios contables Conte CPMA"\n' +
+      '     • "Materiales construcción Cochez"\n' +
+      '     • "Medicinas Farmacia Arrocha"\n' +
+      '     • "Servicio delivery PedidosYa"\n' +
+      '   Ejemplos malos (NO hacer):\n' +
+      '     • "ACT95 CA #06" (literal del item, no narrativo)\n' +
+      '     • "ORLYN, S.A. — ACT95 CA #06" (frankenstein)\n' +
+      '     • "Factura de gasolina" (genérico, sin lugar)\n' +
+      '   Esta es la descripción que aparece en el dashboard del cliente — debe ser legible y útil.\n' +
+      '4. ruc_proveedor = RUC del EMISOR (cabecera). Formatos posibles:\n' +
       '   "N-20-606 DV 09"        → ruc_proveedor="N-20-606",      dv_proveedor="09"\n' +
       '   "8-517-1400 DV 85"      → ruc_proveedor="8-517-1400",    dv_proveedor="85"\n' +
       '   "1891245-1-720993 DV 32"→ ruc_proveedor="1891245-1-720993", dv_proveedor="32"\n' +
       '   "155604-1-409777 DV 44" → ruc_proveedor="155604-1-409777",  dv_proveedor="44"\n' +
       '   Persona jurídica: formato largo con tres segmentos (ej: XXXXXX-1-YYYYYY).\n' +
-      '3. dv_proveedor = SOLO el número después de "DV" en la cabecera del EMISOR. Nunca el DV del cliente.\n' +
-      '4. ruc_receptor = RUC del RECEPTOR (sección "Cliente:", parte media/inferior). Solo dígitos y guiones, sin DV.\n' +
-      '5. nombre_receptor = nombre del receptor/cliente.\n' +
-      '6. fecha en formato YYYY-MM-DD.\n' +
-      '7. subtotal = monto antes de ITBMS | itbms = impuesto | total = monto final.\n' +
-      '8. items[].descripcion: descripción de los productos/servicios comprados.\n' +
-      '9. categoria_gasto = elige el valor que MEJOR describe este gasto según los productos/servicios y el nombre del proveedor.\n' +
-      '   Valores válidos (elige exactamente uno):\n' + catValues + '\n' +
-      '   Si no encaja en ninguna categoría específica usa "otros_deducibles".\n' +
-      '10. Montos como números, no strings. null solo si el campo realmente no existe.';
+      '5. dv_proveedor = SOLO el número después de "DV" en la cabecera del EMISOR. Nunca el DV del cliente.\n' +
+      '6. ruc_receptor = RUC del RECEPTOR (sección "Cliente:", parte media/inferior). Solo dígitos y guiones, sin DV.\n' +
+      '7. nombre_receptor = nombre del receptor/cliente.\n' +
+      '8. fecha en formato YYYY-MM-DD.\n' +
+      '9. subtotal = monto antes de ITBMS | itbms = impuesto | total = monto final.\n' +
+      '10. items[].descripcion: descripción de los productos/servicios comprados (LITERAL del recibo, sin reformular).\n' +
+      '11. categoria_gasto = elige el valor que MEJOR describe este gasto según los productos/servicios y el nombre del proveedor.\n' +
+      '    Valores válidos (elige exactamente uno):\n' + catValues + '\n' +
+      '    Si no encaja en ninguna categoría específica usa "otros_deducibles".\n' +
+      '    Si la factura corresponde a un PRODUCTO físico que el cliente probablemente revenderá o ya vendió (mercancía directa para reventa, no insumo operativo), usa "otros_costos_venta" (Línea 35 Anexo 94). Casos típicos: compra al por mayor para reventa, suministros que el cliente comercializa, productos de proveedor mayorista. NO usar para gastos operativos (oficina, gasolina, alquiler).\n' +
+      '12. Montos como números, no strings. null solo si el campo realmente no existe.';
 
     var payload = {
       model:      'claude-sonnet-4-20250514',
@@ -2198,19 +2668,21 @@ function _handleParseFacturaEgreso(data) {
 
     return ContentService
       .createTextOutput(JSON.stringify({
-        success:         true,
-        num_factura:     parsed.num_factura     || null,
-        fecha:           parsed.fecha           || null,
-        proveedor:       parsed.proveedor       || null,
-        ruc_proveedor:   parsed.ruc_proveedor   || null,
-        dv_proveedor:    parsed.dv_proveedor    || null,
-        ruc_receptor:    parsed.ruc_receptor    || null,
-        nombre_receptor: parsed.nombre_receptor || null,
-        subtotal:        parsed.subtotal        || null,
-        itbms:           parsed.itbms           || null,
-        total:           parsed.total           || null,
-        categoria_gasto: catGasto,
-        items:           Array.isArray(parsed.items) ? parsed.items : [],
+        success:           true,
+        num_factura:       parsed.num_factura       || null,
+        fecha:             parsed.fecha             || null,
+        proveedor:         parsed.proveedor         || null,
+        nombre_comercial:  parsed.nombre_comercial  || null,
+        descripcion_corta: parsed.descripcion_corta || null,
+        ruc_proveedor:     parsed.ruc_proveedor     || null,
+        dv_proveedor:      parsed.dv_proveedor      || null,
+        ruc_receptor:      parsed.ruc_receptor      || null,
+        nombre_receptor:   parsed.nombre_receptor   || null,
+        subtotal:          parsed.subtotal          || null,
+        itbms:             parsed.itbms             || null,
+        total:             parsed.total             || null,
+        categoria_gasto:   catGasto,
+        items:             Array.isArray(parsed.items) ? parsed.items : [],
       }))
       .setMimeType(ContentService.MimeType.JSON);
 
@@ -2590,6 +3062,11 @@ var CATEGORIAS_GASTO_DGI = [
   { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',   linea_dgi: '75',    emoji: '💡' },
   { valor: 'tecnologia_software',      label: 'Tecnología y software',            linea_dgi: '76',    emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',         linea_dgi: '76',    emoji: '📚' },
+  // ── Costos directos sin inventario (raro — venta ocasional de producto) ──
+  // L35 del Formulario 94 (Anexo 94 - Otros Costos). Para clientes sin
+  // módulo Comercialización que venden ocasionalmente productos físicos
+  // y necesitan registrar el costo asociado a esa venta.
+  { valor: 'otros_costos_venta',       label: 'Otros costos de venta ocasional',  linea_dgi: '35',    emoji: '🛒' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',          linea_dgi: '77',    emoji: '📋' },
   // ── Deducibles Personales (ISR persona natural) ──
   { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea_dgi: 'DP',  emoji: '👨‍👩‍👧' },
