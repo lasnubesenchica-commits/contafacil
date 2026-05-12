@@ -522,6 +522,18 @@ tr:hover td{background:rgba(0,0,0,.015)}
   border-bottom: 1px solid var(--border);
   margin-bottom: .4rem;
 }
+.cat-chip-section {
+  font-family: 'DM Mono', monospace;
+  font-size: .58rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: .5rem .5rem .25rem;
+  border-top: 1px dashed var(--border);
+  margin-top: .25rem;
+  user-select: none;
+}
+.cat-chip-section:first-of-type { border-top: none; margin-top: 0; }
 .cat-chip-option {
   display: flex;
   align-items: center;
@@ -3459,9 +3471,10 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full">
             <label>Categoría</label>
             <select id="eCategoria" onchange="inferirTipoEgreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
-              <option value="costo_mercancia" disabled>(automático — desde Operaciones)</option>
+              <option disabled>──── Costos directos (poco común) ────</option>
+              <option value="costo_mercancia" disabled>📦 Costo de mercancía — automático desde Operaciones</option>
               <option value="otros_costos_venta">🛒 Otros costos de venta ocasional (L35 Anexo 94)</option>
-              <option disabled>──── Gastos operativos ────</option>
+              <option disabled>──── Gastos operativos (lo más común) ────</option>
               <option value="nomina">👤 Nómina / Salarios (L42)</option>
               <option value="prestaciones_laborales">👥 Prestaciones laborales (L43)</option>
               <option value="gastos_representacion">🤝 Gastos de representación (L44)</option>
@@ -3486,6 +3499,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
               <option disabled>────────────────────────</option>
               <option value="deducibles_personales">👨‍👩‍👧 Deducibles Personales</option>
             </select>
+            <!-- Hint contextual sobre la categoría seleccionada -->
+            <div id="eCategoriaHint" style="display:none;margin-top:.4rem;font-size:.72rem;color:var(--muted);line-height:1.45;padding:.5rem .65rem;background:#FFF8E6;border-left:3px solid var(--orange);border-radius:6px"></div>
             <div id="eCategoriaSub" style="display:none;margin-top:.5rem;background:#F3E5F5;border-radius:8px;padding:.5rem .75rem">
               <label style="font-size:.75rem;font-weight:700;color:#6A1B9A;display:block;margin-bottom:.3rem">Tipo de Deducible Personal</label>
               <select id="eSubcatPersonal" onchange="inferirTipoEgreso()" style="width:100%;background:var(--white);border:1px solid #CE93D8;border-radius:6px;padding:.45rem .7rem;font-family:'DM Sans',sans-serif;font-size:.86rem;outline:none;color:#6A1B9A;font-weight:600">
@@ -5472,10 +5487,25 @@ function inferirTipoEgreso() {
   const subDiv = document.getElementById('eCategoriaSub');
   const subSel = document.getElementById('eSubcatPersonal');
   const hidden = document.getElementById('eTipoHidden');
+  const hint   = document.getElementById('eCategoriaHint');
   const isPersonal = cat === 'deducibles_personales';
   if (subDiv) subDiv.style.display = isPersonal ? 'block' : 'none';
   const efectivo = isPersonal ? ((subSel && subSel.value) || 'gastos_medicos') : (cat || 'otros_deducibles');
   if (hidden) hidden.value = efectivo;
+
+  // Hint contextual — solo para casos donde la categoría puede confundir al usuario
+  if (hint) {
+    let msg = '';
+    if (cat === 'otros_costos_venta') {
+      msg = '<strong>🛒 Costo directo de venta</strong> — usá esta categoría solo cuando compraste un producto físico que <em>vendiste o vas a vender</em> (no para insumos operativos). Reporta a la <strong>Línea 35 del Anexo 94 DGI</strong> y reduce Utilidad Bruta, no Gastos Operativos. Si tu cliente tiene inventario formal, mejor activar el módulo Comercialización.';
+    } else if (cat === 'otros_deducibles') {
+      msg = '<strong>📋 Catch-all operativo</strong> — usá esta categoría cuando ningún otro tipo encaja. Reporta a la Línea 77 del formulario DGI.';
+    } else if (cat === 'deducibles_personales') {
+      msg = '<strong>👨‍👩‍👧 Deducibles personales</strong> — gastos del dueño (no del negocio) que reducen su impuesto sobre la renta personal. Elegí el subtipo abajo.';
+    }
+    hint.innerHTML  = msg;
+    hint.style.display = msg ? 'block' : 'none';
+  }
 }
 
 const _PERSONAL_SUBCATS = new Set(['gastos_medicos','gastos_escolares','intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados']);
@@ -6785,16 +6815,41 @@ function catChipOpen(e, id, tipo, catActual) {
   // Posicionar
   _positionDrop(drop, rect);
 
-  // Construir opciones
-  drop.innerHTML = `<div class="cat-chip-dropdown-title">Reclasificar categoría</div>` +
-    TODAS_CATEGORIAS_EGR.map(c => `
-      <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
-           onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
-        <span style="font-size:.9rem;flex-shrink:0">${c.emoji || ''}</span>
-        ${c.label}
-        <span class="cat-check">✓</span>
-      </div>`
-    ).join('');
+  // Construir opciones agrupadas por sección:
+  //   1) Costos directos (poco común — venta ocasional sin inventario)
+  //   2) Gastos operativos (lo más común — alquiler, salarios, etc.)
+  //   3) Deducibles personales (Persona Natural — gastos médicos, educación)
+  const SEC_COSTOS = new Set(['otros_costos_venta']);
+  const SEC_PERSONALES = new Set([
+    'deducibles_personales','gastos_medicos','gastos_escolares',
+    'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'
+  ]);
+  const costos     = TODAS_CATEGORIAS_EGR.filter(c => SEC_COSTOS.has(c.valor));
+  const personales = TODAS_CATEGORIAS_EGR.filter(c => SEC_PERSONALES.has(c.valor));
+  const operativos = TODAS_CATEGORIAS_EGR.filter(c => !SEC_COSTOS.has(c.valor) && !SEC_PERSONALES.has(c.valor));
+
+  const renderOpt = c => `
+    <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+         onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
+      <span style="font-size:.9rem;flex-shrink:0">${c.emoji || ''}</span>
+      ${c.label}
+      <span class="cat-check">✓</span>
+    </div>`;
+
+  let html = '<div class="cat-chip-dropdown-title">Reclasificar categoría</div>';
+  if (costos.length) {
+    html += '<div class="cat-chip-section">── Costo directo (poco común) ──</div>';
+    html += costos.map(renderOpt).join('');
+  }
+  if (operativos.length) {
+    html += '<div class="cat-chip-section">── Gastos operativos ──</div>';
+    html += operativos.map(renderOpt).join('');
+  }
+  if (personales.length) {
+    html += '<div class="cat-chip-section">── Deducibles personales ──</div>';
+    html += personales.map(renderOpt).join('');
+  }
+  drop.innerHTML = html;
 
   drop.classList.add('open');
 }
@@ -6889,16 +6944,36 @@ function catChipOpenPL(e, triggerEl, id, tipo, catActual) {
   _positionDrop(drop, rect);
 
   if (tipo === 'pl_gasto') {
-    drop.innerHTML =
-      `<div class="cat-chip-dropdown-title">Reclasificar · DGI</div>` +
-      CATEGORIAS_GASTO_DGI.map(c => `
-        <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
-             onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
-          <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
-          ${c.emoji} ${c.label}
-          <span class="cat-check">✓</span>
-        </div>`
-      ).join('');
+    // Render por secciones (espejo de catChipOpen — costos, operativos, personales)
+    const SEC_COSTOS_PL = new Set(['otros_costos_venta']);
+    const SEC_PERSONALES_PL = new Set([
+      'deducibles_personales','gastos_medicos','gastos_escolares',
+      'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'
+    ]);
+    const _costosPl     = CATEGORIAS_GASTO_DGI.filter(c => SEC_COSTOS_PL.has(c.valor));
+    const _personalesPl = CATEGORIAS_GASTO_DGI.filter(c => SEC_PERSONALES_PL.has(c.valor));
+    const _operativosPl = CATEGORIAS_GASTO_DGI.filter(c => !SEC_COSTOS_PL.has(c.valor) && !SEC_PERSONALES_PL.has(c.valor));
+    const renderOptPl = c => `
+      <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+           onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
+        <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+        ${c.emoji} ${c.label}
+        <span class="cat-check">✓</span>
+      </div>`;
+    let htmlPl = `<div class="cat-chip-dropdown-title">Reclasificar · DGI</div>`;
+    if (_costosPl.length) {
+      htmlPl += '<div class="cat-chip-section">── Costo directo (poco común) ──</div>';
+      htmlPl += _costosPl.map(renderOptPl).join('');
+    }
+    if (_operativosPl.length) {
+      htmlPl += '<div class="cat-chip-section">── Gastos operativos ──</div>';
+      htmlPl += _operativosPl.map(renderOptPl).join('');
+    }
+    if (_personalesPl.length) {
+      htmlPl += '<div class="cat-chip-section">── Deducibles personales ──</div>';
+      htmlPl += _personalesPl.map(renderOptPl).join('');
+    }
+    drop.innerHTML = htmlPl;
   } else {
     // pl_costo — solo informativo
     const cat = TIPOS_COSTO_DIRECTO.find(c => c.valor === catActual);
