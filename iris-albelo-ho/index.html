@@ -96,6 +96,8 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;background:no
   display:flex;align-items:center;justify-content:space-between;
   padding:0 2rem;height:60px;
 }
+/* topnav vive en mobile (<900px) y print. Desktop usa sidebar. */
+@media (min-width:900px){ .topnav{ display:none } }
 .topnav-logo{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em}
 .topnav-logo span{color:var(--orange)}
 .topnav-badge{
@@ -331,11 +333,78 @@ tr:hover td{background:rgba(0,0,0,.015)}
 }
 .toast.show{transform:translateX(-50%) translateY(0)}
 
+/* ── SIDEBAR — navegación principal en desktop (>=900px) ──
+   Tono oscuro contrastante, vive a la izquierda, con logo arriba,
+   navegación vertical en el medio y acciones (config/salir) al fondo. */
+:root{ --sidebar-w: 220px; --sidebar-bg:#1A1A2E; --sidebar-fg:#E8E8F0; --sidebar-muted:#9090A8; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--sidebar-bg);color:var(--sidebar-fg);z-index:90;
+  display:flex;flex-direction:column;
+  font-family:'DM Sans',sans-serif;
+}
+.sidebar-brand{
+  padding:1.1rem 1.1rem .9rem;border-bottom:1px solid rgba(255,255,255,.06);
+}
+.sidebar-brand-name{
+  font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:.06em;
+  color:#fff;line-height:1.05;
+}
+.sidebar-brand-badge{
+  display:inline-block;margin-top:.35rem;
+  font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;
+  text-transform:uppercase;background:rgba(224,90,0,.15);color:var(--orange);
+  border:1px solid rgba(224,90,0,.3);border-radius:100px;padding:.15rem .55rem;
+}
+.sidebar-section-label{
+  font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--sidebar-muted);
+  padding:1.05rem 1.1rem .35rem;
+}
+.sidebar-nav{ display:flex;flex-direction:column;gap:1px;padding:.25rem .55rem }
+.sidebar-link{
+  display:flex;align-items:center;gap:.6rem;
+  padding:.55rem .65rem;border-radius:7px;
+  font-size:.82rem;font-weight:500;color:var(--sidebar-fg);
+  background:transparent;border:none;cursor:pointer;text-align:left;
+  text-decoration:none;font-family:inherit;transition:background .15s,color .15s;
+}
+.sidebar-link:hover{ background:rgba(255,255,255,.06);color:#fff }
+.sidebar-link.active{
+  background:rgba(224,90,0,.18);color:#fff;
+  box-shadow:inset 3px 0 0 var(--orange);
+}
+.sidebar-link-icon{ font-size:.95rem;width:1.1rem;text-align:center;line-height:1 }
+.sidebar-sublink{
+  padding-left:2.35rem;font-size:.78rem;color:var(--sidebar-muted);
+}
+.sidebar-sublink:hover{ color:#fff }
+.sidebar-spacer{ flex:1 }
+.sidebar-foot{
+  border-top:1px solid rgba(255,255,255,.06);
+  padding:.6rem .55rem .8rem;display:flex;flex-direction:column;gap:1px;
+}
+.sidebar-foot-row{
+  display:flex;gap:.4rem;padding:0 .1rem;margin-top:.35rem;
+}
+.sidebar-foot-row .sidebar-link{ flex:1;justify-content:center;padding:.45rem .4rem }
+.sidebar-foot-row .sidebar-link.logout{ color:#FF8A80 }
+.sidebar-foot-row .sidebar-link.logout:hover{ background:rgba(255,138,128,.1) }
+/* Empuja el contenido principal a la derecha en desktop */
+@media (min-width:900px){
+  #app{ padding-left:var(--sidebar-w) }
+}
+@media (max-width:899px){
+  .sidebar{ display:none }
+}
+
 /* ── MAIN TABS (Ventas Web / Operaciones) ── */
 .main-tabs{
   display:flex;gap:0;border-bottom:2px solid var(--border);
   background:var(--white);padding:0 2rem;
 }
+/* main-tabs solo en mobile (<900px). Desktop usa sidebar. */
+@media (min-width:900px){ .main-tabs{ display:none } }
 .main-tab{
   font-size:.82rem;font-weight:600;letter-spacing:.03em;
   padding:.85rem 1.4rem;border-bottom:2px solid transparent;
@@ -1606,6 +1675,36 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 <!-- ═══════════ APP ═══════════ -->
 <div id="app">
+
+  <!-- SIDEBAR (desktop >=900px). En mobile cae el topnav de abajo. -->
+  <aside class="sidebar" id="appSidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-name" id="sidebarBrandName">Iris Albelo Ho</div>
+      <span class="sidebar-brand-badge" id="sidebarBrandBadge">BalanceClip</span>
+    </div>
+    <div class="sidebar-section-label">Navegación</div>
+    <div class="sidebar-nav" id="sidebarNav"></div>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-section-label">Herramientas</div>
+    <div class="sidebar-nav">
+      <button class="sidebar-link" onclick="rgStartTour()" title="Tour guiado del Registro General">
+        <span class="sidebar-link-icon">🗺️</span><span>Tour guiado</span>
+      </button>
+      <button class="sidebar-link" onclick="captWizardOpen()" title="Configurar captura automática de facturas con IA">
+        <span class="sidebar-link-icon">✨</span><span>Captura automática</span>
+      </button>
+    </div>
+    <div class="sidebar-foot">
+      <div class="sidebar-foot-row">
+        <button class="sidebar-link" onclick="cfgPanelOpen()" title="Configuración">
+          <span class="sidebar-link-icon">⚙</span><span>Config</span>
+        </button>
+        <button class="sidebar-link logout" onclick="logout()" title="Cerrar sesión">
+          <span class="sidebar-link-icon">⏻</span><span>Salir</span>
+        </button>
+      </div>
+    </div>
+  </aside>
 
   <!-- TOP NAV -->
   <nav class="topnav">
@@ -3828,20 +3927,30 @@ function gasJsonp(action, params, timeoutMs) {
 }
 
 function buildMenu() {
-  const container = document.getElementById('mainTabs');
-  container.innerHTML =
-    '<button class="main-tab active" id="tabRegistroGastos"   onclick="switchTab(&quot;registroGastos&quot;)">📤 Registro de Gastos</button>' +
-    '<button class="main-tab"        id="tabRegistroIngresos" onclick="switchTab(&quot;registroIngresos&quot;)">💰 Registro de Ingresos</button>' +
-    '<button class="main-tab" id="tabDashboard" onclick="switchTab(&quot;dashboard&quot;)">📊 Estado de Resultados</button>' +
-    '<button class="main-tab" id="tabFinanzas" onclick="switchTab(&quot;finanzas&quot;)" style="display:none">💸 Gastos</button>' +
+  // Mobile / print: main-tabs horizontal (oculto en desktop por CSS).
+  const tabs = document.getElementById('mainTabs');
+  if (tabs) tabs.innerHTML =
+    '<button class="main-tab active" id="tabRegistroGastos"   onclick="switchTab(&quot;registroGastos&quot;)">📤 Gastos</button>' +
+    '<button class="main-tab"        id="tabRegistroIngresos" onclick="switchTab(&quot;registroIngresos&quot;)">💰 Ingresos</button>' +
+    '<button class="main-tab" id="tabDashboard" onclick="switchTab(&quot;dashboard&quot;)">📊 P&amp;L</button>' +
+    '<button class="main-tab" id="tabFinanzas" onclick="switchTab(&quot;finanzas&quot;)" style="display:none">💸 Finanzas</button>' +
     '<div class="main-tab-group">' +
       '<button class="main-tab" id="tabContabilidad">🗂 Contabilidad <span class="main-tab-arrow">▾</span></button>' +
       '<div class="dropdown-menu">' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)">🧾 Declaración ITBMS</a>' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)">📁 Cierre Anual</a>' +
       '</div>' +
-    '</div>' +
-    '';
+    '</div>';
+  // Desktop: sidebar vertical. Los mismos IDs (tabXyzSb) son contemplados por
+  // switchTab para activar el estado.
+  const sb = document.getElementById('sidebarNav');
+  if (sb) sb.innerHTML =
+    '<button class="sidebar-link active" id="tabRegistroGastosSb"   onclick="switchTab(&quot;registroGastos&quot;)"><span class="sidebar-link-icon">📤</span><span>Registro de Gastos</span></button>' +
+    '<button class="sidebar-link"        id="tabRegistroIngresosSb" onclick="switchTab(&quot;registroIngresos&quot;)"><span class="sidebar-link-icon">💰</span><span>Registro de Ingresos</span></button>' +
+    '<button class="sidebar-link"        id="tabDashboardSb"        onclick="switchTab(&quot;dashboard&quot;)"><span class="sidebar-link-icon">📊</span><span>Estado de Resultados</span></button>' +
+    '<button class="sidebar-link"        id="tabContabilidadSb"     style="cursor:default"><span class="sidebar-link-icon">🗂</span><span>Contabilidad</span></button>' +
+    '<a href="javascript:void(0)" class="sidebar-link sidebar-sublink" id="tabReporteItbmsSb"  onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)"><span>🧾 Declaración ITBMS</span></a>' +
+    '<a href="javascript:void(0)" class="sidebar-link sidebar-sublink" id="tabReporteCierreSb" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)"><span>📁 Cierre Anual</span></a>';
 }
 
 // ══════════════════════════════════════════════════
@@ -4077,6 +4186,12 @@ function switchTab(tab) {
   _tabToggle('tabRegistroGastos',   tab === 'registroGastos');
   _tabToggle('tabRegistroIngresos', tab === 'registroIngresos');
   _tabToggle('tabSetup',            false);
+  // Sidebar (desktop) — mismos toggles con sufijo Sb
+  _tabToggle('tabDashboardSb',        tab === 'dashboard');
+  _tabToggle('tabRegistroGastosSb',   tab === 'registroGastos');
+  _tabToggle('tabRegistroIngresosSb', tab === 'registroIngresos');
+  _tabToggle('tabReporteItbmsSb',     tab === 'reporte:reportes/itbms_mensual.html');
+  _tabToggle('tabReporteCierreSb',    tab === 'reporte:reportes/cierre_anual.html');
   if (tab === 'egresos'      && !egrItems.length) loadEgresos();
   if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
   if (tab === 'dashboard')    loadDashboard();
@@ -6366,6 +6481,11 @@ function _applyHeaderDesktop(config) {
   const badgeEl   = document.getElementById('appHeaderBadge');
   if (logoEl && siglas) logoEl.textContent  = siglas;
   if (badgeEl)          badgeEl.textContent = 'BalanceClip';
+  // Sidebar (desktop)
+  const sbName  = document.getElementById('sidebarBrandName');
+  const sbBadge = document.getElementById('sidebarBrandBadge');
+  if (sbName && siglas) sbName.textContent  = siglas;
+  if (sbBadge)          sbBadge.textContent = 'BalanceClip';
 }
 
 function _validarCampoConfig(id, val) {
