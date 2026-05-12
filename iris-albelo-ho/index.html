@@ -1824,19 +1824,21 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 <!-- ═══════════ SECCIÓN: REGISTRO GENERAL ═══════════ -->
 <div id="sectionRegistroGeneral" style="display:none">
-  <!-- Header de sección — título prominente + subtitle corto -->
+  <!-- Header de sección — título prominente + subtitle corto. Texto dinámico
+       según el sub-tab activo (egr=Gastos, ing=Ingresos, pl=Planilla). -->
   <div style="padding:1.1rem 1.75rem .85rem;background:var(--white);border-bottom:1px solid var(--border)">
     <div style="display:flex;align-items:baseline;gap:.55rem;flex-wrap:wrap">
-      <span style="font-size:1.3rem;line-height:1">📒</span>
-      <span style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.04em;color:var(--text);line-height:1">Registro General</span>
+      <span id="rgHdrIcon"  style="font-size:1.3rem;line-height:1">📤</span>
+      <span id="rgHdrTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.04em;color:var(--text);line-height:1">Registro de Gastos</span>
     </div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:.25rem;line-height:1.45">
+    <div id="rgHdrSubtitle" style="font-size:.78rem;color:var(--muted);margin-top:.25rem;line-height:1.45">
       Captura inteligente de facturas para tu declaración DGI — la IA clasifica, calcula ITBMS y prepara tu cierre anual.
     </div>
   </div>
 
-  <!-- Sub-tabs pill (Gastos / Ingresos / Planilla) — clara diferencia con main-tabs -->
-  <div style="padding:.85rem 1.75rem 0;background:var(--white)">
+  <!-- Sub-tabs pill — Gastos/Ingresos viven en main-tabs ahora.
+       Esta barra solo aparece si Planilla está habilitada para el cliente. -->
+  <div id="rgPillTabsWrap" style="padding:.85rem 1.75rem 0;background:var(--white);display:none">
     <div class="rg-pill-tabs">
       <button id="rgTabEgrBtn" class="rg-pill-tab active" onclick="rgShowTab('egr')">📤 Gastos</button>
       <button id="rgTabIngBtn" class="rg-pill-tab"        onclick="rgShowTab('ing')">💰 Ingresos</button>
@@ -3828,7 +3830,8 @@ function gasJsonp(action, params, timeoutMs) {
 function buildMenu() {
   const container = document.getElementById('mainTabs');
   container.innerHTML =
-    '<button class="main-tab active" id="tabRegistroGeneral" onclick="switchTab(&quot;registroGeneral&quot;)">📒 Registro Principal</button>' +
+    '<button class="main-tab active" id="tabRegistroGastos"   onclick="switchTab(&quot;registroGastos&quot;)">📤 Registro de Gastos</button>' +
+    '<button class="main-tab"        id="tabRegistroIngresos" onclick="switchTab(&quot;registroIngresos&quot;)">💰 Registro de Ingresos</button>' +
     '<button class="main-tab" id="tabDashboard" onclick="switchTab(&quot;dashboard&quot;)">📊 Estado de Resultados</button>' +
     '<button class="main-tab" id="tabFinanzas" onclick="switchTab(&quot;finanzas&quot;)" style="display:none">💸 Gastos</button>' +
     '<div class="main-tab-group">' +
@@ -3920,7 +3923,7 @@ function _enterApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   buildMenu();
-  switchTab('registroGeneral');
+  switchTab('registroGastos');
   gasJsonp('getConfig', {}).then(d => {
     if (d.success) {
       _applyHeaderDesktop(d.config || {});
@@ -4047,15 +4050,19 @@ document.addEventListener('DOMContentLoaded', async function() {
 // ══════════════════════════════════════════════════
 //  TAB SWITCHING
 // ══════════════════════════════════════════════════
-var activeTab = 'registroGeneral';
+var activeTab = 'registroGastos';
 
 function switchTab(tab) {
   activeTab = tab;
   const isReporte = tab.startsWith('reporte:');
+  const isRG      = tab === 'registroGastos' || tab === 'registroIngresos';
   document.getElementById('sectionEgresos').style.display         = tab === 'egresos'         ? 'block' : 'none';
   document.getElementById('sectionIngresos').style.display        = tab === 'ingresos'        ? 'block' : 'none';
-  document.getElementById('sectionRegistroGeneral').style.display = tab === 'registroGeneral' ? 'block' : 'none';
-  if (tab === 'registroGeneral') rgInit();
+  document.getElementById('sectionRegistroGeneral').style.display = isRG                      ? 'block' : 'none';
+  if (isRG) {
+    rgInit();
+    rgShowTab(tab === 'registroIngresos' ? 'ing' : 'egr');
+  }
   document.getElementById('sectionDashboard').style.display    = tab === 'dashboard'    ? 'block' : 'none';
   document.getElementById('sectionFinanzas').style.display     = tab === 'finanzas'     ? 'block' : 'none';
   document.getElementById('sectionProveedores').style.display  = tab === 'proveedores'  ? 'block' : 'none';
@@ -4064,11 +4071,12 @@ function switchTab(tab) {
   // Activar tab según sección activa
   var ctTabs = ['reporte:reportes/itbms_mensual.html','reporte:reportes/cierre_anual.html','ingresos','egresos'];
   function _tabToggle(id, val) { var el = document.getElementById(id); if (el) el.classList.toggle('active', val); }
-  _tabToggle('tabDashboard',       tab === 'dashboard');
-  _tabToggle('tabFinanzas',        tab === 'finanzas');
-  _tabToggle('tabContabilidad',    ctTabs.indexOf(tab) >= 0);
-  _tabToggle('tabRegistroGeneral', tab === 'registroGeneral');
-  _tabToggle('tabSetup',           false);
+  _tabToggle('tabDashboard',        tab === 'dashboard');
+  _tabToggle('tabFinanzas',         tab === 'finanzas');
+  _tabToggle('tabContabilidad',     ctTabs.indexOf(tab) >= 0);
+  _tabToggle('tabRegistroGastos',   tab === 'registroGastos');
+  _tabToggle('tabRegistroIngresos', tab === 'registroIngresos');
+  _tabToggle('tabSetup',            false);
   if (tab === 'egresos'      && !egrItems.length) loadEgresos();
   if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
   if (tab === 'dashboard')    loadDashboard();
@@ -4082,7 +4090,7 @@ async function refreshCurrentSection() {
   else if (activeTab === 'ingresos')         return loadIngresos();
   else if (activeTab === 'dashboard')        { plLoaded = false; return loadDashboard(); }
   else if (activeTab === 'proveedores')      return loadProveedores();
-  else if (activeTab === 'registroGeneral')  return rgRefresh();
+  else if (activeTab === 'registroGastos' || activeTab === 'registroIngresos')  return rgRefresh();
   else if (activeTab.startsWith('reporte:')) return loadReporte(activeTab.replace('reporte:', ''), true);
 }
 
@@ -6721,20 +6729,31 @@ function rgEsMiscelaneoEgr(e) { return _clasificarDimension(e, 'egreso')  === 'g
 function rgEsMiscelaneoIng(i) { return _clasificarDimension(i, 'ingreso') === 'general'; }
 
 // ── Tabs internos ─────────────────────────────────
+// Gastos / Ingresos viven en main-tabs ahora; este toggle también actualiza
+// el header de sección (icono/título/subtítulo) y el estado active de las
+// píldoras (que solo se muestran si Planilla está habilitada).
 function rgShowTab(tab) {
   document.getElementById('rgTabEgr').style.display = tab === 'egr' ? 'block' : 'none';
   document.getElementById('rgTabIng').style.display = tab === 'ing' ? 'block' : 'none';
   document.getElementById('rgTabPl').style.display  = tab === 'pl'  ? 'block' : 'none';
   if (tab === 'pl') plInit();
-  const btnEgr = document.getElementById('rgTabEgrBtn');
-  const btnIng = document.getElementById('rgTabIngBtn');
-  var btnPl = document.getElementById('rgTabPlBtn');
-  btnEgr.style.borderBottomColor = 'transparent'; btnEgr.style.color = 'var(--muted)';
-  btnIng.style.borderBottomColor = 'transparent'; btnIng.style.color = 'var(--muted)';
-  if (btnPl) { btnPl.style.borderBottomColor = 'transparent'; btnPl.style.color = 'var(--muted)'; }
-  if (tab === 'egr') { btnEgr.style.borderBottomColor = 'var(--orange)'; btnEgr.style.color = 'var(--orange)'; }
-  else if (tab === 'ing') { btnIng.style.borderBottomColor = 'var(--green)'; btnIng.style.color = 'var(--green)'; }
-  else if (tab === 'pl' && btnPl) { btnPl.style.borderBottomColor = '#6A1B9A'; btnPl.style.color = '#6A1B9A'; }
+  // Pill active state (solo visible si Planilla está habilitada)
+  ['rgTabEgrBtn','rgTabIngBtn','rgTabPlBtn'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  var pillId = tab === 'egr' ? 'rgTabEgrBtn' : tab === 'ing' ? 'rgTabIngBtn' : 'rgTabPlBtn';
+  var pill = document.getElementById(pillId);
+  if (pill) pill.classList.add('active');
+  // Header dinámico
+  var meta = tab === 'ing'
+      ? { icon: '💰', title: 'Registro de Ingresos', subtitle: 'Captura de facturación e ingresos — clasifica por tipo (alquiler, intereses, gravado, exento) y prepara tu declaración DGI.' }
+      : tab === 'pl'
+      ? { icon: '👤', title: 'Planilla',              subtitle: 'Registro de planilla periódica — los egresos se crean automáticamente en la hoja de Egresos.' }
+      : { icon: '📤', title: 'Registro de Gastos',    subtitle: 'Captura inteligente de facturas para tu declaración DGI — la IA clasifica, calcula ITBMS y prepara tu cierre anual.' };
+  var hi = document.getElementById('rgHdrIcon');     if (hi) hi.textContent = meta.icon;
+  var ht = document.getElementById('rgHdrTitle');    if (ht) ht.textContent = meta.title;
+  var hs = document.getElementById('rgHdrSubtitle'); if (hs) hs.textContent = meta.subtitle;
 }
 window.rgShowTab = rgShowTab;
 
@@ -7716,7 +7735,7 @@ window.rgAbrirNuevoIngreso = rgAbrirNuevoIngreso;
 const _origCloseEgr = window.closeEgresoModal;
 window.closeEgresoModal = function() {
   _origCloseEgr && _origCloseEgr();
-  if (activeTab === 'registroGeneral') { setTimeout(rgRenderEgr, 300); }
+  if (activeTab === 'registroGastos' || activeTab === 'registroIngresos') { setTimeout(rgRenderEgr, 300); }
   // Restaurar título original
   const t = document.querySelector('#egresoModalOverlay .modal-title');
   if (t) t.textContent = '📤 Registrar Egreso';
@@ -7724,7 +7743,7 @@ window.closeEgresoModal = function() {
 const _origCloseIng = window.closeIngresoModal;
 window.closeIngresoModal = function() {
   _origCloseIng && _origCloseIng();
-  if (activeTab === 'registroGeneral') { setTimeout(rgRenderIng, 300); }
+  if (activeTab === 'registroGastos' || activeTab === 'registroIngresos') { setTimeout(rgRenderIng, 300); }
   const t = document.querySelector('#ingresoModalOverlay .modal-title');
   if (t) t.textContent = '💰 Registrar Ingreso';
   const btn = document.querySelector('#ingresoModalOverlay .btn-primary');
@@ -11630,12 +11649,12 @@ async function ofxImport_procesar() {
         },
       },
       {
-        element: '#tabRegistroGeneral',
+        element: '#tabRegistroGastos',
         popover: {
-          title: 'Registro Principal',
+          title: 'Registro de Gastos',
           description:
-            'Estás aquí. Es donde captures cada ingreso/gasto. ' +
-            'Es el punto de entrada de toda la información contable.',
+            'Estás aquí. Es donde se capturan los gastos. ' +
+            'Junto a "Registro de Ingresos" forman el punto de entrada de la información contable.',
           side: 'bottom',
         },
       },
@@ -11807,7 +11826,7 @@ async function ofxImport_procesar() {
   function _tourEnsureContext() {
     // Asegura que estemos en el tab "Registro Principal" sub-tab Egresos.
     try {
-      if (typeof switchTab === 'function') switchTab('registroGeneral');
+      if (typeof switchTab === 'function') switchTab('registroGastos');
       if (typeof rgShowTab === 'function') rgShowTab('egr');
     } catch (e) { /* swallow */ }
   }
