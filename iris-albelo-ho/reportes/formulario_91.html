@@ -100,7 +100,7 @@
     </div>
 
     <div class="f91-disclaimer">
-      <strong>⚠️ Borrador informativo</strong> — este reporte agrupa tus ingresos del año a las 19 líneas oficiales del Formulario 91 (Persona Natural) / 93 (PN régimen especial) DGI Panamá. <strong>No reemplaza la declaración oficial</strong>. Verifica con tu contador antes de presentar al e-Tax 2.0. Los ingresos exentos (L17-L18) NO suman a renta gravable.
+      <strong>⚠️ Borrador informativo</strong> — este reporte agrupa tus ingresos del año a las 19 líneas oficiales del Formulario 91 (Persona Natural) / 93 (PN régimen especial) DGI Panamá. <strong>No reemplaza la declaración oficial</strong>. Verifica con tu contador antes de presentar al e-Tax 2.0. Los sustractivos (L15–L17) restan de la base gravable; la fuente extranjera (L18) no tributa por territorialidad.
     </div>
 
     <div class="f91-controls f91-no-print">
@@ -140,7 +140,7 @@
     { linea:'14', valor:'ventas_servicios',           label:'Ventas y Prestación de Servicios',              emoji:'🛒', seccion:'B', signo:1, ret:0 },
     { linea:'15', valor:'devoluciones_descuentos',    label:'Menos: Devoluciones y Descuentos',              emoji:'↩️', seccion:'S', signo:-1, ret:0 },
     { linea:'16', valor:'descuento_jubilados',        label:'Menos: Descuento Jubilados (Ley 6/87)',         emoji:'👵', seccion:'S', signo:-1, ret:0 },
-    { linea:'17', valor:'ingresos_exentos',           label:'Ingresos Exentos / No Gravables',               emoji:'🛡️', seccion:'E', signo:1, ret:0 },
+    { linea:'17', valor:'ingresos_exentos',           label:'Menos: Ingresos Exentos / No Gravables',        emoji:'🛡️', seccion:'S', signo:-1, ret:0 },
     { linea:'18', valor:'fuente_extranjera',          label:'Fuente Extranjera',                             emoji:'🌎', seccion:'E', signo:1, ret:0 },
     { linea:'19', valor:'gastos_repr_actividad',      label:'Gastos de Representación (actividad)',          emoji:'🎯', seccion:'E', signo:1, ret:0.10 },
   ];
@@ -222,8 +222,10 @@
     const totalB = linesB.reduce((s,l) => s + (agrup[l.valor].total || 0), 0);
     const totalS = linesS.reduce((s,l) => s + (agrup[l.valor].total || 0), 0);
     const totalE = linesE.reduce((s,l) => s + (agrup[l.valor].total || 0), 0);
-    const exentos = (agrup['ingresos_exentos'].total || 0) + (agrup['fuente_extranjera'].total || 0);
-    const gravable = totalA + totalB - totalS;   // L17 y L18 quedan fuera
+    // L17 (ingresos_exentos) ahora es sustractivo → ya entra en totalS.
+    // L18 (fuente_extranjera) es especial: no resta ni suma a la base gravable.
+    const exentos  = agrup['fuente_extranjera'].total || 0;
+    const gravable = totalA + totalB - totalS;
 
     // Retención total esperada
     let retencionTotal = 0;
@@ -264,9 +266,9 @@
 
       <div class="f91-section" style="background:#F5F5F5">
         <div class="f91-line">
-          <span class="f91-line-num">—</span>
-          <span class="f91-line-emoji">🛡️</span>
-          <span class="f91-line-label">Ingresos exentos (L17 + L18, no entran a la base)</span>
+          <span class="f91-line-num">L18</span>
+          <span class="f91-line-emoji">🌎</span>
+          <span class="f91-line-label">Fuente extranjera (no tributa por territorialidad)</span>
           <span class="f91-line-amt">${fmt(exentos)}</span>
         </div>
       </div>

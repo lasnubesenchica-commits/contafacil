@@ -516,14 +516,14 @@ function caCalc() {
   });
 
   // ── Ingresos ──────────────────────────────────
-  // Categorías exentas/no gravables (DGI Form 91 L17, L18 + legacy *_exento)
-  // No suman a renta gravable Panamá.
+  // Categorías exentas: no suman a renta gravable (L18 fuente extranjera + legacy *_exento).
+  // L17 ahora es sustractivo explícito (resta de la base) — no aquí.
   const EXENTAS_ISR = new Set([
-    'ingresos_exentos','fuente_extranjera',
+    'fuente_extranjera',
     'venta_producto_exento','servicio_tecnico_exento','otro_exento', // legacy
   ]);
-  // Sustractivas (L15, L16): restan de la base gravable
-  const SUSTRACTIVAS = new Set(['devoluciones_descuentos','descuento_jubilados']);
+  // Sustractivas (L15, L16, L17): restan de la base gravable
+  const SUSTRACTIVAS = new Set(['devoluciones_descuentos','descuento_jubilados','ingresos_exentos']);
   const _isExento = i => EXENTAS_ISR.has(String(i.categoria_ingreso || i.tipo_ingreso || ''))
                       || String(i.categoria_ingreso||'').includes('exento');
   const _isSustractivo = i => SUSTRACTIVAS.has(String(i.categoria_ingreso || i.tipo_ingreso || ''));
@@ -658,7 +658,7 @@ const ING_LABELS = {
   ventas_servicios:           'L14 · Ventas y Prestación de Servicios',
   devoluciones_descuentos:    'L15 · Menos: Devoluciones y Descuentos',
   descuento_jubilados:        'L16 · Menos: Descuento Jubilados (Ley 6/87)',
-  ingresos_exentos:           'L17 · Ingresos Exentos / No Gravables',
+  ingresos_exentos:           'L17 · Menos: Ingresos Exentos / No Gravables',
   fuente_extranjera:          'L18 · Fuente Extranjera',
   gastos_repr_actividad:      'L19 · Gastos de Representación (actividad)',
   // ── Legacy (datos viejos, antes del catálogo unificado) ──
