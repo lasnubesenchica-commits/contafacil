@@ -3854,3 +3854,78 @@ function migrarFacturasXmlLegacy() {
   Logger.log('Egresos : ' + stats.egresos.ok  + ' nuevos, ' + stats.egresos.reproc  + ' reprocesados, ' + stats.egresos.skip  + ' saltados, ' + stats.egresos.err  + ' errores');
   return stats;
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  migrarCategoriasIngresoLegacy
+//
+//  Re-clasifica los registros de la hoja Ingresos con categorías
+//  legacy (venta_producto_gravado, servicios_profesionales, etc.) a
+//  las keys canónicas DGI Form 91 (ventas_servicios, honorarios_*, etc.).
+//
+//  Herramienta admin one-shot. Ejecutar desde el Apps Script editor:
+//      migrarCategoriasIngresoLegacy({ dryRun: true })   // preview
+//      migrarCategoriasIngresoLegacy({ dryRun: false })  // aplicar
+//
+//  Idempotente: re-ejecutar es no-op (las keys nuevas no están en el
+//  mapa legacy, así que no se vuelven a tocar).
+//
+//  Actualiza la columna CATEGORIA. NO toca TIPO_INGRESO (esa se
+//  mantiene como agregación más amplia y sigue siendo coherente).
+// ════════════════════════════════════════════════════════════════════
+function migrarCategoriasIngresoLegacy(opts) {
+  opts = opts || {};
+  var dryRun = opts.dryRun !== false;   // default true por seguridad
+  var ss     = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  var sh     = ss.getSheetByName(CONFIG.SHEET_INGRESOS);
+  if (!sh) throw new Error('Hoja Ingresos no encontrada');
+
+  var lastRow = sh.getLastRow();
+  if (lastRow < 3) {
+    Logger.log('Hoja Ingresos vacía — nada que migrar');
+    return { dryRun: dryRun, total: 0, cambios: 0, sinCambio: 0, detalle: [] };
+  }
+
+  var range  = sh.getRange(3, 1, lastRow - 2, INGRESOS_NCOLS);
+  var values = range.getValues();
+
+  var stats = { dryRun: dryRun, total: values.length, cambios: 0, sinCambio: 0, detalle: [] };
+
+  for (var i = 0; i < values.length; i++) {
+    var row    = values[i];
+    var rowNum = i + 3;
+    var idTr   = String(row[COL_I.ID_TRANS - 1]  || '');
+    var catCur = String(row[COL_I.CATEGORIA - 1] || '').toLowerCase().trim();
+
+    if (!catCur) { stats.sinCambio++; continue; }
+
+    var catNueva = LEGACY_INGRESO_MAP[catCur];
+    if (!catNueva) {
+      // No es legacy — ya está en una key nueva (o es valor desconocido).
+      // Lo dejamos quieto.
+      stats.sinCambio++;
+      continue;
+    }
+
+    stats.cambios++;
+    stats.detalle.push({ row: rowNum, id: idTr, antes: catCur, despues: catNueva });
+
+    if (!dryRun) {
+      sh.getRange(rowNum, COL_I.CATEGORIA).setValue(catNueva);
+    }
+  }
+
+  Logger.log('═══ MIGRACIÓN INGRESOS — ' + (dryRun ? 'DRY RUN' : 'APLICADA') + ' ═══');
+  Logger.log('Total filas: ' + stats.total);
+  Logger.log('Cambios: ' + stats.cambios);
+  Logger.log('Sin cambio: ' + stats.sinCambio);
+  if (stats.detalle.length) {
+    Logger.log('Detalle (primeros 50):');
+    for (var d = 0; d < Math.min(50, stats.detalle.length); d++) {
+      Logger.log('  fila ' + stats.detalle[d].row + ' [' + stats.detalle[d].id + '] · ' +
+                 stats.detalle[d].antes + ' → ' + stats.detalle[d].despues);
+    }
+    if (stats.detalle.length > 50) Logger.log('  ... y ' + (stats.detalle.length - 50) + ' más');
+  }
+  if (dryRun) Logger.log('⚠️ DRY RUN — no se modificaron datos. Re-ejecutar con { dryRun: false } para aplicar.');
+  return stats;
+}
