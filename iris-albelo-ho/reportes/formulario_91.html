@@ -1,0 +1,299 @@
+<!-- ═══════════════════════════════════════════════
+     MÓDULO: Borrador Formulario 91 / 93 DGI Panamá
+     Prefijo: f91-  |  IIFE independiente
+     Mapea ingresos del cliente a las 19 líneas oficiales DGI.
+     Fuentes: ingItems del parent
+═══════════════════════════════════════════════ -->
+<style>
+@media print {
+  .f91-no-print { display: none !important; }
+  .f91-wrap { background:#fff !important; padding:0 !important; }
+  .f91-page { box-shadow:none !important; border:none !important; margin:0 !important; border-radius:0 !important; max-width:100% !important; }
+  body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+
+.f91-wrap { background:#FAFAFA; padding:1.5rem; min-height:100vh; font-family:'DM Sans',sans-serif; }
+.f91-page { max-width:980px; margin:0 auto; background:#fff; border:1px solid #E0E0E0; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.04); overflow:hidden; }
+
+.f91-header {
+  background:linear-gradient(135deg,#1565C0 0%, #0D47A1 100%);
+  color:#fff; padding:1.5rem 2rem;
+}
+.f91-title { font-size:1.35rem; font-weight:700; letter-spacing:-.02em; margin:0; }
+.f91-subtitle { font-size:.85rem; opacity:.85; margin-top:.25rem; }
+.f91-disclaimer {
+  background:#FFF8E1; border-left:3px solid #F9A825; padding:.7rem 1rem;
+  margin:1.2rem 2rem 0; border-radius:4px; font-size:.78rem; line-height:1.45; color:#5D4037;
+}
+
+.f91-controls { padding:1rem 2rem; display:flex; gap:1rem; align-items:center; border-bottom:1px solid #EEE; flex-wrap:wrap; }
+.f91-controls label { font-size:.75rem; color:#666; font-weight:500; }
+.f91-controls select, .f91-controls input {
+  font-family:'DM Sans',sans-serif; font-size:.85rem;
+  padding:.4rem .65rem; border:1px solid #DDD; border-radius:6px; background:#fff;
+}
+.f91-controls button {
+  font-family:'DM Sans',sans-serif; font-size:.82rem; font-weight:600;
+  padding:.5rem 1rem; border:none; border-radius:6px; cursor:pointer;
+  background:#1565C0; color:#fff;
+}
+
+.f91-section { padding:1rem 2rem; border-bottom:1px solid #F0F0F0; }
+.f91-section-title {
+  font-size:.7rem; text-transform:uppercase; letter-spacing:.08em;
+  color:#5C6BC0; font-weight:700; margin:0 0 .5rem;
+}
+
+.f91-line { display:flex; align-items:center; padding:.5rem .25rem; border-bottom:1px solid #F5F5F5; gap:.75rem; }
+.f91-line:last-child { border-bottom:none; }
+.f91-line:hover { background:#FAFAFA; }
+.f91-line-num {
+  font-family:'DM Mono',monospace; font-size:.7rem; font-weight:700;
+  color:#9E9E9E; min-width:32px;
+}
+.f91-line-emoji { font-size:.95rem; }
+.f91-line-label { flex:1; font-size:.86rem; color:#2C2C2E; }
+.f91-line-count { font-size:.7rem; color:#9E9E9E; font-family:'DM Mono',monospace; }
+.f91-line-amt {
+  font-family:'DM Mono',monospace; font-size:.92rem; font-weight:600;
+  color:#1A1A1A; min-width:120px; text-align:right;
+}
+.f91-line.subtractive .f91-line-amt { color:#C62828; }
+.f91-line.exempt .f91-line-amt { color:#757575; }
+.f91-line.zero .f91-line-amt { color:#BDBDBD; font-weight:400; }
+.f91-line.zero .f91-line-label { color:#9E9E9E; }
+
+.f91-total-row {
+  display:flex; align-items:center; padding:.75rem 1rem;
+  background:#E8F5E9; margin:.5rem 0; border-radius:6px; gap:.75rem;
+  border-left:3px solid #2E7D32;
+}
+.f91-total-row .f91-line-label { font-weight:600; color:#1B5E20; font-size:.92rem; }
+.f91-total-row .f91-line-amt { color:#1B5E20; font-size:1rem; font-weight:700; }
+
+.f91-grand-total {
+  display:flex; align-items:center; padding:1rem 1.5rem;
+  background:linear-gradient(135deg,#1565C0 0%, #0D47A1 100%);
+  color:#fff; border-radius:8px; margin:1rem 2rem;
+  font-size:1.05rem;
+}
+.f91-grand-total .f91-line-label { flex:1; font-weight:700; }
+.f91-grand-total .f91-line-amt { font-family:'DM Mono',monospace; font-weight:700; font-size:1.2rem; }
+
+.f91-retenciones {
+  margin:1rem 2rem 1.5rem; padding:1rem; background:#FFF3E0; border-radius:8px;
+  border-left:3px solid #FB8C00;
+}
+.f91-retenciones h4 { margin:0 0 .5rem; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; color:#E65100; }
+.f91-ret-row { display:flex; justify-content:space-between; font-size:.83rem; padding:.25rem 0; color:#5D4037; }
+.f91-ret-row.total { border-top:1px solid #FFE0B2; margin-top:.4rem; padding-top:.5rem; font-weight:700; color:#BF360C; }
+
+.f91-empty { padding:3rem; text-align:center; color:#9E9E9E; font-size:.88rem; }
+.f91-empty .empty-emoji { font-size:2.5rem; margin-bottom:.5rem; }
+</style>
+
+<div class="f91-wrap" id="f91-wrap">
+  <div class="f91-page">
+    <div class="f91-header">
+      <h2 class="f91-title">📋 Formulario 91 / 93 DGI — Borrador</h2>
+      <div class="f91-subtitle" id="f91-period">Año fiscal —</div>
+    </div>
+
+    <div class="f91-disclaimer">
+      <strong>⚠️ Borrador informativo</strong> — este reporte agrupa tus ingresos del año a las 19 líneas oficiales del Formulario 91 (Persona Natural) / 93 (PN régimen especial) DGI Panamá. <strong>No reemplaza la declaración oficial</strong>. Verifica con tu contador antes de presentar al e-Tax 2.0. Los ingresos exentos (L17-L18) NO suman a renta gravable.
+    </div>
+
+    <div class="f91-controls f91-no-print">
+      <label>Año fiscal:</label>
+      <select id="f91-sel-anio"></select>
+      <button onclick="f91Print()">🖨️ Imprimir</button>
+    </div>
+
+    <div id="f91-body">
+      <div class="f91-empty"><div class="empty-emoji">⏳</div>Cargando ingresos del año…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ── State ───────────────────────────────────────────────
+  let f91_ing = [];
+  let f91_year = new Date().getFullYear();
+
+  // ── Espejo mínimo del catálogo DGI para etiquetar líneas ──
+  // (No traemos el catálogo completo — solo los campos que el reporte usa.)
+  const F91_LINES = [
+    { linea:'1',  valor:'salarios_con_retencion',     label:'Salarios y otras remuneraciones (c/retención)', emoji:'💼', seccion:'A', signo:1, ret:0 },
+    { linea:'2',  valor:'remuneracion_sin_retencion', label:'Otras remuneraciones personales (s/retención)', emoji:'💵', seccion:'A', signo:1, ret:0 },
+    { linea:'3',  valor:'ingresos_especies',          label:'Ingresos en especies',                          emoji:'🎁', seccion:'A', signo:1, ret:0 },
+    { linea:'4',  valor:'gastos_repr_asalariado',     label:'Gastos de Representación (asalariado)',         emoji:'🤝', seccion:'A', signo:1, ret:0.10 },
+    { linea:'5',  valor:'dietas',                     label:'Dietas',                                        emoji:'📅', seccion:'A', signo:1, ret:0 },
+    { linea:'6',  valor:'actividad_agropecuaria',     label:'Actividad Agropecuaria',                        emoji:'🌾', seccion:'B', signo:1, ret:0 },
+    { linea:'7',  valor:'honorarios_comision',        label:'Honorarios por Comisiones',                     emoji:'💳', seccion:'B', signo:1, ret:0.08 },
+    { linea:'8',  valor:'honorarios_profesionales',   label:'Honorarios por Servicios Profesionales',        emoji:'💼', seccion:'B', signo:1, ret:0.08 },
+    { linea:'9',  valor:'alquiler_habitacional',      label:'Alquiler Habitacional',                         emoji:'🏠', seccion:'B', signo:1, ret:0 },
+    { linea:'10', valor:'alquiler_comercial',         label:'Alquiler Comercial',                            emoji:'🏢', seccion:'B', signo:1, ret:0 },
+    { linea:'11', valor:'intereses_financieros',      label:'Intereses y otros Ingresos Financieros',        emoji:'🏦', seccion:'B', signo:1, ret:0.05 },
+    { linea:'12', valor:'ganancia_capital_legacy',    label:'Ganancia capital (pre-Ley 18/2006)',            emoji:'📉', seccion:'B', signo:1, ret:0.10 },
+    { linea:'13', valor:'otros_ingresos',             label:'Otros Ingresos',                                emoji:'📋', seccion:'B', signo:1, ret:0 },
+    { linea:'14', valor:'ventas_servicios',           label:'Ventas y Prestación de Servicios',              emoji:'🛒', seccion:'B', signo:1, ret:0 },
+    { linea:'15', valor:'devoluciones_descuentos',    label:'Menos: Devoluciones y Descuentos',              emoji:'↩️', seccion:'S', signo:-1, ret:0 },
+    { linea:'16', valor:'descuento_jubilados',        label:'Menos: Descuento Jubilados (Ley 6/87)',         emoji:'👵', seccion:'S', signo:-1, ret:0 },
+    { linea:'17', valor:'ingresos_exentos',           label:'Ingresos Exentos / No Gravables',               emoji:'🛡️', seccion:'E', signo:1, ret:0 },
+    { linea:'18', valor:'fuente_extranjera',          label:'Fuente Extranjera',                             emoji:'🌎', seccion:'E', signo:1, ret:0 },
+    { linea:'19', valor:'gastos_repr_actividad',      label:'Gastos de Representación (actividad)',          emoji:'🎯', seccion:'E', signo:1, ret:0.10 },
+  ];
+
+  // Legacy: keys viejas que aparecen en datos históricos
+  const F91_LEGACY_MAP = {
+    'venta_producto_gravado':'ventas_servicios','venta_producto_exento':'ventas_servicios',
+    'servicio_tecnico_gravado':'ventas_servicios','servicio_tecnico_exento':'ventas_servicios',
+    'asesoria_consultoria':'honorarios_profesionales','servicios_profesionales':'honorarios_profesionales',
+    'salarios':'salarios_con_retencion','comision':'honorarios_comision',
+    'alquiler_cobrado':'alquiler_comercial','intereses':'intereses_financieros',
+    'dividendos':'otros_ingresos','exportacion':'ventas_servicios',
+    'otro_gravado':'otros_ingresos','otro_exento':'ingresos_exentos',
+  };
+
+  const fmt  = n => 'B/. ' + (n||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const esc  = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  const _anio = i => parseInt(i.anio) || (i.fecha_ingreso ? parseInt(String(i.fecha_ingreso).slice(0,4)) : 0);
+  const _resolveKey = raw => F91_LEGACY_MAP[raw] || raw;
+
+  // ── Data load ───────────────────────────────────────────
+  function f91Load() {
+    const src = (typeof ingItems !== 'undefined' && ingItems.length) ? ingItems : [];
+    f91_ing = src.filter(i => {
+      const e = String(i.estado||'').toLowerCase();
+      return e === 'confirmado' || e === 'abono' || e === 'pendiente';
+    });
+    f91PopulateYears();
+    f91Render();
+  }
+
+  function f91PopulateYears() {
+    const years = new Set();
+    f91_ing.forEach(i => { const y = _anio(i); if (y) years.add(y); });
+    if (!years.size) years.add(new Date().getFullYear());
+    const sel = document.getElementById('f91-sel-anio');
+    sel.innerHTML = [...years].sort((a,b)=>b-a)
+      .map(y => `<option value="${y}" ${y===f91_year?'selected':''}>${y}</option>`).join('');
+    sel.onchange = () => { f91_year = parseInt(sel.value); f91Render(); };
+  }
+
+  function f91Render() {
+    document.getElementById('f91-period').textContent = `Año fiscal ${f91_year}`;
+    const ing = f91_ing.filter(i => _anio(i) === f91_year);
+
+    // Agrupar por línea DGI
+    const agrup = {};   // valor -> { total, count, items }
+    F91_LINES.forEach(l => agrup[l.valor] = { total:0, count:0 });
+
+    ing.forEach(i => {
+      const rawKey = String(i.categoria_ingreso || i.tipo_ingreso || '').toLowerCase();
+      const key = _resolveKey(rawKey);
+      if (!agrup[key]) agrup[key] = { total:0, count:0 };
+      agrup[key].total += parseFloat(i.subtotal) || 0;
+      agrup[key].count++;
+    });
+
+    // Render por sección
+    const linesA = F91_LINES.filter(l => l.seccion === 'A');
+    const linesB = F91_LINES.filter(l => l.seccion === 'B');
+    const linesS = F91_LINES.filter(l => l.seccion === 'S');
+    const linesE = F91_LINES.filter(l => l.seccion === 'E');
+
+    const renderLine = (l) => {
+      const data = agrup[l.valor] || { total:0, count:0 };
+      const zero = data.total === 0;
+      const cls = [zero ? 'zero' : '', l.signo === -1 ? 'subtractive' : '', l.linea === '6' || l.linea === '9' ? 'exempt' : ''].filter(Boolean).join(' ');
+      return `<div class="f91-line ${cls}">
+        <span class="f91-line-num">L${l.linea}</span>
+        <span class="f91-line-emoji">${l.emoji}</span>
+        <span class="f91-line-label">${esc(l.label)}</span>
+        <span class="f91-line-count">${data.count ? data.count + ' registros' : ''}</span>
+        <span class="f91-line-amt">${l.signo === -1 && data.total > 0 ? '(' + fmt(data.total) + ')' : fmt(data.total)}</span>
+      </div>`;
+    };
+
+    // Totales
+    const totalA = linesA.reduce((s,l) => s + (agrup[l.valor].total || 0), 0);
+    const totalB = linesB.reduce((s,l) => s + (agrup[l.valor].total || 0), 0);
+    const totalS = linesS.reduce((s,l) => s + (agrup[l.valor].total || 0), 0);
+    const totalE = linesE.reduce((s,l) => s + (agrup[l.valor].total || 0), 0);
+    const exentos = (agrup['ingresos_exentos'].total || 0) + (agrup['fuente_extranjera'].total || 0);
+    const gravable = totalA + totalB - totalS;   // L17 y L18 quedan fuera
+
+    // Retención total esperada
+    let retencionTotal = 0;
+    const retDetalle = [];
+    F91_LINES.filter(l => l.ret > 0).forEach(l => {
+      const t = agrup[l.valor].total || 0;
+      if (t > 0) {
+        const r = t * l.ret;
+        retencionTotal += r;
+        retDetalle.push({ linea: l.linea, label: l.label, total: t, rate: l.ret, ret: r });
+      }
+    });
+
+    const totalRow = (label, val) => `
+      <div class="f91-total-row">
+        <span class="f91-line-label">${esc(label)}</span>
+        <span class="f91-line-amt">${fmt(val)}</span>
+      </div>`;
+
+    const sectionHtml = (titulo, lineas, total) => `
+      <div class="f91-section">
+        <div class="f91-section-title">${esc(titulo)}</div>
+        ${lineas.map(renderLine).join('')}
+        ${total !== null ? totalRow('Subtotal sección', total) : ''}
+      </div>`;
+
+    const body = document.getElementById('f91-body');
+    body.innerHTML = `
+      ${sectionHtml('Segmento A · Remuneraciones personales (L1–L5)', linesA, totalA)}
+      ${sectionHtml('Segmento B · Actividad / Profesión (L6–L14)',    linesB, totalB)}
+      ${sectionHtml('Sustractivos (L15–L16) · restan de la base',      linesS, -totalS)}
+      ${sectionHtml('Especiales (L17–L19) · no tributan o régimen especial', linesE, null)}
+
+      <div class="f91-grand-total">
+        <span class="f91-line-label">💰 Renta bruta gravable (A + B − Sustractivos)</span>
+        <span class="f91-line-amt">${fmt(gravable)}</span>
+      </div>
+
+      <div class="f91-section" style="background:#F5F5F5">
+        <div class="f91-line">
+          <span class="f91-line-num">—</span>
+          <span class="f91-line-emoji">🛡️</span>
+          <span class="f91-line-label">Ingresos exentos (L17 + L18, no entran a la base)</span>
+          <span class="f91-line-amt">${fmt(exentos)}</span>
+        </div>
+      </div>
+
+      ${retDetalle.length ? `
+      <div class="f91-retenciones">
+        <h4>💡 Retención ISR esperada (informativo)</h4>
+        ${retDetalle.map(r => `
+          <div class="f91-ret-row">
+            <span>L${r.linea} · ${esc(r.label)} <span style="color:#999">(${(r.rate*100).toFixed(0)}% de ${fmt(r.total)})</span></span>
+            <span style="font-family:'DM Mono',monospace">${fmt(r.ret)}</span>
+          </div>`).join('')}
+        <div class="f91-ret-row total">
+          <span>Total retención esperada</span>
+          <span style="font-family:'DM Mono',monospace">${fmt(retencionTotal)}</span>
+        </div>
+        <div style="font-size:.72rem;color:#8D6E63;margin-top:.5rem">
+          ⚠️ Retención esperada = tasa DGI × monto bruto. Aplica solo si el cliente/institución es retentor designado. Verifica con tu contador.
+        </div>
+      </div>` : ''}
+    `;
+  }
+
+  // ── Exposición global para botones ──
+  window.f91Print = () => window.print();
+
+  // ── Bootstrap ──
+  f91Load();
+})();
+</script>

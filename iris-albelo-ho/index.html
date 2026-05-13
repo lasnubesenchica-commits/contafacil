@@ -3850,6 +3850,7 @@ function buildMenu() {
       '<button class="main-tab" id="tabContabilidad">🗂 Contabilidad <span class="main-tab-arrow">▾</span></button>' +
       '<div class="dropdown-menu">' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)">🧾 Declaración ITBMS</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/formulario_91.html&quot;)">📋 Formulario 91 (borrador)</a>' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)">📁 Cierre Anual</a>' +
       '</div>' +
     '</div>';
@@ -3862,6 +3863,7 @@ function buildMenu() {
     '<button class="sidebar-link"        id="tabDashboardSb"        onclick="switchTab(&quot;dashboard&quot;)"><span class="sidebar-link-icon">📊</span><span>Estado de Resultados</span></button>' +
     '<button class="sidebar-link"        id="tabContabilidadSb"     style="cursor:default"><span class="sidebar-link-icon">🗂</span><span>Contabilidad</span></button>' +
     '<a href="javascript:void(0)" class="sidebar-link sidebar-sublink" id="tabReporteItbmsSb"  onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)"><span>🧾 Declaración ITBMS</span></a>' +
+    '<a href="javascript:void(0)" class="sidebar-link sidebar-sublink" id="tabReporteForm91Sb" onclick="switchTab(&quot;reporte:reportes/formulario_91.html&quot;)"><span>📋 Formulario 91</span></a>' +
     '<a href="javascript:void(0)" class="sidebar-link sidebar-sublink" id="tabReporteCierreSb" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)"><span>📁 Cierre Anual</span></a>';
 }
 
@@ -4090,7 +4092,7 @@ function switchTab(tab) {
   document.getElementById('sectionSetup').style.display        = 'none';
   document.getElementById('sectionReporte').style.display      = isReporte              ? 'block' : 'none';
   // Activar tab según sección activa
-  var ctTabs = ['reporte:reportes/itbms_mensual.html','reporte:reportes/cierre_anual.html','ingresos','egresos'];
+  var ctTabs = ['reporte:reportes/itbms_mensual.html','reporte:reportes/formulario_91.html','reporte:reportes/cierre_anual.html','ingresos','egresos'];
   function _tabToggle(id, val) { var el = document.getElementById(id); if (el) el.classList.toggle('active', val); }
   _tabToggle('tabDashboard',        tab === 'dashboard');
   _tabToggle('tabFinanzas',         tab === 'finanzas');
@@ -4103,6 +4105,7 @@ function switchTab(tab) {
   _tabToggle('tabRegistroGastosSb',   tab === 'registroGastos');
   _tabToggle('tabRegistroIngresosSb', tab === 'registroIngresos');
   _tabToggle('tabReporteItbmsSb',     tab === 'reporte:reportes/itbms_mensual.html');
+  _tabToggle('tabReporteForm91Sb',    tab === 'reporte:reportes/formulario_91.html');
   _tabToggle('tabReporteCierreSb',    tab === 'reporte:reportes/cierre_anual.html');
   if (tab === 'egresos'      && !egrItems.length) loadEgresos();
   if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
