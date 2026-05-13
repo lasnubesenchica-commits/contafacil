@@ -3558,9 +3558,16 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full">
             <label>Categoría</label>
             <select id="eCategoria" onchange="inferirTipoEgreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
-              <option disabled>──── Costos directos (poco común) ────</option>
+              <option disabled>──── Costos de Ventas (Anexo 94 DGI) ────</option>
               <option value="costo_mercancia" disabled>📦 Costo de mercancía — automático desde Operaciones</option>
-              <option value="otros_costos_venta">🛒 Otros costos de venta ocasional (L35 Anexo 94)</option>
+              <option value="compras_locales">🛍️ Compras locales (L28)</option>
+              <option value="compras_importadas">📦 Compras importadas (L29)</option>
+              <option value="salarios_costo">👤 Salarios y remuneraciones — Costo (L30)</option>
+              <option value="depreciacion_costo">📉 Depreciación — Costo (L31)</option>
+              <option value="mantenimiento_costo">🔧 Mantenimiento — Costo (L32)</option>
+              <option value="servicios_costo">💡 Electricidad, agua y tel. — Costo (L33)</option>
+              <option value="seguros_costo">🛡️ Seguros — Costo (L34)</option>
+              <option value="otros_costos_venta">🛒 Otros costos de venta (L35)</option>
               <option disabled>──── Gastos operativos (lo más común) ────</option>
               <option value="nomina">👤 Nómina / Salarios (L42)</option>
               <option value="prestaciones_laborales">👥 Prestaciones laborales (L43)</option>
@@ -5605,8 +5612,8 @@ function inferirTipoEgreso() {
   // Hint contextual — solo para casos donde la categoría puede confundir al usuario
   if (hint) {
     let msg = '';
-    if (cat === 'otros_costos_venta') {
-      msg = '<strong>🛒 Costo directo de venta</strong> — usá esta categoría solo cuando compraste un producto físico que <em>vendiste o vas a vender</em> (no para insumos operativos). Reporta a la <strong>Línea 35 del Anexo 94 DGI</strong> y reduce Utilidad Bruta, no Gastos Operativos. Si tu cliente tiene inventario formal, mejor activar el módulo Comercialización.';
+    if (_COSTO_KEYS.indexOf(cat) !== -1) {
+      msg = '<strong>📦 Costo de Ventas (Anexo 94 DGI)</strong> — esta categoría reduce <em>Utilidad Bruta</em>, no aparece como gasto operativo. Usá solo si el gasto está vinculado a la producción/comercialización del bien o servicio vendido. Si tu cliente tiene inventario formal, mejor activar el módulo Comercialización.';
     } else if (cat === 'otros_deducibles') {
       msg = '<strong>📋 Catch-all operativo</strong> — usá esta categoría cuando ningún otro tipo encaja. Reporta a la Línea 77 del formulario DGI.';
     } else if (cat === 'deducibles_personales') {
@@ -6618,8 +6625,15 @@ const CATEGORIAS_GASTO_DGI = [
   { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
   { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
-  // ── Costo directo sin inventario (Línea 35 Anexo 94) ──
-  { valor: 'otros_costos_venta',       label: 'Otros costos de venta ocasional', linea: '35', emoji: '🛒' },
+  // ── Costos de Ventas (Anexo 94 DGI - L28 a L35) ──
+  { valor: 'compras_locales',          label: 'Compras locales',                  linea: '28', emoji: '🛍️' },
+  { valor: 'compras_importadas',       label: 'Compras importadas',               linea: '29', emoji: '📦' },
+  { valor: 'salarios_costo',           label: 'Salarios y remuneraciones (Costo)',linea: '30', emoji: '👤' },
+  { valor: 'depreciacion_costo',       label: 'Depreciación (Costo)',             linea: '31', emoji: '📉' },
+  { valor: 'mantenimiento_costo',      label: 'Mantenimiento (Costo)',            linea: '32', emoji: '🔧' },
+  { valor: 'servicios_costo',          label: 'Electricidad, agua y tel. (Costo)',linea: '33', emoji: '💡' },
+  { valor: 'seguros_costo',            label: 'Seguros (Costo)',                  linea: '34', emoji: '🛡️' },
+  { valor: 'otros_costos_venta',       label: 'Otros costos de venta',            linea: '35', emoji: '🛒' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
   // ── Deducibles Personales (ISR persona natural) ──
   { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea: 'DP',  emoji: '👨‍👩‍👧' },
@@ -6631,6 +6645,13 @@ const CATEGORIAS_GASTO_DGI = [
 ];
 // Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
 const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
+
+// Costos de Ventas (Anexo 94 L28-L35) — fuente única usada por todos los
+// Sets/arrays que clasifican "esto es costo, no gasto" en el P&L.
+const _COSTO_KEYS = [
+  'compras_locales','compras_importadas','salarios_costo','depreciacion_costo',
+  'mantenimiento_costo','servicios_costo','seguros_costo','otros_costos_venta',
+];
 
 // ── COSTOS DIRECTOS (Líneas 27-41 formulario DGI) — inmutables desde el P&L ──
 const TIPOS_COSTO_DIRECTO = [
@@ -6944,7 +6965,7 @@ function catChipOpen(e, id, tipo, catActual) {
   //   1) Costos directos (poco común — venta ocasional sin inventario)
   //   2) Gastos operativos (lo más común — alquiler, salarios, etc.)
   //   3) Deducibles personales (Persona Natural — gastos médicos, educación)
-  const SEC_COSTOS = new Set(['otros_costos_venta']);
+  const SEC_COSTOS = new Set(_COSTO_KEYS);
   const SEC_PERSONALES = new Set([
     'deducibles_personales','gastos_medicos','gastos_escolares',
     'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'
@@ -7068,7 +7089,7 @@ function catChipOpenPL(e, triggerEl, id, tipo, catActual) {
 
   if (tipo === 'pl_gasto') {
     // Render por secciones (espejo de catChipOpen — costos, operativos, personales)
-    const SEC_COSTOS_PL = new Set(['otros_costos_venta']);
+    const SEC_COSTOS_PL = new Set(_COSTO_KEYS);
     const SEC_PERSONALES_PL = new Set([
       'deducibles_personales','gastos_medicos','gastos_escolares',
       'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'
@@ -8516,7 +8537,7 @@ function renderDashboard() {
   // Categorías que son COSTOS DIRECTOS de venta (Línea 35 Anexo 94), no
   // gastos operativos. Para clientes sin módulo Comercialización que
   // ocasionalmente venden producto físico sin inventario formal.
-  const _COSTOS_GRAL_KEYS = ['otros_costos_venta'];
+  const _COSTOS_GRAL_KEYS = _COSTO_KEYS;
   const _esCostoDirectoGral = e => _COSTOS_GRAL_KEYS.includes(e.tipo_egreso || e.categoria);
 
   const cogsGral = _egresosGralFiltrados
@@ -8688,7 +8709,7 @@ function erRender() {
   // Costos directos en Registro General (Línea 35 Anexo 94) —
   // categorías que reducen Utilidad Bruta en vez de aparecer como
   // gastos operativos. Mismo concepto que en renderDashboard().
-  const _ER_COSTOS_GRAL_KEYS = ['otros_costos_venta'];
+  const _ER_COSTOS_GRAL_KEYS = _COSTO_KEYS;
   const _esCostoGral = e => _ER_COSTOS_GRAL_KEYS.includes(e.tipo_egreso || e.categoria);
 
   // Gastos operativos — Registro General (solo deducibles, alineado con widget y mobile P&L)
@@ -9463,7 +9484,7 @@ const CATEG_ACREEDOR = CATEGORIAS_GASTO_DGI;
 //   - includeDisabledCostoMercancia (bool) — añade opción 📦 disabled
 //   - emptyFirst (bool) — primera <option> vacía (placeholder)
 // ─────────────────────────────────────────────────────────────────
-const _CAT_SEC_COSTOS = new Set(['otros_costos_venta']);
+const _CAT_SEC_COSTOS = new Set(_COSTO_KEYS);
 const _CAT_SEC_PERSONALES = new Set([
   'deducibles_personales','gastos_medicos','gastos_escolares',
   'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'

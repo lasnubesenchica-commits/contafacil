@@ -2626,7 +2626,16 @@ function _handleParseFacturaEgreso(data) {
       '11. categoria_gasto = elige el valor que MEJOR describe este gasto según los productos/servicios y el nombre del proveedor.\n' +
       '    Valores válidos (elige exactamente uno):\n' + catValues + '\n' +
       '    Si no encaja en ninguna categoría específica usa "otros_deducibles".\n' +
-      '    Si la factura corresponde a un PRODUCTO físico que el cliente probablemente revenderá o ya vendió (mercancía directa para reventa, no insumo operativo), usa "otros_costos_venta" (Línea 35 Anexo 94). Casos típicos: compra al por mayor para reventa, suministros que el cliente comercializa, productos de proveedor mayorista. NO usar para gastos operativos (oficina, gasolina, alquiler).\n' +
+      '    COSTOS DE VENTAS (Anexo 94 DGI L28-L35) — usá estas SOLO si el gasto está vinculado a la producción/comercialización del bien o servicio vendido (no a la operación administrativa):\n' +
+      '      - "compras_locales" (L28): compras de mercancía/materia prima a proveedores locales.\n' +
+      '      - "compras_importadas" (L29): compras a proveedores del exterior (importadas).\n' +
+      '      - "salarios_costo" (L30): salarios de personal de producción/operativo directo (no admin).\n' +
+      '      - "depreciacion_costo" (L31): depreciación de maquinaria/equipos de producción.\n' +
+      '      - "mantenimiento_costo" (L32): mantenimiento de equipos de producción.\n' +
+      '      - "servicios_costo" (L33): electricidad/agua/teléfono de la planta o local productivo.\n' +
+      '      - "seguros_costo" (L34): seguros sobre inventario, maquinaria o el local productivo.\n' +
+      '      - "otros_costos_venta" (L35): otros costos directos sin línea específica (catch-all de la sección Costos).\n' +
+      '    Si NO está claro que el gasto sea costo de producción/ventas, usá las categorías de Gastos Operativos (nomina, alquileres, depreciacion, mantenimiento_reparacion, servicios_publicos, seguros, etc.), no las de Costo.\n' +
       '12. Montos como números, no strings. null solo si el campo realmente no existe.';
 
     var payload = {
@@ -3062,11 +3071,18 @@ var CATEGORIAS_GASTO_DGI = [
   { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',   linea_dgi: '75',    emoji: '💡' },
   { valor: 'tecnologia_software',      label: 'Tecnología y software',            linea_dgi: '76',    emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',         linea_dgi: '76',    emoji: '📚' },
-  // ── Costos directos sin inventario (raro — venta ocasional de producto) ──
-  // L35 del Formulario 94 (Anexo 94 - Otros Costos). Para clientes sin
-  // módulo Comercialización que venden ocasionalmente productos físicos
-  // y necesitan registrar el costo asociado a esa venta.
-  { valor: 'otros_costos_venta',       label: 'Otros costos de venta ocasional',  linea_dgi: '35',    emoji: '🛒' },
+  // ── Costos de Ventas (Anexo 94 DGI - Estado de Costo de Ventas) ──
+  // Detalle por línea del Anexo 94. Para clientes sin módulo
+  // Comercialización que necesitan registrar costos directos por
+  // categoría. Reducen Utilidad Bruta (no son gastos operativos).
+  { valor: 'compras_locales',          label: 'Compras locales',                  linea_dgi: '28',    emoji: '🛍️' },
+  { valor: 'compras_importadas',       label: 'Compras importadas',               linea_dgi: '29',    emoji: '📦' },
+  { valor: 'salarios_costo',           label: 'Salarios y remuneraciones (Costo)',linea_dgi: '30',    emoji: '👤' },
+  { valor: 'depreciacion_costo',       label: 'Depreciación (Costo)',             linea_dgi: '31',    emoji: '📉' },
+  { valor: 'mantenimiento_costo',      label: 'Mantenimiento (Costo)',            linea_dgi: '32',    emoji: '🔧' },
+  { valor: 'servicios_costo',          label: 'Electricidad, agua y tel. (Costo)',linea_dgi: '33',    emoji: '💡' },
+  { valor: 'seguros_costo',            label: 'Seguros (Costo)',                  linea_dgi: '34',    emoji: '🛡️' },
+  { valor: 'otros_costos_venta',       label: 'Otros costos de venta',            linea_dgi: '35',    emoji: '🛒' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',          linea_dgi: '77',    emoji: '📋' },
   // ── Deducibles Personales (ISR persona natural) ──
   { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea_dgi: 'DP',  emoji: '👨‍👩‍👧' },
@@ -3075,6 +3091,20 @@ var CATEGORIAS_GASTO_DGI = [
   { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea_dgi: 'DP-3', emoji: '🏡' },
   { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea_dgi: 'DP-4', emoji: '🎓' },
   { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea_dgi: 'DP-5', emoji: '♿' },
+];
+
+// Categorías que cuentan como COSTO DE VENTAS (Anexo 94 L28-L35), no
+// como gasto operativo. Reducen Utilidad Bruta en el P&L y agregan
+// al Costo de Ventas en el reporte anual DGI.
+var COSTO_KEYS_ANEXO94 = [
+  'compras_locales',
+  'compras_importadas',
+  'salarios_costo',
+  'depreciacion_costo',
+  'mantenimiento_costo',
+  'servicios_costo',
+  'seguros_costo',
+  'otros_costos_venta',
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -3483,6 +3513,24 @@ function _handleGetPL(params, callback) {
       // Cualquier egreso con id_st_item ya está contabilizado en ST_Items → saltar
       var eStItem = String(er[COL_E.ID_ST_ITEM - 1] || '').trim();
       if (eStItem) continue;
+
+      // Categorías Anexo 94 L28-L35 → Costo de Ventas (no gasto operativo).
+      // Reducen Utilidad Bruta. Para mobile P&L que consume estos
+      // totales directamente del backend.
+      if (COSTO_KEYS_ANEXO94.indexOf(eTipo) !== -1) {
+        p.cogs += eTotal;
+        p.cogs_items.push({
+          id_st:       '',
+          tipo:        eTipo,
+          descripcion: String(er[COL_E.DESCRIPCION - 1] || ''),
+          proveedor:   String(er[COL_E.PROVEEDOR   - 1] || ''),
+          egreso_id:   String(er[COL_E.ID          - 1] || ''),
+          drive_url:   String(er[COL_E.DRIVE_URL   - 1] || '').trim(),
+          monto:       eTotal,
+          origen:      'GRAL',
+        });
+        continue;
+      }
 
       // Lo que queda son gastos operativos reales sin vínculo a ST
       p.gastos += eTotal;
