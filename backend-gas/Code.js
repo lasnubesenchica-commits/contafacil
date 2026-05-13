@@ -3929,3 +3929,17 @@ function migrarCategoriasIngresoLegacy(opts) {
   if (dryRun) Logger.log('⚠️ DRY RUN — no se modificaron datos. Re-ejecutar con { dryRun: false } para aplicar.');
   return stats;
 }
+
+// ── Wrappers sin parámetros para correr desde el Apps Script editor ──
+// El botón "Run" del editor no permite pasar argumentos, así que estas
+// dos funciones son la forma de invocar la migración:
+//
+//   migrarCategoriasIngresoPreview()   → dry-run, solo loguea
+//   migrarCategoriasIngresoAplicar()   → escribe los cambios en la hoja
+//
+function migrarCategoriasIngresoPreview() {
+  return migrarCategoriasIngresoLegacy({ dryRun: true });
+}
+function migrarCategoriasIngresoAplicar() {
+  return migrarCategoriasIngresoLegacy({ dryRun: false });
+}
