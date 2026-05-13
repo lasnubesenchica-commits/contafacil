@@ -3010,19 +3010,9 @@ const REG = (() => {
       document.getElementById('regIngItbmsVal').value = '0';
       des.style.display = 'none'; tag.style.display = 'none';
     }
-    // Retención esperada (informativa)
+    // Retención esperada — deshabilitada por ahora. El badge queda oculto.
     const wrap = document.getElementById('regIngRetencionInfo');
-    const span = document.getElementById('regIngRetMonto');
-    if (wrap && span) {
-      if (cat && cat.retencion_rate) {
-        const subRaw = parseFloat(document.getElementById('regIngSubtotal').value) || 0;
-        const ret = subRaw * cat.retencion_rate;
-        span.textContent = 'B/. ' + ret.toFixed(2) + (cat.retencion_tipo ? ' · ' + cat.retencion_tipo : '');
-        wrap.style.display = 'flex';
-      } else {
-        wrap.style.display = 'none';
-      }
-    }
+    if (wrap) wrap.style.display = 'none';
   }
 
   const _PERSONAL_SUBCATS_MOB = new Set(['gastos_medicos','gastos_escolares','intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados']);
