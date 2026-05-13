@@ -2071,55 +2071,116 @@ tr:hover td{background:rgba(0,0,0,.015)}
   </div><!-- /rgTabEgr -->
 
   <!-- TAB: INGRESOS -->
-  <div id="rgTabIng" style="display:none">
-    <!-- Toolbar -->
-    <div class="op-toolbar">
-      <button class="btn-sync" onclick="rgRefresh()">⟳ Actualizar</button>
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="rgSearchIng" class="filter-search" placeholder="Buscar ingreso..." oninput="rgRenderIng()">
+  <div id="rgTabIng" style="display:none;padding-top:.25rem">
+    <!-- ── ZONA 1: Resumen del período (KPIs) ──────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">📊</span> Resumen del período</div>
       </div>
-      <button class="op-filter-btn active" data-rgi-filter="all" onclick="rgApplyIngFilter(this,'all')">Todos</button>
-      <button class="op-filter-btn" data-rgi-filter="alquiler_cobrado"  onclick="rgApplyIngFilter(this,'alquiler_cobrado')">🏢 Alquiler cobrado</button>
-      <button class="op-filter-btn" data-rgi-filter="intereses"         onclick="rgApplyIngFilter(this,'intereses')">🏦 Intereses</button>
-      <button class="op-filter-btn" data-rgi-filter="otro_gravado"      onclick="rgApplyIngFilter(this,'otro_gravado')">📋 Otro gravado</button>
-      <button class="op-filter-btn" data-rgi-filter="otro_exento"       onclick="rgApplyIngFilter(this,'otro_exento')">📋 Otro exento</button>
-    </div>
-    <!-- Stats filtrados -->
-    <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
-      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatTotal">—</span><span class="stat-pill-label">Total registros</span></div>
-      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatMonto">—</span><span class="stat-pill-label">Total ingresos</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgIStatItbms">—</span><span class="stat-pill-label">ITBMS cobrado</span></div>
-    </div>
-    <!-- Header + botón nuevo -->
-    <div class="section-hdr-row">
-      <span class="section-hdr-lbl">Ingresos generales</span>
-      <button class="section-hdr-add ing" onclick="rgAbrirNuevoIngreso()" title="Registrar ingreso"
-        style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
-        <span style="font-size:.95rem;line-height:1">+</span><span>Registrar ingreso</span>
-      </button>
-    </div>
-    <!-- Tabla -->
-    <div class="op-table-wrap">
-      <table class="op-table" id="rgIngTable">
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Categoría DGI</th>
-            <th>Descripción</th>
-            <th>Cliente / Fuente</th>
-            <th>Factura</th>
-            <th style="text-align:right">Subtotal</th>
-            <th style="text-align:right">ITBMS</th>
-            <th style="text-align:right">Total</th>
-            <th style="text-align:center;white-space:nowrap">Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="rgIngBody">
-          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
-        </tbody>
-      </table>
-    </div>
+      <div class="rg-zone-body dense">
+        <div id="rgIngWidgets" style="display:grid;grid-template-columns:repeat(6,1fr);gap:.65rem"></div>
+      </div>
+    </section>
+
+    <!-- ── ZONA 2: Insights (Top categorías + Top clientes) ── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">🎯</span> Insights — qué pesa más</div>
+      </div>
+      <div class="rg-zone-body">
+        <div id="rgIngCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div class="rg-chart-card" id="rgIngChartCat"></div>
+          <div class="rg-chart-card" id="rgIngChartCli"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ZONA 3: Filtros + búsqueda ──────────────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">🔍</span> Filtros y búsqueda</div>
+        <div class="rg-zone-actions">
+          <div class="search-wrap" style="max-width:270px">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="rgSearchIng" class="filter-search" placeholder="Buscar ingreso o cliente..." oninput="rgRenderIng()">
+          </div>
+        </div>
+      </div>
+      <div class="rg-zone-body dense">
+        <div id="rgIngFiltersBar" class="op-toolbar" style="flex-wrap:wrap;gap:.5rem;padding:0">
+          <select id="rgIngFechaMode" onchange="rgApplyIngFecha(this.value)" class="rg-filter-sel">
+            <option value="all">📅 Todas las fechas</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="14">Últimos 14 días</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="custom">Rango personalizado…</option>
+          </select>
+          <span id="rgIngFechaCustom" style="display:none;gap:.3rem;align-items:center">
+            <input type="date" id="rgIngFechaDesde" onchange="rgRenderIng()"
+              style="font-size:.75rem;padding:.25rem .45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
+            <span style="font-size:.72rem;color:var(--muted)">→</span>
+            <input type="date" id="rgIngFechaHasta" onchange="rgRenderIng()"
+              style="font-size:.75rem;padding:.25rem .45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
+          </span>
+          <select id="rgIngCatSel" onchange="rgApplyIngFilter(null,this.value)" class="rg-filter-sel">
+            <option value="all">📂 Todas las categorías DGI</option>
+          </select>
+          <select id="rgIngCliSel" onchange="rgSetCliente(this.value)" class="rg-filter-sel">
+            <option value="TODOS">👤 Todos los clientes</option>
+          </select>
+          <select id="rgIngEstadoSel" onchange="rgApplyIngEstado(this.value)" class="rg-filter-sel">
+            <option value="all">Estado: Todos</option>
+            <option value="confirmado">✅ Confirmado</option>
+            <option value="pendiente">⏳ Pendiente</option>
+            <option value="abono">◑ Abono</option>
+          </select>
+          <select id="rgIngItbmsSel" onchange="rgApplyIngItbms(this.value)" class="rg-filter-sel">
+            <option value="all">ITBMS: Todos</option>
+            <option value="gravado">🏛️ Gravado</option>
+            <option value="exento">🚫 Exento / No aplica</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ZONA 4: Ingresos detallados (tabla) ─────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">📋</span> Ingresos detallados</div>
+        <div class="rg-zone-actions">
+          <button id="rgRegistrarIngresoBtn" class="section-hdr-add ing" onclick="rgAbrirNuevoIngreso()" title="Registrar ingreso"
+            style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
+            <span style="font-size:.95rem;line-height:1">+</span><span>Registrar ingreso</span>
+          </button>
+          <button id="rgRefreshIngBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar"
+            style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
+            <span id="rgRefreshIngIcon">↻</span><span>Actualizar</span>
+          </button>
+        </div>
+      </div>
+      <div class="rg-zone-body flush">
+        <div class="op-table-wrap">
+          <table class="op-table" id="rgIngTable">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Categoría DGI</th>
+                <th>Descripción</th>
+                <th>Cliente / Fuente</th>
+                <th>Factura</th>
+                <th style="text-align:right">Subtotal</th>
+                <th style="text-align:right">ITBMS</th>
+                <th style="text-align:right">Total</th>
+                <th style="text-align:center;white-space:nowrap">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="rgIngBody">
+              <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </div><!-- /rgTabIng -->
 
 
@@ -6675,7 +6736,11 @@ var rg_initialized = false;
 var rg_egr_filter        = 'all';   // filtro por categoría
 var rg_egr_estado   = 'all';  // filtro por estado: 'all' | 'pendiente' | 'registrado'
 var rg_egr_alcance  = 'all';  // filtro por alcance: 'all' | 'negocio' | 'personal'
-var rg_ing_filter   = 'all';
+var rg_ing_filter   = 'all';            // filtro por categoría DGI
+var rg_ing_estado   = 'all';            // 'all' | 'confirmado' | 'pendiente' | 'abono'
+var rg_ing_itbms    = 'all';            // 'all' | 'gravado' | 'exento'
+var _rgIngCliente   = 'TODOS';          // filtro por cliente
+var _rgIngFechaMode = 'all';            // 'all'|'7'|'14'|'30'|'custom'
 var _rgEgrAcreedor  = 'TODOS';             // filtro por acreedor
 var _rgEgrSort      = { col: 'fecha', dir: 'desc' }; // ordenamiento activo
 var _rgEgrSel       = new Set();           // IDs seleccionados (bulk)
@@ -7029,15 +7094,50 @@ function rgApplyEgrAlcance(val, btn) {
   rgRenderEgr();
 }
 function rgApplyIngFilter(btn, filter) {
-  document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  rg_ing_filter = filter;
+  // btn puede ser null (cuando se llama desde el <select> nativo)
+  if (btn && btn.classList) {
+    document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  rg_ing_filter = filter || 'all';
+  var sel = document.getElementById('rgIngCatSel');
+  if (sel) sel.value = rg_ing_filter;
+  rgRenderIng();
+}
+function rgApplyIngEstado(v) {
+  rg_ing_estado = v || 'all';
+  var sel = document.getElementById('rgIngEstadoSel');
+  if (sel) sel.value = rg_ing_estado;
+  rgRenderIng();
+}
+function rgApplyIngItbms(v) {
+  rg_ing_itbms = v || 'all';
+  var sel = document.getElementById('rgIngItbmsSel');
+  if (sel) sel.value = rg_ing_itbms;
+  rgRenderIng();
+}
+function rgSetCliente(v) {
+  _rgIngCliente = v || 'TODOS';
+  var sel = document.getElementById('rgIngCliSel');
+  if (sel) sel.value = _rgIngCliente;
+  rgRenderIng();
+}
+function rgApplyIngFecha(mode) {
+  _rgIngFechaMode = mode || 'all';
+  var sel = document.getElementById('rgIngFechaMode');
+  if (sel) sel.value = _rgIngFechaMode;
+  var custom = document.getElementById('rgIngFechaCustom');
+  if (custom) custom.style.display = (mode === 'custom') ? 'inline-flex' : 'none';
   rgRenderIng();
 }
 window.rgApplyEgrFilter  = rgApplyEgrFilter;
 window.rgApplyEgrEstado  = rgApplyEgrEstado;
 window.rgApplyEgrAlcance = rgApplyEgrAlcance;
 window.rgApplyIngFilter  = rgApplyIngFilter;
+window.rgApplyIngEstado  = rgApplyIngEstado;
+window.rgApplyIngItbms   = rgApplyIngItbms;
+window.rgSetCliente      = rgSetCliente;
+window.rgApplyIngFecha   = rgApplyIngFecha;
 
 function rgApplyEgrFecha(mode) {
   _rgEgrFechaMode = mode;
@@ -7916,20 +8016,242 @@ async function rgBulkCategoriaSelect(nuevoValor) {
 }
 window.rgBulkCategoriaSelect = rgBulkCategoriaSelect;
 
+// ── Poblar select Categoría DGI con conteos del universo activo ──
+function rgPopulateIngCatSelect(items) {
+  const sel = document.getElementById('rgIngCatSel');
+  if (!sel) return;
+  // Conteos por categoría (resolviendo legacy)
+  const counts = {};
+  items.forEach(i => {
+    const raw = i.categoria_ingreso || i.tipo_ingreso || 'sin_clasificar';
+    const resolved = LEGACY_INGRESO_MAP[raw] || raw;
+    counts[resolved] = (counts[resolved] || 0) + 1;
+  });
+  // Construir opciones siguiendo el orden DGI (catálogo)
+  let html = `<option value="all">📂 Todas las categorías DGI (${items.length})</option>`;
+  const personales = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) <= 5);
+  const actividad  = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) >= 6);
+  const renderOpt = c => {
+    const n = counts[c.valor] || 0;
+    if (!n) return '';   // omitir categorías sin registros
+    return `<option value="${c.valor}">${c.emoji} L${c.linea} · ${esc(c.label)} (${n})</option>`;
+  };
+  const personalesHtml = personales.map(renderOpt).filter(Boolean).join('');
+  const actividadHtml  = actividad.map(renderOpt).filter(Boolean).join('');
+  if (personalesHtml) html += '<optgroup label="INGRESOS (L1–L5)">' + personalesHtml + '</optgroup>';
+  if (actividadHtml)  html += '<optgroup label="INGRESOS POR ACTIVIDAD Y/O PROFESIÓN (L6–L19)">' + actividadHtml + '</optgroup>';
+  sel.innerHTML = html;
+  // Restaurar selección
+  if (rg_ing_filter && rg_ing_filter !== 'all' && counts[rg_ing_filter] != null) {
+    sel.value = rg_ing_filter;
+  } else {
+    sel.value = 'all';
+    if (rg_ing_filter !== 'all' && counts[rg_ing_filter] == null) rg_ing_filter = 'all';
+  }
+}
+
+// ── Poblar select Cliente con conteos ──
+function rgPopulateIngClienteSelect(items) {
+  const sel = document.getElementById('rgIngCliSel');
+  if (!sel) return;
+  const counts = {};
+  items.forEach(i => {
+    const c = (i.nombre_cliente || '').trim();
+    if (!c) return;
+    counts[c] = (counts[c] || 0) + 1;
+  });
+  const sorted = Object.keys(counts).sort((a,b) => counts[b] - counts[a]);
+  let html = `<option value="TODOS">👤 Todos los clientes (${items.length})</option>`;
+  html += sorted.map(c => `<option value="${esc(c)}">${esc(c)} (${counts[c]})</option>`).join('');
+  sel.innerHTML = html;
+  if (_rgIngCliente && _rgIngCliente !== 'TODOS' && counts[_rgIngCliente]) {
+    sel.value = _rgIngCliente;
+  } else {
+    sel.value = 'TODOS';
+    if (_rgIngCliente !== 'TODOS' && !counts[_rgIngCliente]) _rgIngCliente = 'TODOS';
+  }
+}
+
+// ── Widgets KPIs ──
+function rgRenderIngWidgets(items) {
+  const fmt$ = n => n > 0 ? '$'+n.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+
+  // Clasificar cada ingreso según el catálogo DGI
+  const _resolve = i => {
+    const raw = i.categoria_ingreso || i.tipo_ingreso || '';
+    return LEGACY_INGRESO_MAP[raw] || raw;
+  };
+  const _isSustractivo = v => CATS_ING_SUSTRACTIVAS.includes(v);
+  const _isExento      = v => v === 'fuente_extranjera';   // L18: no tributa
+
+  const totBruto      = items.filter(i => !_isSustractivo(_resolve(i)) && !_isExento(_resolve(i)))
+                              .reduce((s,i) => s + Number(i.subtotal || 0), 0);
+  const totSustract   = items.filter(i => _isSustractivo(_resolve(i)))
+                              .reduce((s,i) => s + Number(i.subtotal || 0), 0);
+  const totExento     = items.filter(i => _isExento(_resolve(i)))
+                              .reduce((s,i) => s + Number(i.subtotal || 0), 0);
+  const totItbms      = items.reduce((s,i) => s + Number(i.itbms || 0), 0);
+  const rentaGravable = totBruto - totSustract;
+  const nConfirm      = items.filter(i => String(i.estado||'').toLowerCase() === 'confirmado').length;
+  const nPend         = items.filter(i => String(i.estado||'').toLowerCase() === 'pendiente').length;
+
+  const wEl = document.getElementById('rgIngWidgets');
+  if (!wEl) return;
+  wEl.style.gridTemplateColumns = 'repeat(6,1fr)';
+  wEl.innerHTML = [
+    { label:'Confirmados', val: nConfirm || '—',     color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyIngEstado('confirmado')", active: rg_ing_estado === 'confirmado' },
+    { label:'Pendientes',  val: nPend || '—',        color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyIngEstado('pendiente')",  active: rg_ing_estado === 'pendiente' },
+    { label:'Total bruto', val: fmt$(totBruto),      color:'#1B5E20', bg:'#F1F8E9', icon:'💰', click:'',                                 active: false },
+    { label:'Sustractivos',val: fmt$(totSustract),   color:'#BF360C', bg:'#FBE9E7', icon:'↩️', click:'',                                 active: false },
+    { label:'Renta gravable', val: fmt$(rentaGravable), color:'#6A1B9A', bg:'#F3E5F5', icon:'🎯', click:'',                            active: false },
+    { label:'ITBMS cobrado',  val: fmt$(totItbms),   color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:"rgApplyIngItbms('gravado')",     active: rg_ing_itbms === 'gravado' },
+  ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}border:2px solid ${w.active ? w.color : 'transparent'};transition:border-color .15s">`+
+    `<div style="font-size:1.3rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
+    `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}${w.active ? ' ●' : ''}</div>`+
+    `</div>`).join('');
+}
+
+// ── Insights: Top categorías DGI + Top clientes ──
+function rgRenderIngCharts(items) {
+  const TOP_N = 6;
+  const fmt$ = n => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+  // Categorías DGI
+  const catEl = document.getElementById('rgIngChartCat');
+  if (catEl) {
+    const totals = {};
+    items.forEach(i => {
+      const raw = i.categoria_ingreso || i.tipo_ingreso || 'sin_clasificar';
+      const resolved = LEGACY_INGRESO_MAP[raw] || raw;
+      totals[resolved] = (totals[resolved] || 0) + (parseFloat(i.subtotal) || 0);
+    });
+    const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
+    const max = sorted.length ? Math.abs(totals[sorted[0]]) : 0;
+    let body = '<div class="rg-chart-title">📂 Top categorías DGI</div>';
+    if (!sorted.length) {
+      body += '<div class="rg-chart-empty">Sin datos</div>';
+    } else {
+      body += sorted.map(c => {
+        const cat = _getIngresoCat(c);
+        const lbl = cat ? (cat.emoji + ' L' + cat.linea + ' · ' + cat.label) : (RG_ING_CAT_LABELS[c] || c);
+        const pct = max > 0 ? Math.max(2, (Math.abs(totals[c]) / max) * 100) : 0;
+        const isActive = rg_ing_filter === c;
+        const dot = isActive ? '<span style="color:var(--orange);font-weight:700">●</span> ' : '';
+        return `<div class="rg-chart-row${isActive ? ' active' : ''}" onclick="rgApplyIngFilter(null,'${c.replace(/'/g,"\\'")}')" title="${esc(lbl)}${isActive ? ' — click para quitar filtro' : ''}">`
+          + `<div class="rg-chart-lbl">${dot}${esc(lbl)}</div>`
+          + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar" style="width:${pct.toFixed(1)}%"></div></div>`
+          + `<div class="rg-chart-val">${fmt$(totals[c])}</div></div>`;
+      }).join('');
+    }
+    catEl.innerHTML = body;
+  }
+
+  // Clientes
+  const cliEl = document.getElementById('rgIngChartCli');
+  if (cliEl) {
+    const totals = {};
+    items.forEach(i => {
+      const c = (i.nombre_cliente || '').trim();
+      if (!c) return;
+      totals[c] = (totals[c] || 0) + (parseFloat(i.subtotal) || 0);
+    });
+    const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
+    const max = sorted.length ? totals[sorted[0]] : 0;
+    let body = '<div class="rg-chart-title">👤 Top clientes</div>';
+    if (!sorted.length) {
+      body += '<div class="rg-chart-empty">Sin datos</div>';
+    } else {
+      body += sorted.map(c => {
+        const pct = max > 0 ? Math.max(2, (totals[c] / max) * 100) : 0;
+        const isActive = _rgIngCliente === c;
+        const dot = isActive ? '<span style="color:#1565C0;font-weight:700">●</span> ' : '';
+        return `<div class="rg-chart-row${isActive ? ' active' : ''}" onclick="rgSetCliente('${c.replace(/'/g,"\\'")}')" title="${esc(c)}${isActive ? ' — click para quitar filtro' : ''}">`
+          + `<div class="rg-chart-lbl">${dot}${esc(c)}</div>`
+          + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar prov" style="width:${pct.toFixed(1)}%"></div></div>`
+          + `<div class="rg-chart-val">${fmt$(totals[c])}</div></div>`;
+      }).join('');
+    }
+    cliEl.innerHTML = body;
+  }
+}
+window.rgRenderIngWidgets = rgRenderIngWidgets;
+window.rgRenderIngCharts  = rgRenderIngCharts;
+
 function rgRenderIng() {
   const q    = (document.getElementById('rgSearchIng') || {value:''}).value.toLowerCase().trim();
-  let items  = ingItems.filter(rgEsMiscelaneoIng)
+  // Activos (no anulados) — base sin filtrar para poblar selects
+  const activos = ingItems.filter(rgEsMiscelaneoIng)
     .filter(i => String(i.estado||'').toLowerCase() !== 'anulado');
-  if (rg_ing_filter !== 'all') items = items.filter(i => i.categoria_ingreso === rg_ing_filter || i.tipo_ingreso === rg_ing_filter);
-  if (q) items = items.filter(i => [i.nombre_cliente,i.descripcion,i.num_factura,i.tipo_ingreso].join(' ').toLowerCase().includes(q));
+
+  // ── Aplicar filtros ──────────────────────────────────────────
+  let items = activos.slice();
+
+  // Fecha
+  if (_rgIngFechaMode !== 'all') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    let desde, hasta;
+    if (_rgIngFechaMode === 'custom') {
+      const d = document.getElementById('rgIngFechaDesde');
+      const h = document.getElementById('rgIngFechaHasta');
+      desde = d && d.value ? new Date(d.value) : null;
+      hasta = h && h.value ? new Date(h.value) : null;
+      if (hasta) hasta.setHours(23,59,59,999);
+    } else {
+      const days = parseInt(_rgIngFechaMode) || 0;
+      desde = new Date(today); desde.setDate(today.getDate() - days);
+      hasta = new Date(today); hasta.setHours(23,59,59,999);
+    }
+    items = items.filter(i => {
+      const f = i.fecha_ingreso ? new Date(i.fecha_ingreso) : null;
+      if (!f) return false;
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+      return true;
+    });
+  }
+
+  // Estado
+  if (rg_ing_estado !== 'all') {
+    items = items.filter(i => String(i.estado||'').toLowerCase() === rg_ing_estado);
+  }
+
+  // ITBMS gravado/exento (resuelto via catálogo DGI)
+  if (rg_ing_itbms !== 'all') {
+    items = items.filter(i => {
+      const cat = _getIngresoCat(i.categoria_ingreso || i.tipo_ingreso || '');
+      const status = cat ? cat.itbms_status : (Number(i.itbms||0) > 0 ? 'gravado' : 'no_aplica');
+      return rg_ing_itbms === 'gravado' ? status === 'gravado' : status !== 'gravado';
+    });
+  }
+
+  // Categoría DGI (acepta valor nuevo o legacy via LEGACY_INGRESO_MAP)
+  if (rg_ing_filter !== 'all') {
+    items = items.filter(i => {
+      const raw = i.categoria_ingreso || i.tipo_ingreso || '';
+      const resolved = LEGACY_INGRESO_MAP[raw] || raw;
+      return resolved === rg_ing_filter || raw === rg_ing_filter;
+    });
+  }
+
+  // Cliente
+  if (_rgIngCliente && _rgIngCliente !== 'TODOS') {
+    items = items.filter(i => (i.nombre_cliente||'').trim() === _rgIngCliente);
+  }
+
+  // Búsqueda libre
+  if (q) items = items.filter(i => [i.nombre_cliente,i.descripcion,i.num_factura,i.tipo_ingreso,i.categoria_ingreso].join(' ').toLowerCase().includes(q));
+
   items.sort((a,b) => String(b.fecha_ingreso||'').localeCompare(String(a.fecha_ingreso||'')));
 
-  // Stats
-  const totMonto = items.reduce((s,i)=>s+Number(i.total||0),0);
-  const totItbms = items.reduce((s,i)=>s+Number(i.itbms||0),0);
-  document.getElementById('rgIStatTotal').textContent = items.length;
-  document.getElementById('rgIStatMonto').textContent = items.length ? '$'+totMonto.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
-  document.getElementById('rgIStatItbms').textContent = totItbms>0 ? '$'+totItbms.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  // ── Poblar selects de Categoría DGI + Cliente desde el universo activo ──
+  rgPopulateIngCatSelect(activos);
+  rgPopulateIngClienteSelect(activos);
+
+  // ── Renderizar widgets KPIs + charts ──
+  rgRenderIngWidgets(items);
+  rgRenderIngCharts(items);
+
+  // Stats — los pills antiguos ya no existen, son redundantes con los widgets
 
   const tbody = document.getElementById('rgIngBody');
   if (!items.length) {
