@@ -2776,7 +2776,7 @@ function _handleParseComprobanteIngreso(data) {
     }
 
     var prompt =
-      'Eres un extractor de datos de comprobantes de pago panameños. ' +
+      'Eres un extractor de datos de comprobantes de pago panameños y un clasificador fiscal DGI. ' +
       'Analiza esta imagen o documento y determina si es un:\n' +
       '  - voucher Yappy (app de pagos panameña)\n' +
       '  - comprobante de transferencia bancaria\n' +
@@ -2792,18 +2792,40 @@ function _handleParseComprobanteIngreso(data) {
       '  "dv_pagador": "dígito verificador del RUC, null si no visible",\n' +
       '  "tiene_itbms": false,\n' +
       '  "descripcion": "descripción breve del concepto o producto, null si no aplica",\n' +
-      '  "notas": "cualquier dato adicional relevante (banco origen, referencia, etc.)"\n' +
+      '  "notas": "cualquier dato adicional relevante (banco origen, referencia, etc.)",\n' +
+      '  "categoria_dgi": "clasifica el ingreso a UNA de las líneas DGI Formulario 91 (ver guía abajo)"\n' +
       '}\n\n' +
-      'REGLAS:\n' +
+      'REGLAS GENERALES:\n' +
       '1. Para Yappy: monto = lo que se pagó; nombre_pagador = quien envió el pago.\n' +
       '2. Para transferencias: incluir banco origen y referencia en notas.\n' +
-      '3. Para facturas: tiene_itbms = true si el documento muestra ITBMS o impuesto del 7%.\n' +
+      '3. Para facturas: tiene_itbms = true si el documento muestra ITBMS o impuesto del 7% o 10%.\n' +
       '4. fecha siempre en formato YYYY-MM-DD.\n' +
-      '5. Si un campo no es visible, usa null (no inventar datos).';
+      '5. Si un campo no es visible, usa null (no inventar datos).\n\n' +
+      'GUÍA DE CLASIFICACIÓN categoria_dgi (Formulario 91 DGI Panamá):\n' +
+      'Elige EXACTAMENTE una de estas keys según la naturaleza del ingreso. Si no estás seguro, usa "ventas_servicios" (L14) que es el catch-all comercial.\n\n' +
+      'ACTIVIDAD / PROFESIÓN (lo más común):\n' +
+      '  - "ventas_servicios" (L14): venta de productos o prestación de servicios comerciales. Factura DGI estándar, e-Factura, venta al detal o mayorista. ESTE ES EL DEFAULT si el comprobante es una factura comercial sin contexto especial.\n' +
+      '  - "honorarios_profesionales" (L8): honorarios por servicios profesionales independientes (médicos, abogados, contadores, arquitectos, ingenieros, consultores). Suele venir en factura emitida por persona natural con RUC profesional.\n' +
+      '  - "honorarios_comision" (L7): comisiones por venta o intermediación (vendedores, brokers, agentes).\n' +
+      '  - "alquiler_comercial" (L10): renta de local comercial, oficina, bodega. Incluye ITBMS 7%.\n' +
+      '  - "alquiler_habitacional" (L9): renta de vivienda. EXENTO de ITBMS por ley.\n' +
+      '  - "intereses_financieros" (L11): intereses bancarios, rendimientos de inversión, intereses por préstamos otorgados.\n' +
+      '  - "actividad_agropecuaria" (L6): venta de productos agrícolas, ganadería, pesca.\n' +
+      '  - "otros_ingresos" (L13): ingresos comerciales que no encajen específicamente arriba.\n\n' +
+      'REMUNERACIONES PERSONALES (asalariados):\n' +
+      '  - "salarios_con_retencion" (L1): comprobante de pago de planilla / sueldo con retención mensual.\n' +
+      '  - "remuneracion_sin_retencion" (L2): pago personal sin retención del empleador.\n' +
+      '  - "gastos_repr_asalariado" (L4): gastos de representación como parte del salario.\n' +
+      '  - "dietas" (L5): pagos por participación en juntas o sesiones.\n\n' +
+      'ESPECIALES:\n' +
+      '  - "fuente_extranjera" (L18): claramente proviene de cliente fuera de Panamá (factura en USD pero con dirección extranjera, etc.).\n' +
+      '  - "ingresos_exentos" (L17): dividendos locales con ISR ya pagado, donaciones no comerciales.\n' +
+      '  - "devoluciones_descuentos" (L15): notas crédito o devoluciones (signo negativo).\n\n' +
+      'Si el comprobante no da pistas claras, default a "ventas_servicios".';
 
     var payload = {
       model:      'claude-sonnet-4-20250514',
-      max_tokens: 600,
+      max_tokens: 1000,
       messages: [{
         role:    'user',
         content: [ contentBlock, { type: 'text', text: prompt } ]
@@ -2843,6 +2865,7 @@ function _handleParseComprobanteIngreso(data) {
         tiene_itbms:      !!parsed.tiene_itbms,
         descripcion:      parsed.descripcion      || null,
         notas:            parsed.notas            || null,
+        categoria_dgi:    parsed.categoria_dgi    || null,
       }))
       .setMimeType(ContentService.MimeType.JSON);
 

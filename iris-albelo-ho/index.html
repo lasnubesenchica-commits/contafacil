@@ -5018,17 +5018,24 @@ function llenarCamposIngreso(parsed) {
   if (parsed.descripcion)     document.getElementById('iDescripcion').value = parsed.descripcion;
   if (parsed.notas)           document.getElementById('iNotas').value       = parsed.notas;
 
-  // Inferir categoría desde tipo de comprobante detectado por IA.
-  // Default a 'ventas_servicios' (L14, gravado 7%) — la categoría más común
-  // para actividad comercial. Si la IA explicita 'tiene_itbms=false', no
-  // sobrescribimos: dejamos al usuario elegir la línea exenta correcta.
+  // Categoría DGI sugerida por la IA. Si viene una key válida del
+  // catálogo Form 91 (19 líneas), la aplicamos; si no, default a
+  // ventas_servicios (L14). El usuario siempre puede sobrescribir.
   const cat = document.getElementById('iCategoria');
-  cat.value = 'ventas_servicios';
+  const aiCat = parsed.categoria_dgi || '';
+  const resolved = LEGACY_INGRESO_MAP[aiCat] || aiCat;
+  const isValid = !!CATEGORIAS_INGRESO_DGI.find(c => c.valor === resolved);
+  cat.value = isValid ? resolved : 'ventas_servicios';
   inferirItbmsIngreso();
-  // Si el comprobante claramente NO tiene ITBMS, destildar manualmente
-  if (parsed.tipo_comprobante === 'factura' && parsed.tiene_itbms === false) {
-    document.getElementById('iItbmsCheck').checked = false;
-    recalcIngreso();
+  // Si el comprobante claramente NO tiene ITBMS y la categoría
+  // elegida es gravable, destildar para respetar la realidad del
+  // comprobante (la IA puede haber dicho ventas_servicios + tiene_itbms=false).
+  if (parsed.tiene_itbms === false) {
+    const elegida = _getIngresoCat(cat.value);
+    if (elegida && elegida.itbms_status === 'gravado') {
+      document.getElementById('iItbmsCheck').checked = false;
+      recalcIngreso();
+    }
   }
 }
 
