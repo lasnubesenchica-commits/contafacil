@@ -7267,6 +7267,88 @@ async function catChipSelect(nuevoValor, nuevoLabel) {
 }
 window.catChipSelect = catChipSelect;
 
+// ══════════════════════════════════════════════════════════════════
+//  Categoría editable INGRESOS — chip clickeable en Registro General
+//  Refleja el catálogo CATEGORIAS_INGRESO_DGI (19 líneas Form 91).
+//  Mismo patrón visual que los chips de gastos pero con secciones DGI.
+// ══════════════════════════════════════════════════════════════════
+function catChipLabelIng(valor) {
+  const cat = _getIngresoCat(valor);
+  if (cat) return cat.emoji + ' ' + cat.label;
+  return RG_ING_CAT_LABELS[valor] || valor || '—';
+}
+
+function buildCatChipIng(item) {
+  const catVal = item.categoria_ingreso || item.tipo_ingreso || '';
+  const label  = catChipLabelIng(catVal);
+  const id     = esc(item.id_trans || '');
+  return `<div class="cat-chip-wrap">
+    <span class="cat-chip-label" onclick="catChipOpenIng(event,'${id}','${esc(catVal)}')">
+      ${esc(label)}
+      <span class="cat-chip-edit-icon">✏️</span>
+    </span>
+  </div>`;
+}
+window.buildCatChipIng = buildCatChipIng;
+
+function catChipOpenIng(e, id, catActual) {
+  e.stopPropagation();
+  _catDropJustOpened = true;
+  const trigger = (e.currentTarget || e.target).closest('.cat-chip-label') || e.target;
+  const rect    = trigger.getBoundingClientRect();
+  const drop    = _getCatDropEl();
+
+  _catDropId   = id;
+  _catDropTipo = 'ingreso';
+
+  _positionDrop(drop, rect);
+
+  // Construir 2 secciones DGI Formulario 91 (mismo orden que el modal)
+  const personales = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) <= 5);
+  const actividad  = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) >= 6);
+
+  const renderOpt = c => `
+    <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+         onclick="catChipSelectIng('${c.valor}')">
+      <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+      <span style="font-size:.9rem;flex-shrink:0">${c.emoji || ''}</span>
+      ${esc(c.label)}
+      <span class="cat-check">✓</span>
+    </div>`;
+
+  let html = '<div class="cat-chip-dropdown-title">Reclasificar a línea DGI</div>';
+  html += '<div class="cat-chip-section">── INGRESOS (L1–L5) ──</div>';
+  html += personales.map(renderOpt).join('');
+  html += '<div class="cat-chip-section">── INGRESOS POR ACTIVIDAD Y/O PROFESIÓN (L6–L19) ──</div>';
+  html += actividad.map(renderOpt).join('');
+  drop.innerHTML = html;
+  drop.classList.add('open');
+}
+window.catChipOpenIng = catChipOpenIng;
+
+async function catChipSelectIng(nuevoValor) {
+  const drop = _getCatDropEl();
+  drop.innerHTML = `<div class="cat-chip-saving">⏳ Guardando...</div>`;
+  try {
+    const data = await gasJsonp('actualizarCategoria', {
+      tipo: 'ingreso', id: _catDropId, categoria: nuevoValor,
+    });
+    if (data && !data.success) throw new Error(data.error || 'Error al guardar');
+    // Actualizar en memoria
+    const idx = ingItems.findIndex(i => String(i.id_trans) === String(_catDropId));
+    if (idx !== -1) {
+      ingItems[idx].categoria_ingreso = nuevoValor;
+    }
+    drop.classList.remove('open');
+    showToast('✅ Categoría actualizada');
+    if (typeof rgRenderIng === 'function') rgRenderIng();
+  } catch(err) {
+    drop.innerHTML = `<div class="cat-chip-saving" style="color:var(--red)">❌ ${err.message}</div>`;
+    setTimeout(() => drop.classList.remove('open'), 2000);
+  }
+}
+window.catChipSelectIng = catChipSelectIng;
+
 // ── catChipOpenPL — abre el dropdown del P&L con el catálogo DGI correcto ──
 // tipo: 'pl_gasto' → categorías operativas (reclasificable)
 // tipo: 'pl_costo' → tipos de costo (solo informativo, no reclasificable)
@@ -7855,7 +7937,6 @@ function rgRenderIng() {
     return;
   }
   tbody.innerHTML = items.map(i => {
-    const catLabel = RG_ING_CAT_LABELS[i.categoria_ingreso] || RG_ING_CAT_LABELS[i.tipo_ingreso] || i.tipo_ingreso || '—';
     const docLink  = i.drive_url
       ? (i.factura_data
           ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaIngreso(event,'${esc(i.id_trans)}');return false" style="font-size:.95rem;color:#1565C0;text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
@@ -7864,7 +7945,7 @@ function rgRenderIng() {
     const idEsc = esc(i.id_trans || '');
     return `<tr>
       <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso||'—'}</td>
-      <td><span style="font-size:.72rem">${esc(catLabel)}</span></td>
+      <td>${buildCatChipIng(i)}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.descripcion||'')}">${esc((i.descripcion||'—').substring(0,50))}</td>
       <td style="font-size:.78rem">${esc(i.nombre_cliente||'—')}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${esc(i.num_factura||'—')}</td>
