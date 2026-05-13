@@ -4788,9 +4788,6 @@ function closeIngresoModal() {
 }
 
 // ── RECALC INGRESO ──────────────────────────────────────────
-// Las categorías que llevan ITBMS por defecto
-// Alias legacy — algunos call sites pre-refactor pueden usarla.
-const CATS_GRAVADAS_ING = CATS_ING_GRAVADAS;
 
 // Pinta el <select id="iCategoria"> agrupado por sección DGI.
 function _renderIngresoCategoriaSelect(selectedValue) {
