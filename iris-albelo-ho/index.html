@@ -4860,22 +4860,12 @@ function inferirItbmsIngreso() {
   recalcIngreso();
 }
 
-// Actualiza el badge "Retención esperada: B/. X.XX" según la categoría
-// y el monto. Llamado desde recalcIngreso() después de calcular subtotal.
+// Badge "Retención esperada" — deshabilitado por ahora. El div
+// iRetencionInfo queda oculto siempre. Reactivar restaurando el
+// cuerpo original si en algún momento queremos volver a mostrarlo.
 function _updateRetencionEsperada() {
-  const sel  = document.getElementById('iCategoria');
-  const cat  = _getIngresoCat(sel.value);
   const wrap = document.getElementById('iRetencionInfo');
-  const span = document.getElementById('iRetencionMonto');
-  if (!wrap || !span) return;
-  if (!cat || !cat.retencion_rate) {
-    wrap.style.display = 'none';
-    return;
-  }
-  const subtotal = parseFloat(document.getElementById('iSubtotal').value) || 0;
-  const ret = subtotal * cat.retencion_rate;
-  span.textContent = 'B/. ' + ret.toFixed(2) + (cat.retencion_tipo ? '  · ' + cat.retencion_tipo : '');
-  wrap.style.display = 'flex';
+  if (wrap) wrap.style.display = 'none';
 }
 
 function recalcIngreso() {
