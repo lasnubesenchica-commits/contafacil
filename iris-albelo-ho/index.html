@@ -4704,7 +4704,7 @@ let _ingEditId = null;  // null = crear, set = editar
 
 function abrirModalNuevoIngreso() {
   _ingEditId = null;
-  _renderIngresoCategoriaSelect('ventas_servicios');
+  _renderIngresoCategoriaSelect();   // sin arg → placeholder, fuerza elegir
   document.getElementById('iDescripcion').value   = '';
   document.getElementById('iFecha').value         = new Date().toISOString().substring(0,10);
   document.getElementById('iNumFac').value        = '';
@@ -4790,7 +4790,8 @@ function closeIngresoModal() {
 // ── RECALC INGRESO ──────────────────────────────────────────
 
 // Pinta el <select id="iCategoria"> en orden DGI Formulario 91 (L1-L19),
-// agrupado en las 2 secciones oficiales.
+// agrupado en las 2 secciones oficiales. Si selectedValue es falsy,
+// el dropdown abre con el placeholder visible y obliga al usuario a elegir.
 function _renderIngresoCategoriaSelect(selectedValue) {
   const sel = document.getElementById('iCategoria');
   if (!sel) return;
@@ -4800,13 +4801,17 @@ function _renderIngresoCategoriaSelect(selectedValue) {
     const isSel = (c.valor === selectedValue) ? ' selected' : '';
     return `<option value="${c.valor}"${isSel}>${label}</option>`;
   };
-  // Orden estricto DGI: L1-L5 (Ingresos), L6-L19 (Actividad/Profesión).
-  // El catálogo CATEGORIAS_INGRESO_DGI ya está declarado en orden 1-19.
+  // Orden estricto DGI: L1-L5 (Ingresos personales), L6-L19 (Actividad).
   const personales = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) <= 5);
   const actividad  = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) >= 6);
+  // Placeholder selected si no hay valor inicial (obliga al usuario a elegir).
+  const placeholder = selectedValue
+    ? ''
+    : '<option value="" disabled selected>— Seleccionar categoría —</option>';
   sel.innerHTML =
-    sec('Ingresos (L1–L5)')                              + personales.map(opt).join('') +
-    sec('Ingresos por Actividad y/o Profesión (L6–L19)') + actividad.map(opt).join('');
+    placeholder +
+    sec('INGRESOS (L1–L5)')                              + personales.map(opt).join('') +
+    sec('INGRESOS POR ACTIVIDAD Y/O PROFESIÓN (L6–L19)') + actividad.map(opt).join('');
 }
 
 // Aplica defaults DGI según la categoría elegida: ITBMS rate, hint
@@ -4848,15 +4853,9 @@ function inferirItbmsIngreso() {
     checkRow.style.display = 'none';
   }
 
-  // Hint contextual
-  if (hintEl) {
-    if (cat.hint) {
-      hintEl.innerHTML = `<strong>L${cat.linea} · ${cat.emoji} ${cat.label}</strong><br>${cat.hint}`;
-      hintEl.style.display = 'block';
-    } else {
-      hintEl.style.display = 'none';
-    }
-  }
+  // Hint contextual — deshabilitado por ahora. Mantener el código por si
+  // se reactiva más adelante. El div iCatHint queda oculto siempre.
+  if (hintEl) hintEl.style.display = 'none';
 
   recalcIngreso();
 }
@@ -5323,20 +5322,22 @@ function abrirModalEditarIngreso(item) {
 window.abrirModalEditarIngreso = abrirModalEditarIngreso;
 
 async function guardarNuevoIngreso() {
+  const categoria   = document.getElementById('iCategoria').value;
   const descripcion = document.getElementById('iDescripcion').value.trim();
   const total       = parseFloat(document.getElementById('iTotal').value)||0;
   const fecha       = document.getElementById('iFecha').value;
   const nombre      = document.getElementById('iNombreCli').value.trim();
-  if (!total)  { showToast('⚠️ El total es requerido');               return; }
-  if (!fecha)  { showToast('⚠️ La fecha es requerida');               return; }
-  if (!nombre) { showToast('⚠️ El nombre del cliente es requerido');  return; }
+  if (!categoria) { showToast('⚠️ Selecciona una categoría DGI');    return; }
+  if (!total)     { showToast('⚠️ El total es requerido');             return; }
+  if (!fecha)     { showToast('⚠️ La fecha es requerida');             return; }
+  if (!nombre)    { showToast('⚠️ El nombre del cliente es requerido');return; }
   const btn = document.querySelector('#ingresoModalOverlay .btn-primary');
   const isEdit = !!_ingEditId;
   btn.disabled = true; btn.textContent = isEdit ? '⏳ Actualizando...' : '⏳ Guardando...';
   try {
     const payload = {
       fecha:            fecha,
-      categoria:        document.getElementById('iCategoria').value,
+      categoria:        categoria,
       descripcion:      descripcion,
       num_factura:     document.getElementById('iNumFac').value.trim(),
       subtotal:        document.getElementById('iSubtotal').value||'',
@@ -7979,7 +7980,7 @@ function rgAbrirNuevoEgreso() {
 }
 function rgAbrirNuevoIngreso() {
   abrirModalNuevoIngreso();
-  document.getElementById('iCategoria').value = 'otros_ingresos';
+  // Sin pre-selección: el usuario elige la categoría DGI manualmente.
   // Cambiar el título para contexto claro
   document.querySelector('#ingresoModalOverlay .modal-title').textContent = '💰 Registrar Ingreso General';
 }

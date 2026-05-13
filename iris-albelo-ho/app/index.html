@@ -3101,15 +3101,8 @@ const REG = (() => {
       check.checked = false;
       row.style.display = 'none';
     }
-    // Hint contextual
-    if (hint) {
-      if (cat.hint) {
-        hint.innerHTML = `<strong>L${cat.linea}</strong> · ${cat.hint}`;
-        hint.style.display = 'block';
-      } else {
-        hint.style.display = 'none';
-      }
-    }
+    // Hint contextual — deshabilitado por ahora. El div queda oculto.
+    if (hint) hint.style.display = 'none';
     recalcIng();
   }
 
@@ -3348,9 +3341,9 @@ const REG = (() => {
   function _resetIngForm() {
     ['regIngNfac','regIngDesc','regIngTotal','regIngNombre','regIngRuc','regIngDv','regIngNotas']
       .forEach(id => document.getElementById(id).value = '');
-    document.getElementById('regIngCat').value          = 'ventas_servicios';
+    document.getElementById('regIngCat').value          = '';   // placeholder
     document.getElementById('regIngFecha').value        = new Date().toISOString().slice(0,10);
-    document.getElementById('regIngItbms').checked      = true;
+    document.getElementById('regIngItbms').checked      = false;
     document.getElementById('regIngDesglose').style.display = 'none';
     document.getElementById('regIngItbmsTag').style.display = 'none';
     document.getElementById('regIngSubtotal').value     = '';
@@ -3526,19 +3519,21 @@ const REG = (() => {
 
   // ── Submit ingreso ────────────────────────────────────
   async function submitIngreso() {
+    const categoria = document.getElementById('regIngCat').value;
     const total  = parseFloat(document.getElementById('regIngTotal').value) || 0;
     const fecha  = document.getElementById('regIngFecha').value;
     const nombre = document.getElementById('regIngNombre').value.trim();
-    if (!total)  { toast('Ingresa el total', 'err');           return; }
-    if (!fecha)  { toast('Ingresa la fecha', 'err');           return; }
-    if (!nombre) { toast('Ingresa el nombre del cliente', 'err'); return; }
+    if (!categoria) { toast('Selecciona una categoría DGI', 'err');  return; }
+    if (!total)     { toast('Ingresa el total', 'err');               return; }
+    if (!fecha)     { toast('Ingresa la fecha', 'err');               return; }
+    if (!nombre)    { toast('Ingresa el nombre del cliente', 'err');  return; }
     const btn = document.getElementById('regIngSubmit');
     const isEdit = !!_ingEditId;
     btn.disabled = true; btn.textContent = isEdit ? 'Actualizando…' : 'Guardando…';
     try {
       const payload = {
         fecha,
-        categoria:   document.getElementById('regIngCat').value,
+        categoria,
         descripcion: document.getElementById('regIngDesc').value.trim(),
         num_factura: document.getElementById('regIngNfac').value.trim(),
         subtotal:    document.getElementById('regIngSubtotal').value || '',
@@ -4230,14 +4225,15 @@ const PEND = (() => {
       <div class="f-grp">
         <label class="f-lbl">Categoría</label>
         <select class="f-inp" id="regIngCat" onchange="REG.inferItbmsIng()">
-          <optgroup label="Ingresos (L1–L5)">
+          <option value="" disabled selected>— Seleccionar categoría —</option>
+          <optgroup label="INGRESOS (L1–L5)">
             <option value="salarios_con_retencion">💼 Salarios y otras remuneraciones c/retención (L1)</option>
             <option value="remuneracion_sin_retencion">💵 Otras remuneraciones personales s/retención (L2)</option>
             <option value="ingresos_especies">🎁 Ingresos en especies (L3)</option>
             <option value="gastos_repr_asalariado">🤝 Gastos de Representación (L4)</option>
             <option value="dietas">📅 Dietas (L5)</option>
           </optgroup>
-          <optgroup label="Ingresos por Actividad y/o Profesión (L6–L19)">
+          <optgroup label="INGRESOS POR ACTIVIDAD Y/O PROFESIÓN (L6–L19)">
             <option value="actividad_agropecuaria">🌾 Actividad Agropecuaria (L6)</option>
             <option value="honorarios_comision">💳 Honorarios por Comisiones (L7)</option>
             <option value="honorarios_profesionales">💼 Honorarios por Servicios Profesionales (L8)</option>
