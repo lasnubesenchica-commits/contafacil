@@ -2384,8 +2384,12 @@ function _handleRegistrarIngresoManual(params, callback) {
     var dvCli      = params.dv          || '';
     var numFactura = params.num_factura || '';
 
-    var catUnificada = params.categoria || 'venta_producto_gravado';
+    var catUnificada = params.categoria || 'ventas_servicios';
+    // Mapping a tipo_ingreso (campo legacy mantenido en la hoja para
+    // compatibilidad). Las 19 keys nuevas + las 14 legacy resuelven
+    // todas a un tipo_ingreso interno.
     var mapaTipo = {
+      // ── Keys legacy (datos viejos) ──
       'venta_producto_gravado':   'venta_producto',
       'venta_producto_exento':    'venta_producto',
       'servicio_tecnico_gravado': 'servicio_tecnico',
@@ -2397,6 +2401,26 @@ function _handleRegistrarIngresoManual(params, callback) {
       'exportacion':              'exportacion',
       'otro_gravado':             'otro',
       'otro_exento':              'otro',
+      // ── Keys nuevas DGI Form 91 (L1-L19) ──
+      'salarios_con_retencion':     'salario',
+      'remuneracion_sin_retencion': 'salario',
+      'ingresos_especies':          'otro',
+      'gastos_repr_asalariado':     'otro',
+      'dietas':                     'otro',
+      'actividad_agropecuaria':     'venta_producto',
+      'honorarios_comision':        'comision',
+      'honorarios_profesionales':   'servicio_profesional',
+      'alquiler_habitacional':      'alquiler',
+      'alquiler_comercial':         'alquiler',
+      'intereses_financieros':      'otro',
+      'ganancia_capital_legacy':    'otro',
+      'otros_ingresos':             'otro',
+      'ventas_servicios':           'venta_producto',
+      'devoluciones_descuentos':    'venta_producto',
+      'descuento_jubilados':        'venta_producto',
+      'ingresos_exentos':           'otro',
+      'fuente_extranjera':          'otro',
+      'gastos_repr_actividad':      'otro',
     };
     var tipoIng = mapaTipo[catUnificada] || 'venta_producto';
 
@@ -2498,8 +2522,12 @@ function _handleActualizarIngreso(params, callback) {
     var itbms    = parseFloat(params.itbms)    || 0;
     var subtotal = parseFloat(params.subtotal) || parseFloat((total - itbms).toFixed(2));
 
-    var catUnificada = params.categoria || 'venta_producto_gravado';
+    var catUnificada = params.categoria || 'ventas_servicios';
+    // Mapping a tipo_ingreso (campo legacy mantenido en la hoja para
+    // compatibilidad). Las 19 keys nuevas + las 14 legacy resuelven
+    // todas a un tipo_ingreso interno.
     var mapaTipo = {
+      // ── Keys legacy (datos viejos) ──
       'venta_producto_gravado':   'venta_producto',
       'venta_producto_exento':    'venta_producto',
       'servicio_tecnico_gravado': 'servicio_tecnico',
@@ -2511,6 +2539,26 @@ function _handleActualizarIngreso(params, callback) {
       'exportacion':              'exportacion',
       'otro_gravado':             'otro',
       'otro_exento':              'otro',
+      // ── Keys nuevas DGI Form 91 (L1-L19) ──
+      'salarios_con_retencion':     'salario',
+      'remuneracion_sin_retencion': 'salario',
+      'ingresos_especies':          'otro',
+      'gastos_repr_asalariado':     'otro',
+      'dietas':                     'otro',
+      'actividad_agropecuaria':     'venta_producto',
+      'honorarios_comision':        'comision',
+      'honorarios_profesionales':   'servicio_profesional',
+      'alquiler_habitacional':      'alquiler',
+      'alquiler_comercial':         'alquiler',
+      'intereses_financieros':      'otro',
+      'ganancia_capital_legacy':    'otro',
+      'otros_ingresos':             'otro',
+      'ventas_servicios':           'venta_producto',
+      'devoluciones_descuentos':    'venta_producto',
+      'descuento_jubilados':        'venta_producto',
+      'ingresos_exentos':           'otro',
+      'fuente_extranjera':          'otro',
+      'gastos_repr_actividad':      'otro',
     };
     var tipoIng = mapaTipo[catUnificada] || 'venta_producto';
 
@@ -3106,6 +3154,107 @@ var COSTO_KEYS_ANEXO94 = [
   'seguros_costo',
   'otros_costos_venta',
 ];
+
+// ════════════════════════════════════════════════════════════════════
+//  CATEGORIAS_INGRESO_DGI — catálogo oficial Formulario 91/93 DGI Panamá
+//  Cada entrada mapea a una línea exacta del formulario. Campos:
+//    valor:           key interna (snake_case, estable, no cambia)
+//    label:           nombre legible
+//    linea:           número de línea en Form 91/93
+//    seccion:         'remuneracion' | 'actividad' | 'sustractivo' | 'especial'
+//    emoji:           icono UI
+//    itbms_status:    'gravado' | 'exento' | 'no_aplica'
+//    itbms_rate:      0 | 7 | 10 (% — solo si gravado; 0 si exento/no_aplica)
+//    retencion_rate:  número decimal o null (ej. 0.08 = 8%)
+//    retencion_tipo:  string descriptivo de cuándo aplica retención
+//    signo:           1 (suma) | -1 (resta, para sustractivos)
+//    hint:            texto contextual mostrado en el modal
+// ════════════════════════════════════════════════════════════════════
+var CATEGORIAS_INGRESO_DGI = [
+  // ── Segmento A: Remuneraciones personales (Form 91 sección Salarios) ──
+  { valor: 'salarios_con_retencion',     label: 'Salarios y otras remuneraciones (c/retención)',  linea: '1',  seccion: 'remuneracion', emoji: '💼',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: 'Escala empleador (planilla)', signo: 1,
+    hint: 'Salario con retención mensual ya aplicada por el empleador. La escala ISR depende del nivel anual.' },
+  { valor: 'remuneracion_sin_retencion', label: 'Otras remuneraciones personales (s/retención)',  linea: '2',  seccion: 'remuneracion', emoji: '💵',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Remuneración no sujeta a retención del empleador. El contribuyente declara directo.' },
+  { valor: 'ingresos_especies',          label: 'Ingresos en especies',                            linea: '3',  seccion: 'remuneracion', emoji: '🎁',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Registra el equivalente monetario al valor de mercado del bien/servicio recibido.' },
+  { valor: 'gastos_repr_asalariado',     label: 'Gastos de Representación (asalariado)',           linea: '4',  seccion: 'remuneracion', emoji: '🤝',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat (régimen separado)', signo: 1,
+    hint: 'Régimen separado: tributa 10% flat, no por escala. Retención típica por empleador.' },
+  { valor: 'dietas',                     label: 'Dietas',                                          linea: '5',  seccion: 'remuneracion', emoji: '📅',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Pagos por participación en juntas/sesiones. Tributa según escala ISR.' },
+
+  // ── Segmento B: Ingresos por Actividad y/o Profesión ──
+  { valor: 'actividad_agropecuaria',     label: 'Actividad Agropecuaria',                          linea: '6',  seccion: 'actividad', emoji: '🌾',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Productores con ingresos < B/. 250,000/año están exentos de ISR (Ley 8/2010). Verifica umbral anual.' },
+  { valor: 'honorarios_comision',        label: 'Honorarios por Comisiones',                       linea: '7',  seccion: 'actividad', emoji: '💳',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: 0.08, retencion_tipo: '8% si cliente es retentor designado', signo: 1,
+    hint: 'ITBMS 7% sobre comisiones. Retención 8% si el cliente es Estado/Gran Contribuyente o retentor designado.' },
+  { valor: 'honorarios_profesionales',   label: 'Honorarios por Servicios Profesionales',          linea: '8',  seccion: 'actividad', emoji: '💼',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: 0.08, retencion_tipo: '8% si cliente es retentor designado', signo: 1,
+    hint: 'ITBMS 7% si emites factura como contribuyente ITBMS. Retención 8% si tu cliente es retentor designado.' },
+  { valor: 'alquiler_habitacional',      label: 'Alquiler Habitacional',                           linea: '9',  seccion: 'actividad', emoji: '🏠',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Exento de ITBMS por ley (vivienda). Sí tributa ISR sobre renta neta (deducibles: mantenimiento, IBI, depreciación).' },
+  { valor: 'alquiler_comercial',         label: 'Alquiler Comercial',                              linea: '10', seccion: 'actividad', emoji: '🏢',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'ITBMS 7% sobre la renta. Deducibles: mantenimiento, IBI, depreciación del inmueble.' },
+  { valor: 'intereses_financieros',      label: 'Intereses y otros Ingresos Financieros',          linea: '11', seccion: 'actividad', emoji: '🏦',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.05, retencion_tipo: '5% retenido por institución (productos sujetos)', signo: 1,
+    hint: 'Cuentas de ahorro PN exentas hasta cierto umbral. Otros productos: 5% retenido por el banco/institución.' },
+  { valor: 'ganancia_capital_legacy',    label: 'Ganancia capital (pre-Ley 18/2006)',              linea: '12', seccion: 'actividad', emoji: '📉',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat (régimen histórico)', signo: 1,
+    hint: 'Régimen legacy casi obsoleto. Para ganancias actuales de valores ver Form 106.' },
+  { valor: 'otros_ingresos',             label: 'Otros Ingresos',                                  linea: '13', seccion: 'actividad', emoji: '📋',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Catch-all para ingresos sin línea específica. Revisa ITBMS y retención manualmente.' },
+  { valor: 'ventas_servicios',           label: 'Ventas y Prestación de Servicios',                linea: '14', seccion: 'actividad', emoji: '🛒',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'El bulk de la actividad comercial/servicios. ITBMS 7% default. 10% en alcohol/tabaco/hospedaje. Exento en canasta básica.' },
+
+  // ── Sustractivos (restan de la base gravable) ──
+  { valor: 'devoluciones_descuentos',    label: 'Menos: Devoluciones y Descuentos',                linea: '15', seccion: 'sustractivo', emoji: '↩️',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'Notas crédito y descuentos comerciales. Ingresa el monto positivo; el sistema lo resta automáticamente.' },
+  { valor: 'descuento_jubilados',        label: 'Menos: Descuento Jubilados (Farmacias) Ley 6/87', linea: '16', seccion: 'sustractivo', emoji: '👵',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'Solo aplica a farmacias. 20% descuento de ley a jubilados, deducible de la base.' },
+
+  // ── Especiales (clasificación con tratamiento DGI distinto) ──
+  { valor: 'ingresos_exentos',           label: 'Ingresos Exentos / No Gravables',                 linea: '17', seccion: 'especial', emoji: '🛡️',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'No suman a renta gravable: dividendos locales con ISR ya pagado, donaciones no comerciales, etc.' },
+  { valor: 'fuente_extranjera',          label: 'Fuente Extranjera',                               linea: '18', seccion: 'especial', emoji: '🌎',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Renta producida fuera de Panamá. Por principio de territorialidad NO tributa ISR Panamá.' },
+  { valor: 'gastos_repr_actividad',      label: 'Gastos de Representación (actividad)',            linea: '19', seccion: 'especial', emoji: '🎯',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat', signo: 1,
+    hint: 'Gastos de representación recibidos como parte de actividad/profesión. 10% flat.' },
+];
+
+// Mapping legacy → nueva key, para que datos viejos sigan funcionando
+// (frontend usa este mapa al leer registros antiguos).
+var LEGACY_INGRESO_MAP = {
+  'venta_producto_gravado':   'ventas_servicios',
+  'venta_producto_exento':    'ventas_servicios',
+  'servicio_tecnico_gravado': 'ventas_servicios',
+  'servicio_tecnico_exento':  'ventas_servicios',
+  'asesoria_consultoria':     'honorarios_profesionales',
+  'servicios_profesionales':  'honorarios_profesionales',
+  'salarios':                 'salarios_con_retencion',
+  'comision':                 'honorarios_comision',
+  'alquiler_cobrado':         'alquiler_comercial',
+  'intereses':                'intereses_financieros',
+  'dividendos':               'otros_ingresos',
+  'exportacion':              'ventas_servicios',
+  'otro_gravado':             'otros_ingresos',
+  'otro_exento':              'ingresos_exentos',
+};
 
 // ═══════════════════════════════════════════════════════════════
 //  _handleReclasificarEgreso

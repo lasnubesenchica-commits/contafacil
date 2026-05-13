@@ -2909,10 +2909,33 @@ const XMLV = (() => {
 //  MÓDULO REG — Registros generales (egreso + ingreso)
 // ════════════════════════════════════════════════════════
 const REG = (() => {
+  // Categorías gravadas con ITBMS (default 7%). Incluye keys legacy
+  // para datos viejos + keys nuevas DGI Form 91.
   const CATS_GRAVADAS_ING = new Set([
+    // Legacy
     'venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria',
-    'servicios_profesionales','comision','otro_gravado'
+    'servicios_profesionales','comision','otro_gravado',
+    // Nuevas (catálogo DGI L7-L8, L10, L13-L15)
+    'honorarios_profesionales','honorarios_comision','alquiler_comercial',
+    'otros_ingresos','ventas_servicios','devoluciones_descuentos',
   ]);
+  // Mapping legacy → nueva key, para que datos viejos se renderen bien.
+  const LEGACY_INGRESO_MAP = {
+    'venta_producto_gravado':   'ventas_servicios',
+    'venta_producto_exento':    'ventas_servicios',
+    'servicio_tecnico_gravado': 'ventas_servicios',
+    'servicio_tecnico_exento':  'ventas_servicios',
+    'asesoria_consultoria':     'honorarios_profesionales',
+    'servicios_profesionales':  'honorarios_profesionales',
+    'salarios':                 'salarios_con_retencion',
+    'comision':                 'honorarios_comision',
+    'alquiler_cobrado':         'alquiler_comercial',
+    'intereses':                'intereses_financieros',
+    'dividendos':               'otros_ingresos',
+    'exportacion':              'ventas_servicios',
+    'otro_gravado':             'otros_ingresos',
+    'otro_exento':              'ingresos_exentos',
+  };
 
   // ── Helpers recalc ────────────────────────────────────
   function recalcEgr() {
@@ -3191,12 +3214,8 @@ const REG = (() => {
         if (d.ruc_pagador)      document.getElementById('regIngRuc').value    = d.ruc_pagador;
         if (d.dv_pagador)       document.getElementById('regIngDv').value     = d.dv_pagador;
         if (d.descripcion)      document.getElementById('regIngDesc').value   = d.descripcion;
-        // Inferir categoría
-        if (d.tipo_comprobante && ['yappy','transferencia','efectivo'].includes(d.tipo_comprobante)) {
-          document.getElementById('regIngCat').value = 'venta_producto_gravado';
-        } else if (d.tiene_itbms) {
-          document.getElementById('regIngCat').value = 'venta_producto_gravado';
-        }
+        // Default a "Ventas y Prestación de Servicios" (L14) — más común
+        document.getElementById('regIngCat').value = 'ventas_servicios';
         inferItbmsIng();
         zone.classList.remove('analyzing'); zone.classList.add('has-file');
         status.style.color = 'var(--green)';
@@ -3239,7 +3258,7 @@ const REG = (() => {
   function _resetIngForm() {
     ['regIngNfac','regIngDesc','regIngTotal','regIngNombre','regIngRuc','regIngDv','regIngNotas']
       .forEach(id => document.getElementById(id).value = '');
-    document.getElementById('regIngCat').value          = 'venta_producto_gravado';
+    document.getElementById('regIngCat').value          = 'ventas_servicios';
     document.getElementById('regIngFecha').value        = new Date().toISOString().slice(0,10);
     document.getElementById('regIngItbms').checked      = true;
     document.getElementById('regIngDesglose').style.display = 'none';
@@ -3264,7 +3283,9 @@ const REG = (() => {
   function openEditarIngreso(item) {
     _ingEditId = item.id_trans;
     _resetIngForm();
-    document.getElementById('regIngCat').value    = item.categoria_ingreso || item.tipo_ingreso || 'venta_producto_gravado';
+    // Resolver categoría legacy a key nueva si aplica
+    const _rawCatI = item.categoria_ingreso || item.tipo_ingreso || 'ventas_servicios';
+    document.getElementById('regIngCat').value    = LEGACY_INGRESO_MAP[_rawCatI] || _rawCatI;
     document.getElementById('regIngDesc').value   = item.descripcion || '';
     document.getElementById('regIngFecha').value  = String(item.fecha_ingreso || '').slice(0,10);
     document.getElementById('regIngNfac').value   = item.num_factura || '';
@@ -4119,16 +4140,31 @@ const PEND = (() => {
       <div class="f-grp">
         <label class="f-lbl">Categoría</label>
         <select class="f-inp" id="regIngCat" onchange="REG.inferItbmsIng()">
-          <option value="venta_producto_gravado">📦 Venta de producto (con ITBMS)</option>
-          <option value="venta_producto_exento">📦 Venta de producto (exento)</option>
-          <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
-          <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
-          <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
-          <option value="servicios_profesionales">💼 Servicios profesionales</option>
-          <option value="salarios">💰 Salarios</option>
-          <option value="comision">💳 Comisión</option>
-          <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
-          <option value="otro_exento">📋 Otro ingreso (exento)</option>
+          <optgroup label="Actividad / Profesión">
+            <option value="ventas_servicios">🛒 Ventas y Prestación de Servicios (L14)</option>
+            <option value="honorarios_profesionales">💼 Honorarios Profesionales (L8)</option>
+            <option value="honorarios_comision">💳 Honorarios por Comisión (L7)</option>
+            <option value="alquiler_comercial">🏢 Alquiler Comercial (L10)</option>
+            <option value="alquiler_habitacional">🏠 Alquiler Habitacional (L9)</option>
+            <option value="intereses_financieros">🏦 Intereses Financieros (L11)</option>
+            <option value="actividad_agropecuaria">🌾 Actividad Agropecuaria (L6)</option>
+            <option value="otros_ingresos">📋 Otros Ingresos (L13)</option>
+            <option value="ganancia_capital_legacy">📉 Ganancia capital pre-2006 (L12)</option>
+          </optgroup>
+          <optgroup label="Remuneraciones personales">
+            <option value="salarios_con_retencion">💼 Salarios c/retención (L1)</option>
+            <option value="remuneracion_sin_retencion">💵 Remuneración s/retención (L2)</option>
+            <option value="ingresos_especies">🎁 Ingresos en especies (L3)</option>
+            <option value="gastos_repr_asalariado">🤝 Gastos Representación asalariado (L4)</option>
+            <option value="dietas">📅 Dietas (L5)</option>
+          </optgroup>
+          <optgroup label="Sustractivos / Especiales">
+            <option value="devoluciones_descuentos">↩️ Menos: Devoluciones y Descuentos (L15)</option>
+            <option value="descuento_jubilados">👵 Menos: Descuento Jubilados (L16)</option>
+            <option value="ingresos_exentos">🛡️ Ingresos Exentos (L17)</option>
+            <option value="fuente_extranjera">🌎 Fuente Extranjera (L18)</option>
+            <option value="gastos_repr_actividad">🎯 Gastos Representación actividad (L19)</option>
+          </optgroup>
         </select>
       </div>
       <div class="f-grp">

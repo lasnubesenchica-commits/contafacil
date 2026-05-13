@@ -3403,21 +3403,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full">
             <label>Categoría</label>
             <select id="iCategoria" onchange="inferirItbmsIngreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
-              <option value="venta_producto_gravado">📦 Venta de producto (con ITBMS)</option>
-              <option value="venta_producto_exento">📦 Venta de producto (exento)</option>
-              <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
-              <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
-              <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
-              <option value="servicios_profesionales">💼 Servicios profesionales</option>
-              <option value="salarios">💰 Salarios</option>
-              <option value="comision">💳 Comisión</option>
-              <option value="alquiler_cobrado">🏢 Alquiler cobrado</option>
-              <option value="intereses">🏦 Intereses ganados</option>
-              <option value="dividendos">📈 Dividendos recibidos</option>
-              <option value="exportacion">📦 Exportación</option>
-              <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
-              <option value="otro_exento">📋 Otro ingreso (exento)</option>
+              <!-- Pobladas dinámicamente por _renderIngresoCategoriaSelect() desde CATEGORIAS_INGRESO_DGI -->
             </select>
+          </div>
+          <!-- Hint contextual + retención esperada (poblado por inferirItbmsIngreso) -->
+          <div class="modal-field full" id="iCatHint" style="display:none;padding:.6rem .75rem;background:#FFF8E1;border-left:3px solid #F9A825;border-radius:4px;font-size:.8rem;line-height:1.4;color:#5D4037"></div>
+          <div class="modal-field full" id="iRetencionInfo" style="display:none;padding:.5rem .75rem;background:#E3F2FD;border-radius:6px;font-size:.82rem;display:flex;justify-content:space-between;align-items:center">
+            <span style="color:#1565C0;font-weight:500">💡 Retención esperada:</span>
+            <span id="iRetencionMonto" style="font-family:'DM Mono',monospace;font-weight:700;color:#0D47A1">B/. 0.00</span>
           </div>
           <div class="modal-field full">
             <label>Descripción</label>
@@ -3445,7 +3438,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full" id="iDesglose" style="display:none">
             <div style="background:var(--bg2);border-radius:8px;padding:.6rem .75rem;font-size:.83rem;display:flex;gap:2rem">
               <div style="display:flex;justify-content:space-between;flex:1"><span style="color:var(--muted)">Subtotal:</span><span id="iSubtotalDisp">$0.00</span></div>
-              <div style="display:flex;justify-content:space-between;flex:1"><span style="color:var(--muted)">ITBMS 7%:</span><span id="iItbmsDisp">$0.00</span></div>
+              <div style="display:flex;justify-content:space-between;flex:1"><span style="color:var(--muted)" data-itbms-label>ITBMS 7%:</span><span id="iItbmsDisp">$0.00</span></div>
             </div>
           </div>
           <!-- campos hidden para compatibilidad con guardarNuevoIngreso() -->
@@ -4645,29 +4638,22 @@ function renderIngresosTable(items) {
     abono:      '<span class="badge badge-revision">◑ Abono</span>',
   }[e] || `<span class="badge">${esc(e||'—')}</span>`);
 
-  const catBadgeIng = c => ({
-    venta_producto_gravado:   '<span class="badge badge-vinculado">📦 Venta (+ITBMS)</span>',
-    venta_producto_exento:    '<span class="badge" style="background:#F5F5F5;color:#555">📦 Venta (exento)</span>',
-    servicio_tecnico_gravado: '<span class="badge" style="background:#E8EAF6;color:#283593">🔧 Técnico (+ITBMS)</span>',
-    servicio_tecnico_exento:  '<span class="badge" style="background:#F5F5F5;color:#555">🔧 Técnico (exento)</span>',
-    asesoria_consultoria:     '<span class="badge" style="background:#E8EAF6;color:#283593">💼 Asesoría</span>',
-    comision:                 '<span class="badge" style="background:#FFF9C4;color:#795548">💳 Comisión</span>',
-    exportacion:              '<span class="badge" style="background:#E3F2FD;color:#0D47A1">📦 Exportación</span>',
-    otro_gravado:             '<span class="badge badge-vinculado">📋 Otro (+ITBMS)</span>',
-    otro_exento:              '<span class="badge" style="background:#F5F5F5;color:#555">📋 Otro (exento)</span>',
-  }[c] || `<span class="badge">${esc(c||'—')}</span>`);
+  // Badge derivado del catálogo DGI. Fallback al mapping legacy si
+  // el valor es de datos viejos.
+  const catBadgeIng = c => {
+    const cat = _getIngresoCat(c);
+    if (!cat) return `<span class="badge">${esc(c||'—')}</span>`;
+    const tone = cat.itbms_status === 'gravado'   ? 'badge badge-vinculado'
+              : cat.itbms_status === 'exento'    ? 'badge'
+              : 'badge';
+    const bg = cat.itbms_status === 'exento'    ? 'background:#F5F5F5;color:#555;'
+             : cat.itbms_status === 'no_aplica' ? 'background:#EDE7F6;color:#4527A0;'
+             : '';
+    return `<span class="${tone}" style="${bg}">${cat.emoji} ${esc(cat.label)} (L${cat.linea})</span>`;
+  };
 
-  const CATS_ING = [
-    ['venta_producto_gravado',   'Venta producto (+ITBMS)'],
-    ['venta_producto_exento',    'Venta producto (exento)'],
-    ['servicio_tecnico_gravado', 'Serv. técnico (+ITBMS)'],
-    ['servicio_tecnico_exento',  'Serv. técnico (exento)'],
-    ['asesoria_consultoria',     'Asesoría / Consultoría'],
-    ['comision',                 'Comisión'],
-    ['exportacion',              'Exportación'],
-    ['otro_gravado',             'Otro (+ITBMS)'],
-    ['otro_exento',              'Otro (exento)'],
-  ];
+  // Selector inline dropdown — derivado del catálogo (mismo orden que el modal)
+  const CATS_ING = CATEGORIAS_INGRESO_DGI.map(c => [c.valor, `${c.emoji} ${c.label} (L${c.linea})`]);
 
   const trashSvg  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
   const cancelSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`;
@@ -4715,7 +4701,7 @@ let _ingEditId = null;  // null = crear, set = editar
 
 function abrirModalNuevoIngreso() {
   _ingEditId = null;
-  document.getElementById('iCategoria').value     = 'venta_producto_gravado';
+  _renderIngresoCategoriaSelect('ventas_servicios');
   document.getElementById('iDescripcion').value   = '';
   document.getElementById('iFecha').value         = new Date().toISOString().substring(0,10);
   document.getElementById('iNumFac').value        = '';
@@ -4800,13 +4786,98 @@ function closeIngresoModal() {
 
 // ── RECALC INGRESO ──────────────────────────────────────────
 // Las categorías que llevan ITBMS por defecto
-const CATS_GRAVADAS_ING = ['venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria','servicios_profesionales','comision','otro_gravado'];
+// Alias legacy — algunos call sites pre-refactor pueden usarla.
+const CATS_GRAVADAS_ING = CATS_ING_GRAVADAS;
 
+// Pinta el <select id="iCategoria"> agrupado por sección DGI.
+function _renderIngresoCategoriaSelect(selectedValue) {
+  const sel = document.getElementById('iCategoria');
+  if (!sel) return;
+  const sec = (titulo) => `<option disabled>──── ${titulo} ────</option>`;
+  const opt = (c) => {
+    const label = `${c.emoji} ${c.label} (L${c.linea})`;
+    const isSel = (c.valor === selectedValue) ? ' selected' : '';
+    return `<option value="${c.valor}"${isSel}>${label}</option>`;
+  };
+  const remun = CATEGORIAS_INGRESO_DGI.filter(c => c.seccion === 'remuneracion');
+  const activ = CATEGORIAS_INGRESO_DGI.filter(c => c.seccion === 'actividad');
+  const sustr = CATEGORIAS_INGRESO_DGI.filter(c => c.seccion === 'sustractivo');
+  const espec = CATEGORIAS_INGRESO_DGI.filter(c => c.seccion === 'especial');
+  sel.innerHTML =
+    sec('Actividad / Profesión (lo más común)') + activ.map(opt).join('') +
+    sec('Remuneraciones personales')           + remun.map(opt).join('') +
+    sec('Sustractivos (restan de la base)')    + sustr.map(opt).join('') +
+    sec('Especiales')                          + espec.map(opt).join('');
+}
+
+// Aplica defaults DGI según la categoría elegida: ITBMS rate, hint
+// contextual y retención esperada informativa.
 function inferirItbmsIngreso() {
-  const cat   = document.getElementById('iCategoria').value;
-  const check = document.getElementById('iItbmsCheck');
-  check.checked = CATS_GRAVADAS_ING.includes(cat);
+  const sel  = document.getElementById('iCategoria');
+  const cat  = _getIngresoCat(sel.value);
+  const check    = document.getElementById('iItbmsCheck');
+  const checkLbl = check.parentElement;
+  const checkRow = checkLbl.parentElement;
+  const tag      = document.getElementById('iItbmsTag');
+  const hintEl   = document.getElementById('iCatHint');
+
+  if (!cat) {
+    check.checked = false;
+    if (hintEl) hintEl.style.display = 'none';
+    recalcIngreso();
+    return;
+  }
+
+  // ITBMS status: gravado | exento | no_aplica
+  if (cat.itbms_status === 'gravado') {
+    check.checked = true;
+    check.disabled = false;
+    checkLbl.style.opacity = '1';
+    checkRow.style.display = 'flex';
+    // Actualizar texto del label si la tasa es 10%
+    checkLbl.lastChild.textContent = ` Aplica ITBMS (${cat.itbms_rate}%)`;
+    if (tag) tag.textContent = `+${cat.itbms_rate}%`;
+  } else if (cat.itbms_status === 'exento') {
+    check.checked = false;
+    check.disabled = true;
+    checkLbl.style.opacity = '.5';
+    checkRow.style.display = 'flex';
+    checkLbl.lastChild.textContent = ' Exento de ITBMS (por ley)';
+  } else {
+    // no_aplica — ocultar la fila completa
+    check.checked = false;
+    checkRow.style.display = 'none';
+  }
+
+  // Hint contextual
+  if (hintEl) {
+    if (cat.hint) {
+      hintEl.innerHTML = `<strong>L${cat.linea} · ${cat.emoji} ${cat.label}</strong><br>${cat.hint}`;
+      hintEl.style.display = 'block';
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
+
   recalcIngreso();
+}
+
+// Actualiza el badge "Retención esperada: B/. X.XX" según la categoría
+// y el monto. Llamado desde recalcIngreso() después de calcular subtotal.
+function _updateRetencionEsperada() {
+  const sel  = document.getElementById('iCategoria');
+  const cat  = _getIngresoCat(sel.value);
+  const wrap = document.getElementById('iRetencionInfo');
+  const span = document.getElementById('iRetencionMonto');
+  if (!wrap || !span) return;
+  if (!cat || !cat.retencion_rate) {
+    wrap.style.display = 'none';
+    return;
+  }
+  const subtotal = parseFloat(document.getElementById('iSubtotal').value) || 0;
+  const ret = subtotal * cat.retencion_rate;
+  span.textContent = 'B/. ' + ret.toFixed(2) + (cat.retencion_tipo ? '  · ' + cat.retencion_tipo : '');
+  wrap.style.display = 'flex';
 }
 
 function recalcIngreso() {
@@ -4815,13 +4886,21 @@ function recalcIngreso() {
   const desglose = document.getElementById('iDesglose');
   const tag      = document.getElementById('iItbmsTag');
 
+  // Tasa ITBMS según categoría (default 7% si la cat no es gravable explícita)
+  const cat   = _getIngresoCat(document.getElementById('iCategoria').value);
+  const rate  = (cat && cat.itbms_rate) ? cat.itbms_rate : 7;
+  const factor = 1 + rate / 100;
+
   if (aplica && total > 0) {
-    const subtotal = parseFloat((total / 1.07).toFixed(2));
+    const subtotal = parseFloat((total / factor).toFixed(2));
     const itbms    = parseFloat((total - subtotal).toFixed(2));
     document.getElementById('iSubtotal').value           = subtotal;
     document.getElementById('iItbms').value              = itbms;
     document.getElementById('iSubtotalDisp').textContent = '$' + subtotal.toFixed(2);
     document.getElementById('iItbmsDisp').textContent    = '$' + itbms.toFixed(2);
+    // Actualizar label ITBMS rate dinámico
+    const itbmsDispLabel = document.querySelector('#iDesglose [data-itbms-label]');
+    if (itbmsDispLabel) itbmsDispLabel.textContent = `ITBMS ${rate}%:`;
     desglose.style.display = 'block';
     tag.style.display      = 'inline';
   } else {
@@ -4830,6 +4909,8 @@ function recalcIngreso() {
     desglose.style.display = 'none';
     tag.style.display      = 'none';
   }
+
+  _updateRetencionEsperada();
 }
 
 // ── RECALC EGRESO ───────────────────────────────────────────
@@ -4937,18 +5018,18 @@ function llenarCamposIngreso(parsed) {
   if (parsed.descripcion)     document.getElementById('iDescripcion').value = parsed.descripcion;
   if (parsed.notas)           document.getElementById('iNotas').value       = parsed.notas;
 
-  // Inferir categoría desde tipo de comprobante detectado por IA
+  // Inferir categoría desde tipo de comprobante detectado por IA.
+  // Default a 'ventas_servicios' (L14, gravado 7%) — la categoría más común
+  // para actividad comercial. Si la IA explicita 'tiene_itbms=false', no
+  // sobrescribimos: dejamos al usuario elegir la línea exenta correcta.
   const cat = document.getElementById('iCategoria');
-  if (parsed.tipo_comprobante) {
-    if (['yappy','transferencia','efectivo'].includes(parsed.tipo_comprobante)) {
-      cat.value = 'venta_producto_gravado';
-    } else if (parsed.tipo_comprobante === 'factura') {
-      cat.value = parsed.tiene_itbms ? 'venta_producto_gravado' : 'venta_producto_exento';
-    }
-  } else if (parsed.tiene_itbms) {
-    cat.value = 'venta_producto_gravado';
-  }
+  cat.value = 'ventas_servicios';
   inferirItbmsIngreso();
+  // Si el comprobante claramente NO tiene ITBMS, destildar manualmente
+  if (parsed.tipo_comprobante === 'factura' && parsed.tiene_itbms === false) {
+    document.getElementById('iItbmsCheck').checked = false;
+    recalcIngreso();
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -5211,7 +5292,10 @@ async function guardarCostoOperativo() {
 function abrirModalEditarIngreso(item) {
   abrirModalNuevoIngreso();   // resetea + abre
   _ingEditId = item.id_trans;
-  document.getElementById('iCategoria').value   = item.categoria_ingreso || item.tipo_ingreso || 'venta_producto_gravado';
+  // Resolver categoría (mapping legacy si aplica) y re-poblar el selector
+  const rawCat = item.categoria_ingreso || item.tipo_ingreso || 'ventas_servicios';
+  const resolved = LEGACY_INGRESO_MAP[rawCat] || rawCat;
+  _renderIngresoCategoriaSelect(resolved);
   document.getElementById('iDescripcion').value = item.descripcion || '';
   document.getElementById('iFecha').value       = (item.fecha_ingreso || '').slice(0,10);
   document.getElementById('iNumFac').value      = item.num_factura || '';
@@ -6653,6 +6737,111 @@ const _COSTO_KEYS = [
   'mantenimiento_costo','servicios_costo','seguros_costo','otros_costos_venta',
 ];
 
+// ════════════════════════════════════════════════════════════════════
+//  CATEGORIAS_INGRESO_DGI — espejo del catálogo backend (Form 91/93)
+//  Ver Code.js para documentación completa de campos. 19 líneas.
+// ════════════════════════════════════════════════════════════════════
+const CATEGORIAS_INGRESO_DGI = [
+  // Segmento A: Remuneraciones personales (L1-L5)
+  { valor: 'salarios_con_retencion',     label: 'Salarios y otras remuneraciones (c/retención)',  linea: '1',  seccion: 'remuneracion', emoji: '💼',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: 'Escala empleador (planilla)', signo: 1,
+    hint: 'Salario con retención mensual ya aplicada por el empleador. La escala ISR depende del nivel anual.' },
+  { valor: 'remuneracion_sin_retencion', label: 'Otras remuneraciones personales (s/retención)',  linea: '2',  seccion: 'remuneracion', emoji: '💵',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Remuneración no sujeta a retención del empleador. El contribuyente declara directo.' },
+  { valor: 'ingresos_especies',          label: 'Ingresos en especies',                            linea: '3',  seccion: 'remuneracion', emoji: '🎁',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Registra el equivalente monetario al valor de mercado del bien/servicio recibido.' },
+  { valor: 'gastos_repr_asalariado',     label: 'Gastos de Representación (asalariado)',           linea: '4',  seccion: 'remuneracion', emoji: '🤝',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat (régimen separado)', signo: 1,
+    hint: 'Régimen separado: tributa 10% flat, no por escala. Retención típica por empleador.' },
+  { valor: 'dietas',                     label: 'Dietas',                                          linea: '5',  seccion: 'remuneracion', emoji: '📅',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Pagos por participación en juntas/sesiones. Tributa según escala ISR.' },
+  // Segmento B: Actividad / Profesión (L6-L14)
+  { valor: 'actividad_agropecuaria',     label: 'Actividad Agropecuaria',                          linea: '6',  seccion: 'actividad', emoji: '🌾',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Productores con ingresos < B/. 250,000/año están exentos de ISR (Ley 8/2010). Verifica umbral anual.' },
+  { valor: 'honorarios_comision',        label: 'Honorarios por Comisiones',                       linea: '7',  seccion: 'actividad', emoji: '💳',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: 0.08, retencion_tipo: '8% si cliente es retentor designado', signo: 1,
+    hint: 'ITBMS 7% sobre comisiones. Retención 8% si el cliente es Estado/Gran Contribuyente o retentor designado.' },
+  { valor: 'honorarios_profesionales',   label: 'Honorarios por Servicios Profesionales',          linea: '8',  seccion: 'actividad', emoji: '💼',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: 0.08, retencion_tipo: '8% si cliente es retentor designado', signo: 1,
+    hint: 'ITBMS 7% si emites factura como contribuyente ITBMS. Retención 8% si tu cliente es retentor designado.' },
+  { valor: 'alquiler_habitacional',      label: 'Alquiler Habitacional',                           linea: '9',  seccion: 'actividad', emoji: '🏠',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Exento de ITBMS por ley (vivienda). Sí tributa ISR sobre renta neta (deducibles: mantenimiento, IBI, depreciación).' },
+  { valor: 'alquiler_comercial',         label: 'Alquiler Comercial',                              linea: '10', seccion: 'actividad', emoji: '🏢',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'ITBMS 7% sobre la renta. Deducibles: mantenimiento, IBI, depreciación del inmueble.' },
+  { valor: 'intereses_financieros',      label: 'Intereses y otros Ingresos Financieros',          linea: '11', seccion: 'actividad', emoji: '🏦',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.05, retencion_tipo: '5% retenido por institución (productos sujetos)', signo: 1,
+    hint: 'Cuentas de ahorro PN exentas hasta cierto umbral. Otros productos: 5% retenido por el banco/institución.' },
+  { valor: 'ganancia_capital_legacy',    label: 'Ganancia capital (pre-Ley 18/2006)',              linea: '12', seccion: 'actividad', emoji: '📉',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat (régimen histórico)', signo: 1,
+    hint: 'Régimen legacy casi obsoleto. Para ganancias actuales de valores ver Form 106.' },
+  { valor: 'otros_ingresos',             label: 'Otros Ingresos',                                  linea: '13', seccion: 'actividad', emoji: '📋',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Catch-all para ingresos sin línea específica. Revisa ITBMS y retención manualmente.' },
+  { valor: 'ventas_servicios',           label: 'Ventas y Prestación de Servicios',                linea: '14', seccion: 'actividad', emoji: '🛒',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'El bulk de la actividad comercial/servicios. ITBMS 7% default. 10% en alcohol/tabaco/hospedaje. Exento en canasta básica.' },
+  // Sustractivos (L15-L16)
+  { valor: 'devoluciones_descuentos',    label: 'Menos: Devoluciones y Descuentos',                linea: '15', seccion: 'sustractivo', emoji: '↩️',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'Notas crédito y descuentos comerciales. Ingresa el monto positivo; el sistema lo resta automáticamente.' },
+  { valor: 'descuento_jubilados',        label: 'Menos: Descuento Jubilados (Farmacias) Ley 6/87', linea: '16', seccion: 'sustractivo', emoji: '👵',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'Solo aplica a farmacias. 20% descuento de ley a jubilados, deducible de la base.' },
+  // Especiales (L17-L19)
+  { valor: 'ingresos_exentos',           label: 'Ingresos Exentos / No Gravables',                 linea: '17', seccion: 'especial', emoji: '🛡️',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'No suman a renta gravable: dividendos locales con ISR ya pagado, donaciones no comerciales, etc.' },
+  { valor: 'fuente_extranjera',          label: 'Fuente Extranjera',                               linea: '18', seccion: 'especial', emoji: '🌎',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Renta producida fuera de Panamá. Por principio de territorialidad NO tributa ISR Panamá.' },
+  { valor: 'gastos_repr_actividad',      label: 'Gastos de Representación (actividad)',            linea: '19', seccion: 'especial', emoji: '🎯',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat', signo: 1,
+    hint: 'Gastos de representación recibidos como parte de actividad/profesión. 10% flat.' },
+];
+
+// Mapping legacy → nueva key (datos viejos siguen funcionando)
+const LEGACY_INGRESO_MAP = {
+  'venta_producto_gravado':   'ventas_servicios',
+  'venta_producto_exento':    'ventas_servicios',
+  'servicio_tecnico_gravado': 'ventas_servicios',
+  'servicio_tecnico_exento':  'ventas_servicios',
+  'asesoria_consultoria':     'honorarios_profesionales',
+  'servicios_profesionales':  'honorarios_profesionales',
+  'salarios':                 'salarios_con_retencion',
+  'comision':                 'honorarios_comision',
+  'alquiler_cobrado':         'alquiler_comercial',
+  'intereses':                'intereses_financieros',
+  'dividendos':               'otros_ingresos',
+  'exportacion':              'ventas_servicios',
+  'otro_gravado':             'otros_ingresos',
+  'otro_exento':              'ingresos_exentos',
+};
+
+// Resuelve cualquier categoria_ingreso (nueva o legacy) a la entrada del catálogo.
+function _getIngresoCat(valor) {
+  const v = LEGACY_INGRESO_MAP[valor] || valor;
+  return CATEGORIAS_INGRESO_DGI.find(c => c.valor === v) || null;
+}
+
+// Keys que aplican ITBMS gravado por default (derivado del catálogo).
+const CATS_ING_GRAVADAS = CATEGORIAS_INGRESO_DGI
+  .filter(c => c.itbms_status === 'gravado')
+  .map(c => c.valor);
+
+// Keys sustractivas (signo negativo en la suma de ingresos).
+const CATS_ING_SUSTRACTIVAS = CATEGORIAS_INGRESO_DGI
+  .filter(c => c.signo === -1)
+  .map(c => c.valor);
+
+// Keys exentas de ISR (no entran en base gravable Panamá).
+const CATS_ING_NO_GRAVABLES = ['ingresos_exentos','fuente_extranjera'];
+
 // ── COSTOS DIRECTOS (Líneas 27-41 formulario DGI) — inmutables desde el P&L ──
 const TIPOS_COSTO_DIRECTO = [
   { valor: 'costo_mercancia',        label: 'Costo de mercancía / inventario',  linea_dgi: '28-34' },
@@ -6689,19 +6878,30 @@ const RG_EGR_CAT_LABELS = (() => {
   CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.emoji + ' ' + c.label; });
   return m;
 })();
-const RG_ING_CAT_LABELS = {
-  venta_producto_gravado:   '📦 Venta producto (+ITBMS)',
-  venta_producto_exento:    '📦 Venta producto (exento)',
-  servicio_tecnico_gravado: '🔧 Serv. técnico (+ITBMS)',
-  servicio_tecnico_exento:  '🔧 Serv. técnico (exento)',
-  asesoria_consultoria:     '💼 Asesoría',
-  comision:                 '💳 Comisión',
-  alquiler_cobrado:         '🏢 Alquiler cobrado',
-  intereses:                '🏦 Intereses',
-  dividendos:               '📈 Dividendos',
-  otro_gravado:             '📋 Otro (+ITBMS)',
-  otro_exento:              '📋 Otro (exento)',
-};
+// Labels para Ingresos — derivados del catálogo DGI + labels legacy
+// (datos viejos siguen mostrándose bien hasta que se re-categorizen).
+const RG_ING_CAT_LABELS = (() => {
+  const m = {};
+  // Catálogo canónico
+  CATEGORIAS_INGRESO_DGI.forEach(c => {
+    m[c.valor] = c.emoji + ' ' + c.label;
+  });
+  // Legacy — labels antiguos por si aparecen en datos viejos
+  m['venta_producto_gravado']   = '📦 Venta producto (+ITBMS)';
+  m['venta_producto_exento']    = '📦 Venta producto (exento)';
+  m['servicio_tecnico_gravado'] = '🔧 Serv. técnico (+ITBMS)';
+  m['servicio_tecnico_exento']  = '🔧 Serv. técnico (exento)';
+  m['asesoria_consultoria']     = '💼 Asesoría';
+  m['comision']                 = '💳 Comisión';
+  m['alquiler_cobrado']         = '🏢 Alquiler cobrado';
+  m['intereses']                = '🏦 Intereses';
+  m['dividendos']               = '📈 Dividendos';
+  m['otro_gravado']             = '📋 Otro (+ITBMS)';
+  m['otro_exento']              = '📋 Otro (exento)';
+  m['exportacion']              = '📦 Exportación';
+  m['salarios']                 = '💰 Salarios';
+  return m;
+})();
 
 function rgBuildFilterBtns() { /* no-op: dropdowns are populated inside rgRenderEgr */ }
 
@@ -7774,7 +7974,7 @@ function rgAbrirNuevoEgreso() {
 }
 function rgAbrirNuevoIngreso() {
   abrirModalNuevoIngreso();
-  document.getElementById('iCategoria').value = 'otro_gravado';
+  document.getElementById('iCategoria').value = 'otros_ingresos';
   // Cambiar el título para contexto claro
   document.querySelector('#ingresoModalOverlay .modal-title').textContent = '💰 Registrar Ingreso General';
 }
