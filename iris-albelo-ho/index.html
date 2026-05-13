@@ -5028,8 +5028,7 @@ function llenarCamposIngreso(parsed) {
   cat.value = isValid ? resolved : 'ventas_servicios';
   inferirItbmsIngreso();
   // Si el comprobante claramente NO tiene ITBMS y la categoría
-  // elegida es gravable, destildar para respetar la realidad del
-  // comprobante (la IA puede haber dicho ventas_servicios + tiene_itbms=false).
+  // elegida es gravable, destildar para respetar la realidad del comprobante.
   if (parsed.tiene_itbms === false) {
     const elegida = _getIngresoCat(cat.value);
     if (elegida && elegida.itbms_status === 'gravado') {

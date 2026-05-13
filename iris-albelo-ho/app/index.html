@@ -3217,7 +3217,6 @@ const REG = (() => {
         // Categoría sugerida por IA si vino válida; fallback a ventas_servicios.
         const _aiCat = d.categoria_dgi || '';
         const _resCat = LEGACY_INGRESO_MAP[_aiCat] || _aiCat;
-        // Validar contra el catálogo: <option value="..."> en el select
         const _validCat = !!document.querySelector(`#regIngCat option[value="${_resCat}"]`);
         document.getElementById('regIngCat').value = _validCat ? _resCat : 'ventas_servicios';
         inferItbmsIng();
