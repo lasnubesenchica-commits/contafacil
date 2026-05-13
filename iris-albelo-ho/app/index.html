@@ -3214,9 +3214,16 @@ const REG = (() => {
         if (d.ruc_pagador)      document.getElementById('regIngRuc').value    = d.ruc_pagador;
         if (d.dv_pagador)       document.getElementById('regIngDv').value     = d.dv_pagador;
         if (d.descripcion)      document.getElementById('regIngDesc').value   = d.descripcion;
-        // Default a "Ventas y Prestación de Servicios" (L14) — más común
-        document.getElementById('regIngCat').value = 'ventas_servicios';
+        // Categoría sugerida por IA si vino válida; fallback a ventas_servicios.
+        const _aiCat = d.categoria_dgi || '';
+        const _resCat = LEGACY_INGRESO_MAP[_aiCat] || _aiCat;
+        const _validCat = !!document.querySelector(`#regIngCat option[value="${_resCat}"]`);
+        document.getElementById('regIngCat').value = _validCat ? _resCat : 'ventas_servicios';
         inferItbmsIng();
+        if (d.tiene_itbms === false) {
+          document.getElementById('regIngItbms').checked = false;
+          recalcIng();
+        }
         zone.classList.remove('analyzing'); zone.classList.add('has-file');
         status.style.color = 'var(--green)';
         status.textContent = '✅ Datos extraídos — revisa y confirma';
