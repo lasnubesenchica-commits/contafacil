@@ -3559,7 +3559,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
             <label>Categoría</label>
             <select id="eCategoria" onchange="inferirTipoEgreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
               <option disabled>──── Costos de Ventas (Anexo 94 DGI) ────</option>
-              <option value="costo_mercancia" disabled>📦 Costo de mercancía — automático desde Operaciones</option>
+              <option value="costo_mercancia" disabled>📦 Costo de mercancía</option>
               <option value="compras_locales">🛍️ Compras locales (L28)</option>
               <option value="compras_importadas">📦 Compras importadas (L29)</option>
               <option value="salarios_costo">👤 Salarios y remuneraciones — Costo (L30)</option>
@@ -9513,7 +9513,7 @@ function _renderCategoriaSelect(selectEl, selected, opts) {
   if (costos.length || opts.includeDisabledCostoMercancia) {
     html += '<optgroup label="── Costos directos (poco común) ──">';
     if (opts.includeDisabledCostoMercancia) {
-      html += '<option value="costo_mercancia" disabled>📦 Costo de mercancía — automático desde Operaciones</option>';
+      html += '<option value="costo_mercancia" disabled>📦 Costo de mercancía</option>';
     }
     html += costos.map(opt).join('');
     html += '</optgroup>';
