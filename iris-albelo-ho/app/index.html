@@ -4230,30 +4230,28 @@ const PEND = (() => {
       <div class="f-grp">
         <label class="f-lbl">Categoría</label>
         <select class="f-inp" id="regIngCat" onchange="REG.inferItbmsIng()">
-          <optgroup label="Actividad / Profesión">
-            <option value="ventas_servicios">🛒 Ventas y Prestación de Servicios (L14)</option>
-            <option value="honorarios_profesionales">💼 Honorarios Profesionales (L8)</option>
-            <option value="honorarios_comision">💳 Honorarios por Comisión (L7)</option>
-            <option value="alquiler_comercial">🏢 Alquiler Comercial (L10)</option>
-            <option value="alquiler_habitacional">🏠 Alquiler Habitacional (L9)</option>
-            <option value="intereses_financieros">🏦 Intereses Financieros (L11)</option>
-            <option value="actividad_agropecuaria">🌾 Actividad Agropecuaria (L6)</option>
-            <option value="otros_ingresos">📋 Otros Ingresos (L13)</option>
-            <option value="ganancia_capital_legacy">📉 Ganancia capital pre-2006 (L12)</option>
-          </optgroup>
-          <optgroup label="Remuneraciones personales">
-            <option value="salarios_con_retencion">💼 Salarios c/retención (L1)</option>
-            <option value="remuneracion_sin_retencion">💵 Remuneración s/retención (L2)</option>
+          <optgroup label="Ingresos (L1–L5)">
+            <option value="salarios_con_retencion">💼 Salarios y otras remuneraciones c/retención (L1)</option>
+            <option value="remuneracion_sin_retencion">💵 Otras remuneraciones personales s/retención (L2)</option>
             <option value="ingresos_especies">🎁 Ingresos en especies (L3)</option>
-            <option value="gastos_repr_asalariado">🤝 Gastos Representación asalariado (L4)</option>
+            <option value="gastos_repr_asalariado">🤝 Gastos de Representación (L4)</option>
             <option value="dietas">📅 Dietas (L5)</option>
           </optgroup>
-          <optgroup label="Sustractivos / Especiales">
+          <optgroup label="Ingresos por Actividad y/o Profesión (L6–L19)">
+            <option value="actividad_agropecuaria">🌾 Actividad Agropecuaria (L6)</option>
+            <option value="honorarios_comision">💳 Honorarios por Comisiones (L7)</option>
+            <option value="honorarios_profesionales">💼 Honorarios por Servicios Profesionales (L8)</option>
+            <option value="alquiler_habitacional">🏠 Alquiler Habitacional (L9)</option>
+            <option value="alquiler_comercial">🏢 Alquiler Comercial (L10)</option>
+            <option value="intereses_financieros">🏦 Intereses y otros Ingresos Financieros (L11)</option>
+            <option value="ganancia_capital_legacy">📉 Ganancia capital pre-Ley 18/2006 (L12)</option>
+            <option value="otros_ingresos">📋 Otros Ingresos (L13)</option>
+            <option value="ventas_servicios">🛒 Ventas y Prestación de Servicios (L14)</option>
             <option value="devoluciones_descuentos">↩️ Menos: Devoluciones y Descuentos (L15)</option>
-            <option value="descuento_jubilados">👵 Menos: Descuento Jubilados (L16)</option>
-            <option value="ingresos_exentos">🛡️ Ingresos Exentos (L17)</option>
+            <option value="descuento_jubilados">👵 Menos: Descuento Jubilados Ley 6/87 (L16)</option>
+            <option value="ingresos_exentos">🛡️ Menos: Ingresos Exentos / No Gravables (L17)</option>
             <option value="fuente_extranjera">🌎 Fuente Extranjera (L18)</option>
-            <option value="gastos_repr_actividad">🎯 Gastos Representación actividad (L19)</option>
+            <option value="gastos_repr_actividad">🎯 Gastos de Representación actividad (L19)</option>
           </optgroup>
         </select>
       </div>

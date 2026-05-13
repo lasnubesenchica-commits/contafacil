@@ -3247,11 +3247,11 @@ var CATEGORIAS_INGRESO_DGI = [
   { valor: 'descuento_jubilados',        label: 'Menos: Descuento Jubilados (Farmacias) Ley 6/87', linea: '16', seccion: 'sustractivo', emoji: '👵',
     itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: -1,
     hint: 'Solo aplica a farmacias. 20% descuento de ley a jubilados, deducible de la base.' },
+  { valor: 'ingresos_exentos',           label: 'Menos: Ingresos Exentos / No Gravables',          linea: '17', seccion: 'sustractivo', emoji: '🛡️',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'No tributan ISR Panamá. Se restan de la base gravable: dividendos locales con ISR ya pagado, donaciones no comerciales, etc.' },
 
   // ── Especiales (clasificación con tratamiento DGI distinto) ──
-  { valor: 'ingresos_exentos',           label: 'Ingresos Exentos / No Gravables',                 linea: '17', seccion: 'especial', emoji: '🛡️',
-    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
-    hint: 'No suman a renta gravable: dividendos locales con ISR ya pagado, donaciones no comerciales, etc.' },
   { valor: 'fuente_extranjera',          label: 'Fuente Extranjera',                               linea: '18', seccion: 'especial', emoji: '🌎',
     itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
     hint: 'Renta producida fuera de Panamá. Por principio de territorialidad NO tributa ISR Panamá.' },

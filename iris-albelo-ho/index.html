@@ -4789,7 +4789,8 @@ function closeIngresoModal() {
 
 // ── RECALC INGRESO ──────────────────────────────────────────
 
-// Pinta el <select id="iCategoria"> agrupado por sección DGI.
+// Pinta el <select id="iCategoria"> en orden DGI Formulario 91 (L1-L19),
+// agrupado en las 2 secciones oficiales.
 function _renderIngresoCategoriaSelect(selectedValue) {
   const sel = document.getElementById('iCategoria');
   if (!sel) return;
@@ -4799,15 +4800,13 @@ function _renderIngresoCategoriaSelect(selectedValue) {
     const isSel = (c.valor === selectedValue) ? ' selected' : '';
     return `<option value="${c.valor}"${isSel}>${label}</option>`;
   };
-  const remun = CATEGORIAS_INGRESO_DGI.filter(c => c.seccion === 'remuneracion');
-  const activ = CATEGORIAS_INGRESO_DGI.filter(c => c.seccion === 'actividad');
-  const sustr = CATEGORIAS_INGRESO_DGI.filter(c => c.seccion === 'sustractivo');
-  const espec = CATEGORIAS_INGRESO_DGI.filter(c => c.seccion === 'especial');
+  // Orden estricto DGI: L1-L5 (Ingresos), L6-L19 (Actividad/Profesión).
+  // El catálogo CATEGORIAS_INGRESO_DGI ya está declarado en orden 1-19.
+  const personales = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) <= 5);
+  const actividad  = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) >= 6);
   sel.innerHTML =
-    sec('Actividad / Profesión (lo más común)') + activ.map(opt).join('') +
-    sec('Remuneraciones personales')           + remun.map(opt).join('') +
-    sec('Sustractivos (restan de la base)')    + sustr.map(opt).join('') +
-    sec('Especiales')                          + espec.map(opt).join('');
+    sec('Ingresos (L1–L5)')                              + personales.map(opt).join('') +
+    sec('Ingresos por Actividad y/o Profesión (L6–L19)') + actividad.map(opt).join('');
 }
 
 // Aplica defaults DGI según la categoría elegida: ITBMS rate, hint
@@ -6792,17 +6791,17 @@ const CATEGORIAS_INGRESO_DGI = [
   { valor: 'ventas_servicios',           label: 'Ventas y Prestación de Servicios',                linea: '14', seccion: 'actividad', emoji: '🛒',
     itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
     hint: 'El bulk de la actividad comercial/servicios. ITBMS 7% default. 10% en alcohol/tabaco/hospedaje. Exento en canasta básica.' },
-  // Sustractivos (L15-L16)
+  // Sustractivos (L15-L17 — restan de la base gravable)
   { valor: 'devoluciones_descuentos',    label: 'Menos: Devoluciones y Descuentos',                linea: '15', seccion: 'sustractivo', emoji: '↩️',
     itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: -1,
     hint: 'Notas crédito y descuentos comerciales. Ingresa el monto positivo; el sistema lo resta automáticamente.' },
   { valor: 'descuento_jubilados',        label: 'Menos: Descuento Jubilados (Farmacias) Ley 6/87', linea: '16', seccion: 'sustractivo', emoji: '👵',
     itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: -1,
     hint: 'Solo aplica a farmacias. 20% descuento de ley a jubilados, deducible de la base.' },
-  // Especiales (L17-L19)
-  { valor: 'ingresos_exentos',           label: 'Ingresos Exentos / No Gravables',                 linea: '17', seccion: 'especial', emoji: '🛡️',
-    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
-    hint: 'No suman a renta gravable: dividendos locales con ISR ya pagado, donaciones no comerciales, etc.' },
+  { valor: 'ingresos_exentos',           label: 'Menos: Ingresos Exentos / No Gravables',          linea: '17', seccion: 'sustractivo', emoji: '🛡️',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'No tributan ISR Panamá. Se restan de la base gravable: dividendos locales con ISR ya pagado, donaciones no comerciales, etc.' },
+  // Especiales (L18-L19 — clasificación con tratamiento DGI distinto)
   { valor: 'fuente_extranjera',          label: 'Fuente Extranjera',                               linea: '18', seccion: 'especial', emoji: '🌎',
     itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
     hint: 'Renta producida fuera de Panamá. Por principio de territorialidad NO tributa ISR Panamá.' },
