@@ -27,20 +27,21 @@
 //  Flujo
 //  ─────
 //    1. Usuario hace "configurar email" en WhatsApp y le da su gmail.
-//    2. Router guarda email→phone y le dice al usuario los pasos en
-//       Gmail.
+//    2. Router guarda email→phone y le dice los pasos para agregar
+//       facturas@balanceclip.net como dirección de reenvío.
 //    3. Usuario completa el formulario en Gmail. Google manda un mail
 //       de confirmación a facturas@balanceclip.net con un magic-link
 //       (Google ya no usa códigos numéricos — solo el link).
 //    4. Este watcher (corriendo cada 1 min) detecta el mail y extrae
 //       el remitente original + el link 'vf-...'.
-//    5. Fetchea el link → eso confirma el reenvío automáticamente.
-//    6. POSTea al router con { email, status, link } — el router
-//       localiza el phone del usuario y le manda el resultado:
-//       confirmed → "✅ Verificado, andá a Gmail y marcá la casilla"
-//       expired   → "El link expiró, volvé a empezar"
-//       otro      → mandar el link como fallback para click manual
+//    5. POSTea al router con { email, link, status:'link_only' }.
+//    6. Router le manda al usuario el link por WhatsApp. El usuario
+//       lo toca desde su teléfono y Gmail confirma en 1 click.
 //    7. Marca el thread como leído para no reprocesarlo.
+//
+//  Nota: NO intentamos auto-confirmar el link desde el watcher.
+//  UrlFetchApp.fetch(link) nunca devuelve la página de éxito porque
+//  no estamos autenticados en la sesión que originó la solicitud.
 // ════════════════════════════════════════════════════════════════════
 
 // ────────────────────────────────────────────────────────────────────
@@ -124,45 +125,19 @@ function procesarConfirmacionGmail(msg, routerUrl, token) {
     return false;
   }
 
-  // ── Auto-confirmación: fetchamos el magic-link ──
-  // Resultados posibles:
-  //   confirmed   → la respuesta indica éxito explícito
-  //   expired     → el link ya fue usado o expiró
-  //   unclear     → 200 OK pero no detectamos señal de éxito ni de error
-  //   http_error  → respuesta no-200
-  //   fetch_error → excepción en UrlFetchApp
-  var status = 'unclear';
-  try {
-    var r = UrlFetchApp.fetch(link, {
-      method:             'get',
-      followRedirects:    true,
-      muteHttpExceptions: true,
-    });
-    var rc = r.getResponseCode();
-    var rt = r.getContentText() || '';
-    Logger.log('Auto-confirm GET → ' + rc + ' (' + rt.length + ' chars)');
-    if (rc === 200) {
-      if (/Confirmation Success|been confirmed|successfully confirmed|confirmaci[oó]n (correcta|exitosa)|reenv[ií]o (confirmado|verificado)/i.test(rt)) {
-        status = 'confirmed';
-      } else if (/expired|already (been )?(used|confirmed)|invalid|expir/i.test(rt)) {
-        status = 'expired';
-      }
-    } else {
-      status = 'http_error';
-      Logger.log('Auto-confirm response body (primeros 500): ' + rt.substring(0, 500));
-    }
-  } catch(err) {
-    Logger.log('Auto-confirm fetch error: ' + err.message);
-    status = 'fetch_error';
-  }
+  // ── Notar: NO intentamos auto-confirmar el link ──
+  // El UrlFetchApp.fetch() del link nunca devuelve la página de
+  // "Confirmation Success" porque no estamos autenticados en la
+  // sesión que originó la solicitud. Le mandamos el link al usuario
+  // y que lo abra desde su teléfono — confirma en 1 click.
 
   // ── Avisar al router ──
   var payload = {
     action: 'verifyEmailCode',
     token:  token,
     email:  userEmail,
-    status: status,
-    link:   link,  // el router decide si se lo manda al usuario como fallback
+    status: 'link_only',
+    link:   link,
   };
   var resp = UrlFetchApp.fetch(routerUrl, {
     method:             'post',
