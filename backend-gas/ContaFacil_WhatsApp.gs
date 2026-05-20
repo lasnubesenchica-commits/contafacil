@@ -297,6 +297,7 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '  "descripcion":       "..." o null,\n' +
     '  "nombre_otro":       "nombre del proveedor (si gasto) o cliente pagador (si ingreso)",\n' +
     '  "ruc_otro":          "..." o null,\n' +
+    '  "ruc_receptor":      "RUC del RECEPTOR de la factura (si gasto: debe ser el RUC del negocio del usuario; si ingreso: no aplica) o null",\n' +
     '  "categoria_dgi":     "key DGI de la línea correspondiente (ver guía)"\n' +
     '}\n\n' +
     'Para "categoria_dgi" si tipo_transaccion=ingreso, usá las keys del Form 91:\n' +
@@ -354,7 +355,9 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
   var cfg = _getConfig();
   var driveUrl = _guardarPdfAcreedor(blob.getBytes(), fileName, acreedor.nombre, cfg, mime);
 
-  // 3. Crear pendiente
+  // 3. Crear pendiente — pasamos ruc_receptor extraído por la IA para que
+  //    _crearPendiente compute alcance ('negocio' si coincide con empresa_ruc).
+  var rucReceptor = String(parsed.ruc_receptor || '').replace(/\s/g, '');
   var clave = 'whatsapp-' + msgId;
   var parsedForPend = {
     fecha:                parsed.fecha       || '',
@@ -365,9 +368,25 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
     descripcion:          parsed.descripcion || nombreProv,
     confianza_categoria:  parsed.confianza   || 0,
     categoria_sugerida:   catSug,
-    ruc_receptor:         '',
+    ruc_receptor:         rucReceptor,
   };
   var pendId = _crearPendiente(ss, acreedor, parsedForPend, driveUrl, clave, msgId, fileName);
+
+  // Calcular alcance localmente para mostrar en el mensaje (mismo
+  // criterio que _crearPendiente: deducible solo si la factura está
+  // a nombre del negocio).
+  var rucCli = String((cfg && cfg.empresa_ruc) ? cfg.empresa_ruc : '').replace(/\s/g, '');
+  var esDeducible = !!(rucReceptor && rucCli && rucReceptor === rucCli);
+  var lineaDeducible;
+  if (!rucCli) {
+    lineaDeducible = '⚠️ No deducible (RUC del negocio no configurado en la app)';
+  } else if (esDeducible) {
+    lineaDeducible = '✅ Deducible (factura a nombre del negocio)';
+  } else if (!rucReceptor) {
+    lineaDeducible = '🚫 No deducible (factura sin RUC del receptor)';
+  } else {
+    lineaDeducible = '🚫 No deducible (factura a otro RUC, no al negocio)';
+  }
 
   // Mandar mensaje INTERACTIVO con 2 botones (Aprobar / Cambiar categoría).
   // El usuario decide desde el mismo WhatsApp sin abrir la app.
@@ -380,7 +399,8 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
                 '📦 ' + (acreedor.nombre || 'Sin proveedor') + '\n' +
                 '💵 B/. ' + Number(parsed.total || 0).toFixed(2) +
                 (parsed.itbms ? ' (ITBMS B/. ' + Number(parsed.itbms).toFixed(2) + ')' : '') + '\n' +
-                '📋 Categoría sugerida: ' + _waCatLabel(catSug);
+                '📋 Categoría sugerida: ' + _waCatLabel(catSug) + '\n' +
+                lineaDeducible;
   _whatsappReplyBotones(from, bodyTxt, '#' + pendId, [
     { id: 'wa:apr:' + pendId, title: '✅ Aprobar' },
     { id: 'wa:cat:' + pendId, title: '📝 Cambiar categoría' },
