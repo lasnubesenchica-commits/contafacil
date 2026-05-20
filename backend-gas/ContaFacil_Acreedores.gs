@@ -1404,6 +1404,7 @@ function _handleAprobarAcreedor(params, callback) {
         filE[COL_E.FECHA_GASTO - 1]   = fechaGasto;
         filE[COL_E.DESCRIPCION - 1]   = r[COL_PEND.DESCRIPCION - 1] || r[COL_PEND.ACREEDOR_NOM - 1] || '';
         filE[COL_E.CATEGORIA - 1]     = r[COL_PEND.CATEGORIA - 1]   || '';
+        filE[COL_E.TIPO_EGRESO - 1]   = r[COL_PEND.CATEGORIA - 1]   || '';   // P&L y RG consumen este campo
         filE[COL_E.SUBTOTAL - 1]      = parseFloat(r[COL_PEND.SUBTOTAL - 1] || '0') || '';
         filE[COL_E.ITBMS - 1]         = parseFloat(r[COL_PEND.ITBMS - 1]    || '0') || '';
         filE[COL_E.TOTAL - 1]         = parseFloat(r[COL_PEND.TOTAL - 1]    || '0') || '';
