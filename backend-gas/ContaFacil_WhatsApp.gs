@@ -189,6 +189,35 @@ function _whatsappProcesarMensaje(msg, metadata) {
 
   Logger.log('IA parsed: ' + JSON.stringify(parsed));
 
+  // ── Gate de calidad: validaciones objetivas + auto-eval IA ──
+  var calidad = _whatsappValidarCalidad(parsed);
+  Logger.log('Calidad: score=' + calidad.score + ' problemas=' + calidad.problemas.join(',') + ' ia_conf=' + calidad.ia_conf + ' ia_legi=' + calidad.ia_legi);
+
+  if (calidad.score < 60) {
+    var detalleProblemas = calidad.problemas.length
+      ? '*No pude leer:* ' + calidad.problemas.join(', ') + '\n\n'
+      : '';
+    _whatsappReply(from,
+      '⚠️ *No pude procesar el comprobante* (calidad ' + calidad.score + '%)\n\n' +
+      detalleProblemas +
+      'Por favor reenvialo con mejor calidad:\n' +
+      '📐 Ponelo plano y bien enfocado\n' +
+      '💡 Buena iluminación, sin reflejos ni sombras\n' +
+      '🔍 Que se lean monto, fecha, proveedor y RUC\n' +
+      '📄 Si tenés el PDF original, mandá el PDF',
+      token, phoneId);
+    return;
+  }
+
+  if (calidad.score < 80) {
+    var avisos = calidad.problemas.length
+      ? ' Campos dudosos: ' + calidad.problemas.join(', ') + '.'
+      : '';
+    _whatsappReply(from,
+      '⚠️ *Lectura parcial* (calidad ' + calidad.score + '%). Revisá bien los datos antes de aprobar.' + avisos,
+      token, phoneId);
+  }
+
   // ── Guardar según tipo detectado ──
   var resumen;
   try {
@@ -206,6 +235,50 @@ function _whatsappProcesarMensaje(msg, metadata) {
 
   // ── Confirmar al usuario ──
   _whatsappReply(from, resumen, token, phoneId);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Validación de calidad — combina auto-eval IA + validaciones objetivas.
+//  Devuelve { score 0-100, ia_conf, ia_legi, problemas:[...] }.
+//  Umbrales (en el caller):
+//    < 60  → rechazo, pedir reenvío
+//    60-79 → aviso de lectura parcial, sigue procesando
+//    ≥ 80  → procesamiento normal
+// ────────────────────────────────────────────────────────────────────
+function _whatsappValidarCalidad(parsed) {
+  var ia_conf = Number(parsed && parsed.confianza)   || 0;
+  var ia_legi = Number(parsed && parsed.legibilidad) || ia_conf; // fallback si IA no devuelve legibilidad
+
+  var problemas = [];
+
+  var total = Number(parsed && parsed.total) || 0;
+  if (total <= 0) problemas.push('monto');
+
+  var fechaStr = parsed && parsed.fecha;
+  var fechaValida = fechaStr && /^\d{4}-\d{2}-\d{2}$/.test(String(fechaStr)) && !isNaN(Date.parse(fechaStr));
+  if (!fechaValida) problemas.push('fecha');
+
+  var nom = parsed && parsed.nombre_otro;
+  if (!nom || String(nom).trim().length < 2) problemas.push('proveedor');
+
+  // RUC del otro (proveedor para gasto, cliente para ingreso) — requiere >=4 dígitos
+  var rucOtroDigits = parsed && parsed.ruc_otro ? String(parsed.ruc_otro).replace(/[^0-9]/g, '') : '';
+  if (rucOtroDigits.length < 4) problemas.push('RUC');
+
+  // Score = min(confianza IA, legibilidad IA) − penalty por cada validación objetiva fallida
+  var base = Math.min(ia_conf, ia_legi);
+  var penalty = problemas.length * 15;
+  var score = Math.max(0, base - penalty);
+
+  // Hard-fail: sin monto no se puede registrar nada → forzar rechazo
+  if (total <= 0) score = Math.min(score, 40);
+
+  return {
+    score:     Math.round(score),
+    ia_conf:   ia_conf,
+    ia_legi:   ia_legi,
+    problemas: problemas,
+  };
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -287,7 +360,8 @@ function _whatsappClasificarYExtraer(b64, mime) {
     'Responde SOLO con JSON válido, sin markdown:\n' +
     '{\n' +
     '  "tipo_transaccion": "gasto" | "ingreso",\n' +
-    '  "confianza":         0-100,\n' +
+    '  "confianza":         0-100  (qué tan seguro estás de los valores extraídos),\n' +
+    '  "legibilidad":       0-100  (calidad visual del documento; 100=perfectamente legible, 0=ilegible),\n' +
     '  "fecha":             "YYYY-MM-DD" o null,\n' +
     '  "num_factura":       "..." o null,\n' +
     '  "subtotal":          número,\n' +
