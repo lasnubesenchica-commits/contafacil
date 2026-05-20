@@ -514,25 +514,23 @@ function whatsappTestConfig() {
 // ════════════════════════════════════════════════════════════════════
 
 // Catálogo de categorías para el list message — Meta limita a 10 FILAS
-// TOTALES (no por sección). Mostramos solo las 10 más usadas; para
-// categorías menos comunes, el usuario abre el web app desde el link
-// del fallback / hint.
+// TOTALES (no por sección). Mostramos solo las 10 más usadas según la
+// lista oficial DGI (24 gastos + 10 costos); para las menos comunes,
+// el usuario abre el web app desde el link del cuerpo del mensaje.
 var WA_CAT_SECTIONS = [
-  { title: 'Operativos comunes', rows: [
-    { key: 'otros_deducibles',         title: 'Otro gasto deducible',     desc: 'L77 · catch-all operativo' },
-    { key: 'alquileres',               title: 'Alquileres',               desc: 'L46 · local, oficina' },
-    { key: 'combustible_transporte',   title: 'Combustible/transporte',   desc: 'L56' },
-    { key: 'gastos_oficina',           title: 'Oficina/suministros',      desc: 'L69' },
-    { key: 'nomina',                   title: 'Nómina / Salarios',        desc: 'L42' },
+  { title: 'Gastos comunes', rows: [
+    { key: 'otros_gastos',                title: 'Otros Gastos',             desc: 'G23 · catch-all' },
+    { key: 'alquileres',                  title: 'Alquileres',               desc: 'G4 · local, oficina' },
+    { key: 'transporte',                  title: 'Transporte',               desc: 'G5 · combustible, taxi' },
+    { key: 'gastos_oficina',              title: 'Gastos de Oficina',        desc: 'G13' },
+    { key: 'salarios_remuneraciones',     title: 'Salarios y Remuneraciones',desc: 'G1 · nómina' },
+    { key: 'servicios_basicos',           title: 'Electricidad/Agua/Tel.',   desc: 'G21' },
+    { key: 'honorarios_servicios',        title: 'Honorarios y comisiones',  desc: 'G12' },
+    { key: 'mantenimiento',               title: 'Mantenimiento',            desc: 'G20' },
   ]},
-  { title: 'Servicios', rows: [
-    { key: 'servicios_publicos',       title: 'Agua, luz',                desc: 'L75' },
-    { key: 'telecomunicaciones',       title: 'Internet, teléfono',       desc: 'L71' },
-    { key: 'honorarios_profesionales', title: 'Honorarios profesionales', desc: 'L60' },
-  ]},
-  { title: 'Compras / Costos', rows: [
-    { key: 'compras_locales',          title: 'Compras locales',          desc: 'L28 · costo venta' },
-    { key: 'compras_importadas',       title: 'Compras importadas',       desc: 'L29 · costo venta' },
+  { title: 'Compras (Costo de venta)', rows: [
+    { key: 'compras_locales',             title: 'Compras Locales',          desc: 'C1' },
+    { key: 'compras_importadas',          title: 'Compras Importadas',       desc: 'C2' },
   ]},
 ];
 

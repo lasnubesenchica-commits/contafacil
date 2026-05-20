@@ -3138,50 +3138,57 @@ var TIPOS_COSTO_DIRECTO = [
 
 // ── GASTOS OPERATIVOS (Líneas 42-77 formulario DGI) ──────────
 // Reclasificables por el usuario desde el P&L
+// Catálogo oficial DGI Panamá — Gastos (G1-G24) + Costos (C1-C10).
+// seccion: 'gasto' | 'costo' | 'personal' decide en qué bucket cae
+// cada item en el P&L. La numeración es la posición en la lista
+// oficial Anexo 94 (no las líneas del Form 90/91 viejo).
 var CATEGORIAS_GASTO_DGI = [
-  { valor: 'nomina',                   label: 'Nómina / Salarios',                linea_dgi: '42',    emoji: '👤' },
-  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales',           linea_dgi: '43',    emoji: '👥' },
-  { valor: 'gastos_representacion',    label: 'Gastos de representación',         linea_dgi: '44',    emoji: '🤝' },
-  { valor: 'alquileres',               label: 'Alquileres',                       linea_dgi: '46',    emoji: '🏠' },
-  { valor: 'cargos_bancarios',         label: 'Cargos bancarios',                 linea_dgi: '53',    emoji: '🏦' },
-  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad',           linea_dgi: '54',    emoji: '🔒' },
-  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros',   linea_dgi: '55',    emoji: '📊' },
-  { valor: 'combustible_transporte',   label: 'Combustible y transporte',         linea_dgi: '56',    emoji: '⛽' },
-  { valor: 'depreciacion',             label: 'Depreciación',                     linea_dgi: '57',    emoji: '📉' },
-  { valor: 'amortizacion',             label: 'Amortización',                     linea_dgi: '58',    emoji: '📋' },
-  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales',    linea_dgi: '59',    emoji: '🏛️' },
-  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales',         linea_dgi: '60',    emoji: '💼' },
-  { valor: 'seguros',                  label: 'Seguros',                          linea_dgi: '63-66', emoji: '🛡️' },
-  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones',     linea_dgi: '67',    emoji: '🔧' },
-  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo',            linea_dgi: '68',    emoji: '📣' },
-  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros',  linea_dgi: '69',    emoji: '🖇️' },
-  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones',    linea_dgi: '71',    emoji: '📶' },
-  { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',   linea_dgi: '75',    emoji: '💡' },
-  { valor: 'tecnologia_software',      label: 'Tecnología y software',            linea_dgi: '76',    emoji: '💻' },
-  { valor: 'capacitacion',             label: 'Capacitación y formación',         linea_dgi: '76',    emoji: '📚' },
-  // ── Costos de Ventas (Anexo 94 DGI - Estado de Costo de Ventas) ──
-  // Detalle por línea del Anexo 94. Para clientes sin módulo
-  // Comercialización que necesitan registrar costos directos por
-  // categoría. Reducen Utilidad Bruta (no son gastos operativos).
-  { valor: 'compras_locales',          label: 'Compras locales',                  linea_dgi: '28',    emoji: '🛍️' },
-  { valor: 'compras_importadas',       label: 'Compras importadas',               linea_dgi: '29',    emoji: '📦' },
-  { valor: 'salarios_costo',           label: 'Salarios y remuneraciones (Costo)',linea_dgi: '30',    emoji: '👤' },
-  { valor: 'depreciacion_costo',       label: 'Depreciación (Costo)',             linea_dgi: '31',    emoji: '📉' },
-  { valor: 'mantenimiento_costo',      label: 'Mantenimiento (Costo)',            linea_dgi: '32',    emoji: '🔧' },
-  { valor: 'servicios_costo',          label: 'Electricidad, agua y tel. (Costo)',linea_dgi: '33',    emoji: '💡' },
-  { valor: 'seguros_costo',            label: 'Seguros (Costo)',                  linea_dgi: '34',    emoji: '🛡️' },
-  { valor: 'otros_costos_venta',       label: 'Otros costos de venta',            linea_dgi: '35',    emoji: '🛒' },
-  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',          linea_dgi: '77',    emoji: '📋' },
-  // ── Deducibles Personales (ISR persona natural) ──
-  { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea_dgi: 'DP',  emoji: '👨‍👩‍👧' },
-  { valor: 'gastos_medicos',                  label: 'Gastos médicos',                  linea_dgi: 'DP-1', emoji: '🏥' },
-  { valor: 'gastos_escolares',                label: 'Gastos escolares',                linea_dgi: 'DP-2', emoji: '📖' },
-  { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea_dgi: 'DP-3', emoji: '🏡' },
-  { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea_dgi: 'DP-4', emoji: '🎓' },
-  { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea_dgi: 'DP-5', emoji: '♿' },
+  // ══════════ GASTOS DEDUCIBLES (G1-G24) ══════════
+  { valor: 'salarios_remuneraciones',    label: 'Salarios y otras Remuneraciones',           linea_dgi: '1',  seccion: 'gasto', emoji: '👤' },
+  { valor: 'prestaciones_laborales',     label: 'Prestaciones Laborales',                    linea_dgi: '2',  seccion: 'gasto', emoji: '👥' },
+  { valor: 'atencion_promocion_clientes',label: 'Atención y Promoción a Clientes',           linea_dgi: '3',  seccion: 'gasto', emoji: '🤝' },
+  { valor: 'alquileres',                 label: 'Alquileres',                                linea_dgi: '4',  seccion: 'gasto', emoji: '🏠' },
+  { valor: 'transporte',                 label: 'Transporte',                                linea_dgi: '5',  seccion: 'gasto', emoji: '⛽' },
+  { valor: 'provision_cuentas_malas',    label: 'Provisión para Cuentas Malas',              linea_dgi: '6',  seccion: 'gasto', emoji: '⚠️' },
+  { valor: 'cargos_bancarios',           label: 'Cargos Bancarios',                          linea_dgi: '7',  seccion: 'gasto', emoji: '🏦' },
+  { valor: 'gastos_financieros',         label: 'Intereses y otros Gastos Financieros Netos',linea_dgi: '8',  seccion: 'gasto', emoji: '📊' },
+  { valor: 'depreciacion',               label: 'Depreciación',                              linea_dgi: '9',  seccion: 'gasto', emoji: '📉' },
+  { valor: 'amortizacion',               label: 'Amortización',                              linea_dgi: '10', seccion: 'gasto', emoji: '📋' },
+  { valor: 'impuestos',                  label: 'Impuestos',                                 linea_dgi: '11', seccion: 'gasto', emoji: '🏛️' },
+  { valor: 'honorarios_servicios',       label: 'Honorarios por servicios profesionales y comisiones', linea_dgi: '12', seccion: 'gasto', emoji: '💼' },
+  { valor: 'gastos_oficina',             label: 'Gastos de Oficina',                         linea_dgi: '13', seccion: 'gasto', emoji: '🖇️' },
+  { valor: 'gastos_factoring',           label: 'Gastos de Factoring',                       linea_dgi: '14', seccion: 'gasto', emoji: '💱' },
+  { valor: 'gastos_ingresos_especies',   label: 'Gastos por Ingresos en Especies',           linea_dgi: '15', seccion: 'gasto', emoji: '🎁' },
+  { valor: 'donaciones_estado',          label: 'Donaciones al Estado',                      linea_dgi: '16', seccion: 'gasto', emoji: '🏛️' },
+  { valor: 'donaciones_art16_ce',        label: 'Donaciones (literal c y e del Art. 16, D. E. 143 de 2005)', linea_dgi: '17', seccion: 'gasto', emoji: '❤️' },
+  { valor: 'donaciones_art16_bdf',       label: 'Donaciones (literal b, d y f del Art. 16, D. E. 143 de 2005)', linea_dgi: '18', seccion: 'gasto', emoji: '❤️' },
+  { valor: 'donaciones_ley_186_2020',    label: 'Donaciones Ley 186-2020',                   linea_dgi: '19', seccion: 'gasto', emoji: '❤️' },
+  { valor: 'mantenimiento',              label: 'Mantenimiento',                             linea_dgi: '20', seccion: 'gasto', emoji: '🔧' },
+  { valor: 'servicios_basicos',          label: 'Electricidad, Agua y Teléfono',             linea_dgi: '21', seccion: 'gasto', emoji: '💡' },
+  { valor: 'seguros',                    label: 'Seguros',                                   linea_dgi: '22', seccion: 'gasto', emoji: '🛡️' },
+  { valor: 'otros_gastos',               label: 'Otros Gastos',                              linea_dgi: '23', seccion: 'gasto', emoji: '📋' },
+  { valor: 'gastos_fuente_extranjera',   label: 'Gastos de Fuente Extranjera',               linea_dgi: '24', seccion: 'gasto', emoji: '🌎' },
+  // ══════════ COSTOS DE VENTAS (C1-C10 Anexo 94) ══════════
+  { valor: 'compras_locales',            label: 'Compras - Locales',                         linea_dgi: '1',  seccion: 'costo', emoji: '🛍️' },
+  { valor: 'compras_importadas',         label: 'Compras - Importadas',                      linea_dgi: '2',  seccion: 'costo', emoji: '📦' },
+  { valor: 'salarios_costo',             label: 'Salarios y otras Remuneraciones',           linea_dgi: '3',  seccion: 'costo', emoji: '👤' },
+  { valor: 'depreciacion_costo',         label: 'Depreciación',                              linea_dgi: '4',  seccion: 'costo', emoji: '📉' },
+  { valor: 'mantenimiento_costo',        label: 'Mantenimiento',                             linea_dgi: '5',  seccion: 'costo', emoji: '🔧' },
+  { valor: 'servicios_costo',            label: 'Electricidad, Agua y Teléfono',             linea_dgi: '6',  seccion: 'costo', emoji: '💡' },
+  { valor: 'seguros_costo',              label: 'Seguros',                                   linea_dgi: '7',  seccion: 'costo', emoji: '🛡️' },
+  { valor: 'otros_costos_venta',         label: 'Otros Costos',                              linea_dgi: '8',  seccion: 'costo', emoji: '🛒' },
+  { valor: 'costos_exentos',             label: 'Menos Costos: Exentos y/o no deducibles',   linea_dgi: '9',  seccion: 'costo', emoji: '↩️', signo: -1 },
+  { valor: 'costos_fuente_extranjera',   label: 'Fuente Extranjera',                         linea_dgi: '10', seccion: 'costo', emoji: '🌎' },
+  // ══════════ DEDUCIBLES PERSONALES (ISR Persona Natural) ══════════
+  { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea_dgi: 'DP',  seccion: 'personal', emoji: '👨‍👩‍👧' },
+  { valor: 'gastos_medicos',                  label: 'Gastos médicos',                  linea_dgi: 'DP-1', seccion: 'personal', emoji: '🏥' },
+  { valor: 'gastos_escolares',                label: 'Gastos escolares',                linea_dgi: 'DP-2', seccion: 'personal', emoji: '📖' },
+  { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea_dgi: 'DP-3', seccion: 'personal', emoji: '🏡' },
+  { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea_dgi: 'DP-4', seccion: 'personal', emoji: '🎓' },
+  { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea_dgi: 'DP-5', seccion: 'personal', emoji: '♿' },
 ];
 
-// Categorías que cuentan como COSTO DE VENTAS (Anexo 94 L28-L35), no
+// Categorías que cuentan como COSTO DE VENTAS (Anexo 94 C1-C10), no
 // como gasto operativo. Reducen Utilidad Bruta en el P&L y agregan
 // al Costo de Ventas en el reporte anual DGI.
 var COSTO_KEYS_ANEXO94 = [
@@ -3193,7 +3200,28 @@ var COSTO_KEYS_ANEXO94 = [
   'servicios_costo',
   'seguros_costo',
   'otros_costos_venta',
+  'costos_exentos',
+  'costos_fuente_extranjera',
 ];
+
+// Legacy → nueva key (mirror del LEGACY_GASTO_MAP del frontend).
+// Usado para resolver datos viejos en el sheet al hacer reports
+// agregados por categoría.
+var LEGACY_GASTO_MAP = {
+  'nomina':                      'salarios_remuneraciones',
+  'combustible_transporte':      'transporte',
+  'impuestos_tasas':             'impuestos',
+  'honorarios_profesionales':    'honorarios_servicios',
+  'mantenimiento_reparacion':    'mantenimiento',
+  'otros_deducibles':            'otros_gastos',
+  'gastos_representacion':       'atencion_promocion_clientes',
+  'publicidad_mercadeo':         'atencion_promocion_clientes',
+  'telecomunicaciones':          'servicios_basicos',
+  'servicios_publicos':          'servicios_basicos',
+  'vigilancia_seguridad':        'otros_gastos',
+  'tecnologia_software':         'otros_gastos',
+  'capacitacion':                'otros_gastos',
+};
 
 // ════════════════════════════════════════════════════════════════════
 //  CATEGORIAS_INGRESO_DGI — catálogo oficial Formulario 91/93 DGI Panamá
