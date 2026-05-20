@@ -7250,6 +7250,15 @@ function catChipLabel(valor) {
   return RG_EGR_CAT_LABELS[valor] || CATEG_ACR_LABELS[valor] || valor || '—';
 }
 
+// Prefijo de línea DGI según sección: G# para gastos, C# para costos,
+// DP-# para deducibles personales (linea ya viene como "DP-1").
+function _catLineaPrefix(c) {
+  if (!c) return '';
+  if (c.seccion === 'gasto') return 'G' + c.linea;
+  if (c.seccion === 'costo') return 'C' + c.linea;
+  return c.linea || '';   // personal: 'DP-1', etc.
+}
+
 // Construir la celda chip clickeable
 function buildCatChip(item) {
   const catVal = item.tipo_egreso || item.categoria || 'sin_clasificar';
@@ -7344,20 +7353,20 @@ function catChipOpen(e, id, tipo, catActual) {
   const renderOpt = c => `
     <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
          onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
-      <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+      <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:38px">${_catLineaPrefix(c)}</span>
       <span style="font-size:.9rem;flex-shrink:0">${c.emoji || ''}</span>
       ${c.label}
       <span class="cat-check">✓</span>
     </div>`;
 
   let html = '<div class="cat-chip-dropdown-title">Reclasificar categoría</div>';
-  if (costos.length) {
-    html += '<div class="cat-chip-section">── COSTOS DE VENTAS (L28–L35) ──</div>';
-    html += costos.map(renderOpt).join('');
-  }
   if (operativos.length) {
-    html += '<div class="cat-chip-section">── GASTOS OPERATIVOS DEDUCIBLES (L42–L77) ──</div>';
+    html += '<div class="cat-chip-section">── GASTOS DEDUCIBLES (G1–G24) ──</div>';
     html += operativos.map(renderOpt).join('');
+  }
+  if (costos.length) {
+    html += '<div class="cat-chip-section">── COSTOS DE VENTAS (C1–C10 · Anexo 94) ──</div>';
+    html += costos.map(renderOpt).join('');
   }
   if (personales.length) {
     html += '<div class="cat-chip-section">── DEDUCIBLES PERSONALES (DP) ──</div>';
@@ -7550,18 +7559,18 @@ function catChipOpenPL(e, triggerEl, id, tipo, catActual) {
     const renderOptPl = c => `
       <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
            onclick="catChipSelect('${c.valor}','${esc(c.label)}')">
-        <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:38px">${_catLineaPrefix(c)}</span>
         ${c.emoji} ${c.label}
         <span class="cat-check">✓</span>
       </div>`;
     let htmlPl = `<div class="cat-chip-dropdown-title">Reclasificar · DGI</div>`;
-    if (_costosPl.length) {
-      htmlPl += '<div class="cat-chip-section">── COSTOS DE VENTAS (L28–L35) ──</div>';
-      htmlPl += _costosPl.map(renderOptPl).join('');
-    }
     if (_operativosPl.length) {
-      htmlPl += '<div class="cat-chip-section">── GASTOS OPERATIVOS DEDUCIBLES (L42–L77) ──</div>';
+      htmlPl += '<div class="cat-chip-section">── GASTOS DEDUCIBLES (G1–G24) ──</div>';
       htmlPl += _operativosPl.map(renderOptPl).join('');
+    }
+    if (_costosPl.length) {
+      htmlPl += '<div class="cat-chip-section">── COSTOS DE VENTAS (C1–C10 · Anexo 94) ──</div>';
+      htmlPl += _costosPl.map(renderOptPl).join('');
     }
     if (_personalesPl.length) {
       htmlPl += '<div class="cat-chip-section">── DEDUCIBLES PERSONALES (DP) ──</div>';
@@ -10187,7 +10196,7 @@ function _renderCategoriaSelect(selectEl, selected, opts) {
 
   const opt = c => {
     const lbl = opts.withLineLabel
-      ? `L${c.linea} · ${c.emoji} ${c.label}`
+      ? `${_catLineaPrefix(c)} · ${c.emoji} ${c.label}`
       : `${c.emoji} ${c.label}`;
     return `<option value="${c.valor}"${c.valor === selected ? ' selected' : ''}>${lbl}</option>`;
   };
@@ -10195,19 +10204,19 @@ function _renderCategoriaSelect(selectEl, selected, opts) {
   let html = '';
   if (opts.emptyFirst) html += '<option value="">— Elegí una categoría —</option>';
 
-  // Sección 1: Costos de Ventas (Anexo 94 DGI L28-L35)
+  // Sección 1: Gastos Deducibles (G1-G24) — lo más común
+  html += '<optgroup label="── GASTOS DEDUCIBLES (G1–G24) ──">';
+  html += operativos.map(opt).join('');
+  html += '</optgroup>';
+  // Sección 2: Costos de Ventas (C1-C10 Anexo 94)
   if (costos.length || opts.includeDisabledCostoMercancia) {
-    html += '<optgroup label="── COSTOS DE VENTAS (L28–L35) ──">';
+    html += '<optgroup label="── COSTOS DE VENTAS (C1–C10 · Anexo 94) ──">';
     if (opts.includeDisabledCostoMercancia) {
       html += '<option value="costo_mercancia" disabled>📦 Costo de mercancía</option>';
     }
     html += costos.map(opt).join('');
     html += '</optgroup>';
   }
-  // Sección 2: Gastos Operativos Deducibles (Formulario 90/91 L42-L77)
-  html += '<optgroup label="── GASTOS OPERATIVOS DEDUCIBLES (L42–L77) ──">';
-  html += operativos.map(opt).join('');
-  html += '</optgroup>';
   // Sección 3: Deducibles Personales (Persona Natural)
   if (personales.length) {
     html += '<optgroup label="── DEDUCIBLES PERSONALES (DP) ──">';
