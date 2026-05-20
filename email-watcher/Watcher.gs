@@ -102,22 +102,37 @@ function procesarConfirmacionGmail(msg, routerUrl, token) {
   var userEmail = emailMatch ? emailMatch[1].toLowerCase() : null;
 
   // ── Extraer código de verificación ──
-  // Es un número de 9 dígitos. Buscamos cerca de "code" / "código" o
-  // simplemente cualquier secuencia de 9 dígitos.
-  var codeMatch =
-    body.match(/(?:code|c[oó]digo)[^\d]{0,30}(\d{9})/i) ||
-    body.match(/\b(\d{9})\b/);
-  var code = codeMatch ? codeMatch[1] : null;
+  // Google formatea el código de 9 dígitos de varias maneras según
+  // idioma y plantilla: "Confirmation code: 123456789", "Código: 123
+  // 456 789", "123-456-789", etc. Probamos en orden, normalizando al
+  // final a 9 dígitos puros.
+  var code = null;
+  var labeled = body.match(/(?:confirmation\s*code|c[oó]digo\s*de\s*confirmaci[oó]n|c[oó]digo)\s*[:#-]*\s*([\d][\d\s\-\.]{7,25})/i);
+  if (labeled) {
+    code = labeled[1].replace(/\D/g, '').substring(0, 9);
+  }
+  if (!code || code.length < 9) {
+    // Fallback: 9 dígitos con posibles separadores en bloques 3-3-3
+    var sep = body.match(/(\d{3}[\s\-\.]?\d{3}[\s\-\.]?\d{3})(?!\d)/);
+    if (sep) code = sep[1].replace(/\D/g, '');
+  }
+  if (!code || code.length < 9) {
+    var plain = body.match(/\b(\d{9})\b/);
+    if (plain) code = plain[1];
+  }
 
   // ── Extraer URL de confirmación ──
   // Patrón típico: https://mail-settings.google.com/mail/vf-...
-  var linkMatch = body.match(/https:\/\/mail-settings\.google\.com\/mail\/[^\s\]]+/i);
+  var linkMatch = body.match(/https:\/\/mail-settings\.google\.com\/mail\/[^\s\]\)>]+/i);
   var link = linkMatch ? linkMatch[0] : null;
 
   Logger.log('Parsed: email=' + userEmail + ' code=' + (code || '(none)') + ' link=' + (link ? 'present' : 'none'));
 
   if (!userEmail || !code) {
     Logger.log('Faltan datos críticos — abortando (subject: ' + subject + ')');
+    Logger.log('--- Body excerpt (primeros 1500 chars) para diagnosticar regex ---');
+    Logger.log(body.substring(0, 1500));
+    Logger.log('--- Fin body excerpt ---');
     // Devolvemos false para NO marcar como leído — quizá Google volvió
     // a generar el mail y el parsing falló por un cambio de formato.
     return false;
@@ -194,18 +209,28 @@ function testParse() {
   var threads = GmailApp.search('from:forwarding-noreply@google.com', 0, 1);
   if (!threads.length) { Logger.log('No hay emails de forwarding-noreply@google.com en el buzón'); return; }
   var msg = threads[0].getMessages()[0];
-  Logger.log('Subject: ' + msg.getSubject());
-  Logger.log('Body (primeros 800):\n' + (msg.getPlainBody() || '').substring(0, 800));
-  // Forzar parse sin marcar leído
-  var dummyUrl   = 'https://example.com';
-  var dummyToken = 'dryrun';
-  // Replicamos la lógica sin postear: muteamos UrlFetchApp temporalmente.
-  // Simplemente extraemos en seco:
   var body = msg.getPlainBody() || '';
+  Logger.log('Subject: ' + msg.getSubject());
+  Logger.log('--- Body (primeros 1500 chars) ---');
+  Logger.log(body.substring(0, 1500));
+  Logger.log('--- Fin body ---');
+
   var em = body.match(/([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})\s+(has requested|ha solicitado|wants|quiere)/i);
-  var cm = body.match(/(?:code|c[oó]digo)[^\d]{0,30}(\d{9})/i) || body.match(/\b(\d{9})\b/);
-  var lm = body.match(/https:\/\/mail-settings\.google\.com\/mail\/[^\s\]]+/i);
+
+  var code = null;
+  var labeled = body.match(/(?:confirmation\s*code|c[oó]digo\s*de\s*confirmaci[oó]n|c[oó]digo)\s*[:#-]*\s*([\d][\d\s\-\.]{7,25})/i);
+  if (labeled) code = labeled[1].replace(/\D/g, '').substring(0, 9);
+  if (!code || code.length < 9) {
+    var sep = body.match(/(\d{3}[\s\-\.]?\d{3}[\s\-\.]?\d{3})(?!\d)/);
+    if (sep) code = sep[1].replace(/\D/g, '');
+  }
+  if (!code || code.length < 9) {
+    var plain = body.match(/\b(\d{9})\b/);
+    if (plain) code = plain[1];
+  }
+
+  var lm = body.match(/https:\/\/mail-settings\.google\.com\/mail\/[^\s\]\)>]+/i);
   Logger.log('Email user: ' + (em ? em[1] : 'NO MATCH'));
-  Logger.log('Code: '       + (cm ? cm[1] : 'NO MATCH'));
-  Logger.log('Link: '       + (lm ? lm[0].substring(0,80)+'…' : 'NO MATCH'));
+  Logger.log('Code:       ' + (code || 'NO MATCH'));
+  Logger.log('Link:       ' + (lm ? lm[0].substring(0,80)+'…' : 'NO MATCH'));
 }
