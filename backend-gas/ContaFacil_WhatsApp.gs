@@ -484,48 +484,26 @@ function whatsappTestConfig() {
 //    "wa:set:<pendId>:<key>"     — setear categoría y aprobar
 // ════════════════════════════════════════════════════════════════════
 
-// Catálogo de categorías para el list message — agrupado en secciones
-// que respeten los límites de Meta (10 secciones × 10 rows × título 24 chars).
-// Solo cubre GASTOS (catálogo DGI Form 90/91). Ingresos no implementados.
+// Catálogo de categorías para el list message — Meta limita a 10 FILAS
+// TOTALES (no por sección). Mostramos solo las 10 más usadas; para
+// categorías menos comunes, el usuario abre el web app desde el link
+// del fallback / hint.
 var WA_CAT_SECTIONS = [
-  { title: 'Más comunes', rows: [
-    { key: 'otros_deducibles',         title: 'Otros gastos',             desc: 'L77 · catch-all operativo' },
+  { title: 'Operativos comunes', rows: [
+    { key: 'otros_deducibles',         title: 'Otro gasto deducible',     desc: 'L77 · catch-all operativo' },
     { key: 'alquileres',               title: 'Alquileres',               desc: 'L46 · local, oficina' },
     { key: 'combustible_transporte',   title: 'Combustible/transporte',   desc: 'L56' },
-    { key: 'servicios_publicos',       title: 'Servicios públicos',       desc: 'L75 · agua, luz' },
-    { key: 'telecomunicaciones',       title: 'Internet/teléfono',        desc: 'L71' },
-    { key: 'gastos_oficina',           title: 'Gastos oficina',           desc: 'L69 · suministros' },
+    { key: 'gastos_oficina',           title: 'Oficina/suministros',      desc: 'L69' },
     { key: 'nomina',                   title: 'Nómina / Salarios',        desc: 'L42' },
   ]},
-  { title: 'Costos de Ventas', rows: [
-    { key: 'compras_locales',          title: 'Compras locales',          desc: 'L28 Anexo 94' },
-    { key: 'compras_importadas',       title: 'Compras importadas',       desc: 'L29 Anexo 94' },
-    { key: 'salarios_costo',           title: 'Salarios (Costo)',         desc: 'L30 Anexo 94' },
-    { key: 'depreciacion_costo',       title: 'Depreciación (Costo)',     desc: 'L31 Anexo 94' },
-    { key: 'mantenimiento_costo',      title: 'Mantenim. (Costo)',        desc: 'L32 Anexo 94' },
-    { key: 'servicios_costo',          title: 'Servicios (Costo)',        desc: 'L33 agua/luz prod.' },
-    { key: 'seguros_costo',            title: 'Seguros (Costo)',          desc: 'L34 Anexo 94' },
-    { key: 'otros_costos_venta',       title: 'Otros costos venta',       desc: 'L35 Anexo 94' },
-  ]},
-  { title: 'Personal', rows: [
-    { key: 'prestaciones_laborales',   title: 'Prestaciones laborales',   desc: 'L43' },
-    { key: 'gastos_representacion',    title: 'Gastos representación',    desc: 'L44' },
+  { title: 'Servicios', rows: [
+    { key: 'servicios_publicos',       title: 'Agua, luz',                desc: 'L75' },
+    { key: 'telecomunicaciones',       title: 'Internet, teléfono',       desc: 'L71' },
     { key: 'honorarios_profesionales', title: 'Honorarios profesionales', desc: 'L60' },
-    { key: 'capacitacion',             title: 'Capacitación',             desc: 'L76' },
   ]},
-  { title: 'Financiero', rows: [
-    { key: 'cargos_bancarios',         title: 'Cargos bancarios',         desc: 'L53' },
-    { key: 'gastos_financieros',       title: 'Intereses financieros',    desc: 'L55' },
-    { key: 'impuestos_tasas',          title: 'Impuestos y tasas',        desc: 'L59' },
-    { key: 'seguros',                  title: 'Seguros',                  desc: 'L63-66' },
-  ]},
-  { title: 'Activos y Mantenim', rows: [
-    { key: 'depreciacion',             title: 'Depreciación',             desc: 'L57' },
-    { key: 'amortizacion',             title: 'Amortización',             desc: 'L58' },
-    { key: 'mantenimiento_reparacion', title: 'Mantenimiento',            desc: 'L67' },
-    { key: 'vigilancia_seguridad',     title: 'Vigilancia/seguridad',     desc: 'L54' },
-    { key: 'tecnologia_software',      title: 'Tecnología/software',      desc: 'L76' },
-    { key: 'publicidad_mercadeo',      title: 'Publicidad/mercadeo',      desc: 'L68' },
+  { title: 'Compras / Costos', rows: [
+    { key: 'compras_locales',          title: 'Compras locales',          desc: 'L28 · costo venta' },
+    { key: 'compras_importadas',       title: 'Compras importadas',       desc: 'L29 · costo venta' },
   ]},
 ];
 
@@ -692,7 +670,8 @@ function _whatsappOnCambiarCat(pendId, from, token, phoneId) {
     };
   });
   var ok = _whatsappReplyLista(from,
-    'Elegí la categoría DGI correcta para ' + pendId + ':',
+    'Elegí la categoría DGI correcta para ' + pendId + '.\n' +
+    '(¿No está la que buscás? Abrí la app desde: ' + _whatsappFrontendUrl() + '#registroGastos)',
     'Ver categorías',
     sections, token, phoneId);
   // Si Meta rechaza el list message (p.ej. límites no documentados),
