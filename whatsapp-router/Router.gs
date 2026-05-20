@@ -15,9 +15,12 @@
 //         META_PHONE_ID        — phone_number_id (1035238479681939)
 //         META_VERIFY_TOKEN    — string que coincide con el webhook Meta
 //         CLIENTS_MAP_JSON     — JSON: { "<tel sin +>": "<deployment_url>" }
-//         EMAIL_WATCHER_TOKEN  — shared secret que comparte con el script
-//                                bound a facturas@balanceclip.net
-//         CONTACT_EMAIL/WEBSITE/WHATSAPP — opcionales (mensaje a desconocidos)
+//         EMAIL_WATCHER_TOKEN  — shared secret con el script bound a
+//                                facturas@balanceclip.net
+//         SIGNUP_ADMIN_PHONE   — número (sin +) del admin que recibe
+//                                notificaciones de signup y puede usar
+//                                el comando `activar` (default 50769812266)
+//         CONTACT_EMAIL/WEBSITE/WHATSAPP — opcionales (info marketing)
 //    4. Apuntar el Webhook Callback URL de Meta a este deployment URL.
 //    5. Probar con routerTestConfig() desde el editor.
 //
@@ -125,11 +128,43 @@ function _routerForwardMensaje(msg, metadata) {
   var props   = PropertiesService.getScriptProperties();
   var token   = props.getProperty('META_WHATSAPP_TOKEN');
   var phoneId = props.getProperty('META_PHONE_ID') || (metadata.phone_number_id || '');
+  var adminPhone = props.getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
 
+  // ── 1. Interactivos del flujo de SIGNUP (funcionan también para
+  //      números todavía no en el mapa, ya que el signup es para ellos).
+  if (msg.type === 'interactive') {
+    var iaReplyTop = msg.interactive || {};
+    var btnIdTop = (iaReplyTop.list_reply   && iaReplyTop.list_reply.id)   ||
+                   (iaReplyTop.button_reply && iaReplyTop.button_reply.id) || '';
+    if (btnIdTop.indexOf('signup:') === 0) {
+      _routerHandleSignupReply(from, btnIdTop, token, phoneId);
+      return;
+    }
+  }
+
+  // ── 2. Texto durante un signup en curso (también para no-mapeados).
+  if (msg.type === 'text') {
+    var signupState = _routerGetSignupState(from);
+    if (signupState) {
+      _routerHandleSignupText(from, (msg.text && msg.text.body) || '', token, phoneId);
+      return;
+    }
+  }
+
+  // ── 3. Comandos de admin (solo desde el número configurado).
+  if (msg.type === 'text' && from === adminPhone) {
+    var adminBody = (msg.text && msg.text.body) ? String(msg.text.body).trim() : '';
+    if (/^activar\s+/i.test(adminBody)) {
+      _routerHandleActivarCommand(from, adminBody, token, phoneId);
+      return;
+    }
+  }
+
+  // ── 4. Routing normal: cliente conocido o desconocido.
   var map = _routerGetClientsMap();
   var clientUrl = map[from];
 
-  // ── Número desconocido → mensaje de marketing/contacto ──
+  // ── Número desconocido → ofrecer signup (con texto marketing + botones) ──
   if (!clientUrl) {
     Logger.log('Numero no reconocido: ' + from);
     _routerReplyDesconocido(from, token, phoneId);
@@ -209,6 +244,13 @@ function _routerForwardMensaje(msg, metadata) {
     ];
     if (setupTriggers.indexOf(bodyText) !== -1) {
       _routerIniciarSetup(from, token, phoneId);
+      return;
+    }
+
+    // Trigger de signup demo (también accesible para clientes existentes
+    // por si quieren registrar un negocio adicional).
+    if (/^(demo|registrar|registrarme|signup|sign up|prueba|probar)$/.test(bodyText)) {
+      _routerIniciarSignup(from, token, phoneId);
       return;
     }
 
@@ -333,25 +375,64 @@ function _routerGetClientsMap() {
 }
 
 // ────────────────────────────────────────────────────────────────────
-//  Responder a número no registrado en el mapa (marketing/contacto)
+//  Responder a número no registrado en el mapa
+//  → ofrece signup demo (botón) + ver más info (botón)
 // ────────────────────────────────────────────────────────────────────
 function _routerReplyDesconocido(to, token, phoneId) {
   if (!token || !phoneId) {
     Logger.log('Faltan META_WHATSAPP_TOKEN o META_PHONE_ID — no puedo responder a número desconocido');
     return;
   }
-  var props   = PropertiesService.getScriptProperties();
-  var email   = props.getProperty('CONTACT_EMAIL')    || 'ventas@balanceclip.net';
-  var web     = props.getProperty('CONTACT_WEBSITE')  || 'https://balanceclip.net';
-  var waNum   = props.getProperty('CONTACT_WHATSAPP') || '+507 6981-2266';
+  try {
+    UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text:
+            '👋 ¡Hola! Soy *BalanceClip* — el asistente fiscal automatizado para profesionales y negocios en Panamá. 🇵🇦\n\n' +
+            'Te ayudo a registrar tus gastos:\n' +
+            '📸 Mandándome facturas por WhatsApp\n' +
+            '📧 O reenviándolas por email\n\n' +
+            'Una IA las lee, las categoriza según DGI y las deja listas en tu contabilidad. ✨\n\n' +
+            '¿Querés probarlo *gratis 7 días*?'
+          },
+          action: {
+            buttons: [
+              { type: 'reply', reply: { id: 'signup:start', title: '🎁 Probar 7 días' } },
+              { type: 'reply', reply: { id: 'signup:info',  title: 'ℹ️ Más info' } },
+            ],
+          },
+        },
+      }),
+      muteHttpExceptions: true,
+    });
+  } catch(err) { Logger.log('Reply desconocido ERROR: ' + err.message); }
+}
+
+function _routerEnviarInfoMarketing(to, token, phoneId) {
+  var props = PropertiesService.getScriptProperties();
+  var email = props.getProperty('CONTACT_EMAIL')    || 'ventas@balanceclip.net';
+  var web   = props.getProperty('CONTACT_WEBSITE')  || 'https://balanceclip.net';
+  var waNum = props.getProperty('CONTACT_WHATSAPP') || '+507 6981-2266';
   var body =
-    '👋 ¡Hola!\n\n' +
-    'Tu número no está suscrito a *BalanceClip* — el asistente fiscal automatizado para profesionales y negocios en Panamá. 🇵🇦\n\n' +
-    'Si querés conocer más sobre el servicio o suscribirte, contactanos:\n\n' +
+    'ℹ️ *Más sobre BalanceClip*\n\n' +
+    'Somos un asistente fiscal automatizado para profesionales y negocios en Panamá.\n\n' +
+    '*Cómo te ayudamos*\n' +
+    '• 📸 Mandás facturas por WhatsApp — IA las lee y categoriza DGI\n' +
+    '• 📧 Configurás tus emails de proveedores para reenviar facturas automáticamente\n' +
+    '• 📊 Reportes ITBMS mensual y cierre anual DGI listos para presentar\n' +
+    '• 🔐 Panel web personal con tu data privada y segura\n\n' +
+    '*Contacto comercial*\n' +
     '📧 ' + email + '\n' +
     '🌐 ' + web + '\n' +
     '💬 WhatsApp: ' + waNum + '\n\n' +
-    'Te ayudamos a digitalizar la captura de facturas, automatizar tu contabilidad y mantener tus reportes DGI listos. 🤖✨';
+    'Si querés *probar gratis 7 días*, escribime *demo* y arrancamos el registro. 🎁';
   _routerSendText(to, body, token, phoneId);
 }
 
@@ -584,6 +665,422 @@ function _routerHandleVerifyCode(data) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+//  FLUJO DE SIGNUP (DEMO 7 DÍAS)
+//  ────────────────────────────
+//  Para números no en CLIENTS_MAP_JSON. El bot ofrece un demo gratuito
+//  y recolecta los datos mínimos necesarios para que el admin haga el
+//  deploy manual en deploy.html.
+//
+//  Estado por usuario: signup_<phone> = JSON
+//    { step: 'awaiting_negocio' | 'awaiting_ruc' | 'awaiting_email_admin'
+//          | 'awaiting_forwarder' | 'awaiting_confirm',
+//      data: { negocio, ruc, dv?, adminEmail, forwarderEmail },
+//      ts:   <ms> }
+//
+//  Una vez completado:
+//    - Limpia signup_<phone>
+//    - Guarda persistente en signup_pending_<phone> (sin TTL)
+//    - Notifica al admin (SIGNUP_ADMIN_PHONE) con la data y el comando
+//      `activar <phone> <deploymentUrl>` listo para copiar.
+//
+//  El admin manda `activar <phone> <url>` desde su propio WhatsApp →
+//  el router agrega la entrada al CLIENTS_MAP_JSON y le envía la
+//  bienvenida al cliente.
+// ════════════════════════════════════════════════════════════════════
+
+var _ROUTER_SIGNUP_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+function _routerGetSignupState(from) {
+  var raw = PropertiesService.getScriptProperties().getProperty('signup_' + from);
+  if (!raw) return null;
+  try {
+    var s = JSON.parse(raw);
+    if (!s.ts || (Date.now() - s.ts) > _ROUTER_SIGNUP_TTL_MS) {
+      _routerClearSignupState(from);
+      return null;
+    }
+    return s;
+  } catch(err) { _routerClearSignupState(from); return null; }
+}
+function _routerSetSignupState(from, state) {
+  state.ts = Date.now();
+  PropertiesService.getScriptProperties().setProperty('signup_' + from, JSON.stringify(state));
+}
+function _routerClearSignupState(from) {
+  PropertiesService.getScriptProperties().deleteProperty('signup_' + from);
+}
+
+function _routerHandleSignupReply(from, btnId, token, phoneId) {
+  var action = btnId.replace('signup:', '');
+  if (action === 'info') {
+    _routerEnviarInfoMarketing(from, token, phoneId);
+    return;
+  }
+  if (action === 'start') {
+    _routerIniciarSignup(from, token, phoneId);
+    return;
+  }
+  if (action === 'confirm_yes') {
+    var st = _routerGetSignupState(from);
+    if (!st || st.step !== 'awaiting_confirm') {
+      _routerSendText(from, 'Tu registro expiró. Escribime *demo* para empezar de nuevo.', token, phoneId);
+      return;
+    }
+    _routerFinalizarSignup(from, st.data, token, phoneId);
+    return;
+  }
+  if (action === 'confirm_no') {
+    _routerIniciarSignup(from, token, phoneId);
+    return;
+  }
+}
+
+function _routerIniciarSignup(from, token, phoneId) {
+  _routerSetSignupState(from, { step: 'awaiting_negocio', data: {} });
+  _routerSendText(from,
+    '🎁 *Demo 7 días gratis*\n\n' +
+    'Te hago *4 preguntas rápidas* y después un técnico te configura todo. Te aviso por acá apenas esté listo — y desde ese momento podés empezar a mandar facturas. 🚀\n\n' +
+    '*Pregunta 1 de 4*\n' +
+    '¿Cuál es la *razón social* o nombre legal de tu negocio?\n' +
+    '_(Ej: Servicios ACME, S.A. — o tu nombre si sos persona natural)_\n\n' +
+    '_Escribí *cancelar* en cualquier momento para salir._',
+    token, phoneId);
+}
+
+function _routerHandleSignupText(from, text, token, phoneId) {
+  var state = _routerGetSignupState(from);
+  if (!state) return;
+  var trimmed = String(text || '').trim();
+  var lower = trimmed.toLowerCase();
+
+  if (/^(cancelar|salir|cancel|exit)$/.test(lower)) {
+    _routerClearSignupState(from);
+    _routerSendText(from, '👍 Registro cancelado. Si querés probar más adelante, escribime *demo*.', token, phoneId);
+    return;
+  }
+
+  var data = state.data || {};
+
+  // ── Q1: Negocio ──
+  if (state.step === 'awaiting_negocio') {
+    if (trimmed.length < 2) {
+      _routerSendText(from, '⚠️ Ese nombre es muy corto. Escribime la razón social/nombre legal del negocio.', token, phoneId);
+      return;
+    }
+    data.negocio = trimmed.substring(0, 200);
+    _routerSetSignupState(from, { step: 'awaiting_ruc', data: data });
+    _routerSendText(from,
+      '✅ Anotado: *' + data.negocio + '*\n\n' +
+      '*Pregunta 2 de 4*\n' +
+      '¿Cuál es el *RUC* del negocio?\n' +
+      '_(Ej: 2470636-1-814806 — sin el DV; lo busco yo)_',
+      token, phoneId);
+    return;
+  }
+
+  // ── Q2: RUC (con validación de formato + lookup de DV) ──
+  if (state.step === 'awaiting_ruc') {
+    var rucClean = trimmed.replace(/\s+/g, '');
+    if (!_routerValidarFormatoRuc(rucClean)) {
+      _routerSendText(from,
+        '⚠️ Eso no parece un RUC válido. Debe tener números y guiones.\n' +
+        'Ej: *2470636-1-814806*  o  *8-NT-1-12345*\n\n' +
+        'Mandalo de nuevo, o escribí *cancelar* para salir.',
+        token, phoneId);
+      return;
+    }
+    data.ruc = rucClean;
+    data.dv = _routerLookupRucDv(rucClean); // best-effort; null si falla
+    _routerSetSignupState(from, { step: 'awaiting_email_admin', data: data });
+    var dvNote = data.dv
+      ? '✅ RUC anotado · DV detectado: *' + data.dv + '*\n\n'
+      : '✅ RUC anotado · _(no pude buscar el DV automáticamente, el técnico lo verifica después)_\n\n';
+    _routerSendText(from,
+      dvNote +
+      '*Pregunta 3 de 4*\n' +
+      '¿Cuál es tu *email* personal o del negocio?\n' +
+      '_(Lo usamos para crear tu usuario del panel web y mandarte notificaciones)_\n' +
+      'Ej: tunombre@gmail.com',
+      token, phoneId);
+    return;
+  }
+
+  // ── Q3: Email admin ──
+  if (state.step === 'awaiting_email_admin') {
+    var emailA = _routerParseEmail(trimmed);
+    if (!emailA) {
+      _routerSendText(from, '⚠️ No reconozco eso como un email válido. Mandame tu dirección, ej: tunombre@gmail.com', token, phoneId);
+      return;
+    }
+    data.adminEmail = emailA;
+    _routerSetSignupState(from, { step: 'awaiting_forwarder', data: data });
+    _routerSendText(from,
+      '✅ Email anotado: *' + emailA + '*\n\n' +
+      '*Pregunta 4 de 4*\n' +
+      '¿Desde qué *email recibís facturas de proveedores* (el que querés que reenvíe automáticamente a BalanceClip)?\n\n' +
+      '• Si es el mismo email que el anterior, escribí *mismo*\n' +
+      '• Si todavía no usás email para recibir facturas, escribí *ninguno*',
+      token, phoneId);
+    return;
+  }
+
+  // ── Q4: Forwarder email ──
+  if (state.step === 'awaiting_forwarder') {
+    var fwdEmail;
+    if (/^ninguno?$/i.test(lower))      fwdEmail = '';
+    else if (/^mismo$/i.test(lower))    fwdEmail = data.adminEmail;
+    else {
+      var parsed = _routerParseEmail(trimmed);
+      if (!parsed) {
+        _routerSendText(from, '⚠️ No reconozco eso como un email. Mandalo de nuevo, o escribí *mismo* / *ninguno*.', token, phoneId);
+        return;
+      }
+      fwdEmail = parsed;
+    }
+    data.forwarderEmail = fwdEmail;
+    _routerSetSignupState(from, { step: 'awaiting_confirm', data: data });
+    _routerEnviarResumenSignup(from, data, token, phoneId);
+    return;
+  }
+
+  // ── Q5: Confirmación (texto, además del botón) ──
+  if (state.step === 'awaiting_confirm') {
+    if (/^(s[ií]|ok|confirmar|confirmo|todo ok)$/i.test(lower)) {
+      _routerFinalizarSignup(from, data, token, phoneId);
+      return;
+    }
+    if (/^(no|corregir|editar|cambiar)$/i.test(lower)) {
+      _routerIniciarSignup(from, token, phoneId);
+      return;
+    }
+    _routerEnviarResumenSignup(from, data, token, phoneId);
+  }
+}
+
+function _routerEnviarResumenSignup(to, data, token, phoneId) {
+  var rucCompleto = data.dv ? (data.ruc + ' DV ' + data.dv) : data.ruc;
+  var bodyText =
+    '📋 *Confirmá tus datos:*\n\n' +
+    '🏢 Negocio: *' + data.negocio + '*\n' +
+    '🆔 RUC: *' + rucCompleto + '*\n' +
+    '📧 Tu email: *' + data.adminEmail + '*\n' +
+    '📨 Email facturas: *' + (data.forwarderEmail || '(ninguno)') + '*\n' +
+    '📱 Tu WhatsApp: *+' + to + '*\n\n' +
+    '¿Todo correcto?';
+  try {
+    UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: bodyText },
+          action: {
+            buttons: [
+              { type: 'reply', reply: { id: 'signup:confirm_yes', title: '✅ Sí, todo OK' } },
+              { type: 'reply', reply: { id: 'signup:confirm_no',  title: '✏️ Corregir' } },
+            ],
+          },
+        },
+      }),
+      muteHttpExceptions: true,
+    });
+  } catch(err) { Logger.log('_routerEnviarResumenSignup ERROR: ' + err.message); }
+}
+
+function _routerFinalizarSignup(from, data, token, phoneId) {
+  // Persistir como pending (sin TTL) para que el admin pueda consultarlo
+  // si tarda en activar.
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('signup_pending_' + from, JSON.stringify({
+    phone: from, ts: Date.now(), data: data,
+  }));
+  _routerClearSignupState(from);
+
+  // Confirmar al cliente
+  _routerSendText(from,
+    '🎉 *¡Listo, recibimos tu solicitud!*\n\n' +
+    'Un técnico de BalanceClip te va a configurar la cuenta en las próximas *24 horas*. *Te aviso por acá apenas esté lista* y desde ese momento ya podés empezar a mandar facturas. 📤\n\n' +
+    'Gracias por probar BalanceClip 🙌',
+    token, phoneId);
+
+  // Notificar al admin
+  var adminPhone = props.getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
+  var rucCompleto = data.dv ? (data.ruc + ' DV ' + data.dv) : data.ruc;
+  var adminMsg =
+    '🆕 *Nuevo signup demo*\n\n' +
+    '📱 Cliente: +' + from + '\n' +
+    '🏢 Negocio: ' + data.negocio + '\n' +
+    '🆔 RUC: ' + rucCompleto + '\n' +
+    '📧 Admin email: ' + data.adminEmail + '\n' +
+    '📨 Forwarder: ' + (data.forwarderEmail || '(ninguno)') + '\n\n' +
+    '⚡ *Cuando termines el deploy:*\n' +
+    '`activar ' + from + ' <deploymentUrl>`\n\n' +
+    '_(copiá la deployment URL desde deploy.html paso 4 y mandá ese comando acá mismo)_';
+  _routerSendText(adminPhone, adminMsg, token, phoneId);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Comando admin: activar <phone> <deploymentUrl>
+//  Solo aceptamos si from === SIGNUP_ADMIN_PHONE (chequeado por el caller).
+//  Agrega la entrada al CLIENTS_MAP_JSON y le manda welcome al cliente.
+// ────────────────────────────────────────────────────────────────────
+function _routerHandleActivarCommand(from, text, token, phoneId) {
+  var m = String(text || '').match(/^activar\s+(\d{8,})\s+(https?:\/\/\S+)\s*$/i);
+  if (!m) {
+    _routerSendText(from,
+      '⚠️ Formato del comando:\n' +
+      '`activar <phone_sin_+> <deployment_url>`\n\n' +
+      'Ejemplo:\n' +
+      '`activar 50769812266 https://script.google.com/macros/s/.../exec`',
+      token, phoneId);
+    return;
+  }
+  var newPhone = m[1];
+  var url      = m[2];
+
+  // Actualizar CLIENTS_MAP_JSON (merge)
+  var props   = PropertiesService.getScriptProperties();
+  var mapJson = props.getProperty('CLIENTS_MAP_JSON') || '{}';
+  var map;
+  try { map = JSON.parse(mapJson); } catch(err) { map = {}; }
+  var yaExistia = !!map[newPhone];
+  map[newPhone] = url;
+  props.setProperty('CLIENTS_MAP_JSON', JSON.stringify(map));
+
+  // Limpiar el flag de "ya saludado" para que el welcome vaya completo
+  props.deleteProperty('welcomed_' + newPhone);
+
+  // Enviar welcome al cliente
+  _routerEnviarBienvenida(newPhone, token, phoneId);
+  _routerMarcarSaludado(newPhone);
+
+  // Mover signup_pending → signup_activated
+  var pendingKey = 'signup_pending_' + newPhone;
+  var pending    = props.getProperty(pendingKey);
+  if (pending) {
+    try {
+      var parsed = JSON.parse(pending);
+      parsed.activated_at = Date.now();
+      props.setProperty('signup_activated_' + newPhone, JSON.stringify(parsed));
+      props.deleteProperty(pendingKey);
+    } catch(err) { /* ignore */ }
+  }
+
+  // Confirmar al admin
+  _routerSendText(from,
+    '✅ *Cliente activado*\n\n' +
+    '📱 +' + newPhone + (yaExistia ? ' _(actualizado en el map)_' : ' _(nuevo en el map)_') + '\n' +
+    '🔗 ' + url + '\n\n' +
+    'Le envié la bienvenida — ya puede empezar a mandar facturas.',
+    token, phoneId);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Validación de formato de RUC panameño.
+//  Acepta combinaciones razonables:
+//   • 2470636-1-814806            (jurídica)
+//   • 8-123-456                   (natural)
+//   • 8-NT-1-12345                (NT/N.T. = naturalizado/extranjero)
+//   • 155-12345-6                 (jurídica nueva)
+// ────────────────────────────────────────────────────────────────────
+function _routerValidarFormatoRuc(ruc) {
+  var s = String(ruc || '').replace(/\s+/g, '').toUpperCase();
+  if (s.length < 5 || s.length > 30) return false;
+  // Debe tener al menos un guión y solo dígitos/guiones/letras NT/N.T./E/PE
+  if (!/^[0-9NTPE.\-]+$/.test(s)) return false;
+  if (s.replace(/[^0-9]/g, '').length < 4) return false;
+  if (s.indexOf('-') < 0) return false;
+  return true;
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Best-effort: consultar el DV en el sitio del DGI/eTax2.
+//  El endpoint público es ASP.NET WebForms con __VIEWSTATE. Si el sitio
+//  cambia o bloquea la IP de Apps Script, devolvemos null y la signup
+//  sigue funcionando sin DV — el admin lo verifica manualmente.
+// ────────────────────────────────────────────────────────────────────
+function _routerLookupRucDv(ruc) {
+  var url = 'https://etax2.mef.gob.pa/etax2web/Ruc/ConsultarDV.aspx';
+  try {
+    // Paso 1: GET para obtener viewstate
+    var r1 = UrlFetchApp.fetch(url, {
+      method:             'get',
+      muteHttpExceptions: true,
+      followRedirects:    true,
+    });
+    if (r1.getResponseCode() !== 200) {
+      Logger.log('DGI DV lookup GET → ' + r1.getResponseCode());
+      return null;
+    }
+    var html = r1.getContentText() || '';
+    var vs   = _routerExtraerHiddenInput(html, '__VIEWSTATE');
+    var ev   = _routerExtraerHiddenInput(html, '__EVENTVALIDATION');
+    var vg   = _routerExtraerHiddenInput(html, '__VIEWSTATEGENERATOR');
+    if (!vs || !ev) {
+      Logger.log('DGI DV lookup: tokens no encontrados (cambió el HTML?)');
+      return null;
+    }
+    // Detectar nombre del input del RUC y del botón Buscar (heurística).
+    var rucField = (html.match(/<input[^>]*name="([^"]*Ruc[^"]*)"[^>]*type="text"/i) || [])[1] ||
+                   (html.match(/<input[^>]*type="text"[^>]*name="([^"]+)"/i)         || [])[1];
+    var btnField = (html.match(/<input[^>]*name="([^"]*[Bb]uscar[^"]*)"/) || [])[1] ||
+                   (html.match(/<input[^>]*name="([^"]*btn[^"]*)"/)        || [])[1];
+    if (!rucField) { Logger.log('DGI DV lookup: campo RUC no detectado'); return null; }
+
+    var payload = {
+      '__VIEWSTATE':      vs,
+      '__EVENTVALIDATION': ev,
+    };
+    if (vg) payload['__VIEWSTATEGENERATOR'] = vg;
+    payload[rucField] = ruc;
+    if (btnField) payload[btnField] = 'Buscar';
+
+    // Paso 2: POST con el RUC
+    var r2 = UrlFetchApp.fetch(url, {
+      method:             'post',
+      payload:            payload,
+      muteHttpExceptions: true,
+      followRedirects:    true,
+    });
+    if (r2.getResponseCode() !== 200) {
+      Logger.log('DGI DV lookup POST → ' + r2.getResponseCode());
+      return null;
+    }
+    var resp = r2.getContentText() || '';
+    // Buscar el DV en la respuesta. Patrones posibles:
+    //   "Dígito Verificador: 06"
+    //   "DV: 06"
+    //   inputs con id que contenga DV y value="06"
+    var dvMatch =
+      resp.match(/[Dd][íi]gito\s+[Vv]erificador[^0-9]{1,40}(\d{1,2})\b/) ||
+      resp.match(/\bDV[:\s]+(\d{1,2})\b/) ||
+      resp.match(/<input[^>]*id="[^"]*[Dd][Vv][^"]*"[^>]*value="(\d{1,2})"/);
+    if (dvMatch && dvMatch[1]) {
+      var dv = dvMatch[1];
+      if (dv.length === 1) dv = '0' + dv;
+      return dv;
+    }
+    Logger.log('DGI DV lookup: respuesta sin DV detectable');
+    return null;
+  } catch(err) {
+    Logger.log('_routerLookupRucDv error: ' + err.message);
+    return null;
+  }
+}
+
+function _routerExtraerHiddenInput(html, name) {
+  var re = new RegExp('<input[^>]*name="' + name + '"[^>]*value="([^"]*)"', 'i');
+  var m  = html.match(re) ||
+           html.match(new RegExp('<input[^>]*value="([^"]*)"[^>]*name="' + name + '"', 'i'));
+  return m ? m[1] : null;
+}
+
+// ════════════════════════════════════════════════════════════════════
 //  Diagnóstico — ejecutar desde el editor para validar config
 // ════════════════════════════════════════════════════════════════════
 function routerTestConfig() {
@@ -591,11 +1088,15 @@ function routerTestConfig() {
   var token   = props.getProperty('META_WHATSAPP_TOKEN');
   var phoneId = props.getProperty('META_PHONE_ID');
   var verify  = props.getProperty('META_VERIFY_TOKEN');
+  var watcher = props.getProperty('EMAIL_WATCHER_TOKEN');
+  var admin   = props.getProperty('SIGNUP_ADMIN_PHONE');
   var mapJson = props.getProperty('CLIENTS_MAP_JSON') || '{}';
 
   Logger.log('META_WHATSAPP_TOKEN: ' + (token   ? '✅ set ('+token.substring(0,20)+'…)' : '❌ MISSING'));
   Logger.log('META_PHONE_ID:       ' + (phoneId ? '✅ ' + phoneId : '❌ MISSING'));
   Logger.log('META_VERIFY_TOKEN:   ' + (verify  ? '✅ set' : '❌ MISSING'));
+  Logger.log('EMAIL_WATCHER_TOKEN: ' + (watcher ? '✅ set ('+watcher.length+' chars)' : '⚠️ MISSING (sin esto el watcher no puede notificar codes)'));
+  Logger.log('SIGNUP_ADMIN_PHONE:  ' + (admin   ? '✅ ' + admin : '⚠️ default 50769812266 (setear para producción)'));
 
   var map;
   try { map = JSON.parse(mapJson); }
@@ -604,5 +1105,19 @@ function routerTestConfig() {
   Logger.log('CLIENTS_MAP_JSON: ' + (keys.length ? '✅ ' + keys.length + ' cliente(s) mapeado(s)' : '⚠️ vacío'));
   for (var k = 0; k < keys.length; k++) {
     Logger.log('  ' + keys[k] + ' → ' + map[keys[k]]);
+  }
+
+  // Signups pendientes
+  var allKeys = props.getKeys();
+  var pendings = allKeys.filter(function(k) { return k.indexOf('signup_pending_') === 0; });
+  if (pendings.length) {
+    Logger.log('Signups pendientes de activar: ' + pendings.length);
+    pendings.forEach(function(k) {
+      var phone = k.replace('signup_pending_', '');
+      try {
+        var d = JSON.parse(props.getProperty(k));
+        Logger.log('  +' + phone + ' — ' + (d.data.negocio || '?') + ' — ' + (d.data.adminEmail || '?'));
+      } catch(err) { Logger.log('  +' + phone + ' (parse error)'); }
+    });
   }
 }
