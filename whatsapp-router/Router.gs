@@ -106,13 +106,43 @@ function _routerForwardMensaje(msg, metadata) {
   var from = msg.from || '';
   if (!from) { Logger.log('Mensaje sin from, ignorando'); return; }
 
+  var props   = PropertiesService.getScriptProperties();
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID') || (metadata.phone_number_id || '');
+
   var map = _routerGetClientsMap();
   var clientUrl = map[from];
 
+  // ── Número desconocido → mensaje de marketing/contacto ──
   if (!clientUrl) {
     Logger.log('Numero no reconocido: ' + from);
-    _routerReplyDesconocido(from, metadata);
+    _routerReplyDesconocido(from, token, phoneId);
     return;
+  }
+
+  // ── Mensaje de texto: el router responde directo (bienvenida o ayuda) ──
+  // No lo forwardeamos al cliente — el cliente GAS no procesa texto, solo
+  // media e interactivos.
+  if (msg.type === 'text') {
+    var bodyText = (msg.text && msg.text.body) ? String(msg.text.body).toLowerCase().trim() : '';
+    var triggers = ['hola','help','ayuda','menu','menú','instrucciones','info','start','inicio'];
+    var pidióAyuda = triggers.indexOf(bodyText) !== -1;
+    var primera   = !_routerYaSaludado(from);
+    if (primera || pidióAyuda) {
+      _routerEnviarBienvenida(from, token, phoneId);
+      _routerMarcarSaludado(from);
+    } else {
+      _routerReplyAyudaBreve(from, token, phoneId);
+    }
+    return;
+  }
+
+  // ── Media (image/document) e interactivos → forward al cliente GAS ──
+  // Si es la PRIMERA vez del cliente, mandamos la bienvenida primero,
+  // y después el cliente GAS procesa el archivo y responde con sus botones.
+  if (!_routerYaSaludado(from)) {
+    _routerEnviarBienvenida(from, token, phoneId);
+    _routerMarcarSaludado(from);
   }
 
   Logger.log('Forward from=' + from + ' → ' + clientUrl);
@@ -137,23 +167,63 @@ function _routerForwardMensaje(msg, metadata) {
   }
 }
 
-function _routerGetClientsMap() {
-  var json = PropertiesService.getScriptProperties().getProperty('CLIENTS_MAP_JSON') || '{}';
-  try { return JSON.parse(json); }
-  catch(err) { Logger.log('CLIENTS_MAP_JSON inválido: ' + err.message); return {}; }
+// ────────────────────────────────────────────────────────────────────
+//  Tracking de saludo — quién ya fue bienvenido
+// ────────────────────────────────────────────────────────────────────
+function _routerYaSaludado(from) {
+  return PropertiesService.getScriptProperties().getProperty('welcomed_' + from) === '1';
+}
+function _routerMarcarSaludado(from) {
+  PropertiesService.getScriptProperties().setProperty('welcomed_' + from, '1');
 }
 
 // ────────────────────────────────────────────────────────────────────
-//  Responder a número no registrado en el mapa
+//  Mensaje detallado de bienvenida (clientes conocidos)
 // ────────────────────────────────────────────────────────────────────
-function _routerReplyDesconocido(to, metadata) {
-  var props   = PropertiesService.getScriptProperties();
-  var token   = props.getProperty('META_WHATSAPP_TOKEN');
-  var phoneId = props.getProperty('META_PHONE_ID') || (metadata.phone_number_id || '');
-  if (!token || !phoneId) {
-    Logger.log('Faltan META_WHATSAPP_TOKEN o META_PHONE_ID — no puedo responder a número desconocido');
-    return;
-  }
+function _routerEnviarBienvenida(to, token, phoneId) {
+  if (!token || !phoneId) { Logger.log('No puedo enviar bienvenida — faltan token/phoneId'); return; }
+  var body =
+    '🤖 *¡Hola! Soy el asistente fiscal de BalanceClip*\n\n' +
+    'Te ayudo a registrar tus facturas y comprobantes sin que tengas que abrir la app.\n\n' +
+    '📸 *Cómo funciona*\n' +
+    '1. Mándame una foto o PDF de tu factura/recibo\n' +
+    '2. Una IA lee el documento y extrae monto, fecha, proveedor y RUC\n' +
+    '3. Sugiere la categoría DGI Panamá apropiada\n' +
+    '4. Te respondo con 2 botones:\n' +
+    '   ✅ *Aprobar* (acepta lo sugerido)\n' +
+    '   📝 *Cambiar categoría* (lista de opciones)\n' +
+    '5. El gasto queda registrado en tu sistema\n\n' +
+    '✨ *Detecto automáticamente*\n' +
+    '• Si es gasto o ingreso\n' +
+    '• Monto, ITBMS y total\n' +
+    '• Proveedor / cliente y su RUC\n' +
+    '• Si es deducible (RUC del negocio como receptor)\n' +
+    '• Categoría DGI sugerida\n\n' +
+    '💡 *Tips*\n' +
+    '• Funciona con: facturas DGI, recibos Yappy, transferencias, PDFs\n' +
+    '• Para revisar, modificar o aprobar manualmente, abrí tu panel en balanceclip.net\n\n' +
+    '📋 *Comandos*\n' +
+    'Escribime *ayuda* en cualquier momento para ver estas instrucciones de nuevo.\n\n' +
+    '¿Listo? Mándame tu primera factura 📤';
+  _routerSendText(to, body, token, phoneId);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Ayuda breve (texto no reconocido de cliente ya saludado)
+// ────────────────────────────────────────────────────────────────────
+function _routerReplyAyudaBreve(to, token, phoneId) {
+  if (!token || !phoneId) return;
+  var body =
+    '🤖 No entendí el mensaje. Lo que puedo hacer:\n\n' +
+    '📸 Mandame una *foto o PDF de tu factura* y la registro.\n' +
+    '📋 Escribime *ayuda* para ver las instrucciones completas.';
+  _routerSendText(to, body, token, phoneId);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Wrapper de envío de texto plano (DRY para el router)
+// ────────────────────────────────────────────────────────────────────
+function _routerSendText(to, body, token, phoneId) {
   try {
     UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
       method:      'post',
@@ -162,13 +232,40 @@ function _routerReplyDesconocido(to, metadata) {
       payload:     JSON.stringify({
         messaging_product: 'whatsapp',
         to: to,
-        text: { body: '👋 ¡Hola! No reconozco tu número en BalanceClip. Si querés registrar facturas vía WhatsApp, contactá a tu administrador para que te dé acceso.' },
+        text: { body: String(body || '').substring(0, 4096) },
       }),
       muteHttpExceptions: true,
     });
-  } catch(err) {
-    Logger.log('Reply desconocido ERROR: ' + err.message);
+  } catch(err) { Logger.log('_routerSendText ERROR: ' + err.message); }
+}
+
+function _routerGetClientsMap() {
+  var json = PropertiesService.getScriptProperties().getProperty('CLIENTS_MAP_JSON') || '{}';
+  try { return JSON.parse(json); }
+  catch(err) { Logger.log('CLIENTS_MAP_JSON inválido: ' + err.message); return {}; }
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Responder a número no registrado en el mapa (marketing/contacto)
+// ────────────────────────────────────────────────────────────────────
+function _routerReplyDesconocido(to, token, phoneId) {
+  if (!token || !phoneId) {
+    Logger.log('Faltan META_WHATSAPP_TOKEN o META_PHONE_ID — no puedo responder a número desconocido');
+    return;
   }
+  var props   = PropertiesService.getScriptProperties();
+  var email   = props.getProperty('CONTACT_EMAIL')    || 'ventas@balanceclip.net';
+  var web     = props.getProperty('CONTACT_WEBSITE')  || 'https://balanceclip.net';
+  var waNum   = props.getProperty('CONTACT_WHATSAPP') || '+507 6981-2266';
+  var body =
+    '👋 ¡Hola!\n\n' +
+    'Tu número no está suscrito a *BalanceClip* — el asistente fiscal automatizado para profesionales y negocios en Panamá. 🇵🇦\n\n' +
+    'Si querés conocer más sobre el servicio o suscribirte, contactanos:\n\n' +
+    '📧 ' + email + '\n' +
+    '🌐 ' + web + '\n' +
+    '💬 WhatsApp: ' + waNum + '\n\n' +
+    'Te ayudamos a digitalizar la captura de facturas, automatizar tu contabilidad y mantener tus reportes DGI listos. 🤖✨';
+  _routerSendText(to, body, token, phoneId);
 }
 
 // ────────────────────────────────────────────────────────────────────
