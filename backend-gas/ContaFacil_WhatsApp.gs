@@ -514,23 +514,23 @@ function whatsappTestConfig() {
 // ════════════════════════════════════════════════════════════════════
 
 // Catálogo de categorías para el list message — Meta limita a 10 FILAS
-// TOTALES (no por sección). Mostramos solo las 10 más usadas según la
-// lista oficial DGI (24 gastos + 10 costos); para las menos comunes,
-// el usuario abre el web app desde el link del cuerpo del mensaje.
+// TOTALES (no por sección). Selección curada por el usuario para
+// cubrir los gastos más frecuentes; las menos comunes se hacen vía
+// web app desde el link del cuerpo del mensaje.
 var WA_CAT_SECTIONS = [
-  { title: 'Gastos comunes', rows: [
-    { key: 'otros_gastos',                title: 'Otros Gastos',             desc: 'G23 · catch-all' },
-    { key: 'alquileres',                  title: 'Alquileres',               desc: 'G4 · local, oficina' },
+  { title: 'Gastos', rows: [
+    { key: 'atencion_promocion_clientes', title: 'Atención y Promoción',     desc: 'G3 · clientes, publicidad' },
     { key: 'transporte',                  title: 'Transporte',               desc: 'G5 · combustible, taxi' },
-    { key: 'gastos_oficina',              title: 'Gastos de Oficina',        desc: 'G13' },
-    { key: 'salarios_remuneraciones',     title: 'Salarios y Remuneraciones',desc: 'G1 · nómina' },
-    { key: 'servicios_basicos',           title: 'Electricidad/Agua/Tel.',   desc: 'G21' },
-    { key: 'honorarios_servicios',        title: 'Honorarios y comisiones',  desc: 'G12' },
+    { key: 'impuestos',                   title: 'Impuestos',                desc: 'G11' },
+    { key: 'gastos_oficina',              title: 'Gastos de Oficina',       desc: 'G13' },
     { key: 'mantenimiento',               title: 'Mantenimiento',            desc: 'G20' },
+    { key: 'servicios_basicos',           title: 'Electricidad/Agua/Tel.',   desc: 'G21' },
+    { key: 'seguros',                     title: 'Seguros',                  desc: 'G22' },
+    { key: 'otros_gastos',                title: 'Otros Gastos',             desc: 'G23 · catch-all' },
+    { key: 'gastos_fuente_extranjera',    title: 'Gastos Fuente Extranjera', desc: 'G24' },
   ]},
   { title: 'Compras (Costo de venta)', rows: [
-    { key: 'compras_locales',             title: 'Compras Locales',          desc: 'C1' },
-    { key: 'compras_importadas',          title: 'Compras Importadas',       desc: 'C2' },
+    { key: 'compras_locales',             title: 'Compras - Locales',        desc: 'C1' },
   ]},
 ];
 
