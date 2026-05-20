@@ -235,9 +235,13 @@ function doPost(e) {
   try {
     var data   = JSON.parse(e.postData.contents);
 
-    // ── WhatsApp Cloud API webhook (Meta) ───────────────────────
-    // Detectado por shape del payload, no por action. Procesa async
-    // y siempre retorna 200 para que Meta no reintente.
+    // ── WhatsApp (Meta directo ó forward del Router) ────────────
+    // Detecta dos modos:
+    //   a) Webhook directo de Meta (data.object === 'whatsapp_business_account')
+    //      → modo single-tenant (sin router)
+    //   b) Forward del Router (data.action === 'procesarWhatsAppForward')
+    //      → modo multi-tenant (router enruta este mensaje al cliente)
+    // Siempre retorna 200 para que Meta no reintente.
     var waResp = (typeof _whatsappHandleWebhook === 'function') ? _whatsappHandleWebhook(data) : null;
     if (waResp) return waResp;
 

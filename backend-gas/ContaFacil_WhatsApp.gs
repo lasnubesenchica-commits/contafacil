@@ -62,7 +62,21 @@ function _whatsappHandleVerify(params) {
 //  Detecta el payload de Meta y procesa. Retorna null si no aplica.
 // ────────────────────────────────────────────────────────────────────
 function _whatsappHandleWebhook(data) {
-  if (!data || data.object !== 'whatsapp_business_account') return null;
+  if (!data) return null;
+  // Caso 1: webhook directo de Meta (single-tenant — sin router)
+  if (data.object === 'whatsapp_business_account') {
+    return _whatsappHandleWebhookMeta(data);
+  }
+  // Caso 2: forward del Router (multi-tenant)
+  if (data.action === 'procesarWhatsAppForward' && data.msg) {
+    return _whatsappHandleForward(data);
+  }
+  return null;
+}
+
+// Procesa el payload original de Meta — usado en modo single-tenant
+// (cuando el webhook de Meta apunta directo a este GAS sin router).
+function _whatsappHandleWebhookMeta(data) {
   try {
     var entries = data.entry || [];
     for (var e = 0; e < entries.length; e++) {
@@ -71,7 +85,6 @@ function _whatsappHandleWebhook(data) {
         var value = changes[c].value || {};
         var msgs  = value.messages || [];
         for (var m = 0; m < msgs.length; m++) {
-          // No bloquear si una falla — Meta espera 200 igual
           try { _whatsappProcesarMensaje(msgs[m], value.metadata || {}); }
           catch(err) { Logger.log('WhatsApp procesarMensaje ERROR: ' + err.message); }
         }
@@ -80,7 +93,22 @@ function _whatsappHandleWebhook(data) {
   } catch(err) {
     Logger.log('WhatsApp handleWebhook ERROR: ' + err.message);
   }
-  // Siempre 200 para que Meta no reintente
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: true }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Procesa un mensaje individual forwarded por el Router.
+// El router ya validó que este mensaje pertenece a este cliente.
+function _whatsappHandleForward(data) {
+  try {
+    _whatsappProcesarMensaje(data.msg || {}, data.metadata || {});
+  } catch(err) {
+    Logger.log('_whatsappHandleForward ERROR: ' + err.message);
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   return ContentService
     .createTextOutput(JSON.stringify({ ok: true }))
     .setMimeType(ContentService.MimeType.JSON);
