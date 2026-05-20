@@ -4007,7 +4007,11 @@ function _enterApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   buildMenu();
-  switchTab('registroGastos');
+  // Tab inicial: respeta el hash si vino del WhatsApp link (ej. #registroGastos)
+  // o cualquier otro destino válido. Default: Registro de Gastos.
+  const _validTabs = new Set(['registroGastos','registroIngresos','dashboard','finanzas']);
+  const _hash = (window.location.hash || '').replace(/^#/, '').split('&')[0];
+  switchTab(_validTabs.has(_hash) ? _hash : 'registroGastos');
   gasJsonp('getConfig', {}).then(d => {
     if (d.success) {
       _applyHeaderDesktop(d.config || {});

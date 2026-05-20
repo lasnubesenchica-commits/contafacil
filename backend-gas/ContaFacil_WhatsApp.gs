@@ -30,6 +30,13 @@
 var META_GRAPH_VERSION = 'v19.0';
 var META_GRAPH_BASE    = 'https://graph.facebook.com/' + META_GRAPH_VERSION;
 
+// URL del frontend web para incluir en respuestas de WhatsApp.
+// Se lee de Script Property FRONTEND_URL; fallback hardcoded a iris.
+function _whatsappFrontendUrl() {
+  return PropertiesService.getScriptProperties().getProperty('FRONTEND_URL')
+      || 'https://balanceclip.net/iris-albelo-ho/';
+}
+
 // ────────────────────────────────────────────────────────────────────
 //  doGet hook — verificación del webhook (Meta hace GET con hub.challenge)
 //  Llamar desde doGet(e) ANTES de cualquier otro routing.
@@ -96,10 +103,10 @@ function _whatsappProcesarMensaje(msg, metadata) {
   // ── Mensaje de texto: responder con instrucciones simples ──
   if (tipo === 'text') {
     var body = (msg.text && msg.text.body) || '';
-    _whatsappReply(from, '¡Hola! 👋 Soy el asistente fiscal de iris.\n\n' +
-      'Mandame una foto o PDF de tu factura/recibo y la registro automáticamente. ' +
+    _whatsappReply(from, '¡Hola! 👋 Soy el asistente fiscal de BalanceClip.\n\n' +
+      'Mándame una foto o PDF de tu factura/recibo y la registro automáticamente. ' +
       'La IA detecta si es gasto o ingreso, le saca el monto, la categoría DGI y la deja pendiente ' +
-      'para que apruebes desde la app.', token, phoneId);
+      'para que la apruebes desde la app:\n' + _whatsappFrontendUrl(), token, phoneId);
     return;
   }
 
@@ -322,7 +329,7 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
          '💵 B/. ' + Number(parsed.total || 0).toFixed(2) + (parsed.itbms ? ' (incluye ITBMS B/. ' + Number(parsed.itbms).toFixed(2) + ')' : '') + '\n' +
          '📋 Categoría sugerida: ' + catSug + '\n' +
          '⏳ Pendiente de aprobación: ' + pendId + '\n\n' +
-         'Aprobalo desde la app cuando puedas. 👍';
+         'Apruébalo desde la app: ' + _whatsappFrontendUrl() + '#registroGastos';
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -388,7 +395,7 @@ function _whatsappGuardarIngreso(parsed, blob, mime, from, msgId) {
          '💵 B/. ' + Number(parsed.total || 0).toFixed(2) + (parsed.itbms ? ' (incluye ITBMS B/. ' + Number(parsed.itbms).toFixed(2) + ')' : '') + '\n' +
          '📋 Línea DGI: ' + (parsed.categoria_dgi || 'ventas_servicios') + '\n' +
          '⏳ Pendiente: ' + idTrans + '\n\n' +
-         'Confirmalo desde el Registro de Ingresos. 👍';
+         'Confírmalo desde la app: ' + _whatsappFrontendUrl() + '#registroIngresos';
 }
 
 // ────────────────────────────────────────────────────────────────────
