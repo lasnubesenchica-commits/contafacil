@@ -463,10 +463,10 @@ function _routerEnviarInstruccionesGmail(from, email, token, phoneId) {
     '*3.* Tab *"Reenvío y POP/IMAP"*\n' +
     '*4.* Botón *"Añadir una dirección de reenvío"*\n' +
     '*5.* Ingresá: facturas@balanceclip.net → *Siguiente* → *Continuar*\n\n' +
-    '🔢 *Código de verificación*\n' +
-    'Google te va a pedir un código numérico. *Te lo mando acá automáticamente* en cuanto llegue a nuestro buzón (1-2 min). Esperá el código antes de cerrar la ventana de Gmail.\n\n' +
-    '⚠️ *Después de verificar* (último paso, MUY importante):\n' +
-    'Volvé a la misma sección y marcá:\n' +
+    '🤖 *Verificación automática*\n' +
+    'Apenas mandes el "Continuar", Google nos envía un link de confirmación a facturas@balanceclip.net. *Lo proceso automáticamente* (1-2 min) y te aviso por acá cuando esté listo. No tenés que copiar ni pegar nada.\n\n' +
+    '⚠️ *Después de que te confirme* (último paso, MUY importante):\n' +
+    'Volvé a Gmail → *Reenvío y POP/IMAP*, refrescá la página y marcá:\n' +
     '✅ "Reenviar una copia del correo entrante a facturas@balanceclip.net"\n' +
     '✅ "Conservar la copia de Gmail en Recibidos"\n' +
     '✅ *Guardar cambios* abajo\n\n' +
@@ -475,7 +475,7 @@ function _routerEnviarInstruccionesGmail(from, email, token, phoneId) {
     '1. Configuración → *Filtros y direcciones bloqueadas* → *Crear filtro nuevo*\n' +
     '2. "Contiene las palabras": *factura OR invoice OR recibo OR comprobante*\n' +
     '3. *Crear filtro* → marcá *"Reenviarlo a"* facturas@balanceclip.net\n\n' +
-    '⏳ Esperando el código de Google…';
+    '⏳ Esperando la confirmación de Google…';
   _routerSendText(from, body, token, phoneId);
 }
 
@@ -511,11 +511,15 @@ function _routerHandleVerifyCode(data) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  var email = String(data.email || '').toLowerCase().trim();
-  var code  = String(data.code  || '').trim();
-  var autoConfirmed = !!data.autoConfirmed;
-  if (!email || !code) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing email/code' }))
+  var email  = String(data.email || '').toLowerCase().trim();
+  var status = String(data.status || '').trim();
+  var link   = data.link || null;
+
+  // Backward compat: payloads viejos con { code, autoConfirmed }
+  if (!status && data.code) status = data.autoConfirmed ? 'confirmed' : 'code_only';
+
+  if (!email) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing email' }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -530,26 +534,39 @@ function _routerHandleVerifyCode(data) {
   var phoneId   = props.getProperty('META_PHONE_ID');
 
   var body;
-  if (autoConfirmed) {
+  if (status === 'confirmed') {
     body =
-      '✅ *¡Verificado automáticamente!*\n\n' +
-      'Confirmé el reenvío de *' + email + '* sin que tengas que hacer nada.\n\n' +
-      '*Paso final* (importante):\n' +
-      'En Gmail → Configuración → *Reenvío y POP/IMAP*, marcá:\n' +
-      '✅ "Reenviar una copia del correo entrante a facturas@balanceclip.net"\n' +
-      '✅ Guardar cambios\n\n' +
+      '✅ *¡Tu Gmail está verificado!*\n\n' +
+      'Confirmé automáticamente el reenvío de *' + email + '*.\n\n' +
+      '*Paso final* (MUY importante — sin esto Gmail no reenvía nada):\n' +
+      '1. Volvé a Gmail → ⚙️ → *Ver todos los ajustes* → tab *Reenvío y POP/IMAP*\n' +
+      '2. Refrescá la página — vas a ver facturas@balanceclip.net como *"verificada"*\n' +
+      '3. Marcá: ✅ *"Reenviar una copia del correo entrante a facturas@balanceclip.net"*\n' +
+      '4. Elegí *"conservar la copia de Gmail en Recibidos"*\n' +
+      '5. *Guardar cambios* abajo\n\n' +
       'A partir de ese momento las facturas que te lleguen por email se procesan automáticamente. 🎉';
-  } else {
+  } else if (status === 'expired') {
+    body =
+      '⏰ *El link de verificación expiró o ya fue usado*\n\n' +
+      'Si la verificación de *' + email + '* quedó pendiente, andá a Gmail → *Reenvío y POP/IMAP* y volvé a empezar — agregá de nuevo facturas@balanceclip.net.\n\n' +
+      'Si ya está marcada como "verificada" en Gmail, listo — solo te falta marcar *"Reenviar una copia…"* y *Guardar cambios*.';
+  } else if (status === 'code_only') {
+    // Legacy: el watcher viejo mandó un código numérico
     body =
       '🔢 *Código de verificación de Gmail*\n\n' +
-      '`' + code + '`\n\n' +
-      '👉 Pegalo en Gmail → Configuración → *Reenvío y POP/IMAP* → casilla del código → *Verificar*.\n\n' +
-      'Después acordate de marcar *"Reenviar una copia…"* y *Guardar cambios*.';
+      '`' + String(data.code || '').trim() + '`\n\n' +
+      'Pegalo en Gmail → *Reenvío y POP/IMAP* → *Verificar*.';
+  } else {
+    body =
+      '📬 *Llegó la solicitud de Gmail*\n\n' +
+      'Intenté confirmarla automáticamente pero Google no me devolvió una respuesta clara. *Tocá este link desde tu teléfono* para terminar de verificar:\n\n' +
+      (link || '(link no disponible — revisá el inbox de facturas@balanceclip.net)') + '\n\n' +
+      'Después volvé a Gmail → *Reenvío y POP/IMAP* y marcá *"Reenviar una copia del correo entrante…"* + *Guardar cambios*.';
   }
   _routerSendText(phone, body, metaToken, phoneId);
-  Logger.log('verifyEmailCode: enviado a ' + phone + ' (email=' + email + ', autoConfirmed=' + autoConfirmed + ')');
+  Logger.log('verifyEmailCode: enviado a ' + phone + ' (email=' + email + ', status=' + status + ')');
 
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, sent_to: phone }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, sent_to: phone, status: status }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 

@@ -29,15 +29,17 @@
 //    1. Usuario hace "configurar email" en WhatsApp y le da su gmail.
 //    2. Router guarda email→phone y le dice al usuario los pasos en
 //       Gmail.
-//    3. Usuario completa el formulario en Gmail. Google envía un mail
-//       de confirmación a facturas@balanceclip.net con un código de
-//       9 dígitos y un link de verificación.
-//    4. Este watcher (corriendo cada 1 min) detecta el mail, extrae
-//       el remitente original, el código y el link.
-//    5. Intenta auto-confirmar el link con UrlFetchApp.
-//    6. POSTea al router con { email, code, autoConfirmed } — el
-//       router localiza el phone del usuario y le manda el código
-//       (o el "ya está verificado") por WhatsApp.
+//    3. Usuario completa el formulario en Gmail. Google manda un mail
+//       de confirmación a facturas@balanceclip.net con un magic-link
+//       (Google ya no usa códigos numéricos — solo el link).
+//    4. Este watcher (corriendo cada 1 min) detecta el mail y extrae
+//       el remitente original + el link 'vf-...'.
+//    5. Fetchea el link → eso confirma el reenvío automáticamente.
+//    6. POSTea al router con { email, status, link } — el router
+//       localiza el phone del usuario y le manda el resultado:
+//       confirmed → "✅ Verificado, andá a Gmail y marcá la casilla"
+//       expired   → "El link expiró, volvé a empezar"
+//       otro      → mandar el link como fallback para click manual
 //    7. Marca el thread como leído para no reprocesarlo.
 // ════════════════════════════════════════════════════════════════════
 
@@ -101,34 +103,18 @@ function procesarConfirmacionGmail(msg, routerUrl, token) {
     body.match(/(?:from|de)\s+([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/i);
   var userEmail = emailMatch ? emailMatch[1].toLowerCase() : null;
 
-  // ── Extraer código de verificación ──
-  // Google formatea el código de 9 dígitos de varias maneras según
-  // idioma y plantilla: "Confirmation code: 123456789", "Código: 123
-  // 456 789", "123-456-789", etc. Probamos en orden, normalizando al
-  // final a 9 dígitos puros.
-  var code = null;
-  var labeled = body.match(/(?:confirmation\s*code|c[oó]digo\s*de\s*confirmaci[oó]n|c[oó]digo)\s*[:#-]*\s*([\d][\d\s\-\.]{7,25})/i);
-  if (labeled) {
-    code = labeled[1].replace(/\D/g, '').substring(0, 9);
-  }
-  if (!code || code.length < 9) {
-    // Fallback: 9 dígitos con posibles separadores en bloques 3-3-3
-    var sep = body.match(/(\d{3}[\s\-\.]?\d{3}[\s\-\.]?\d{3})(?!\d)/);
-    if (sep) code = sep[1].replace(/\D/g, '');
-  }
-  if (!code || code.length < 9) {
-    var plain = body.match(/\b(\d{9})\b/);
-    if (plain) code = plain[1];
-  }
-
   // ── Extraer URL de confirmación ──
-  // Patrón típico: https://mail-settings.google.com/mail/vf-...
-  var linkMatch = body.match(/https:\/\/mail-settings\.google\.com\/mail\/[^\s\]\)>]+/i);
+  // Google ya no manda un código numérico — el flujo actual es solo
+  // un magic-link. El email contiene DOS urls:
+  //   vf-[...]  = verify forwarding   ← la que queremos
+  //   uf-[...]  = unverify forwarding ← cancelación, NO tocar
+  // Filtramos específicamente por 'vf-'.
+  var linkMatch = body.match(/https:\/\/mail-settings\.google\.com\/mail\/vf-[^\s\]\)>]+/i);
   var link = linkMatch ? linkMatch[0] : null;
 
-  Logger.log('Parsed: email=' + userEmail + ' code=' + (code || '(none)') + ' link=' + (link ? 'present' : 'none'));
+  Logger.log('Parsed: email=' + userEmail + ' link=' + (link ? 'present' : 'none'));
 
-  if (!userEmail || !code) {
+  if (!userEmail || !link) {
     Logger.log('Faltan datos críticos — abortando (subject: ' + subject + ')');
     Logger.log('--- Body excerpt (primeros 1500 chars) para diagnosticar regex ---');
     Logger.log(body.substring(0, 1500));
@@ -138,36 +124,45 @@ function procesarConfirmacionGmail(msg, routerUrl, token) {
     return false;
   }
 
-  // ── Intento best-effort de auto-confirmar el link ──
-  // El link es un GET que confirma directamente — pero Google a veces
-  // muestra una página "Confirm" intermedia. Si el body de la respuesta
-  // contiene un indicador de éxito, asumimos confirmado.
-  var autoConfirmed = false;
-  if (link) {
-    try {
-      var r = UrlFetchApp.fetch(link, {
-        method:             'get',
-        followRedirects:    true,
-        muteHttpExceptions: true,
-      });
-      var rc = r.getResponseCode();
-      var rt = r.getContentText() || '';
-      Logger.log('Auto-confirm GET → ' + rc + ' (' + rt.length + ' chars)');
-      if (rc === 200 && /Confirmation Success|confirmaci[oó]n correcta|forwarding\s+confirmed|reenv[ií]o\s+confirmado/i.test(rt)) {
-        autoConfirmed = true;
+  // ── Auto-confirmación: fetchamos el magic-link ──
+  // Resultados posibles:
+  //   confirmed   → la respuesta indica éxito explícito
+  //   expired     → el link ya fue usado o expiró
+  //   unclear     → 200 OK pero no detectamos señal de éxito ni de error
+  //   http_error  → respuesta no-200
+  //   fetch_error → excepción en UrlFetchApp
+  var status = 'unclear';
+  try {
+    var r = UrlFetchApp.fetch(link, {
+      method:             'get',
+      followRedirects:    true,
+      muteHttpExceptions: true,
+    });
+    var rc = r.getResponseCode();
+    var rt = r.getContentText() || '';
+    Logger.log('Auto-confirm GET → ' + rc + ' (' + rt.length + ' chars)');
+    if (rc === 200) {
+      if (/Confirmation Success|been confirmed|successfully confirmed|confirmaci[oó]n (correcta|exitosa)|reenv[ií]o (confirmado|verificado)/i.test(rt)) {
+        status = 'confirmed';
+      } else if (/expired|already (been )?(used|confirmed)|invalid|expir/i.test(rt)) {
+        status = 'expired';
       }
-    } catch(err) {
-      Logger.log('Auto-confirm fetch error: ' + err.message);
+    } else {
+      status = 'http_error';
+      Logger.log('Auto-confirm response body (primeros 500): ' + rt.substring(0, 500));
     }
+  } catch(err) {
+    Logger.log('Auto-confirm fetch error: ' + err.message);
+    status = 'fetch_error';
   }
 
   // ── Avisar al router ──
   var payload = {
-    action:        'verifyEmailCode',
-    token:         token,
-    email:         userEmail,
-    code:          code,
-    autoConfirmed: autoConfirmed,
+    action: 'verifyEmailCode',
+    token:  token,
+    email:  userEmail,
+    status: status,
+    link:   link,  // el router decide si se lo manda al usuario como fallback
   };
   var resp = UrlFetchApp.fetch(routerUrl, {
     method:             'post',
@@ -216,21 +211,7 @@ function testParse() {
   Logger.log('--- Fin body ---');
 
   var em = body.match(/([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})\s+(has requested|ha solicitado|wants|quiere)/i);
-
-  var code = null;
-  var labeled = body.match(/(?:confirmation\s*code|c[oó]digo\s*de\s*confirmaci[oó]n|c[oó]digo)\s*[:#-]*\s*([\d][\d\s\-\.]{7,25})/i);
-  if (labeled) code = labeled[1].replace(/\D/g, '').substring(0, 9);
-  if (!code || code.length < 9) {
-    var sep = body.match(/(\d{3}[\s\-\.]?\d{3}[\s\-\.]?\d{3})(?!\d)/);
-    if (sep) code = sep[1].replace(/\D/g, '');
-  }
-  if (!code || code.length < 9) {
-    var plain = body.match(/\b(\d{9})\b/);
-    if (plain) code = plain[1];
-  }
-
-  var lm = body.match(/https:\/\/mail-settings\.google\.com\/mail\/[^\s\]\)>]+/i);
+  var lm = body.match(/https:\/\/mail-settings\.google\.com\/mail\/vf-[^\s\]\)>]+/i);
   Logger.log('Email user: ' + (em ? em[1] : 'NO MATCH'));
-  Logger.log('Code:       ' + (code || 'NO MATCH'));
-  Logger.log('Link:       ' + (lm ? lm[0].substring(0,80)+'…' : 'NO MATCH'));
+  Logger.log('Verify link (vf-): ' + (lm ? lm[0].substring(0,80)+'…' : 'NO MATCH'));
 }
