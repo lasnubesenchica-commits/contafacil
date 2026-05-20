@@ -3612,38 +3612,43 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full">
             <label>Categoría</label>
             <select id="eCategoria" onchange="inferirTipoEgreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
-              <option disabled>──── COSTOS DE VENTAS (L28–L35) ────</option>
+              <option disabled>──── GASTOS DEDUCIBLES (G1–G24) ────</option>
+              <option value="salarios_remuneraciones">👤 Salarios y otras Remuneraciones (G1)</option>
+              <option value="prestaciones_laborales">👥 Prestaciones Laborales (G2)</option>
+              <option value="atencion_promocion_clientes">🤝 Atención y Promoción a Clientes (G3)</option>
+              <option value="alquileres">🏠 Alquileres (G4)</option>
+              <option value="transporte">⛽ Transporte (G5)</option>
+              <option value="provision_cuentas_malas">⚠️ Provisión para Cuentas Malas (G6)</option>
+              <option value="cargos_bancarios">🏦 Cargos Bancarios (G7)</option>
+              <option value="gastos_financieros">📊 Intereses y otros Gastos Financieros Netos (G8)</option>
+              <option value="depreciacion">📉 Depreciación (G9)</option>
+              <option value="amortizacion">📋 Amortización (G10)</option>
+              <option value="impuestos">🏛️ Impuestos (G11)</option>
+              <option value="honorarios_servicios">💼 Honorarios por servicios profesionales y comisiones (G12)</option>
+              <option value="gastos_oficina">🖇️ Gastos de Oficina (G13)</option>
+              <option value="gastos_factoring">💱 Gastos de Factoring (G14)</option>
+              <option value="gastos_ingresos_especies">🎁 Gastos por Ingresos en Especies (G15)</option>
+              <option value="donaciones_estado">🏛️ Donaciones al Estado (G16)</option>
+              <option value="donaciones_art16_ce">❤️ Donaciones lit. c y e Art. 16 D.E. 143/2005 (G17)</option>
+              <option value="donaciones_art16_bdf">❤️ Donaciones lit. b, d y f Art. 16 D.E. 143/2005 (G18)</option>
+              <option value="donaciones_ley_186_2020">❤️ Donaciones Ley 186-2020 (G19)</option>
+              <option value="mantenimiento">🔧 Mantenimiento (G20)</option>
+              <option value="servicios_basicos">💡 Electricidad, Agua y Teléfono (G21)</option>
+              <option value="seguros">🛡️ Seguros (G22)</option>
+              <option value="otros_gastos" selected>📋 Otros Gastos (G23)</option>
+              <option value="gastos_fuente_extranjera">🌎 Gastos de Fuente Extranjera (G24)</option>
+              <option disabled>──── COSTOS DE VENTAS (C1–C10 · Anexo 94) ────</option>
               <option value="costo_mercancia" disabled>📦 Costo de mercancía</option>
-              <option value="compras_locales">🛍️ Compras locales (L28)</option>
-              <option value="compras_importadas">📦 Compras importadas (L29)</option>
-              <option value="salarios_costo">👤 Salarios y remuneraciones — Costo (L30)</option>
-              <option value="depreciacion_costo">📉 Depreciación — Costo (L31)</option>
-              <option value="mantenimiento_costo">🔧 Mantenimiento — Costo (L32)</option>
-              <option value="servicios_costo">💡 Electricidad, agua y tel. — Costo (L33)</option>
-              <option value="seguros_costo">🛡️ Seguros — Costo (L34)</option>
-              <option value="otros_costos_venta">🛒 Otros costos de venta (L35)</option>
-              <option disabled>──── GASTOS OPERATIVOS DEDUCIBLES (L42–L77) ────</option>
-              <option value="nomina">👤 Nómina / Salarios (L42)</option>
-              <option value="prestaciones_laborales">👥 Prestaciones laborales (L43)</option>
-              <option value="gastos_representacion">🤝 Gastos de representación (L44)</option>
-              <option value="alquileres">🏠 Alquileres (L46)</option>
-              <option value="cargos_bancarios">🏦 Cargos bancarios (L53)</option>
-              <option value="vigilancia_seguridad">🔒 Vigilancia y seguridad (L54)</option>
-              <option value="gastos_financieros">📊 Intereses y gastos financieros (L55)</option>
-              <option value="combustible_transporte">⛽ Combustible y transporte (L56)</option>
-              <option value="depreciacion">📉 Depreciación (L57)</option>
-              <option value="amortizacion">📋 Amortización (L58)</option>
-              <option value="impuestos_tasas">🏛️ Impuestos y tasas municipales (L59)</option>
-              <option value="honorarios_profesionales">💼 Honorarios profesionales (L60)</option>
-              <option value="seguros">🛡️ Seguros (L63-66)</option>
-              <option value="mantenimiento_reparacion">🔧 Mantenimiento y reparaciones (L67)</option>
-              <option value="publicidad_mercadeo">📣 Publicidad y mercadeo (L68)</option>
-              <option value="gastos_oficina">🖇️ Gastos de oficina y suministros (L69)</option>
-              <option value="telecomunicaciones">📶 Internet y telecomunicaciones (L71)</option>
-              <option value="servicios_publicos">💡 Servicios públicos - agua, luz (L75)</option>
-              <option value="tecnologia_software">💻 Tecnología y software (L76)</option>
-              <option value="capacitacion">📚 Capacitación y formación (L76)</option>
-              <option value="otros_deducibles" selected>📋 Otros gastos deducibles (L77)</option>
+              <option value="compras_locales">🛍️ Compras - Locales (C1)</option>
+              <option value="compras_importadas">📦 Compras - Importadas (C2)</option>
+              <option value="salarios_costo">👤 Salarios y otras Remuneraciones (C3)</option>
+              <option value="depreciacion_costo">📉 Depreciación (C4)</option>
+              <option value="mantenimiento_costo">🔧 Mantenimiento (C5)</option>
+              <option value="servicios_costo">💡 Electricidad, Agua y Teléfono (C6)</option>
+              <option value="seguros_costo">🛡️ Seguros (C7)</option>
+              <option value="otros_costos_venta">🛒 Otros Costos (C8)</option>
+              <option value="costos_exentos">↩️ Menos Costos: Exentos y/o no deducibles (C9)</option>
+              <option value="costos_fuente_extranjera">🌎 Fuente Extranjera (C10)</option>
               <option disabled>──── DEDUCIBLES PERSONALES (DP) ────</option>
               <option value="deducibles_personales">👨‍👩‍👧 Deducibles Personales</option>
             </select>
@@ -5314,7 +5319,7 @@ function abrirModalCostoOperativo(item) {
   costoOpItem = item;
   document.getElementById('costoOpInfo').innerHTML =
     `<strong>${esc(item.descripcion_prod||'')}</strong> — Costo: <strong style="color:#E65100">$${parseFloat(item.total_carbone||0).toFixed(2)}</strong>`;
-  document.getElementById('costoOpCategoria').value   = 'otros_deducibles';
+  document.getElementById('costoOpCategoria').value   = 'otros_gastos';
   document.getElementById('costoOpDescripcion').value = item.descripcion_prod || '';
   document.getElementById('costoOpNotas').value       = '';
   document.getElementById('costoOpModalOverlay').classList.add('open');
@@ -5718,27 +5723,33 @@ function _sugerirCategoriaDesdeParsed(parsed) {
   // Fallback: inferir por texto del proveedor/ítems
   const texto = ((parsed.proveedor || '') + ' ' +
                  (parsed.items ? parsed.items.map(i => i.descripcion||'').join(' ') : '')).toLowerCase();
-  let cat = 'otros_deducibles';
+  let cat = 'otros_gastos';
   if (/carbone|ferreteria|ferretería|herramienta|equipo|maquinaria|repuesto/.test(texto)) {
     cat = 'costo_mercancia';
   } else if (/gasolina|combustible|texaco|delta|puma|petro|taxi|uber/.test(texto)) {
-    cat = 'combustible_transporte';
+    cat = 'transporte';
   } else if (/alquiler|renta|arrendamiento|local|oficina|bodega/.test(texto)) {
     cat = 'alquileres';
   } else if (/cable.*onda|claro|movistar|natcom|internet|telefon|celular|electricidad|ensa|edemet|agua|anam/.test(texto)) {
-    cat = 'servicios_publicos';
-  } else if (/publicidad|meta|facebook|google|instagram|ads|impresion|imprenta|diseño/.test(texto)) {
-    cat = 'publicidad_mercadeo';
-  } else if (/contador|abogado|legal|auditoria|consultor|honorario|asesor/.test(texto)) {
-    cat = 'honorarios_profesionales';
+    cat = 'servicios_basicos';
+  } else if (/publicidad|meta|facebook|google|instagram|ads|impresion|imprenta|diseño|promocion|atencion.*cliente/.test(texto)) {
+    cat = 'atencion_promocion_clientes';
+  } else if (/contador|abogado|legal|auditoria|consultor|honorario|asesor|comision/.test(texto)) {
+    cat = 'honorarios_servicios';
   } else if (/seguro|assa|mapfre|sura/.test(texto)) {
     cat = 'seguros';
-  } else if (/banco|comision bancaria|financiero|interes/.test(texto)) {
+  } else if (/banco|comision bancaria|cargo bancario/.test(texto)) {
+    cat = 'cargos_bancarios';
+  } else if (/financiero|interes(es)?\s|factoring/.test(texto)) {
     cat = 'gastos_financieros';
-  } else if (/nomina|salario|empleado|planilla|sueldo|css|seguro social/.test(texto)) {
-    cat = 'nomina';
+  } else if (/nomina|salario|empleado|planilla|sueldo|css|seguro social|prestacion/.test(texto)) {
+    cat = 'salarios_remuneraciones';
   } else if (/manten|repara|taller|servicio tecnico/.test(texto)) {
-    cat = 'mantenimiento_reparacion';
+    cat = 'mantenimiento';
+  } else if (/donacion/.test(texto)) {
+    cat = 'donaciones_estado';
+  } else if (/dgi|municipi|impuesto|tasa/.test(texto)) {
+    cat = 'impuestos';
   }
   _setEgresoCategoria(cat);
 }
@@ -5751,22 +5762,10 @@ function inferirTipoEgreso() {
   const hint   = document.getElementById('eCategoriaHint');
   const isPersonal = cat === 'deducibles_personales';
   if (subDiv) subDiv.style.display = isPersonal ? 'block' : 'none';
-  const efectivo = isPersonal ? ((subSel && subSel.value) || 'gastos_medicos') : (cat || 'otros_deducibles');
+  const efectivo = isPersonal ? ((subSel && subSel.value) || 'gastos_medicos') : (cat || 'otros_gastos');
   if (hidden) hidden.value = efectivo;
-
-  // Hint contextual — solo para casos donde la categoría puede confundir al usuario
-  if (hint) {
-    let msg = '';
-    if (_COSTO_KEYS.indexOf(cat) !== -1) {
-      msg = '<strong>📦 Costo de Ventas (Anexo 94 DGI)</strong> — esta categoría reduce <em>Utilidad Bruta</em>, no aparece como gasto operativo. Usá solo si el gasto está vinculado a la producción/comercialización del bien o servicio vendido. Si tu cliente tiene inventario formal, mejor activar el módulo Comercialización.';
-    } else if (cat === 'otros_deducibles') {
-      msg = '<strong>📋 Catch-all operativo</strong> — usá esta categoría cuando ningún otro tipo encaja. Reporta a la Línea 77 del formulario DGI.';
-    } else if (cat === 'deducibles_personales') {
-      msg = '<strong>👨‍👩‍👧 Deducibles personales</strong> — gastos del dueño (no del negocio) que reducen su impuesto sobre la renta personal. Elegí el subtipo abajo.';
-    }
-    hint.innerHTML  = msg;
-    hint.style.display = msg ? 'block' : 'none';
-  }
+  // Hint contextual desactivado por ahora (decisión del usuario).
+  if (hint) hint.style.display = 'none';
 }
 
 const _PERSONAL_SUBCATS = new Set(['gastos_medicos','gastos_escolares','intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados']);
@@ -5786,7 +5785,7 @@ function _setEgresoCategoria(val) {
 }
 
 function abrirModalNuevoEgreso() {
-  document.getElementById('eCategoria').value   = 'otros_deducibles';
+  document.getElementById('eCategoria').value   = 'otros_gastos';
   const _subDiv = document.getElementById('eCategoriaSub');
   if (_subDiv) _subDiv.style.display = 'none';
   const _subSel = document.getElementById('eSubcatPersonal');
@@ -6751,55 +6750,87 @@ var _rgEgrSel       = new Set();           // IDs seleccionados (bulk)
 var _rgEgrFechaMode = 'all';              // filtro fecha: 'all'|'7'|'14'|'30'|'custom'
 var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
-// ── Catálogo DGI unificado — Gastos Operativos (Líneas 42-77 formulario jurídica) ──
+// ── Catálogo DGI unificado — Gastos (1-24) + Costos (1-10) + DP ──
 // Fuente única de verdad, espejo de CATEGORIAS_GASTO_DGI en Code.gs
+// Numeración basada en lista oficial DGI Anexo 94 (no en línea de
+// Form 90/91 antiguo). seccion: 'gasto' | 'costo' | 'personal'.
 const CATEGORIAS_GASTO_DGI = [
-  { valor: 'nomina',                   label: 'Nómina / Salarios',               linea: '42', emoji: '👤' },
-  { valor: 'prestaciones_laborales',   label: 'Prestaciones laborales',          linea: '43', emoji: '👥' },
-  { valor: 'gastos_representacion',    label: 'Gastos de representación',        linea: '44', emoji: '🤝' },
-  { valor: 'alquileres',               label: 'Alquileres',                      linea: '46', emoji: '🏠' },
-  { valor: 'cargos_bancarios',         label: 'Cargos bancarios',                linea: '53', emoji: '🏦' },
-  { valor: 'vigilancia_seguridad',     label: 'Vigilancia y seguridad',          linea: '54', emoji: '🔒' },
-  { valor: 'gastos_financieros',       label: 'Intereses y gastos financieros',  linea: '55', emoji: '📊' },
-  { valor: 'combustible_transporte',   label: 'Combustible y transporte',        linea: '56', emoji: '⛽' },
-  { valor: 'depreciacion',             label: 'Depreciación',                    linea: '57', emoji: '📉' },
-  { valor: 'amortizacion',             label: 'Amortización',                    linea: '58', emoji: '📋' },
-  { valor: 'impuestos_tasas',          label: 'Impuestos y tasas municipales',   linea: '59', emoji: '🏛️' },
-  { valor: 'honorarios_profesionales', label: 'Honorarios profesionales',        linea: '60', emoji: '💼' },
-  { valor: 'seguros',                  label: 'Seguros',                         linea: '63-66', emoji: '🛡️' },
-  { valor: 'mantenimiento_reparacion', label: 'Mantenimiento y reparaciones',    linea: '67', emoji: '🔧' },
-  { valor: 'publicidad_mercadeo',      label: 'Publicidad y mercadeo',           linea: '68', emoji: '📣' },
-  { valor: 'gastos_oficina',           label: 'Gastos de oficina y suministros', linea: '69', emoji: '🖇️' },
-  { valor: 'telecomunicaciones',       label: 'Internet y telecomunicaciones',   linea: '71', emoji: '📶' },
-  { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
-  { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
-  { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
-  // ── Costos de Ventas (Anexo 94 DGI - L28 a L35) ──
-  { valor: 'compras_locales',          label: 'Compras locales',                  linea: '28', emoji: '🛍️' },
-  { valor: 'compras_importadas',       label: 'Compras importadas',               linea: '29', emoji: '📦' },
-  { valor: 'salarios_costo',           label: 'Salarios y remuneraciones (Costo)',linea: '30', emoji: '👤' },
-  { valor: 'depreciacion_costo',       label: 'Depreciación (Costo)',             linea: '31', emoji: '📉' },
-  { valor: 'mantenimiento_costo',      label: 'Mantenimiento (Costo)',            linea: '32', emoji: '🔧' },
-  { valor: 'servicios_costo',          label: 'Electricidad, agua y tel. (Costo)',linea: '33', emoji: '💡' },
-  { valor: 'seguros_costo',            label: 'Seguros (Costo)',                  linea: '34', emoji: '🛡️' },
-  { valor: 'otros_costos_venta',       label: 'Otros costos de venta',            linea: '35', emoji: '🛒' },
-  { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
-  // ── Deducibles Personales (ISR persona natural) ──
-  { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea: 'DP',  emoji: '👨‍👩‍👧' },
-  { valor: 'gastos_medicos',                  label: 'Gastos médicos',                  linea: 'DP-1', emoji: '🏥' },
-  { valor: 'gastos_escolares',                label: 'Gastos escolares',                linea: 'DP-2', emoji: '📖' },
-  { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea: 'DP-3', emoji: '🏡' },
-  { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea: 'DP-4', emoji: '🎓' },
-  { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea: 'DP-5', emoji: '♿' },
+  // ══════════ GASTOS DEDUCIBLES (G1-G24) ══════════
+  { valor: 'salarios_remuneraciones',    label: 'Salarios y otras Remuneraciones',           linea: '1',  seccion: 'gasto', emoji: '👤' },
+  { valor: 'prestaciones_laborales',     label: 'Prestaciones Laborales',                    linea: '2',  seccion: 'gasto', emoji: '👥' },
+  { valor: 'atencion_promocion_clientes',label: 'Atención y Promoción a Clientes',           linea: '3',  seccion: 'gasto', emoji: '🤝' },
+  { valor: 'alquileres',                 label: 'Alquileres',                                 linea: '4',  seccion: 'gasto', emoji: '🏠' },
+  { valor: 'transporte',                 label: 'Transporte',                                 linea: '5',  seccion: 'gasto', emoji: '⛽' },
+  { valor: 'provision_cuentas_malas',    label: 'Provisión para Cuentas Malas',               linea: '6',  seccion: 'gasto', emoji: '⚠️' },
+  { valor: 'cargos_bancarios',           label: 'Cargos Bancarios',                           linea: '7',  seccion: 'gasto', emoji: '🏦' },
+  { valor: 'gastos_financieros',         label: 'Intereses y otros Gastos Financieros Netos', linea: '8',  seccion: 'gasto', emoji: '📊' },
+  { valor: 'depreciacion',               label: 'Depreciación',                               linea: '9',  seccion: 'gasto', emoji: '📉' },
+  { valor: 'amortizacion',               label: 'Amortización',                               linea: '10', seccion: 'gasto', emoji: '📋' },
+  { valor: 'impuestos',                  label: 'Impuestos',                                  linea: '11', seccion: 'gasto', emoji: '🏛️' },
+  { valor: 'honorarios_servicios',       label: 'Honorarios por servicios profesionales y comisiones', linea: '12', seccion: 'gasto', emoji: '💼' },
+  { valor: 'gastos_oficina',             label: 'Gastos de Oficina',                          linea: '13', seccion: 'gasto', emoji: '🖇️' },
+  { valor: 'gastos_factoring',           label: 'Gastos de Factoring',                        linea: '14', seccion: 'gasto', emoji: '💱' },
+  { valor: 'gastos_ingresos_especies',   label: 'Gastos por Ingresos en Especies',            linea: '15', seccion: 'gasto', emoji: '🎁' },
+  { valor: 'donaciones_estado',          label: 'Donaciones al Estado',                       linea: '16', seccion: 'gasto', emoji: '🏛️' },
+  { valor: 'donaciones_art16_ce',        label: 'Donaciones (literal c y e del Art. 16, D. E. 143 de 2005)', linea: '17', seccion: 'gasto', emoji: '❤️' },
+  { valor: 'donaciones_art16_bdf',       label: 'Donaciones (literal b, d y f del Art. 16, D. E. 143 de 2005)', linea: '18', seccion: 'gasto', emoji: '❤️' },
+  { valor: 'donaciones_ley_186_2020',    label: 'Donaciones Ley 186-2020',                    linea: '19', seccion: 'gasto', emoji: '❤️' },
+  { valor: 'mantenimiento',              label: 'Mantenimiento',                              linea: '20', seccion: 'gasto', emoji: '🔧' },
+  { valor: 'servicios_basicos',          label: 'Electricidad, Agua y Teléfono',              linea: '21', seccion: 'gasto', emoji: '💡' },
+  { valor: 'seguros',                    label: 'Seguros',                                    linea: '22', seccion: 'gasto', emoji: '🛡️' },
+  { valor: 'otros_gastos',               label: 'Otros Gastos',                               linea: '23', seccion: 'gasto', emoji: '📋' },
+  { valor: 'gastos_fuente_extranjera',   label: 'Gastos de Fuente Extranjera',                linea: '24', seccion: 'gasto', emoji: '🌎' },
+  // ══════════ COSTOS DE VENTAS (C1-C10 Anexo 94) ══════════
+  { valor: 'compras_locales',            label: 'Compras - Locales',                          linea: '1',  seccion: 'costo', emoji: '🛍️' },
+  { valor: 'compras_importadas',         label: 'Compras - Importadas',                       linea: '2',  seccion: 'costo', emoji: '📦' },
+  { valor: 'salarios_costo',             label: 'Salarios y otras Remuneraciones',            linea: '3',  seccion: 'costo', emoji: '👤' },
+  { valor: 'depreciacion_costo',         label: 'Depreciación',                               linea: '4',  seccion: 'costo', emoji: '📉' },
+  { valor: 'mantenimiento_costo',        label: 'Mantenimiento',                              linea: '5',  seccion: 'costo', emoji: '🔧' },
+  { valor: 'servicios_costo',            label: 'Electricidad, Agua y Teléfono',              linea: '6',  seccion: 'costo', emoji: '💡' },
+  { valor: 'seguros_costo',              label: 'Seguros',                                    linea: '7',  seccion: 'costo', emoji: '🛡️' },
+  { valor: 'otros_costos_venta',         label: 'Otros Costos',                               linea: '8',  seccion: 'costo', emoji: '🛒' },
+  { valor: 'costos_exentos',             label: 'Menos Costos: Exentos y/o no deducibles',    linea: '9',  seccion: 'costo', emoji: '↩️', signo: -1 },
+  { valor: 'costos_fuente_extranjera',   label: 'Fuente Extranjera',                          linea: '10', seccion: 'costo', emoji: '🌎' },
+  // ══════════ DEDUCIBLES PERSONALES (Persona Natural ISR) ══════════
+  { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea: 'DP',  seccion: 'personal', emoji: '👨‍👩‍👧' },
+  { valor: 'gastos_medicos',                  label: 'Gastos médicos',                  linea: 'DP-1', seccion: 'personal', emoji: '🏥' },
+  { valor: 'gastos_escolares',                label: 'Gastos escolares',                linea: 'DP-2', seccion: 'personal', emoji: '📖' },
+  { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea: 'DP-3', seccion: 'personal', emoji: '🏡' },
+  { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea: 'DP-4', seccion: 'personal', emoji: '🎓' },
+  { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea: 'DP-5', seccion: 'personal', emoji: '♿' },
 ];
 // Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
 const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
 
-// Costos de Ventas (Anexo 94 L28-L35) — fuente única usada por todos los
+// Mapping legacy → nueva key, para que datos viejos sigan funcionando.
+// Las categorías que existían antes y cambiaron de nombre o se fusionaron
+// se redirigen a su equivalente nuevo. Se usa en read-path (catChipLabel,
+// renderers de listas, reportes).
+const LEGACY_GASTO_MAP = {
+  // Renames directos
+  'nomina':                      'salarios_remuneraciones',
+  'combustible_transporte':      'transporte',
+  'impuestos_tasas':             'impuestos',
+  'honorarios_profesionales':    'honorarios_servicios',
+  'mantenimiento_reparacion':    'mantenimiento',
+  'otros_deducibles':            'otros_gastos',
+  // Fusiones (varias keys viejas → una nueva)
+  'gastos_representacion':       'atencion_promocion_clientes',
+  'publicidad_mercadeo':         'atencion_promocion_clientes',
+  'telecomunicaciones':          'servicios_basicos',
+  'servicios_publicos':          'servicios_basicos',
+  // Drops (no existen en lista oficial — caen a Otros Gastos)
+  'vigilancia_seguridad':        'otros_gastos',
+  'tecnologia_software':         'otros_gastos',
+  'capacitacion':                'otros_gastos',
+};
+
+// Costos de Ventas (Anexo 94 C1-C10) — fuente única usada por todos los
 // Sets/arrays que clasifican "esto es costo, no gasto" en el P&L.
 const _COSTO_KEYS = [
   'compras_locales','compras_importadas','salarios_costo','depreciacion_costo',
   'mantenimiento_costo','servicios_costo','seguros_costo','otros_costos_venta',
+  'costos_exentos','costos_fuente_extranjera',
 ];
 
 // ════════════════════════════════════════════════════════════════════
@@ -6956,7 +6987,24 @@ const RG_EGR_CAT_LABELS = (() => {
   m['financiero_bancario']    = '🏦 Financiero';
   m['otros_gastos_generales'] = '📋 Otros gastos';
   m['sin_clasificar']         = '❓ Sin clasificar';
-  // Catálogo DGI actual — leer desde CATEGORIAS_GASTO_DGI
+  // Keys del catálogo anterior (Form 90 viejo) — labels legacy para
+  // que datos viejos en la hoja se muestren bien si el LEGACY_GASTO_MAP
+  // no aplicó por alguna razón.
+  m['nomina']                  = '👤 Nómina / Salarios';
+  m['gastos_representacion']   = '🤝 Gastos de representación';
+  m['vigilancia_seguridad']    = '🔒 Vigilancia y seguridad';
+  m['combustible_transporte']  = '⛽ Combustible y transporte';
+  m['impuestos_tasas']         = '🏛️ Impuestos y tasas';
+  m['honorarios_profesionales']= '💼 Honorarios profesionales';
+  m['mantenimiento_reparacion']= '🔧 Mantenimiento y reparaciones';
+  m['publicidad_mercadeo']     = '📣 Publicidad y mercadeo';
+  m['telecomunicaciones']      = '📶 Internet y telecomunicaciones';
+  m['servicios_publicos']      = '💡 Servicios públicos (agua, luz)';
+  m['tecnologia_software']     = '💻 Tecnología y software';
+  m['capacitacion']            = '📚 Capacitación';
+  m['otros_deducibles']        = '📋 Otros gastos deducibles';
+  // Catálogo DGI actual — leer desde CATEGORIAS_GASTO_DGI (sobrescribe
+  // las legacy si la key existe en el catálogo activo).
   CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.emoji + ' ' + c.label; });
   return m;
 })();
@@ -7195,7 +7243,9 @@ window.rgRefreshEgr = rgRefreshEgr;
 
 // Encontrar label de cualquier categoría
 function catChipLabel(valor) {
-  const found = TODAS_CATEGORIAS_EGR.find(c => c.valor === valor);
+  // Resolver legacy → nueva key antes de buscar
+  const resolved = LEGACY_GASTO_MAP[valor] || valor;
+  const found = TODAS_CATEGORIAS_EGR.find(c => c.valor === resolved);
   if (found) return found.label;
   return RG_EGR_CAT_LABELS[valor] || CATEG_ACR_LABELS[valor] || valor || '—';
 }
