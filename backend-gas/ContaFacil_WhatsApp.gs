@@ -488,7 +488,7 @@ function whatsappTestConfig() {
 // que respeten los límites de Meta (10 secciones × 10 rows × título 24 chars).
 // Solo cubre GASTOS (catálogo DGI Form 90/91). Ingresos no implementados.
 var WA_CAT_SECTIONS = [
-  { title: '📋 Más comunes', rows: [
+  { title: 'Más comunes', rows: [
     { key: 'otros_deducibles',         title: 'Otros gastos',             desc: 'L77 · catch-all operativo' },
     { key: 'alquileres',               title: 'Alquileres',               desc: 'L46 · local, oficina' },
     { key: 'combustible_transporte',   title: 'Combustible/transporte',   desc: 'L56' },
@@ -497,7 +497,7 @@ var WA_CAT_SECTIONS = [
     { key: 'gastos_oficina',           title: 'Gastos oficina',           desc: 'L69 · suministros' },
     { key: 'nomina',                   title: 'Nómina / Salarios',        desc: 'L42' },
   ]},
-  { title: '🛒 Costos de Ventas', rows: [
+  { title: 'Costos de Ventas', rows: [
     { key: 'compras_locales',          title: 'Compras locales',          desc: 'L28 Anexo 94' },
     { key: 'compras_importadas',       title: 'Compras importadas',       desc: 'L29 Anexo 94' },
     { key: 'salarios_costo',           title: 'Salarios (Costo)',         desc: 'L30 Anexo 94' },
@@ -507,19 +507,19 @@ var WA_CAT_SECTIONS = [
     { key: 'seguros_costo',            title: 'Seguros (Costo)',          desc: 'L34 Anexo 94' },
     { key: 'otros_costos_venta',       title: 'Otros costos venta',       desc: 'L35 Anexo 94' },
   ]},
-  { title: '💼 Personal', rows: [
+  { title: 'Personal', rows: [
     { key: 'prestaciones_laborales',   title: 'Prestaciones laborales',   desc: 'L43' },
     { key: 'gastos_representacion',    title: 'Gastos representación',    desc: 'L44' },
     { key: 'honorarios_profesionales', title: 'Honorarios profesionales', desc: 'L60' },
     { key: 'capacitacion',             title: 'Capacitación',             desc: 'L76' },
   ]},
-  { title: '💰 Financiero & Impuestos', rows: [
+  { title: 'Financiero', rows: [
     { key: 'cargos_bancarios',         title: 'Cargos bancarios',         desc: 'L53' },
     { key: 'gastos_financieros',       title: 'Intereses financieros',    desc: 'L55' },
     { key: 'impuestos_tasas',          title: 'Impuestos y tasas',        desc: 'L59' },
     { key: 'seguros',                  title: 'Seguros',                  desc: 'L63-66' },
   ]},
-  { title: '🔧 Activos & Mantenim.', rows: [
+  { title: 'Activos y Mantenim', rows: [
     { key: 'depreciacion',             title: 'Depreciación',             desc: 'L57' },
     { key: 'amortizacion',             title: 'Amortización',             desc: 'L58' },
     { key: 'mantenimiento_reparacion', title: 'Mantenimiento',            desc: 'L67' },
@@ -583,7 +583,7 @@ function _whatsappReplyBotones(to, bodyText, footerText, buttons, token, phoneId
 function _whatsappReplyLista(to, bodyText, listButtonText, sections, token, phoneId) {
   if (!to || !sections || !sections.length || !token || !phoneId) {
     Logger.log('_whatsappReplyLista: faltan params');
-    return;
+    return false;
   }
   var sec = sections.slice(0, 10).map(function(s) {
     return {
@@ -616,10 +616,17 @@ function _whatsappReplyLista(to, bodyText, listButtonText, sections, token, phon
       payload:            JSON.stringify(payload),
       muteHttpExceptions: true,
     });
-    if (r.getResponseCode() !== 200) {
-      Logger.log('Reply lista falló ' + r.getResponseCode() + ': ' + r.getContentText().substring(0, 200));
+    var code = r.getResponseCode();
+    if (code !== 200) {
+      Logger.log('Reply lista FAIL ' + code + ': ' + r.getContentText().substring(0, 600));
+      Logger.log('Payload enviado: ' + JSON.stringify(payload).substring(0, 600));
+      return false;
     }
-  } catch(err) { Logger.log('_whatsappReplyLista ERROR: ' + err.message); }
+    return true;
+  } catch(err) {
+    Logger.log('_whatsappReplyLista ERROR: ' + err.message);
+    return false;
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -684,10 +691,18 @@ function _whatsappOnCambiarCat(pendId, from, token, phoneId) {
       }),
     };
   });
-  _whatsappReplyLista(from,
+  var ok = _whatsappReplyLista(from,
     'Elegí la categoría DGI correcta para ' + pendId + ':',
     'Ver categorías',
     sections, token, phoneId);
+  // Si Meta rechaza el list message (p.ej. límites no documentados),
+  // mandar un fallback de texto para que el usuario sepa qué hacer.
+  if (!ok) {
+    _whatsappReply(from,
+      '⚠️ No pude mostrar la lista de categorías en WhatsApp.\n\n' +
+      'Cambiá la categoría desde la app:\n' + _whatsappFrontendUrl() + '#registroGastos',
+      token, phoneId);
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────
