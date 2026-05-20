@@ -184,9 +184,9 @@ function _routerEnviarBienvenida(to, token, phoneId) {
   if (!token || !phoneId) { Logger.log('No puedo enviar bienvenida — faltan token/phoneId'); return; }
   var body =
     '🤖 *¡Hola! Soy el asistente fiscal de BalanceClip*\n\n' +
-    'Te ayudo a registrar tus facturas y comprobantes sin que tengas que abrir la app.\n\n' +
+    'Te ayudo a registrar tus *gastos* sin que tengas que abrir la app.\n\n' +
     '📸 *Cómo funciona*\n' +
-    '1. Mándame una foto o PDF de tu factura/recibo\n' +
+    '1. Mándame una foto o PDF de tu factura/recibo de gasto\n' +
     '2. Una IA lee el documento y extrae monto, fecha, proveedor y RUC\n' +
     '3. Sugiere la categoría DGI Panamá apropiada\n' +
     '4. Te respondo con 2 botones:\n' +
@@ -194,13 +194,12 @@ function _routerEnviarBienvenida(to, token, phoneId) {
     '   📝 *Cambiar categoría* (lista de opciones)\n' +
     '5. El gasto queda registrado en tu sistema\n\n' +
     '✨ *Detecto automáticamente*\n' +
-    '• Si es gasto o ingreso\n' +
     '• Monto, ITBMS y total\n' +
-    '• Proveedor / cliente y su RUC\n' +
+    '• Proveedor y su RUC\n' +
     '• Si es deducible (RUC del negocio como receptor)\n' +
     '• Categoría DGI sugerida\n\n' +
     '💡 *Tips*\n' +
-    '• Funciona con: facturas DGI, recibos Yappy, transferencias, PDFs\n' +
+    '• Funciona con: facturas fiscales y electrónicas, recibos Yappy, transferencias, PDFs\n' +
     '• Para revisar, modificar o aprobar manualmente, abrí tu panel en balanceclip.net\n\n' +
     '📋 *Comandos*\n' +
     'Escribime *ayuda* en cualquier momento para ver estas instrucciones de nuevo.\n\n' +
