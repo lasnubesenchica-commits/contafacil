@@ -1711,8 +1711,15 @@ const CATEGORIAS_GASTO_DGI = [
   { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
   { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
-  // ── Costo directo sin inventario (Línea 35 Anexo 94) ──
-  { valor: 'otros_costos_venta',       label: 'Otros costos de venta ocasional', linea: '35', emoji: '🛒' },
+  // ── Costos de Ventas (Anexo 94 DGI - L28 a L35) ──
+  { valor: 'compras_locales',          label: 'Compras locales',                  linea: '28', emoji: '🛍️' },
+  { valor: 'compras_importadas',       label: 'Compras importadas',               linea: '29', emoji: '📦' },
+  { valor: 'salarios_costo',           label: 'Salarios y remuneraciones (Costo)',linea: '30', emoji: '👤' },
+  { valor: 'depreciacion_costo',       label: 'Depreciación (Costo)',             linea: '31', emoji: '📉' },
+  { valor: 'mantenimiento_costo',      label: 'Mantenimiento (Costo)',            linea: '32', emoji: '🔧' },
+  { valor: 'servicios_costo',          label: 'Electricidad, agua y tel. (Costo)',linea: '33', emoji: '💡' },
+  { valor: 'seguros_costo',            label: 'Seguros (Costo)',                  linea: '34', emoji: '🛡️' },
+  { valor: 'otros_costos_venta',       label: 'Otros costos de venta',            linea: '35', emoji: '🛒' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
   // ── Deducibles Personales (ISR persona natural) ──
   { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea: 'DP',  emoji: '👨‍👩‍👧' },
@@ -2902,10 +2909,62 @@ const XMLV = (() => {
 //  MÓDULO REG — Registros generales (egreso + ingreso)
 // ════════════════════════════════════════════════════════
 const REG = (() => {
+  // Categorías gravadas con ITBMS (default 7%). Incluye keys legacy
+  // para datos viejos + keys nuevas DGI Form 91.
   const CATS_GRAVADAS_ING = new Set([
+    // Legacy
     'venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria',
-    'servicios_profesionales','comision','otro_gravado'
+    'servicios_profesionales','comision','otro_gravado',
+    // Nuevas (catálogo DGI L7-L8, L10, L13-L15)
+    'honorarios_profesionales','honorarios_comision','alquiler_comercial',
+    'otros_ingresos','ventas_servicios','devoluciones_descuentos',
   ]);
+  // Mapping legacy → nueva key, para que datos viejos se renderen bien.
+  const LEGACY_INGRESO_MAP = {
+    'venta_producto_gravado':   'ventas_servicios',
+    'venta_producto_exento':    'ventas_servicios',
+    'servicio_tecnico_gravado': 'ventas_servicios',
+    'servicio_tecnico_exento':  'ventas_servicios',
+    'asesoria_consultoria':     'honorarios_profesionales',
+    'servicios_profesionales':  'honorarios_profesionales',
+    'salarios':                 'salarios_con_retencion',
+    'comision':                 'honorarios_comision',
+    'alquiler_cobrado':         'alquiler_comercial',
+    'intereses':                'intereses_financieros',
+    'dividendos':               'otros_ingresos',
+    'exportacion':              'ventas_servicios',
+    'otro_gravado':             'otros_ingresos',
+    'otro_exento':              'ingresos_exentos',
+  };
+
+  // Catálogo DGI Form 91 — espejo compacto del backend/desktop (mismo
+  // contrato de campos). Mobile no muestra el linea, pero sí usa
+  // itbms_status, itbms_rate, retencion_rate, hint.
+  const CATALOG_ING = {
+    'salarios_con_retencion':     { linea:'1',  itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'Salario con retención mensual del empleador.' },
+    'remuneracion_sin_retencion': { linea:'2',  itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'Remuneración sin retención. Declaras directo.' },
+    'ingresos_especies':          { linea:'3',  itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'Equivalente monetario al valor de mercado.' },
+    'gastos_repr_asalariado':     { linea:'4',  itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:0.10, retencion_tipo:'10% flat',                            hint:'Régimen 10% flat, no escala.' },
+    'dietas':                     { linea:'5',  itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'Pagos por juntas/sesiones. Tributa por escala.' },
+    'actividad_agropecuaria':     { linea:'6',  itbms_status:'exento',    itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'Exento ISR si < B/. 250k/año (Ley 8/2010).' },
+    'honorarios_comision':        { linea:'7',  itbms_status:'gravado',   itbms_rate:7,  retencion_rate:0.08, retencion_tipo:'8% si cliente retentor',              hint:'ITBMS 7%. Retención 8% si cliente designado.' },
+    'honorarios_profesionales':   { linea:'8',  itbms_status:'gravado',   itbms_rate:7,  retencion_rate:0.08, retencion_tipo:'8% si cliente retentor',              hint:'ITBMS 7% al facturar. Retención 8% según cliente.' },
+    'alquiler_habitacional':      { linea:'9',  itbms_status:'exento',    itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'Exento ITBMS por ley. Sí tributa ISR.' },
+    'alquiler_comercial':         { linea:'10', itbms_status:'gravado',   itbms_rate:7,  retencion_rate:null, retencion_tipo:null,                                  hint:'ITBMS 7%. Deducible mantenimiento/IBI/depreciación.' },
+    'intereses_financieros':      { linea:'11', itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:0.05, retencion_tipo:'5% retenido por institución',         hint:'Ahorro PN exento hasta umbral; resto 5% retenido.' },
+    'ganancia_capital_legacy':    { linea:'12', itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:0.10, retencion_tipo:'10% flat (legacy pre-2006)',          hint:'Régimen pre-2006, casi obsoleto.' },
+    'otros_ingresos':             { linea:'13', itbms_status:'gravado',   itbms_rate:7,  retencion_rate:null, retencion_tipo:null,                                  hint:'Catch-all. Revisa ITBMS y retención manualmente.' },
+    'ventas_servicios':           { linea:'14', itbms_status:'gravado',   itbms_rate:7,  retencion_rate:null, retencion_tipo:null,                                  hint:'Actividad comercial/servicios. ITBMS 7% default.' },
+    'devoluciones_descuentos':    { linea:'15', itbms_status:'gravado',   itbms_rate:7,  retencion_rate:null, retencion_tipo:null,                                  hint:'Notas crédito y descuentos. Signo negativo en P&L.' },
+    'descuento_jubilados':        { linea:'16', itbms_status:'exento',    itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'Solo farmacias. 20% Ley 6/87.' },
+    'ingresos_exentos':           { linea:'17', itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'No suman a renta gravable.' },
+    'fuente_extranjera':          { linea:'18', itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:null, retencion_tipo:null,                                  hint:'Renta de fuera de Panamá. No tributa por territorialidad.' },
+    'gastos_repr_actividad':      { linea:'19', itbms_status:'no_aplica', itbms_rate:0,  retencion_rate:0.10, retencion_tipo:'10% flat',                            hint:'Gastos repr. de actividad/profesión. 10% flat.' },
+  };
+  function _getCatIng(valor) {
+    const resolved = LEGACY_INGRESO_MAP[valor] || valor;
+    return CATALOG_ING[resolved] || null;
+  }
 
   // ── Helpers recalc ────────────────────────────────────
   function recalcEgr() {
@@ -2933,19 +2992,27 @@ const REG = (() => {
     const aplica = document.getElementById('regIngItbms').checked;
     const des    = document.getElementById('regIngDesglose');
     const tag    = document.getElementById('regIngItbmsTag');
+    // Tasa ITBMS según categoría (7% default si no hay match)
+    const cat   = _getCatIng(document.getElementById('regIngCat').value);
+    const rate  = (cat && cat.itbms_rate) ? cat.itbms_rate : 7;
+    const factor = 1 + rate / 100;
     if (aplica && total > 0) {
-      const sub = parseFloat((total / 1.07).toFixed(2));
+      const sub = parseFloat((total / factor).toFixed(2));
       const itb = parseFloat((total - sub).toFixed(2));
       document.getElementById('regIngSubtotal').value  = sub;
       document.getElementById('regIngItbmsVal').value  = itb;
       document.getElementById('regIngSubDisp').textContent   = fmt(sub);
       document.getElementById('regIngItbmsDisp').textContent = fmt(itb);
       des.style.display = 'block'; tag.style.display = 'inline';
+      if (tag) tag.textContent = '+' + rate + '%';
     } else {
       document.getElementById('regIngSubtotal').value = total > 0 ? total.toFixed(2) : '';
       document.getElementById('regIngItbmsVal').value = '0';
       des.style.display = 'none'; tag.style.display = 'none';
     }
+    // Retención esperada — deshabilitada por ahora. El badge queda oculto.
+    const wrap = document.getElementById('regIngRetencionInfo');
+    if (wrap) wrap.style.display = 'none';
   }
 
   const _PERSONAL_SUBCATS_MOB = new Set(['gastos_medicos','gastos_escolares','intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados']);
@@ -2995,8 +3062,37 @@ const REG = (() => {
   }
 
   function inferItbmsIng() {
-    const cat = document.getElementById('regIngCat').value;
-    document.getElementById('regIngItbms').checked = CATS_GRAVADAS_ING.has(cat);
+    const sel    = document.getElementById('regIngCat');
+    const cat    = _getCatIng(sel.value);
+    const check  = document.getElementById('regIngItbms');
+    const row    = document.getElementById('regIngItbmsRow');
+    const lbl    = document.getElementById('regIngItbmsLbl');
+    const tag    = document.getElementById('regIngItbmsTag');
+    const hint   = document.getElementById('regIngCatHint');
+
+    if (!cat) {
+      check.checked = false;
+      if (hint) hint.style.display = 'none';
+      recalcIng();
+      return;
+    }
+    // ITBMS status: gravado | exento | no_aplica
+    if (cat.itbms_status === 'gravado') {
+      check.checked = true; check.disabled = false;
+      row.style.display = 'flex'; row.style.opacity = '1';
+      lbl.textContent = `Aplica ITBMS (${cat.itbms_rate}%)`;
+      if (tag) tag.textContent = `+${cat.itbms_rate}%`;
+    } else if (cat.itbms_status === 'exento') {
+      check.checked = false; check.disabled = true;
+      row.style.display = 'flex'; row.style.opacity = '.5';
+      lbl.textContent = 'Exento de ITBMS (por ley)';
+    } else {
+      // no_aplica — ocultar la fila completa
+      check.checked = false;
+      row.style.display = 'none';
+    }
+    // Hint contextual — deshabilitado por ahora. El div queda oculto.
+    if (hint) hint.style.display = 'none';
     recalcIng();
   }
 
@@ -3184,13 +3280,16 @@ const REG = (() => {
         if (d.ruc_pagador)      document.getElementById('regIngRuc').value    = d.ruc_pagador;
         if (d.dv_pagador)       document.getElementById('regIngDv').value     = d.dv_pagador;
         if (d.descripcion)      document.getElementById('regIngDesc').value   = d.descripcion;
-        // Inferir categoría
-        if (d.tipo_comprobante && ['yappy','transferencia','efectivo'].includes(d.tipo_comprobante)) {
-          document.getElementById('regIngCat').value = 'venta_producto_gravado';
-        } else if (d.tiene_itbms) {
-          document.getElementById('regIngCat').value = 'venta_producto_gravado';
-        }
+        // Categoría sugerida por IA si vino válida; fallback a ventas_servicios.
+        const _aiCat = d.categoria_dgi || '';
+        const _resCat = LEGACY_INGRESO_MAP[_aiCat] || _aiCat;
+        const _validCat = !!document.querySelector(`#regIngCat option[value="${_resCat}"]`);
+        document.getElementById('regIngCat').value = _validCat ? _resCat : 'ventas_servicios';
         inferItbmsIng();
+        if (d.tiene_itbms === false) {
+          document.getElementById('regIngItbms').checked = false;
+          recalcIng();
+        }
         zone.classList.remove('analyzing'); zone.classList.add('has-file');
         status.style.color = 'var(--green)';
         status.textContent = '✅ Datos extraídos — revisa y confirma';
@@ -3232,9 +3331,9 @@ const REG = (() => {
   function _resetIngForm() {
     ['regIngNfac','regIngDesc','regIngTotal','regIngNombre','regIngRuc','regIngDv','regIngNotas']
       .forEach(id => document.getElementById(id).value = '');
-    document.getElementById('regIngCat').value          = 'venta_producto_gravado';
+    document.getElementById('regIngCat').value          = '';   // placeholder
     document.getElementById('regIngFecha').value        = new Date().toISOString().slice(0,10);
-    document.getElementById('regIngItbms').checked      = true;
+    document.getElementById('regIngItbms').checked      = false;
     document.getElementById('regIngDesglose').style.display = 'none';
     document.getElementById('regIngItbmsTag').style.display = 'none';
     document.getElementById('regIngSubtotal').value     = '';
@@ -3257,7 +3356,9 @@ const REG = (() => {
   function openEditarIngreso(item) {
     _ingEditId = item.id_trans;
     _resetIngForm();
-    document.getElementById('regIngCat').value    = item.categoria_ingreso || item.tipo_ingreso || 'venta_producto_gravado';
+    // Resolver categoría legacy a key nueva si aplica
+    const _rawCatI = item.categoria_ingreso || item.tipo_ingreso || 'ventas_servicios';
+    document.getElementById('regIngCat').value    = LEGACY_INGRESO_MAP[_rawCatI] || _rawCatI;
     document.getElementById('regIngDesc').value   = item.descripcion || '';
     document.getElementById('regIngFecha').value  = String(item.fecha_ingreso || '').slice(0,10);
     document.getElementById('regIngNfac').value   = item.num_factura || '';
@@ -3408,19 +3509,21 @@ const REG = (() => {
 
   // ── Submit ingreso ────────────────────────────────────
   async function submitIngreso() {
+    const categoria = document.getElementById('regIngCat').value;
     const total  = parseFloat(document.getElementById('regIngTotal').value) || 0;
     const fecha  = document.getElementById('regIngFecha').value;
     const nombre = document.getElementById('regIngNombre').value.trim();
-    if (!total)  { toast('Ingresa el total', 'err');           return; }
-    if (!fecha)  { toast('Ingresa la fecha', 'err');           return; }
-    if (!nombre) { toast('Ingresa el nombre del cliente', 'err'); return; }
+    if (!categoria) { toast('Selecciona una categoría DGI', 'err');  return; }
+    if (!total)     { toast('Ingresa el total', 'err');               return; }
+    if (!fecha)     { toast('Ingresa la fecha', 'err');               return; }
+    if (!nombre)    { toast('Ingresa el nombre del cliente', 'err');  return; }
     const btn = document.getElementById('regIngSubmit');
     const isEdit = !!_ingEditId;
     btn.disabled = true; btn.textContent = isEdit ? 'Actualizando…' : 'Guardando…';
     try {
       const payload = {
         fecha,
-        categoria:   document.getElementById('regIngCat').value,
+        categoria,
         descripcion: document.getElementById('regIngDesc').value.trim(),
         num_factura: document.getElementById('regIngNfac').value.trim(),
         subtotal:    document.getElementById('regIngSubtotal').value || '',
@@ -4112,18 +4215,34 @@ const PEND = (() => {
       <div class="f-grp">
         <label class="f-lbl">Categoría</label>
         <select class="f-inp" id="regIngCat" onchange="REG.inferItbmsIng()">
-          <option value="venta_producto_gravado">📦 Venta de producto (con ITBMS)</option>
-          <option value="venta_producto_exento">📦 Venta de producto (exento)</option>
-          <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
-          <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
-          <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
-          <option value="servicios_profesionales">💼 Servicios profesionales</option>
-          <option value="salarios">💰 Salarios</option>
-          <option value="comision">💳 Comisión</option>
-          <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
-          <option value="otro_exento">📋 Otro ingreso (exento)</option>
+          <option value="" disabled selected>— Seleccionar categoría —</option>
+          <optgroup label="INGRESOS (L1–L5)">
+            <option value="salarios_con_retencion">💼 Salarios y otras remuneraciones c/retención (L1)</option>
+            <option value="remuneracion_sin_retencion">💵 Otras remuneraciones personales s/retención (L2)</option>
+            <option value="ingresos_especies">🎁 Ingresos en especies (L3)</option>
+            <option value="gastos_repr_asalariado">🤝 Gastos de Representación (L4)</option>
+            <option value="dietas">📅 Dietas (L5)</option>
+          </optgroup>
+          <optgroup label="INGRESOS POR ACTIVIDAD Y/O PROFESIÓN (L6–L19)">
+            <option value="actividad_agropecuaria">🌾 Actividad Agropecuaria (L6)</option>
+            <option value="honorarios_comision">💳 Honorarios por Comisiones (L7)</option>
+            <option value="honorarios_profesionales">💼 Honorarios por Servicios Profesionales (L8)</option>
+            <option value="alquiler_habitacional">🏠 Alquiler Habitacional (L9)</option>
+            <option value="alquiler_comercial">🏢 Alquiler Comercial (L10)</option>
+            <option value="intereses_financieros">🏦 Intereses y otros Ingresos Financieros (L11)</option>
+            <option value="ganancia_capital_legacy">📉 Ganancia capital pre-Ley 18/2006 (L12)</option>
+            <option value="otros_ingresos">📋 Otros Ingresos (L13)</option>
+            <option value="ventas_servicios">🛒 Ventas y Prestación de Servicios (L14)</option>
+            <option value="devoluciones_descuentos">↩️ Menos: Devoluciones y Descuentos (L15)</option>
+            <option value="descuento_jubilados">👵 Menos: Descuento Jubilados Ley 6/87 (L16)</option>
+            <option value="ingresos_exentos">🛡️ Menos: Ingresos Exentos / No Gravables (L17)</option>
+            <option value="fuente_extranjera">🌎 Fuente Extranjera (L18)</option>
+            <option value="gastos_repr_actividad">🎯 Gastos de Representación actividad (L19)</option>
+          </optgroup>
         </select>
       </div>
+      <!-- Hint contextual DGI (poblado por inferItbmsIng) -->
+      <div id="regIngCatHint" style="display:none;padding:.55rem .75rem;background:#FFF8E1;border-left:3px solid #F9A825;border-radius:4px;font-size:.74rem;line-height:1.4;color:#5D4037;margin-bottom:.82rem"></div>
       <div class="f-grp">
         <label class="f-lbl">Descripción</label>
         <input type="text" class="f-inp" id="regIngDesc" placeholder="Opcional">
@@ -4138,11 +4257,16 @@ const PEND = (() => {
           <input type="text" class="f-inp" id="regIngNfac" placeholder="Opcional">
         </div>
       </div>
-      <div class="f-grp" style="background:var(--bg2);border-radius:var(--r);padding:.62rem .82rem;display:flex;align-items:center;gap:.6rem">
+      <div class="f-grp" id="regIngItbmsRow" style="background:var(--bg2);border-radius:var(--r);padding:.62rem .82rem;display:flex;align-items:center;gap:.6rem">
         <input type="checkbox" id="regIngItbms" onchange="REG.recalcIng()"
                style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
-        <label for="regIngItbms" style="font-size:.82rem;font-weight:600;cursor:pointer;margin:0">Aplica ITBMS (7%)</label>
+        <label for="regIngItbms" id="regIngItbmsLbl" style="font-size:.82rem;font-weight:600;cursor:pointer;margin:0">Aplica ITBMS (7%)</label>
         <span id="regIngItbmsTag" style="display:none;font-size:.68rem;background:var(--green);color:#fff;padding:.1rem .42rem;border-radius:4px;font-weight:700;margin-left:auto">+7%</span>
+      </div>
+      <!-- Retención ISR esperada (poblado por recalcIng) -->
+      <div id="regIngRetencionInfo" style="display:none;padding:.5rem .75rem;background:#E3F2FD;border-radius:6px;font-size:.76rem;justify-content:space-between;align-items:center;margin-bottom:.82rem;gap:.5rem">
+        <span style="color:#1565C0;font-weight:500">💡 Retención esperada:</span>
+        <span id="regIngRetMonto" style="font-family:'DM Mono',monospace;font-weight:700;color:#0D47A1;text-align:right">B/. 0.00</span>
       </div>
       <div class="f-grp">
         <label class="f-lbl">Total (USD) *</label>
