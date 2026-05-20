@@ -162,6 +162,22 @@ function _routerForwardMensaje(msg, metadata) {
       return;
     }
 
+    // En estado awaiting_link_confirmation — esperamos LISTO/ya/confirmé
+    // tras haber mandado el link de Gmail al usuario.
+    if (setupState && setupState.step === 'awaiting_link_confirmation') {
+      if (/^(listo|ya|confirme|confirmé|confirmado|done|ok|siguiente|next|paso\s*2|continuar)\b/.test(bodyText)) {
+        _routerClearSetupState(from);
+        _routerEnviarInstruccionesFiltroGmail(from, token, phoneId);
+        return;
+      }
+      _routerSendText(from,
+        '⏳ Esperando que toques el link de Gmail y veas la confirmación de Google.\n\n' +
+        'Cuando esté listo, escribime *LISTO* y te paso el Paso 2.\n\n' +
+        '(O escribí *cancelar* para salir.)',
+        token, phoneId);
+      return;
+    }
+
     // En estado awaiting_email — esperamos que el usuario mande su email
     if (setupState && setupState.step === 'awaiting_email') {
       var emailParsed = _routerParseEmail(bodyText);
@@ -353,14 +369,16 @@ function _routerReplyDesconocido(to, token, phoneId) {
 //  el código de verificación de Gmail.
 // ════════════════════════════════════════════════════════════════════
 
-var _ROUTER_SETUP_TTL_MS = 60 * 60 * 1000; // 1h
+var _ROUTER_SETUP_TTL_MS    = 60 * 60 * 1000;          // 1h — provider/email
+var _ROUTER_CONFIRM_TTL_MS  = 7  * 24 * 60 * 60 * 1000; // 7d — esperando "LISTO"
 
 function _routerGetSetupState(from) {
   var raw = PropertiesService.getScriptProperties().getProperty('setup_' + from);
   if (!raw) return null;
   try {
     var s = JSON.parse(raw);
-    if (!s.ts || (Date.now() - s.ts) > _ROUTER_SETUP_TTL_MS) {
+    var maxAge = (s.step === 'awaiting_link_confirmation') ? _ROUTER_CONFIRM_TTL_MS : _ROUTER_SETUP_TTL_MS;
+    if (!s.ts || (Date.now() - s.ts) > maxAge) {
       _routerClearSetupState(from);
       return null;
     }
@@ -456,44 +474,58 @@ function _routerCompletarSetup(from, email, provider, token, phoneId) {
 function _routerEnviarInstruccionesGmail(from, email, token, phoneId) {
   var body =
     '✅ Anotado: *' + email + '*\n\n' +
-    '*📋 Configuración de Gmail*\n' +
+    '*📋 Paso 1 de 2 — Autorizar facturas@balanceclip.net en tu Gmail*\n' +
     '_(Hacelo desde la computadora — no funciona desde el celular)_\n\n' +
-    '*1.* Abrí mail.google.com con tu cuenta *' + email + '*\n' +
+    '*1.* Abrí mail.google.com con *' + email + '*\n' +
     '*2.* Engranaje ⚙️ (arriba a la derecha) → *Ver todos los ajustes*\n' +
     '*3.* Tab *"Reenvío y POP/IMAP"*\n' +
     '*4.* Botón *"Añadir una dirección de reenvío"*\n' +
     '*5.* Ingresá: facturas@balanceclip.net → *Siguiente* → *Continuar*\n\n' +
-    '🤖 *Verificación automática*\n' +
-    'Apenas mandes el "Continuar", Google nos envía un link de confirmación a facturas@balanceclip.net. *Lo proceso automáticamente* (1-2 min) y te aviso por acá cuando esté listo. No tenés que copiar ni pegar nada.\n\n' +
-    '⚠️ *Después de que te confirme* (último paso, MUY importante):\n' +
-    'Volvé a Gmail → *Reenvío y POP/IMAP*, refrescá la página y marcá:\n' +
-    '✅ "Reenviar una copia del correo entrante a facturas@balanceclip.net"\n' +
-    '✅ "Conservar la copia de Gmail en Recibidos"\n' +
-    '✅ *Guardar cambios* abajo\n\n' +
-    '💡 *Opcional — reenviar solo facturas*\n' +
-    'Si no querés reenviar TODO tu correo, creá un filtro:\n' +
-    '1. Configuración → *Filtros y direcciones bloqueadas* → *Crear filtro nuevo*\n' +
-    '2. "Contiene las palabras": *factura OR invoice OR recibo OR comprobante*\n' +
-    '3. *Crear filtro* → marcá *"Reenviarlo a"* facturas@balanceclip.net\n\n' +
-    '⏳ Esperando la confirmación de Google…';
+    '⏳ *Esperá acá* — Google nos manda un link de verificación a nuestro buzón. Apenas llegue (1-2 min) *te lo paso por WhatsApp*. Lo tocás desde tu teléfono y queda autorizado en 1 click.\n\n' +
+    'Después te mando el *Paso 2*, que es lo que hace que las facturas de cada proveedor lleguen automáticamente.';
   _routerSendText(from, body, token, phoneId);
 }
 
 function _routerEnviarInstruccionesOutlook(from, email, token, phoneId) {
+  // En Outlook personal no hay paso de verificación — vamos directo a
+  // las reglas por proveedor.
   var body =
     '✅ Anotado: *' + email + '*\n\n' +
-    '*📋 Configuración de Outlook* (regla de reenvío)\n' +
+    '*📋 Configurar reenvío por proveedor en Outlook*\n\n' +
+    'En Outlook no hay paso de verificación: vas directo a crear *una regla por cada proveedor* del que recibís facturas por email (ENSA, IDAAN, Cable Onda, etc.). Lo hacés *una vez por proveedor* y queda funcionando para siempre.\n\n' +
     '_(Hacelo desde la computadora)_\n\n' +
-    '*1.* Abrí outlook.live.com con tu cuenta *' + email + '*\n' +
-    '*2.* Engranaje ⚙️ (arriba a la derecha) → *Ver toda la configuración de Outlook*\n' +
-    '*3.* *Correo* → *Reglas* → *+ Agregar nueva regla*\n' +
-    '*4.* Nombre: BalanceClip facturas\n' +
-    '*5.* En "Agregar una condición" → *Asunto incluye* → escribí: factura, invoice, recibo, comprobante (uno por uno)\n' +
-    '*6.* En "Agregar una acción" → *Reenviar a* → facturas@balanceclip.net\n' +
-    '*7.* *Guardar*\n\n' +
-    '✅ ¡Listo! Outlook personal *no pide código de verificación*. A partir de ahora cualquier correo que reciban con esas palabras en el asunto se reenvía automáticamente.\n\n' +
-    '⚠️ *Atención si es Outlook corporativo*\n' +
-    'Si tu email es de *Microsoft 365 del trabajo*, el reenvío externo puede estar *bloqueado* por tu admin de IT. Síntomas: la regla se guarda pero no llega nada. Pedile a tu admin que habilite "External Forwarding" para tu cuenta, o usá una cuenta personal alternativa.';
+    '*1.* Abrí outlook.live.com con *' + email + '*\n' +
+    '*2.* Buscá en tu inbox un email reciente del proveedor (ej: una factura de Cable Onda)\n' +
+    '*3.* *Click derecho* sobre el email → *Avanzado* → *Crear regla*\n' +
+    '*4.* En la regla que se abre:\n' +
+    '  • Condición *"De"* = el email del proveedor (Outlook lo precarga)\n' +
+    '  • Acción *"Reenviar a"* → facturas@balanceclip.net\n' +
+    '*5.* *Guardar*\n\n' +
+    '🔁 *Repetí estos pasos con cada proveedor* del que recibís facturas. A partir de ese momento todas las facturas futuras de ese proveedor se procesan automáticamente. 🎉\n\n' +
+    '⚠️ *Atención si tu cuenta es de Outlook corporativo (Microsoft 365 del trabajo)*: el reenvío externo puede estar bloqueado por tu admin de IT. Síntomas: la regla se guarda pero las facturas no llegan a BalanceClip.\n\n' +
+    'Si necesitás re-ver estas instrucciones más adelante: escribime *configurar email*.';
+  _routerSendText(from, body, token, phoneId);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Paso 2 (solo Gmail) — se manda cuando el usuario nos confirma con
+//  "LISTO" que clickeó el link de verificación.
+// ────────────────────────────────────────────────────────────────────
+function _routerEnviarInstruccionesFiltroGmail(from, token, phoneId) {
+  var body =
+    '🎯 *Paso 2 de 2 — Reenviar facturas por proveedor*\n\n' +
+    'Ya tenés facturas@balanceclip.net habilitada en tu Gmail. Ahora hay que crear *un filtro por cada proveedor* del que recibís facturas por email (ENSA, IDAAN, Cable Onda, etc.). Lo hacés *una vez por proveedor* y queda funcionando para siempre.\n\n' +
+    '*Cómo hacerlo (ejemplo con un proveedor):*\n\n' +
+    '*1.* En Gmail, abrí un email reciente del proveedor (ej: una factura de Cable Onda)\n' +
+    '*2.* Tocá los *3 puntos* (⋮) arriba a la derecha del email\n' +
+    '*3.* Elegí *"Filtrar mensajes como este"*\n' +
+    '*4.* Confirmá el campo *"De:"* — debe tener el email del proveedor (ej: facturacion@cableonda.com)\n' +
+    '*5.* Tocá *"Crear filtro"* (abajo a la derecha)\n' +
+    '*6.* Marcá ✅ *"Reenviarlo a:"* → elegí *facturas@balanceclip.net* en el menú\n' +
+    '*7.* (Opcional) Marcá ✅ *"Marcar como leído"* para que no te llenen la bandeja\n' +
+    '*8.* Tocá *"Crear filtro"*\n\n' +
+    '🔁 *Repetí con cada proveedor* que te mande facturas por email. A partir de ese momento todas las facturas futuras de ese proveedor se procesan automáticamente. 🎉\n\n' +
+    'Si necesitás re-ver estas instrucciones más adelante: escribime *configurar email*.';
   _routerSendText(from, body, token, phoneId);
 }
 
@@ -511,15 +543,11 @@ function _routerHandleVerifyCode(data) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  var email  = String(data.email || '').toLowerCase().trim();
-  var status = String(data.status || '').trim();
-  var link   = data.link || null;
+  var email = String(data.email || '').toLowerCase().trim();
+  var link  = data.link || null;
 
-  // Backward compat: payloads viejos con { code, autoConfirmed }
-  if (!status && data.code) status = data.autoConfirmed ? 'confirmed' : 'code_only';
-
-  if (!email) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing email' }))
+  if (!email || !link) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing email/link' }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -533,40 +561,20 @@ function _routerHandleVerifyCode(data) {
   var metaToken = props.getProperty('META_WHATSAPP_TOKEN');
   var phoneId   = props.getProperty('META_PHONE_ID');
 
-  var body;
-  if (status === 'confirmed') {
-    body =
-      '✅ *¡Tu Gmail está verificado!*\n\n' +
-      'Confirmé automáticamente el reenvío de *' + email + '*.\n\n' +
-      '*Paso final* (MUY importante — sin esto Gmail no reenvía nada):\n' +
-      '1. Volvé a Gmail → ⚙️ → *Ver todos los ajustes* → tab *Reenvío y POP/IMAP*\n' +
-      '2. Refrescá la página — vas a ver facturas@balanceclip.net como *"verificada"*\n' +
-      '3. Marcá: ✅ *"Reenviar una copia del correo entrante a facturas@balanceclip.net"*\n' +
-      '4. Elegí *"conservar la copia de Gmail en Recibidos"*\n' +
-      '5. *Guardar cambios* abajo\n\n' +
-      'A partir de ese momento las facturas que te lleguen por email se procesan automáticamente. 🎉';
-  } else if (status === 'expired') {
-    body =
-      '⏰ *El link de verificación expiró o ya fue usado*\n\n' +
-      'Si la verificación de *' + email + '* quedó pendiente, andá a Gmail → *Reenvío y POP/IMAP* y volvé a empezar — agregá de nuevo facturas@balanceclip.net.\n\n' +
-      'Si ya está marcada como "verificada" en Gmail, listo — solo te falta marcar *"Reenviar una copia…"* y *Guardar cambios*.';
-  } else if (status === 'code_only') {
-    // Legacy: el watcher viejo mandó un código numérico
-    body =
-      '🔢 *Código de verificación de Gmail*\n\n' +
-      '`' + String(data.code || '').trim() + '`\n\n' +
-      'Pegalo en Gmail → *Reenvío y POP/IMAP* → *Verificar*.';
-  } else {
-    body =
-      '📬 *Llegó la solicitud de Gmail*\n\n' +
-      'Intenté confirmarla automáticamente pero Google no me devolvió una respuesta clara. *Tocá este link desde tu teléfono* para terminar de verificar:\n\n' +
-      (link || '(link no disponible — revisá el inbox de facturas@balanceclip.net)') + '\n\n' +
-      'Después volvé a Gmail → *Reenvío y POP/IMAP* y marcá *"Reenviar una copia del correo entrante…"* + *Guardar cambios*.';
-  }
+  // Mandar el link al usuario y entrar en estado "esperando confirmación
+  // manual". Cuando responda LISTO le mandamos el Paso 2 (filtros por
+  // proveedor).
+  var body =
+    '📬 *Tu link de verificación de Gmail*\n\n' +
+    'Tocá este link *desde tu teléfono* para autorizar facturas@balanceclip.net en tu Gmail (*' + email + '*):\n\n' +
+    link + '\n\n' +
+    'Gmail te va a mostrar "Confirmation Success" o similar. Cuando lo veas, *escribime LISTO* acá y te paso el Paso 2: cómo hacer que cada proveedor te mande las facturas automáticamente. 🚀';
   _routerSendText(phone, body, metaToken, phoneId);
-  Logger.log('verifyEmailCode: enviado a ' + phone + ' (email=' + email + ', status=' + status + ')');
 
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, sent_to: phone, status: status }))
+  _routerSetSetupState(phone, { step: 'awaiting_link_confirmation', provider: 'gmail', email: email });
+
+  Logger.log('verifyEmailCode: link enviado a ' + phone + ' (email=' + email + ')');
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, sent_to: phone }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
