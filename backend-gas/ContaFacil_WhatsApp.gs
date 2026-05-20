@@ -128,6 +128,14 @@ function _whatsappProcesarMensaje(msg, metadata) {
   var tipo    = msg.type || '';
   Logger.log('WhatsApp msg from=' + from + ' type=' + tipo + ' id=' + msgId);
 
+  // ── Respuesta interactiva (botón o ítem de lista) ──
+  // El usuario tapeó "✅ Aprobar" / "📝 Cambiar categoría" o eligió
+  // una categoría del list message.
+  if (tipo === 'interactive') {
+    _whatsappOnInteractive(msg, from, token, phoneId);
+    return;
+  }
+
   // ── Mensaje de texto: responder con instrucciones simples ──
   if (tipo === 'text') {
     var body = (msg.text && msg.text.body) || '';
@@ -352,12 +360,24 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
   };
   var pendId = _crearPendiente(ss, acreedor, parsedForPend, driveUrl, clave, msgId, fileName);
 
-  return '✅ Gasto recibido vía WhatsApp\n\n' +
-         '📦 ' + (acreedor.nombre || 'Sin proveedor') + '\n' +
-         '💵 B/. ' + Number(parsed.total || 0).toFixed(2) + (parsed.itbms ? ' (incluye ITBMS B/. ' + Number(parsed.itbms).toFixed(2) + ')' : '') + '\n' +
-         '📋 Categoría sugerida: ' + catSug + '\n' +
-         '⏳ Pendiente de aprobación: ' + pendId + '\n\n' +
-         'Apruébalo desde la app: ' + _whatsappFrontendUrl() + '#registroGastos';
+  // Mandar mensaje INTERACTIVO con 2 botones (Aprobar / Cambiar categoría).
+  // El usuario decide desde el mismo WhatsApp sin abrir la app.
+  // Si los botones fallan o el cliente WA no los soporta, queda el
+  // pendiente en la hoja igual y el usuario puede aprobar desde web.
+  var props   = PropertiesService.getScriptProperties();
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID');
+  var bodyTxt = '✅ Gasto recibido\n\n' +
+                '📦 ' + (acreedor.nombre || 'Sin proveedor') + '\n' +
+                '💵 B/. ' + Number(parsed.total || 0).toFixed(2) +
+                (parsed.itbms ? ' (ITBMS B/. ' + Number(parsed.itbms).toFixed(2) + ')' : '') + '\n' +
+                '📋 Categoría sugerida: ' + _waCatLabel(catSug);
+  _whatsappReplyBotones(from, bodyTxt, '#' + pendId, [
+    { id: 'wa:apr:' + pendId, title: '✅ Aprobar' },
+    { id: 'wa:cat:' + pendId, title: '📝 Cambiar categoría' },
+  ], token, phoneId);
+
+  return null;   // ya respondimos con interactive; el caller no envía nada más
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -445,4 +465,257 @@ function whatsappTestConfig() {
     muteHttpExceptions: true,
   });
   Logger.log('GET phone ' + r.getResponseCode() + ': ' + r.getContentText().substring(0, 400));
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  INTERACCIÓN — botones + listas Meta Cloud API
+//
+//  Al recibir una factura, el bot responde con 2 botones:
+//    [ ✅ Aprobar ]  [ 📝 Cambiar categoría ]
+//
+//  Si el usuario tapea "Cambiar", mostramos una lista interactiva con
+//  las categorías DGI agrupadas. Al elegir una, actualizamos el
+//  pendiente y lo aprobamos en una sola acción.
+//
+//  Formato de IDs de botones/listas
+//  ────────────────────────────────
+//    "wa:apr:<pendId>"           — aprobar tal cual
+//    "wa:cat:<pendId>"           — abrir lista de categorías
+//    "wa:set:<pendId>:<key>"     — setear categoría y aprobar
+// ════════════════════════════════════════════════════════════════════
+
+// Catálogo de categorías para el list message — agrupado en secciones
+// que respeten los límites de Meta (10 secciones × 10 rows × título 24 chars).
+// Solo cubre GASTOS (catálogo DGI Form 90/91). Ingresos no implementados.
+var WA_CAT_SECTIONS = [
+  { title: '📋 Más comunes', rows: [
+    { key: 'otros_deducibles',         title: 'Otros gastos',             desc: 'L77 · catch-all operativo' },
+    { key: 'alquileres',               title: 'Alquileres',               desc: 'L46 · local, oficina' },
+    { key: 'combustible_transporte',   title: 'Combustible/transporte',   desc: 'L56' },
+    { key: 'servicios_publicos',       title: 'Servicios públicos',       desc: 'L75 · agua, luz' },
+    { key: 'telecomunicaciones',       title: 'Internet/teléfono',        desc: 'L71' },
+    { key: 'gastos_oficina',           title: 'Gastos oficina',           desc: 'L69 · suministros' },
+    { key: 'nomina',                   title: 'Nómina / Salarios',        desc: 'L42' },
+  ]},
+  { title: '🛒 Costos de Ventas', rows: [
+    { key: 'compras_locales',          title: 'Compras locales',          desc: 'L28 Anexo 94' },
+    { key: 'compras_importadas',       title: 'Compras importadas',       desc: 'L29 Anexo 94' },
+    { key: 'salarios_costo',           title: 'Salarios (Costo)',         desc: 'L30 Anexo 94' },
+    { key: 'depreciacion_costo',       title: 'Depreciación (Costo)',     desc: 'L31 Anexo 94' },
+    { key: 'mantenimiento_costo',      title: 'Mantenim. (Costo)',        desc: 'L32 Anexo 94' },
+    { key: 'servicios_costo',          title: 'Servicios (Costo)',        desc: 'L33 agua/luz prod.' },
+    { key: 'seguros_costo',            title: 'Seguros (Costo)',          desc: 'L34 Anexo 94' },
+    { key: 'otros_costos_venta',       title: 'Otros costos venta',       desc: 'L35 Anexo 94' },
+  ]},
+  { title: '💼 Personal', rows: [
+    { key: 'prestaciones_laborales',   title: 'Prestaciones laborales',   desc: 'L43' },
+    { key: 'gastos_representacion',    title: 'Gastos representación',    desc: 'L44' },
+    { key: 'honorarios_profesionales', title: 'Honorarios profesionales', desc: 'L60' },
+    { key: 'capacitacion',             title: 'Capacitación',             desc: 'L76' },
+  ]},
+  { title: '💰 Financiero & Impuestos', rows: [
+    { key: 'cargos_bancarios',         title: 'Cargos bancarios',         desc: 'L53' },
+    { key: 'gastos_financieros',       title: 'Intereses financieros',    desc: 'L55' },
+    { key: 'impuestos_tasas',          title: 'Impuestos y tasas',        desc: 'L59' },
+    { key: 'seguros',                  title: 'Seguros',                  desc: 'L63-66' },
+  ]},
+  { title: '🔧 Activos & Mantenim.', rows: [
+    { key: 'depreciacion',             title: 'Depreciación',             desc: 'L57' },
+    { key: 'amortizacion',             title: 'Amortización',             desc: 'L58' },
+    { key: 'mantenimiento_reparacion', title: 'Mantenimiento',            desc: 'L67' },
+    { key: 'vigilancia_seguridad',     title: 'Vigilancia/seguridad',     desc: 'L54' },
+    { key: 'tecnologia_software',      title: 'Tecnología/software',      desc: 'L76' },
+    { key: 'publicidad_mercadeo',      title: 'Publicidad/mercadeo',      desc: 'L68' },
+  ]},
+];
+
+// Diccionario plano para etiquetar una key cuando se muestra al usuario
+function _waCatLabel(key) {
+  for (var s = 0; s < WA_CAT_SECTIONS.length; s++) {
+    var rows = WA_CAT_SECTIONS[s].rows;
+    for (var r = 0; r < rows.length; r++) {
+      if (rows[r].key === key) return rows[r].title;
+    }
+  }
+  return key;
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Envía un mensaje interactivo con 2 o 3 botones de respuesta
+// ────────────────────────────────────────────────────────────────────
+function _whatsappReplyBotones(to, bodyText, footerText, buttons, token, phoneId) {
+  if (!to || !buttons || !buttons.length || !token || !phoneId) {
+    Logger.log('_whatsappReplyBotones: faltan params');
+    return;
+  }
+  var btns = buttons.slice(0, 3).map(function(b) {
+    return { type: 'reply', reply: { id: String(b.id).substring(0, 256), title: String(b.title).substring(0, 20) } };
+  });
+  var payload = {
+    messaging_product: 'whatsapp',
+    to: to,
+    type: 'interactive',
+    interactive: {
+      type:   'button',
+      body:   { text: String(bodyText || '').substring(0, 1024) },
+      action: { buttons: btns },
+    },
+  };
+  if (footerText) payload.interactive.footer = { text: String(footerText).substring(0, 60) };
+  try {
+    var r = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:             'post',
+      contentType:        'application/json',
+      headers:            { 'Authorization': 'Bearer ' + token },
+      payload:            JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+    if (r.getResponseCode() !== 200) {
+      Logger.log('Reply botones falló ' + r.getResponseCode() + ': ' + r.getContentText().substring(0, 200));
+    }
+  } catch(err) { Logger.log('_whatsappReplyBotones ERROR: ' + err.message); }
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Envía un mensaje interactivo con lista seleccionable
+//  sections: [{ title: 'Sección', rows: [{ id, title, description }] }]
+// ────────────────────────────────────────────────────────────────────
+function _whatsappReplyLista(to, bodyText, listButtonText, sections, token, phoneId) {
+  if (!to || !sections || !sections.length || !token || !phoneId) {
+    Logger.log('_whatsappReplyLista: faltan params');
+    return;
+  }
+  var sec = sections.slice(0, 10).map(function(s) {
+    return {
+      title: String(s.title || '').substring(0, 24),
+      rows: (s.rows || []).slice(0, 10).map(function(row) {
+        var o = {
+          id:    String(row.id).substring(0, 200),
+          title: String(row.title || '').substring(0, 24),
+        };
+        if (row.description) o.description = String(row.description).substring(0, 72);
+        return o;
+      }),
+    };
+  });
+  var payload = {
+    messaging_product: 'whatsapp',
+    to: to,
+    type: 'interactive',
+    interactive: {
+      type:   'list',
+      body:   { text: String(bodyText || '').substring(0, 1024) },
+      action: { button: String(listButtonText || 'Elegir').substring(0, 20), sections: sec },
+    },
+  };
+  try {
+    var r = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:             'post',
+      contentType:        'application/json',
+      headers:            { 'Authorization': 'Bearer ' + token },
+      payload:            JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+    if (r.getResponseCode() !== 200) {
+      Logger.log('Reply lista falló ' + r.getResponseCode() + ': ' + r.getContentText().substring(0, 200));
+    }
+  } catch(err) { Logger.log('_whatsappReplyLista ERROR: ' + err.message); }
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Despacha respuestas interactivas (botón o lista)
+// ────────────────────────────────────────────────────────────────────
+function _whatsappOnInteractive(msg, from, token, phoneId) {
+  var inter = msg.interactive || {};
+  var id    = '';
+  if (inter.type === 'button_reply') {
+    id = (inter.button_reply || {}).id || '';
+  } else if (inter.type === 'list_reply') {
+    id = (inter.list_reply || {}).id || '';
+  } else {
+    Logger.log('Tipo interactivo desconocido: ' + inter.type);
+    return;
+  }
+  Logger.log('Interactive id=' + id + ' from=' + from);
+
+  // Formato: "wa:<accion>:<pendId>[:<key>]"
+  var parts = String(id || '').split(':');
+  if (parts[0] !== 'wa') {
+    Logger.log('ID no es de WhatsApp callback: ' + id);
+    return;
+  }
+  var accion = parts[1];
+  var pendId = parts[2];
+  if (accion === 'apr')      _whatsappOnAprobar(pendId, from, token, phoneId);
+  else if (accion === 'cat') _whatsappOnCambiarCat(pendId, from, token, phoneId);
+  else if (accion === 'set') _whatsappOnSetCat(pendId, parts[3] || '', from, token, phoneId);
+  else Logger.log('Acción desconocida: ' + accion);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Acción: Aprobar el pendiente (mismo handler que la web app)
+// ────────────────────────────────────────────────────────────────────
+function _whatsappOnAprobar(pendId, from, token, phoneId) {
+  if (!pendId) { _whatsappReply(from, '⚠️ ID inválido.', token, phoneId); return; }
+  try {
+    var res = _handleAprobarAcreedor({ id: pendId });
+    var json = JSON.parse(res.getContent());
+    if (!json.success) {
+      _whatsappReply(from, '⚠️ No pude aprobar ' + pendId + ': ' + (json.error || 'error desconocido'), token, phoneId);
+      return;
+    }
+    _whatsappReply(from, '✅ Aprobado y registrado en Egresos.\n' + pendId + ' → ' + (json.egreso_id || ''), token, phoneId);
+  } catch(err) {
+    _whatsappReply(from, '⚠️ Error aprobando: ' + err.message, token, phoneId);
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Acción: Abrir la lista de categorías para que el usuario elija
+// ────────────────────────────────────────────────────────────────────
+function _whatsappOnCambiarCat(pendId, from, token, phoneId) {
+  if (!pendId) { _whatsappReply(from, '⚠️ ID inválido.', token, phoneId); return; }
+  // Construir secciones con IDs que incluyan el pendId
+  var sections = WA_CAT_SECTIONS.map(function(s) {
+    return {
+      title: s.title,
+      rows: s.rows.map(function(r) {
+        return { id: 'wa:set:' + pendId + ':' + r.key, title: r.title, description: r.desc };
+      }),
+    };
+  });
+  _whatsappReplyLista(from,
+    'Elegí la categoría DGI correcta para ' + pendId + ':',
+    'Ver categorías',
+    sections, token, phoneId);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Acción: Setear categoría elegida + auto-aprobar
+// ────────────────────────────────────────────────────────────────────
+function _whatsappOnSetCat(pendId, nuevaKey, from, token, phoneId) {
+  if (!pendId || !nuevaKey) { _whatsappReply(from, '⚠️ Datos inválidos.', token, phoneId); return; }
+  try {
+    // 1. Actualizar la categoría del pendiente
+    var upd = _handleActualizarPendienteAcr({ id: pendId, categoria: nuevaKey });
+    var updJson;
+    try { updJson = JSON.parse(upd.getContent()); } catch(e) { updJson = { success: false, error: 'parse' }; }
+    if (!updJson.success) {
+      _whatsappReply(from, '⚠️ No pude actualizar la categoría: ' + (updJson.error || ''), token, phoneId);
+      return;
+    }
+    // 2. Aprobar automáticamente con la nueva categoría
+    var apr = _handleAprobarAcreedor({ id: pendId });
+    var aprJson = JSON.parse(apr.getContent());
+    if (!aprJson.success) {
+      _whatsappReply(from, '⚠️ Categoría cambiada pero no pude aprobar: ' + (aprJson.error || ''), token, phoneId);
+      return;
+    }
+    _whatsappReply(from,
+      '✅ Categoría actualizada a "' + _waCatLabel(nuevaKey) + '" y aprobado.\n' +
+      pendId + ' → ' + (aprJson.egreso_id || ''),
+      token, phoneId);
+  } catch(err) {
+    _whatsappReply(from, '⚠️ Error: ' + err.message, token, phoneId);
+  }
 }
