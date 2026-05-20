@@ -516,18 +516,32 @@ function caCalc() {
   });
 
   // ── Ingresos ──────────────────────────────────
-  const ingGravados = ing.filter(i => !String(i.categoria_ingreso||'').includes('exento'));
-  const ingExentos  = ing.filter(i =>  String(i.categoria_ingreso||'').includes('exento'));
+  // Categorías exentas: no suman a renta gravable (L18 fuente extranjera + legacy *_exento).
+  // L17 ahora es sustractivo explícito (resta de la base) — no aquí.
+  const EXENTAS_ISR = new Set([
+    'fuente_extranjera',
+    'venta_producto_exento','servicio_tecnico_exento','otro_exento', // legacy
+  ]);
+  // Sustractivas (L15, L16, L17): restan de la base gravable
+  const SUSTRACTIVAS = new Set(['devoluciones_descuentos','descuento_jubilados','ingresos_exentos']);
+  const _isExento = i => EXENTAS_ISR.has(String(i.categoria_ingreso || i.tipo_ingreso || ''))
+                      || String(i.categoria_ingreso||'').includes('exento');
+  const _isSustractivo = i => SUSTRACTIVAS.has(String(i.categoria_ingreso || i.tipo_ingreso || ''));
 
-  const totalIngBruto   = ing.reduce((s,i) => s+Number(i.subtotal||0), 0);
-  const totalIngGravado = ingGravados.reduce((s,i) => s+Number(i.subtotal||0), 0);
-  const totalIngExento  = ingExentos.reduce((s,i) => s+Number(i.subtotal||0), 0);
-  const totalITBMSCobrado = ing.reduce((s,i) => s+Number(i.itbms||0), 0);
+  const ingGravados   = ing.filter(i => !_isExento(i) && !_isSustractivo(i));
+  const ingExentos    = ing.filter(_isExento);
+  const ingSustractivos = ing.filter(_isSustractivo);
 
-  // Breakdown por categoría
+  const totalIngBruto       = ingGravados.reduce((s,i) => s+Number(i.subtotal||0), 0);
+  const totalSustracciones  = ingSustractivos.reduce((s,i) => s+Number(i.subtotal||0), 0);
+  const totalIngGravado     = totalIngBruto - totalSustracciones;
+  const totalIngExento      = ingExentos.reduce((s,i) => s+Number(i.subtotal||0), 0);
+  const totalITBMSCobrado   = ing.reduce((s,i) => s+Number(i.itbms||0), 0);
+
+  // Breakdown por categoría (incluye todas: gravadas, exentas, sustractivas)
   const ingPorCat = {};
   ing.forEach(i => {
-    const k = i.tipo_ingreso || i.categoria_ingreso || 'otro';
+    const k = i.categoria_ingreso || i.tipo_ingreso || 'otro';
     if (!ingPorCat[k]) ingPorCat[k] = { subtotal: 0, itbms: 0, total: 0, n: 0 };
     ingPorCat[k].subtotal += Number(i.subtotal||0);
     ingPorCat[k].itbms    += Number(i.itbms||0);
@@ -554,9 +568,14 @@ function caCalc() {
     egrPorTipo[k].n++;
   });
 
-  // Costo de ventas = costo_mercancia (L28-34) + costo_servicio_tecnico (L35)
-  //                 + impuesto_importacion (L35) + otros_costos_venta (L35 Anexo 94)
-  const COSTO_KEYS = ['costo_mercancia','costo_servicio_tecnico','impuesto_importacion','otros_costos_venta'];
+  // Costo de ventas = costos directos de Operaciones (ST_Items)
+  //                 + categorías Anexo 94 L28-L35 de Registro General
+  const COSTO_KEYS = [
+    'costo_mercancia','costo_servicio_tecnico','impuesto_importacion',
+    // Anexo 94 L28-L35
+    'compras_locales','compras_importadas','salarios_costo','depreciacion_costo',
+    'mantenimiento_costo','servicios_costo','seguros_costo','otros_costos_venta',
+  ];
   const totalCostoVentas = COSTO_KEYS.reduce((s,k) => s + (egrPorTipo[k]?.total||0), 0);
 
   // Gastos deducibles = todo lo que no es costo de ventas ni credito_fiscal
@@ -619,7 +638,30 @@ function caCalc() {
 }
 
 // ── LABELS / MAPPINGS ────────────────────────────
+// Mapping a líneas oficiales del Formulario 91 DGI Panamá. Cada
+// categoría sabe su número de línea para el reporte fiscal anual.
 const ING_LABELS = {
+  // ── Nuevas (catálogo DGI Form 91 L1-L19) ──
+  salarios_con_retencion:     'L1 · Salarios y otras remuneraciones (c/retención)',
+  remuneracion_sin_retencion: 'L2 · Otras remuneraciones personales (s/retención)',
+  ingresos_especies:          'L3 · Ingresos en especies',
+  gastos_repr_asalariado:     'L4 · Gastos de Representación (asalariado)',
+  dietas:                     'L5 · Dietas',
+  actividad_agropecuaria:     'L6 · Actividad Agropecuaria',
+  honorarios_comision:        'L7 · Honorarios por Comisiones',
+  honorarios_profesionales:   'L8 · Honorarios por Servicios Profesionales',
+  alquiler_habitacional:      'L9 · Alquiler Habitacional',
+  alquiler_comercial:         'L10 · Alquiler Comercial',
+  intereses_financieros:      'L11 · Intereses y otros Ingresos Financieros',
+  ganancia_capital_legacy:    'L12 · Ganancia capital (pre-Ley 18/2006)',
+  otros_ingresos:             'L13 · Otros Ingresos',
+  ventas_servicios:           'L14 · Ventas y Prestación de Servicios',
+  devoluciones_descuentos:    'L15 · Menos: Devoluciones y Descuentos',
+  descuento_jubilados:        'L16 · Menos: Descuento Jubilados (Ley 6/87)',
+  ingresos_exentos:           'L17 · Menos: Ingresos Exentos / No Gravables',
+  fuente_extranjera:          'L18 · Fuente Extranjera',
+  gastos_repr_actividad:      'L19 · Gastos de Representación (actividad)',
+  // ── Legacy (datos viejos, antes del catálogo unificado) ──
   venta_producto_gravado:   'Venta de productos (gravado)',
   venta_producto_exento:    'Venta de productos (exento)',
   venta_producto:           'Venta de productos',
@@ -629,6 +671,10 @@ const ING_LABELS = {
   asesoria_consultoria:     'Asesoría y consultoría',
   comision:                 'Comisiones',
   exportacion:              'Exportación',
+  alquiler_cobrado:         'Alquiler cobrado',
+  intereses:                'Intereses',
+  dividendos:               'Dividendos',
+  salarios:                 'Salarios',
   otro_gravado:             'Otros ingresos gravados',
   otro_exento:              'Otros ingresos exentos',
   otro:                     'Otros ingresos',

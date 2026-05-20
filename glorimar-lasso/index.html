@@ -2071,55 +2071,116 @@ tr:hover td{background:rgba(0,0,0,.015)}
   </div><!-- /rgTabEgr -->
 
   <!-- TAB: INGRESOS -->
-  <div id="rgTabIng" style="display:none">
-    <!-- Toolbar -->
-    <div class="op-toolbar">
-      <button class="btn-sync" onclick="rgRefresh()">⟳ Actualizar</button>
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="rgSearchIng" class="filter-search" placeholder="Buscar ingreso..." oninput="rgRenderIng()">
+  <div id="rgTabIng" style="display:none;padding-top:.25rem">
+    <!-- ── ZONA 1: Resumen del período (KPIs) ──────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">📊</span> Resumen del período</div>
       </div>
-      <button class="op-filter-btn active" data-rgi-filter="all" onclick="rgApplyIngFilter(this,'all')">Todos</button>
-      <button class="op-filter-btn" data-rgi-filter="alquiler_cobrado"  onclick="rgApplyIngFilter(this,'alquiler_cobrado')">🏢 Alquiler cobrado</button>
-      <button class="op-filter-btn" data-rgi-filter="intereses"         onclick="rgApplyIngFilter(this,'intereses')">🏦 Intereses</button>
-      <button class="op-filter-btn" data-rgi-filter="otro_gravado"      onclick="rgApplyIngFilter(this,'otro_gravado')">📋 Otro gravado</button>
-      <button class="op-filter-btn" data-rgi-filter="otro_exento"       onclick="rgApplyIngFilter(this,'otro_exento')">📋 Otro exento</button>
-    </div>
-    <!-- Stats filtrados -->
-    <div style="padding:.65rem 2rem;display:flex;gap:.75rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--white)">
-      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatTotal">—</span><span class="stat-pill-label">Total registros</span></div>
-      <div class="stat-pill"><span class="stat-pill-num green" id="rgIStatMonto">—</span><span class="stat-pill-label">Total ingresos</span></div>
-      <div class="stat-pill"><span class="stat-pill-num" style="color:#1565C0" id="rgIStatItbms">—</span><span class="stat-pill-label">ITBMS cobrado</span></div>
-    </div>
-    <!-- Header + botón nuevo -->
-    <div class="section-hdr-row">
-      <span class="section-hdr-lbl">Ingresos generales</span>
-      <button class="section-hdr-add ing" onclick="rgAbrirNuevoIngreso()" title="Registrar ingreso"
-        style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
-        <span style="font-size:.95rem;line-height:1">+</span><span>Registrar ingreso</span>
-      </button>
-    </div>
-    <!-- Tabla -->
-    <div class="op-table-wrap">
-      <table class="op-table" id="rgIngTable">
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Categoría DGI</th>
-            <th>Descripción</th>
-            <th>Cliente / Fuente</th>
-            <th>Factura</th>
-            <th style="text-align:right">Subtotal</th>
-            <th style="text-align:right">ITBMS</th>
-            <th style="text-align:right">Total</th>
-            <th style="text-align:center;white-space:nowrap">Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="rgIngBody">
-          <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
-        </tbody>
-      </table>
-    </div>
+      <div class="rg-zone-body dense">
+        <div id="rgIngWidgets" style="display:grid;grid-template-columns:repeat(6,1fr);gap:.65rem"></div>
+      </div>
+    </section>
+
+    <!-- ── ZONA 2: Insights (Top categorías + Top clientes) ── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">🎯</span> Insights — qué pesa más</div>
+      </div>
+      <div class="rg-zone-body">
+        <div id="rgIngCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div class="rg-chart-card" id="rgIngChartCat"></div>
+          <div class="rg-chart-card" id="rgIngChartCli"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ZONA 3: Filtros + búsqueda ──────────────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">🔍</span> Filtros y búsqueda</div>
+        <div class="rg-zone-actions">
+          <div class="search-wrap" style="max-width:270px">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="rgSearchIng" class="filter-search" placeholder="Buscar ingreso o cliente..." oninput="rgRenderIng()">
+          </div>
+        </div>
+      </div>
+      <div class="rg-zone-body dense">
+        <div id="rgIngFiltersBar" class="op-toolbar" style="flex-wrap:wrap;gap:.5rem;padding:0">
+          <select id="rgIngFechaMode" onchange="rgApplyIngFecha(this.value)" class="rg-filter-sel">
+            <option value="all">📅 Todas las fechas</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="14">Últimos 14 días</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="custom">Rango personalizado…</option>
+          </select>
+          <span id="rgIngFechaCustom" style="display:none;gap:.3rem;align-items:center">
+            <input type="date" id="rgIngFechaDesde" onchange="rgRenderIng()"
+              style="font-size:.75rem;padding:.25rem .45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
+            <span style="font-size:.72rem;color:var(--muted)">→</span>
+            <input type="date" id="rgIngFechaHasta" onchange="rgRenderIng()"
+              style="font-size:.75rem;padding:.25rem .45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
+          </span>
+          <select id="rgIngCatSel" onchange="rgApplyIngFilter(null,this.value)" class="rg-filter-sel">
+            <option value="all">📂 Todas las categorías DGI</option>
+          </select>
+          <select id="rgIngCliSel" onchange="rgSetCliente(this.value)" class="rg-filter-sel">
+            <option value="TODOS">👤 Todos los clientes</option>
+          </select>
+          <select id="rgIngEstadoSel" onchange="rgApplyIngEstado(this.value)" class="rg-filter-sel">
+            <option value="all">Estado: Todos</option>
+            <option value="confirmado">✅ Confirmado</option>
+            <option value="pendiente">⏳ Pendiente</option>
+            <option value="abono">◑ Abono</option>
+          </select>
+          <select id="rgIngItbmsSel" onchange="rgApplyIngItbms(this.value)" class="rg-filter-sel">
+            <option value="all">ITBMS: Todos</option>
+            <option value="gravado">🏛️ Gravado</option>
+            <option value="exento">🚫 Exento / No aplica</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ZONA 4: Ingresos detallados (tabla) ─────────────── -->
+    <section class="rg-zone">
+      <div class="rg-zone-head">
+        <div class="rg-zone-title"><span class="rg-zone-title-icon">📋</span> Ingresos detallados</div>
+        <div class="rg-zone-actions">
+          <button id="rgRegistrarIngresoBtn" class="section-hdr-add ing" onclick="rgAbrirNuevoIngreso()" title="Registrar ingreso"
+            style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
+            <span style="font-size:.95rem;line-height:1">+</span><span>Registrar ingreso</span>
+          </button>
+          <button id="rgRefreshIngBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar"
+            style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
+            <span id="rgRefreshIngIcon">↻</span><span>Actualizar</span>
+          </button>
+        </div>
+      </div>
+      <div class="rg-zone-body flush">
+        <div class="op-table-wrap">
+          <table class="op-table" id="rgIngTable">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Categoría DGI</th>
+                <th>Descripción</th>
+                <th>Cliente / Fuente</th>
+                <th>Factura</th>
+                <th style="text-align:right">Subtotal</th>
+                <th style="text-align:right">ITBMS</th>
+                <th style="text-align:right">Total</th>
+                <th style="text-align:center;white-space:nowrap">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="rgIngBody">
+              <tr><td colspan="9"><div class="table-loading"><div class="spinner"></div><span>Cargando...</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </div><!-- /rgTabIng -->
 
 
@@ -3403,21 +3464,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full">
             <label>Categoría</label>
             <select id="iCategoria" onchange="inferirItbmsIngreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
-              <option value="venta_producto_gravado">📦 Venta de producto (con ITBMS)</option>
-              <option value="venta_producto_exento">📦 Venta de producto (exento)</option>
-              <option value="servicio_tecnico_gravado">🔧 Servicio técnico (con ITBMS)</option>
-              <option value="servicio_tecnico_exento">🔧 Servicio técnico (exento)</option>
-              <option value="asesoria_consultoria">💼 Asesoría / Consultoría</option>
-              <option value="servicios_profesionales">💼 Servicios profesionales</option>
-              <option value="salarios">💰 Salarios</option>
-              <option value="comision">💳 Comisión</option>
-              <option value="alquiler_cobrado">🏢 Alquiler cobrado</option>
-              <option value="intereses">🏦 Intereses ganados</option>
-              <option value="dividendos">📈 Dividendos recibidos</option>
-              <option value="exportacion">📦 Exportación</option>
-              <option value="otro_gravado">📋 Otro ingreso (con ITBMS)</option>
-              <option value="otro_exento">📋 Otro ingreso (exento)</option>
+              <!-- Pobladas dinámicamente por _renderIngresoCategoriaSelect() desde CATEGORIAS_INGRESO_DGI -->
             </select>
+          </div>
+          <!-- Hint contextual + retención esperada (poblado por inferirItbmsIngreso) -->
+          <div class="modal-field full" id="iCatHint" style="display:none;padding:.6rem .75rem;background:#FFF8E1;border-left:3px solid #F9A825;border-radius:4px;font-size:.8rem;line-height:1.4;color:#5D4037"></div>
+          <div class="modal-field full" id="iRetencionInfo" style="display:none;padding:.5rem .75rem;background:#E3F2FD;border-radius:6px;font-size:.82rem;justify-content:space-between;align-items:center">
+            <span style="color:#1565C0;font-weight:500">💡 Retención esperada:</span>
+            <span id="iRetencionMonto" style="font-family:'DM Mono',monospace;font-weight:700;color:#0D47A1">B/. 0.00</span>
           </div>
           <div class="modal-field full">
             <label>Descripción</label>
@@ -3445,7 +3499,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full" id="iDesglose" style="display:none">
             <div style="background:var(--bg2);border-radius:8px;padding:.6rem .75rem;font-size:.83rem;display:flex;gap:2rem">
               <div style="display:flex;justify-content:space-between;flex:1"><span style="color:var(--muted)">Subtotal:</span><span id="iSubtotalDisp">$0.00</span></div>
-              <div style="display:flex;justify-content:space-between;flex:1"><span style="color:var(--muted)">ITBMS 7%:</span><span id="iItbmsDisp">$0.00</span></div>
+              <div style="display:flex;justify-content:space-between;flex:1"><span style="color:var(--muted)" data-itbms-label>ITBMS 7%:</span><span id="iItbmsDisp">$0.00</span></div>
             </div>
           </div>
           <!-- campos hidden para compatibilidad con guardarNuevoIngreso() -->
@@ -3558,9 +3612,16 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full">
             <label>Categoría</label>
             <select id="eCategoria" onchange="inferirTipoEgreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
-              <option disabled>──── Costos directos (poco común) ────</option>
-              <option value="costo_mercancia" disabled>📦 Costo de mercancía — automático desde Operaciones</option>
-              <option value="otros_costos_venta">🛒 Otros costos de venta ocasional (L35 Anexo 94)</option>
+              <option disabled>──── Costos de Ventas (Anexo 94 DGI) ────</option>
+              <option value="costo_mercancia" disabled>📦 Costo de mercancía</option>
+              <option value="compras_locales">🛍️ Compras locales (L28)</option>
+              <option value="compras_importadas">📦 Compras importadas (L29)</option>
+              <option value="salarios_costo">👤 Salarios y remuneraciones — Costo (L30)</option>
+              <option value="depreciacion_costo">📉 Depreciación — Costo (L31)</option>
+              <option value="mantenimiento_costo">🔧 Mantenimiento — Costo (L32)</option>
+              <option value="servicios_costo">💡 Electricidad, agua y tel. — Costo (L33)</option>
+              <option value="seguros_costo">🛡️ Seguros — Costo (L34)</option>
+              <option value="otros_costos_venta">🛒 Otros costos de venta (L35)</option>
               <option disabled>──── Gastos operativos (lo más común) ────</option>
               <option value="nomina">👤 Nómina / Salarios (L42)</option>
               <option value="prestaciones_laborales">👥 Prestaciones laborales (L43)</option>
@@ -3850,6 +3911,7 @@ function buildMenu() {
       '<button class="main-tab" id="tabContabilidad">🗂 Contabilidad <span class="main-tab-arrow">▾</span></button>' +
       '<div class="dropdown-menu">' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)">🧾 Declaración ITBMS</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/formulario_91.html&quot;)">📋 Formulario 91 (borrador)</a>' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)">📁 Cierre Anual</a>' +
       '</div>' +
     '</div>';
@@ -3862,6 +3924,7 @@ function buildMenu() {
     '<button class="sidebar-link"        id="tabDashboardSb"        onclick="switchTab(&quot;dashboard&quot;)"><span class="sidebar-link-icon">📊</span><span>Estado de Resultados</span></button>' +
     '<button class="sidebar-link"        id="tabContabilidadSb"     style="cursor:default"><span class="sidebar-link-icon">🗂</span><span>Contabilidad</span></button>' +
     '<a href="javascript:void(0)" class="sidebar-link sidebar-sublink" id="tabReporteItbmsSb"  onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)"><span>🧾 Declaración ITBMS</span></a>' +
+    '<a href="javascript:void(0)" class="sidebar-link sidebar-sublink" id="tabReporteForm91Sb" onclick="switchTab(&quot;reporte:reportes/formulario_91.html&quot;)"><span>📋 Formulario 91</span></a>' +
     '<a href="javascript:void(0)" class="sidebar-link sidebar-sublink" id="tabReporteCierreSb" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)"><span>📁 Cierre Anual</span></a>';
 }
 
@@ -3944,7 +4007,11 @@ function _enterApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   buildMenu();
-  switchTab('registroGastos');
+  // Tab inicial: respeta el hash si vino del WhatsApp link (ej. #registroGastos)
+  // o cualquier otro destino válido. Default: Registro de Gastos.
+  const _validTabs = new Set(['registroGastos','registroIngresos','dashboard','finanzas']);
+  const _hash = (window.location.hash || '').replace(/^#/, '').split('&')[0];
+  switchTab(_validTabs.has(_hash) ? _hash : 'registroGastos');
   gasJsonp('getConfig', {}).then(d => {
     if (d.success) {
       _applyHeaderDesktop(d.config || {});
@@ -4090,7 +4157,7 @@ function switchTab(tab) {
   document.getElementById('sectionSetup').style.display        = 'none';
   document.getElementById('sectionReporte').style.display      = isReporte              ? 'block' : 'none';
   // Activar tab según sección activa
-  var ctTabs = ['reporte:reportes/itbms_mensual.html','reporte:reportes/cierre_anual.html','ingresos','egresos'];
+  var ctTabs = ['reporte:reportes/itbms_mensual.html','reporte:reportes/formulario_91.html','reporte:reportes/cierre_anual.html','ingresos','egresos'];
   function _tabToggle(id, val) { var el = document.getElementById(id); if (el) el.classList.toggle('active', val); }
   _tabToggle('tabDashboard',        tab === 'dashboard');
   _tabToggle('tabFinanzas',         tab === 'finanzas');
@@ -4103,6 +4170,7 @@ function switchTab(tab) {
   _tabToggle('tabRegistroGastosSb',   tab === 'registroGastos');
   _tabToggle('tabRegistroIngresosSb', tab === 'registroIngresos');
   _tabToggle('tabReporteItbmsSb',     tab === 'reporte:reportes/itbms_mensual.html');
+  _tabToggle('tabReporteForm91Sb',    tab === 'reporte:reportes/formulario_91.html');
   _tabToggle('tabReporteCierreSb',    tab === 'reporte:reportes/cierre_anual.html');
   if (tab === 'egresos'      && !egrItems.length) loadEgresos();
   if (tab === 'ingresos'     && !ingItems.length) loadIngresos();
@@ -4638,29 +4706,22 @@ function renderIngresosTable(items) {
     abono:      '<span class="badge badge-revision">◑ Abono</span>',
   }[e] || `<span class="badge">${esc(e||'—')}</span>`);
 
-  const catBadgeIng = c => ({
-    venta_producto_gravado:   '<span class="badge badge-vinculado">📦 Venta (+ITBMS)</span>',
-    venta_producto_exento:    '<span class="badge" style="background:#F5F5F5;color:#555">📦 Venta (exento)</span>',
-    servicio_tecnico_gravado: '<span class="badge" style="background:#E8EAF6;color:#283593">🔧 Técnico (+ITBMS)</span>',
-    servicio_tecnico_exento:  '<span class="badge" style="background:#F5F5F5;color:#555">🔧 Técnico (exento)</span>',
-    asesoria_consultoria:     '<span class="badge" style="background:#E8EAF6;color:#283593">💼 Asesoría</span>',
-    comision:                 '<span class="badge" style="background:#FFF9C4;color:#795548">💳 Comisión</span>',
-    exportacion:              '<span class="badge" style="background:#E3F2FD;color:#0D47A1">📦 Exportación</span>',
-    otro_gravado:             '<span class="badge badge-vinculado">📋 Otro (+ITBMS)</span>',
-    otro_exento:              '<span class="badge" style="background:#F5F5F5;color:#555">📋 Otro (exento)</span>',
-  }[c] || `<span class="badge">${esc(c||'—')}</span>`);
+  // Badge derivado del catálogo DGI. Fallback al mapping legacy si
+  // el valor es de datos viejos.
+  const catBadgeIng = c => {
+    const cat = _getIngresoCat(c);
+    if (!cat) return `<span class="badge">${esc(c||'—')}</span>`;
+    const tone = cat.itbms_status === 'gravado'   ? 'badge badge-vinculado'
+              : cat.itbms_status === 'exento'    ? 'badge'
+              : 'badge';
+    const bg = cat.itbms_status === 'exento'    ? 'background:#F5F5F5;color:#555;'
+             : cat.itbms_status === 'no_aplica' ? 'background:#EDE7F6;color:#4527A0;'
+             : '';
+    return `<span class="${tone}" style="${bg}">${cat.emoji} ${esc(cat.label)} (L${cat.linea})</span>`;
+  };
 
-  const CATS_ING = [
-    ['venta_producto_gravado',   'Venta producto (+ITBMS)'],
-    ['venta_producto_exento',    'Venta producto (exento)'],
-    ['servicio_tecnico_gravado', 'Serv. técnico (+ITBMS)'],
-    ['servicio_tecnico_exento',  'Serv. técnico (exento)'],
-    ['asesoria_consultoria',     'Asesoría / Consultoría'],
-    ['comision',                 'Comisión'],
-    ['exportacion',              'Exportación'],
-    ['otro_gravado',             'Otro (+ITBMS)'],
-    ['otro_exento',              'Otro (exento)'],
-  ];
+  // Selector inline dropdown — derivado del catálogo (mismo orden que el modal)
+  const CATS_ING = CATEGORIAS_INGRESO_DGI.map(c => [c.valor, `${c.emoji} ${c.label} (L${c.linea})`]);
 
   const trashSvg  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
   const cancelSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`;
@@ -4708,7 +4769,7 @@ let _ingEditId = null;  // null = crear, set = editar
 
 function abrirModalNuevoIngreso() {
   _ingEditId = null;
-  document.getElementById('iCategoria').value     = 'venta_producto_gravado';
+  _renderIngresoCategoriaSelect();   // sin arg → placeholder, fuerza elegir
   document.getElementById('iDescripcion').value   = '';
   document.getElementById('iFecha').value         = new Date().toISOString().substring(0,10);
   document.getElementById('iNumFac').value        = '';
@@ -4792,14 +4853,84 @@ function closeIngresoModal() {
 }
 
 // ── RECALC INGRESO ──────────────────────────────────────────
-// Las categorías que llevan ITBMS por defecto
-const CATS_GRAVADAS_ING = ['venta_producto_gravado','servicio_tecnico_gravado','asesoria_consultoria','servicios_profesionales','comision','otro_gravado'];
 
+// Pinta el <select id="iCategoria"> en orden DGI Formulario 91 (L1-L19),
+// agrupado en las 2 secciones oficiales. Si selectedValue es falsy,
+// el dropdown abre con el placeholder visible y obliga al usuario a elegir.
+function _renderIngresoCategoriaSelect(selectedValue) {
+  const sel = document.getElementById('iCategoria');
+  if (!sel) return;
+  const sec = (titulo) => `<option disabled>──── ${titulo} ────</option>`;
+  const opt = (c) => {
+    const label = `${c.emoji} ${c.label} (L${c.linea})`;
+    const isSel = (c.valor === selectedValue) ? ' selected' : '';
+    return `<option value="${c.valor}"${isSel}>${label}</option>`;
+  };
+  // Orden estricto DGI: L1-L5 (Ingresos personales), L6-L19 (Actividad).
+  const personales = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) <= 5);
+  const actividad  = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) >= 6);
+  // Placeholder selected si no hay valor inicial (obliga al usuario a elegir).
+  const placeholder = selectedValue
+    ? ''
+    : '<option value="" disabled selected>— Seleccionar categoría —</option>';
+  sel.innerHTML =
+    placeholder +
+    sec('INGRESOS (L1–L5)')                              + personales.map(opt).join('') +
+    sec('INGRESOS POR ACTIVIDAD Y/O PROFESIÓN (L6–L19)') + actividad.map(opt).join('');
+}
+
+// Aplica defaults DGI según la categoría elegida: ITBMS rate, hint
+// contextual y retención esperada informativa.
 function inferirItbmsIngreso() {
-  const cat   = document.getElementById('iCategoria').value;
-  const check = document.getElementById('iItbmsCheck');
-  check.checked = CATS_GRAVADAS_ING.includes(cat);
+  const sel  = document.getElementById('iCategoria');
+  const cat  = _getIngresoCat(sel.value);
+  const check    = document.getElementById('iItbmsCheck');
+  const checkLbl = check.parentElement;
+  const checkRow = checkLbl.parentElement;
+  const tag      = document.getElementById('iItbmsTag');
+  const hintEl   = document.getElementById('iCatHint');
+
+  if (!cat) {
+    check.checked = false;
+    if (hintEl) hintEl.style.display = 'none';
+    recalcIngreso();
+    return;
+  }
+
+  // ITBMS status: gravado | exento | no_aplica
+  if (cat.itbms_status === 'gravado') {
+    check.checked = true;
+    check.disabled = false;
+    checkLbl.style.opacity = '1';
+    checkRow.style.display = 'flex';
+    // Actualizar texto del label si la tasa es 10%
+    checkLbl.lastChild.textContent = ` Aplica ITBMS (${cat.itbms_rate}%)`;
+    if (tag) tag.textContent = `+${cat.itbms_rate}%`;
+  } else if (cat.itbms_status === 'exento') {
+    check.checked = false;
+    check.disabled = true;
+    checkLbl.style.opacity = '.5';
+    checkRow.style.display = 'flex';
+    checkLbl.lastChild.textContent = ' Exento de ITBMS (por ley)';
+  } else {
+    // no_aplica — ocultar la fila completa
+    check.checked = false;
+    checkRow.style.display = 'none';
+  }
+
+  // Hint contextual — deshabilitado por ahora. Mantener el código por si
+  // se reactiva más adelante. El div iCatHint queda oculto siempre.
+  if (hintEl) hintEl.style.display = 'none';
+
   recalcIngreso();
+}
+
+// Badge "Retención esperada" — deshabilitado por ahora. El div
+// iRetencionInfo queda oculto siempre. Reactivar restaurando el
+// cuerpo original si en algún momento queremos volver a mostrarlo.
+function _updateRetencionEsperada() {
+  const wrap = document.getElementById('iRetencionInfo');
+  if (wrap) wrap.style.display = 'none';
 }
 
 function recalcIngreso() {
@@ -4808,13 +4939,21 @@ function recalcIngreso() {
   const desglose = document.getElementById('iDesglose');
   const tag      = document.getElementById('iItbmsTag');
 
+  // Tasa ITBMS según categoría (default 7% si la cat no es gravable explícita)
+  const cat   = _getIngresoCat(document.getElementById('iCategoria').value);
+  const rate  = (cat && cat.itbms_rate) ? cat.itbms_rate : 7;
+  const factor = 1 + rate / 100;
+
   if (aplica && total > 0) {
-    const subtotal = parseFloat((total / 1.07).toFixed(2));
+    const subtotal = parseFloat((total / factor).toFixed(2));
     const itbms    = parseFloat((total - subtotal).toFixed(2));
     document.getElementById('iSubtotal').value           = subtotal;
     document.getElementById('iItbms').value              = itbms;
     document.getElementById('iSubtotalDisp').textContent = '$' + subtotal.toFixed(2);
     document.getElementById('iItbmsDisp').textContent    = '$' + itbms.toFixed(2);
+    // Actualizar label ITBMS rate dinámico
+    const itbmsDispLabel = document.querySelector('#iDesglose [data-itbms-label]');
+    if (itbmsDispLabel) itbmsDispLabel.textContent = `ITBMS ${rate}%:`;
     desglose.style.display = 'block';
     tag.style.display      = 'inline';
   } else {
@@ -4823,6 +4962,8 @@ function recalcIngreso() {
     desglose.style.display = 'none';
     tag.style.display      = 'none';
   }
+
+  _updateRetencionEsperada();
 }
 
 // ── RECALC EGRESO ───────────────────────────────────────────
@@ -4930,18 +5071,24 @@ function llenarCamposIngreso(parsed) {
   if (parsed.descripcion)     document.getElementById('iDescripcion').value = parsed.descripcion;
   if (parsed.notas)           document.getElementById('iNotas').value       = parsed.notas;
 
-  // Inferir categoría desde tipo de comprobante detectado por IA
+  // Categoría DGI sugerida por la IA. Si viene una key válida del
+  // catálogo Form 91 (19 líneas), la aplicamos; si no, default a
+  // ventas_servicios (L14). El usuario siempre puede sobrescribir.
   const cat = document.getElementById('iCategoria');
-  if (parsed.tipo_comprobante) {
-    if (['yappy','transferencia','efectivo'].includes(parsed.tipo_comprobante)) {
-      cat.value = 'venta_producto_gravado';
-    } else if (parsed.tipo_comprobante === 'factura') {
-      cat.value = parsed.tiene_itbms ? 'venta_producto_gravado' : 'venta_producto_exento';
-    }
-  } else if (parsed.tiene_itbms) {
-    cat.value = 'venta_producto_gravado';
-  }
+  const aiCat = parsed.categoria_dgi || '';
+  const resolved = LEGACY_INGRESO_MAP[aiCat] || aiCat;
+  const isValid = !!CATEGORIAS_INGRESO_DGI.find(c => c.valor === resolved);
+  cat.value = isValid ? resolved : 'ventas_servicios';
   inferirItbmsIngreso();
+  // Si el comprobante claramente NO tiene ITBMS y la categoría
+  // elegida es gravable, destildar para respetar la realidad del comprobante.
+  if (parsed.tiene_itbms === false) {
+    const elegida = _getIngresoCat(cat.value);
+    if (elegida && elegida.itbms_status === 'gravado') {
+      document.getElementById('iItbmsCheck').checked = false;
+      recalcIngreso();
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -5204,7 +5351,10 @@ async function guardarCostoOperativo() {
 function abrirModalEditarIngreso(item) {
   abrirModalNuevoIngreso();   // resetea + abre
   _ingEditId = item.id_trans;
-  document.getElementById('iCategoria').value   = item.categoria_ingreso || item.tipo_ingreso || 'venta_producto_gravado';
+  // Resolver categoría (mapping legacy si aplica) y re-poblar el selector
+  const rawCat = item.categoria_ingreso || item.tipo_ingreso || 'ventas_servicios';
+  const resolved = LEGACY_INGRESO_MAP[rawCat] || rawCat;
+  _renderIngresoCategoriaSelect(resolved);
   document.getElementById('iDescripcion').value = item.descripcion || '';
   document.getElementById('iFecha').value       = (item.fecha_ingreso || '').slice(0,10);
   document.getElementById('iNumFac').value      = item.num_factura || '';
@@ -5227,20 +5377,22 @@ function abrirModalEditarIngreso(item) {
 window.abrirModalEditarIngreso = abrirModalEditarIngreso;
 
 async function guardarNuevoIngreso() {
+  const categoria   = document.getElementById('iCategoria').value;
   const descripcion = document.getElementById('iDescripcion').value.trim();
   const total       = parseFloat(document.getElementById('iTotal').value)||0;
   const fecha       = document.getElementById('iFecha').value;
   const nombre      = document.getElementById('iNombreCli').value.trim();
-  if (!total)  { showToast('⚠️ El total es requerido');               return; }
-  if (!fecha)  { showToast('⚠️ La fecha es requerida');               return; }
-  if (!nombre) { showToast('⚠️ El nombre del cliente es requerido');  return; }
+  if (!categoria) { showToast('⚠️ Selecciona una categoría DGI');    return; }
+  if (!total)     { showToast('⚠️ El total es requerido');             return; }
+  if (!fecha)     { showToast('⚠️ La fecha es requerida');             return; }
+  if (!nombre)    { showToast('⚠️ El nombre del cliente es requerido');return; }
   const btn = document.querySelector('#ingresoModalOverlay .btn-primary');
   const isEdit = !!_ingEditId;
   btn.disabled = true; btn.textContent = isEdit ? '⏳ Actualizando...' : '⏳ Guardando...';
   try {
     const payload = {
       fecha:            fecha,
-      categoria:        document.getElementById('iCategoria').value,
+      categoria:        categoria,
       descripcion:      descripcion,
       num_factura:     document.getElementById('iNumFac').value.trim(),
       subtotal:        document.getElementById('iSubtotal').value||'',
@@ -5605,8 +5757,8 @@ function inferirTipoEgreso() {
   // Hint contextual — solo para casos donde la categoría puede confundir al usuario
   if (hint) {
     let msg = '';
-    if (cat === 'otros_costos_venta') {
-      msg = '<strong>🛒 Costo directo de venta</strong> — usá esta categoría solo cuando compraste un producto físico que <em>vendiste o vas a vender</em> (no para insumos operativos). Reporta a la <strong>Línea 35 del Anexo 94 DGI</strong> y reduce Utilidad Bruta, no Gastos Operativos. Si tu cliente tiene inventario formal, mejor activar el módulo Comercialización.';
+    if (_COSTO_KEYS.indexOf(cat) !== -1) {
+      msg = '<strong>📦 Costo de Ventas (Anexo 94 DGI)</strong> — esta categoría reduce <em>Utilidad Bruta</em>, no aparece como gasto operativo. Usá solo si el gasto está vinculado a la producción/comercialización del bien o servicio vendido. Si tu cliente tiene inventario formal, mejor activar el módulo Comercialización.';
     } else if (cat === 'otros_deducibles') {
       msg = '<strong>📋 Catch-all operativo</strong> — usá esta categoría cuando ningún otro tipo encaja. Reporta a la Línea 77 del formulario DGI.';
     } else if (cat === 'deducibles_personales') {
@@ -6588,7 +6740,11 @@ var rg_initialized = false;
 var rg_egr_filter        = 'all';   // filtro por categoría
 var rg_egr_estado   = 'all';  // filtro por estado: 'all' | 'pendiente' | 'registrado'
 var rg_egr_alcance  = 'all';  // filtro por alcance: 'all' | 'negocio' | 'personal'
-var rg_ing_filter   = 'all';
+var rg_ing_filter   = 'all';            // filtro por categoría DGI
+var rg_ing_estado   = 'all';            // 'all' | 'confirmado' | 'pendiente' | 'abono'
+var rg_ing_itbms    = 'all';            // 'all' | 'gravado' | 'exento'
+var _rgIngCliente   = 'TODOS';          // filtro por cliente
+var _rgIngFechaMode = 'all';            // 'all'|'7'|'14'|'30'|'custom'
 var _rgEgrAcreedor  = 'TODOS';             // filtro por acreedor
 var _rgEgrSort      = { col: 'fecha', dir: 'desc' }; // ordenamiento activo
 var _rgEgrSel       = new Set();           // IDs seleccionados (bulk)
@@ -6618,8 +6774,15 @@ const CATEGORIAS_GASTO_DGI = [
   { valor: 'servicios_publicos',       label: 'Servicios públicos (agua, luz)',  linea: '75', emoji: '💡' },
   { valor: 'tecnologia_software',      label: 'Tecnología y software',           linea: '76', emoji: '💻' },
   { valor: 'capacitacion',             label: 'Capacitación y formación',        linea: '76', emoji: '📚' },
-  // ── Costo directo sin inventario (Línea 35 Anexo 94) ──
-  { valor: 'otros_costos_venta',       label: 'Otros costos de venta ocasional', linea: '35', emoji: '🛒' },
+  // ── Costos de Ventas (Anexo 94 DGI - L28 a L35) ──
+  { valor: 'compras_locales',          label: 'Compras locales',                  linea: '28', emoji: '🛍️' },
+  { valor: 'compras_importadas',       label: 'Compras importadas',               linea: '29', emoji: '📦' },
+  { valor: 'salarios_costo',           label: 'Salarios y remuneraciones (Costo)',linea: '30', emoji: '👤' },
+  { valor: 'depreciacion_costo',       label: 'Depreciación (Costo)',             linea: '31', emoji: '📉' },
+  { valor: 'mantenimiento_costo',      label: 'Mantenimiento (Costo)',            linea: '32', emoji: '🔧' },
+  { valor: 'servicios_costo',          label: 'Electricidad, agua y tel. (Costo)',linea: '33', emoji: '💡' },
+  { valor: 'seguros_costo',            label: 'Seguros (Costo)',                  linea: '34', emoji: '🛡️' },
+  { valor: 'otros_costos_venta',       label: 'Otros costos de venta',            linea: '35', emoji: '🛒' },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles',         linea: '77', emoji: '📋' },
   // ── Deducibles Personales (ISR persona natural) ──
   { valor: 'deducibles_personales',           label: 'Deducibles Personales',          linea: 'DP',  emoji: '👨‍👩‍👧' },
@@ -6631,6 +6794,135 @@ const CATEGORIAS_GASTO_DGI = [
 ];
 // Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
 const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
+
+// Costos de Ventas (Anexo 94 L28-L35) — fuente única usada por todos los
+// Sets/arrays que clasifican "esto es costo, no gasto" en el P&L.
+const _COSTO_KEYS = [
+  'compras_locales','compras_importadas','salarios_costo','depreciacion_costo',
+  'mantenimiento_costo','servicios_costo','seguros_costo','otros_costos_venta',
+];
+
+// ════════════════════════════════════════════════════════════════════
+//  CATEGORIAS_INGRESO_DGI — espejo del catálogo backend (Form 91/93)
+//  Ver Code.js para documentación completa de campos. 19 líneas.
+// ════════════════════════════════════════════════════════════════════
+const CATEGORIAS_INGRESO_DGI = [
+  // Segmento A: Remuneraciones personales (L1-L5)
+  { valor: 'salarios_con_retencion',     label: 'Salarios y otras remuneraciones (c/retención)',  linea: '1',  seccion: 'remuneracion', emoji: '💼',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: 'Escala empleador (planilla)', signo: 1,
+    hint: 'Salario con retención mensual ya aplicada por el empleador. La escala ISR depende del nivel anual.' },
+  { valor: 'remuneracion_sin_retencion', label: 'Otras remuneraciones personales (s/retención)',  linea: '2',  seccion: 'remuneracion', emoji: '💵',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Remuneración no sujeta a retención del empleador. El contribuyente declara directo.' },
+  { valor: 'ingresos_especies',          label: 'Ingresos en especies',                            linea: '3',  seccion: 'remuneracion', emoji: '🎁',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Registra el equivalente monetario al valor de mercado del bien/servicio recibido.' },
+  { valor: 'gastos_repr_asalariado',     label: 'Gastos de Representación (asalariado)',           linea: '4',  seccion: 'remuneracion', emoji: '🤝',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat (régimen separado)', signo: 1,
+    hint: 'Régimen separado: tributa 10% flat, no por escala. Retención típica por empleador.' },
+  { valor: 'dietas',                     label: 'Dietas',                                          linea: '5',  seccion: 'remuneracion', emoji: '📅',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Pagos por participación en juntas/sesiones. Tributa según escala ISR.' },
+  // Segmento B: Actividad / Profesión (L6-L14)
+  { valor: 'actividad_agropecuaria',     label: 'Actividad Agropecuaria',                          linea: '6',  seccion: 'actividad', emoji: '🌾',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Productores con ingresos < B/. 250,000/año están exentos de ISR (Ley 8/2010). Verifica umbral anual.' },
+  { valor: 'honorarios_comision',        label: 'Honorarios por Comisiones',                       linea: '7',  seccion: 'actividad', emoji: '💳',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: 0.08, retencion_tipo: '8% si cliente es retentor designado', signo: 1,
+    hint: 'ITBMS 7% sobre comisiones. Retención 8% si el cliente es Estado/Gran Contribuyente o retentor designado.' },
+  { valor: 'honorarios_profesionales',   label: 'Honorarios por Servicios Profesionales',          linea: '8',  seccion: 'actividad', emoji: '💼',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: 0.08, retencion_tipo: '8% si cliente es retentor designado', signo: 1,
+    hint: 'ITBMS 7% si emites factura como contribuyente ITBMS. Retención 8% si tu cliente es retentor designado.' },
+  { valor: 'alquiler_habitacional',      label: 'Alquiler Habitacional',                           linea: '9',  seccion: 'actividad', emoji: '🏠',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Exento de ITBMS por ley (vivienda). Sí tributa ISR sobre renta neta (deducibles: mantenimiento, IBI, depreciación).' },
+  { valor: 'alquiler_comercial',         label: 'Alquiler Comercial',                              linea: '10', seccion: 'actividad', emoji: '🏢',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'ITBMS 7% sobre la renta. Deducibles: mantenimiento, IBI, depreciación del inmueble.' },
+  { valor: 'intereses_financieros',      label: 'Intereses y otros Ingresos Financieros',          linea: '11', seccion: 'actividad', emoji: '🏦',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.05, retencion_tipo: '5% retenido por institución (productos sujetos)', signo: 1,
+    hint: 'Cuentas de ahorro PN exentas hasta cierto umbral. Otros productos: 5% retenido por el banco/institución.' },
+  { valor: 'ganancia_capital_legacy',    label: 'Ganancia capital (pre-Ley 18/2006)',              linea: '12', seccion: 'actividad', emoji: '📉',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat (régimen histórico)', signo: 1,
+    hint: 'Régimen legacy casi obsoleto. Para ganancias actuales de valores ver Form 106.' },
+  { valor: 'otros_ingresos',             label: 'Otros Ingresos',                                  linea: '13', seccion: 'actividad', emoji: '📋',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Catch-all para ingresos sin línea específica. Revisa ITBMS y retención manualmente.' },
+  { valor: 'ventas_servicios',           label: 'Ventas y Prestación de Servicios',                linea: '14', seccion: 'actividad', emoji: '🛒',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'El bulk de la actividad comercial/servicios. ITBMS 7% default. 10% en alcohol/tabaco/hospedaje. Exento en canasta básica.' },
+  // Sustractivos (L15-L17 — restan de la base gravable)
+  { valor: 'devoluciones_descuentos',    label: 'Menos: Devoluciones y Descuentos',                linea: '15', seccion: 'sustractivo', emoji: '↩️',
+    itbms_status: 'gravado',   itbms_rate: 7,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'Notas crédito y descuentos comerciales. Ingresa el monto positivo; el sistema lo resta automáticamente.' },
+  { valor: 'descuento_jubilados',        label: 'Menos: Descuento Jubilados (Farmacias) Ley 6/87', linea: '16', seccion: 'sustractivo', emoji: '👵',
+    itbms_status: 'exento',    itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'Solo aplica a farmacias. 20% descuento de ley a jubilados, deducible de la base.' },
+  { valor: 'ingresos_exentos',           label: 'Menos: Ingresos Exentos / No Gravables',          linea: '17', seccion: 'sustractivo', emoji: '🛡️',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: -1,
+    hint: 'No tributan ISR Panamá. Se restan de la base gravable: dividendos locales con ISR ya pagado, donaciones no comerciales, etc.' },
+  // Especiales (L18-L19 — clasificación con tratamiento DGI distinto)
+  { valor: 'fuente_extranjera',          label: 'Fuente Extranjera',                               linea: '18', seccion: 'especial', emoji: '🌎',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: null, retencion_tipo: null, signo: 1,
+    hint: 'Renta producida fuera de Panamá. Por principio de territorialidad NO tributa ISR Panamá.' },
+  { valor: 'gastos_repr_actividad',      label: 'Gastos de Representación (actividad)',            linea: '19', seccion: 'especial', emoji: '🎯',
+    itbms_status: 'no_aplica', itbms_rate: 0,  retencion_rate: 0.10, retencion_tipo: '10% flat', signo: 1,
+    hint: 'Gastos de representación recibidos como parte de actividad/profesión. 10% flat.' },
+];
+
+// Mapping legacy → nueva key (datos viejos siguen funcionando)
+const LEGACY_INGRESO_MAP = {
+  'venta_producto_gravado':   'ventas_servicios',
+  'venta_producto_exento':    'ventas_servicios',
+  'servicio_tecnico_gravado': 'ventas_servicios',
+  'servicio_tecnico_exento':  'ventas_servicios',
+  'asesoria_consultoria':     'honorarios_profesionales',
+  'servicios_profesionales':  'honorarios_profesionales',
+  'salarios':                 'salarios_con_retencion',
+  'comision':                 'honorarios_comision',
+  'alquiler_cobrado':         'alquiler_comercial',
+  'intereses':                'intereses_financieros',
+  'dividendos':               'otros_ingresos',
+  'exportacion':              'ventas_servicios',
+  'otro_gravado':             'otros_ingresos',
+  'otro_exento':              'ingresos_exentos',
+};
+
+// Resuelve cualquier categoria_ingreso (nueva o legacy) a la entrada del catálogo.
+function _getIngresoCat(valor) {
+  const v = LEGACY_INGRESO_MAP[valor] || valor;
+  return CATEGORIAS_INGRESO_DGI.find(c => c.valor === v) || null;
+}
+
+// ── Highlight de items recién agregados (últimas 24h) ──
+// Usa fecha_reg (timestamp de captura en la hoja) — disponible en
+// egrItems, ingItems y _acrData (pendientes Acreedores). Independiente
+// de fecha_egreso / fecha_ingreso que son fechas del documento.
+const _RECIENTE_VENTANA_MS = 24 * 60 * 60 * 1000;   // 24h
+function _esRecientementeAgregado(item) {
+  if (!item) return false;
+  const fr = item.fecha_reg || item.fecha_registro || '';
+  if (!fr) return false;
+  // Formato "yyyy-MM-dd HH:mm:ss" — convertir a ISO para parser confiable
+  const t = new Date(String(fr).replace(' ', 'T'));
+  if (isNaN(t)) return false;
+  return (Date.now() - t.getTime()) < _RECIENTE_VENTANA_MS;
+}
+// Badge HTML reutilizable para item nuevo
+const _NEW_BADGE_HTML = '<span style="font-size:.62rem;background:#E0F2F1;color:#00695C;padding:.15rem .42rem;border-radius:10px;font-weight:700;letter-spacing:.04em;margin-left:.3rem;vertical-align:middle">🆕 NUEVO</span>';
+
+// Keys que aplican ITBMS gravado por default (derivado del catálogo).
+const CATS_ING_GRAVADAS = CATEGORIAS_INGRESO_DGI
+  .filter(c => c.itbms_status === 'gravado')
+  .map(c => c.valor);
+
+// Keys sustractivas (signo negativo en la suma de ingresos).
+const CATS_ING_SUSTRACTIVAS = CATEGORIAS_INGRESO_DGI
+  .filter(c => c.signo === -1)
+  .map(c => c.valor);
+
+// Keys exentas de ISR (no entran en base gravable Panamá).
+const CATS_ING_NO_GRAVABLES = ['ingresos_exentos','fuente_extranjera'];
 
 // ── COSTOS DIRECTOS (Líneas 27-41 formulario DGI) — inmutables desde el P&L ──
 const TIPOS_COSTO_DIRECTO = [
@@ -6668,19 +6960,30 @@ const RG_EGR_CAT_LABELS = (() => {
   CATEGORIAS_GASTO_DGI.forEach(c => { m[c.valor] = c.emoji + ' ' + c.label; });
   return m;
 })();
-const RG_ING_CAT_LABELS = {
-  venta_producto_gravado:   '📦 Venta producto (+ITBMS)',
-  venta_producto_exento:    '📦 Venta producto (exento)',
-  servicio_tecnico_gravado: '🔧 Serv. técnico (+ITBMS)',
-  servicio_tecnico_exento:  '🔧 Serv. técnico (exento)',
-  asesoria_consultoria:     '💼 Asesoría',
-  comision:                 '💳 Comisión',
-  alquiler_cobrado:         '🏢 Alquiler cobrado',
-  intereses:                '🏦 Intereses',
-  dividendos:               '📈 Dividendos',
-  otro_gravado:             '📋 Otro (+ITBMS)',
-  otro_exento:              '📋 Otro (exento)',
-};
+// Labels para Ingresos — derivados del catálogo DGI + labels legacy
+// (datos viejos siguen mostrándose bien hasta que se re-categorizen).
+const RG_ING_CAT_LABELS = (() => {
+  const m = {};
+  // Catálogo canónico
+  CATEGORIAS_INGRESO_DGI.forEach(c => {
+    m[c.valor] = c.emoji + ' ' + c.label;
+  });
+  // Legacy — labels antiguos por si aparecen en datos viejos
+  m['venta_producto_gravado']   = '📦 Venta producto (+ITBMS)';
+  m['venta_producto_exento']    = '📦 Venta producto (exento)';
+  m['servicio_tecnico_gravado'] = '🔧 Serv. técnico (+ITBMS)';
+  m['servicio_tecnico_exento']  = '🔧 Serv. técnico (exento)';
+  m['asesoria_consultoria']     = '💼 Asesoría';
+  m['comision']                 = '💳 Comisión';
+  m['alquiler_cobrado']         = '🏢 Alquiler cobrado';
+  m['intereses']                = '🏦 Intereses';
+  m['dividendos']               = '📈 Dividendos';
+  m['otro_gravado']             = '📋 Otro (+ITBMS)';
+  m['otro_exento']              = '📋 Otro (exento)';
+  m['exportacion']              = '📦 Exportación';
+  m['salarios']                 = '💰 Salarios';
+  return m;
+})();
 
 function rgBuildFilterBtns() { /* no-op: dropdowns are populated inside rgRenderEgr */ }
 
@@ -6812,15 +7115,50 @@ function rgApplyEgrAlcance(val, btn) {
   rgRenderEgr();
 }
 function rgApplyIngFilter(btn, filter) {
-  document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  rg_ing_filter = filter;
+  // btn puede ser null (cuando se llama desde el <select> nativo)
+  if (btn && btn.classList) {
+    document.querySelectorAll('[data-rgi-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  rg_ing_filter = filter || 'all';
+  var sel = document.getElementById('rgIngCatSel');
+  if (sel) sel.value = rg_ing_filter;
+  rgRenderIng();
+}
+function rgApplyIngEstado(v) {
+  rg_ing_estado = v || 'all';
+  var sel = document.getElementById('rgIngEstadoSel');
+  if (sel) sel.value = rg_ing_estado;
+  rgRenderIng();
+}
+function rgApplyIngItbms(v) {
+  rg_ing_itbms = v || 'all';
+  var sel = document.getElementById('rgIngItbmsSel');
+  if (sel) sel.value = rg_ing_itbms;
+  rgRenderIng();
+}
+function rgSetCliente(v) {
+  _rgIngCliente = v || 'TODOS';
+  var sel = document.getElementById('rgIngCliSel');
+  if (sel) sel.value = _rgIngCliente;
+  rgRenderIng();
+}
+function rgApplyIngFecha(mode) {
+  _rgIngFechaMode = mode || 'all';
+  var sel = document.getElementById('rgIngFechaMode');
+  if (sel) sel.value = _rgIngFechaMode;
+  var custom = document.getElementById('rgIngFechaCustom');
+  if (custom) custom.style.display = (mode === 'custom') ? 'inline-flex' : 'none';
   rgRenderIng();
 }
 window.rgApplyEgrFilter  = rgApplyEgrFilter;
 window.rgApplyEgrEstado  = rgApplyEgrEstado;
 window.rgApplyEgrAlcance = rgApplyEgrAlcance;
 window.rgApplyIngFilter  = rgApplyIngFilter;
+window.rgApplyIngEstado  = rgApplyIngEstado;
+window.rgApplyIngItbms   = rgApplyIngItbms;
+window.rgSetCliente      = rgSetCliente;
+window.rgApplyIngFecha   = rgApplyIngFecha;
 
 function rgApplyEgrFecha(mode) {
   _rgEgrFechaMode = mode;
@@ -6944,7 +7282,7 @@ function catChipOpen(e, id, tipo, catActual) {
   //   1) Costos directos (poco común — venta ocasional sin inventario)
   //   2) Gastos operativos (lo más común — alquiler, salarios, etc.)
   //   3) Deducibles personales (Persona Natural — gastos médicos, educación)
-  const SEC_COSTOS = new Set(['otros_costos_venta']);
+  const SEC_COSTOS = new Set(_COSTO_KEYS);
   const SEC_PERSONALES = new Set([
     'deducibles_personales','gastos_medicos','gastos_escolares',
     'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'
@@ -7050,6 +7388,88 @@ async function catChipSelect(nuevoValor, nuevoLabel) {
 }
 window.catChipSelect = catChipSelect;
 
+// ══════════════════════════════════════════════════════════════════
+//  Categoría editable INGRESOS — chip clickeable en Registro General
+//  Refleja el catálogo CATEGORIAS_INGRESO_DGI (19 líneas Form 91).
+//  Mismo patrón visual que los chips de gastos pero con secciones DGI.
+// ══════════════════════════════════════════════════════════════════
+function catChipLabelIng(valor) {
+  const cat = _getIngresoCat(valor);
+  if (cat) return cat.emoji + ' ' + cat.label;
+  return RG_ING_CAT_LABELS[valor] || valor || '—';
+}
+
+function buildCatChipIng(item) {
+  const catVal = item.categoria_ingreso || item.tipo_ingreso || '';
+  const label  = catChipLabelIng(catVal);
+  const id     = esc(item.id_trans || '');
+  return `<div class="cat-chip-wrap">
+    <span class="cat-chip-label" onclick="catChipOpenIng(event,'${id}','${esc(catVal)}')">
+      ${esc(label)}
+      <span class="cat-chip-edit-icon">✏️</span>
+    </span>
+  </div>`;
+}
+window.buildCatChipIng = buildCatChipIng;
+
+function catChipOpenIng(e, id, catActual) {
+  e.stopPropagation();
+  _catDropJustOpened = true;
+  const trigger = (e.currentTarget || e.target).closest('.cat-chip-label') || e.target;
+  const rect    = trigger.getBoundingClientRect();
+  const drop    = _getCatDropEl();
+
+  _catDropId   = id;
+  _catDropTipo = 'ingreso';
+
+  _positionDrop(drop, rect);
+
+  // Construir 2 secciones DGI Formulario 91 (mismo orden que el modal)
+  const personales = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) <= 5);
+  const actividad  = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) >= 6);
+
+  const renderOpt = c => `
+    <div class="cat-chip-option ${c.valor === catActual ? 'active' : ''}"
+         onclick="catChipSelectIng('${c.valor}')">
+      <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--chrome);min-width:32px">L${c.linea}</span>
+      <span style="font-size:.9rem;flex-shrink:0">${c.emoji || ''}</span>
+      ${esc(c.label)}
+      <span class="cat-check">✓</span>
+    </div>`;
+
+  let html = '<div class="cat-chip-dropdown-title">Reclasificar a línea DGI</div>';
+  html += '<div class="cat-chip-section">── INGRESOS (L1–L5) ──</div>';
+  html += personales.map(renderOpt).join('');
+  html += '<div class="cat-chip-section">── INGRESOS POR ACTIVIDAD Y/O PROFESIÓN (L6–L19) ──</div>';
+  html += actividad.map(renderOpt).join('');
+  drop.innerHTML = html;
+  drop.classList.add('open');
+}
+window.catChipOpenIng = catChipOpenIng;
+
+async function catChipSelectIng(nuevoValor) {
+  const drop = _getCatDropEl();
+  drop.innerHTML = `<div class="cat-chip-saving">⏳ Guardando...</div>`;
+  try {
+    const data = await gasJsonp('actualizarCategoria', {
+      tipo: 'ingreso', id: _catDropId, categoria: nuevoValor,
+    });
+    if (data && !data.success) throw new Error(data.error || 'Error al guardar');
+    // Actualizar en memoria
+    const idx = ingItems.findIndex(i => String(i.id_trans) === String(_catDropId));
+    if (idx !== -1) {
+      ingItems[idx].categoria_ingreso = nuevoValor;
+    }
+    drop.classList.remove('open');
+    showToast('✅ Categoría actualizada');
+    if (typeof rgRenderIng === 'function') rgRenderIng();
+  } catch(err) {
+    drop.innerHTML = `<div class="cat-chip-saving" style="color:var(--red)">❌ ${err.message}</div>`;
+    setTimeout(() => drop.classList.remove('open'), 2000);
+  }
+}
+window.catChipSelectIng = catChipSelectIng;
+
 // ── catChipOpenPL — abre el dropdown del P&L con el catálogo DGI correcto ──
 // tipo: 'pl_gasto' → categorías operativas (reclasificable)
 // tipo: 'pl_costo' → tipos de costo (solo informativo, no reclasificable)
@@ -7068,7 +7488,7 @@ function catChipOpenPL(e, triggerEl, id, tipo, catActual) {
 
   if (tipo === 'pl_gasto') {
     // Render por secciones (espejo de catChipOpen — costos, operativos, personales)
-    const SEC_COSTOS_PL = new Set(['otros_costos_venta']);
+    const SEC_COSTOS_PL = new Set(_COSTO_KEYS);
     const SEC_PERSONALES_PL = new Set([
       'deducibles_personales','gastos_medicos','gastos_escolares',
       'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'
@@ -7264,15 +7684,22 @@ function rgRenderEgr() {
 
   tbody.innerHTML = items.map(i => {
     const esPendiente = i._tipo === 'pendiente';
-    const rowBg       = esPendiente ? 'background:#FFFDE7' : '';
+    const esReciente  = _esRecientementeAgregado(i);
+    const rowBg       = esPendiente ? 'background:#FFFDE7;' : '';
+    // Borde izquierdo verde para items recién agregados (componible con bg pendiente)
+    const rowEdge     = esReciente ? 'box-shadow:inset 4px 0 0 #00897B;' : '';
     const isSel       = _rgEgrSel.has(i._id);
 
-    // Badge origen
-    const origenBadge = i._esOFX
-      ? '<span style="font-size:.68rem;background:#E3F2FD;color:#1565C0;padding:.15rem .45rem;border-radius:10px;font-weight:600">🏦 OFX</span>'
-      : (esPendiente || i._esEmail)
-        ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
-        : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
+    // Badge origen — detecta WhatsApp para mostrar icono específico
+    const esWhatsApp  = String(i.gmail_msg_id || i.msg_id || '').indexOf('whatsapp-') === 0
+                     || String(i.notas || '').indexOf('WhatsApp') !== -1;
+    const origenBadge = esWhatsApp
+      ? '<span style="font-size:.68rem;background:#DCEDC8;color:#33691E;padding:.15rem .45rem;border-radius:10px;font-weight:600">📲 WhatsApp</span>'
+      : i._esOFX
+        ? '<span style="font-size:.68rem;background:#E3F2FD;color:#1565C0;padding:.15rem .45rem;border-radius:10px;font-weight:600">🏦 OFX</span>'
+        : (esPendiente || i._esEmail)
+          ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
+          : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
 
     // Badge estado
     const estadoBadge = esPendiente
@@ -7311,11 +7738,11 @@ function rgRenderEgr() {
       </div>`;
     }
 
-    return `<tr style="${rowBg}${isSel ? ';outline:2px solid #1565C0;outline-offset:-1px' : ''}">
+    return `<tr style="${rowBg}${rowEdge}${isSel ? 'outline:2px solid #1565C0;outline-offset:-1px;' : ''}">
       <td style="text-align:center;padding:.4rem .5rem"><input type="checkbox" data-id="${esc(i._id)}" ${isSel?'checked':''} onchange="rgToggleEgrSel('${esc(i._id)}',this.checked)" style="cursor:pointer;width:1rem;height:1rem"></td>
       <td style="font-family:'DM Mono',monospace;font-size:.76rem;color:var(--muted);white-space:nowrap">${i.fecha||'—'}</td>
       <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
-      <td>${origenBadge}</td>
+      <td>${origenBadge}${esReciente ? _NEW_BADGE_HTML : ''}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(i.num_fac)}</td>
       <td>${buildCatChip(i)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
@@ -7617,20 +8044,242 @@ async function rgBulkCategoriaSelect(nuevoValor) {
 }
 window.rgBulkCategoriaSelect = rgBulkCategoriaSelect;
 
+// ── Poblar select Categoría DGI con conteos del universo activo ──
+function rgPopulateIngCatSelect(items) {
+  const sel = document.getElementById('rgIngCatSel');
+  if (!sel) return;
+  // Conteos por categoría (resolviendo legacy)
+  const counts = {};
+  items.forEach(i => {
+    const raw = i.categoria_ingreso || i.tipo_ingreso || 'sin_clasificar';
+    const resolved = LEGACY_INGRESO_MAP[raw] || raw;
+    counts[resolved] = (counts[resolved] || 0) + 1;
+  });
+  // Construir opciones siguiendo el orden DGI (catálogo)
+  let html = `<option value="all">📂 Todas las categorías DGI (${items.length})</option>`;
+  const personales = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) <= 5);
+  const actividad  = CATEGORIAS_INGRESO_DGI.filter(c => parseInt(c.linea) >= 6);
+  const renderOpt = c => {
+    const n = counts[c.valor] || 0;
+    if (!n) return '';   // omitir categorías sin registros
+    return `<option value="${c.valor}">${c.emoji} L${c.linea} · ${esc(c.label)} (${n})</option>`;
+  };
+  const personalesHtml = personales.map(renderOpt).filter(Boolean).join('');
+  const actividadHtml  = actividad.map(renderOpt).filter(Boolean).join('');
+  if (personalesHtml) html += '<optgroup label="INGRESOS (L1–L5)">' + personalesHtml + '</optgroup>';
+  if (actividadHtml)  html += '<optgroup label="INGRESOS POR ACTIVIDAD Y/O PROFESIÓN (L6–L19)">' + actividadHtml + '</optgroup>';
+  sel.innerHTML = html;
+  // Restaurar selección
+  if (rg_ing_filter && rg_ing_filter !== 'all' && counts[rg_ing_filter] != null) {
+    sel.value = rg_ing_filter;
+  } else {
+    sel.value = 'all';
+    if (rg_ing_filter !== 'all' && counts[rg_ing_filter] == null) rg_ing_filter = 'all';
+  }
+}
+
+// ── Poblar select Cliente con conteos ──
+function rgPopulateIngClienteSelect(items) {
+  const sel = document.getElementById('rgIngCliSel');
+  if (!sel) return;
+  const counts = {};
+  items.forEach(i => {
+    const c = (i.nombre_cliente || '').trim();
+    if (!c) return;
+    counts[c] = (counts[c] || 0) + 1;
+  });
+  const sorted = Object.keys(counts).sort((a,b) => counts[b] - counts[a]);
+  let html = `<option value="TODOS">👤 Todos los clientes (${items.length})</option>`;
+  html += sorted.map(c => `<option value="${esc(c)}">${esc(c)} (${counts[c]})</option>`).join('');
+  sel.innerHTML = html;
+  if (_rgIngCliente && _rgIngCliente !== 'TODOS' && counts[_rgIngCliente]) {
+    sel.value = _rgIngCliente;
+  } else {
+    sel.value = 'TODOS';
+    if (_rgIngCliente !== 'TODOS' && !counts[_rgIngCliente]) _rgIngCliente = 'TODOS';
+  }
+}
+
+// ── Widgets KPIs ──
+function rgRenderIngWidgets(items) {
+  const fmt$ = n => n > 0 ? '$'+n.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+
+  // Clasificar cada ingreso según el catálogo DGI
+  const _resolve = i => {
+    const raw = i.categoria_ingreso || i.tipo_ingreso || '';
+    return LEGACY_INGRESO_MAP[raw] || raw;
+  };
+  const _isSustractivo = v => CATS_ING_SUSTRACTIVAS.includes(v);
+  const _isExento      = v => v === 'fuente_extranjera';   // L18: no tributa
+
+  const totBruto      = items.filter(i => !_isSustractivo(_resolve(i)) && !_isExento(_resolve(i)))
+                              .reduce((s,i) => s + Number(i.subtotal || 0), 0);
+  const totSustract   = items.filter(i => _isSustractivo(_resolve(i)))
+                              .reduce((s,i) => s + Number(i.subtotal || 0), 0);
+  const totExento     = items.filter(i => _isExento(_resolve(i)))
+                              .reduce((s,i) => s + Number(i.subtotal || 0), 0);
+  const totItbms      = items.reduce((s,i) => s + Number(i.itbms || 0), 0);
+  const rentaGravable = totBruto - totSustract;
+  const nConfirm      = items.filter(i => String(i.estado||'').toLowerCase() === 'confirmado').length;
+  const nPend         = items.filter(i => String(i.estado||'').toLowerCase() === 'pendiente').length;
+
+  const wEl = document.getElementById('rgIngWidgets');
+  if (!wEl) return;
+  wEl.style.gridTemplateColumns = 'repeat(6,1fr)';
+  wEl.innerHTML = [
+    { label:'Confirmados', val: nConfirm || '—',     color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyIngEstado('confirmado')", active: rg_ing_estado === 'confirmado' },
+    { label:'Pendientes',  val: nPend || '—',        color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyIngEstado('pendiente')",  active: rg_ing_estado === 'pendiente' },
+    { label:'Total bruto', val: fmt$(totBruto),      color:'#1B5E20', bg:'#F1F8E9', icon:'💰', click:'',                                 active: false },
+    { label:'Sustractivos',val: fmt$(totSustract),   color:'#BF360C', bg:'#FBE9E7', icon:'↩️', click:'',                                 active: false },
+    { label:'Renta gravable', val: fmt$(rentaGravable), color:'#6A1B9A', bg:'#F3E5F5', icon:'🎯', click:'',                            active: false },
+    { label:'ITBMS cobrado',  val: fmt$(totItbms),   color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:"rgApplyIngItbms('gravado')",     active: rg_ing_itbms === 'gravado' },
+  ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}border:2px solid ${w.active ? w.color : 'transparent'};transition:border-color .15s">`+
+    `<div style="font-size:1.3rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
+    `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}${w.active ? ' ●' : ''}</div>`+
+    `</div>`).join('');
+}
+
+// ── Insights: Top categorías DGI + Top clientes ──
+function rgRenderIngCharts(items) {
+  const TOP_N = 6;
+  const fmt$ = n => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+  // Categorías DGI
+  const catEl = document.getElementById('rgIngChartCat');
+  if (catEl) {
+    const totals = {};
+    items.forEach(i => {
+      const raw = i.categoria_ingreso || i.tipo_ingreso || 'sin_clasificar';
+      const resolved = LEGACY_INGRESO_MAP[raw] || raw;
+      totals[resolved] = (totals[resolved] || 0) + (parseFloat(i.subtotal) || 0);
+    });
+    const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
+    const max = sorted.length ? Math.abs(totals[sorted[0]]) : 0;
+    let body = '<div class="rg-chart-title">📂 Top categorías DGI</div>';
+    if (!sorted.length) {
+      body += '<div class="rg-chart-empty">Sin datos</div>';
+    } else {
+      body += sorted.map(c => {
+        const cat = _getIngresoCat(c);
+        const lbl = cat ? (cat.emoji + ' L' + cat.linea + ' · ' + cat.label) : (RG_ING_CAT_LABELS[c] || c);
+        const pct = max > 0 ? Math.max(2, (Math.abs(totals[c]) / max) * 100) : 0;
+        const isActive = rg_ing_filter === c;
+        const dot = isActive ? '<span style="color:var(--orange);font-weight:700">●</span> ' : '';
+        return `<div class="rg-chart-row${isActive ? ' active' : ''}" onclick="rgApplyIngFilter(null,'${c.replace(/'/g,"\\'")}')" title="${esc(lbl)}${isActive ? ' — click para quitar filtro' : ''}">`
+          + `<div class="rg-chart-lbl">${dot}${esc(lbl)}</div>`
+          + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar" style="width:${pct.toFixed(1)}%"></div></div>`
+          + `<div class="rg-chart-val">${fmt$(totals[c])}</div></div>`;
+      }).join('');
+    }
+    catEl.innerHTML = body;
+  }
+
+  // Clientes
+  const cliEl = document.getElementById('rgIngChartCli');
+  if (cliEl) {
+    const totals = {};
+    items.forEach(i => {
+      const c = (i.nombre_cliente || '').trim();
+      if (!c) return;
+      totals[c] = (totals[c] || 0) + (parseFloat(i.subtotal) || 0);
+    });
+    const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
+    const max = sorted.length ? totals[sorted[0]] : 0;
+    let body = '<div class="rg-chart-title">👤 Top clientes</div>';
+    if (!sorted.length) {
+      body += '<div class="rg-chart-empty">Sin datos</div>';
+    } else {
+      body += sorted.map(c => {
+        const pct = max > 0 ? Math.max(2, (totals[c] / max) * 100) : 0;
+        const isActive = _rgIngCliente === c;
+        const dot = isActive ? '<span style="color:#1565C0;font-weight:700">●</span> ' : '';
+        return `<div class="rg-chart-row${isActive ? ' active' : ''}" onclick="rgSetCliente('${c.replace(/'/g,"\\'")}')" title="${esc(c)}${isActive ? ' — click para quitar filtro' : ''}">`
+          + `<div class="rg-chart-lbl">${dot}${esc(c)}</div>`
+          + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar prov" style="width:${pct.toFixed(1)}%"></div></div>`
+          + `<div class="rg-chart-val">${fmt$(totals[c])}</div></div>`;
+      }).join('');
+    }
+    cliEl.innerHTML = body;
+  }
+}
+window.rgRenderIngWidgets = rgRenderIngWidgets;
+window.rgRenderIngCharts  = rgRenderIngCharts;
+
 function rgRenderIng() {
   const q    = (document.getElementById('rgSearchIng') || {value:''}).value.toLowerCase().trim();
-  let items  = ingItems.filter(rgEsMiscelaneoIng)
+  // Activos (no anulados) — base sin filtrar para poblar selects
+  const activos = ingItems.filter(rgEsMiscelaneoIng)
     .filter(i => String(i.estado||'').toLowerCase() !== 'anulado');
-  if (rg_ing_filter !== 'all') items = items.filter(i => i.categoria_ingreso === rg_ing_filter || i.tipo_ingreso === rg_ing_filter);
-  if (q) items = items.filter(i => [i.nombre_cliente,i.descripcion,i.num_factura,i.tipo_ingreso].join(' ').toLowerCase().includes(q));
+
+  // ── Aplicar filtros ──────────────────────────────────────────
+  let items = activos.slice();
+
+  // Fecha
+  if (_rgIngFechaMode !== 'all') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    let desde, hasta;
+    if (_rgIngFechaMode === 'custom') {
+      const d = document.getElementById('rgIngFechaDesde');
+      const h = document.getElementById('rgIngFechaHasta');
+      desde = d && d.value ? new Date(d.value) : null;
+      hasta = h && h.value ? new Date(h.value) : null;
+      if (hasta) hasta.setHours(23,59,59,999);
+    } else {
+      const days = parseInt(_rgIngFechaMode) || 0;
+      desde = new Date(today); desde.setDate(today.getDate() - days);
+      hasta = new Date(today); hasta.setHours(23,59,59,999);
+    }
+    items = items.filter(i => {
+      const f = i.fecha_ingreso ? new Date(i.fecha_ingreso) : null;
+      if (!f) return false;
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+      return true;
+    });
+  }
+
+  // Estado
+  if (rg_ing_estado !== 'all') {
+    items = items.filter(i => String(i.estado||'').toLowerCase() === rg_ing_estado);
+  }
+
+  // ITBMS gravado/exento (resuelto via catálogo DGI)
+  if (rg_ing_itbms !== 'all') {
+    items = items.filter(i => {
+      const cat = _getIngresoCat(i.categoria_ingreso || i.tipo_ingreso || '');
+      const status = cat ? cat.itbms_status : (Number(i.itbms||0) > 0 ? 'gravado' : 'no_aplica');
+      return rg_ing_itbms === 'gravado' ? status === 'gravado' : status !== 'gravado';
+    });
+  }
+
+  // Categoría DGI (acepta valor nuevo o legacy via LEGACY_INGRESO_MAP)
+  if (rg_ing_filter !== 'all') {
+    items = items.filter(i => {
+      const raw = i.categoria_ingreso || i.tipo_ingreso || '';
+      const resolved = LEGACY_INGRESO_MAP[raw] || raw;
+      return resolved === rg_ing_filter || raw === rg_ing_filter;
+    });
+  }
+
+  // Cliente
+  if (_rgIngCliente && _rgIngCliente !== 'TODOS') {
+    items = items.filter(i => (i.nombre_cliente||'').trim() === _rgIngCliente);
+  }
+
+  // Búsqueda libre
+  if (q) items = items.filter(i => [i.nombre_cliente,i.descripcion,i.num_factura,i.tipo_ingreso,i.categoria_ingreso].join(' ').toLowerCase().includes(q));
+
   items.sort((a,b) => String(b.fecha_ingreso||'').localeCompare(String(a.fecha_ingreso||'')));
 
-  // Stats
-  const totMonto = items.reduce((s,i)=>s+Number(i.total||0),0);
-  const totItbms = items.reduce((s,i)=>s+Number(i.itbms||0),0);
-  document.getElementById('rgIStatTotal').textContent = items.length;
-  document.getElementById('rgIStatMonto').textContent = items.length ? '$'+totMonto.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
-  document.getElementById('rgIStatItbms').textContent = totItbms>0 ? '$'+totItbms.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
+  // ── Poblar selects de Categoría DGI + Cliente desde el universo activo ──
+  rgPopulateIngCatSelect(activos);
+  rgPopulateIngClienteSelect(activos);
+
+  // ── Renderizar widgets KPIs + charts ──
+  rgRenderIngWidgets(items);
+  rgRenderIngCharts(items);
+
+  // Stats — los pills antiguos ya no existen, son redundantes con los widgets
 
   const tbody = document.getElementById('rgIngBody');
   if (!items.length) {
@@ -7638,16 +8287,23 @@ function rgRenderIng() {
     return;
   }
   tbody.innerHTML = items.map(i => {
-    const catLabel = RG_ING_CAT_LABELS[i.categoria_ingreso] || RG_ING_CAT_LABELS[i.tipo_ingreso] || i.tipo_ingreso || '—';
+    const esReciente  = _esRecientementeAgregado(i);
+    const esWhatsApp  = String(i.tipo_comprobante || '').toLowerCase() === 'whatsapp'
+                     || String(i.notas || '').indexOf('WhatsApp') !== -1
+                     || String(i.id_trans || '').indexOf('-WA-') !== -1;
+    const rowEdge     = esReciente ? 'box-shadow:inset 4px 0 0 #00897B;' : '';
     const docLink  = i.drive_url
       ? (i.factura_data
           ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaIngreso(event,'${esc(i.id_trans)}');return false" style="font-size:.95rem;color:#1565C0;text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
           : `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.95rem;color:#1565C0;text-decoration:none" title="Ver comprobante">📄</a>`)
       : '';
     const idEsc = esc(i.id_trans || '');
-    return `<tr>
-      <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso||'—'}</td>
-      <td><span style="font-size:.72rem">${esc(catLabel)}</span></td>
+    const origenInline = esWhatsApp
+      ? '<span style="font-size:.62rem;background:#DCEDC8;color:#33691E;padding:.12rem .4rem;border-radius:10px;font-weight:600;margin-left:.3rem;vertical-align:middle">📲 WhatsApp</span>'
+      : '';
+    return `<tr style="${rowEdge}">
+      <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso||'—'}${esReciente ? _NEW_BADGE_HTML : ''}${origenInline}</td>
+      <td>${buildCatChipIng(i)}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.descripcion||'')}">${esc((i.descripcion||'—').substring(0,50))}</td>
       <td style="font-size:.78rem">${esc(i.nombre_cliente||'—')}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${esc(i.num_factura||'—')}</td>
@@ -7753,7 +8409,7 @@ function rgAbrirNuevoEgreso() {
 }
 function rgAbrirNuevoIngreso() {
   abrirModalNuevoIngreso();
-  document.getElementById('iCategoria').value = 'otro_gravado';
+  // Sin pre-selección: el usuario elige la categoría DGI manualmente.
   // Cambiar el título para contexto claro
   document.querySelector('#ingresoModalOverlay .modal-title').textContent = '💰 Registrar Ingreso General';
 }
@@ -8516,7 +9172,7 @@ function renderDashboard() {
   // Categorías que son COSTOS DIRECTOS de venta (Línea 35 Anexo 94), no
   // gastos operativos. Para clientes sin módulo Comercialización que
   // ocasionalmente venden producto físico sin inventario formal.
-  const _COSTOS_GRAL_KEYS = ['otros_costos_venta'];
+  const _COSTOS_GRAL_KEYS = _COSTO_KEYS;
   const _esCostoDirectoGral = e => _COSTOS_GRAL_KEYS.includes(e.tipo_egreso || e.categoria);
 
   const cogsGral = _egresosGralFiltrados
@@ -8688,7 +9344,7 @@ function erRender() {
   // Costos directos en Registro General (Línea 35 Anexo 94) —
   // categorías que reducen Utilidad Bruta en vez de aparecer como
   // gastos operativos. Mismo concepto que en renderDashboard().
-  const _ER_COSTOS_GRAL_KEYS = ['otros_costos_venta'];
+  const _ER_COSTOS_GRAL_KEYS = _COSTO_KEYS;
   const _esCostoGral = e => _ER_COSTOS_GRAL_KEYS.includes(e.tipo_egreso || e.categoria);
 
   // Gastos operativos — Registro General (solo deducibles, alineado con widget y mobile P&L)
@@ -9463,7 +10119,7 @@ const CATEG_ACREEDOR = CATEGORIAS_GASTO_DGI;
 //   - includeDisabledCostoMercancia (bool) — añade opción 📦 disabled
 //   - emptyFirst (bool) — primera <option> vacía (placeholder)
 // ─────────────────────────────────────────────────────────────────
-const _CAT_SEC_COSTOS = new Set(['otros_costos_venta']);
+const _CAT_SEC_COSTOS = new Set(_COSTO_KEYS);
 const _CAT_SEC_PERSONALES = new Set([
   'deducibles_personales','gastos_medicos','gastos_escolares',
   'intereses_hipotecarios','intereses_prestamos_educativos','gastos_escolares_discapacitados'
@@ -9492,7 +10148,7 @@ function _renderCategoriaSelect(selectEl, selected, opts) {
   if (costos.length || opts.includeDisabledCostoMercancia) {
     html += '<optgroup label="── Costos directos (poco común) ──">';
     if (opts.includeDisabledCostoMercancia) {
-      html += '<option value="costo_mercancia" disabled>📦 Costo de mercancía — automático desde Operaciones</option>';
+      html += '<option value="costo_mercancia" disabled>📦 Costo de mercancía</option>';
     }
     html += costos.map(opt).join('');
     html += '</optgroup>';
