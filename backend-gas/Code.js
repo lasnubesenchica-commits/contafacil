@@ -234,6 +234,13 @@ function _ensureSheetCols(sheet, ncols, headerLabel) {
 function doPost(e) {
   try {
     var data   = JSON.parse(e.postData.contents);
+
+    // ── WhatsApp Cloud API webhook (Meta) ───────────────────────
+    // Detectado por shape del payload, no por action. Procesa async
+    // y siempre retorna 200 para que Meta no reintente.
+    var waResp = (typeof _whatsappHandleWebhook === 'function') ? _whatsappHandleWebhook(data) : null;
+    if (waResp) return waResp;
+
     var action = data.action || '';
     Logger.log('doPost action: ' + action + ' | id_item: ' + (data.id_item||''));
 
@@ -489,6 +496,12 @@ function doGet(e) {
   var params   = e ? (e.parameter || {}) : {};
   var action   = params.action || '';
   var callback = params.callback || '';
+
+  // ── WhatsApp webhook verification (Meta envía hub.challenge) ──
+  if (typeof _whatsappHandleVerify === 'function' && (params['hub.mode'] || params.hub_mode)) {
+    var waVerify = _whatsappHandleVerify(params);
+    if (waVerify) return waVerify;
+  }
 
   try {
 
