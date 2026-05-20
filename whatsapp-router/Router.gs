@@ -492,13 +492,13 @@ function _routerEnviarInstruccionesOutlook(from, email, token, phoneId) {
   var body =
     '✅ Anotado: *' + email + '*\n\n' +
     '*📋 Configurar reenvío por proveedor en Outlook*\n\n' +
-    'En Outlook no hay paso de verificación: vas directo a crear *una regla por cada proveedor* del que recibís facturas por email (ENSA, IDAAN, Cable Onda, etc.). Lo hacés *una vez por proveedor* y queda funcionando para siempre.\n\n' +
+    'En Outlook no hay paso de verificación: vas directo a crear *una regla por cada proveedor* del que recibís facturas por email (ENSA, IDAAN, Tigo, Farmacias Arrocha, etc.). Lo hacés *una vez por proveedor* y queda funcionando para siempre.\n\n' +
     '_(Hacelo desde la computadora)_\n\n' +
     '*1.* Abrí outlook.live.com con *' + email + '*\n' +
-    '*2.* Buscá en tu inbox un email reciente del proveedor (ej: una factura de Cable Onda)\n' +
+    '*2.* Buscá en tu inbox un email reciente del proveedor (ej: una factura de *Farmacias Arrocha*, que llega desde factura.electronica@arrocha.com)\n' +
     '*3.* *Click derecho* sobre el email → *Avanzado* → *Crear regla*\n' +
     '*4.* En la regla que se abre:\n' +
-    '  • Condición *"De"* = el email del proveedor (Outlook lo precarga)\n' +
+    '  • Condición *"De"* = el email del proveedor (Outlook lo precarga; en el ejemplo: factura.electronica@arrocha.com)\n' +
     '  • Acción *"Reenviar a"* → facturas@balanceclip.net\n' +
     '*5.* *Guardar*\n\n' +
     '🔁 *Repetí estos pasos con cada proveedor* del que recibís facturas. A partir de ese momento todas las facturas futuras de ese proveedor se procesan automáticamente. 🎉\n\n' +
@@ -514,12 +514,12 @@ function _routerEnviarInstruccionesOutlook(from, email, token, phoneId) {
 function _routerEnviarInstruccionesFiltroGmail(from, token, phoneId) {
   var body =
     '🎯 *Paso 2 de 2 — Reenviar facturas por proveedor*\n\n' +
-    'Ya tenés facturas@balanceclip.net habilitada en tu Gmail. Ahora hay que crear *un filtro por cada proveedor* del que recibís facturas por email (ENSA, IDAAN, Cable Onda, etc.). Lo hacés *una vez por proveedor* y queda funcionando para siempre.\n\n' +
-    '*Cómo hacerlo (ejemplo con un proveedor):*\n\n' +
-    '*1.* En Gmail, abrí un email reciente del proveedor (ej: una factura de Cable Onda)\n' +
+    'Ya tenés facturas@balanceclip.net habilitada en tu Gmail. Ahora hay que crear *un filtro por cada proveedor* del que recibís facturas por email (ENSA, IDAAN, Tigo, Farmacias Arrocha, etc.). Lo hacés *una vez por proveedor* y queda funcionando para siempre.\n\n' +
+    '*Cómo hacerlo (ejemplo con Farmacias Arrocha):*\n\n' +
+    '*1.* En Gmail, abrí un email reciente del proveedor (ej: una factura de *Farmacias Arrocha*)\n' +
     '*2.* Tocá los *3 puntos* (⋮) arriba a la derecha del email\n' +
     '*3.* Elegí *"Filtrar mensajes como este"*\n' +
-    '*4.* Confirmá el campo *"De:"* — debe tener el email del proveedor (ej: facturacion@cableonda.com)\n' +
+    '*4.* Confirmá el campo *"De:"* — debe tener el email del proveedor (en el ejemplo: factura.electronica@arrocha.com)\n' +
     '*5.* Tocá *"Crear filtro"* (abajo a la derecha)\n' +
     '*6.* Marcá ✅ *"Reenviarlo a:"* → elegí *facturas@balanceclip.net* en el menú\n' +
     '*7.* (Opcional) Marcá ✅ *"Marcar como leído"* para que no te llenen la bandeja\n' +
