@@ -6890,6 +6890,23 @@ function _getIngresoCat(valor) {
   return CATEGORIAS_INGRESO_DGI.find(c => c.valor === v) || null;
 }
 
+// ── Highlight de items recién agregados (últimas 24h) ──
+// Usa fecha_reg (timestamp de captura en la hoja) — disponible en
+// egrItems, ingItems y _acrData (pendientes Acreedores). Independiente
+// de fecha_egreso / fecha_ingreso que son fechas del documento.
+const _RECIENTE_VENTANA_MS = 24 * 60 * 60 * 1000;   // 24h
+function _esRecientementeAgregado(item) {
+  if (!item) return false;
+  const fr = item.fecha_reg || item.fecha_registro || '';
+  if (!fr) return false;
+  // Formato "yyyy-MM-dd HH:mm:ss" — convertir a ISO para parser confiable
+  const t = new Date(String(fr).replace(' ', 'T'));
+  if (isNaN(t)) return false;
+  return (Date.now() - t.getTime()) < _RECIENTE_VENTANA_MS;
+}
+// Badge HTML reutilizable para item nuevo
+const _NEW_BADGE_HTML = '<span style="font-size:.62rem;background:#E0F2F1;color:#00695C;padding:.15rem .42rem;border-radius:10px;font-weight:700;letter-spacing:.04em;margin-left:.3rem;vertical-align:middle">🆕 NUEVO</span>';
+
 // Keys que aplican ITBMS gravado por default (derivado del catálogo).
 const CATS_ING_GRAVADAS = CATEGORIAS_INGRESO_DGI
   .filter(c => c.itbms_status === 'gravado')
@@ -7663,15 +7680,22 @@ function rgRenderEgr() {
 
   tbody.innerHTML = items.map(i => {
     const esPendiente = i._tipo === 'pendiente';
-    const rowBg       = esPendiente ? 'background:#FFFDE7' : '';
+    const esReciente  = _esRecientementeAgregado(i);
+    const rowBg       = esPendiente ? 'background:#FFFDE7;' : '';
+    // Borde izquierdo verde para items recién agregados (componible con bg pendiente)
+    const rowEdge     = esReciente ? 'box-shadow:inset 4px 0 0 #00897B;' : '';
     const isSel       = _rgEgrSel.has(i._id);
 
-    // Badge origen
-    const origenBadge = i._esOFX
-      ? '<span style="font-size:.68rem;background:#E3F2FD;color:#1565C0;padding:.15rem .45rem;border-radius:10px;font-weight:600">🏦 OFX</span>'
-      : (esPendiente || i._esEmail)
-        ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
-        : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
+    // Badge origen — detecta WhatsApp para mostrar icono específico
+    const esWhatsApp  = String(i.gmail_msg_id || i.msg_id || '').indexOf('whatsapp-') === 0
+                     || String(i.notas || '').indexOf('WhatsApp') !== -1;
+    const origenBadge = esWhatsApp
+      ? '<span style="font-size:.68rem;background:#DCEDC8;color:#33691E;padding:.15rem .45rem;border-radius:10px;font-weight:600">📲 WhatsApp</span>'
+      : i._esOFX
+        ? '<span style="font-size:.68rem;background:#E3F2FD;color:#1565C0;padding:.15rem .45rem;border-radius:10px;font-weight:600">🏦 OFX</span>'
+        : (esPendiente || i._esEmail)
+          ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
+          : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
 
     // Badge estado
     const estadoBadge = esPendiente
@@ -7710,11 +7734,11 @@ function rgRenderEgr() {
       </div>`;
     }
 
-    return `<tr style="${rowBg}${isSel ? ';outline:2px solid #1565C0;outline-offset:-1px' : ''}">
+    return `<tr style="${rowBg}${rowEdge}${isSel ? 'outline:2px solid #1565C0;outline-offset:-1px;' : ''}">
       <td style="text-align:center;padding:.4rem .5rem"><input type="checkbox" data-id="${esc(i._id)}" ${isSel?'checked':''} onchange="rgToggleEgrSel('${esc(i._id)}',this.checked)" style="cursor:pointer;width:1rem;height:1rem"></td>
       <td style="font-family:'DM Mono',monospace;font-size:.76rem;color:var(--muted);white-space:nowrap">${i.fecha||'—'}</td>
       <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
-      <td>${origenBadge}</td>
+      <td>${origenBadge}${esReciente ? _NEW_BADGE_HTML : ''}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(i.num_fac)}</td>
       <td>${buildCatChip(i)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
@@ -8259,14 +8283,22 @@ function rgRenderIng() {
     return;
   }
   tbody.innerHTML = items.map(i => {
+    const esReciente  = _esRecientementeAgregado(i);
+    const esWhatsApp  = String(i.tipo_comprobante || '').toLowerCase() === 'whatsapp'
+                     || String(i.notas || '').indexOf('WhatsApp') !== -1
+                     || String(i.id_trans || '').indexOf('-WA-') !== -1;
+    const rowEdge     = esReciente ? 'box-shadow:inset 4px 0 0 #00897B;' : '';
     const docLink  = i.drive_url
       ? (i.factura_data
           ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaIngreso(event,'${esc(i.id_trans)}');return false" style="font-size:.95rem;color:#1565C0;text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
           : `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.95rem;color:#1565C0;text-decoration:none" title="Ver comprobante">📄</a>`)
       : '';
     const idEsc = esc(i.id_trans || '');
-    return `<tr>
-      <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso||'—'}</td>
+    const origenInline = esWhatsApp
+      ? '<span style="font-size:.62rem;background:#DCEDC8;color:#33691E;padding:.12rem .4rem;border-radius:10px;font-weight:600;margin-left:.3rem;vertical-align:middle">📲 WhatsApp</span>'
+      : '';
+    return `<tr style="${rowEdge}">
+      <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso||'—'}${esReciente ? _NEW_BADGE_HTML : ''}${origenInline}</td>
       <td>${buildCatChipIng(i)}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.descripcion||'')}">${esc((i.descripcion||'—').substring(0,50))}</td>
       <td style="font-size:.78rem">${esc(i.nombre_cliente||'—')}</td>
