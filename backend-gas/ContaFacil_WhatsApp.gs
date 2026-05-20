@@ -480,6 +480,10 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
     { id: 'wa:cat:' + pendId, title: '📝 Cambiar categoría' },
   ], token, phoneId);
 
+  // Recordatorio (throttled) del reenvío automático por email — para
+  // los usuarios que todavía mandan facturas manualmente.
+  _whatsappRecordatorioSetupEmail(from, token, phoneId);
+
   return null;   // ya respondimos con interactive; el caller no envía nada más
 }
 
@@ -622,6 +626,28 @@ function _waCatLabel(key) {
 // ────────────────────────────────────────────────────────────────────
 //  Envía un mensaje interactivo con 2 o 3 botones de respuesta
 // ────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────
+//  Recordatorio del flujo de setup de reenvío automático por email.
+//  Se invoca después de procesar cada factura. Throttle: 1 vez cada 6h
+//  por número, para no spamear a quien manda muchas facturas seguidas.
+//  El botón emite id 'setup:start' que el ROUTER intercepta y dispara
+//  el flujo de configuración (provider list → email → instrucciones).
+// ────────────────────────────────────────────────────────────────────
+function _whatsappRecordatorioSetupEmail(to, token, phoneId) {
+  var props = PropertiesService.getScriptProperties();
+  var key   = 'last_setup_reminder_' + to;
+  var last  = Number(props.getProperty(key) || 0);
+  if (Date.now() - last < 6 * 60 * 60 * 1000) return;
+  props.setProperty(key, String(Date.now()));
+
+  _whatsappReplyBotones(to,
+    '💡 *Tip*: configurá reenvío automático desde tu email y olvidate de mandar facturas a mano. Lo hacés *una vez por proveedor* y queda funcionando para siempre.',
+    null,
+    [{ id: 'setup:start', title: '📧 Cómo configurar' }],
+    token, phoneId
+  );
+}
+
 function _whatsappReplyBotones(to, bodyText, footerText, buttons, token, phoneId) {
   if (!to || !buttons || !buttons.length || !token || !phoneId) {
     Logger.log('_whatsappReplyBotones: faltan params');

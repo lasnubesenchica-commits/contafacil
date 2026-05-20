@@ -442,9 +442,14 @@ function _routerSendListProveedores(to, token, phoneId) {
 }
 
 function _routerHandleSetupReply(from, btnId, token, phoneId) {
-  var provider = btnId.replace('setup:', '');
-  if (provider !== 'gmail' && provider !== 'outlook') return;
-  _routerPedirEmail(from, provider, token, phoneId);
+  var sel = btnId.replace('setup:', '');
+  // Entrypoint disparado por el recordatorio post-factura del backend.
+  if (sel === 'start') {
+    _routerIniciarSetup(from, token, phoneId);
+    return;
+  }
+  if (sel !== 'gmail' && sel !== 'outlook') return;
+  _routerPedirEmail(from, sel, token, phoneId);
 }
 
 function _routerPedirEmail(from, provider, token, phoneId) {
