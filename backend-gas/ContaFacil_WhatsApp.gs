@@ -734,3 +734,32 @@ function _whatsappOnSetCat(pendId, nuevaKey, from, token, phoneId) {
     _whatsappReply(from, '⚠️ Error: ' + err.message, token, phoneId);
   }
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  Diagnóstico — ejecutar desde el Apps Script editor para debuggear
+//  el envío del list message sin necesidad de mirar Executions.
+//
+//  Pasos:
+//    1. Editá la línea TEST_FROM y TEST_PENDID abajo con tu celular
+//       (formato 507XXXXXXXX) y un PENDR válido del sheet.
+//    2. Guardá el archivo.
+//    3. Dropdown del botón Run → seleccionar `whatsappTestLista`.
+//    4. Run → Ctrl+Enter (o View → Logs) para ver los Logger.log.
+//
+//  Si Meta rechaza el list, vas a ver el código + cuerpo exacto del
+//  error + el payload enviado en los logs.
+// ════════════════════════════════════════════════════════════════════
+function whatsappTestLista() {
+  var TEST_FROM   = '507TUCELULAR';            // ← cambiá por tu número
+  var TEST_PENDID = 'PENDR-202605-0058';       // ← cambiá por un PENDR real
+
+  var props   = PropertiesService.getScriptProperties();
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID');
+  if (!token || !phoneId) { Logger.log('❌ Faltan META_WHATSAPP_TOKEN o META_PHONE_ID'); return; }
+  if (TEST_FROM === '507TUCELULAR') { Logger.log('⚠️ Editá TEST_FROM con tu celular real antes de correr'); return; }
+
+  Logger.log('▶ Llamando _whatsappOnCambiarCat con pendId=' + TEST_PENDID + ' from=' + TEST_FROM);
+  _whatsappOnCambiarCat(TEST_PENDID, TEST_FROM, token, phoneId);
+  Logger.log('✅ Función terminó. Revisá los logs arriba para ver el resultado del envío.');
+}
