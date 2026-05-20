@@ -3612,7 +3612,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div class="modal-field full">
             <label>Categoría</label>
             <select id="eCategoria" onchange="inferirTipoEgreso()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none">
-              <option disabled>──── GASTOS DEDUCIBLES (G1–G24) ────</option>
+              <option disabled>──── GASTOS ────</option>
               <option value="salarios_remuneraciones">👤 Salarios y otras Remuneraciones (G1)</option>
               <option value="prestaciones_laborales">👥 Prestaciones Laborales (G2)</option>
               <option value="atencion_promocion_clientes">🤝 Atención y Promoción a Clientes (G3)</option>
@@ -3637,7 +3637,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
               <option value="seguros">🛡️ Seguros (G22)</option>
               <option value="otros_gastos" selected>📋 Otros Gastos (G23)</option>
               <option value="gastos_fuente_extranjera">🌎 Gastos de Fuente Extranjera (G24)</option>
-              <option disabled>──── COSTOS DE VENTAS (C1–C10 · Anexo 94) ────</option>
+              <option disabled>──── COSTOS ────</option>
               <option value="costo_mercancia" disabled>📦 Costo de mercancía</option>
               <option value="compras_locales">🛍️ Compras - Locales (C1)</option>
               <option value="compras_importadas">📦 Compras - Importadas (C2)</option>
@@ -3649,7 +3649,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
               <option value="otros_costos_venta">🛒 Otros Costos (C8)</option>
               <option value="costos_exentos">↩️ Menos Costos: Exentos y/o no deducibles (C9)</option>
               <option value="costos_fuente_extranjera">🌎 Fuente Extranjera (C10)</option>
-              <option disabled>──── DEDUCIBLES PERSONALES (DP) ────</option>
+              <option disabled>──── DEDUCIBLES PERSONALES ────</option>
               <option value="deducibles_personales">👨‍👩‍👧 Deducibles Personales</option>
             </select>
             <!-- Hint contextual sobre la categoría seleccionada -->
@@ -7361,15 +7361,15 @@ function catChipOpen(e, id, tipo, catActual) {
 
   let html = '<div class="cat-chip-dropdown-title">Reclasificar categoría</div>';
   if (operativos.length) {
-    html += '<div class="cat-chip-section">── GASTOS DEDUCIBLES (G1–G24) ──</div>';
+    html += '<div class="cat-chip-section">── GASTOS ──</div>';
     html += operativos.map(renderOpt).join('');
   }
   if (costos.length) {
-    html += '<div class="cat-chip-section">── COSTOS DE VENTAS (C1–C10 · Anexo 94) ──</div>';
+    html += '<div class="cat-chip-section">── COSTOS ──</div>';
     html += costos.map(renderOpt).join('');
   }
   if (personales.length) {
-    html += '<div class="cat-chip-section">── DEDUCIBLES PERSONALES (DP) ──</div>';
+    html += '<div class="cat-chip-section">── DEDUCIBLES PERSONALES ──</div>';
     html += personales.map(renderOpt).join('');
   }
   drop.innerHTML = html;
@@ -7565,15 +7565,15 @@ function catChipOpenPL(e, triggerEl, id, tipo, catActual) {
       </div>`;
     let htmlPl = `<div class="cat-chip-dropdown-title">Reclasificar · DGI</div>`;
     if (_operativosPl.length) {
-      htmlPl += '<div class="cat-chip-section">── GASTOS DEDUCIBLES (G1–G24) ──</div>';
+      htmlPl += '<div class="cat-chip-section">── GASTOS ──</div>';
       htmlPl += _operativosPl.map(renderOptPl).join('');
     }
     if (_costosPl.length) {
-      htmlPl += '<div class="cat-chip-section">── COSTOS DE VENTAS (C1–C10 · Anexo 94) ──</div>';
+      htmlPl += '<div class="cat-chip-section">── COSTOS ──</div>';
       htmlPl += _costosPl.map(renderOptPl).join('');
     }
     if (_personalesPl.length) {
-      htmlPl += '<div class="cat-chip-section">── DEDUCIBLES PERSONALES (DP) ──</div>';
+      htmlPl += '<div class="cat-chip-section">── DEDUCIBLES PERSONALES ──</div>';
       htmlPl += _personalesPl.map(renderOptPl).join('');
     }
     drop.innerHTML = htmlPl;
@@ -10205,12 +10205,12 @@ function _renderCategoriaSelect(selectEl, selected, opts) {
   if (opts.emptyFirst) html += '<option value="">— Elegí una categoría —</option>';
 
   // Sección 1: Gastos Deducibles (G1-G24) — lo más común
-  html += '<optgroup label="── GASTOS DEDUCIBLES (G1–G24) ──">';
+  html += '<optgroup label="── GASTOS ──">';
   html += operativos.map(opt).join('');
   html += '</optgroup>';
   // Sección 2: Costos de Ventas (C1-C10 Anexo 94)
   if (costos.length || opts.includeDisabledCostoMercancia) {
-    html += '<optgroup label="── COSTOS DE VENTAS (C1–C10 · Anexo 94) ──">';
+    html += '<optgroup label="── COSTOS ──">';
     if (opts.includeDisabledCostoMercancia) {
       html += '<option value="costo_mercancia" disabled>📦 Costo de mercancía</option>';
     }
@@ -10219,7 +10219,7 @@ function _renderCategoriaSelect(selectEl, selected, opts) {
   }
   // Sección 3: Deducibles Personales (Persona Natural)
   if (personales.length) {
-    html += '<optgroup label="── DEDUCIBLES PERSONALES (DP) ──">';
+    html += '<optgroup label="── DEDUCIBLES PERSONALES ──">';
     html += personales.map(opt).join('');
     html += '</optgroup>';
   }
