@@ -128,6 +128,15 @@ function _whatsappProcesarMensaje(msg, metadata) {
   var tipo    = msg.type || '';
   Logger.log('WhatsApp msg from=' + from + ' type=' + tipo + ' id=' + msgId);
 
+  // ── Idempotencia: ignorar duplicados ──
+  // Meta hace retry del webhook si la primera response demora más
+  // de su timeout (~20s). Sin esta guarda, cada retry crea otro
+  // pendiente o aprueba otra vez el mismo gasto → duplicados.
+  if (msgId && _whatsappYaProcesado(msgId)) {
+    Logger.log('Mensaje ya procesado anteriormente — ignorando duplicado: ' + msgId);
+    return;
+  }
+
   // ── Respuesta interactiva (botón o ítem de lista) ──
   // El usuario tapeó "✅ Aprobar" / "📝 Cambiar categoría" o eligió
   // una categoría del list message.
@@ -741,4 +750,25 @@ function whatsappTestLista() {
   Logger.log('▶ Llamando _whatsappOnCambiarCat con pendId=' + TEST_PENDID + ' from=' + TEST_FROM);
   _whatsappOnCambiarCat(TEST_PENDID, TEST_FROM, token, phoneId);
   Logger.log('✅ Función terminó. Revisá los logs arriba para ver el resultado del envío.');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Idempotencia — evitar procesar el mismo mensaje dos veces
+//
+//  Meta puede mandar el mismo webhook múltiples veces (timeout, retry,
+//  o duplicates de su lado). Cada mensaje tiene un msg.id único que
+//  podemos usar como token de deduplicación.
+//
+//  Usamos CacheService (in-memory shared cache de Apps Script, TTL
+//  máximo 6 horas). Si necesitamos persistencia más larga, migrar a
+//  Properties — pero 6h es suficiente: los retries de Meta ocurren
+//  dentro de minutos, no horas.
+// ════════════════════════════════════════════════════════════════════
+function _whatsappYaProcesado(msgId) {
+  if (!msgId) return false;
+  var cache = CacheService.getScriptCache();
+  var key   = 'wa_msg_' + msgId;
+  if (cache.get(key)) return true;
+  cache.put(key, '1', 21600);   // 6h (máximo permitido)
+  return false;
 }
