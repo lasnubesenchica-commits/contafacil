@@ -15,8 +15,18 @@
 //         META_PHONE_ID        — phone_number_id (1035238479681939)
 //         META_VERIFY_TOKEN    — string que coincide con el webhook Meta
 //         CLIENTS_MAP_JSON     — JSON: { "<tel sin +>": "<deployment_url>" }
+//         EMAIL_WATCHER_TOKEN  — shared secret que comparte con el script
+//                                bound a facturas@balanceclip.net
+//         CONTACT_EMAIL/WEBSITE/WHATSAPP — opcionales (mensaje a desconocidos)
 //    4. Apuntar el Webhook Callback URL de Meta a este deployment URL.
 //    5. Probar con routerTestConfig() desde el editor.
+//
+//  Endpoints expuestos en doPost
+//  ─────────────────────────────
+//    • Webhook Meta (object=whatsapp_business_account) — entrada normal
+//    • { action: 'verifyEmailCode', token, email, code, autoConfirmed? }
+//      — usado por email-watcher/Watcher.gs para entregarle al cliente
+//      el código de confirmación de Gmail vía WhatsApp.
 //
 //  Formato CLIENTS_MAP_JSON
 //  ────────────────────────
@@ -66,8 +76,14 @@ function doGet(e) {
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    // Webhook de Meta (mensajes entrantes de WhatsApp)
     if (data && data.object === 'whatsapp_business_account') {
       return _routerHandleWebhook(data);
+    }
+    // Endpoint interno: watcher de facturas@balanceclip.net reportando
+    // un código de verificación de reenvío de Gmail.
+    if (data && data.action === 'verifyEmailCode') {
+      return _routerHandleVerifyCode(data);
     }
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'not whatsapp webhook' }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -120,11 +136,66 @@ function _routerForwardMensaje(msg, metadata) {
     return;
   }
 
-  // ── Mensaje de texto: el router responde directo (bienvenida o ayuda) ──
+  // ── Interceptar respuestas interactivas del flujo de setup de email ──
+  // (las del flujo de aprobar/cambiar categoría se forwardean al cliente GAS).
+  if (msg.type === 'interactive') {
+    var iaReply = msg.interactive || {};
+    var btnId = (iaReply.list_reply   && iaReply.list_reply.id)   ||
+                (iaReply.button_reply && iaReply.button_reply.id) || '';
+    if (btnId.indexOf('setup:') === 0) {
+      _routerHandleSetupReply(from, btnId, token, phoneId);
+      return;
+    }
+  }
+
+  // ── Mensaje de texto: el router responde directo (bienvenida/ayuda/setup) ──
   // No lo forwardeamos al cliente — el cliente GAS no procesa texto, solo
-  // media e interactivos.
+  // media e interactivos de facturas.
   if (msg.type === 'text') {
     var bodyText = (msg.text && msg.text.body) ? String(msg.text.body).toLowerCase().trim() : '';
+    var setupState = _routerGetSetupState(from);
+
+    // Escape hatch durante setup
+    if (setupState && /^(cancelar|salir|exit|cancel)$/.test(bodyText)) {
+      _routerClearSetupState(from);
+      _routerSendText(from, '👍 Configuración cancelada.', token, phoneId);
+      return;
+    }
+
+    // En estado awaiting_email — esperamos que el usuario mande su email
+    if (setupState && setupState.step === 'awaiting_email') {
+      var emailParsed = _routerParseEmail(bodyText);
+      if (!emailParsed) {
+        _routerSendText(from,
+          '⚠️ No reconozco eso como un email válido. Mandame tu dirección completa.\n' +
+          'Ejemplo: tunombre@' + (setupState.provider === 'gmail' ? 'gmail.com' : 'outlook.com') + '\n\n' +
+          'O escribí *cancelar* para salir.',
+          token, phoneId);
+        return;
+      }
+      _routerCompletarSetup(from, emailParsed, setupState.provider, token, phoneId);
+      return;
+    }
+
+    // En estado awaiting_provider — aceptamos texto "gmail" / "outlook"
+    if (setupState && setupState.step === 'awaiting_provider') {
+      if (bodyText.indexOf('gmail') !== -1)   { _routerPedirEmail(from, 'gmail',   token, phoneId); return; }
+      if (bodyText.indexOf('outlook') !== -1 || bodyText.indexOf('hotmail') !== -1) {
+        _routerPedirEmail(from, 'outlook', token, phoneId); return;
+      }
+      // si no responde gmail/outlook, mostrar la lista de nuevo abajo
+    }
+
+    // Triggers de setup de reenvío de email
+    var setupTriggers = [
+      'configurar email','configurar correo','configurar reenvio','configurar reenvío',
+      'reenvio','reenvío','reenviar','forward','setup','email','correo','setup email'
+    ];
+    if (setupTriggers.indexOf(bodyText) !== -1) {
+      _routerIniciarSetup(from, token, phoneId);
+      return;
+    }
+
     var triggers = ['hola','help','ayuda','menu','menú','instrucciones','info','start','inicio'];
     var pidióAyuda = triggers.indexOf(bodyText) !== -1;
     var primera   = !_routerYaSaludado(from);
@@ -202,7 +273,8 @@ function _routerEnviarBienvenida(to, token, phoneId) {
     '• Funciona con: facturas fiscales y electrónicas, recibos Yappy, transferencias, PDFs\n' +
     '• Para revisar, modificar o aprobar manualmente, abrí tu panel en balanceclip.net\n\n' +
     '📋 *Comandos*\n' +
-    'Escribime *ayuda* en cualquier momento para ver estas instrucciones de nuevo.\n\n' +
+    '• *ayuda* — ver estas instrucciones de nuevo\n' +
+    '• *configurar email* — configurar reenvío automático de facturas desde tu Gmail/Outlook a *facturas@balanceclip.net* (así no tenés que mandar manualmente las que te llegan por email)\n\n' +
     '¿Listo? Mándame tu primera factura 📤';
   _routerSendText(to, body, token, phoneId);
 }
@@ -267,9 +339,223 @@ function _routerReplyDesconocido(to, token, phoneId) {
   _routerSendText(to, body, token, phoneId);
 }
 
+// ════════════════════════════════════════════════════════════════════
+//  FLUJO DE CONFIGURACIÓN DE REENVÍO DE EMAIL
+//  ──────────────────────────────────────────
+//  Triggers: usuario escribe "configurar email" / "email" / etc.
+//  Estado por usuario en Script Properties: setup_<phone> = JSON
+//    { step: 'awaiting_provider' | 'awaiting_email', provider?, ts }
+//  TTL: 60 min (se descarta automáticamente).
+//
+//  Cuando completa, guarda en Properties:
+//    email_<email_lowercase> = <phone>
+//  El watcher de facturas@ usa ese mapping para saber a quién mandarle
+//  el código de verificación de Gmail.
+// ════════════════════════════════════════════════════════════════════
+
+var _ROUTER_SETUP_TTL_MS = 60 * 60 * 1000; // 1h
+
+function _routerGetSetupState(from) {
+  var raw = PropertiesService.getScriptProperties().getProperty('setup_' + from);
+  if (!raw) return null;
+  try {
+    var s = JSON.parse(raw);
+    if (!s.ts || (Date.now() - s.ts) > _ROUTER_SETUP_TTL_MS) {
+      _routerClearSetupState(from);
+      return null;
+    }
+    return s;
+  } catch(err) { _routerClearSetupState(from); return null; }
+}
+function _routerSetSetupState(from, state) {
+  state.ts = Date.now();
+  PropertiesService.getScriptProperties().setProperty('setup_' + from, JSON.stringify(state));
+}
+function _routerClearSetupState(from) {
+  PropertiesService.getScriptProperties().deleteProperty('setup_' + from);
+}
+
+function _routerParseEmail(text) {
+  var m = String(text || '').match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i);
+  return m ? m[0].toLowerCase() : null;
+}
+
+function _routerIniciarSetup(from, token, phoneId) {
+  _routerSetSetupState(from, { step: 'awaiting_provider' });
+  _routerSendListProveedores(from, token, phoneId);
+}
+
+function _routerSendListProveedores(to, token, phoneId) {
+  try {
+    UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to:   to,
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          header: { type: 'text', text: '📧 Configurar reenvío' },
+          body:   { text:
+            'Te ayudo a configurar tu email para que reenvíe ' +
+            'automáticamente las facturas que te lleguen a ' +
+            '*facturas@balanceclip.net* — así no tenés que mandarlas ' +
+            'manualmente por WhatsApp.\n\n' +
+            '¿Qué proveedor de email usás?'
+          },
+          footer: { text: 'Escribí "cancelar" para salir' },
+          action: {
+            button:   'Elegir proveedor',
+            sections: [{
+              title: 'Proveedores',
+              rows: [
+                { id: 'setup:gmail',   title: 'Gmail',             description: 'Cuenta @gmail.com' },
+                { id: 'setup:outlook', title: 'Outlook / Hotmail', description: '@outlook.com, @hotmail.com, @live.com' },
+              ],
+            }],
+          },
+        },
+      }),
+      muteHttpExceptions: true,
+    });
+  } catch(err) { Logger.log('_routerSendListProveedores ERROR: ' + err.message); }
+}
+
+function _routerHandleSetupReply(from, btnId, token, phoneId) {
+  var provider = btnId.replace('setup:', '');
+  if (provider !== 'gmail' && provider !== 'outlook') return;
+  _routerPedirEmail(from, provider, token, phoneId);
+}
+
+function _routerPedirEmail(from, provider, token, phoneId) {
+  _routerSetSetupState(from, { step: 'awaiting_email', provider: provider });
+  var ejemplo = provider === 'gmail' ? 'tunombre@gmail.com' : 'tunombre@outlook.com';
+  var nombre  = provider === 'gmail' ? 'Gmail'             : 'Outlook';
+  _routerSendText(from,
+    '📧 Perfecto, *' + nombre + '*.\n\n' +
+    '*Mandame tu dirección de email completa* (la cuenta de la que vas a reenviar las facturas).\n\n' +
+    'Ejemplo: ' + ejemplo + '\n\n' +
+    'Escribí *cancelar* si querés salir.',
+    token, phoneId);
+}
+
+function _routerCompletarSetup(from, email, provider, token, phoneId) {
+  // Guardar mapping email→phone para que el watcher pueda devolver el código.
+  PropertiesService.getScriptProperties().setProperty('email_' + email, from);
+  _routerClearSetupState(from);
+
+  if (provider === 'gmail') {
+    _routerEnviarInstruccionesGmail(from, email, token, phoneId);
+  } else {
+    _routerEnviarInstruccionesOutlook(from, email, token, phoneId);
+  }
+}
+
+function _routerEnviarInstruccionesGmail(from, email, token, phoneId) {
+  var body =
+    '✅ Anotado: *' + email + '*\n\n' +
+    '*📋 Configuración de Gmail*\n' +
+    '_(Hacelo desde la computadora — no funciona desde el celular)_\n\n' +
+    '*1.* Abrí mail.google.com con tu cuenta *' + email + '*\n' +
+    '*2.* Engranaje ⚙️ (arriba a la derecha) → *Ver todos los ajustes*\n' +
+    '*3.* Tab *"Reenvío y POP/IMAP"*\n' +
+    '*4.* Botón *"Añadir una dirección de reenvío"*\n' +
+    '*5.* Ingresá: facturas@balanceclip.net → *Siguiente* → *Continuar*\n\n' +
+    '🔢 *Código de verificación*\n' +
+    'Google te va a pedir un código numérico. *Te lo mando acá automáticamente* en cuanto llegue a nuestro buzón (1-2 min). Esperá el código antes de cerrar la ventana de Gmail.\n\n' +
+    '⚠️ *Después de verificar* (último paso, MUY importante):\n' +
+    'Volvé a la misma sección y marcá:\n' +
+    '✅ "Reenviar una copia del correo entrante a facturas@balanceclip.net"\n' +
+    '✅ "Conservar la copia de Gmail en Recibidos"\n' +
+    '✅ *Guardar cambios* abajo\n\n' +
+    '💡 *Opcional — reenviar solo facturas*\n' +
+    'Si no querés reenviar TODO tu correo, creá un filtro:\n' +
+    '1. Configuración → *Filtros y direcciones bloqueadas* → *Crear filtro nuevo*\n' +
+    '2. "Contiene las palabras": *factura OR invoice OR recibo OR comprobante*\n' +
+    '3. *Crear filtro* → marcá *"Reenviarlo a"* facturas@balanceclip.net\n\n' +
+    '⏳ Esperando el código de Google…';
+  _routerSendText(from, body, token, phoneId);
+}
+
+function _routerEnviarInstruccionesOutlook(from, email, token, phoneId) {
+  var body =
+    '✅ Anotado: *' + email + '*\n\n' +
+    '*📋 Configuración de Outlook* (regla de reenvío)\n' +
+    '_(Hacelo desde la computadora)_\n\n' +
+    '*1.* Abrí outlook.live.com con tu cuenta *' + email + '*\n' +
+    '*2.* Engranaje ⚙️ (arriba a la derecha) → *Ver toda la configuración de Outlook*\n' +
+    '*3.* *Correo* → *Reglas* → *+ Agregar nueva regla*\n' +
+    '*4.* Nombre: BalanceClip facturas\n' +
+    '*5.* En "Agregar una condición" → *Asunto incluye* → escribí: factura, invoice, recibo, comprobante (uno por uno)\n' +
+    '*6.* En "Agregar una acción" → *Reenviar a* → facturas@balanceclip.net\n' +
+    '*7.* *Guardar*\n\n' +
+    '✅ ¡Listo! Outlook personal *no pide código de verificación*. A partir de ahora cualquier correo que reciban con esas palabras en el asunto se reenvía automáticamente.\n\n' +
+    '⚠️ *Atención si es Outlook corporativo*\n' +
+    'Si tu email es de *Microsoft 365 del trabajo*, el reenvío externo puede estar *bloqueado* por tu admin de IT. Síntomas: la regla se guarda pero no llega nada. Pedile a tu admin que habilite "External Forwarding" para tu cuenta, o usá una cuenta personal alternativa.';
+  _routerSendText(from, body, token, phoneId);
+}
+
 // ────────────────────────────────────────────────────────────────────
+//  Endpoint: recibe del watcher de facturas@ un código de Gmail
+//  Espera POST con: { action, token, email, code, autoConfirmed? }
+//  Verifica el shared secret EMAIL_WATCHER_TOKEN.
+// ────────────────────────────────────────────────────────────────────
+function _routerHandleVerifyCode(data) {
+  var props = PropertiesService.getScriptProperties();
+  var expectedToken = props.getProperty('EMAIL_WATCHER_TOKEN') || '';
+  if (!expectedToken || data.token !== expectedToken) {
+    Logger.log('verifyEmailCode: token shared-secret inválido');
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'forbidden' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var email = String(data.email || '').toLowerCase().trim();
+  var code  = String(data.code  || '').trim();
+  var autoConfirmed = !!data.autoConfirmed;
+  if (!email || !code) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing email/code' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var phone = props.getProperty('email_' + email);
+  if (!phone) {
+    Logger.log('verifyEmailCode: no hay mapping para ' + email + ' — el usuario nunca corrió "configurar email"');
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'unknown email' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var metaToken = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId   = props.getProperty('META_PHONE_ID');
+
+  var body;
+  if (autoConfirmed) {
+    body =
+      '✅ *¡Verificado automáticamente!*\n\n' +
+      'Confirmé el reenvío de *' + email + '* sin que tengas que hacer nada.\n\n' +
+      '*Paso final* (importante):\n' +
+      'En Gmail → Configuración → *Reenvío y POP/IMAP*, marcá:\n' +
+      '✅ "Reenviar una copia del correo entrante a facturas@balanceclip.net"\n' +
+      '✅ Guardar cambios\n\n' +
+      'A partir de ese momento las facturas que te lleguen por email se procesan automáticamente. 🎉';
+  } else {
+    body =
+      '🔢 *Código de verificación de Gmail*\n\n' +
+      '`' + code + '`\n\n' +
+      '👉 Pegalo en Gmail → Configuración → *Reenvío y POP/IMAP* → casilla del código → *Verificar*.\n\n' +
+      'Después acordate de marcar *"Reenviar una copia…"* y *Guardar cambios*.';
+  }
+  _routerSendText(phone, body, metaToken, phoneId);
+  Logger.log('verifyEmailCode: enviado a ' + phone + ' (email=' + email + ', autoConfirmed=' + autoConfirmed + ')');
+
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, sent_to: phone }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ════════════════════════════════════════════════════════════════════
 //  Diagnóstico — ejecutar desde el editor para validar config
-// ────────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════
 function routerTestConfig() {
   var props   = PropertiesService.getScriptProperties();
   var token   = props.getProperty('META_WHATSAPP_TOKEN');

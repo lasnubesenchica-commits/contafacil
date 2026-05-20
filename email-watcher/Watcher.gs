@@ -1,0 +1,211 @@
+// ════════════════════════════════════════════════════════════════════
+//  BalanceClip Email Watcher — facturas@balanceclip.net
+//
+//  Apps Script independiente *bound a la cuenta Gmail
+//  facturas@balanceclip.net*. Su único trabajo es detectar los emails
+//  de confirmación de reenvío que envía Google cuando un usuario
+//  configura su Gmail para reenviar a facturas@, extraer el código
+//  de verificación, y devolvérselo al usuario por WhatsApp (vía el
+//  router).
+//
+//  Cómo desplegar
+//  ──────────────
+//    1. Iniciá sesión en Google con facturas@balanceclip.net.
+//    2. Abrí https://script.google.com y *Crear proyecto nuevo*.
+//    3. Pegá ESTE archivo entero como Code.gs.
+//    4. Project Settings → Script Properties:
+//         ROUTER_URL          — deployment URL del WhatsApp router
+//                               (https://script.google.com/macros/s/<ID>/exec)
+//         EMAIL_WATCHER_TOKEN — string aleatorio (compartido con el
+//                               router; tiene que ser el MISMO valor).
+//    5. En el editor, correr una vez la función `installTrigger()`.
+//       Aceptar el permiso de Gmail. Esto crea un trigger time-based
+//       que ejecuta `watchInbox()` cada 1 minuto.
+//    6. Verificar con `testParse()` (opcional — parsea el último email
+//       de google sin marcar nada como leído).
+//
+//  Flujo
+//  ─────
+//    1. Usuario hace "configurar email" en WhatsApp y le da su gmail.
+//    2. Router guarda email→phone y le dice al usuario los pasos en
+//       Gmail.
+//    3. Usuario completa el formulario en Gmail. Google envía un mail
+//       de confirmación a facturas@balanceclip.net con un código de
+//       9 dígitos y un link de verificación.
+//    4. Este watcher (corriendo cada 1 min) detecta el mail, extrae
+//       el remitente original, el código y el link.
+//    5. Intenta auto-confirmar el link con UrlFetchApp.
+//    6. POSTea al router con { email, code, autoConfirmed } — el
+//       router localiza el phone del usuario y le manda el código
+//       (o el "ya está verificado") por WhatsApp.
+//    7. Marca el thread como leído para no reprocesarlo.
+// ════════════════════════════════════════════════════════════════════
+
+// ────────────────────────────────────────────────────────────────────
+//  Trigger principal — corre cada 1 min vía time-based trigger
+// ────────────────────────────────────────────────────────────────────
+function watchInbox() {
+  var props     = PropertiesService.getScriptProperties();
+  var routerUrl = props.getProperty('ROUTER_URL');
+  var token     = props.getProperty('EMAIL_WATCHER_TOKEN');
+  if (!routerUrl || !token) {
+    Logger.log('Faltan ROUTER_URL o EMAIL_WATCHER_TOKEN en Script Properties');
+    return;
+  }
+
+  // Gmail manda los emails de confirmación desde forwarding-noreply@google.com
+  // Filtramos también los últimos 7 días para no escanear el archivo viejo.
+  var query = 'from:forwarding-noreply@google.com is:unread newer_than:7d';
+  var threads = GmailApp.search(query, 0, 20);
+  Logger.log('Threads unread encontrados: ' + threads.length);
+
+  for (var t = 0; t < threads.length; t++) {
+    var msgs = threads[t].getMessages();
+    for (var m = 0; m < msgs.length; m++) {
+      var msg = msgs[m];
+      if (!msg.isUnread()) continue;
+      try {
+        var ok = procesarConfirmacionGmail(msg, routerUrl, token);
+        if (ok) msg.markRead();
+      } catch(err) {
+        Logger.log('Error procesando msg ' + msg.getId() + ': ' + err.message);
+        // No marcar como leído — se reintenta en la próxima corrida.
+      }
+    }
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Parsea un email de Google de "Forwarding Confirmation" y le dispara
+//  el código al router. Devuelve true si se procesó OK (se puede
+//  marcar el mail como leído).
+// ────────────────────────────────────────────────────────────────────
+function procesarConfirmacionGmail(msg, routerUrl, token) {
+  var subject = msg.getSubject() || '';
+  var body    = msg.getPlainBody() || '';
+
+  // Sólo nos interesan los de confirmación de reenvío
+  // (Google también manda notificaciones sobre cambios de configuración
+  // que no tienen código — los saltamos).
+  var esConfirmacion = /forwarding|reenv[ií]o|confirmation|confirmaci[oó]n/i.test(subject);
+  if (!esConfirmacion) {
+    Logger.log('No es confirmación, asunto: ' + subject);
+    return true; // marcar como leído igual — no nos sirve
+  }
+
+  // ── Extraer email del usuario que pidió el reenvío ──
+  //   En el cuerpo aparece como "X@example.com has requested..." o
+  //   "X@example.com ha solicitado..." según idioma.
+  var emailMatch =
+    body.match(/([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})\s+(has requested|ha solicitado|wants|quiere)/i) ||
+    body.match(/(?:from|de)\s+([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/i);
+  var userEmail = emailMatch ? emailMatch[1].toLowerCase() : null;
+
+  // ── Extraer código de verificación ──
+  // Es un número de 9 dígitos. Buscamos cerca de "code" / "código" o
+  // simplemente cualquier secuencia de 9 dígitos.
+  var codeMatch =
+    body.match(/(?:code|c[oó]digo)[^\d]{0,30}(\d{9})/i) ||
+    body.match(/\b(\d{9})\b/);
+  var code = codeMatch ? codeMatch[1] : null;
+
+  // ── Extraer URL de confirmación ──
+  // Patrón típico: https://mail-settings.google.com/mail/vf-...
+  var linkMatch = body.match(/https:\/\/mail-settings\.google\.com\/mail\/[^\s\]]+/i);
+  var link = linkMatch ? linkMatch[0] : null;
+
+  Logger.log('Parsed: email=' + userEmail + ' code=' + (code || '(none)') + ' link=' + (link ? 'present' : 'none'));
+
+  if (!userEmail || !code) {
+    Logger.log('Faltan datos críticos — abortando (subject: ' + subject + ')');
+    // Devolvemos false para NO marcar como leído — quizá Google volvió
+    // a generar el mail y el parsing falló por un cambio de formato.
+    return false;
+  }
+
+  // ── Intento best-effort de auto-confirmar el link ──
+  // El link es un GET que confirma directamente — pero Google a veces
+  // muestra una página "Confirm" intermedia. Si el body de la respuesta
+  // contiene un indicador de éxito, asumimos confirmado.
+  var autoConfirmed = false;
+  if (link) {
+    try {
+      var r = UrlFetchApp.fetch(link, {
+        method:             'get',
+        followRedirects:    true,
+        muteHttpExceptions: true,
+      });
+      var rc = r.getResponseCode();
+      var rt = r.getContentText() || '';
+      Logger.log('Auto-confirm GET → ' + rc + ' (' + rt.length + ' chars)');
+      if (rc === 200 && /Confirmation Success|confirmaci[oó]n correcta|forwarding\s+confirmed|reenv[ií]o\s+confirmado/i.test(rt)) {
+        autoConfirmed = true;
+      }
+    } catch(err) {
+      Logger.log('Auto-confirm fetch error: ' + err.message);
+    }
+  }
+
+  // ── Avisar al router ──
+  var payload = {
+    action:        'verifyEmailCode',
+    token:         token,
+    email:         userEmail,
+    code:          code,
+    autoConfirmed: autoConfirmed,
+  };
+  var resp = UrlFetchApp.fetch(routerUrl, {
+    method:             'post',
+    contentType:        'application/json',
+    payload:            JSON.stringify(payload),
+    muteHttpExceptions: true,
+    followRedirects:    true,
+  });
+  Logger.log('Router responded ' + resp.getResponseCode() + ': ' + (resp.getContentText() || '').substring(0, 200));
+  return true;
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Instala el trigger time-based (correr UNA vez desde el editor)
+// ────────────────────────────────────────────────────────────────────
+function installTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'watchInbox') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('watchInbox').timeBased().everyMinutes(1).create();
+  Logger.log('Trigger instalado: watchInbox cada 1 min.');
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Helpers de diagnóstico — correr desde el editor
+// ────────────────────────────────────────────────────────────────────
+function testConfig() {
+  var props = PropertiesService.getScriptProperties();
+  var routerUrl = props.getProperty('ROUTER_URL');
+  var token     = props.getProperty('EMAIL_WATCHER_TOKEN');
+  Logger.log('ROUTER_URL:          ' + (routerUrl ? '✅ ' + routerUrl.substring(0, 50) + '…' : '❌ MISSING'));
+  Logger.log('EMAIL_WATCHER_TOKEN: ' + (token ? '✅ set ('+token.length+' chars)' : '❌ MISSING'));
+  var triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === 'watchInbox'; });
+  Logger.log('Trigger watchInbox:  ' + (triggers.length ? '✅ instalado' : '❌ NO instalado (correr installTrigger())'));
+}
+
+// Parsea el último email de forwarding sin marcar nada — para debug.
+function testParse() {
+  var threads = GmailApp.search('from:forwarding-noreply@google.com', 0, 1);
+  if (!threads.length) { Logger.log('No hay emails de forwarding-noreply@google.com en el buzón'); return; }
+  var msg = threads[0].getMessages()[0];
+  Logger.log('Subject: ' + msg.getSubject());
+  Logger.log('Body (primeros 800):\n' + (msg.getPlainBody() || '').substring(0, 800));
+  // Forzar parse sin marcar leído
+  var dummyUrl   = 'https://example.com';
+  var dummyToken = 'dryrun';
+  // Replicamos la lógica sin postear: muteamos UrlFetchApp temporalmente.
+  // Simplemente extraemos en seco:
+  var body = msg.getPlainBody() || '';
+  var em = body.match(/([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})\s+(has requested|ha solicitado|wants|quiere)/i);
+  var cm = body.match(/(?:code|c[oó]digo)[^\d]{0,30}(\d{9})/i) || body.match(/\b(\d{9})\b/);
+  var lm = body.match(/https:\/\/mail-settings\.google\.com\/mail\/[^\s\]]+/i);
+  Logger.log('Email user: ' + (em ? em[1] : 'NO MATCH'));
+  Logger.log('Code: '       + (cm ? cm[1] : 'NO MATCH'));
+  Logger.log('Link: '       + (lm ? lm[0].substring(0,80)+'…' : 'NO MATCH'));
+}
