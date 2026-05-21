@@ -207,8 +207,8 @@ function _routerForwardMensaje(msg, metadata) {
       }
       _routerSendText(from,
         '⏳ Esperando que toques el link de Gmail y veas la confirmación de Google.\n\n' +
-        'Cuando esté listo, escribime *LISTO* y te paso el Paso 2.\n\n' +
-        '(O escribí *cancelar* para salir.)',
+        'Cuando esté listo, escríbeme *LISTO* y te paso el Paso 2.\n\n' +
+        '(O escribe *cancelar* para salir.)',
         token, phoneId);
       return;
     }
@@ -218,9 +218,9 @@ function _routerForwardMensaje(msg, metadata) {
       var emailParsed = _routerParseEmail(bodyText);
       if (!emailParsed) {
         _routerSendText(from,
-          '⚠️ No reconozco eso como un email válido. Mandame tu dirección completa.\n' +
+          '⚠️ No reconozco eso como un email válido. Mándame tu dirección completa.\n' +
           'Ejemplo: tunombre@' + (setupState.provider === 'gmail' ? 'gmail.com' : 'outlook.com') + '\n\n' +
-          'O escribí *cancelar* para salir.',
+          'O escribe *cancelar* para salir.',
           token, phoneId);
         return;
       }
@@ -301,7 +301,7 @@ function _routerForwardMensaje(msg, metadata) {
     if (!clientGasOk) {
       var adminPhoneAlert = PropertiesService.getScriptProperties().getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
       _routerSendText(from,
-        '⚠️ Recibí tu factura pero el procesador no respondió correctamente. Avisale al admin y volvé a intentar en unos minutos.',
+        '⚠️ Recibí tu factura pero el procesador no respondió correctamente. Avísale al admin y vuelve a intentar en unos minutos.',
         token, phoneId);
       // Notificar al admin con detalles (si no es el admin el que mandó la factura)
       if (from !== adminPhoneAlert) {
@@ -317,7 +317,7 @@ function _routerForwardMensaje(msg, metadata) {
   } catch (err) {
     Logger.log('Error forwarding to client: ' + err.message);
     _routerSendText(from,
-      '⚠️ Recibí tu factura pero no pude contactar al procesador. Avisale al admin.',
+      '⚠️ Recibí tu factura pero no pude contactar al procesador. Avísale al admin.',
       token, phoneId);
     var adminPhoneAlert2 = PropertiesService.getScriptProperties().getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
     if (from !== adminPhoneAlert2) {
@@ -364,10 +364,10 @@ function _routerEnviarBienvenida(to, token, phoneId) {
     '• Categoría DGI sugerida\n\n' +
     '💡 *Tips*\n' +
     '• Funciona con: facturas fiscales y electrónicas, recibos Yappy, transferencias, PDFs\n' +
-    '• Para revisar, modificar o aprobar manualmente, abrí tu panel en balanceclip.net\n\n' +
+    '• Para revisar, modificar o aprobar manualmente, abre tu panel en balanceclip.net\n\n' +
     '📋 *Comandos*\n' +
     '• *ayuda* — ver estas instrucciones de nuevo\n' +
-    '• *configurar email* — configurar reenvío automático de facturas desde tu Gmail/Outlook a *facturas@balanceclip.net* (así no tenés que mandar manualmente las que te llegan por email)\n\n' +
+    '• *configurar email* — configurar reenvío automático de facturas desde tu Gmail/Outlook a *facturas@balanceclip.net* (así no tienes que mandar manualmente las que te llegan por email)\n\n' +
     '¿Listo? Mándame tu primera factura 📤';
   _routerSendText(to, body, token, phoneId);
 }
@@ -379,8 +379,8 @@ function _routerReplyAyudaBreve(to, token, phoneId) {
   if (!token || !phoneId) return;
   var body =
     '🤖 No entendí el mensaje. Lo que puedo hacer:\n\n' +
-    '📸 Mandame una *foto o PDF de tu factura* y la registro.\n' +
-    '📋 Escribime *ayuda* para ver las instrucciones completas.';
+    '📸 Mándame una *foto o PDF de tu factura* y la registro.\n' +
+    '📋 Escríbeme *ayuda* para ver las instrucciones completas.';
   _routerSendText(to, body, token, phoneId);
 }
 
@@ -435,7 +435,7 @@ function _routerReplyDesconocido(to, token, phoneId) {
             '📸 Mandándome facturas por WhatsApp\n' +
             '📧 O reenviándolas por email\n\n' +
             'Una IA las lee, las categoriza según DGI y las deja listas en tu contabilidad. ✨\n\n' +
-            '¿Querés probarlo *gratis 7 días*?'
+            '¿Quieres probarlo *gratis 7 días*?'
           },
           action: {
             buttons: [
@@ -459,15 +459,15 @@ function _routerEnviarInfoMarketing(to, token, phoneId) {
     'ℹ️ *Más sobre BalanceClip*\n\n' +
     'Somos un asistente fiscal automatizado para profesionales y negocios en Panamá.\n\n' +
     '*Cómo te ayudamos*\n' +
-    '• 📸 Mandás facturas por WhatsApp — IA las lee y categoriza DGI\n' +
-    '• 📧 Configurás tus emails de proveedores para reenviar facturas automáticamente\n' +
+    '• 📸 Envías facturas por WhatsApp — IA las lee y categoriza DGI\n' +
+    '• 📧 Configuras tus emails de proveedores para reenviar facturas automáticamente\n' +
     '• 📊 Reportes ITBMS mensual y cierre anual DGI listos para presentar\n' +
     '• 🔐 Panel web personal con tu data privada y segura\n\n' +
     '*Contacto comercial*\n' +
     '📧 ' + email + '\n' +
     '🌐 ' + web + '\n' +
     '💬 WhatsApp: ' + waNum + '\n\n' +
-    'Si querés *probar gratis 7 días*, escribime *demo* y arrancamos el registro. 🎁';
+    'Si quieres *probar gratis 7 días*, escríbeme *demo* y arrancamos el registro. 🎁';
   _routerSendText(to, body, token, phoneId);
 }
 
@@ -535,11 +535,11 @@ function _routerSendListProveedores(to, token, phoneId) {
           body:   { text:
             'Te ayudo a configurar tu email para que reenvíe ' +
             'automáticamente las facturas que te lleguen a ' +
-            '*facturas@balanceclip.net* — así no tenés que mandarlas ' +
+            '*facturas@balanceclip.net* — así no tienes que mandarlas ' +
             'manualmente por WhatsApp.\n\n' +
-            '¿Qué proveedor de email usás?'
+            '¿Qué proveedor de email usas?'
           },
-          footer: { text: 'Escribí "cancelar" para salir' },
+          footer: { text: 'Escribe "cancelar" para salir' },
           action: {
             button:   'Elegir proveedor',
             sections: [{
@@ -574,9 +574,9 @@ function _routerPedirEmail(from, provider, token, phoneId) {
   var nombre  = provider === 'gmail' ? 'Gmail'             : 'Outlook';
   _routerSendText(from,
     '📧 Perfecto, *' + nombre + '*.\n\n' +
-    '*Mandame tu dirección de email completa* (la cuenta de la que vas a reenviar las facturas).\n\n' +
+    '*Mándame tu dirección de email completa* (la cuenta de la que vas a reenviar las facturas).\n\n' +
     'Ejemplo: ' + ejemplo + '\n\n' +
-    'Escribí *cancelar* si querés salir.',
+    'Escribe *cancelar* si quieres salir.',
     token, phoneId);
 }
 
@@ -596,13 +596,13 @@ function _routerEnviarInstruccionesGmail(from, email, token, phoneId) {
   var body =
     '✅ Anotado: *' + email + '*\n\n' +
     '*📋 Paso 1 de 2 — Autorizar facturas@balanceclip.net en tu Gmail*\n' +
-    '_(Hacelo desde la computadora — no funciona desde el celular)_\n\n' +
-    '*1.* Abrí mail.google.com con *' + email + '*\n' +
+    '_(Hazlo desde la computadora — no funciona desde el celular)_\n\n' +
+    '*1.* Abre mail.google.com con *' + email + '*\n' +
     '*2.* Engranaje ⚙️ (arriba a la derecha) → *Ver todos los ajustes*\n' +
     '*3.* Tab *"Reenvío y POP/IMAP"*\n' +
     '*4.* Botón *"Añadir una dirección de reenvío"*\n' +
-    '*5.* Ingresá: facturas@balanceclip.net → *Siguiente* → *Continuar*\n\n' +
-    '⏳ *Esperá acá* — Google nos manda un link de verificación a nuestro buzón. Apenas llegue (1-2 min) *te lo paso por WhatsApp*. Lo tocás desde tu teléfono y queda autorizado en 1 click.\n\n' +
+    '*5.* Ingresa: facturas@balanceclip.net → *Siguiente* → *Continuar*\n\n' +
+    '⏳ *Espera aquí* — Google nos manda un link de verificación a nuestro buzón. Apenas llegue (1-2 min) *te lo paso por WhatsApp*. Lo tocas desde tu teléfono y queda autorizado en 1 click.\n\n' +
     'Después te mando el *Paso 2*, que es lo que hace que las facturas de cada proveedor lleguen automáticamente.';
   _routerSendText(from, body, token, phoneId);
 }
@@ -613,18 +613,18 @@ function _routerEnviarInstruccionesOutlook(from, email, token, phoneId) {
   var body =
     '✅ Anotado: *' + email + '*\n\n' +
     '*📋 Configurar reenvío por proveedor en Outlook*\n\n' +
-    'En Outlook no hay paso de verificación: vas directo a crear *una regla por cada proveedor* del que recibís facturas por email (ENSA, IDAAN, Tigo, Farmacias Arrocha, etc.). Lo hacés *una vez por proveedor* y queda funcionando para siempre.\n\n' +
-    '_(Hacelo desde la computadora)_\n\n' +
-    '*1.* Abrí outlook.live.com con *' + email + '*\n' +
-    '*2.* Buscá en tu inbox un email reciente del proveedor (ej: una factura de *Farmacias Arrocha*, que llega desde factura.electronica@arrocha.com)\n' +
+    'En Outlook no hay paso de verificación: vas directo a crear *una regla por cada proveedor* del que recibes facturas por email (ENSA, IDAAN, Tigo, Farmacias Arrocha, etc.). Lo haces *una vez por proveedor* y queda funcionando para siempre.\n\n' +
+    '_(Hazlo desde la computadora)_\n\n' +
+    '*1.* Abre outlook.live.com con *' + email + '*\n' +
+    '*2.* Busca en tu inbox un email reciente del proveedor (ej: una factura de *Farmacias Arrocha*, que llega desde factura.electronica@arrocha.com)\n' +
     '*3.* *Click derecho* sobre el email → *Avanzado* → *Crear regla*\n' +
     '*4.* En la regla que se abre:\n' +
     '  • Condición *"De"* = el email del proveedor (Outlook lo precarga; en el ejemplo: factura.electronica@arrocha.com)\n' +
     '  • Acción *"Reenviar a"* → facturas@balanceclip.net\n' +
     '*5.* *Guardar*\n\n' +
-    '🔁 *Repetí estos pasos con cada proveedor* del que recibís facturas. A partir de ese momento todas las facturas futuras de ese proveedor se procesan automáticamente. 🎉\n\n' +
+    '🔁 *Repite estos pasos con cada proveedor* del que recibes facturas. A partir de ese momento todas las facturas futuras de ese proveedor se procesan automáticamente. 🎉\n\n' +
     '⚠️ *Atención si tu cuenta es de Outlook corporativo (Microsoft 365 del trabajo)*: el reenvío externo puede estar bloqueado por tu admin de IT. Síntomas: la regla se guarda pero las facturas no llegan a BalanceClip.\n\n' +
-    'Si necesitás re-ver estas instrucciones más adelante: escribime *configurar email*.';
+    'Si necesitas re-ver estas instrucciones más adelante: escríbeme *configurar email*.';
   _routerSendText(from, body, token, phoneId);
 }
 
@@ -635,18 +635,18 @@ function _routerEnviarInstruccionesOutlook(from, email, token, phoneId) {
 function _routerEnviarInstruccionesFiltroGmail(from, token, phoneId) {
   var body =
     '🎯 *Paso 2 de 2 — Reenviar facturas por proveedor*\n\n' +
-    'Ya tenés facturas@balanceclip.net habilitada en tu Gmail. Ahora hay que crear *un filtro por cada proveedor* del que recibís facturas por email (ENSA, IDAAN, Tigo, Farmacias Arrocha, etc.). Lo hacés *una vez por proveedor* y queda funcionando para siempre.\n\n' +
+    'Ya tienes facturas@balanceclip.net habilitada en tu Gmail. Ahora hay que crear *un filtro por cada proveedor* del que recibes facturas por email (ENSA, IDAAN, Tigo, Farmacias Arrocha, etc.). Lo haces *una vez por proveedor* y queda funcionando para siempre.\n\n' +
     '*Cómo hacerlo (ejemplo con Farmacias Arrocha):*\n\n' +
-    '*1.* En Gmail, abrí un email reciente del proveedor (ej: una factura de *Farmacias Arrocha*)\n' +
-    '*2.* Tocá los *3 puntos* (⋮) arriba a la derecha del email\n' +
-    '*3.* Elegí *"Filtrar mensajes como este"*\n' +
-    '*4.* Confirmá el campo *"De:"* — debe tener el email del proveedor (en el ejemplo: factura.electronica@arrocha.com)\n' +
-    '*5.* Tocá *"Crear filtro"* (abajo a la derecha)\n' +
-    '*6.* Marcá ✅ *"Reenviarlo a:"* → elegí *facturas@balanceclip.net* en el menú\n' +
-    '*7.* (Opcional) Marcá ✅ *"Marcar como leído"* para que no te llenen la bandeja\n' +
-    '*8.* Tocá *"Crear filtro"*\n\n' +
-    '🔁 *Repetí con cada proveedor* que te mande facturas por email. A partir de ese momento todas las facturas futuras de ese proveedor se procesan automáticamente. 🎉\n\n' +
-    'Si necesitás re-ver estas instrucciones más adelante: escribime *configurar email*.';
+    '*1.* En Gmail, abre un email reciente del proveedor (ej: una factura de *Farmacias Arrocha*)\n' +
+    '*2.* Toca los *3 puntos* (⋮) arriba a la derecha del email\n' +
+    '*3.* Elige *"Filtrar mensajes como este"*\n' +
+    '*4.* Confirma el campo *"De:"* — debe tener el email del proveedor (en el ejemplo: factura.electronica@arrocha.com)\n' +
+    '*5.* Toca *"Crear filtro"* (abajo a la derecha)\n' +
+    '*6.* Marca ✅ *"Reenviarlo a:"* → elige *facturas@balanceclip.net* en el menú\n' +
+    '*7.* (Opcional) Marca ✅ *"Marcar como leído"* para que no te llenen la bandeja\n' +
+    '*8.* Toca *"Crear filtro"*\n\n' +
+    '🔁 *Repite con cada proveedor* que te mande facturas por email. A partir de ese momento todas las facturas futuras de ese proveedor se procesan automáticamente. 🎉\n\n' +
+    'Si necesitas re-ver estas instrucciones más adelante: escríbeme *configurar email*.';
   _routerSendText(from, body, token, phoneId);
 }
 
@@ -687,9 +687,9 @@ function _routerHandleVerifyCode(data) {
   // proveedor).
   var body =
     '📬 *Tu link de verificación de Gmail*\n\n' +
-    'Tocá este link *desde tu teléfono* para autorizar facturas@balanceclip.net en tu Gmail (*' + email + '*):\n\n' +
+    'Toca este link *desde tu teléfono* para autorizar facturas@balanceclip.net en tu Gmail (*' + email + '*):\n\n' +
     link + '\n\n' +
-    'Gmail te va a mostrar "Confirmation Success" o similar. Cuando lo veas, *escribime LISTO* acá y te paso el Paso 2: cómo hacer que cada proveedor te mande las facturas automáticamente. 🚀';
+    'Gmail te va a mostrar "Confirmation Success" o similar. Cuando lo veas, *escríbeme LISTO* aquí y te paso el Paso 2: cómo hacer que cada proveedor te mande las facturas automáticamente. 🚀';
   _routerSendText(phone, body, metaToken, phoneId);
 
   _routerSetSetupState(phone, { step: 'awaiting_link_confirmation', provider: 'gmail', email: email });
@@ -763,7 +763,7 @@ function _routerHandleSignupReply(from, btnId, token, phoneId) {
   if (action === 'confirm_yes') {
     var st = _routerGetSignupState(from);
     if (!st || st.step !== 'awaiting_confirm') {
-      _routerSendText(from, 'Tu registro expiró. Escribime *demo* para empezar de nuevo.', token, phoneId);
+      _routerSendText(from, 'Tu registro expiró. Escríbeme *demo* para empezar de nuevo.', token, phoneId);
       return;
     }
     _routerFinalizarSignup(from, st.data, token, phoneId);
@@ -779,10 +779,10 @@ function _routerIniciarSignup(from, token, phoneId) {
   _routerSetSignupState(from, { step: 'awaiting_negocio', data: {} });
   _routerSendText(from,
     '🎁 *Demo 7 días gratis*\n\n' +
-    'Te hago *5 preguntas rápidas* y después un técnico te configura todo. Te aviso por acá apenas esté listo — y desde ese momento podés empezar a mandar facturas. 🚀\n\n' +
+    'Te hago *5 preguntas rápidas* y después un técnico te configura todo. Te aviso por aquí apenas esté listo — y desde ese momento puedes empezar a mandar facturas. 🚀\n\n' +
     '*Pregunta 1 de 5*\n' +
     '¿Cuál es la *razón social* o nombre legal de tu negocio?\n' +
-    '_(Ej: Servicios ACME, S.A. — o tu nombre si sos persona natural)_\n\n' +
+    '_(Ej: Servicios ACME, S.A. — o tu nombre si eres persona natural)_\n\n' +
     '_Escribí *cancelar* en cualquier momento para salir._',
     token, phoneId);
 }
@@ -795,7 +795,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
 
   if (/^(cancelar|salir|cancel|exit)$/.test(lower)) {
     _routerClearSignupState(from);
-    _routerSendText(from, '👍 Registro cancelado. Si querés probar más adelante, escribime *demo*.', token, phoneId);
+    _routerSendText(from, '👍 Registro cancelado. Si quieres probar más adelante, escríbeme *demo*.', token, phoneId);
     return;
   }
 
@@ -804,7 +804,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
   // ── Q1: Negocio ──
   if (state.step === 'awaiting_negocio') {
     if (trimmed.length < 2) {
-      _routerSendText(from, '⚠️ Ese nombre es muy corto. Escribime la razón social/nombre legal del negocio.', token, phoneId);
+      _routerSendText(from, '⚠️ Ese nombre es muy corto. Escríbeme la razón social/nombre legal del negocio.', token, phoneId);
       return;
     }
     data.negocio = trimmed.substring(0, 200);
@@ -825,7 +825,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
       _routerSendText(from,
         '⚠️ Eso no parece un RUC válido. Debe tener números y guiones.\n' +
         'Ej: *2470636-1-814806*  o  *8-NT-1-12345*\n\n' +
-        'Mandalo de nuevo, o escribí *cancelar* para salir.',
+        'Mándalo de nuevo, o escribe *cancelar* para salir.',
         token, phoneId);
       return;
     }
@@ -836,9 +836,9 @@ function _routerHandleSignupText(from, text, token, phoneId) {
       '*Pregunta 3 de 5*\n' +
       '¿Cuál es tu *Dígito Verificador (DV)*?\n' +
       '_(Son 1 o 2 dígitos, ej: 06 o 12)_\n\n' +
-      '🔗 *Si no lo sabés, consultalo gratis acá:*\n' +
+      '🔗 *Si no lo sabes, consultalo gratis aquí:*\n' +
       'https://etax2.mef.gob.pa/etax2web/Ruc/ConsultarDV.aspx\n\n' +
-      'Si todavía no tenés DV, escribí *ninguno*.',
+      'Si todavía no tienes DV, escribe *ninguno*.',
       token, phoneId);
     return;
   }
@@ -852,9 +852,9 @@ function _routerHandleSignupText(from, text, token, phoneId) {
       if (dvClean.length < 1 || dvClean.length > 2) {
         _routerSendText(from,
           '⚠️ El DV debe tener 1 o 2 dígitos (ej: 6, 06, 12).\n\n' +
-          '🔗 Consultalo gratis acá si no lo sabés:\n' +
+          '🔗 Consultalo gratis aquí si no lo sabes:\n' +
           'https://etax2.mef.gob.pa/etax2web/Ruc/ConsultarDV.aspx\n\n' +
-          'O escribí *ninguno* si todavía no lo tenés.',
+          'O escribe *ninguno* si todavía no lo tienes.',
           token, phoneId);
         return;
       }
@@ -875,7 +875,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
   if (state.step === 'awaiting_email_admin') {
     var emailA = _routerParseEmail(trimmed);
     if (!emailA) {
-      _routerSendText(from, '⚠️ No reconozco eso como un email válido. Mandame tu dirección, ej: tunombre@gmail.com', token, phoneId);
+      _routerSendText(from, '⚠️ No reconozco eso como un email válido. Mándame tu dirección, ej: tunombre@gmail.com', token, phoneId);
       return;
     }
     data.adminEmail = emailA;
@@ -883,9 +883,9 @@ function _routerHandleSignupText(from, text, token, phoneId) {
     _routerSendText(from,
       '✅ Email anotado: *' + emailA + '*\n\n' +
       '*Pregunta 5 de 5*\n' +
-      '¿Desde qué *email recibís facturas de proveedores* (el que querés que reenvíe automáticamente a BalanceClip)?\n\n' +
-      '• Si es el mismo email que el anterior, escribí *mismo*\n' +
-      '• Si todavía no usás email para recibir facturas, escribí *ninguno*',
+      '¿Desde qué *email recibes facturas de proveedores* (el que quieres que reenvíe automáticamente a BalanceClip)?\n\n' +
+      '• Si es el mismo email que el anterior, escribe *mismo*\n' +
+      '• Si todavía no usas email para recibir facturas, escribe *ninguno*',
       token, phoneId);
     return;
   }
@@ -898,7 +898,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
     else {
       var parsed = _routerParseEmail(trimmed);
       if (!parsed) {
-        _routerSendText(from, '⚠️ No reconozco eso como un email. Mandalo de nuevo, o escribí *mismo* / *ninguno*.', token, phoneId);
+        _routerSendText(from, '⚠️ No reconozco eso como un email. Mándalo de nuevo, o escribe *mismo* / *ninguno*.', token, phoneId);
         return;
       }
       fwdEmail = parsed;
@@ -926,7 +926,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
 function _routerEnviarResumenSignup(to, data, token, phoneId) {
   var rucCompleto = data.dv ? (data.ruc + ' DV ' + data.dv) : data.ruc;
   var bodyText =
-    '📋 *Confirmá tus datos:*\n\n' +
+    '📋 *Confirma tus datos:*\n\n' +
     '🏢 Negocio: *' + data.negocio + '*\n' +
     '🆔 RUC: *' + rucCompleto + '*\n' +
     '📧 Tu email: *' + data.adminEmail + '*\n' +
@@ -970,7 +970,7 @@ function _routerFinalizarSignup(from, data, token, phoneId) {
   // Confirmar al cliente
   _routerSendText(from,
     '🎉 *¡Listo, recibimos tu solicitud!*\n\n' +
-    'Un técnico de BalanceClip te va a configurar la cuenta en *la próxima hora*. *Te aviso por acá apenas esté lista* y desde ese momento ya podés empezar a mandar facturas. 📤\n\n' +
+    'Un técnico de BalanceClip te va a configurar la cuenta en *la próxima hora*. *Te aviso por aquí apenas esté lista* y desde ese momento ya puedes empezar a mandar facturas. 📤\n\n' +
     'Gracias por probar BalanceClip 🙌',
     token, phoneId);
 
@@ -986,7 +986,7 @@ function _routerFinalizarSignup(from, data, token, phoneId) {
     '📨 Forwarder: ' + (data.forwarderEmail || '(ninguno)') + '\n\n' +
     '⚡ *Cuando termines el deploy:*\n' +
     '`activar ' + from + ' <deploymentUrl>`\n\n' +
-    '_(copiá la deployment URL desde deploy.html paso 4 y mandá ese comando acá mismo)_';
+    '_(copia la deployment URL desde deploy.html paso 4 y envía ese comando aquí mismo)_';
   _routerSendText(adminPhone, adminMsg, token, phoneId);
 }
 
@@ -1020,8 +1020,8 @@ function _routerHandleActivarCommand(from, text, token, phoneId) {
       '⚠️ *Número incompleto*\n\n' +
       'El número *' + newPhone + '* no incluye código de país. Meta entrega los mensajes con el código país adelante (Panamá = 507), así que el routing no va a funcionar.\n\n' +
       (suggested
-        ? '👉 Probá con:\n`activar ' + suggested + ' ' + url + '`'
-        : 'Mandalo con el código de país adelante (sin el "+").'),
+        ? '👉 Prueba con:\n`activar ' + suggested + ' ' + url + '`'
+        : 'Mándalo con el código de país adelante (sin el "+").'),
       token, phoneId);
     return;
   }

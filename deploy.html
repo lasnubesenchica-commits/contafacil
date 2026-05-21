@@ -531,7 +531,7 @@
       <div class="step-num">1</div>
       <div class="step-meta">
         <h2>Datos del cliente</h2>
-        <p>Ingresá la información del negocio. Estos valores van a quedar embebidos en el código GAS generado.</p>
+        <p>Ingresa la información del negocio. Estos valores van a quedar embebidos en el código GAS generado.</p>
       </div>
     </div>
 
@@ -581,7 +581,7 @@
       <div class="field">
         <label>Prefijo de IDs <span class="req">*</span></label>
         <input type="text" id="prefix" placeholder="RP" maxlength="8"/>
-        <span class="field-hint">Ej: "DP" → IDs serán ING-DP-2025-0001. Usá 2-4 letras.</span>
+        <span class="field-hint">Ej: "DP" → IDs serán ING-DP-2025-0001. Usa 2-4 letras.</span>
       </div>
     </div>
 
@@ -661,15 +661,15 @@
 
     <div class="config-note">
       <strong>⚠️ Requisito: Google OAuth Client ID</strong><br>
-      Para que el popup de Google funcione, necesitás un <strong>OAuth Client ID</strong> configurado en Google Cloud Console con:<br>
+      Para que el popup de Google funcione, necesitas un <strong>OAuth Client ID</strong> configurado en Google Cloud Console con:<br>
       → Tipo: <code>Web application</code><br>
-      → Authorized JavaScript origins: <code>file://</code> (si abrís el HTML local) o tu dominio si está hosteado<br><br>
-      Si no tenés uno, el campo de abajo acepta también un <strong>Access Token directo</strong> (más rápido para uso personal).
+      → Authorized JavaScript origins: <code>file://</code> (si abres el HTML local) o tu dominio si está hosteado<br><br>
+      Si no tienes uno, el campo de abajo acepta también un <strong>Access Token directo</strong> (más rápido para uso personal).
     </div>
 
     <div class="oauth-card">
       <div class="oauth-icon">🔑</div>
-      <h3>Autorizá con Google</h3>
+      <h3>Autoriza con Google</h3>
       <p>El provisioner va a crear el Google Sheet y la carpeta de Drive en tu cuenta (o la cuenta que uses para el cliente).</p>
       <div class="oauth-scopes">
         <span class="scope-tag">sheets.spreadsheets</span>
@@ -692,10 +692,10 @@
         </summary>
         <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.6;background:var(--surface2);border-radius:6px;padding:10px;margin-bottom:12px">
           <strong>Cómo obtener el Refresh Token:</strong><br>
-          1. Abrí <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--orange2)">OAuth 2.0 Playground</a><br>
-          2. Ícono de engranaje → "Use your own OAuth credentials" → ingresá Client ID y Client Secret<br>
-          3. Seleccioná los scopes: <code style="font-size:11px">spreadsheets</code> · <code style="font-size:11px">drive.file</code> · <code style="font-size:11px">script.projects</code> · <code style="font-size:11px">script.deployments</code> · <code style="font-size:11px">gmail.labels</code> · <code style="font-size:11px">gmail.settings.basic</code><br>
-          4. "Authorize APIs" → "Exchange authorization code for tokens" → copiá el <code style="font-size:11px">refresh_token</code>
+          1. Abre <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--orange2)">OAuth 2.0 Playground</a><br>
+          2. Ícono de engranaje → "Use your own OAuth credentials" → ingresa Client ID y Client Secret<br>
+          3. Selecciona los scopes: <code style="font-size:11px">spreadsheets</code> · <code style="font-size:11px">drive.file</code> · <code style="font-size:11px">script.projects</code> · <code style="font-size:11px">script.deployments</code> · <code style="font-size:11px">gmail.labels</code> · <code style="font-size:11px">gmail.settings.basic</code><br>
+          4. "Authorize APIs" → "Exchange authorization code for tokens" → copia el <code style="font-size:11px">refresh_token</code>
         </div>
         <label style="display:block;margin-bottom:6px;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Client Secret</label>
         <input type="text" id="clientSecret" placeholder="GOCSPX-..." style="margin-bottom:12px;font-family:var(--mono);font-size:12px"/>
@@ -777,7 +777,7 @@
       <div class="step-num">4</div>
       <div class="step-meta">
         <h2>Cliente provisionado</h2>
-        <p>Recursos creados automáticamente. Completá los pasos finales para activar el sistema.</p>
+        <p>Recursos creados automáticamente. Completa los pasos finales para activar el sistema.</p>
       </div>
     </div>
 
@@ -862,7 +862,7 @@ async function autoRefreshToken(silent) {
   var secret  = (document.getElementById('clientSecret') || {}).value || localStorage.getItem(LS_CLIENT_SECRET) || '';
   var refresh = (document.getElementById('refreshToken') || {}).value || localStorage.getItem(LS_REFRESH_TOKEN) || '';
   if (!cid || !secret || !refresh) {
-    if (!silent) alert('Completá Client ID, Client Secret y Refresh Token primero.');
+    if (!silent) alert('Completa Client ID, Client Secret y Refresh Token primero.');
     return false;
   }
   try {
@@ -980,7 +980,7 @@ function goStep2() {
   if (!vals.metaPhoneId)          errors.push('META Phone Number ID es requerido');
   if (!vals.githubPat)            errors.push('GitHub Personal Access Token es requerido');
   if (!vals.flow_acreedor && !vals.flow_comercializacion) {
-    errors.push('Activá al menos un módulo (Registro General o Comercialización)');
+    errors.push('Activa al menos un módulo (Registro General o Comercialización)');
   }
 
   var errEl = document.getElementById('err1');
@@ -1003,7 +1003,7 @@ function goStep2() {
 function startOAuth() {
   var clientId = document.getElementById('clientId').value.trim();
   if (!clientId) {
-    alert('Ingresá el Client ID de Google Cloud Console primero, o usá el token manual.');
+    alert('Ingresa el Client ID de Google Cloud Console primero, o usa el token manual.');
     return;
   }
   localStorage.setItem(LS_CID, clientId);
@@ -1045,7 +1045,7 @@ function startOAuth() {
 
 function useManualToken() {
   var token = document.getElementById('manualToken').value.trim();
-  if (!token) { alert('Pegá el Access Token primero.'); return; }
+  if (!token) { alert('Pega el Access Token primero.'); return; }
   setToken(token);
 }
 
@@ -1165,7 +1165,7 @@ async function goStep3() {
     });
     updateLog(l3, '✅', 'Carpeta compartida como "cualquiera con el link puede ver"');
   } catch(e) {
-    updateLog(l3, '⚠️', 'Permisos: ' + e.message + ' (hacelo manual en Drive)');
+    updateLog(l3, '⚠️', 'Permisos: ' + e.message + ' (hazlo manual en Drive)');
   }
 
   // 4. Descargar archivos GAS desde GitHub e inyectar CONFIG
@@ -1227,7 +1227,7 @@ async function goStep3() {
     await registerInGitHub(gasResult.scriptId, gasResult.deploymentId);
     updateLog(l6, '✅', 'Cliente registrado en clients.json');
   } catch(e) {
-    updateLog(l6, '⚠️', 'No se pudo registrar en GitHub: ' + e.message + ' — hacelo manual');
+    updateLog(l6, '⚠️', 'No se pudo registrar en GitHub: ' + e.message + ' — hazlo manual');
   }
 
   // 7. Crear carpeta admin del cliente (copia de iris-albelo-ho/ con GAS_URL reemplazado)
@@ -1240,7 +1240,7 @@ async function goStep3() {
     STATE.adminUrl = 'https://lasnubesenchica-commits.github.io/contafacil/' + clientId + '/';
     updateLog(l7, '✅', 'Carpeta admin creada en GitHub', clientId + '/');
   } catch(e) {
-    updateLog(l7, '⚠️', 'No se pudo crear carpeta admin: ' + e.message + ' — hacelo manual');
+    updateLog(l7, '⚠️', 'No se pudo crear carpeta admin: ' + e.message + ' — hazlo manual');
   }
 
   // 8. Done
@@ -1326,7 +1326,7 @@ async function enviarOnboardingEmail() {
   // del negocio — ese puede ser el contador o un email genérico). El
   // forwarder es quien necesita las instrucciones de setup en su Gmail.
   var clientEmail = STATE.clientForwarderEmail || STATE.adminEmail;
-  if (!clientEmail) return alert('No hay email del cliente que reenvía facturas. Volvé a Step 1.');
+  if (!clientEmail) return alert('No hay email del cliente que reenvía facturas. Vuelve a Step 1.');
   if (!confirm('Enviar onboarding email a ' + clientEmail + '?\n\nIncluye: URL del dashboard, AUTH_RESET_TOKEN, instrucciones detalladas de forwarding setup.')) return;
 
   var slug         = (STATE.negocio || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -1868,12 +1868,12 @@ function buildOutputs() {
   if (s.flow_comercializacion) moduloTexto.push('Comercialización');
   var moduloDesc = moduloTexto.length
     ? 'Procesa emails cada 15 min para: <strong>' + moduloTexto.join(' + ') + '</strong>. El trigger respeta los flags <code>flow_*</code> en config_operaciones.'
-    : 'Sin módulos activos — el trigger no procesará emails. Activá al menos uno en config_operaciones.';
+    : 'Sin módulos activos — el trigger no procesará emails. Activa al menos uno en config_operaciones.';
 
   var checkItems = [
     {
       title: 'Inicializar sistema + setear credenciales',
-      desc: 'Inicializa hojas + setea CLAUDE_API_KEY como Script Property + autogenera AUTH_RESET_TOKEN. <strong>Si es la primera vez</strong> y el editor GAS no autorizó scopes todavía, abrí el editor y corré <code>forzarAutorizacionScopes()</code> una vez para aceptar los permisos completos (Gmail, Drive, Sheets).',
+      desc: 'Inicializa hojas + setea CLAUDE_API_KEY como Script Property + autogenera AUTH_RESET_TOKEN. <strong>Si es la primera vez</strong> y el editor GAS no autorizó scopes todavía, abre el editor y corre <code>forzarAutorizacionScopes()</code> una vez para aceptar los permisos completos (Gmail, Drive, Sheets).',
       link: gasEditorUrl,
       linkText: 'Abrir editor GAS →',
       hasInitBtn: true,
@@ -1895,7 +1895,7 @@ function buildOutputs() {
     },
     {
       title: 'Re-poblar Config_Operaciones (si es necesario)',
-      desc: 'El config se pre-pobló durante el provisioning (destino + remitente + flags de módulos). Usá este botón si necesitás re-aplicar la config (ej. después de un re-init manual del Sheet).',
+      desc: 'El config se pre-pobló durante el provisioning (destino + remitente + flags de módulos). Usa este botón si necesitas re-aplicar la config (ej. después de un re-init manual del Sheet).',
       link: s.sheetUrl,
       linkText: 'Abrir Google Sheet →',
       hasRetryConfigBtn: true,
@@ -1918,11 +1918,11 @@ function buildOutputs() {
     },
     {
       title: '📲 Activar al cliente en el WhatsApp Router',
-      desc: 'Pegá este comando en WhatsApp (chat con el bot de BalanceClip) <strong>desde tu número admin</strong>. El router va a:<br>① agregar el cliente al <code>CLIENTS_MAP_JSON</code> · ② enviarle la bienvenida automáticamente · ③ habilitarlo para mandar facturas.' +
+      desc: 'Pega este comando en WhatsApp (chat con el bot de BalanceClip) <strong>desde tu número admin</strong>. El router va a:<br>① agregar el cliente al <code>CLIENTS_MAP_JSON</code> · ② enviarle la bienvenida automáticamente · ③ habilitarlo para mandar facturas.' +
         (s.webAppUrl && s.waNum
           ? '<br><br><div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--orange2);user-select:all;word-break:break-all">activar ' + normalizarTelefonoPanama(s.waNum) + ' ' + s.webAppUrl + '</div>' +
             (String(s.waNum).replace(/\D/g, '').length === 8 ? '<div style="margin-top:6px;font-size:11px;color:var(--muted)">⚡ Se le agregó <code>507</code> al inicio porque el cliente cargó el celular sin código de país.</div>' : '')
-          : '<br><br><em>Faltan datos para generar el comando — verificá que el cliente tenga WhatsApp y que el Web App esté deployado.</em>'),
+          : '<br><br><em>Faltan datos para generar el comando — verifica que el cliente tenga WhatsApp y que el Web App esté deployado.</em>'),
       hasActivarWhatsappBtn: !!(s.webAppUrl && s.waNum),
     },
   ];
@@ -1975,15 +1975,15 @@ function copiarComandoActivar() {
   var phone = normalizarTelefonoPanama(STATE.waNum);
   var cmd   = 'activar ' + phone + ' ' + STATE.webAppUrl;
   navigator.clipboard.writeText(cmd).then(function() {
-    alert('Comando copiado.\n\nPegalo en tu chat con el bot de BalanceClip (desde tu número admin) y enviá. El router activa al cliente automáticamente.');
+    alert('Comando copiado.\n\nPegalo en tu chat con el bot de BalanceClip (desde tu número admin) y envía. El router activa al cliente automáticamente.');
   }, function() {
-    prompt('Copiá este comando y mandálo al bot de BalanceClip:', cmd);
+    prompt('Copia este comando y mandálo al bot de BalanceClip:', cmd);
   });
 }
 
 async function reintentarConfig() {
   if (!STATE.webAppUrl) {
-    alert('No hay Web App URL guardada. Completá el provisioning primero.');
+    alert('No hay Web App URL guardada. Completa el provisioning primero.');
     return;
   }
   var btn = document.getElementById('btnRetryConfig');
@@ -1999,14 +1999,14 @@ async function reintentarConfig() {
 
 async function inicializarSistemaRemoto() {
   if (!STATE.webAppUrl) {
-    alert('No hay Web App URL guardada. Completá el provisioning primero.');
+    alert('No hay Web App URL guardada. Completa el provisioning primero.');
     return;
   }
   var btn = document.getElementById('btnInicializarSistema');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Inicializando...'; }
   try {
     // POST con credenciales: el handler las setea como Script Properties.
-    // CLAUDE_API_KEY se inyecta acá — evita el paso manual del editor GAS.
+    // CLAUDE_API_KEY se inyecta aquí — evita el paso manual del editor GAS.
     // AUTH_RESET_TOKEN se autogenera en backend si no se pasa, y se devuelve
     // en la respuesta para que el admin lo guarde.
     var resp = await fetch(STATE.webAppUrl, {
@@ -2027,7 +2027,7 @@ async function inicializarSistemaRemoto() {
       }
       if (btn) { btn.textContent = '✅ Sistema inicializado'; btn.style.background = 'var(--green)'; }
       if (data.authResetToken) {
-        alert('Sistema inicializado.\n\nGuardá este AUTH_RESET_TOKEN en lugar seguro (necesario para reset de password de admin):\n\n' + data.authResetToken);
+        alert('Sistema inicializado.\n\nGuarda este AUTH_RESET_TOKEN en lugar seguro (necesario para reset de password de admin):\n\n' + data.authResetToken);
       }
     } else {
       if (btn) { btn.disabled = false; btn.textContent = '⚙ Inicializar hojas y triggers →'; }
@@ -2035,13 +2035,13 @@ async function inicializarSistemaRemoto() {
     }
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '⚙ Inicializar hojas y triggers →'; }
-    alert('Error de red: ' + e.message + '\n\nSi es la primera vez, abrí el editor GAS y corré forzarAutorizacionScopes() una vez para aceptar los permisos completos.');
+    alert('Error de red: ' + e.message + '\n\nSi es la primera vez, abre el editor GAS y corre forzarAutorizacionScopes() una vez para aceptar los permisos completos.');
   }
 }
 
 async function activarTrigger(tipo) {
   if (!STATE.webAppUrl) {
-    alert('No hay Web App URL. Completá el provisioning primero.');
+    alert('No hay Web App URL. Completa el provisioning primero.');
     return;
   }
   // El único trigger soportado es el unificado. Los handlers viejos
