@@ -183,23 +183,88 @@ nav {
   margin-bottom: 1.2rem;
 }
 
-/* ── Pill grande en sección CTA ── */
-.cta-trial-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  color: #fff;
-  border-radius: 100px; padding: 7px 18px;
-  font-size: 13px; font-weight: 700;
-  margin-bottom: 1.25rem;
-  box-shadow: 0 6px 18px rgba(22,163,74,0.35);
+/* ── Pill "onboarding personalizado" en Trade (azul, sin trial) ── */
+.track-onboard-pill {
+  display: inline-block;
+  background: rgba(59,130,246,0.10);
+  color: var(--blue);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 100px;
+  padding: 4px 12px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-top: -.5rem;
+  margin-bottom: 1.2rem;
 }
 
-.cta-fineprint {
-  margin-top: 1.4rem;
-  font-size: 12px;
+/* ── Grid de 2 tarjetas en sección CTA (Pro / Trade) ── */
+.cta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4rem;
+  margin-top: 2.4rem;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.cta-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.8rem 1.6rem 1.5rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cta-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.cta-card-pro   { border-top: 4px solid #16a34a; }
+.cta-card-trade { border-top: 4px solid var(--blue); }
+
+.cta-card-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(22,163,74,0.10);
+  color: #15803d;
+  border: 1px solid rgba(22,163,74,0.25);
+  border-radius: 100px; padding: 4px 12px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.3px;
+  align-self: flex-start;
+  margin-bottom: 1rem;
+}
+.cta-card-pill-trade {
+  background: rgba(59,130,246,0.10);
+  color: var(--blue);
+  border-color: rgba(59,130,246,0.25);
+}
+
+.cta-card-h {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 0.6rem;
+  line-height: 1.25;
+}
+.cta-card-sub {
+  font-size: 0.92rem;
   color: var(--ink2);
+  line-height: 1.55;
   font-weight: 500;
-  opacity: 0.85;
+  margin-bottom: 1.3rem;
+  flex: 1;
+}
+.cta-card-fine {
+  margin-top: 0.85rem;
+  font-size: 11px;
+  color: var(--ink3);
+  font-weight: 600;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .cta-grid { grid-template-columns: 1fr; gap: 1rem; }
 }
 
 @keyframes fadeUp {
@@ -799,8 +864,8 @@ body:not(.es) .es { display: none !important; }
              <span class="es">Hecho para Panamá · DGI 2026</span>
       </div>
       <div class="hero-trial-badge">
-        🎁 <span class="en">7-day free trial · No credit card · Sign up by WhatsApp</span>
-             <span class="es">7 días gratis · Sin tarjeta · Registro por WhatsApp</span>
+        🎁 <span class="en">Pro: 7-day free trial · No credit card · Sign up by WhatsApp</span>
+             <span class="es">Pro: 7 días gratis · Sin tarjeta · Registro por WhatsApp</span>
       </div>
       <h1>
         <span class="en">Your books,<br><span class="accent">finally closed.</span></span>
@@ -889,7 +954,7 @@ body:not(.es) .es { display: none !important; }
           <span class="track-price-num">$149</span>
           <span class="track-price-per">/mes</span>
         </div>
-        <div class="track-trial-pill">🎁 <span class="en">7-day free trial</span><span class="es">7 días gratis</span></div>
+        <div class="track-onboard-pill">📞 <span class="en">Custom onboarding · talk to sales</span><span class="es">Onboarding personalizado · contactá ventas</span></div>
 
         <span class="track-cta-btn">
           <span class="en">See BalanceClip Trade →</span><span class="es">Ver BalanceClip Trade →</span>
@@ -1053,28 +1118,57 @@ body:not(.es) .es { display: none !important; }
   <div class="cta-decor1"></div>
   <div class="cta-decor2"></div>
   <div class="cta-inner">
-    <div class="cta-trial-pill">🎁 <span class="en">7 days free · No credit card</span><span class="es">7 días gratis · Sin tarjeta</span></div>
     <h2>
-      <span class="en">Sign up in 4 minutes by WhatsApp.</span>
-      <span class="es">Registrate en 4 minutos por WhatsApp.</span>
+      <span class="en">Two products, two ways to start.</span>
+      <span class="es">Dos productos, dos caminos para empezar.</span>
     </h2>
     <p>
-      <span class="en">Our bot guides you through 5 quick questions. We set up your account in about an hour and you start sending invoices the same day — straight from WhatsApp.</span>
-      <span class="es">Nuestro bot te guía con 5 preguntas rápidas. Te configuramos la cuenta en aproximadamente 1 hora y empezás a mandar facturas el mismo día — directo desde WhatsApp.</span>
+      <span class="en">Pick the path that fits you. Pro is self-service via WhatsApp; Trade is set up with our team.</span>
+      <span class="es">Elegí el camino que te calce. Pro es self-service por WhatsApp; Trade lo configuramos junto a nuestro equipo.</span>
     </p>
-    <div class="cta-actions">
-      <a href="https://wa.me/50769812266?text=demo" target="_blank" rel="noopener" class="btn-whatsapp">
-        <span>💬</span>
-        <span class="en">Start free trial on WhatsApp</span>
-        <span class="es">Probar gratis por WhatsApp</span>
-      </a>
-      <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
-        <span class="en">…or email us</span><span class="es">…o escribinos por email</span>
-      </a>
-    </div>
-    <div class="cta-fineprint">
-      <span class="en">Setup in ~1h · Cancel anytime · Panama-based support</span>
-      <span class="es">Setup en ~1h · Cancelás cuando quieras · Soporte en Panamá</span>
+
+    <div class="cta-grid">
+      <!-- Pro: trial por WhatsApp -->
+      <div class="cta-card cta-card-pro">
+        <div class="cta-card-pill">🎁 <span class="en">Pro · 7 days free</span><span class="es">Pro · 7 días gratis</span></div>
+        <div class="cta-card-h">
+          <span class="en">Free trial by WhatsApp</span>
+          <span class="es">Prueba gratuita por WhatsApp</span>
+        </div>
+        <div class="cta-card-sub">
+          <span class="en">Our bot guides you through 5 quick questions. Your account is ready in ~1h and you start sending invoices the same day.</span>
+          <span class="es">El bot te guía con 5 preguntas rápidas. Tu cuenta queda lista en ~1h y empezás a mandar facturas el mismo día.</span>
+        </div>
+        <a href="https://wa.me/50769812266?text=demo" target="_blank" rel="noopener" class="btn-whatsapp">
+          <span>💬</span>
+          <span class="en">Start Pro trial on WhatsApp</span>
+          <span class="es">Probar Pro por WhatsApp</span>
+        </a>
+        <div class="cta-card-fine">
+          <span class="en">No credit card · Cancel anytime</span>
+          <span class="es">Sin tarjeta · Cancelás cuando quieras</span>
+        </div>
+      </div>
+
+      <!-- Trade: contacto con ventas -->
+      <div class="cta-card cta-card-trade">
+        <div class="cta-card-pill cta-card-pill-trade">📞 <span class="en">Trade · Custom onboarding</span><span class="es">Trade · Onboarding personalizado</span></div>
+        <div class="cta-card-h">
+          <span class="en">Talk to our team</span>
+          <span class="es">Hablá con nuestro equipo</span>
+        </div>
+        <div class="cta-card-sub">
+          <span class="en">Trade involves wiring purchases to sales, multi-client books and bespoke reports. We set it up with you — call, video or in person.</span>
+          <span class="es">Trade cruza compras con ventas, libros multi-cliente y reportes a medida. Lo configuramos con vos — llamada, video o presencial.</span>
+        </div>
+        <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
+          <span class="en">✉️ Email sales</span><span class="es">✉️ Escribir a ventas</span>
+        </a>
+        <div class="cta-card-fine">
+          <span class="en">From $149/mo · Panama-based support</span>
+          <span class="es">Desde $149/mes · Soporte en Panamá</span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
