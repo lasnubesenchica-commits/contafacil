@@ -34,6 +34,13 @@
       "scriptId": "1_RBhKdMeKPyjyfxK6eNV3Mjgl895-RPrDQAuzxtdwV9HceSepCDU9MFf",
       "gasDir": "backend-gas",
       "deploymentId": "AKfycbyfmUwqG67T8RxTpUxYUsmTo3esmd-esS0Kv3kbXgZ69e4lHbs93N28yceLZtOsUkjnGA"
+    },
+    {
+      "id": "panaderia-aurorita",
+      "nombre": "Panadería Aurorita",
+      "scriptId": "1aWq3LbW3ZZqFQenxb5FsmHvZJV_VQfzqBtjhErKqUIAU0bADklYMu66C",
+      "gasDir": "backend-gas",
+      "deploymentId": "AKfycbxme_w3mmjZpauHG4-taT_BtK4A4-zUjaQCmto4sKa72-kd65UFYev7f2DeEIXF-Ah5og"
     }
   ]
 }
