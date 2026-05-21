@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <!-- v2: Monograma "BC" en gradiente naranja — más corporativo -->
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="640" fill="url(#bg2)"/>
+
+  <!-- Monograma "BC" centrado, tipografía heavy + un pequeño paperclip arriba -->
+  <text x="320" y="380"
+        font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+        font-size="280"
+        font-weight="900"
+        text-anchor="middle"
+        fill="#fff"
+        letter-spacing="-8">BC</text>
+
+  <!-- Mini paperclip flotando arriba -->
+  <g transform="translate(320 150) rotate(-12)" stroke="#fff" fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M -18 -45
+             C -18 -53, -12 -60, -3 -60
+             C 6 -60, 12 -53, 12 -45
+             L 12 50
+             C 12 62, 2 72, -10 72
+             C -22 72, -32 62, -32 50
+             L -32 -28
+             C -32 -34, -27 -39, -21 -39
+             C -15 -39, -10 -34, -10 -28
+             L -10 45
+             C -10 49, -7 52, -3 52
+             C 1 52, 4 49, 4 45
+             L 4 -36"/>
+  </g>
+</svg>
