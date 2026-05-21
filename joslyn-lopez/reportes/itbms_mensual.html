@@ -1,0 +1,792 @@
+<!-- ═══════════════════════════════════════════════
+     MÓDULO: Declaración ITBMS Mensual
+     Prefijo: itb-  |  IIFE independiente
+     Fuentes: ingItems (Ingresos) + egrItems (Egresos)
+     Secciones:
+       1. KPIs del mes — cobrado / pagado / crédito fiscal / neto
+       2. Detalle facturas emitidas (ITBMS cobrado)
+       3. Detalle facturas recibidas (ITBMS pagado)
+       4. Crédito fiscal (importaciones)
+       5. Resumen anual mes a mes
+════════════════════════════════════════════════ -->
+<style>
+/* ── Print reset ────────────────────────────────── */
+@media print {
+  .itb-controls, .itb-print-btn, .itb-no-print { display: none !important; }
+  .itb-wrap { background: #fff !important; }
+  .itb-section { break-inside: avoid; }
+  .itb-kpi-row { break-inside: avoid; }
+}
+
+/* ── Base ───────────────────────────────────────── */
+.itb-wrap {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg, #f5f5f5);
+  min-height: calc(100vh - 60px);
+  color: var(--text, #1a2535);
+}
+
+/* ── Controls ───────────────────────────────────── */
+.itb-controls {
+  display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+  padding: 1rem 2rem; border-bottom: 1px solid var(--border, #e2e8f0);
+  background: var(--white, #fff);
+}
+.itb-ctrl-label {
+  font-family: 'DM Mono', monospace; font-size: .62rem;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted, #94a3b8);
+}
+.itb-ctrl-select {
+  font-family: 'DM Mono', monospace; font-size: .8rem; font-weight: 600;
+  background: var(--bg, #f5f5f5); border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px; padding: .35rem .65rem; color: var(--text, #1a2535);
+  outline: none; cursor: pointer;
+}
+.itb-print-btn {
+  margin-left: auto; display: flex; align-items: center; gap: .4rem;
+  padding: .38rem 1rem; border-radius: 6px; border: 1.5px solid var(--border, #e2e8f0);
+  background: var(--white, #fff); font-size: .8rem; font-weight: 600;
+  cursor: pointer; color: var(--text, #1a2535); transition: all .15s;
+}
+.itb-print-btn:hover { border-color: #1565C0; color: #1565C0; }
+
+/* ── KPI row ────────────────────────────────────── */
+.itb-kpi-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem; padding: 1.25rem 2rem;
+  background: var(--white, #fff); border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.itb-kpi {
+  background: var(--bg, #f5f5f5); border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px; padding: 1rem 1.25rem; position: relative; overflow: hidden;
+}
+.itb-kpi::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.itb-kpi.cobrado::before  { background: #1565C0; }
+.itb-kpi.pagado::before   { background: #6A1B9A; }
+.itb-kpi.credito::before  { background: #00695C; }
+.itb-kpi.pagar::before    { background: #E65100; }
+.itb-kpi.favor::before    { background: #2E7D32; }
+.itb-kpi-label { font-size: .68rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #64748b); margin-bottom: .35rem; }
+.itb-kpi-value { font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; line-height: 1; }
+.itb-kpi-value.blue   { color: #1565C0; }
+.itb-kpi-value.purple { color: #6A1B9A; }
+.itb-kpi-value.teal   { color: #00695C; }
+.itb-kpi-value.orange { color: #E65100; }
+.itb-kpi-value.green  { color: #2E7D32; }
+.itb-kpi-sub { font-size: .7rem; color: var(--muted, #94a3b8); margin-top: .2rem; }
+
+/* ── Posición fiscal banner ─────────────────────── */
+.itb-fiscal-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 2rem; flex-wrap: wrap; gap: .5rem;
+}
+.itb-fiscal-banner.pagar { background: #FFF3E0; border-bottom: 1px solid #FFE0B2; }
+.itb-fiscal-banner.favor { background: #F1F8E9; border-bottom: 1px solid #DCEDC8; }
+.itb-fiscal-label { font-size: .82rem; font-weight: 700; }
+.itb-fiscal-banner.pagar .itb-fiscal-label { color: #E65100; }
+.itb-fiscal-banner.favor .itb-fiscal-label { color: #2E7D32; }
+.itb-fiscal-amount {
+  font-family: 'Bebas Neue', sans-serif; font-size: 2rem; line-height: 1;
+}
+.itb-fiscal-banner.pagar .itb-fiscal-amount { color: #E65100; }
+.itb-fiscal-banner.favor .itb-fiscal-amount { color: #2E7D32; }
+.itb-fiscal-note { font-size: .72rem; color: var(--muted, #64748b); }
+
+/* ── Sections ───────────────────────────────────── */
+.itb-section { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border, #e2e8f0); }
+.itb-section-header {
+  display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem;
+}
+.itb-section-icon {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; font-size: .85rem; flex-shrink: 0;
+}
+.itb-section-icon.cobrado { background: #E3F2FD; }
+.itb-section-icon.pagado  { background: #F3E5F5; }
+.itb-section-icon.credito { background: #E8F5E9; }
+.itb-section-icon.anual   { background: #FFF3E0; }
+.itb-section-title {
+  font-family: 'DM Mono', monospace; font-size: .65rem;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted, #64748b); font-weight: 600;
+}
+.itb-section-total {
+  margin-left: auto; font-family: 'DM Mono', monospace;
+  font-size: .82rem; font-weight: 700;
+}
+
+/* ── Tables ─────────────────────────────────────── */
+.itb-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border, #e2e8f0); }
+.itb-table { width: 100%; border-collapse: collapse; font-size: .81rem; min-width: 580px; }
+.itb-table thead tr { background: var(--bg, #f8fafc); }
+.itb-table th {
+  font-family: 'DM Mono', monospace; font-size: .63rem; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted, #64748b); font-weight: 600;
+  padding: .55rem .9rem; border-bottom: 1px solid var(--border, #e2e8f0);
+  text-align: left; white-space: nowrap;
+}
+.itb-table th.num { text-align: right; }
+.itb-table td {
+  padding: .6rem .9rem; border-bottom: 1px solid var(--bg, #f1f5f9);
+  color: var(--text, #334155); vertical-align: middle;
+}
+.itb-table tbody tr:last-child td { border-bottom: none; }
+.itb-table tbody tr:hover td { background: var(--bg, #f8fafc); }
+.itb-table td.num {
+  text-align: right; font-variant-numeric: tabular-nums;
+  font-family: 'DM Mono', monospace; font-weight: 600;
+}
+.itb-table tfoot td {
+  padding: .6rem .9rem; font-weight: 700; font-size: .82rem;
+  border-top: 2px solid var(--border, #e2e8f0);
+  text-align: right; font-variant-numeric: tabular-nums;
+  font-family: 'DM Mono', monospace;
+}
+.itb-table tfoot td:first-child { text-align: left; }
+.itb-empty {
+  text-align: center; padding: 2rem; color: var(--muted, #94a3b8);
+  font-size: .82rem;
+}
+
+/* ── Tipo badge ─────────────────────────────────── */
+.itb-badge {
+  display: inline-block; padding: .15rem .5rem; border-radius: 4px;
+  font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+}
+.itb-badge.gravado  { background: #E3F2FD; color: #1565C0; }
+.itb-badge.exento   { background: #F5F5F5; color: #555; }
+.itb-badge.credito  { background: #E8F5E9; color: #2E7D32; }
+.itb-badge.impuesto { background: #FFF8E1; color: #F57F17; }
+.itb-badge.proy     { background: #F3E5F5; color: #6A1B9A; }
+.itb-badge.com      { background: #E3F2FD; color: #1565C0; }
+
+/* ── Resumen anual ──────────────────────────────── */
+.itb-anual-table { width: 100%; border-collapse: collapse; font-size: .81rem; min-width: 620px; }
+.itb-anual-table th {
+  font-family: 'DM Mono', monospace; font-size: .62rem; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted, #64748b); font-weight: 600;
+  padding: .55rem .75rem; border-bottom: 2px solid var(--border, #e2e8f0);
+  text-align: right; white-space: nowrap;
+}
+.itb-anual-table th:first-child { text-align: left; }
+.itb-anual-table td {
+  padding: .55rem .75rem; border-bottom: 1px solid var(--bg, #f1f5f9);
+  font-variant-numeric: tabular-nums; text-align: right;
+  font-family: 'DM Mono', monospace; font-size: .78rem;
+}
+.itb-anual-table td:first-child {
+  text-align: left; font-family: 'DM Sans', sans-serif;
+  font-weight: 600; font-size: .83rem;
+}
+.itb-anual-table tbody tr:hover td { background: var(--bg, #f8fafc); }
+.itb-anual-table tfoot td {
+  padding: .6rem .75rem; font-weight: 700;
+  border-top: 2px solid var(--border, #e2e8f0);
+  text-align: right; font-family: 'DM Mono', monospace; font-size: .8rem;
+}
+.itb-anual-table tfoot td:first-child { text-align: left; }
+.itb-mes-link {
+  cursor: pointer; color: inherit; text-decoration: none;
+}
+.itb-mes-link:hover { color: #1565C0; text-decoration: underline; }
+.itb-neto-pos { color: #E65100; font-weight: 700; }
+.itb-neto-neg { color: #2E7D32; font-weight: 700; }
+.itb-neto-cero { color: var(--muted, #94a3b8); }
+</style>
+
+<!-- ════════════ HTML ════════════ -->
+<div class="itb-wrap">
+
+  <!-- CONTROLS -->
+  <div class="itb-controls itb-no-print">
+    <span class="itb-ctrl-label">Período</span>
+    <select class="itb-ctrl-select" id="itbSelMes" onchange="itbApply()"></select>
+    <select class="itb-ctrl-select" id="itbSelAnio" onchange="itbRebuildMonths()"></select>
+    <button class="itb-print-btn" onclick="itbPrint()">🖨️ Imprimir / PDF</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="itb-kpi-row" id="itbKpiRow">
+    <div class="itb-kpi cobrado"><div class="itb-kpi-label">Cargando...</div></div>
+  </div>
+
+  <!-- POSICIÓN FISCAL -->
+  <div id="itbFiscalBanner"></div>
+
+  <!-- FACTURAS EMITIDAS (ITBMS cobrado) -->
+  <div class="itb-section">
+    <div class="itb-section-header">
+      <div class="itb-section-icon cobrado">📤</div>
+      <span class="itb-section-title">Facturas emitidas — ITBMS cobrado</span>
+      <span class="itb-section-total" id="itbTotalCobrado" style="color:#1565C0"></span>
+    </div>
+    <div class="itb-table-wrap">
+      <table class="itb-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>N° Factura</th>
+            <th>Cliente</th>
+            <th>RUC</th>
+            <th>Tipo</th>
+            <th>Origen</th>
+            <th class="num">Subtotal</th>
+            <th class="num">ITBMS</th>
+            <th class="num">Total</th>
+          </tr>
+        </thead>
+        <tbody id="itbTbodyEmitidas"></tbody>
+        <tfoot id="itbTfootEmitidas"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- FACTURAS RECIBIDAS (ITBMS pagado) -->
+  <div class="itb-section">
+    <div class="itb-section-header">
+      <div class="itb-section-icon pagado">📥</div>
+      <span class="itb-section-title">Facturas recibidas — ITBMS pagado a proveedores</span>
+      <span class="itb-section-total" id="itbTotalPagado" style="color:#6A1B9A"></span>
+    </div>
+    <div class="itb-table-wrap">
+      <table class="itb-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>N° Factura</th>
+            <th>Proveedor</th>
+            <th>RUC</th>
+            <th>Tipo egreso</th>
+            <th>Origen</th>
+            <th class="num">Subtotal</th>
+            <th class="num">ITBMS</th>
+            <th class="num">Total</th>
+          </tr>
+        </thead>
+        <tbody id="itbTbodyRecibidas"></tbody>
+        <tfoot id="itbTfootRecibidas"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- CRÉDITO FISCAL -->
+  <div class="itb-section">
+    <div class="itb-section-header">
+      <div class="itb-section-icon credito">🏛️</div>
+      <span class="itb-section-title">Crédito fiscal — ITBMS en importaciones</span>
+      <span class="itb-section-total" id="itbTotalCredito" style="color:#00695C"></span>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem;padding:.5rem .75rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+      ℹ️ El crédito fiscal es el ITBMS pagado en importaciones que se aplica como crédito contra el ITBMS cobrado — reduce el neto a declarar a DGI.
+    </div>
+    <div class="itb-table-wrap">
+      <table class="itb-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>N° Factura</th>
+            <th>Proveedor / Aduana</th>
+            <th>Descripción</th>
+            <th>Origen</th>
+            <th class="num">Monto crédito</th>
+          </tr>
+        </thead>
+        <tbody id="itbTbodyCredito"></tbody>
+        <tfoot id="itbTfootCredito"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- RESUMEN ANUAL -->
+  <div class="itb-section" style="border-bottom:none">
+    <div class="itb-section-header">
+      <div class="itb-section-icon anual">📅</div>
+      <span class="itb-section-title" id="itbAnualTitle">Resumen anual — todos los meses</span>
+    </div>
+    <div class="itb-table-wrap">
+      <table class="itb-anual-table">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="num">ITBMS cobrado</th>
+            <th class="num">ITBMS pagado</th>
+            <th class="num">Crédito fiscal</th>
+            <th class="num">Neto a DGI</th>
+            <th class="num">Posición</th>
+          </tr>
+        </thead>
+        <tbody id="itbAnualBody"></tbody>
+        <tfoot id="itbAnualFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════ JS ════════════ -->
+<script>
+(function() {
+
+// ── Estado ───────────────────────────────────────
+let itb_ing = [];
+let itb_egr = [];
+let itb_year = new Date().getFullYear();
+let itb_mes  = new Date().getMonth() + 1;
+
+const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
+               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MESES_C = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+// Helpers — extraer año/mes desde fecha cuando los campos explícitos faltan
+// (alinea con la lógica del P&L para que los totales coincidan)
+function _itbAnio(e) {
+  const direct = Number(e.anio || e.anio_fiscal);
+  if (direct) return direct;
+  const m = String(e.fecha_egreso || e.fecha_ingreso || '').match(/^(\d{4})/);
+  return m ? Number(m[1]) : 0;
+}
+function _itbMes(e) {
+  const direct = Number(e.mes);
+  if (direct) return direct;
+  const m = String(e.fecha_egreso || e.fecha_ingreso || '').match(/^\d{4}-(\d{2})/);
+  return m ? Number(m[1]) : 0;
+}
+
+// ── GAS_URL ──────────────────────────────────────
+const GAS_URL = (typeof window.GAS_URL !== 'undefined' && window.GAS_URL)
+             || 'https://script.google.com/macros/s/AKfycbyqdFIXT3D2R9TtKffI2L0xcFB1kLGJY6Lz7MvxFtg_gk6xx86LjsTAJU-h5nn1XWJX/exec';
+
+// ── JSONP helper ─────────────────────────────────
+function itbJsonp(action) {
+  return new Promise((resolve, reject) => {
+    const cb = 'itbCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let done = false;
+    const t = setTimeout(() => {
+      if (!done) { done=true; cleanup(); reject(new Error('Timeout: ' + action)); }
+    }, 30000);
+    window[cb] = d => { if (!done) { done=true; clearTimeout(t); cleanup(); resolve(d); } };
+    script.onerror = () => { if (!done) { done=true; clearTimeout(t); cleanup(); reject(new Error('Error red: ' + action)); } };
+    script.src = GAS_URL + '?action=' + action + '&callback=' + cb;
+    function cleanup() { delete window[cb]; if (script.parentNode) script.parentNode.removeChild(script); }
+    document.head.appendChild(script);
+  });
+}
+
+// ── LOAD ─────────────────────────────────────────
+async function itbLoad() {
+  try {
+    const [ingRes, egrRes] = await Promise.all([
+      (typeof ingItems !== 'undefined' && ingItems.length)
+        ? Promise.resolve({ success: true, items: ingItems })
+        : itbJsonp('getIngresos'),
+      (typeof egrItems !== 'undefined' && egrItems.length)
+        ? Promise.resolve({ success: true, items: egrItems })
+        : itbJsonp('getEgresos'),
+    ]);
+
+    if (!ingRes.success) throw new Error(ingRes.error || 'Error getIngresos');
+    if (!egrRes.success) throw new Error(egrRes.error || 'Error getEgresos');
+
+    // Solo ingresos confirmados/abono/pendiente — excluir anulados
+    itb_ing = (ingRes.items || []).filter(i => {
+      const est = String(i.estado || '').toLowerCase();
+      return est === 'confirmado' || est === 'abono' || est === 'pendiente';
+    });
+    // Excluir egresos anulados y gastos personales (no deducibles)
+    itb_egr = (egrRes.items || []).filter(e =>
+      String(e.estado || '').toLowerCase() !== 'anulado' &&
+      (e.alcance || 'negocio') !== 'personal'
+    );
+
+    itbPopulateYears();
+    itbRebuildMonths();
+  } catch(err) {
+    document.getElementById('itbKpiRow').innerHTML =
+      `<div class="itb-kpi" style="grid-column:1/-1">
+        <div class="itb-kpi-label" style="color:var(--red,#C62828)">Error cargando datos</div>
+        <div style="font-size:.82rem;margin:.5rem 0">${itbEsc(err.message)}</div>
+        <button onclick="itbLoad()" style="padding:.4rem 1rem;background:#E65100;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82rem">Reintentar</button>
+      </div>`;
+  }
+}
+
+// ── Selectores ───────────────────────────────────
+function itbPopulateYears() {
+  const years = new Set();
+  itb_ing.forEach(i => { const y = _itbAnio(i); if (y) years.add(y); });
+  itb_egr.forEach(e => { const y = _itbAnio(e); if (y) years.add(y); });
+  if (!years.size) years.add(new Date().getFullYear());
+
+  const sel = document.getElementById('itbSelAnio');
+  sel.innerHTML = [...years].sort((a,b)=>b-a)
+    .map(y => `<option value="${y}" ${y===itb_year?'selected':''}>${y}</option>`).join('');
+  itb_year = Number(sel.value);
+}
+
+function itbRebuildMonths() {
+  itb_year = Number(document.getElementById('itbSelAnio').value);
+
+  // Detectar qué meses tienen data ese año
+  const mesesConData = new Set();
+  itb_ing.filter(i => _itbAnio(i) === itb_year).forEach(i => { const m = _itbMes(i); if (m) mesesConData.add(m); });
+  itb_egr.filter(e => _itbAnio(e) === itb_year).forEach(e => { const m = _itbMes(e); if (m) mesesConData.add(m); });
+
+  const sel = document.getElementById('itbSelMes');
+  sel.innerHTML = Array.from({length:12}, (_,i) => i+1).map(m => {
+    const hasData = mesesConData.has(m);
+    return `<option value="${m}" ${m===itb_mes?'selected':''} ${hasData?'':'style="color:#94a3b8"'}>
+      ${MESES[m]}${hasData ? '' : ' —'}
+    </option>`;
+  }).join('');
+
+  // Si el mes actual no tiene data, ir al último con data
+  if (!mesesConData.has(itb_mes) && mesesConData.size) {
+    itb_mes = Math.max(...mesesConData);
+    sel.value = itb_mes;
+  }
+  itbApply();
+}
+
+// ── APPLY ────────────────────────────────────────
+function itbApply() {
+  itb_mes  = Number(document.getElementById('itbSelMes').value);
+  itb_year = Number(document.getElementById('itbSelAnio').value);
+
+  // Filtrar por mes y año
+  const ing = itb_ing.filter(i =>
+    _itbAnio(i) === itb_year && _itbMes(i) === itb_mes
+  );
+  const egrTodos = itb_egr.filter(e =>
+    _itbAnio(e) === itb_year && _itbMes(e) === itb_mes
+  );
+
+  // Split egresos: pagado normal vs crédito fiscal
+  const egrPagado  = egrTodos.filter(e => e.tipo_egreso !== 'credito_fiscal' && Number(e.itbms || 0) > 0);
+  const egrCredito = egrTodos.filter(e => e.tipo_egreso === 'credito_fiscal');
+
+  // Totales
+  const totalCobrado = ing.reduce((s,i)       => s + Number(i.itbms || 0), 0);
+  const totalPagado  = egrPagado.reduce((s,e)  => s + Number(e.itbms || 0), 0);
+  const totalCredito = egrCredito.reduce((s,e) => s + Number(e.itbms || e.total || 0), 0);
+  const neto         = totalCobrado - totalPagado - totalCredito;
+
+  itbRenderKpis(totalCobrado, totalPagado, totalCredito, neto, ing.length, egrPagado.length);
+  itbRenderFiscalBanner(neto);
+  itbRenderEmitidas(ing, totalCobrado);
+  itbRenderRecibidas(egrPagado, totalPagado);
+  itbRenderCredito(egrCredito, totalCredito);
+  itbRenderAnual();
+
+  document.getElementById('itbAnualTitle').textContent =
+    `Resumen anual ${itb_year} — todos los meses`;
+}
+window.itbApply = itbApply;
+
+// ── KPIs ─────────────────────────────────────────
+function itbRenderKpis(cobrado, pagado, credito, neto, nIng, nEgr) {
+  const netoAbs = Math.abs(neto);
+  document.getElementById('itbKpiRow').innerHTML = `
+    <div class="itb-kpi cobrado">
+      <div class="itb-kpi-label">ITBMS cobrado</div>
+      <div class="itb-kpi-value blue">${fmt(cobrado)}</div>
+      <div class="itb-kpi-sub">${nIng} factura${nIng!==1?'s':''} emitida${nIng!==1?'s':''}</div>
+    </div>
+    <div class="itb-kpi pagado">
+      <div class="itb-kpi-label">ITBMS pagado</div>
+      <div class="itb-kpi-value purple">${fmt(pagado)}</div>
+      <div class="itb-kpi-sub">${nEgr} factura${nEgr!==1?'s':''} recibida${nEgr!==1?'s':''}</div>
+    </div>
+    <div class="itb-kpi credito">
+      <div class="itb-kpi-label">Crédito fiscal</div>
+      <div class="itb-kpi-value teal">${fmt(credito)}</div>
+      <div class="itb-kpi-sub">ITBMS importaciones</div>
+    </div>
+    <div class="itb-kpi ${neto>=0?'pagar':'favor'}">
+      <div class="itb-kpi-label">${neto>=0?'Neto a pagar DGI':'Saldo a favor'}</div>
+      <div class="itb-kpi-value ${neto>=0?'orange':'green'}">${fmt(netoAbs)}</div>
+      <div class="itb-kpi-sub">${neto>=0?'Cobrado − Pagado − Crédito':'El crédito supera el cobrado'}</div>
+    </div>
+  `;
+}
+
+// ── Banner fiscal ─────────────────────────────────
+function itbRenderFiscalBanner(neto) {
+  const aPagar = neto >= 0;
+  const mesLabel = `${MESES[itb_mes]} ${itb_year}`;
+  document.getElementById('itbFiscalBanner').innerHTML = `
+    <div class="itb-fiscal-banner ${aPagar?'pagar':'favor'}">
+      <div>
+        <div class="itb-fiscal-label">${aPagar ? '⚠️ A pagar a DGI' : '✅ Saldo a favor'} — ${mesLabel}</div>
+        <div class="itb-fiscal-note">${aPagar
+          ? 'Este monto debe declararse y pagarse en la próxima declaración mensual de ITBMS.'
+          : 'El crédito acumulado supera el ITBMS cobrado. Este saldo puede arrastrarse al siguiente período.'
+        }</div>
+      </div>
+      <div class="itb-fiscal-amount">${fmt(Math.abs(neto))}</div>
+    </div>
+  `;
+}
+
+// ── Tabla facturas emitidas ───────────────────────
+function itbRenderEmitidas(ing, total) {
+  const tbody = document.getElementById('itbTbodyEmitidas');
+  const tfoot = document.getElementById('itbTfootEmitidas');
+  document.getElementById('itbTotalCobrado').textContent = fmt(total);
+
+  if (!ing.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="itb-empty">Sin facturas emitidas en ${MESES[itb_mes]} ${itb_year}</td></tr>`;
+    tfoot.innerHTML = '';
+    return;
+  }
+
+  // Solo mostrar facturas con ITBMS > 0 y exentas por separado
+  const conITBMS = ing.filter(i => Number(i.itbms || 0) > 0);
+  const exentas  = ing.filter(i => Number(i.itbms || 0) === 0);
+
+  let rows = '';
+  [...conITBMS, ...exentas].forEach(i => {
+    const tieneITBMS = Number(i.itbms || 0) > 0;
+    const esST = itbEsSTIngreso(i);
+    const tipoBadge = tieneITBMS
+      ? '<span class="itb-badge gravado">Gravado</span>'
+      : '<span class="itb-badge exento">Exento</span>';
+    const origenBadge = esST
+      ? '<span class="itb-badge proy">PROY</span>'
+      : '<span class="itb-badge com">COM</span>';
+    rows += `<tr>
+      <td style="font-size:.78rem;color:var(--muted)">${i.fecha_ingreso || '—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:.8rem;font-weight:600">${itbEsc(i.num_factura||'—')}</span></td>
+      <td>
+        <div style="font-weight:500">${itbEsc((i.nombre_cliente||'—').substring(0,30))}</div>
+      </td>
+      <td style="font-size:.72rem;color:var(--muted)">${itbEsc(i.ruc_cliente||'—')}</td>
+      <td>${tipoBadge}</td>
+      <td>${origenBadge}</td>
+      <td class="num" style="color:var(--muted)">${fmt(i.subtotal||0)}</td>
+      <td class="num" style="color:#1565C0;font-weight:700">${tieneITBMS ? fmt(i.itbms) : '—'}</td>
+      <td class="num">${fmt(i.total||0)}</td>
+    </tr>`;
+  });
+
+  const totSub   = ing.reduce((s,i) => s + Number(i.subtotal||0), 0);
+  const totITBMS = ing.reduce((s,i) => s + Number(i.itbms||0), 0);
+  const totTotal = ing.reduce((s,i) => s + Number(i.total||0), 0);
+
+  // Segregación gravado / exento
+  const gravadas = ing.filter(i => Number(i.itbms||0) > 0);
+  const exentasl = ing.filter(i => Number(i.itbms||0) === 0);
+  const subGrav  = gravadas.reduce((s,i) => s + Number(i.subtotal||0), 0);
+  const itbGrav  = gravadas.reduce((s,i) => s + Number(i.itbms||0), 0);
+  const totGrav  = gravadas.reduce((s,i) => s + Number(i.total||0), 0);
+  const subExen  = exentasl.reduce((s,i) => s + Number(i.subtotal||0), 0);
+  const totExen  = exentasl.reduce((s,i) => s + Number(i.total||0), 0);
+
+  tbody.innerHTML = rows;
+  tfoot.innerHTML = `
+  <tr style="background:#f8fafc;font-size:.72rem;color:#64748b;border-top:1px solid #e2e8f0">
+    <td colspan="6" style="padding:6px 10px;letter-spacing:.03em">
+      <span class="itb-badge gravado" style="font-size:.65rem">Gravado</span>
+      ${gravadas.length} factura${gravadas.length!==1?'s':''}
+    </td>
+    <td class="num" style="color:#475569">${fmt(subGrav)}</td>
+    <td class="num" style="color:#1565C0;font-weight:700">${fmt(itbGrav)}</td>
+    <td class="num" style="color:#475569">${fmt(totGrav)}</td>
+  </tr>
+  ${exentasl.length ? `<tr style="background:#f8fafc;font-size:.72rem;color:#64748b;border-top:1px dashed #e2e8f0">
+    <td colspan="6" style="padding:6px 10px;letter-spacing:.03em">
+      <span class="itb-badge exento" style="font-size:.65rem">Exento</span>
+      ${exentasl.length} factura${exentasl.length!==1?'s':''}
+    </td>
+    <td class="num" style="color:#475569">${fmt(subExen)}</td>
+    <td class="num" style="color:#94a3b8">—</td>
+    <td class="num" style="color:#475569">${fmt(totExen)}</td>
+  </tr>` : ''}
+  <tr style="border-top:2px solid #cbd5e1">
+    <td colspan="6" style="font-weight:700">Total — ${ing.length} factura${ing.length!==1?'s':''}</td>
+    <td class="num" style="font-weight:700">${fmt(totSub)}</td>
+    <td class="num" style="color:#1565C0;font-weight:800">${fmt(totITBMS)}</td>
+    <td class="num" style="font-weight:700">${fmt(totTotal)}</td>
+  </tr>`;
+}
+
+// ── Tabla facturas recibidas ──────────────────────
+function itbRenderRecibidas(egr, total) {
+  const tbody = document.getElementById('itbTbodyRecibidas');
+  const tfoot = document.getElementById('itbTfootRecibidas');
+  document.getElementById('itbTotalPagado').textContent = fmt(total);
+
+  if (!egr.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="itb-empty">Sin facturas recibidas con ITBMS en ${MESES[itb_mes]} ${itb_year}</td></tr>`;
+    tfoot.innerHTML = '';
+    return;
+  }
+
+  const EGR_LABELS = {
+    costo_mercancia: 'Costo mercancía', costo_operativo: 'Operativo',
+    costo_servicio_tecnico: 'Costo ST', impuesto_importacion: 'Imp. importación',
+    nomina: 'Nómina', servicios: 'Servicios', combustible_transporte: 'Combustible',
+    honorarios_profesionales: 'Honorarios', mantenimiento_reparacion: 'Mantenimiento',
+    otros_deducibles: 'Otros',
+    sin_clasificar: 'Sin clasificar',
+  };
+
+  let rows = '';
+  egr.forEach(e => {
+    const esST = !!e.id_st_item || String(e.notas||'').includes('ST:');
+    const origenBadge = esST
+      ? '<span class="itb-badge proy">PROY</span>'
+      : '<span class="itb-badge com">COM</span>';
+    const tipoLabel = EGR_LABELS[e.tipo_egreso] || e.tipo_egreso || 'Sin clasificar';
+    rows += `<tr>
+      <td style="font-size:.78rem;color:var(--muted)">${e.fecha_egreso || '—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:.78rem">${itbEsc(e.num_fac_ref||'—')}</span></td>
+      <td><div style="font-weight:500">${itbEsc((e.proveedor||'—').substring(0,30))}</div></td>
+      <td style="font-size:.72rem;color:var(--muted)">${itbEsc(e.ruc_prov||'—')}</td>
+      <td><span style="font-size:.72rem;color:var(--muted)">${itbEsc(tipoLabel)}</span></td>
+      <td>${origenBadge}</td>
+      <td class="num" style="color:var(--muted)">${fmt(e.subtotal||0)}</td>
+      <td class="num" style="color:#6A1B9A;font-weight:700">${fmt(e.itbms||0)}</td>
+      <td class="num">${fmt(e.total||0)}</td>
+    </tr>`;
+  });
+
+  const totSub   = egr.reduce((s,e) => s + Number(e.subtotal||0), 0);
+  const totITBMS = egr.reduce((s,e) => s + Number(e.itbms||0), 0);
+  const totTotal = egr.reduce((s,e) => s + Number(e.total||0), 0);
+
+  tbody.innerHTML = rows;
+  tfoot.innerHTML = `<tr>
+    <td colspan="6">Total — ${egr.length} factura${egr.length!==1?'s':''}</td>
+    <td>${fmt(totSub)}</td>
+    <td style="color:#6A1B9A">${fmt(totITBMS)}</td>
+    <td>${fmt(totTotal)}</td>
+  </tr>`;
+}
+
+// ── Tabla crédito fiscal ──────────────────────────
+function itbRenderCredito(egr, total) {
+  const tbody = document.getElementById('itbTbodyCredito');
+  const tfoot = document.getElementById('itbTfootCredito');
+  document.getElementById('itbTotalCredito').textContent = fmt(total);
+
+  if (!egr.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="itb-empty">Sin créditos fiscales en ${MESES[itb_mes]} ${itb_year}</td></tr>`;
+    tfoot.innerHTML = '';
+    return;
+  }
+
+  let rows = '';
+  egr.forEach(e => {
+    const esST = !!e.id_st_item || String(e.notas||'').includes('ST:');
+    const origenBadge = esST
+      ? '<span class="itb-badge proy">PROY</span>'
+      : '<span class="itb-badge com">COM</span>';
+    rows += `<tr>
+      <td style="font-size:.78rem;color:var(--muted)">${e.fecha_egreso || '—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:.78rem">${itbEsc(e.num_fac_ref||'—')}</span></td>
+      <td><div style="font-weight:500">${itbEsc((e.proveedor||'—').substring(0,35))}</div></td>
+      <td style="font-size:.78rem;color:var(--muted)">${itbEsc((e.descripcion||'—').substring(0,50))}</td>
+      <td>${origenBadge}</td>
+      <td class="num" style="color:#00695C;font-weight:700">${fmt(e.total||0)}</td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = rows;
+  tfoot.innerHTML = `<tr>
+    <td colspan="5">Total crédito fiscal — ${egr.length} registro${egr.length!==1?'s':''}</td>
+    <td style="color:#00695C">${fmt(total)}</td>
+  </tr>`;
+}
+
+// ── Resumen anual ─────────────────────────────────
+function itbRenderAnual() {
+  const tbody = document.getElementById('itbAnualBody');
+  const tfoot = document.getElementById('itbAnualFoot');
+
+  let totCobrado = 0, totPagado = 0, totCredito = 0;
+
+  const rows = Array.from({length:12}, (_,i) => i+1).map(m => {
+    const ing = itb_ing.filter(i => _itbAnio(i)===itb_year && _itbMes(i)===m);
+    const egr = itb_egr.filter(e => _itbAnio(e)===itb_year && _itbMes(e)===m);
+
+    const cobrado = ing.reduce((s,i) => s+Number(i.itbms||0), 0);
+    const pagado  = egr.filter(e=>e.tipo_egreso!=='credito_fiscal').reduce((s,e)=>s+Number(e.itbms||0),0);
+    const credito = egr.filter(e=>e.tipo_egreso==='credito_fiscal').reduce((s,e)=>s+Number(e.itbms||e.total||0),0);
+    const neto    = cobrado - pagado - credito;
+    const hasData = cobrado > 0 || pagado > 0 || credito > 0;
+
+    totCobrado += cobrado; totPagado += pagado; totCredito += credito;
+
+    const isActive = m === itb_mes;
+    const netoClass = neto > 0 ? 'itb-neto-pos' : neto < 0 ? 'itb-neto-neg' : 'itb-neto-cero';
+    const posLabel  = neto > 0 ? '▲ Pagar' : neto < 0 ? '▼ Favor' : '—';
+    const rowStyle  = isActive ? 'background:rgba(21,101,192,.06);' : !hasData ? 'opacity:.4;' : '';
+
+    return `<tr style="${rowStyle}">
+      <td>
+        <a class="itb-mes-link" onclick="itbGoMes(${m})">${MESES_C[m]}${isActive?' ◀':''}</a>
+      </td>
+      <td>${hasData ? fmt(cobrado) : '—'}</td>
+      <td>${hasData ? fmt(pagado)  : '—'}</td>
+      <td>${hasData ? fmt(credito) : '—'}</td>
+      <td class="${netoClass}">${hasData ? fmt(Math.abs(neto)) : '—'}</td>
+      <td style="font-size:.72rem;font-weight:600;${neto>0?'color:#E65100':neto<0?'color:#2E7D32':'color:var(--muted)'}">${hasData?posLabel:'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const totNeto = totCobrado - totPagado - totCredito;
+  const totNetoClass = totNeto > 0 ? 'itb-neto-pos' : 'itb-neto-neg';
+
+  tbody.innerHTML = rows;
+  tfoot.innerHTML = `<tr>
+    <td>Total ${itb_year}</td>
+    <td>${fmt(totCobrado)}</td>
+    <td>${fmt(totPagado)}</td>
+    <td>${fmt(totCredito)}</td>
+    <td class="${totNetoClass}">${fmt(Math.abs(totNeto))}</td>
+    <td style="font-size:.72rem;font-weight:700;${totNeto>0?'color:#E65100':'color:#2E7D32'}">${totNeto>0?'▲ Pagar':'▼ Favor'}</td>
+  </tr>`;
+}
+
+// ── Ir a mes desde resumen anual ──────────────────
+function itbGoMes(m) {
+  itb_mes = m;
+  document.getElementById('itbSelMes').value = m;
+  itbApply();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.itbGoMes = itbGoMes;
+
+// ── Detectar origen ST ────────────────────────────
+function itbEsSTIngreso(i) {
+  const notas = String(i.notas || '').toUpperCase();
+  return notas.includes('ST:') || String(i.tipo_ingreso||'').toLowerCase().includes('tecnico');
+}
+
+// ── Print ─────────────────────────────────────────
+function itbPrint() {
+  const mesLabel = `${MESES[itb_mes]} ${itb_year}`;
+  const oldTitle = document.title;
+  document.title = `ITBMS ${mesLabel} — CEYCO`;
+  window.print();
+  document.title = oldTitle;
+}
+window.itbPrint = itbPrint;
+
+// ── Helpers ──────────────────────────────────────
+function fmt(n) {
+  const v = parseFloat(n) || 0;
+  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function itbEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ──────────────────────────────────────────
+itbLoad();
+
+})();
+</script>
