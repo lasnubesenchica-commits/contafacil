@@ -1865,7 +1865,8 @@ function buildOutputs() {
       title: '📲 Activar al cliente en el WhatsApp Router',
       desc: 'Pegá este comando en WhatsApp (chat con el bot de BalanceClip) <strong>desde tu número admin</strong>. El router va a:<br>① agregar el cliente al <code>CLIENTS_MAP_JSON</code> · ② enviarle la bienvenida automáticamente · ③ habilitarlo para mandar facturas.' +
         (s.webAppUrl && s.waNum
-          ? '<br><br><div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--orange2);user-select:all;word-break:break-all">activar ' + (s.waNum.replace(/\D/g, '')) + ' ' + s.webAppUrl + '</div>'
+          ? '<br><br><div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--orange2);user-select:all;word-break:break-all">activar ' + normalizarTelefonoPanama(s.waNum) + ' ' + s.webAppUrl + '</div>' +
+            (String(s.waNum).replace(/\D/g, '').length === 8 ? '<div style="margin-top:6px;font-size:11px;color:var(--muted)">⚡ Se le agregó <code>507</code> al inicio porque el cliente cargó el celular sin código de país.</div>' : '')
           : '<br><br><em>Faltan datos para generar el comando — verificá que el cliente tenga WhatsApp y que el Web App esté deployado.</em>'),
       hasActivarWhatsappBtn: !!(s.webAppUrl && s.waNum),
     },
@@ -1903,8 +1904,20 @@ function buildOutputs() {
   });
 }
 
+// Normaliza un número de WhatsApp panameño:
+//  - quita todo lo que no sea dígito
+//  - si quedan exactamente 8 dígitos (cel local sin código país),
+//    prepende '507' para que coincida con el `from` que Meta entrega
+//    en el webhook
+//  - si tiene 10+ dígitos, asume que ya trae código país y lo deja
+function normalizarTelefonoPanama(raw) {
+  var digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 8) return '507' + digits;
+  return digits;
+}
+
 function copiarComandoActivar() {
-  var phone = String(STATE.waNum || '').replace(/\D/g, '');
+  var phone = normalizarTelefonoPanama(STATE.waNum);
   var cmd   = 'activar ' + phone + ' ' + STATE.webAppUrl;
   navigator.clipboard.writeText(cmd).then(function() {
     alert('Comando copiado.\n\nPegalo en tu chat con el bot de BalanceClip (desde tu número admin) y enviá. El router activa al cliente automáticamente.');
