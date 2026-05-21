@@ -970,7 +970,7 @@ function _routerFinalizarSignup(from, data, token, phoneId) {
   // Confirmar al cliente
   _routerSendText(from,
     '🎉 *¡Listo, recibimos tu solicitud!*\n\n' +
-    'Un técnico de BalanceClip te va a configurar la cuenta en las próximas *24 horas*. *Te aviso por acá apenas esté lista* y desde ese momento ya podés empezar a mandar facturas. 📤\n\n' +
+    'Un técnico de BalanceClip te va a configurar la cuenta en *la próxima hora*. *Te aviso por acá apenas esté lista* y desde ese momento ya podés empezar a mandar facturas. 📤\n\n' +
     'Gracias por probar BalanceClip 🙌',
     token, phoneId);
 
@@ -1079,6 +1079,80 @@ function _routerValidarFormatoRuc(ruc) {
   if (s.replace(/[^0-9]/g, '').length < 4) return false;
   if (s.indexOf('-') < 0) return false;
   return true;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  RECORDATORIO DE SIGNUPS PENDIENTES
+//  ─────────────────────────────────
+//  El bot le promete al cliente que la cuenta queda lista en ~1h.
+//  Si el admin no activó después de 15 min, le mandamos un nudge
+//  por WhatsApp para que no se le pase desapercibido el signup.
+//
+//  Instalación (una sola vez desde el editor del router):
+//    > Run installSignupReminderTrigger()
+//  Eso instala un trigger time-based que corre cada 5 minutos.
+//
+//  Idempotencia: una vez enviado el nudge, se marca el property
+//  con reminded_at, así no se manda dos veces. Si el admin tarda
+//  más, sigue recibiendo solo el primer reminder (no spam).
+// ════════════════════════════════════════════════════════════════════
+
+function checkPendingSignups() {
+  var props = PropertiesService.getScriptProperties();
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID');
+  var adminPhone = props.getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
+  if (!token || !phoneId) {
+    Logger.log('checkPendingSignups: faltan META credentials');
+    return;
+  }
+
+  var REMIND_AFTER_MS = 15 * 60 * 1000; // 15 min
+  var now = Date.now();
+  var allKeys = props.getKeys();
+  var pendingKeys = allKeys.filter(function(k) { return k.indexOf('signup_pending_') === 0; });
+
+  pendingKeys.forEach(function(key) {
+    var raw = props.getProperty(key);
+    if (!raw) return;
+    try {
+      var data = JSON.parse(raw);
+      if (!data || !data.ts) return;
+      if (data.reminded_at) return;  // ya avisamos antes
+      if ((now - data.ts) < REMIND_AFTER_MS) return;
+
+      var phone = data.phone || key.replace('signup_pending_', '');
+      var d = data.data || {};
+      var minutos = Math.round((now - data.ts) / 60000);
+      var msg =
+        '⏰ *Recordatorio — signup pendiente*\n\n' +
+        'Hace *' + minutos + ' min* este cliente se registró y todavía no lo activaste:\n\n' +
+        '📱 +' + phone + '\n' +
+        '🏢 ' + (d.negocio || '(sin nombre)') + '\n' +
+        '🆔 ' + (d.ruc || '(sin RUC)') + (d.dv ? ' DV ' + d.dv : '') + '\n' +
+        '📧 ' + (d.adminEmail || '(sin email)') + '\n\n' +
+        '🎯 Comando listo:\n' +
+        '`activar ' + phone + ' <deploymentUrl>`\n\n' +
+        '_(Le prometimos al cliente que su cuenta está lista en ~1h.)_';
+      _routerSendText(adminPhone, msg, token, phoneId);
+
+      // Marcar como recordado y guardar
+      data.reminded_at = now;
+      props.setProperty(key, JSON.stringify(data));
+      Logger.log('Reminder enviado para signup ' + phone + ' (esperando hace ' + minutos + ' min)');
+    } catch(err) {
+      Logger.log('checkPendingSignups error en key ' + key + ': ' + err.message);
+    }
+  });
+}
+
+function installSignupReminderTrigger() {
+  // Borrar triggers viejos del mismo handler para evitar duplicados.
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'checkPendingSignups') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('checkPendingSignups').timeBased().everyMinutes(5).create();
+  Logger.log('Trigger checkPendingSignups instalado (cada 5 min).');
 }
 
 // ════════════════════════════════════════════════════════════════════
