@@ -1239,10 +1239,11 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   // Alcance:
   //   negocio  → deducible (factura a nombre de la empresa: rucRec coincide con empresa_ruc)
   //   personal → no deducible (factura a consumidor final / a otra persona)
-  // Si la factura no trae RUC del receptor (consumidor final, "Cliente
-  // Genérico", etc.) en Panamá NO es ITBMS-acreditable ni deducible
-  // del impuesto sobre la renta del negocio. Default 'personal'.
-  var alcancePend = (rucRec && rucCli && rucRec === rucCli) ? 'negocio' : 'personal';
+  // Comparación tolerante: normaliza ambos lados quitando guiones,
+  // puntos, espacios y mayúsculas, para que "8-743-456" === "8743456"
+  // y "PE-12-3456" === "pe123456".
+  function _normRucPend(r) { return String(r || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); }
+  var alcancePend = (rucRec && rucCli && _normRucPend(rucRec) === _normRucPend(rucCli)) ? 'negocio' : 'personal';
   fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra + ' | alcance:' + alcancePend;
   fila[COL_PEND.EGRESO_ID - 1]   = '';
   fila[COL_PEND.MSG_ID - 1]      = clave || msgId || '';

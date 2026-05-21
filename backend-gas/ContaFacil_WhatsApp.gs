@@ -340,6 +340,15 @@ function _whatsappClasificarYExtraer(b64, mime) {
   var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
 
+  // Cargar contexto del negocio del config para que el prompt pueda
+  // referirse al usuario por nombre + RUC y la IA sepa exactamente
+  // qué RUC buscar en la factura (deducibilidad).
+  var cfgCtx = {};
+  try { cfgCtx = _getConfig() || {}; } catch(e) { /* sigue sin cfg */ }
+  var negNombre = String(cfgCtx.empresa_nombre || cfgCtx.empresa_comercial || 'el usuario');
+  var negRuc    = String(cfgCtx.empresa_ruc    || '');
+  var negDv     = String(cfgCtx.empresa_dv     || '');
+
   // Sanitizar MIME
   if (mime === 'application/octet-stream') mime = 'image/jpeg';
   var validImg = ['image/jpeg','image/png','image/webp','image/gif'];
@@ -355,8 +364,16 @@ function _whatsappClasificarYExtraer(b64, mime) {
     'Analiza este comprobante panameño. Determiná PRIMERO si es:\n' +
     '  - "gasto"   = pago HECHO por el usuario (factura recibida de proveedor, recibo de compra, voucher saliente)\n' +
     '  - "ingreso" = pago RECIBIDO por el usuario (factura emitida por él/ella, voucher Yappy entrante, transferencia recibida)\n\n' +
-    'Pista clave: si en el documento el cliente del usuario (Iris Albelo Ho) aparece como RECEPTOR/CLIENTE/PAGADOR → es INGRESO.\n' +
+    'CONTEXTO DEL USUARIO:\n' +
+    '  Nombre:  ' + negNombre + '\n' +
+    '  RUC:     ' + (negRuc || '(no configurado)') + (negDv ? '   DV: ' + negDv : '') + '\n\n' +
+    'Pista clave: si en el documento ESTE usuario (nombre o RUC) aparece como RECEPTOR/CLIENTE/PAGADOR → es INGRESO.\n' +
     'Si aparece como EMISOR o no aparece → es GASTO.\n\n' +
+    'FORMATO DE RUC EN PANAMÁ — IMPORTANTE para extraer ruc_receptor correctamente:\n' +
+    '  • Jurídicas: 7 dígitos + DV (ej: 1891245-1-720993 DV 32)\n' +
+    '  • Naturales: la CÉDULA es el RUC (ej: 8-743-456, 4-123-1234, PE-12-3456, N-21-1234, E-8-1234).\n' +
+    '  Si el documento muestra "Cédula" o "Cédula/RUC", ese valor ES el RUC del receptor.\n' +
+    '  No confundir con el número entre paréntesis al lado del nombre (ese suele ser un ID interno del proveedor, NO el RUC).\n\n' +
     'Responde SOLO con JSON válido, sin markdown:\n' +
     '{\n' +
     '  "tipo_transaccion": "gasto" | "ingreso",\n' +
@@ -371,7 +388,7 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '  "descripcion":       "..." o null,\n' +
     '  "nombre_otro":       "nombre del proveedor (si gasto) o cliente pagador (si ingreso)",\n' +
     '  "ruc_otro":          "..." o null,\n' +
-    '  "ruc_receptor":      "RUC del RECEPTOR de la factura (si gasto: debe ser el RUC del negocio del usuario; si ingreso: no aplica) o null",\n' +
+    '  "ruc_receptor":      "RUC del RECEPTOR exactamente como aparece en el documento (con guiones). Para personas naturales es la cédula. Si no es visible, null.",\n' +
     '  "categoria_dgi":     "key DGI de la línea correspondiente (ver guía)"\n' +
     '}\n\n' +
     'Para "categoria_dgi" si tipo_transaccion=ingreso, usá las keys del Form 91:\n' +
@@ -448,9 +465,12 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
 
   // Calcular alcance localmente para mostrar en el mensaje (mismo
   // criterio que _crearPendiente: deducible solo si la factura está
-  // a nombre del negocio).
+  // a nombre del negocio). La comparación normaliza ambos lados
+  // quitando todo lo que no sea alfanumérico, para que match aunque
+  // uno tenga guiones/espacios y el otro no (ej: "8-743-456" === "8743456").
   var rucCli = String((cfg && cfg.empresa_ruc) ? cfg.empresa_ruc : '').replace(/\s/g, '');
-  var esDeducible = !!(rucReceptor && rucCli && rucReceptor === rucCli);
+  function _normRuc(r) { return String(r || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); }
+  var esDeducible = !!(rucReceptor && rucCli && _normRuc(rucReceptor) === _normRuc(rucCli));
   var lineaDeducible;
   if (!rucCli) {
     lineaDeducible = '⚠️ No deducible (RUC del negocio no configurado en la app)';
