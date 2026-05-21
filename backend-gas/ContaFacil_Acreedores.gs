@@ -1356,6 +1356,7 @@ function _handleGetPendientesAcreedor(params, callback) {
         descripcion:  r[COL_PEND.DESCRIPCION - 1]  || '',
         notas:        r[COL_PEND.NOTAS - 1]        || '',
         egreso_id:    r[COL_PEND.EGRESO_ID - 1]    || '',
+        msg_id:       String(r[COL_PEND.MSG_ID - 1] || ''),
         alcance:      (function(n){ var m = String(n||'').match(/\balcance:(negocio|personal)\b/); return m ? m[1] : 'negocio'; })(r[COL_PEND.NOTAS - 1]),
       });
     }

@@ -1123,7 +1123,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         </div>
       </div>
 
-      <!-- PENDIENTES DE EMAIL ─────────────────── -->
+      <!-- PENDIENTES POR EMAIL ─────────────────── -->
       <div id="pendEmailSection">
         <div class="pend-section-hdr">
           <div class="pend-section-title">
@@ -1135,6 +1135,16 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
           </button>
         </div>
         <div class="card-list" id="pend-list" style="padding-top:0"></div>
+      </div>
+      <!-- PENDIENTES POR WHATSAPP ───────────────── -->
+      <div id="pendWhatsAppSection" style="display:none">
+        <div class="pend-section-hdr">
+          <div class="pend-section-title">
+            📲 Recibidos por WhatsApp
+            <span class="pend-count" id="pendCountWa">0</span>
+          </div>
+        </div>
+        <div class="card-list" id="pend-list-wa" style="padding-top:0"></div>
       </div>
       <!-- ───────────────────────────────────── -->
       </div><!-- /reg-simple-body -->
@@ -2515,11 +2525,34 @@ const REGD = (() => {
   // ── Carga de datos ──────────────────────────────────────────
   async function load() {
     try {
-      const [eR, iR] = await Promise.all([
+      const [eR, iR, pR] = await Promise.all([
         jsonpGet('getEgresos'),
         jsonpGet('getIngresos'),
+        jsonpGet('getPendientesAcreedor'),
       ]);
-      egr = (eR && eR.items) ? eR.items.filter(e => String(e.estado||'').toLowerCase() !== 'anulado') : [];
+      const registrados = (eR && eR.items) ? eR.items.filter(e => String(e.estado||'').toLowerCase() !== 'anulado') : [];
+      // Pendientes (borrador, llegan vía email forwarder o WhatsApp). Los
+      // mapeamos al shape de un egreso con estado='pendiente' para que la
+      // vista detallada los muestre en la lista + en el filtro Pendientes.
+      const pendientes = (pR && pR.items)
+        ? pR.items.filter(p => String(p.estado||'').toLowerCase() === 'borrador').map(p => ({
+            id_egreso:        'PND-' + p.id,
+            _pend_id:         p.id,
+            fecha_egreso:     p.fecha_fac || p.fecha_reg || '',
+            proveedor_nombre: p.acreedor_nom || '',
+            descripcion:      p.descripcion || '',
+            subtotal:         p.subtotal || 0,
+            itbms:            p.itbms || 0,
+            total:            p.total || 0,
+            categoria:        p.categoria || '',
+            alcance:          p.alcance || 'negocio',
+            estado:           'pendiente',
+            notas:            p.notas || '',
+            drive_url:        p.drive_url || '',
+            msg_id:           p.msg_id || '',
+          }))
+        : [];
+      egr = [...pendientes, ...registrados];
       ing = (iR && iR.items) ? iR.items.filter(i => String(i.estado||'').toLowerCase() !== 'anulado') : [];
       _loaded = true;
     } catch(e) {
@@ -3917,36 +3950,28 @@ const PEND = (() => {
     } catch(e) { toast('Error: ' + e.message, 'err'); }
   }
 
-  // ── Render ────────────────────────────────────────────
-  function _render() {
-    const list = document.getElementById('pend-list');
-    document.getElementById('pendCount').textContent = _items.length || '0';
+  // Detecta origen del pendiente: msg_id 'whatsapp-...' => WhatsApp;
+  // resto (gmail msg ID + filename) => Email forwarder.
+  function _isWhatsApp(item) {
+    return String(item.msg_id || '').indexOf('whatsapp-') === 0;
+  }
 
-    if (!_items.length) {
-      list.innerHTML = `
-        <div class="empty">
-          <div class="empty-icon">📭</div>
-          <div class="empty-title">Sin pendientes de email</div>
-          <div class="empty-sub">Toca Sincronizar para buscar nuevas facturas</div>
-        </div>`;
-      return;
-    }
+  // ── Template de una card (compartido por ambas secciones) ────
+  function _itemHtml(item) {
+    const id      = String(item.id || '');
+    const nombre  = esc(item.acreedor_nom || '—');
+    const total   = parseFloat(item.total || 0);
+    const fecha   = String(item.fecha_fac || item.fecha_reg || '').substring(0, 10);
+    const catLbl  = _catLabel(item.categoria);
+    const conf    = (item.notas || '').match(/(\d+)%/);
+    const confTag = conf
+      ? `<span style="color:${parseInt(conf[1])>=80?'var(--green)':parseInt(conf[1])>=60?'var(--orange)':'var(--red)'};font-size:.66rem">IA ${conf[1]}%</span>`
+      : '';
+    const driveEl = item.drive_url
+      ? `<a href="${esc(item.drive_url)}" target="_blank" class="pf-link">📄 Ver factura en Drive</a>`
+      : '';
 
-    list.innerHTML = _items.map(item => {
-      const id      = String(item.id || '');
-      const nombre  = esc(item.acreedor_nom || '—');
-      const total   = parseFloat(item.total || 0);
-      const fecha   = String(item.fecha_fac || item.fecha_reg || '').substring(0, 10);
-      const catLbl  = _catLabel(item.categoria);
-      const conf    = (item.notas || '').match(/(\d+)%/);
-      const confTag = conf
-        ? `<span style="color:${parseInt(conf[1])>=80?'var(--green)':parseInt(conf[1])>=60?'var(--orange)':'var(--red)'};font-size:.66rem">IA ${conf[1]}%</span>`
-        : '';
-      const driveEl = item.drive_url
-        ? `<a href="${esc(item.drive_url)}" target="_blank" class="pf-link">📄 Ver factura en Drive</a>`
-        : '';
-
-      return `
+    return `
       <div class="card s-email-pend" id="pcard-${id}">
         <div class="card-head" onclick="PEND.toggle('${id}')">
           <div class="card-dot email-pend"></div>
@@ -4025,7 +4050,42 @@ const PEND = (() => {
           <div class="pend-msg" id="pmsg-${id}"></div>
         </div>
       </div>`;
-    }).join('');
+  }
+
+  // ── Render ────────────────────────────────────────────
+  function _render() {
+    // Particionar por origen: email forwarder vs WhatsApp.
+    const emailItems = _items.filter(i => !_isWhatsApp(i));
+    const waItems    = _items.filter(i =>  _isWhatsApp(i));
+
+    // Sección Email (siempre visible, mantiene su botón "Sincronizar")
+    const elCount = document.getElementById('pendCount');
+    if (elCount) elCount.textContent = emailItems.length || '0';
+    const list = document.getElementById('pend-list');
+    if (!emailItems.length) {
+      list.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">📭</div>
+          <div class="empty-title">Sin pendientes de email</div>
+          <div class="empty-sub">Toca Sincronizar para buscar nuevas facturas</div>
+        </div>`;
+    } else {
+      list.innerHTML = emailItems.map(_itemHtml).join('');
+    }
+
+    // Sección WhatsApp (solo visible si hay items)
+    const elWaSec  = document.getElementById('pendWhatsAppSection');
+    const elWaCnt  = document.getElementById('pendCountWa');
+    const elWaList = document.getElementById('pend-list-wa');
+    if (elWaSec && elWaList) {
+      if (!waItems.length) {
+        elWaSec.style.display = 'none';
+      } else {
+        elWaSec.style.display = '';
+        if (elWaCnt) elWaCnt.textContent = waItems.length;
+        elWaList.innerHTML = waItems.map(_itemHtml).join('');
+      }
+    }
   }
 
   // ── Skeleton mientras carga ───────────────────────────
