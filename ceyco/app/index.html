@@ -905,7 +905,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         </button>
       </div>
 
-      <!-- PENDIENTES DE EMAIL ─────────────────── -->
+      <!-- PENDIENTES POR EMAIL ─────────────────── -->
       <div id="pendEmailSection">
         <div class="pend-section-hdr">
           <div class="pend-section-title">
@@ -917,6 +917,16 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
           </button>
         </div>
         <div class="card-list" id="pend-list" style="padding-top:0"></div>
+      </div>
+      <!-- PENDIENTES POR WHATSAPP ───────────────── -->
+      <div id="pendWhatsAppSection" style="display:none">
+        <div class="pend-section-hdr">
+          <div class="pend-section-title">
+            📲 Recibidos por WhatsApp
+            <span class="pend-count" id="pendCountWa">0</span>
+          </div>
+        </div>
+        <div class="card-list" id="pend-list-wa" style="padding-top:0"></div>
       </div>
       <!-- ───────────────────────────────────── -->
 
@@ -2767,36 +2777,26 @@ const PEND = (() => {
     } catch(e) { toast('Error: ' + e.message, 'err'); }
   }
 
-  // ── Render ────────────────────────────────────────────
-  function _render() {
-    const list = document.getElementById('pend-list');
-    document.getElementById('pendCount').textContent = _items.length || '0';
+  function _isWhatsApp(item) {
+    return String(item.msg_id || '').indexOf('whatsapp-') === 0;
+  }
 
-    if (!_items.length) {
-      list.innerHTML = `
-        <div class="empty">
-          <div class="empty-icon">📭</div>
-          <div class="empty-title">Sin pendientes de email</div>
-          <div class="empty-sub">Toca Sincronizar para buscar nuevas facturas</div>
-        </div>`;
-      return;
-    }
+  // ── Template de una card (compartido por ambas secciones) ────
+  function _itemHtml(item) {
+    const id      = String(item.id || '');
+    const nombre  = esc(item.acreedor_nom || '—');
+    const total   = parseFloat(item.total || 0);
+    const fecha   = String(item.fecha_fac || item.fecha_reg || '').substring(0, 10);
+    const catLbl  = _catLabel(item.categoria);
+    const conf    = (item.notas || '').match(/(\d+)%/);
+    const confTag = conf
+      ? `<span style="color:${parseInt(conf[1])>=80?'var(--green)':parseInt(conf[1])>=60?'var(--orange)':'var(--red)'};font-size:.66rem">IA ${conf[1]}%</span>`
+      : '';
+    const driveEl = item.drive_url
+      ? `<a href="${esc(item.drive_url)}" target="_blank" class="pf-link">📄 Ver factura en Drive</a>`
+      : '';
 
-    list.innerHTML = _items.map(item => {
-      const id      = String(item.id || '');
-      const nombre  = esc(item.acreedor_nom || '—');
-      const total   = parseFloat(item.total || 0);
-      const fecha   = String(item.fecha_fac || item.fecha_reg || '').substring(0, 10);
-      const catLbl  = _catLabel(item.categoria);
-      const conf    = (item.notas || '').match(/(\d+)%/);
-      const confTag = conf
-        ? `<span style="color:${parseInt(conf[1])>=80?'var(--green)':parseInt(conf[1])>=60?'var(--orange)':'var(--red)'};font-size:.66rem">IA ${conf[1]}%</span>`
-        : '';
-      const driveEl = item.drive_url
-        ? `<a href="${esc(item.drive_url)}" target="_blank" class="pf-link">📄 Ver factura en Drive</a>`
-        : '';
-
-      return `
+    return `
       <div class="card s-email-pend" id="pcard-${id}">
         <div class="card-head" onclick="PEND.toggle('${id}')">
           <div class="card-dot email-pend"></div>
@@ -2852,7 +2852,39 @@ const PEND = (() => {
           <div class="pend-msg" id="pmsg-${id}"></div>
         </div>
       </div>`;
-    }).join('');
+  }
+
+  // ── Render ────────────────────────────────────────────
+  function _render() {
+    const emailItems = _items.filter(i => !_isWhatsApp(i));
+    const waItems    = _items.filter(i =>  _isWhatsApp(i));
+
+    const elCount = document.getElementById('pendCount');
+    if (elCount) elCount.textContent = emailItems.length || '0';
+    const list = document.getElementById('pend-list');
+    if (!emailItems.length) {
+      list.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">📭</div>
+          <div class="empty-title">Sin pendientes de email</div>
+          <div class="empty-sub">Toca Sincronizar para buscar nuevas facturas</div>
+        </div>`;
+    } else {
+      list.innerHTML = emailItems.map(_itemHtml).join('');
+    }
+
+    const elWaSec  = document.getElementById('pendWhatsAppSection');
+    const elWaCnt  = document.getElementById('pendCountWa');
+    const elWaList = document.getElementById('pend-list-wa');
+    if (elWaSec && elWaList) {
+      if (!waItems.length) {
+        elWaSec.style.display = 'none';
+      } else {
+        elWaSec.style.display = '';
+        if (elWaCnt) elWaCnt.textContent = waItems.length;
+        elWaList.innerHTML = waItems.map(_itemHtml).join('');
+      }
+    }
   }
 
   // ── Skeleton mientras carga ───────────────────────────
