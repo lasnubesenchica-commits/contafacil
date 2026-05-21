@@ -27,6 +27,13 @@
       "scriptId": "1x8weJAITaa37VTlBtUyUnaSexvIvxWvBaw75rQIk6gS6Y_FMBGR6ERNM",
       "gasDir": "backend-gas",
       "deploymentId": "AKfycbwQ3G1GMFLO8gjcE_LixN1DBDlterHtsRBgNyYZHlC-joB-DMJqoShS9nHz_VMUqHze"
+    },
+    {
+      "id": "joslyn-lopez",
+      "nombre": "Joslyn Lopez",
+      "scriptId": "1_RBhKdMeKPyjyfxK6eNV3Mjgl895-RPrDQAuzxtdwV9HceSepCDU9MFf",
+      "gasDir": "backend-gas",
+      "deploymentId": "AKfycbyfmUwqG67T8RxTpUxYUsmTo3esmd-esS0Kv3kbXgZ69e4lHbs93N28yceLZtOsUkjnGA"
     }
   ]
 }
