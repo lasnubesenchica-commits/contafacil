@@ -974,6 +974,21 @@ function _routerHandleActivarCommand(from, text, token, phoneId) {
   var newPhone = m[1];
   var url      = m[2];
 
+  // Validación de longitud — el número debe incluir código de país.
+  // Meta entrega el `from` con código de país (ej Panamá: 507XXXXXXXX),
+  // así que si lo guardamos sin código nunca va a hacer match.
+  if (newPhone.length < 10) {
+    var suggested = newPhone.length === 8 ? ('507' + newPhone) : null;
+    _routerSendText(from,
+      '⚠️ *Número incompleto*\n\n' +
+      'El número *' + newPhone + '* no incluye código de país. Meta entrega los mensajes con el código país adelante (Panamá = 507), así que el routing no va a funcionar.\n\n' +
+      (suggested
+        ? '👉 Probá con:\n`activar ' + suggested + ' ' + url + '`'
+        : 'Mandalo con el código de país adelante (sin el "+").'),
+      token, phoneId);
+    return;
+  }
+
   // Actualizar CLIENTS_MAP_JSON (merge)
   var props   = PropertiesService.getScriptProperties();
   var mapJson = props.getProperty('CLIENTS_MAP_JSON') || '{}';
