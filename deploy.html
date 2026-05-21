@@ -621,6 +621,20 @@
       </div>
     </div>
 
+    <div class="section-label" style="margin-top:24px">WhatsApp (Meta)</div>
+    <div class="form-grid">
+      <div class="field span2">
+        <label>META WhatsApp Token <span class="req">*</span></label>
+        <input type="password" id="metaWhatsappToken" placeholder="EAAxxx…" style="font-family:var(--mono);font-size:12px"/>
+        <span class="field-hint">Token permanente del System User de Meta — el mismo que está configurado en el WhatsApp Router. La GAS del cliente lo necesita para descargar facturas y responder por WhatsApp. Se guarda en este browser para que no tengas que pegarlo en cada deploy.</span>
+      </div>
+      <div class="field span2">
+        <label>META Phone Number ID <span class="req">*</span></label>
+        <input type="text" id="metaPhoneId" placeholder="1035238479681939" style="font-family:var(--mono);font-size:12px"/>
+        <span class="field-hint">ID del número de WhatsApp Business (el mismo que está en el router).</span>
+      </div>
+    </div>
+
     <div class="section-label" style="margin-top:24px">GitHub</div>
     <div class="form-grid">
       <div class="field span2">
@@ -798,12 +812,16 @@ var LS_PAT            = 'cf_github_pat';
 var LS_CID            = 'cf_oauth_client_id';
 var LS_CLIENT_SECRET  = 'cf_oauth_client_secret';
 var LS_REFRESH_TOKEN  = 'cf_oauth_refresh_token';
+var LS_META_TOKEN     = 'cf_meta_whatsapp_token';
+var LS_META_PHONE_ID  = 'cf_meta_phone_id';
 
 async function initFromLocalStorage() {
-  var pat     = localStorage.getItem(LS_PAT);
-  var cid     = localStorage.getItem(LS_CID);
-  var secret  = localStorage.getItem(LS_CLIENT_SECRET);
-  var refresh = localStorage.getItem(LS_REFRESH_TOKEN);
+  var pat       = localStorage.getItem(LS_PAT);
+  var cid       = localStorage.getItem(LS_CID);
+  var secret    = localStorage.getItem(LS_CLIENT_SECRET);
+  var refresh   = localStorage.getItem(LS_REFRESH_TOKEN);
+  var metaTok   = localStorage.getItem(LS_META_TOKEN);
+  var metaPhId  = localStorage.getItem(LS_META_PHONE_ID);
   if (pat) {
     var elPat = document.getElementById('githubPat');
     if (elPat) elPat.value = pat;
@@ -823,6 +841,16 @@ async function initFromLocalStorage() {
     // Abrir sección de auto-refresh si hay datos guardados
     var det = document.getElementById('detailsAutoRefresh');
     if (det) det.open = true;
+  }
+  if (metaTok) {
+    var elMT = document.getElementById('metaWhatsappToken');
+    if (elMT) elMT.value = metaTok;
+    STATE.metaWhatsappToken = metaTok;
+  }
+  if (metaPhId) {
+    var elMP = document.getElementById('metaPhoneId');
+    if (elMP) elMP.value = metaPhId;
+    STATE.metaPhoneId = metaPhId;
   }
   if (cid && secret && refresh) {
     await autoRefreshToken(true);
@@ -863,12 +891,14 @@ async function autoRefreshToken(silent) {
 }
 
 function olvidarCredenciales() {
-  [LS_PAT, LS_CID, LS_CLIENT_SECRET, LS_REFRESH_TOKEN].forEach(function(k) { localStorage.removeItem(k); });
-  ['githubPat', 'clientId', 'clientSecret', 'refreshToken', 'manualToken'].forEach(function(id) {
+  [LS_PAT, LS_CID, LS_CLIENT_SECRET, LS_REFRESH_TOKEN, LS_META_TOKEN, LS_META_PHONE_ID].forEach(function(k) { localStorage.removeItem(k); });
+  ['githubPat', 'clientId', 'clientSecret', 'refreshToken', 'manualToken', 'metaWhatsappToken', 'metaPhoneId'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
   STATE.githubPat = '';
+  STATE.metaWhatsappToken = '';
+  STATE.metaPhoneId = '';
   alert('Credenciales eliminadas del browser.');
 }
 
@@ -935,6 +965,8 @@ function goStep2() {
     flow_acreedor:        document.getElementById('flow_acreedor').checked,
     flow_comercializacion: document.getElementById('flow_comercializacion').checked,
     claudeApiKey:         document.getElementById('claudeApiKey').value.trim(),
+    metaWhatsappToken:    document.getElementById('metaWhatsappToken').value.trim(),
+    metaPhoneId:          document.getElementById('metaPhoneId').value.trim(),
     githubPat:             document.getElementById('githubPat').value.trim(),
   };
 
@@ -944,6 +976,8 @@ function goStep2() {
   if (!vals.prefix)               errors.push('Prefijo de IDs es requerido');
   if (!vals.clientForwarderEmail) errors.push('Email del cliente que reenvía facturas es requerido');
   if (!vals.claudeApiKey)         errors.push('Claude API key es requerido');
+  if (!vals.metaWhatsappToken)    errors.push('META WhatsApp Token es requerido');
+  if (!vals.metaPhoneId)          errors.push('META Phone Number ID es requerido');
   if (!vals.githubPat)            errors.push('GitHub Personal Access Token es requerido');
   if (!vals.flow_acreedor && !vals.flow_comercializacion) {
     errors.push('Activá al menos un módulo (Registro General o Comercialización)');
@@ -957,7 +991,9 @@ function goStep2() {
   }
   errEl.style.display = 'none';
   Object.assign(STATE, vals);
-  localStorage.setItem(LS_PAT, vals.githubPat);
+  localStorage.setItem(LS_PAT,           vals.githubPat);
+  localStorage.setItem(LS_META_TOKEN,    vals.metaWhatsappToken);
+  localStorage.setItem(LS_META_PHONE_ID, vals.metaPhoneId);
   goStep(2);
 }
 
@@ -1267,8 +1303,10 @@ async function correrHealthCheck() {
       row('Gmail',  hc.gmail.ok,  hc.gmail.ok  ? hc.gmail.labelCount + ' labels' : (hc.gmail.error || 'error')) +
       row('Config', hc.config.ok, hc.config.ok ? hc.config.empresa_nombre + ' · forwarder=' + hc.config.forwarder + ' · label=' + (hc.config.email_acr_label || '(sin label)') : (hc.config.error || 'error')) +
       row('Triggers', (hc.triggers || []).some(function(t){ return t.function === 'ejecutarSincronizacionUnificada'; }), (hc.triggers || []).map(function(t){ return t.function; }).join(', ') || 'ninguno instalado') +
-      row('CLAUDE_API_KEY',   sp.CLAUDE_API_KEY === 'set',   sp.CLAUDE_API_KEY   || '(no reportado)') +
-      row('AUTH_RESET_TOKEN', sp.AUTH_RESET_TOKEN === 'set', sp.AUTH_RESET_TOKEN || '(no reportado)');
+      row('CLAUDE_API_KEY',     sp.CLAUDE_API_KEY === 'set',     sp.CLAUDE_API_KEY     || '(no reportado)') +
+      row('META_WHATSAPP_TOKEN', sp.META_WHATSAPP_TOKEN === 'set', sp.META_WHATSAPP_TOKEN || '(no reportado)') +
+      row('META_PHONE_ID',      sp.META_PHONE_ID === 'set',      sp.META_PHONE_ID      || '(no reportado)') +
+      row('AUTH_RESET_TOKEN',   sp.AUTH_RESET_TOKEN === 'set',   sp.AUTH_RESET_TOKEN   || '(no reportado)');
 
     var overallColor = hc.overall === 'healthy' ? '#2E7D32' : (hc.overall === 'degraded' ? '#E65100' : '#C62828');
     box.innerHTML =
@@ -1975,8 +2013,10 @@ async function inicializarSistemaRemoto() {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
-        action:        'inicializarSistema',
-        claudeApiKey:  STATE.claudeApiKey || '',
+        action:              'inicializarSistema',
+        claudeApiKey:        STATE.claudeApiKey      || '',
+        metaWhatsappToken:   STATE.metaWhatsappToken || '',
+        metaPhoneId:         STATE.metaPhoneId       || '',
       }),
     });
     var data = await resp.json();

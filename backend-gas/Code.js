@@ -1294,6 +1294,15 @@ function _handleInicializarSistema(params, callback) {
     if (params && params.claudeApiKey) {
       props.setProperty('CLAUDE_API_KEY', String(params.claudeApiKey));
     }
+    // META credentials — sin esto la GAS recibe el forward del router
+    // pero no puede descargar la factura ni responder al usuario por
+    // WhatsApp Cloud API.
+    if (params && params.metaWhatsappToken) {
+      props.setProperty('META_WHATSAPP_TOKEN', String(params.metaWhatsappToken));
+    }
+    if (params && params.metaPhoneId) {
+      props.setProperty('META_PHONE_ID', String(params.metaPhoneId));
+    }
     if (params && params.authResetToken) {
       props.setProperty('AUTH_RESET_TOKEN', String(params.authResetToken));
     } else if (!props.getProperty('AUTH_RESET_TOKEN')) {
@@ -1389,7 +1398,7 @@ function _handleHealthCheck(params, callback) {
 
   // Solo verifica que existan, NO expone los valores.
   var props = PropertiesService.getScriptProperties();
-  ['CLAUDE_API_KEY', 'AUTH_RESET_TOKEN'].forEach(function (k) {
+  ['CLAUDE_API_KEY', 'AUTH_RESET_TOKEN', 'META_WHATSAPP_TOKEN', 'META_PHONE_ID'].forEach(function (k) {
     result.scriptProperties[k] = props.getProperty(k) ? 'set' : 'missing';
   });
 
