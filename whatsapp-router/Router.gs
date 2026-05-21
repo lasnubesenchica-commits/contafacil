@@ -290,9 +290,44 @@ function _routerForwardMensaje(msg, metadata) {
       muteHttpExceptions: true,
       followRedirects:    true,   // GAS web app responde con redirect
     });
-    Logger.log('Client GAS responded ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
+    var rc   = resp.getResponseCode();
+    var body = (resp.getContentText() || '').substring(0, 200);
+    Logger.log('Client GAS responded ' + rc + ': ' + body);
+
+    // Si el cliente GAS falla, avisarle al usuario en vez de quedar mudo.
+    // 2xx con body JSON ok:true → OK (no avisamos, el cliente responde solo)
+    // Cualquier otra cosa → fallback con info de debug para el admin.
+    var clientGasOk = (rc >= 200 && rc < 300) && body.indexOf('"ok":true') !== -1;
+    if (!clientGasOk) {
+      var adminPhoneAlert = PropertiesService.getScriptProperties().getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
+      _routerSendText(from,
+        '⚠️ Recibí tu factura pero el procesador no respondió correctamente. Avisale al admin y volvé a intentar en unos minutos.',
+        token, phoneId);
+      // Notificar al admin con detalles (si no es el admin el que mandó la factura)
+      if (from !== adminPhoneAlert) {
+        _routerSendText(adminPhoneAlert,
+          '🚨 *Forward al cliente falló*\n\n' +
+          '📱 Cliente: +' + from + '\n' +
+          '🔗 URL: ' + clientUrl + '\n' +
+          '📊 HTTP: ' + rc + '\n' +
+          '📄 Body (200 chars): ' + body,
+          token, phoneId);
+      }
+    }
   } catch (err) {
     Logger.log('Error forwarding to client: ' + err.message);
+    _routerSendText(from,
+      '⚠️ Recibí tu factura pero no pude contactar al procesador. Avisale al admin.',
+      token, phoneId);
+    var adminPhoneAlert2 = PropertiesService.getScriptProperties().getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
+    if (from !== adminPhoneAlert2) {
+      _routerSendText(adminPhoneAlert2,
+        '🚨 *Forward al cliente falló (excepción)*\n\n' +
+        '📱 Cliente: +' + from + '\n' +
+        '🔗 URL: ' + clientUrl + '\n' +
+        '❌ Error: ' + err.message,
+        token, phoneId);
+    }
   }
 }
 
