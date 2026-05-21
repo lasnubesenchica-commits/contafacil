@@ -672,10 +672,15 @@ function _routerHandleVerifyCode(data) {
 //  deploy manual en deploy.html.
 //
 //  Estado por usuario: signup_<phone> = JSON
-//    { step: 'awaiting_negocio' | 'awaiting_ruc' | 'awaiting_email_admin'
-//          | 'awaiting_forwarder' | 'awaiting_confirm',
+//    { step: 'awaiting_negocio' | 'awaiting_ruc' | 'awaiting_dv'
+//          | 'awaiting_email_admin' | 'awaiting_forwarder'
+//          | 'awaiting_confirm',
 //      data: { negocio, ruc, dv?, adminEmail, forwarderEmail },
 //      ts:   <ms> }
+//
+//  El DV NO se busca automáticamente — al cliente se le pasa el link
+//  oficial del DGI (etax2.mef.gob.pa/etax2web/Ruc/ConsultarDV.aspx)
+//  y lo consulta él mismo si no lo sabe.
 //
 //  Una vez completado:
 //    - Limpia signup_<phone>
@@ -739,8 +744,8 @@ function _routerIniciarSignup(from, token, phoneId) {
   _routerSetSignupState(from, { step: 'awaiting_negocio', data: {} });
   _routerSendText(from,
     '🎁 *Demo 7 días gratis*\n\n' +
-    'Te hago *4 preguntas rápidas* y después un técnico te configura todo. Te aviso por acá apenas esté listo — y desde ese momento podés empezar a mandar facturas. 🚀\n\n' +
-    '*Pregunta 1 de 4*\n' +
+    'Te hago *5 preguntas rápidas* y después un técnico te configura todo. Te aviso por acá apenas esté listo — y desde ese momento podés empezar a mandar facturas. 🚀\n\n' +
+    '*Pregunta 1 de 5*\n' +
     '¿Cuál es la *razón social* o nombre legal de tu negocio?\n' +
     '_(Ej: Servicios ACME, S.A. — o tu nombre si sos persona natural)_\n\n' +
     '_Escribí *cancelar* en cualquier momento para salir._',
@@ -771,14 +776,14 @@ function _routerHandleSignupText(from, text, token, phoneId) {
     _routerSetSignupState(from, { step: 'awaiting_ruc', data: data });
     _routerSendText(from,
       '✅ Anotado: *' + data.negocio + '*\n\n' +
-      '*Pregunta 2 de 4*\n' +
-      '¿Cuál es el *RUC* del negocio?\n' +
-      '_(Ej: 2470636-1-814806 — sin el DV; lo busco yo)_',
+      '*Pregunta 2 de 5*\n' +
+      '¿Cuál es el *RUC* del negocio (sin el dígito verificador)?\n' +
+      '_(Ej: 2470636-1-814806)_',
       token, phoneId);
     return;
   }
 
-  // ── Q2: RUC (con validación de formato + lookup de DV) ──
+  // ── Q2: RUC (validación de formato) ──
   if (state.step === 'awaiting_ruc') {
     var rucClean = trimmed.replace(/\s+/g, '');
     if (!_routerValidarFormatoRuc(rucClean)) {
@@ -790,14 +795,40 @@ function _routerHandleSignupText(from, text, token, phoneId) {
       return;
     }
     data.ruc = rucClean;
-    data.dv = _routerLookupRucDv(rucClean); // best-effort; null si falla
-    _routerSetSignupState(from, { step: 'awaiting_email_admin', data: data });
-    var dvNote = data.dv
-      ? '✅ RUC anotado · DV detectado: *' + data.dv + '*\n\n'
-      : '✅ RUC anotado · _(no pude buscar el DV automáticamente, el técnico lo verifica después)_\n\n';
+    _routerSetSignupState(from, { step: 'awaiting_dv', data: data });
     _routerSendText(from,
-      dvNote +
-      '*Pregunta 3 de 4*\n' +
+      '✅ RUC anotado: *' + rucClean + '*\n\n' +
+      '*Pregunta 3 de 5*\n' +
+      '¿Cuál es tu *Dígito Verificador (DV)*?\n' +
+      '_(Son 1 o 2 dígitos, ej: 06 o 12)_\n\n' +
+      '🔗 *Si no lo sabés, consultalo gratis acá:*\n' +
+      'https://etax2.mef.gob.pa/etax2web/Ruc/ConsultarDV.aspx\n\n' +
+      'Si todavía no tenés DV, escribí *ninguno*.',
+      token, phoneId);
+    return;
+  }
+
+  // ── Q3: DV (con link al DGI) ──
+  if (state.step === 'awaiting_dv') {
+    if (/^(ninguno?|no|no s[eé]|sin dv|no tengo)$/i.test(lower)) {
+      data.dv = '';
+    } else {
+      var dvClean = trimmed.replace(/\D/g, '');
+      if (dvClean.length < 1 || dvClean.length > 2) {
+        _routerSendText(from,
+          '⚠️ El DV debe tener 1 o 2 dígitos (ej: 6, 06, 12).\n\n' +
+          '🔗 Consultalo gratis acá si no lo sabés:\n' +
+          'https://etax2.mef.gob.pa/etax2web/Ruc/ConsultarDV.aspx\n\n' +
+          'O escribí *ninguno* si todavía no lo tenés.',
+          token, phoneId);
+        return;
+      }
+      data.dv = dvClean.length === 1 ? '0' + dvClean : dvClean;
+    }
+    _routerSetSignupState(from, { step: 'awaiting_email_admin', data: data });
+    _routerSendText(from,
+      '✅ ' + (data.dv ? 'DV anotado: *' + data.dv + '*' : 'OK, sin DV por ahora.') + '\n\n' +
+      '*Pregunta 4 de 5*\n' +
       '¿Cuál es tu *email* personal o del negocio?\n' +
       '_(Lo usamos para crear tu usuario del panel web y mandarte notificaciones)_\n' +
       'Ej: tunombre@gmail.com',
@@ -805,7 +836,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
     return;
   }
 
-  // ── Q3: Email admin ──
+  // ── Q4: Email admin ──
   if (state.step === 'awaiting_email_admin') {
     var emailA = _routerParseEmail(trimmed);
     if (!emailA) {
@@ -816,7 +847,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
     _routerSetSignupState(from, { step: 'awaiting_forwarder', data: data });
     _routerSendText(from,
       '✅ Email anotado: *' + emailA + '*\n\n' +
-      '*Pregunta 4 de 4*\n' +
+      '*Pregunta 5 de 5*\n' +
       '¿Desde qué *email recibís facturas de proveedores* (el que querés que reenvíe automáticamente a BalanceClip)?\n\n' +
       '• Si es el mismo email que el anterior, escribí *mismo*\n' +
       '• Si todavía no usás email para recibir facturas, escribí *ninguno*',
@@ -824,7 +855,7 @@ function _routerHandleSignupText(from, text, token, phoneId) {
     return;
   }
 
-  // ── Q4: Forwarder email ──
+  // ── Q5: Forwarder email ──
   if (state.step === 'awaiting_forwarder') {
     var fwdEmail;
     if (/^ninguno?$/i.test(lower))      fwdEmail = '';
@@ -996,88 +1027,6 @@ function _routerValidarFormatoRuc(ruc) {
   if (s.replace(/[^0-9]/g, '').length < 4) return false;
   if (s.indexOf('-') < 0) return false;
   return true;
-}
-
-// ────────────────────────────────────────────────────────────────────
-//  Best-effort: consultar el DV en el sitio del DGI/eTax2.
-//  El endpoint público es ASP.NET WebForms con __VIEWSTATE. Si el sitio
-//  cambia o bloquea la IP de Apps Script, devolvemos null y la signup
-//  sigue funcionando sin DV — el admin lo verifica manualmente.
-// ────────────────────────────────────────────────────────────────────
-function _routerLookupRucDv(ruc) {
-  var url = 'https://etax2.mef.gob.pa/etax2web/Ruc/ConsultarDV.aspx';
-  try {
-    // Paso 1: GET para obtener viewstate
-    var r1 = UrlFetchApp.fetch(url, {
-      method:             'get',
-      muteHttpExceptions: true,
-      followRedirects:    true,
-    });
-    if (r1.getResponseCode() !== 200) {
-      Logger.log('DGI DV lookup GET → ' + r1.getResponseCode());
-      return null;
-    }
-    var html = r1.getContentText() || '';
-    var vs   = _routerExtraerHiddenInput(html, '__VIEWSTATE');
-    var ev   = _routerExtraerHiddenInput(html, '__EVENTVALIDATION');
-    var vg   = _routerExtraerHiddenInput(html, '__VIEWSTATEGENERATOR');
-    if (!vs || !ev) {
-      Logger.log('DGI DV lookup: tokens no encontrados (cambió el HTML?)');
-      return null;
-    }
-    // Detectar nombre del input del RUC y del botón Buscar (heurística).
-    var rucField = (html.match(/<input[^>]*name="([^"]*Ruc[^"]*)"[^>]*type="text"/i) || [])[1] ||
-                   (html.match(/<input[^>]*type="text"[^>]*name="([^"]+)"/i)         || [])[1];
-    var btnField = (html.match(/<input[^>]*name="([^"]*[Bb]uscar[^"]*)"/) || [])[1] ||
-                   (html.match(/<input[^>]*name="([^"]*btn[^"]*)"/)        || [])[1];
-    if (!rucField) { Logger.log('DGI DV lookup: campo RUC no detectado'); return null; }
-
-    var payload = {
-      '__VIEWSTATE':      vs,
-      '__EVENTVALIDATION': ev,
-    };
-    if (vg) payload['__VIEWSTATEGENERATOR'] = vg;
-    payload[rucField] = ruc;
-    if (btnField) payload[btnField] = 'Buscar';
-
-    // Paso 2: POST con el RUC
-    var r2 = UrlFetchApp.fetch(url, {
-      method:             'post',
-      payload:            payload,
-      muteHttpExceptions: true,
-      followRedirects:    true,
-    });
-    if (r2.getResponseCode() !== 200) {
-      Logger.log('DGI DV lookup POST → ' + r2.getResponseCode());
-      return null;
-    }
-    var resp = r2.getContentText() || '';
-    // Buscar el DV en la respuesta. Patrones posibles:
-    //   "Dígito Verificador: 06"
-    //   "DV: 06"
-    //   inputs con id que contenga DV y value="06"
-    var dvMatch =
-      resp.match(/[Dd][íi]gito\s+[Vv]erificador[^0-9]{1,40}(\d{1,2})\b/) ||
-      resp.match(/\bDV[:\s]+(\d{1,2})\b/) ||
-      resp.match(/<input[^>]*id="[^"]*[Dd][Vv][^"]*"[^>]*value="(\d{1,2})"/);
-    if (dvMatch && dvMatch[1]) {
-      var dv = dvMatch[1];
-      if (dv.length === 1) dv = '0' + dv;
-      return dv;
-    }
-    Logger.log('DGI DV lookup: respuesta sin DV detectable');
-    return null;
-  } catch(err) {
-    Logger.log('_routerLookupRucDv error: ' + err.message);
-    return null;
-  }
-}
-
-function _routerExtraerHiddenInput(html, name) {
-  var re = new RegExp('<input[^>]*name="' + name + '"[^>]*value="([^"]*)"', 'i');
-  var m  = html.match(re) ||
-           html.match(new RegExp('<input[^>]*value="([^"]*)"[^>]*name="' + name + '"', 'i'));
-  return m ? m[1] : null;
 }
 
 // ════════════════════════════════════════════════════════════════════
