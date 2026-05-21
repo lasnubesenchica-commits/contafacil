@@ -454,7 +454,7 @@ function _routerEnviarInfoMarketing(to, token, phoneId) {
   var props = PropertiesService.getScriptProperties();
   var email = props.getProperty('CONTACT_EMAIL')    || 'ventas@balanceclip.net';
   var web   = props.getProperty('CONTACT_WEBSITE')  || 'https://balanceclip.net';
-  var waNum = props.getProperty('CONTACT_WHATSAPP') || '+507 6981-2266';
+  var waNum = props.getProperty('CONTACT_WHATSAPP') || '+507 6018-8276';
   var body =
     'ℹ️ *Más sobre BalanceClip*\n\n' +
     'Somos un asistente fiscal automatizado para profesionales y negocios en Panamá.\n\n' +
