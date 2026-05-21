@@ -961,7 +961,9 @@ function _routerFinalizarSignup(from, data, token, phoneId) {
 //  Agrega la entrada al CLIENTS_MAP_JSON y le manda welcome al cliente.
 // ────────────────────────────────────────────────────────────────────
 function _routerHandleActivarCommand(from, text, token, phoneId) {
-  var m = String(text || '').match(/^activar\s+(\d{8,})\s+(https?:\/\/\S+)\s*$/i);
+  // Acepta la URL envuelta en <...> o [...] (WhatsApp/iOS auto-formatean
+  // los links así). Los chars de la URL excluyen los wrappers.
+  var m = String(text || '').match(/^activar\s+(\d{8,})\s+[<\[]?(https?:\/\/[^\s<>\]]+)[>\]]?\s*$/i);
   if (!m) {
     _routerSendText(from,
       '⚠️ Formato del comando:\n' +
