@@ -157,6 +157,51 @@ nav {
   animation: fadeUp 0.5s ease both;
 }
 
+/* ── Trial badge en hero (debajo del Panama badge) ── */
+.hero-trial-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #fff;
+  border-radius: 100px; padding: 6px 18px;
+  font-size: 12px; font-weight: 700;
+  margin: -.4rem auto 1.5rem;
+  box-shadow: 0 4px 14px rgba(22,163,74,0.32);
+  animation: fadeUp 0.5s 0.15s ease both;
+}
+
+/* ── Pill "7 días gratis" en track cards (debajo del precio) ── */
+.track-trial-pill {
+  display: inline-block;
+  background: rgba(22,163,74,0.10);
+  color: #15803d;
+  border: 1px solid rgba(22,163,74,0.25);
+  border-radius: 100px;
+  padding: 4px 12px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-top: -.5rem;
+  margin-bottom: 1.2rem;
+}
+
+/* ── Pill grande en sección CTA ── */
+.cta-trial-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #fff;
+  border-radius: 100px; padding: 7px 18px;
+  font-size: 13px; font-weight: 700;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 6px 18px rgba(22,163,74,0.35);
+}
+
+.cta-fineprint {
+  margin-top: 1.4rem;
+  font-size: 12px;
+  color: var(--ink2);
+  font-weight: 500;
+  opacity: 0.85;
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -737,8 +782,8 @@ body:not(.es) .es { display: none !important; }
     <a href="mailto:hello@balanceclip.net" class="btn-signin">
       <span class="en">Sign In</span><span class="es">Ingresar</span>
     </a>
-    <a href="mailto:hello@balanceclip.net" class="btn-cta">
-      <span class="en">Get Started →</span><span class="es">Comenzar →</span>
+    <a href="https://wa.me/50769812266?text=demo" target="_blank" rel="noopener" class="btn-cta">
+      <span class="en">🎁 Try 7 days free →</span><span class="es">🎁 Probar 7 días gratis →</span>
     </a>
   </div>
 </nav>
@@ -752,6 +797,10 @@ body:not(.es) .es { display: none !important; }
       <div class="hero-badge">
         🇵🇦 <span class="en">Panama Native · DGI 2026 Ready</span>
              <span class="es">Hecho para Panamá · DGI 2026</span>
+      </div>
+      <div class="hero-trial-badge">
+        🎁 <span class="en">7-day free trial · No credit card · Sign up by WhatsApp</span>
+             <span class="es">7 días gratis · Sin tarjeta · Registro por WhatsApp</span>
       </div>
       <h1>
         <span class="en">Your books,<br><span class="accent">finally closed.</span></span>
@@ -840,6 +889,7 @@ body:not(.es) .es { display: none !important; }
           <span class="track-price-num">$149</span>
           <span class="track-price-per">/mes</span>
         </div>
+        <div class="track-trial-pill">🎁 <span class="en">7-day free trial</span><span class="es">7 días gratis</span></div>
 
         <span class="track-cta-btn">
           <span class="en">See BalanceClip Trade →</span><span class="es">Ver BalanceClip Trade →</span>
@@ -920,6 +970,7 @@ body:not(.es) .es { display: none !important; }
           <span class="track-price-num">$19</span>
           <span class="track-price-per">/mes</span>
         </div>
+        <div class="track-trial-pill">🎁 <span class="en">7-day free trial</span><span class="es">7 días gratis</span></div>
 
         <span class="track-cta-btn">
           <span class="en">See BalanceClip Pro →</span><span class="es">Ver BalanceClip Pro →</span>
@@ -1002,17 +1053,28 @@ body:not(.es) .es { display: none !important; }
   <div class="cta-decor1"></div>
   <div class="cta-decor2"></div>
   <div class="cta-inner">
-    <h2><span class="en">Trade or Pro? We'll help you choose in 5 minutes.</span><span class="es">¿Trade o Pro? Te ayudamos a elegir en 5 minutos.</span></h2>
-    <p><span class="en">Email us, or WhatsApp directly. We answer in Panama time.</span><span class="es">Escríbenos por correo o WhatsApp. Respondemos en hora Panamá.</span></p>
+    <div class="cta-trial-pill">🎁 <span class="en">7 days free · No credit card</span><span class="es">7 días gratis · Sin tarjeta</span></div>
+    <h2>
+      <span class="en">Sign up in 4 minutes by WhatsApp.</span>
+      <span class="es">Registrate en 4 minutos por WhatsApp.</span>
+    </h2>
+    <p>
+      <span class="en">Our bot guides you through 5 quick questions. We set up your account within 24h and you start sending invoices the same day — straight from WhatsApp.</span>
+      <span class="es">Nuestro bot te guía con 5 preguntas rápidas. Te configuramos la cuenta en 24h y empezás a mandar facturas el mismo día — directo desde WhatsApp.</span>
+    </p>
     <div class="cta-actions">
-      <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
-        <span class="en">✉️ Email Us →</span><span class="es">✉️ Enviar Correo →</span>
-      </a>
-      <a href="https://wa.me/50769812266" target="_blank" rel="noopener" class="btn-whatsapp">
+      <a href="https://wa.me/50769812266?text=demo" target="_blank" rel="noopener" class="btn-whatsapp">
         <span>💬</span>
-        <span class="en">WhatsApp +507 6981-2266</span>
-        <span class="es">WhatsApp +507 6981-2266</span>
+        <span class="en">Start free trial on WhatsApp</span>
+        <span class="es">Probar gratis por WhatsApp</span>
       </a>
+      <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
+        <span class="en">…or email us</span><span class="es">…o escribinos por email</span>
+      </a>
+    </div>
+    <div class="cta-fineprint">
+      <span class="en">Setup &lt; 24h · Cancel anytime · Panama-based support</span>
+      <span class="es">Setup &lt; 24h · Cancelás cuando quieras · Soporte en Panamá</span>
     </div>
   </div>
 </section>
