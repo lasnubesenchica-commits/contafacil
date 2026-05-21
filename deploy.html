@@ -1231,9 +1231,25 @@ async function correrHealthCheck() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Verificando…'; }
   try {
     var resp = await fetch(STATE.webAppUrl + '?action=healthCheck');
-    var hc = await resp.json();
+    var raw  = await resp.text();
+    var hc;
+    try { hc = JSON.parse(raw); } catch (_) { hc = null; }
     var box = document.getElementById('healthCheckResult');
     if (!box) return;
+
+    // Si la respuesta no tiene la forma esperada, mostrarla cruda para
+    // poder debuggear sin que la página crashee.
+    if (!hc || typeof hc !== 'object' || !hc.sheet || !hc.drive || !hc.gmail || !hc.config) {
+      box.innerHTML =
+        '<div style="margin-top:12px;padding:14px;border:1px solid #C62828;border-radius:8px;background:#FFF5F5">' +
+        '<div style="color:#C62828;font-weight:700;margin-bottom:8px">⚠️ El backend no devolvió un health check con la forma esperada</div>' +
+        '<div style="font-size:12px;color:#6C757D;margin-bottom:8px">Posibles causas: la acción <code>healthCheck</code> no está implementada en esta versión del GAS, o el deployment apunta a una versión vieja del código. Respuesta cruda:</div>' +
+        '<pre style="background:#F1F3F5;padding:10px;border-radius:4px;font-size:11px;max-height:300px;overflow:auto;white-space:pre-wrap;word-break:break-all">' +
+          (raw || '(vacío)').substring(0, 4000).replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+        '</pre></div>';
+      if (btn) { btn.textContent = '↻ Re-verificar'; btn.disabled = false; }
+      return;
+    }
 
     function row(label, ok, detail) {
       var color = ok ? '#2E7D32' : '#C62828';
@@ -1244,19 +1260,20 @@ async function correrHealthCheck() {
         (detail ? '<div style="color:#6C757D;font-size:11px;margin-top:2px">' + detail + '</div>' : '') +
         '</div></div>';
     }
+    var sp = hc.scriptProperties || {};
     var html =
       row('Sheet',  hc.sheet.ok,  hc.sheet.ok  ? hc.sheet.name + ' · ' + hc.sheet.tabCount + ' pestañas' : (hc.sheet.error || 'error')) +
       row('Drive',  hc.drive.ok,  hc.drive.ok  ? hc.drive.folderName : (hc.drive.error || 'error')) +
       row('Gmail',  hc.gmail.ok,  hc.gmail.ok  ? hc.gmail.labelCount + ' labels' : (hc.gmail.error || 'error')) +
       row('Config', hc.config.ok, hc.config.ok ? hc.config.empresa_nombre + ' · forwarder=' + hc.config.forwarder + ' · label=' + (hc.config.email_acr_label || '(sin label)') : (hc.config.error || 'error')) +
       row('Triggers', (hc.triggers || []).some(function(t){ return t.function === 'ejecutarSincronizacionUnificada'; }), (hc.triggers || []).map(function(t){ return t.function; }).join(', ') || 'ninguno instalado') +
-      row('CLAUDE_API_KEY', hc.scriptProperties.CLAUDE_API_KEY === 'set', hc.scriptProperties.CLAUDE_API_KEY) +
-      row('AUTH_RESET_TOKEN', hc.scriptProperties.AUTH_RESET_TOKEN === 'set', hc.scriptProperties.AUTH_RESET_TOKEN);
+      row('CLAUDE_API_KEY',   sp.CLAUDE_API_KEY === 'set',   sp.CLAUDE_API_KEY   || '(no reportado)') +
+      row('AUTH_RESET_TOKEN', sp.AUTH_RESET_TOKEN === 'set', sp.AUTH_RESET_TOKEN || '(no reportado)');
 
     var overallColor = hc.overall === 'healthy' ? '#2E7D32' : (hc.overall === 'degraded' ? '#E65100' : '#C62828');
     box.innerHTML =
       '<div style="margin-top:12px;padding:14px;border:1px solid #DEE2E6;border-radius:8px;background:#FFF">' +
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="color:' + overallColor + ';font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:1px">Estado: ' + hc.overall + '</span></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="color:' + overallColor + ';font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:1px">Estado: ' + (hc.overall || 'desconocido') + '</span></div>' +
       html + '</div>';
     if (btn) { btn.textContent = '↻ Re-verificar'; btn.disabled = false; }
   } catch (e) {
