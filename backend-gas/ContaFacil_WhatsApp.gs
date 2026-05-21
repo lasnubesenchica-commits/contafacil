@@ -31,10 +31,27 @@ var META_GRAPH_VERSION = 'v19.0';
 var META_GRAPH_BASE    = 'https://graph.facebook.com/' + META_GRAPH_VERSION;
 
 // URL del frontend web para incluir en respuestas de WhatsApp.
-// Se lee de Script Property FRONTEND_URL; fallback hardcoded a iris.
+// Orden de resolución:
+//   1. Script Property FRONTEND_URL (override manual del admin)
+//   2. Slug derivado del nombre del negocio en config (empresa_nombre
+//      o empresa_comercial, en ese orden). Ej: "Panadería Aurorita"
+//      → balanceclip.net/panaderia-aurorita/
+//   3. Portal genérico balanceclip.net/
+// Antes había un hardcoded a iris-albelo-ho — fix de bug donde
+// Aurorita recibía links que apuntaban al panel de Iris.
 function _whatsappFrontendUrl() {
-  return PropertiesService.getScriptProperties().getProperty('FRONTEND_URL')
-      || 'https://balanceclip.net/iris-albelo-ho/';
+  var url = PropertiesService.getScriptProperties().getProperty('FRONTEND_URL');
+  if (url) return url;
+  try {
+    var cfg = _getConfig() || {};
+    var raw = String(cfg.empresa_nombre || cfg.empresa_comercial || '');
+    var slug = raw.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // quitar tildes/diacríticos
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    if (slug) return 'https://balanceclip.net/' + slug + '/';
+  } catch(err) { /* fallthrough */ }
+  return 'https://balanceclip.net/';
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -221,7 +238,15 @@ function _whatsappProcesarMensaje(msg, metadata) {
   // ── Guardar según tipo detectado ──
   var resumen;
   try {
+    // WhatsApp solo procesa GASTOS por política de producto. La IA puede
+    // confundirse y devolver 'ingreso' (esp. cuando razón social difiere
+    // del nombre comercial, o cuando los RUCs no matchean exacto). Si lo
+    // hace, forzamos a gasto e informamos en el log para revisar después.
     if (parsed.tipo_transaccion === 'ingreso') {
+      Logger.log('IA clasificó como ingreso pero WA solo procesa gastos — forzando gasto. RUC recep: ' + (parsed.ruc_receptor || '?') + ' nombre: ' + (parsed.nombre_otro || '?'));
+      parsed.tipo_transaccion = 'gasto';
+    }
+    if (false) {  // rama de ingreso deshabilitada — ver bloque arriba
       resumen = _whatsappGuardarIngreso(parsed, mediaBlob, mime, from, msgId);
     } else {
       // Default a gasto si la IA no está segura
@@ -345,9 +370,20 @@ function _whatsappClasificarYExtraer(b64, mime) {
   // qué RUC buscar en la factura (deducibilidad).
   var cfgCtx = {};
   try { cfgCtx = _getConfig() || {}; } catch(e) { /* sigue sin cfg */ }
-  var negNombre = String(cfgCtx.empresa_nombre || cfgCtx.empresa_comercial || 'el usuario');
-  var negRuc    = String(cfgCtx.empresa_ruc    || '');
-  var negDv     = String(cfgCtx.empresa_dv     || '');
+  var negLegal  = String(cfgCtx.empresa_nombre    || '');
+  var negCom    = String(cfgCtx.empresa_comercial || '');
+  var negRuc    = String(cfgCtx.empresa_ruc       || '');
+  var negDv     = String(cfgCtx.empresa_dv        || '');
+  // Si ambos nombres existen y son distintos, los mostramos juntos:
+  // razón social + nombre comercial (típico en Panamá: una sociedad como
+  // "VENTAS Y MERCADEO S.A" opera bajo el nombre comercial "Panadería
+  // Aurorita" — la factura puede tener cualquiera de los dos).
+  var negNombre;
+  if (negLegal && negCom && negLegal.toLowerCase() !== negCom.toLowerCase()) {
+    negNombre = negLegal + '  (también opera como: ' + negCom + ')';
+  } else {
+    negNombre = negLegal || negCom || 'el usuario';
+  }
 
   // Sanitizar MIME
   if (mime === 'application/octet-stream') mime = 'image/jpeg';
