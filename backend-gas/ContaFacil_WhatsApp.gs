@@ -19,7 +19,7 @@
 //    META_WHATSAPP_TOKEN  — token permanente (System User) que generaste
 //                           en developers.facebook.com
 //    META_PHONE_ID        — phone_number_id (1035238479681939 para iris)
-//    META_VERIFY_TOKEN    — string que vos eligen, debe coincidir con la
+//    META_VERIFY_TOKEN    — string que tú eligen, debe coincidir con la
 //                           configurada en el Webhook de Meta
 //
 //  GRAPH API VERSION
@@ -157,7 +157,7 @@ function _whatsappProcesarMensaje(msg, metadata) {
 
   // ── Media: image o document ──
   if (tipo !== 'image' && tipo !== 'document') {
-    _whatsappReply(from, '⚠️ Tipo de mensaje no soportado (' + tipo + '). Mandá una foto o PDF.', token, phoneId);
+    _whatsappReply(from, '⚠️ Tipo de mensaje no soportado (' + tipo + '). Envía una foto o PDF.', token, phoneId);
     return;
   }
 
@@ -172,7 +172,7 @@ function _whatsappProcesarMensaje(msg, metadata) {
     mediaBlob = _whatsappDescargarMedia(mediaId, token);
   } catch(err) {
     Logger.log('Error descargando media: ' + err.message);
-    _whatsappReply(from, '⚠️ No pude descargar el archivo. Intentá enviarlo de nuevo.', token, phoneId);
+    _whatsappReply(from, '⚠️ No pude descargar el archivo. Intenta enviarlo de nuevo.', token, phoneId);
     return;
   }
 
@@ -200,11 +200,11 @@ function _whatsappProcesarMensaje(msg, metadata) {
     _whatsappReply(from,
       '⚠️ *No pude procesar el comprobante* (calidad ' + calidad.score + '%)\n\n' +
       detalleProblemas +
-      'Por favor reenvialo con mejor calidad:\n' +
+      'Por favor reenvíalo con mejor calidad:\n' +
       '📐 Ponelo plano y bien enfocado\n' +
       '💡 Buena iluminación, sin reflejos ni sombras\n' +
       '🔍 Que se lean monto, fecha, proveedor y RUC\n' +
-      '📄 Si tenés el PDF original, mandá el PDF',
+      '📄 Si tienes el PDF original, envía el PDF',
       token, phoneId);
     return;
   }
@@ -214,7 +214,7 @@ function _whatsappProcesarMensaje(msg, metadata) {
       ? ' Campos dudosos: ' + calidad.problemas.join(', ') + '.'
       : '';
     _whatsappReply(from,
-      '⚠️ *Lectura parcial* (calidad ' + calidad.score + '%). Revisá bien los datos antes de aprobar.' + avisos,
+      '⚠️ *Lectura parcial* (calidad ' + calidad.score + '%). Revisa bien los datos antes de aprobar.' + avisos,
       token, phoneId);
   }
 
@@ -361,7 +361,7 @@ function _whatsappClasificarYExtraer(b64, mime) {
   }
 
   var prompt =
-    'Analiza este comprobante panameño. Determiná PRIMERO si es:\n' +
+    'Analiza este comprobante panameño. Determina PRIMERO si es:\n' +
     '  - "gasto"   = pago HECHO por el usuario (factura recibida de proveedor, recibo de compra, voucher saliente)\n' +
     '  - "ingreso" = pago RECIBIDO por el usuario (factura emitida por él/ella, voucher Yappy entrante, transferencia recibida)\n\n' +
     'CONTEXTO DEL USUARIO:\n' +
@@ -391,11 +391,11 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '  "ruc_receptor":      "RUC del RECEPTOR exactamente como aparece en el documento (con guiones). Para personas naturales es la cédula. Si no es visible, null.",\n' +
     '  "categoria_dgi":     "key DGI de la línea correspondiente (ver guía)"\n' +
     '}\n\n' +
-    'Para "categoria_dgi" si tipo_transaccion=ingreso, usá las keys del Form 91:\n' +
+    'Para "categoria_dgi" si tipo_transaccion=ingreso, usa las keys del Form 91:\n' +
     '  ventas_servicios (L14, default), honorarios_profesionales (L8), honorarios_comision (L7),\n' +
     '  alquiler_comercial (L10), alquiler_habitacional (L9), intereses_financieros (L11),\n' +
     '  salarios_con_retencion (L1), dietas (L5), fuente_extranjera (L18), otros_ingresos (L13).\n\n' +
-    'Si tipo_transaccion=gasto, usá las keys del Anexo 94/Form 90:\n' +
+    'Si tipo_transaccion=gasto, usa las keys del Anexo 94/Form 90:\n' +
     '  alquileres (L46), nomina (L42), combustible_transporte (L56), servicios_publicos (L75),\n' +
     '  telecomunicaciones (L71), gastos_oficina (L69), publicidad_mercadeo (L68),\n' +
     '  honorarios_profesionales (L60), seguros (L63-66), mantenimiento_reparacion (L67),\n' +
@@ -492,7 +492,7 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
 
   // URL del dashboard del cliente — derivada del nombre del negocio.
   // Si el cliente quiere ver el PDF completo, editar más campos, o
-  // revisar el histórico, lo hace acá. La aprobación rápida la puede
+  // revisar el histórico, lo hace aquí. La aprobación rápida la puede
   // hacer con el botón ✅ Aprobar de abajo.
   var slugDashboard = String((cfg && (cfg.empresa_nombre || cfg.empresa_comercial)) || '')
     .toLowerCase()
@@ -675,7 +675,7 @@ function _whatsappRecordatorioSetupEmail(to, token, phoneId) {
   props.setProperty(key, String(Date.now()));
 
   _whatsappReplyBotones(to,
-    '💡 *Tip*: configurá reenvío automático desde tu email y olvidate de mandar facturas a mano. Lo hacés *una vez por proveedor* y queda funcionando para siempre.',
+    '💡 *Tip*: configura reenvío automático desde tu email y olvidate de mandar facturas a mano. Lo haces *una vez por proveedor* y queda funcionando para siempre.',
     null,
     [{ id: 'setup:start', title: '📧 Cómo configurar' }],
     token, phoneId
@@ -831,8 +831,8 @@ function _whatsappOnCambiarCat(pendId, from, token, phoneId) {
     };
   });
   var ok = _whatsappReplyLista(from,
-    'Elegí la categoría DGI correcta para ' + pendId + '.\n' +
-    '(¿No está la que buscás? Abrí la app desde: ' + _whatsappFrontendUrl() + '#registroGastos)',
+    'Elige la categoría DGI correcta para ' + pendId + '.\n' +
+    '(¿No está la que buscas? Abre la app desde: ' + _whatsappFrontendUrl() + '#registroGastos)',
     'Ver categorías',
     sections, token, phoneId);
   // Si Meta rechaza el list message (p.ej. límites no documentados),
@@ -840,7 +840,7 @@ function _whatsappOnCambiarCat(pendId, from, token, phoneId) {
   if (!ok) {
     _whatsappReply(from,
       '⚠️ No pude mostrar la lista de categorías en WhatsApp.\n\n' +
-      'Cambiá la categoría desde la app:\n' + _whatsappFrontendUrl() + '#registroGastos',
+      'Cambia la categoría desde la app:\n' + _whatsappFrontendUrl() + '#registroGastos',
       token, phoneId);
   }
 }
@@ -880,9 +880,9 @@ function _whatsappOnSetCat(pendId, nuevaKey, from, token, phoneId) {
 //  el envío del list message sin necesidad de mirar Executions.
 //
 //  Pasos:
-//    1. Editá la línea TEST_FROM y TEST_PENDID abajo con tu celular
+//    1. Edita la línea TEST_FROM y TEST_PENDID abajo con tu celular
 //       (formato 507XXXXXXXX) y un PENDR válido del sheet.
-//    2. Guardá el archivo.
+//    2. Guarda el archivo.
 //    3. Dropdown del botón Run → seleccionar `whatsappTestLista`.
 //    4. Run → Ctrl+Enter (o View → Logs) para ver los Logger.log.
 //
@@ -890,18 +890,18 @@ function _whatsappOnSetCat(pendId, nuevaKey, from, token, phoneId) {
 //  error + el payload enviado en los logs.
 // ════════════════════════════════════════════════════════════════════
 function whatsappTestLista() {
-  var TEST_FROM   = '507TUCELULAR';            // ← cambiá por tu número
-  var TEST_PENDID = 'PENDR-202605-0058';       // ← cambiá por un PENDR real
+  var TEST_FROM   = '507TUCELULAR';            // ← cambia por tu número
+  var TEST_PENDID = 'PENDR-202605-0058';       // ← cambia por un PENDR real
 
   var props   = PropertiesService.getScriptProperties();
   var token   = props.getProperty('META_WHATSAPP_TOKEN');
   var phoneId = props.getProperty('META_PHONE_ID');
   if (!token || !phoneId) { Logger.log('❌ Faltan META_WHATSAPP_TOKEN o META_PHONE_ID'); return; }
-  if (TEST_FROM === '507TUCELULAR') { Logger.log('⚠️ Editá TEST_FROM con tu celular real antes de correr'); return; }
+  if (TEST_FROM === '507TUCELULAR') { Logger.log('⚠️ Edita TEST_FROM con tu celular real antes de correr'); return; }
 
   Logger.log('▶ Llamando _whatsappOnCambiarCat con pendId=' + TEST_PENDID + ' from=' + TEST_FROM);
   _whatsappOnCambiarCat(TEST_PENDID, TEST_FROM, token, phoneId);
-  Logger.log('✅ Función terminó. Revisá los logs arriba para ver el resultado del envío.');
+  Logger.log('✅ Función terminó. Revisa los logs arriba para ver el resultado del envío.');
 }
 
 // ════════════════════════════════════════════════════════════════════
