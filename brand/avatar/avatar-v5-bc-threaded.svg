@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <!-- v5: "BC" sólido en blanco con un paperclip real ATRAVESÁNDOLO.
+       El alambre del clip se mete por arriba del B, sale por la "panza"
+       superior, vuelve a entrar, y termina saliendo del C como un
+       "hilvanado" — refuerza que la marca está literalmente "clippeada". -->
+  <defs>
+    <linearGradient id="bg5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="wireShade" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fde7c2"/>
+    </linearGradient>
+    <!-- Máscara: oculta el alambre donde "pasa por detrás" de las letras -->
+    <mask id="wireBehind">
+      <rect width="640" height="640" fill="#fff"/>
+      <!-- Las zonas negras esconden el alambre — corresponden al cuerpo
+           de las letras (las dibujamos abajo en la máscara). -->
+      <text x="156" y="445" font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+            font-size="320" font-weight="900" fill="#000" letter-spacing="-4">BC</text>
+    </mask>
+  </defs>
+
+  <rect width="640" height="640" fill="url(#bg5)"/>
+
+  <!-- 1) ALAMBRE DETRÁS de las letras (segmentos ocultos por el texto) -->
+  <g fill="none" stroke="url(#wireShade)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" mask="url(#wireBehind)">
+    <path d="M 130 110
+             C 140 100, 165 95, 195 110
+             C 240 130, 270 175, 250 230
+             C 230 285, 200 290, 240 340
+             C 280 390, 350 360, 400 320
+             C 450 280, 480 240, 510 280
+             C 540 320, 520 380, 480 410
+             C 440 440, 360 460, 320 500
+             C 280 540, 280 570, 330 570"/>
+  </g>
+
+  <!-- 2) Letras BC sólidas blancas -->
+  <text x="156" y="445" font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="320" font-weight="900" fill="#fff" letter-spacing="-4">BC</text>
+
+  <!-- 3) ALAMBRE POR DELANTE de las letras (segmentos visibles) -->
+  <g fill="none" stroke="url(#wireShade)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Entrada del clip arriba a la izquierda (loop tipo paperclip real) -->
+    <path d="M 130 110
+             C 100 105, 90 120, 100 145
+             C 110 165, 140 168, 155 145"/>
+
+    <!-- Salida del clip abajo a la derecha (otro loop) -->
+    <path d="M 330 570
+             C 360 580, 380 560, 370 535
+             C 360 515, 335 510, 320 525"/>
+  </g>
+</svg>

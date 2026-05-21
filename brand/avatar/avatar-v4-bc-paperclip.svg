@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <!-- v4: "BC" formado por trazos de alambre tipo paperclip
+       Trazos blancos sin relleno, con caps redondeados que simulan
+       el alambre doblado de un clip. Continuidad con el branding. -->
+  <defs>
+    <radialGradient id="bg4" cx="35%" cy="30%" r="80%">
+      <stop offset="0%"  stop-color="#fb923c"/>
+      <stop offset="60%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="640" height="640" fill="url(#bg4)"/>
+
+  <!-- Brillo radial sutil arriba a la izq -->
+  <circle cx="180" cy="170" r="100" fill="#fff" opacity="0.08"/>
+
+  <!-- "BC" trazado como alambre de paperclip. Stroke 38px, rounded caps. -->
+  <g fill="none" stroke="#fff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- B: tres segmentos formando las dos panzas con bucles tipo clip.
+         Trazo continuo que entra por abajo, sube, vuelve a bajar al medio,
+         y forma la segunda panza — como un alambre real de clip. -->
+    <path d="
+      M 180 460
+      L 180 180
+      C 180 165, 192 153, 207 153
+      L 280 153
+      C 318 153, 348 183, 348 221
+      C 348 259, 318 289, 280 289
+      L 200 289
+      M 200 289
+      L 280 289
+      C 322 289, 356 323, 356 365
+      C 356 407, 322 441, 280 441
+      L 198 441
+      "/>
+
+    <!-- C: arco abierto en alambre de clip. La punta superior tiene
+         un pequeño retorno hacia adentro que evoca el doblez de un clip. -->
+    <path d="
+      M 478 215
+      C 478 195, 462 178, 442 178
+      L 415 178
+      C 365 178, 325 218, 325 268
+      L 325 348
+      C 325 398, 365 438, 415 438
+      L 442 438
+      C 462 438, 478 422, 478 402
+      "/>
+
+  </g>
+
+  <!-- Detalle: un mini paperclip horizontal arriba como "remate" de marca -->
+  <g transform="translate(440 100) rotate(-15)" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.55">
+    <path d="M -28 -8
+             C -28 -12, -25 -15, -21 -15
+             L 24 -15
+             C 30 -15, 35 -10, 35 -4
+             C 35 2, 30 7, 24 7
+             L -10 7
+             C -14 7, -17 4, -17 0
+             L -17 -5"/>
+  </g>
+</svg>
