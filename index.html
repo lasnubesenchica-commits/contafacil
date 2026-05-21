@@ -629,6 +629,13 @@ footer {
   transform: translateY(-6px);
   box-shadow: 0 24px 48px rgba(0,0,0,0.12);
 }
+/* ── Orden visual: Pro primero, Trade segundo ──
+   Mantenemos el HTML en su orden original (Trade primero por
+   inercia histórica) y reordenamos con CSS order, así sirve para
+   desktop grid + mobile stack. */
+.track-card-first  { order: 1; }
+.track-card-second { order: 2; }
+
 .track-card-trade {
   background: linear-gradient(155deg, #fff7ed 0%, #fed7aa 55%, #fef3c7 100%);
   border-color: rgba(249,115,22,0.3);
@@ -880,9 +887,9 @@ body:not(.es) .es { display: none !important; }
     <!-- TRACK GRID -->
     <div class="track-grid">
 
-      <!-- TRADE TRACK -->
-      <a href="/trade" class="track-card track-card-trade">
-        <span class="track-pill-card">📦 Track 01 · Trade</span>
+      <!-- TRADE TRACK (Track 02 — sale después de Pro) -->
+      <a href="/trade" class="track-card track-card-trade track-card-second">
+        <span class="track-pill-card">📦 Track 02 · Trade</span>
         <h2 class="track-card-h">
           <span class="en">I buy and sell products</span>
           <span class="es">Compro y vendo productos</span>
@@ -961,9 +968,9 @@ body:not(.es) .es { display: none !important; }
         </span>
       </a>
 
-      <!-- PRO TRACK -->
-      <a href="/pro" class="track-card track-card-pro">
-        <span class="track-pill-card">💼 Track 02 · Pro</span>
+      <!-- PRO TRACK (Track 01 — sale primero) -->
+      <a href="/pro" class="track-card track-card-pro track-card-first">
+        <span class="track-pill-card">💼 Track 01 · Pro</span>
         <h2 class="track-card-h">
           <span class="en">I bill for my time or services</span>
           <span class="es">Cobro por mi tiempo o servicios</span>
@@ -1002,7 +1009,7 @@ body:not(.es) .es { display: none !important; }
                 <span class="inv-dot inv-dot-sell"></span>
                 <div>
                   <div class="inv-label"><span class="en">Gas Station Delta</span><span class="es">Gasolinera Delta</span></div>
-                  <div class="inv-sub">📸 <span class="en">Photo OCR</span><span class="es">Foto OCR</span> · <span class="en">Fuel</span><span class="es">Combustible</span></div>
+                  <div class="inv-sub">📲 <span class="en">WhatsApp</span><span class="es">WhatsApp</span> · <span class="en">Fuel</span><span class="es">Combustible</span></div>
                 </div>
               </div>
               <div class="inv-amount">$42.50</div>
@@ -1025,8 +1032,8 @@ body:not(.es) .es { display: none !important; }
         </div>
 
         <ul class="track-benefits">
+          <li><span class="en">Send invoices straight from WhatsApp — AI reads &amp; categorizes in seconds</span><span class="es">Envía facturas directo por WhatsApp — la IA las lee y categoriza en segundos</span></li>
           <li><span class="en">Gmail invoices captured every 15 min</span><span class="es">Facturas de Gmail capturadas cada 15 min</span></li>
-          <li><span class="en">Photo a paper receipt — 18 deductible rubrics</span><span class="es">Foto al recibo — 18 rubros deducibles</span></li>
           <li><span class="en">Year-end report ready for your accountant</span><span class="es">Cierre anual listo para tu contable</span></li>
         </ul>
 
