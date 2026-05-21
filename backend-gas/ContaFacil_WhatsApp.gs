@@ -489,12 +489,26 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
   var props   = PropertiesService.getScriptProperties();
   var token   = props.getProperty('META_WHATSAPP_TOKEN');
   var phoneId = props.getProperty('META_PHONE_ID');
+
+  // URL del dashboard del cliente — derivada del nombre del negocio.
+  // Si el cliente quiere ver el PDF completo, editar más campos, o
+  // revisar el histórico, lo hace acá. La aprobación rápida la puede
+  // hacer con el botón ✅ Aprobar de abajo.
+  var slugDashboard = String((cfg && (cfg.empresa_nombre || cfg.empresa_comercial)) || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  var dashboardUrl = slugDashboard ? ('https://balanceclip.net/' + slugDashboard + '/') : '';
+
   var bodyTxt = '✅ Gasto recibido\n\n' +
                 '📦 ' + (acreedor.nombre || 'Sin proveedor') + '\n' +
                 '💵 B/. ' + Number(parsed.total || 0).toFixed(2) +
                 (parsed.itbms ? ' (ITBMS B/. ' + Number(parsed.itbms).toFixed(2) + ')' : '') + '\n' +
                 '📋 Categoría sugerida: ' + _waCatLabel(catSug) + '\n' +
-                lineaDeducible;
+                lineaDeducible +
+                (dashboardUrl
+                  ? '\n\n🔗 Ver o aprobar en el panel:\n' + dashboardUrl
+                  : '');
   _whatsappReplyBotones(from, bodyTxt, '#' + pendId, [
     { id: 'wa:apr:' + pendId, title: '✅ Aprobar' },
     { id: 'wa:cat:' + pendId, title: '📝 Cambiar categoría' },
