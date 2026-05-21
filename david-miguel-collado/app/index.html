@@ -1123,6 +1123,16 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         </div>
       </div>
 
+      <!-- PENDIENTES POR WHATSAPP ───────────────── -->
+      <div id="pendWhatsAppSection" style="display:none">
+        <div class="pend-section-hdr">
+          <div class="pend-section-title">
+            📲 Recibidos por WhatsApp
+            <span class="pend-count" id="pendCountWa">0</span>
+          </div>
+        </div>
+        <div class="card-list" id="pend-list-wa" style="padding-top:0"></div>
+      </div>
       <!-- PENDIENTES POR EMAIL ─────────────────── -->
       <div id="pendEmailSection">
         <div class="pend-section-hdr">
@@ -1135,16 +1145,6 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
           </button>
         </div>
         <div class="card-list" id="pend-list" style="padding-top:0"></div>
-      </div>
-      <!-- PENDIENTES POR WHATSAPP ───────────────── -->
-      <div id="pendWhatsAppSection" style="display:none">
-        <div class="pend-section-hdr">
-          <div class="pend-section-title">
-            📲 Recibidos por WhatsApp
-            <span class="pend-count" id="pendCountWa">0</span>
-          </div>
-        </div>
-        <div class="card-list" id="pend-list-wa" style="padding-top:0"></div>
       </div>
       <!-- ───────────────────────────────────── -->
       </div><!-- /reg-simple-body -->
@@ -2536,7 +2536,7 @@ const REGD = (() => {
             id_egreso:        'PND-' + p.id,
             _pend_id:         p.id,
             fecha_egreso:     p.fecha_fac || p.fecha_reg || '',
-            proveedor_nombre: p.acreedor_nom || '',
+            proveedor:        p.acreedor_nom || '',
             descripcion:      p.descripcion || '',
             subtotal:         p.subtotal || 0,
             itbms:            p.itbms || 0,
