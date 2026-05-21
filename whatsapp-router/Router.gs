@@ -20,6 +20,9 @@
 //         SIGNUP_ADMIN_PHONE   — número (sin +) del admin que recibe
 //                                notificaciones de signup y puede usar
 //                                el comando `activar` (default 50769812266)
+//         LOG_SHEET_ID         — ID del Sheet de logs de conversaciones.
+//                                Se autocrea al primer log; no setear a mano
+//                                salvo que quieras apuntar a otro Sheet.
 //         CONTACT_EMAIL/WEBSITE/WHATSAPP — opcionales (info marketing)
 //    4. Apuntar el Webhook Callback URL de Meta a este deployment URL.
 //    5. Probar con routerTestConfig() desde el editor.
@@ -124,6 +127,9 @@ function _routerHandleWebhook(data) {
 function _routerForwardMensaje(msg, metadata) {
   var from = msg.from || '';
   if (!from) { Logger.log('Mensaje sin from, ignorando'); return; }
+
+  // Logging inbound — siempre primero para tener trazabilidad completa.
+  _routerLogInbound(msg, from);
 
   var props   = PropertiesService.getScriptProperties();
   var token   = props.getProperty('META_WHATSAPP_TOKEN');
@@ -388,8 +394,9 @@ function _routerReplyAyudaBreve(to, token, phoneId) {
 //  Wrapper de envío de texto plano (DRY para el router)
 // ────────────────────────────────────────────────────────────────────
 function _routerSendText(to, body, token, phoneId) {
+  var status = 'err';
   try {
-    UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+    var r = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
       method:      'post',
       contentType: 'application/json',
       headers:     { 'Authorization': 'Bearer ' + token },
@@ -400,7 +407,12 @@ function _routerSendText(to, body, token, phoneId) {
       }),
       muteHttpExceptions: true,
     });
-  } catch(err) { Logger.log('_routerSendText ERROR: ' + err.message); }
+    status = (r.getResponseCode() >= 200 && r.getResponseCode() < 300) ? 'ok' : ('http_' + r.getResponseCode());
+  } catch(err) {
+    Logger.log('_routerSendText ERROR: ' + err.message);
+    status = 'error:' + err.message;
+  }
+  _routerLog('out', to, 'text', '', body, status);
 }
 
 function _routerGetClientsMap() {
@@ -1156,6 +1168,120 @@ function installSignupReminderTrigger() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+//  LOGGING DE CONVERSACIONES
+//  ─────────────────────────
+//  Cada mensaje (inbound + outbound) se persiste en un Google Sheet
+//  dedicado para que el admin pueda ver "qué conversaciones tuvo el
+//  bot esta semana" sin depender de los logs efímeros de Apps Script
+//  (que se borran a los 7 días).
+//
+//  Sheet: se crea automáticamente la primera vez que se intenta
+//  loggear algo. El ID queda en la Script Property LOG_SHEET_ID.
+//  El propietario del Sheet es la cuenta que owna el Apps Script
+//  del router (típicamente el admin) — no se comparte con nadie por
+//  defecto, así que la data del bot queda privada.
+//
+//  Schema (columnas):
+//    A  timestamp   — Date
+//    B  phone       — número del usuario (sin +)
+//    C  dir         — 'in' | 'out'
+//    D  tipo        — text | image | document | interactive | audio | ...
+//    E  accion      — etiqueta libre (welcome, signup_q1, factura_forward,
+//                     etc.) — opcional, vacía si no aplica
+//    F  contenido   — body del mensaje truncado a 500 chars
+//    G  status      — ok | err | http_XXX | error:msg
+//
+//  Costo: appendRow es ~1s por log. Con ~3 logs por interacción
+//  (1 in + 2 out) → ~3s extra por mensaje. Aceptable.
+//  Para volúmenes grandes (>10k/mes) conviene rotar a una pestaña
+//  mensual — eso lo agregamos cuando haga falta.
+// ════════════════════════════════════════════════════════════════════
+
+function _routerLogEnsureSheet() {
+  var props = PropertiesService.getScriptProperties();
+  var sheetId = props.getProperty('LOG_SHEET_ID');
+  var ss = null;
+  if (sheetId) {
+    try { ss = SpreadsheetApp.openById(sheetId); }
+    catch(err) {
+      Logger.log('LOG_SHEET_ID inválido (' + sheetId + '): ' + err.message + ' — creando nuevo');
+      sheetId = null;
+      ss = null;
+    }
+  }
+  if (!ss) {
+    ss = SpreadsheetApp.create('BalanceClip Bot Logs');
+    sheetId = ss.getId();
+    props.setProperty('LOG_SHEET_ID', sheetId);
+    var sheet = ss.getActiveSheet();
+    sheet.setName('logs');
+    sheet.getRange(1, 1, 1, 7).setValues([['timestamp','phone','dir','tipo','accion','contenido','status']]);
+    sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#f3f4f6');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(1, 160);
+    sheet.setColumnWidth(2, 130);
+    sheet.setColumnWidth(3, 50);
+    sheet.setColumnWidth(4, 90);
+    sheet.setColumnWidth(5, 130);
+    sheet.setColumnWidth(6, 500);
+    sheet.setColumnWidth(7, 100);
+    Logger.log('Log sheet creado: ' + ss.getUrl());
+  }
+  return ss;
+}
+
+function _routerLog(dir, phone, tipo, accion, contenido, status) {
+  try {
+    var ss = _routerLogEnsureSheet();
+    var sheet = ss.getSheetByName('logs') || ss.getSheets()[0];
+    sheet.appendRow([
+      new Date(),
+      String(phone   || ''),
+      String(dir     || ''),
+      String(tipo    || ''),
+      String(accion  || ''),
+      String(contenido || '').substring(0, 500),
+      String(status  || 'ok'),
+    ]);
+  } catch(err) {
+    // No queremos que un fallo de logging rompa el handler de mensaje.
+    Logger.log('_routerLog ERROR: ' + err.message);
+  }
+}
+
+function _routerLogInbound(msg, from) {
+  var tipo = msg.type || 'unknown';
+  var contenido = '';
+  var accion = '';
+  if (tipo === 'text') {
+    contenido = (msg.text && msg.text.body) || '';
+  } else if (tipo === 'image') {
+    contenido = '[image id=' + (msg.image && msg.image.id || '?') + ']';
+  } else if (tipo === 'document') {
+    var f = msg.document && msg.document.filename || '?';
+    contenido = '[document filename="' + f + '"]';
+  } else if (tipo === 'audio') {
+    contenido = '[audio id=' + (msg.audio && msg.audio.id || '?') + ']';
+  } else if (tipo === 'interactive') {
+    var ia = msg.interactive || {};
+    var bid    = (ia.list_reply && ia.list_reply.id)    || (ia.button_reply && ia.button_reply.id)    || '';
+    var btitle = (ia.list_reply && ia.list_reply.title) || (ia.button_reply && ia.button_reply.title) || '';
+    contenido = '[' + (ia.type || 'btn') + ' id="' + bid + '" title="' + btitle + '"]';
+    accion = bid; // útil para filtrar por setup:start / wa:apr:* / signup:*
+  } else {
+    contenido = '[' + tipo + ']';
+  }
+  _routerLog('in', from, tipo, accion, contenido, 'recv');
+}
+
+// Helper para llamar desde el editor y abrir el Sheet de logs.
+function routerOpenLogSheet() {
+  var ss = _routerLogEnsureSheet();
+  Logger.log('Sheet URL: ' + ss.getUrl());
+  return ss.getUrl();
+}
+
+// ════════════════════════════════════════════════════════════════════
 //  Diagnóstico — ejecutar desde el editor para validar config
 // ════════════════════════════════════════════════════════════════════
 function routerTestConfig() {
@@ -1172,6 +1298,21 @@ function routerTestConfig() {
   Logger.log('META_VERIFY_TOKEN:   ' + (verify  ? '✅ set' : '❌ MISSING'));
   Logger.log('EMAIL_WATCHER_TOKEN: ' + (watcher ? '✅ set ('+watcher.length+' chars)' : '⚠️ MISSING (sin esto el watcher no puede notificar codes)'));
   Logger.log('SIGNUP_ADMIN_PHONE:  ' + (admin   ? '✅ ' + admin : '⚠️ default 50769812266 (setear para producción)'));
+
+  // Log sheet
+  var logSheetId = props.getProperty('LOG_SHEET_ID');
+  if (logSheetId) {
+    try {
+      var ss = SpreadsheetApp.openById(logSheetId);
+      var sheet = ss.getSheetByName('logs') || ss.getSheets()[0];
+      var rows = Math.max(0, sheet.getLastRow() - 1);
+      Logger.log('LOG_SHEET_ID:        ✅ ' + ss.getUrl() + ' (' + rows + ' logs)');
+    } catch(err) {
+      Logger.log('LOG_SHEET_ID:        ⚠️ ID seteado pero no se pudo abrir: ' + err.message);
+    }
+  } else {
+    Logger.log('LOG_SHEET_ID:        ⚠️ no creado — se crea automático al primer log entrante');
+  }
 
   var map;
   try { map = JSON.parse(mapJson); }
