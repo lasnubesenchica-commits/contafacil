@@ -12,6 +12,20 @@
 <meta name="apple-mobile-web-app-title" content="CEYCO">
 <meta name="theme-color" content="#0A0A0A">
 <title>CEYCO — Operaciones</title>
+<script>
+// ── Desktop redirect — must run before anything else ────────
+// Si un usuario de desktop entra a /app, lo mandamos a la versión
+// completa del panel (un nivel arriba). Equivalente inverso del
+// redirect mobile→/app que vive en ../index.html.
+(function() {
+  var ua = navigator.userAgent || '';
+  var isMobile = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobile|mobile/i.test(ua);
+  var isTouch  = navigator.maxTouchPoints > 1 && window.screen.width <= 1024;
+  if (isMobile || isTouch) return;
+  var newHref = window.location.href.replace(/\/app(\/index\.html|\/)?(?=$|\?|#)/, '/');
+  if (newHref !== window.location.href) window.location.replace(newHref);
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
