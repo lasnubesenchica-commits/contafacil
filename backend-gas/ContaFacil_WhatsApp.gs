@@ -886,11 +886,18 @@ function _whatsappOnCambiarCat(pendId, from, token, phoneId) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-//  Acción: Setear categoría elegida + auto-aprobar
+//  Acción: Setear categoría elegida + auto-aprobar + APRENDER preferencia
+//  Cuando el cliente cambia la categoría desde WhatsApp, persistimos
+//  la elección en Acreedores_Config.categoria_def para que la próxima
+//  factura del MISMO proveedor use esta categoría automáticamente.
 // ────────────────────────────────────────────────────────────────────
 function _whatsappOnSetCat(pendId, nuevaKey, from, token, phoneId) {
   if (!pendId || !nuevaKey) { _whatsappReply(from, '⚠️ Datos inválidos.', token, phoneId); return; }
   try {
+    // 0. Capturar info del proveedor ANTES de aprobar — la usamos para
+    //    persistir la preferencia. Si falla, no rompe el flujo de aprobación.
+    var acrInfo = _whatsappLookupAcreedorDePending(pendId);
+
     // 1. Actualizar la categoría del pendiente
     var upd = _handleActualizarPendienteAcr({ id: pendId, categoria: nuevaKey });
     var updJson;
@@ -899,6 +906,7 @@ function _whatsappOnSetCat(pendId, nuevaKey, from, token, phoneId) {
       _whatsappReply(from, '⚠️ No pude actualizar la categoría: ' + (updJson.error || ''), token, phoneId);
       return;
     }
+
     // 2. Aprobar automáticamente con la nueva categoría
     var apr = _handleAprobarAcreedor({ id: pendId });
     var aprJson = JSON.parse(apr.getContent());
@@ -906,12 +914,80 @@ function _whatsappOnSetCat(pendId, nuevaKey, from, token, phoneId) {
       _whatsappReply(from, '⚠️ Categoría cambiada pero no pude aprobar: ' + (aprJson.error || ''), token, phoneId);
       return;
     }
+
+    // 3. Persistir preferencia de categoría para este proveedor — feedback
+    //    loop para que la IA "aprenda" de las correcciones del cliente.
+    var aprendio = false;
+    if (acrInfo && (acrInfo.nombre || acrInfo.ruc)) {
+      try {
+        _handleGuardarPreferencia({
+          nombre:    acrInfo.nombre || '',
+          ruc:       acrInfo.ruc    || '',
+          categoria: nuevaKey,
+        });
+        aprendio = true;
+        Logger.log('🎓 Preferencia aprendida: ' + (acrInfo.nombre || acrInfo.ruc) + ' → ' + nuevaKey);
+      } catch(err) {
+        Logger.log('⚠️ No pude persistir preferencia (sigue OK la aprobación): ' + err.message);
+      }
+    }
+
+    var msgAprendio = aprendio
+      ? '\n\n🎓 La próxima factura de *' + (acrInfo.nombre || acrInfo.ruc) + '* se va a categorizar como *' + _waCatLabel(nuevaKey) + '* automáticamente.'
+      : '';
+
     _whatsappReply(from,
       '✅ Categoría actualizada a "' + _waCatLabel(nuevaKey) + '" y aprobado.\n' +
-      pendId + ' → ' + (aprJson.egreso_id || ''),
+      pendId + ' → ' + (aprJson.egreso_id || '') +
+      msgAprendio,
       token, phoneId);
   } catch(err) {
     _whatsappReply(from, '⚠️ Error: ' + err.message, token, phoneId);
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Lookup del proveedor (nombre + RUC) que origina un pendiente dado.
+//  Cruza Acreedores_Pending → Acreedores_Config por acreedor_id para
+//  obtener el RUC (que no vive en Pending directamente).
+//  Devuelve { nombre, ruc, acreedor_id } o null si no encuentra.
+// ────────────────────────────────────────────────────────────────────
+function _whatsappLookupAcreedorDePending(pendId) {
+  try {
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    // Pending → acreedor_nom + acreedor_id
+    var p = ss.getSheetByName(SHEET_ACREEDORES_PENDING);
+    if (!p || p.getLastRow() <= 2) return null;
+    var data = p.getRange(3, 1, p.getLastRow() - 2, PEND_NCOLS).getValues();
+    var nombre = '', acrId = '';
+    for (var i = 0; i < data.length; i++) {
+      if (String(data[i][COL_PEND.ID - 1]) === String(pendId)) {
+        nombre = String(data[i][COL_PEND.ACREEDOR_NOM - 1] || '');
+        acrId  = String(data[i][COL_PEND.ACREEDOR_ID  - 1] || '');
+        break;
+      }
+    }
+    if (!nombre && !acrId) return null;
+
+    // Lookup RUC desde Acreedores_Config (opcional — si no hay match
+    // devolvemos solo el nombre, _handleGuardarPreferencia acepta ambos).
+    var ruc = '';
+    if (acrId) {
+      var c = ss.getSheetByName(SHEET_ACREEDORES_CONFIG);
+      if (c && c.getLastRow() > 2) {
+        var cdata = c.getRange(3, 1, c.getLastRow() - 2, ACR_NCOLS).getValues();
+        for (var j = 0; j < cdata.length; j++) {
+          if (String(cdata[j][COL_ACR.ID - 1]) === String(acrId)) {
+            ruc = String(cdata[j][COL_ACR.RUC - 1] || '');
+            break;
+          }
+        }
+      }
+    }
+    return { nombre: nombre, ruc: ruc, acreedor_id: acrId };
+  } catch(err) {
+    Logger.log('_whatsappLookupAcreedorDePending error: ' + err.message);
+    return null;
   }
 }
 
