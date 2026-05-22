@@ -1220,32 +1220,92 @@ async function goStep3() {
     }
   }
 
-  // 6. Registrar cliente en clients.json (GitHub)
+  // 6. Registrar cliente en clients.json (GitHub) — BLOQUEANTE
+  //    Si esto falla, el deploy queda incompleto: el deploy-gas.yml no va
+  //    a empujar futuros updates al backend del cliente. Antes era solo
+  //    un ⚠️ silencioso que se pasaba por alto (caso de Aurorita).
   var l6 = addLog('', 'Registrando cliente en GitHub (clients.json)...', '', true);
   await sleep(300);
+  STATE.registroOK = false;
   try {
     await registerInGitHub(gasResult.scriptId, gasResult.deploymentId);
     updateLog(l6, '✅', 'Cliente registrado en clients.json');
+    STATE.registroOK = true;
   } catch(e) {
-    updateLog(l6, '⚠️', 'No se pudo registrar en GitHub: ' + e.message + ' — hazlo manual');
+    updateLog(l6, '❌', 'CRÍTICO — registro en GitHub falló: ' + e.message);
+    STATE.errorCritico = (STATE.errorCritico || []).concat([
+      'clients.json — ' + e.message + '. El cliente NO va a recibir los updates automáticos del backend hasta que lo registres manualmente.',
+    ]);
   }
 
   // 7. Crear carpeta admin del cliente (copia de iris-albelo-ho/ con GAS_URL reemplazado)
-  var clientId = STATE.negocio.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  var clientId = _slugifyClientId(STATE.negocio);
   var l7 = addLog('', 'Creando carpeta admin del cliente...', '', true);
   await sleep(300);
   STATE.adminUrl = null;
+  STATE.adminFolderOK = false;
   try {
     await createAdminFolder(clientId, gasResult.webAppUrl || '');
     STATE.adminUrl = 'https://lasnubesenchica-commits.github.io/contafacil/' + clientId + '/';
     updateLog(l7, '✅', 'Carpeta admin creada en GitHub', clientId + '/');
+    STATE.adminFolderOK = true;
   } catch(e) {
-    updateLog(l7, '⚠️', 'No se pudo crear carpeta admin: ' + e.message + ' — hazlo manual');
+    updateLog(l7, '❌', 'CRÍTICO — carpeta admin falló: ' + e.message);
+    STATE.errorCritico = (STATE.errorCritico || []).concat([
+      'Carpeta admin GitHub — ' + e.message + '. El cliente NO va a tener panel web hasta que la crees manualmente.',
+    ]);
   }
 
-  // 8. Done
+  // 8. Verificación end-to-end (auto) — confirma que cada pieza
+  //    quedó realmente accesible. Lo loggea como pasos individuales
+  //    para que el admin vea explícitamente qué se verificó.
   await sleep(200);
-  addLog('🎉', 'Cliente provisionado exitosamente');
+  var l8a = addLog('', 'Verificando clients.json en GitHub...', '', true);
+  try {
+    var verifRaw = await githubGetFile('clients.json');
+    var verifContent = decodeURIComponent(escape(atob(verifRaw.content.replace(/\s/g, ''))));
+    var verifParsed = JSON.parse(verifContent);
+    var verifId = _slugifyClientId(STATE.negocio);
+    var encontrado = verifParsed.clientes.find(function(c) { return c.id === verifId; });
+    if (encontrado) {
+      updateLog(l8a, '✅', 'Verificado: cliente "' + verifId + '" está en clients.json');
+    } else {
+      updateLog(l8a, '❌', 'Cliente "' + verifId + '" NO aparece en clients.json — el deploy-gas.yml NO va a actualizar este cliente');
+      STATE.errorCritico = (STATE.errorCritico || []).concat([
+        'Verificación clients.json — el cliente "' + verifId + '" no figura. Agregarlo manual: editar clients.json en GitHub y agregar { id, nombre, scriptId, gasDir, deploymentId }.',
+      ]);
+    }
+  } catch(e) {
+    updateLog(l8a, '⚠️', 'No pude verificar clients.json: ' + e.message);
+  }
+
+  if (STATE.webAppUrl) {
+    var l8b = addLog('', 'Verificando que el Web App responde...', '', true);
+    try {
+      var probe = await fetch(STATE.webAppUrl + '?action=getConfig', { redirect: 'follow' });
+      // El response puede ser CORS-opaque, pero el redirect debería terminar
+      // en 200 si el deployment está como ANYONE. Si está como ANYONE_WITH_GOOGLE_ACCOUNT
+      // termina en 302 hacia accounts.google.com sin acceso.
+      if (probe.ok || probe.type === 'opaque') {
+        updateLog(l8b, '✅', 'Web App responde HTTP 200 (deployment accesible)');
+      } else {
+        updateLog(l8b, '❌', 'Web App devolvió HTTP ' + probe.status + ' — verificar access level en Deploy > Manage > ✏️ > "Who has access: Anyone"');
+        STATE.errorCritico = (STATE.errorCritico || []).concat([
+          'Web App deployment — HTTP ' + probe.status + '. Probable: access level es "Anyone with Google account" en vez de "Anyone". Fix: editor → Deploy → Manage → ✏️ → Anyone → New version.',
+        ]);
+      }
+    } catch(e) {
+      updateLog(l8b, '⚠️', 'No pude verificar Web App: ' + e.message + ' (puede ser CORS — verificá manual)');
+    }
+  }
+
+  // 9. Done
+  await sleep(200);
+  if (STATE.errorCritico && STATE.errorCritico.length) {
+    addLog('🚨', 'Provisioning con errores críticos — revisar resumen abajo', '', false);
+  } else {
+    addLog('🎉', 'Cliente provisionado exitosamente — todos los chequeos pasaron');
+  }
 
   // Mostrar resultados
   document.getElementById('res-cliente').textContent     = STATE.negocio;
@@ -1636,12 +1696,26 @@ async function createAdminFolder(clientId, webAppUrl) {
   }
 }
 
+// Normaliza el nombre del negocio a un slug ASCII consistente.
+// Usado para el id en clients.json + la carpeta admin en GitHub.
+// "Panadería Aurorita" → "panaderia-aurorita" (sin tildes, kebab-case).
+// Antes la fórmula sin NFD daba "panader-a-aurorita" — feo y rompía
+// el match con la carpeta servida por GitHub Pages.
+function _slugifyClientId(raw) {
+  return String(raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // remover marcas combinantes (tildes, diéresis)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 async function registerInGitHub(scriptId, deploymentId) {
   var fileData = await githubGetFile('clients.json');
   var currentContent = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
   var parsed = JSON.parse(currentContent);
 
-  var clientId = STATE.negocio.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  var clientId = _slugifyClientId(STATE.negocio);
 
   // Idempotencia: si ya existe un cliente con este id, actualizar en lugar de duplicar
   var existingIdx = parsed.clientes.findIndex(function(c) { return c.id === clientId; });
@@ -1783,9 +1857,26 @@ function goStep4() {
 function buildOutputs() {
   var s = STATE;
 
-  // ── Recursos creados (panel superior) ──────────────────
+  // ── Banner de errores críticos arriba (si los hubo) ──────────────
+  // Antes los warnings ⚠️ pasaban desapercibidos entre los logs verdes.
+  // Ahora si registroOK o adminFolderOK fallaron, mostramos un banner
+  // rojo prominente que NO se puede pasar por alto, con acción manual.
   var resumen = document.getElementById('resumenCreados');
   resumen.innerHTML = '';
+  if (s.errorCritico && s.errorCritico.length) {
+    var alertEl = document.createElement('div');
+    alertEl.style.cssText = 'background:#FEF2F2;border:2px solid #DC2626;border-radius:10px;padding:18px 22px;margin-bottom:22px';
+    alertEl.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span style="font-size:22px">🚨</span>' +
+      '<strong style="color:#991B1B;font-size:15px;letter-spacing:.5px;text-transform:uppercase">Provisioning incompleto</strong></div>' +
+      '<div style="color:#7F1D1D;font-size:13px;line-height:1.6">' +
+        'Los siguientes pasos críticos FALLARON. El cliente NO va a funcionar 100% hasta que se resuelvan manualmente:' +
+        '<ul style="margin:10px 0 4px 18px;padding:0">' +
+          s.errorCritico.map(function(e){ return '<li style="margin:5px 0">' + e + '</li>'; }).join('') +
+        '</ul>' +
+      '</div>';
+    resumen.appendChild(alertEl);
+  }
 
   var gasEditorUrl = s.gasProjectId
     ? 'https://script.google.com/home/projects/' + s.gasProjectId
