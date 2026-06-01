@@ -603,6 +603,7 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
   _whatsappReplyBotones(from, bodyTxt, '#' + pendId, [
     { id: 'wa:apr:' + pendId, title: '✅ Aprobar' },
     { id: 'wa:cat:' + pendId, title: '📝 Cambiar categoría' },
+    { id: 'wa:rej:' + pendId, title: '❌ Rechazar' },
   ], token, phoneId);
 
   // Recordatorio (throttled) del reenvío automático por email — para
@@ -714,6 +715,7 @@ function whatsappTestConfig() {
 //    "wa:apr:<pendId>"           — aprobar tal cual
 //    "wa:cat:<pendId>"           — abrir lista de categorías
 //    "wa:set:<pendId>:<key>"     — setear categoría y aprobar
+//    "wa:rej:<pendId>"           — rechazar (lectura mala, duplicado)
 // ════════════════════════════════════════════════════════════════════
 
 // Catálogo de categorías para el list message — Meta limita a 10 FILAS
@@ -886,7 +888,35 @@ function _whatsappOnInteractive(msg, from, token, phoneId) {
   if (accion === 'apr')      _whatsappOnAprobar(pendId, from, token, phoneId);
   else if (accion === 'cat') _whatsappOnCambiarCat(pendId, from, token, phoneId);
   else if (accion === 'set') _whatsappOnSetCat(pendId, parts[3] || '', from, token, phoneId);
+  else if (accion === 'rej') _whatsappOnRechazar(pendId, from, token, phoneId);
   else Logger.log('Acción desconocida: ' + accion);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Acción: Rechazar el pendiente (lectura mala, duplicado, etc.)
+//  No borramos la fila — la marcamos como 'rechazado' en estado para
+//  que quede auditable si después aparece reclamo. _handleRechazarAcreedor
+//  ya hace exactamente eso (mismo handler que usa el panel web).
+// ────────────────────────────────────────────────────────────────────
+function _whatsappOnRechazar(pendId, from, token, phoneId) {
+  if (!pendId) { _whatsappReply(from, '⚠️ ID inválido.', token, phoneId); return; }
+  try {
+    var res = _handleRechazarAcreedor({ id: pendId });
+    var json = JSON.parse(res.getContent());
+    if (!json.success) {
+      _whatsappReply(from, '⚠️ No pude rechazar ' + pendId + ': ' + (json.error || 'error desconocido'), token, phoneId);
+      return;
+    }
+    _whatsappReply(from,
+      '❌ Descartado: ' + pendId + '\n\n' +
+      'Si la lectura fue mala, reenviá la foto/PDF con mejor calidad:\n' +
+      '📐 Plano, bien enfocado\n' +
+      '💡 Buena luz, sin reflejos\n' +
+      '🔍 Que se lean monto, fecha y RUC',
+      token, phoneId);
+  } catch(err) {
+    _whatsappReply(from, '⚠️ Error rechazando: ' + err.message, token, phoneId);
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────
