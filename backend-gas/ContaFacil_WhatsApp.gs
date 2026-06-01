@@ -193,6 +193,22 @@ function _whatsappProcesarMensaje(msg, metadata) {
     return;
   }
 
+  // ── Dedup por contenido (hash SHA-256 del archivo) ──
+  // El guard de msg.id solo cubre retries de Meta del mismo evento.
+  // Esto cubre el caso de reenviar la misma factura como mensaje nuevo
+  // (msg.id distinto pero archivo idéntico). Cero llamadas a Claude para
+  // duplicados → ahorra costo y evita pendientes duplicados.
+  var contentHash = _whatsappBlobHash(mediaBlob);
+  var dupInfo = _whatsappBuscarDuplicado(contentHash);
+  if (dupInfo) {
+    Logger.log('Duplicado por contenido: hash=' + contentHash.substr(0,12) + ' → ' + dupInfo.pendId);
+    _whatsappReply(from,
+      '📋 Esta factura ya está registrada (#' + dupInfo.pendId + ').\n\n' +
+      'Si querés volver a procesarla, primero rechazala desde el panel.',
+      token, phoneId);
+    return;
+  }
+
   // ── Clasificar con IA + extraer campos ──
   var parsed;
   try {
@@ -337,7 +353,7 @@ function _whatsappProcesarMensaje(msg, metadata) {
     // bajamos confianza si la matemática no cierra, para que el cliente
     // reciba el warning de "Lectura parcial" y revise antes de aprobar.
 
-    resumen = _whatsappGuardarGasto(parsed, mediaBlob, mime, from, msgId);
+    resumen = _whatsappGuardarGasto(parsed, mediaBlob, mime, from, msgId, contentHash);
   } catch(err) {
     Logger.log('Error guardando: ' + err.message);
     _whatsappReply(from, '⚠️ Detecté los datos pero no pude guardar: ' + err.message, token, phoneId);
@@ -599,7 +615,7 @@ function _whatsappClasificarYExtraer(b64, mime) {
 //  Guardar gasto pendiente — usa la infraestructura existente de
 //  Acreedores (find/crear acreedor + crear pendiente)
 // ────────────────────────────────────────────────────────────────────
-function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
+function _whatsappGuardarGasto(parsed, blob, mime, from, msgId, contentHash) {
   var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
 
   // 1. Encontrar o crear acreedor
@@ -630,6 +646,10 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
     ruc_receptor:         rucReceptor,
   };
   var pendId = _crearPendiente(ss, acreedor, parsedForPend, driveUrl, clave, msgId, fileName);
+
+  // Registrar hash del contenido para futuro dedup. Se hace acá (no en
+  // _crearPendiente) porque solo aplica al flujo WhatsApp.
+  if (contentHash) _whatsappRegistrarHash(contentHash, pendId);
 
   // Calcular alcance localmente para mostrar en el mensaje (mismo
   // criterio que _crearPendiente: deducible solo si la factura está
@@ -1216,4 +1236,72 @@ function _whatsappYaProcesado(msgId) {
   if (cache.get(key)) return true;
   cache.put(key, '1', 21600);   // 6h (máximo permitido)
   return false;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Dedup por contenido — evitar duplicar la misma factura reenviada.
+//
+//  Calcula SHA-256 del blob (PDF o imagen). Si ya existe un pendiente
+//  con ese hash, no procesamos. Persistido en ScriptProperties para que
+//  funcione meses después (no solo dentro del cache de 6h).
+//
+//  Para cada hash guardamos { pendId, ts } como JSON. Si el pendiente
+//  fue rechazado o eliminado, el cliente puede reenviar — pero por
+//  ahora no consultamos el estado, solo presencia del hash. Si el
+//  cliente quiere re-procesar uno rechazado, el mensaje le indica
+//  cómo hacerlo.
+// ════════════════════════════════════════════════════════════════════
+function _whatsappBlobHash(blob) {
+  if (!blob) return '';
+  try {
+    var bytes  = blob.getBytes();
+    var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes);
+    var hex = '';
+    for (var i = 0; i < digest.length; i++) {
+      var b = digest[i]; if (b < 0) b += 256;
+      var h = b.toString(16);
+      hex += (h.length === 1 ? '0' + h : h);
+    }
+    return hex;
+  } catch (e) {
+    Logger.log('Hash error: ' + e.message);
+    return '';
+  }
+}
+
+function _whatsappBuscarDuplicado(hash) {
+  if (!hash) return null;
+  var props = PropertiesService.getScriptProperties();
+  var raw   = props.getProperty('wa_hash_' + hash);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return { pendId: raw }; }
+}
+
+function _whatsappRegistrarHash(hash, pendId) {
+  if (!hash || !pendId) return;
+  try {
+    var props = PropertiesService.getScriptProperties();
+    props.setProperty('wa_hash_' + hash, JSON.stringify({
+      pendId: pendId,
+      ts:     new Date().toISOString(),
+    }));
+    // Reverse index para poder liberar el hash si el pendiente se rechaza.
+    props.setProperty('wa_pendhash_' + pendId, hash);
+  } catch (e) {
+    Logger.log('Hash register error: ' + e.message);
+  }
+}
+
+// Libera el hash asociado a un pendiente (cuando se rechaza o elimina),
+// para que el cliente pueda reenviar la misma factura si lo necesita.
+function _whatsappLiberarHashByPendId(pendId) {
+  if (!pendId) return;
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var hash  = props.getProperty('wa_pendhash_' + pendId);
+    if (hash) props.deleteProperty('wa_hash_' + hash);
+    props.deleteProperty('wa_pendhash_' + pendId);
+  } catch (e) {
+    Logger.log('Hash liberation error: ' + e.message);
+  }
 }
