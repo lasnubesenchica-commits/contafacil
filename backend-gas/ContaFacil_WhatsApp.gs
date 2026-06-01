@@ -524,7 +524,15 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '      Tip 3: si ves "Son: OCHENTA Y NUEVE CON 10/100" (monto en letras) eso CONFIRMA el total numérico — debe coincidir.\n' +
     '   e) itbms — solo si está LABELED como tal\n' +
     '   f) subtotal — si no estás seguro, devolvé 0 o null. NO inventes. NO sumes valores de líneas si no es obvio. Mejor null que un valor inventado.\n' +
-    '   g) fecha\n\n' +
+    '   g) fecha — REGLAS ESTRICTAS:\n' +
+    '       • Panamá usa formato DÍA-MES-AÑO (DD-MM-YYYY o DD/MM/YYYY). NUNCA interpretes como MM/DD.\n' +
+    '         Ejemplos: "18-02-2024" = 18 de febrero; "20/2/2024" = 20 de febrero; "02/04/2024" = 2 de abril.\n' +
+    '       • Buscá la fecha LABELED como "FECHA:", "FECHA EMISIÓN:", "FECHA FACTURA:", "FECHA DE EMISIÓN:" — esa es la fecha del comprobante.\n' +
+    '       • Si NO está labeled, agarrá la que aparece junto a "FACTURA No" o el número de comprobante.\n' +
+    '       • IGNORÁ: timestamps de impresión arriba (ej "02/18/2024 09:36 6205..."), fechas de "MEMBER #", "Año:", fechas de "FECHA INSTALACIÓN", o fechas dentro de códigos de barra / strings largos.\n' +
+    '       • Si ves múltiples fechas válidas, prioriza la más cercana al label "FACTURA" o "FECHA".\n' +
+    '       • Devolvé SIEMPRE en formato YYYY-MM-DD (ISO). Año 4 dígitos. Si solo ves "24" como año, asumí "2024".\n' +
+    '       • Si la fecha NO es legible o no estás seguro, devolvé null. NO inventes.\n\n' +
 
     '5. **CAMPOS DEDUCIDOS** (inferí del contenido):\n' +
     '   • categoria_dgi: del tipo de producto/servicio + naturaleza del proveedor\n' +
@@ -668,8 +676,20 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
   if (Number(parsed.itbms)     > 0) detallesMonto.push('ITBMS B/. ' + Number(parsed.itbms).toFixed(2));
   var lineaMonto = '💵 B/. ' + Number(parsed.total || 0).toFixed(2) +
                    (detallesMonto.length ? ' (' + detallesMonto.join(' · ') + ')' : '');
+  // Línea de fecha — mostramos en formato DD/MM/YYYY (lectura natural
+  // panameña) para que el cliente pueda validar contra la factura física
+  // antes de aprobar. Si la IA no la pudo leer, lo marcamos explícito.
+  var lineaFecha;
+  if (parsed.fecha && /^\d{4}-\d{2}-\d{2}$/.test(String(parsed.fecha))) {
+    var pf = String(parsed.fecha).split('-');
+    lineaFecha = '📅 Fecha: ' + pf[2] + '/' + pf[1] + '/' + pf[0];
+  } else {
+    lineaFecha = '📅 Fecha: ⚠️ no se pudo leer';
+  }
+
   var bodyTxt = '✅ Gasto recibido\n\n' +
                 '📦 ' + (acreedor.nombre || 'Sin proveedor') + '\n' +
+                lineaFecha + '\n' +
                 lineaMonto + '\n' +
                 '📋 Categoría sugerida: ' + _waCatLabel(catSug) + '\n' +
                 lineaDeducible +
