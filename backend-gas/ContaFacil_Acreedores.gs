@@ -1224,7 +1224,7 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   fila[COL_PEND.ESTADO - 1]      = 'borrador';
   fila[COL_PEND.ACREEDOR_ID - 1] = acreedor.id;
   fila[COL_PEND.ACREEDOR_NOM -1] = acreedor.nombre;
-  fila[COL_PEND.FECHA_FAC - 1]   = parsed.fecha        || '';
+  fila[COL_PEND.FECHA_FAC - 1]   = _parseFechaPanama(parsed.fecha);
   fila[COL_PEND.NUM_FAC - 1]     = parsed.num_factura  || '';
   fila[COL_PEND.SUBTOTAL - 1]    = parseFloat(parsed.subtotal || '0') || '';
   fila[COL_PEND.ITBMS - 1]       = parseFloat(parsed.itbms    || '0') || '';
@@ -1247,7 +1247,15 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   var newRow = sheet.getLastRow() + 1;
   sheet.getRange(newRow, 1, 1, PEND_NCOLS).setValues([fila]);
   sheet.getRange(newRow, COL_PEND.SUBTOTAL, 1, 3).setNumberFormat('#,##0.00');
+  sheet.getRange(newRow, COL_PEND.FECHA_FAC, 1, 1).setNumberFormat('yyyy-MM-dd');
   sheet.getRange(newRow, 1, 1, PEND_NCOLS).setBackground('#FFF9C4');
+  // Defensivo: si el spreadsheet del cliente no está en TZ Panamá,
+  // las fechas se corren 1 día. Forzamos Panamá una vez (idempotente).
+  try {
+    if (ss.getSpreadsheetTimeZone() !== 'America/Panama') {
+      ss.setSpreadsheetTimeZone('America/Panama');
+    }
+  } catch (e) {}
   return id;
 }
 
@@ -1257,6 +1265,23 @@ function _getOrCreateLabelAcr(nombre) {
     if (labels[i].getName() === nombre) return labels[i];
   }
   return GmailApp.createLabel(nombre);
+}
+
+// Parsea una fecha "YYYY-MM-DD" como medianoche en America/Panama.
+// Necesario porque Google Sheets auto-detecta el string ISO y lo
+// almacena como Date en la timezone del spreadsheet, que si no es
+// Panamá causa off-by-one al re-formatear desde Apps Script.
+// Devuelve Date o '' si el string no es válido.
+function _parseFechaPanama(s) {
+  if (!s) return '';
+  var str = String(s).trim();
+  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return str;  // si no es ISO, devolvemos tal cual; flujo viejo
+  try {
+    return Utilities.parseDate(m[1] + '-' + m[2] + '-' + m[3], 'America/Panama', 'yyyy-MM-dd');
+  } catch (e) {
+    return str;
+  }
 }
 
 // Compara RUC del receptor de la factura contra el RUC del negocio.
@@ -1427,8 +1452,15 @@ function _handleAprobarAcreedor(params, callback) {
       var sheetE    = ss.getSheetByName(SHEET_EGRESOS);
       if (sheetE) {
         var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
-        var fechaGasto = r[COL_PEND.FECHA_FAC - 1] || Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd');
-        if (fechaGasto instanceof Date) fechaGasto = Utilities.formatDate(fechaGasto, 'America/Panama', 'yyyy-MM-dd');
+        // Mantener como Date anclada a Panamá para que no se corra al
+        // re-formatear en TZ del spreadsheet. Si la celda venía vacía,
+        // usamos la fecha actual parseada igual.
+        var fechaGasto = r[COL_PEND.FECHA_FAC - 1];
+        if (!fechaGasto) {
+          fechaGasto = _parseFechaPanama(Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd'));
+        } else if (!(fechaGasto instanceof Date)) {
+          fechaGasto = _parseFechaPanama(String(fechaGasto));
+        }
         var filE = new Array(EGRESOS_NCOLS);
         for (var x = 0; x < EGRESOS_NCOLS; x++) filE[x] = '';
         filE[COL_E.ID - 1]            = egresoId;
@@ -1450,6 +1482,7 @@ function _handleAprobarAcreedor(params, callback) {
         filE[COL_E.ALCANCE - 1]       = mAlc ? mAlc[1] : 'negocio';
         var lastRowE = sheetE.getLastRow() + 1;
         sheetE.getRange(lastRowE, 1, 1, EGRESOS_NCOLS).setValues([filE]);
+        sheetE.getRange(lastRowE, COL_E.FECHA_GASTO, 1, 1).setNumberFormat('yyyy-MM-dd');
         sheetE.getRange(lastRowE, 1, 1, EGRESOS_NCOLS).setBackground('#E8F5E9');
       }
 
@@ -2344,7 +2377,7 @@ function _handleImportarLoteOFX(data) {
       fila[COL_PEND.ESTADO - 1]      = 'borrador';
       fila[COL_PEND.ACREEDOR_ID - 1] = '';
       fila[COL_PEND.ACREEDOR_NOM -1] = String(tx.proveedor || tx.memo || 'Sin nombre');
-      fila[COL_PEND.FECHA_FAC - 1]   = String(tx.fecha || '');
+      fila[COL_PEND.FECHA_FAC - 1]   = _parseFechaPanama(tx.fecha);
       fila[COL_PEND.NUM_FAC - 1]     = fitKey;
       fila[COL_PEND.SUBTOTAL - 1]    = parseFloat(tx.monto) || 0;
       fila[COL_PEND.ITBMS - 1]       = 0;
