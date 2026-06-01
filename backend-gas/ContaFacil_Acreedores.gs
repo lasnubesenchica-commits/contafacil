@@ -1235,15 +1235,11 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   var notasExtra = acreedor.ruc ? ' | RUC: ' + acreedor.ruc : '';
   var rucRec = String(parsed.ruc_receptor || '').replace(/\s/g, '');
   var _cfgAcr = _getConfig();
-  var rucCli = String(_cfgAcr && _cfgAcr.empresa_ruc ? _cfgAcr.empresa_ruc : '').replace(/\s/g, '');
-  // Alcance:
-  //   negocio  → deducible (factura a nombre de la empresa: rucRec coincide con empresa_ruc)
-  //   personal → no deducible (factura a consumidor final / a otra persona)
-  // Comparación tolerante: normaliza ambos lados quitando guiones,
-  // puntos, espacios y mayúsculas, para que "8-743-456" === "8743456"
-  // y "PE-12-3456" === "pe123456".
-  function _normRucPend(r) { return String(r || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); }
-  var alcancePend = (rucRec && rucCli && _normRucPend(rucRec) === _normRucPend(rucCli)) ? 'negocio' : 'personal';
+  var rucCli = _cfgAcr && _cfgAcr.empresa_ruc ? _cfgAcr.empresa_ruc : '';
+  var dvCli  = _cfgAcr && _cfgAcr.empresa_dv  ? _cfgAcr.empresa_dv  : '';
+  // Alcance: deducible solo si la factura está a nombre del negocio.
+  // El matcher tolera DV pegado al RUC en cualquiera de los dos lados.
+  var alcancePend = _matchRucPanama(rucRec, rucCli, dvCli) ? 'negocio' : 'personal';
   fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra + ' | alcance:' + alcancePend;
   fila[COL_PEND.EGRESO_ID - 1]   = '';
   fila[COL_PEND.MSG_ID - 1]      = clave || msgId || '';
@@ -1261,6 +1257,40 @@ function _getOrCreateLabelAcr(nombre) {
     if (labels[i].getName() === nombre) return labels[i];
   }
   return GmailApp.createLabel(nombre);
+}
+
+// Compara RUC del receptor de la factura contra el RUC del negocio.
+// La IA a veces devuelve el RUC con el DV pegado al final ("N-19-356-74"
+// o "N-19-356 DV 74"), y la config a veces tiene ruc y dv separados.
+// Este matcher acepta:
+//   - exacto: receptor === ruc
+//   - receptor con DV pegado: receptor === ruc + dv
+//   - receptor más corto (sin DV): ruc + dv === receptor + sufijo corto
+//   - viceversa
+function _matchRucPanama(rucReceptor, cfgRuc, cfgDv) {
+  if (!rucReceptor || !cfgRuc) return false;
+  function n(s) { return String(s || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); }
+  var R = n(rucReceptor);
+  var C = n(cfgRuc);
+  var D = n(cfgDv);
+  if (!R || !C) return false;
+  if (R === C) return true;
+  if (D) {
+    var CD = C + D;
+    if (R === CD) return true;
+    // Receptor incluye el DV pero la config tiene ruc+dv largo
+    if (R === C + D) return true;
+  }
+  // Tolerancia: uno es prefijo del otro y la diferencia es ≤ 3 chars
+  // (DV en Panamá tiene 1-2 dígitos, dejamos margen)
+  if (R.indexOf(C) === 0 && R.length - C.length <= 3) return true;
+  if (C.indexOf(R) === 0 && C.length - R.length <= 3) return true;
+  if (D) {
+    var CD2 = C + D;
+    if (R.indexOf(CD2) === 0 && R.length - CD2.length <= 3) return true;
+    if (CD2.indexOf(R) === 0 && CD2.length - R.length <= 3) return true;
+  }
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════════════

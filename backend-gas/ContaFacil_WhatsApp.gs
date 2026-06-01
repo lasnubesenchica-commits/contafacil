@@ -625,12 +625,12 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
 
   // Calcular alcance localmente para mostrar en el mensaje (mismo
   // criterio que _crearPendiente: deducible solo si la factura está
-  // a nombre del negocio). La comparación normaliza ambos lados
-  // quitando todo lo que no sea alfanumérico, para que match aunque
-  // uno tenga guiones/espacios y el otro no (ej: "8-743-456" === "8743456").
-  var rucCli = String((cfg && cfg.empresa_ruc) ? cfg.empresa_ruc : '').replace(/\s/g, '');
-  function _normRuc(r) { return String(r || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); }
-  var esDeducible = !!(rucReceptor && rucCli && _normRuc(rucReceptor) === _normRuc(rucCli));
+  // a nombre del negocio). El matcher tolera que la IA devuelva el
+  // RUC con el DV pegado al final ("N-19-356-74") aunque la config
+  // tenga ruc y dv separados ("N-19-356" + "74").
+  var rucCli = (cfg && cfg.empresa_ruc) ? cfg.empresa_ruc : '';
+  var dvCli  = (cfg && cfg.empresa_dv)  ? cfg.empresa_dv  : '';
+  var esDeducible = _matchRucPanama(rucReceptor, rucCli, dvCli);
   var lineaDeducible;
   if (!rucCli) {
     lineaDeducible = '⚠️ No deducible (RUC del negocio no configurado en la app)';
