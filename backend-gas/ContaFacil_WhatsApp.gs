@@ -298,11 +298,25 @@ function _whatsappProcesarMensaje(msg, metadata) {
         return Math.abs(ratio - t) < tolerancia;
       });
       if (!matcheaTasa) {
-        Logger.log('Heurística B: ITBMS ratio ' + (ratio * 100).toFixed(2) +
-                   '% no matchea tasas válidas PA (7%, 10%, 15%). itbms=' +
-                   parsed.itbms + ' sub=' + parsed.subtotal +
-                   ' — probable descuento mal clasificado. Reseteando itbms=0.');
-        parsed.descuento = (Number(parsed.descuento) || 0) + parsed.itbms;
+        // Solo movemos el valor a descuento si la IA YA había detectado
+        // un descuento > 0 (señal de que hay descuento real en el documento
+        // que la IA intentó capturar; la confusión fue con itbms). Si la
+        // IA reportó descuento=0, probablemente halucinó el itbms — en
+        // ese caso solo zeroeamos itbms sin inventar un descuento fantasma.
+        var descPrevio = Number(parsed.descuento) || 0;
+        if (descPrevio > 0) {
+          Logger.log('Heurística B: ITBMS ratio ' + (ratio * 100).toFixed(2) +
+                     '% no matchea tasas válidas PA. itbms=' + parsed.itbms +
+                     ' sub=' + parsed.subtotal + ' — moviendo a descuento (' +
+                     'descuento previo: ' + descPrevio + ').');
+          parsed.descuento = descPrevio + parsed.itbms;
+        } else {
+          Logger.log('Heurística B: ITBMS ratio ' + (ratio * 100).toFixed(2) +
+                     '% no matchea tasas válidas PA. itbms=' + parsed.itbms +
+                     ' sub=' + parsed.subtotal + ' — probable hallucinación ' +
+                     '(IA no reportó descuento). Solo zeroeando itbms ' +
+                     'sin crear descuento fantasma.');
+        }
         parsed.itbms = 0;
         parsed.tiene_itbms = false;
         parsed.confianza = Math.min(Number(parsed.confianza) || 50, 50);
@@ -485,7 +499,13 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '   • ITBMS: impuesto al consumo. Labels en Panamá: "ITBMS", "I.T.B.M.S.", "Imp. 7%", "Impuesto 7%". Tasa OBLIGATORIAMENTE 7%, 10% o 0% (nunca otra).\n' +
     '   • DESCUENTO: bonificación que reduce el subtotal. Labels: "DESCUENTO", "DESC.", "Descuento Total", "Descuentos". NUNCA es lo mismo que ITBMS.\n' +
     '   • Si el documento muestra "ITBMS 0.00" o "ITBMS: -" o no muestra ITBMS pero sí descuento → ITBMS=0. NUNCA pongas el descuento como ITBMS.\n' +
-    '   • **VALIDACIÓN OBLIGATORIA antes de devolver itbms > 0**: calculá `itbms / subtotal`. Si NO es ≈0.07 (7%), ≈0.10 (10%) o ≈0.15 (15%), entonces NO ES ITBMS — es otra cosa. Probablemente un descuento. Pone itbms=0 y movelo a descuento.\n\n' +
+    '   • **VALIDACIÓN OBLIGATORIA antes de devolver itbms > 0**: calculá `itbms / subtotal`. Si NO es ≈0.07 (7%), ≈0.10 (10%) o ≈0.15 (15%), entonces NO ES ITBMS — es otra cosa. Probablemente un descuento. Pone itbms=0 y movelo a descuento.\n' +
+    '   • **ITBMS EXENTO**: muchos productos en Panamá no tienen ITBMS (leche, medicamentos, alimentos básicos como pan/arroz, libros, etc.). Las facturas de productos exentos muestran:\n' +
+    '       - "Monto Exento ITBMS" ≈ subtotal (toda la base es exenta)\n' +
+    '       - "ITBMS: 0.00" o "Total impuesto: 0.00"\n' +
+    '       - Tabla "Desglose ITBMS" con todas las filas (Exento, 7%, 10%, 15%) en 0.00 excepto Exento.\n' +
+    '       En esos casos: itbms=0, tiene_itbms=false. NO inventes un valor.\n' +
+    '   • Si NO ves un label explícito de "ITBMS" con un número visible distinto de 0, devolvé itbms=0. NO calcules el 7% del subtotal "por las dudas".\n\n' +
 
     '3. **Sanity check matemático obligatorio** — antes de devolver el JSON, verificá:\n' +
     '       (subtotal − descuento) + itbms ≈ total\n' +
