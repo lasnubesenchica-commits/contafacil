@@ -1518,6 +1518,9 @@ function _handleRechazarAcreedor(params, callback) {
       found = true; break;
     }
     if (!found) throw new Error('Pendiente no encontrado: ' + id);
+    // Liberar hash de dedup WhatsApp si existía, para que el cliente
+    // pueda reenviar la misma factura después de rechazar.
+    if (typeof _whatsappLiberarHashByPendId === 'function') _whatsappLiberarHashByPendId(id);
     result.success = true;
   } catch(err) { result.error = err.message; }
   return _jsonpAcr(result, callback);
@@ -1539,6 +1542,7 @@ function _handleEliminarPendienteAcr(params, callback) {
       found = true; break;
     }
     if (!found) throw new Error('Pendiente no encontrado: ' + id);
+    if (typeof _whatsappLiberarHashByPendId === 'function') _whatsappLiberarHashByPendId(id);
     result.success = true;
   } catch(err) { result.error = err.message; }
   return _jsonpAcr(result, callback);
