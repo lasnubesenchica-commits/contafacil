@@ -271,7 +271,7 @@ function _whatsappProcesarMensaje(msg, metadata) {
       // Heurística: si subtotal − itbms ≈ total, la IA probablemente
       // tomó el descuento como itbms. Reseteamos itbms a 0.
       if (Math.abs((sub - itbms) - tot) <= 0.05) {
-        Logger.log('Heurística: itbms (' + itbms + ') parece ser un DESCUENTO. Reseteando itbms=0. tot=' + tot + ' sub=' + sub);
+        Logger.log('Heurística A: itbms (' + itbms + ') parece ser un DESCUENTO. Reseteando itbms=0. tot=' + tot + ' sub=' + sub);
         parsed.descuento = itbms;
         parsed.itbms = 0;
         parsed.tiene_itbms = false;
@@ -282,6 +282,33 @@ function _whatsappProcesarMensaje(msg, metadata) {
       // el cliente reciba el warning de "Lectura parcial" y revise.
       parsed.confianza = Math.min(Number(parsed.confianza) || 50, 50);
     }
+
+    // Validación de TASA de ITBMS: en Panamá las tasas válidas son
+    // 7% (estándar), 10% (alcohol/tabaco/hospedaje selectivo), o 0%
+    // (exento). Cualquier otra ratio itbms/subtotal indica que el
+    // número probablemente NO es ITBMS — más probable que sea un
+    // descuento o un cargo distinto. Esto cubre el caso donde la
+    // matemática cierra pero los conceptos están mal asignados
+    // (ej: sub=79.40, itbms=6.70, total=86.10 → ratio 8.4% inválido).
+    if (parsed.itbms > 0 && parsed.subtotal > 0) {
+      var ratio = parsed.itbms / parsed.subtotal;
+      var TASAS_VALIDAS_PANAMA = [0.07, 0.10, 0.15];
+      var tolerancia = 0.005; // ±0.5% de tolerancia
+      var matcheaTasa = TASAS_VALIDAS_PANAMA.some(function(t) {
+        return Math.abs(ratio - t) < tolerancia;
+      });
+      if (!matcheaTasa) {
+        Logger.log('Heurística B: ITBMS ratio ' + (ratio * 100).toFixed(2) +
+                   '% no matchea tasas válidas PA (7%, 10%, 15%). itbms=' +
+                   parsed.itbms + ' sub=' + parsed.subtotal +
+                   ' — probable descuento mal clasificado. Reseteando itbms=0.');
+        parsed.descuento = (Number(parsed.descuento) || 0) + parsed.itbms;
+        parsed.itbms = 0;
+        parsed.tiene_itbms = false;
+        parsed.confianza = Math.min(Number(parsed.confianza) || 50, 50);
+      }
+    }
+
     resumen = _whatsappGuardarGasto(parsed, mediaBlob, mime, from, msgId);
   } catch(err) {
     Logger.log('Error guardando: ' + err.message);
@@ -441,9 +468,10 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '1. Solo extraé valores que estén EXPLÍCITAMENTE etiquetados en el documento. NO inventes, NO calculés, NO asumas. Si no está claro, devolvé null o 0 según el tipo.\n\n' +
 
     '2. **DESCUENTO NO ES ITBMS** — son cosas distintas:\n' +
-    '   • ITBMS: impuesto al consumo. Labels en Panamá: "ITBMS", "I.T.B.M.S.", "Imp. 7%", "Impuesto 7%", "ISC". Tasa típica 7% (también puede ser 10% o 0%).\n' +
+    '   • ITBMS: impuesto al consumo. Labels en Panamá: "ITBMS", "I.T.B.M.S.", "Imp. 7%", "Impuesto 7%". Tasa OBLIGATORIAMENTE 7%, 10% o 0% (nunca otra).\n' +
     '   • DESCUENTO: bonificación que reduce el subtotal. Labels: "DESCUENTO", "DESC.", "Descuento Total", "Descuentos". NUNCA es lo mismo que ITBMS.\n' +
-    '   • Si el documento muestra "ITBMS 0.00" o "ITBMS: -" o no muestra ITBMS pero sí descuento → ITBMS=0. NUNCA pongas el descuento como ITBMS.\n\n' +
+    '   • Si el documento muestra "ITBMS 0.00" o "ITBMS: -" o no muestra ITBMS pero sí descuento → ITBMS=0. NUNCA pongas el descuento como ITBMS.\n' +
+    '   • **VALIDACIÓN OBLIGATORIA antes de devolver itbms > 0**: calculá `itbms / subtotal`. Si NO es ≈0.07 (7%), ≈0.10 (10%) o ≈0.15 (15%), entonces NO ES ITBMS — es otra cosa. Probablemente un descuento. Pone itbms=0 y movelo a descuento.\n\n' +
 
     '3. **Sanity check matemático obligatorio** — antes de devolver el JSON, verificá:\n' +
     '       (subtotal − descuento) + itbms ≈ total\n' +
