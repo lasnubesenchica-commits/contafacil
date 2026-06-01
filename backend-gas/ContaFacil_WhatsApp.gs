@@ -309,6 +309,25 @@ function _whatsappProcesarMensaje(msg, metadata) {
       }
     }
 
+    // Heurística C — recalcular TOTAL desde componentes si la matemática
+    // sigue sin cerrar después de las correcciones de A y B. Esto cubre el
+    // caso donde la IA identificó correctamente subtotal/descuento/itbms
+    // pero tomó el label equivocado para "total" (típicamente "Subtotal"
+    // o "Total Bruto" antes del descuento).
+    // Solo aplicamos si tenemos subtotal > 0 (componentes confiables).
+    var subFinal  = Number(parsed.subtotal) || 0;
+    var descFinal = Number(parsed.descuento) || 0;
+    var itbmsFinal = Number(parsed.itbms) || 0;
+    var totFinal  = Number(parsed.total) || 0;
+    var totCalcFinal = (subFinal - descFinal) + itbmsFinal;
+    if (subFinal > 0 && totCalcFinal > 0 && Math.abs(totCalcFinal - totFinal) > 0.05) {
+      Logger.log('Heurística C: total (' + totFinal + ') no calza con componentes. ' +
+                 'Recalculando: (' + subFinal + ' - ' + descFinal + ') + ' + itbmsFinal +
+                 ' = ' + totCalcFinal.toFixed(2) + ' (IA probablemente tomó subtotal/total bruto como total final).');
+      parsed.total = Math.round(totCalcFinal * 100) / 100;
+      parsed.confianza = Math.min(Number(parsed.confianza) || 50, 50);
+    }
+
     resumen = _whatsappGuardarGasto(parsed, mediaBlob, mime, from, msgId);
   } catch(err) {
     Logger.log('Error guardando: ' + err.message);
@@ -481,7 +500,11 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '   a) ruc_otro (RUC del proveedor) — labels: "R.U.C.", "RUC", "RUC Emisor"\n' +
     '   b) ruc_receptor (RUC del cliente) — labels: "R.U.C.", "RUC Cliente", "Cédula"\n' +
     '   c) nombre_otro (proveedor) — razón social del que EMITE\n' +
-    '   d) total (importe total) — label: "TOTAL", "IMPORTE TOTAL", "Total a Pagar"\n' +
+    '   d) total (importe FINAL a pagar — DESPUÉS de descuentos y CON ITBMS sumado).\n' +
+    '      Labels válidos: "IMPORTE TOTAL", "Total a Pagar", "Neto a Pagar", "Total General", "Total Final".\n' +
+    '      ⚠️ "Subtotal", "Total Bruto", "Sub Total" o un "Total" antes de descuento NO son el total final.\n' +
+    '      ⚠️ Regla matemática: total ≈ subtotal − descuento + itbms. Si tu total no calza con esta cuenta, REVISA — probablemente elegiste el label equivocado (el subtotal en lugar del importe final).\n' +
+    '      Tip: cuando hay descuento, el verdadero total es el MÁS PEQUEÑO de los "totales" que ves en la factura, y suele ser el MÁS prominente (negrita grande, posición al final).\n' +
     '   e) itbms — solo si está LABELED como tal\n' +
     '   f) subtotal, fecha\n\n' +
 
@@ -619,10 +642,17 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId) {
     .replace(/^-|-$/g, '');
   var dashboardUrl = slugDashboard ? ('https://balanceclip.net/' + slugDashboard + '/') : '';
 
+  // Construir la línea de monto con detalles transparentes: si hay
+  // ITBMS o descuento, los mostramos para que el cliente pueda validar
+  // contra la factura física antes de aprobar.
+  var detallesMonto = [];
+  if (Number(parsed.descuento) > 0) detallesMonto.push('desc B/. ' + Number(parsed.descuento).toFixed(2));
+  if (Number(parsed.itbms)     > 0) detallesMonto.push('ITBMS B/. ' + Number(parsed.itbms).toFixed(2));
+  var lineaMonto = '💵 B/. ' + Number(parsed.total || 0).toFixed(2) +
+                   (detallesMonto.length ? ' (' + detallesMonto.join(' · ') + ')' : '');
   var bodyTxt = '✅ Gasto recibido\n\n' +
                 '📦 ' + (acreedor.nombre || 'Sin proveedor') + '\n' +
-                '💵 B/. ' + Number(parsed.total || 0).toFixed(2) +
-                (parsed.itbms ? ' (ITBMS B/. ' + Number(parsed.itbms).toFixed(2) + ')' : '') + '\n' +
+                lineaMonto + '\n' +
                 '📋 Categoría sugerida: ' + _waCatLabel(catSug) + '\n' +
                 lineaDeducible +
                 (dashboardUrl
