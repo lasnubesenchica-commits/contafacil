@@ -309,24 +309,19 @@ function _whatsappProcesarMensaje(msg, metadata) {
       }
     }
 
-    // Heurística C — recalcular TOTAL desde componentes si la matemática
-    // sigue sin cerrar después de las correcciones de A y B. Esto cubre el
-    // caso donde la IA identificó correctamente subtotal/descuento/itbms
-    // pero tomó el label equivocado para "total" (típicamente "Subtotal"
-    // o "Total Bruto" antes del descuento).
-    // Solo aplicamos si tenemos subtotal > 0 (componentes confiables).
-    var subFinal  = Number(parsed.subtotal) || 0;
-    var descFinal = Number(parsed.descuento) || 0;
-    var itbmsFinal = Number(parsed.itbms) || 0;
-    var totFinal  = Number(parsed.total) || 0;
-    var totCalcFinal = (subFinal - descFinal) + itbmsFinal;
-    if (subFinal > 0 && totCalcFinal > 0 && Math.abs(totCalcFinal - totFinal) > 0.05) {
-      Logger.log('Heurística C: total (' + totFinal + ') no calza con componentes. ' +
-                 'Recalculando: (' + subFinal + ' - ' + descFinal + ') + ' + itbmsFinal +
-                 ' = ' + totCalcFinal.toFixed(2) + ' (IA probablemente tomó subtotal/total bruto como total final).');
-      parsed.total = Math.round(totCalcFinal * 100) / 100;
-      parsed.confianza = Math.min(Number(parsed.confianza) || 50, 50);
-    }
+    // NOTA: aquí había una "Heurística C" que recalculaba parsed.total
+    // como (subtotal − descuento) + itbms cuando la matemática no
+    // cerraba. RESULTÓ CONTRAPRODUCENTE: cuando la IA leía mal el
+    // subtotal pero bien el total, esta heurística inventaba un total
+    // erróneo (ej: subtotal=79.30 wrong + total=89.10 correct → heurística
+    // sobreescribía a 72.60, número que no existía en la factura).
+    //
+    // Conclusión empírica: el TOTAL es casi siempre el dato más
+    // confiable (número grande y prominente en negrita al final de la
+    // factura). Subtotal puede tener errores por descuentos por línea,
+    // sumas parciales, etc. Por eso ya NO recalculamos total — solo
+    // bajamos confianza si la matemática no cierra, para que el cliente
+    // reciba el warning de "Lectura parcial" y revise antes de aprobar.
 
     resumen = _whatsappGuardarGasto(parsed, mediaBlob, mime, from, msgId);
   } catch(err) {
@@ -500,13 +495,16 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '   a) ruc_otro (RUC del proveedor) — labels: "R.U.C.", "RUC", "RUC Emisor"\n' +
     '   b) ruc_receptor (RUC del cliente) — labels: "R.U.C.", "RUC Cliente", "Cédula"\n' +
     '   c) nombre_otro (proveedor) — razón social del que EMITE\n' +
-    '   d) total (importe FINAL a pagar — DESPUÉS de descuentos y CON ITBMS sumado).\n' +
-    '      Labels válidos: "IMPORTE TOTAL", "Total a Pagar", "Neto a Pagar", "Total General", "Total Final".\n' +
-    '      ⚠️ "Subtotal", "Total Bruto", "Sub Total" o un "Total" antes de descuento NO son el total final.\n' +
-    '      ⚠️ Regla matemática: total ≈ subtotal − descuento + itbms. Si tu total no calza con esta cuenta, REVISA — probablemente elegiste el label equivocado (el subtotal en lugar del importe final).\n' +
-    '      Tip: cuando hay descuento, el verdadero total es el MÁS PEQUEÑO de los "totales" que ves en la factura, y suele ser el MÁS prominente (negrita grande, posición al final).\n' +
+    '   d) **total (importe FINAL a pagar — SOURCE OF TRUTH)**.\n' +
+    '      Es EL CAMPO MÁS IMPORTANTE de toda la extracción. Acertalo siempre.\n' +
+    '      Labels válidos: "IMPORTE TOTAL", "Total a Pagar", "Neto a Pagar", "Total General", "Total Final", "Total Pagado".\n' +
+    '      ⚠️ "Subtotal", "Total Bruto", "Sub Total" o "Total" antes de descuentos NO son el total final — son intermedios.\n' +
+    '      Tip 1: el TOTAL es típicamente el número MÁS PROMINENTE de la factura (negrita grande, fuente más grande, posición al final, posiblemente recuadrado o en línea destacada).\n' +
+    '      Tip 2: cuando hay descuento, el TOTAL es el MÁS PEQUEÑO de los "totales" visibles.\n' +
+    '      Tip 3: si ves "Son: OCHENTA Y NUEVE CON 10/100" (monto en letras) eso CONFIRMA el total numérico — debe coincidir.\n' +
     '   e) itbms — solo si está LABELED como tal\n' +
-    '   f) subtotal, fecha\n\n' +
+    '   f) subtotal — si no estás seguro, devolvé 0 o null. NO inventes. NO sumes valores de líneas si no es obvio. Mejor null que un valor inventado.\n' +
+    '   g) fecha\n\n' +
 
     '5. **CAMPOS DEDUCIDOS** (inferí del contenido):\n' +
     '   • categoria_dgi: del tipo de producto/servicio + naturaleza del proveedor\n' +
