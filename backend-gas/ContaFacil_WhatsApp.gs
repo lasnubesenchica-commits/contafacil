@@ -258,6 +258,30 @@ function _whatsappProcesarMensaje(msg, metadata) {
       Logger.log('IA devolvió categoría de ingreso (' + parsed.categoria_dgi + ') en un gasto — reseteando a otros_deducibles');
       parsed.categoria_dgi = 'otros_deducibles';
     }
+    // Sanity check matemático: (subtotal − descuento) + itbms ≈ total.
+    // Si no cuadra y total > 0, el cliente probablemente confundió
+    // descuento con ITBMS — preferimos confiar en el TOTAL impreso y
+    // reset itbms=0 + reset confianza baja para que el cliente revise.
+    var sub = Number(parsed.subtotal) || 0;
+    var desc = Number(parsed.descuento) || 0;
+    var itbms = Number(parsed.itbms) || 0;
+    var tot = Number(parsed.total) || 0;
+    var calcTot = (sub - desc) + itbms;
+    if (tot > 0 && Math.abs(calcTot - tot) > 0.05) {
+      // Heurística: si subtotal − itbms ≈ total, la IA probablemente
+      // tomó el descuento como itbms. Reseteamos itbms a 0.
+      if (Math.abs((sub - itbms) - tot) <= 0.05) {
+        Logger.log('Heurística: itbms (' + itbms + ') parece ser un DESCUENTO. Reseteando itbms=0. tot=' + tot + ' sub=' + sub);
+        parsed.descuento = itbms;
+        parsed.itbms = 0;
+        parsed.tiene_itbms = false;
+      } else {
+        Logger.log('Sanity check falló: (sub-desc)+itbms=' + calcTot.toFixed(2) + ' != total=' + tot.toFixed(2) + ' — bajando confianza');
+      }
+      // En cualquier caso de discrepancia, bajamos confianza para que
+      // el cliente reciba el warning de "Lectura parcial" y revise.
+      parsed.confianza = Math.min(Number(parsed.confianza) || 50, 50);
+    }
     resumen = _whatsappGuardarGasto(parsed, mediaBlob, mime, from, msgId);
   } catch(err) {
     Logger.log('Error guardando: ' + err.message);
@@ -404,34 +428,62 @@ function _whatsappClasificarYExtraer(b64, mime) {
   }
 
   var prompt =
-    'Analiza este comprobante panameño. Determina PRIMERO si es:\n' +
-    '  - "gasto"   = pago HECHO por el usuario (factura recibida de proveedor, recibo de compra, voucher saliente)\n' +
-    '  - "ingreso" = pago RECIBIDO por el usuario (factura emitida por él/ella, voucher Yappy entrante, transferencia recibida)\n\n' +
+    'Analiza este comprobante panameño y extraé sus datos de forma ESTRICTA.\n\n' +
     'CONTEXTO DEL USUARIO:\n' +
     '  Nombre:  ' + negNombre + '\n' +
     '  RUC:     ' + (negRuc || '(no configurado)') + (negDv ? '   DV: ' + negDv : '') + '\n\n' +
-    'CONTEXTO IMPORTANTE: el usuario está enviando este documento por WhatsApp para registrar un GASTO de su negocio. *TODOS* los comprobantes que llegan por este canal son gastos (facturas de proveedores, recibos de compra, vouchers de pago saliente). NO clasifiques como ingreso bajo ningún concepto.\n\n' +
-    'FORMATO DE RUC EN PANAMÁ — IMPORTANTE para extraer ruc_receptor correctamente:\n' +
-    '  • Jurídicas: 7 dígitos + DV (ej: 1891245-1-720993 DV 32)\n' +
-    '  • Naturales: la CÉDULA es el RUC (ej: 8-743-456, 4-123-1234, PE-12-3456, N-21-1234, E-8-1234).\n' +
-    '  Si el documento muestra "Cédula" o "Cédula/RUC", ese valor ES el RUC del receptor.\n' +
-    '  No confundir con el número entre paréntesis al lado del nombre (ese suele ser un ID interno del proveedor, NO el RUC).\n\n' +
+    'CONTEXTO IMPORTANTE: el usuario está enviando este documento por WhatsApp para registrar un GASTO de su negocio. *TODOS* los comprobantes que llegan por este canal son gastos. NO clasifiques como ingreso bajo ningún concepto.\n\n' +
+
+    '════════════════════════════════════════\n' +
+    'REGLAS ESTRICTAS DE EXTRACCIÓN\n' +
+    '════════════════════════════════════════\n\n' +
+
+    '1. Solo extraé valores que estén EXPLÍCITAMENTE etiquetados en el documento. NO inventes, NO calculés, NO asumas. Si no está claro, devolvé null o 0 según el tipo.\n\n' +
+
+    '2. **DESCUENTO NO ES ITBMS** — son cosas distintas:\n' +
+    '   • ITBMS: impuesto al consumo. Labels en Panamá: "ITBMS", "I.T.B.M.S.", "Imp. 7%", "Impuesto 7%", "ISC". Tasa típica 7% (también puede ser 10% o 0%).\n' +
+    '   • DESCUENTO: bonificación que reduce el subtotal. Labels: "DESCUENTO", "DESC.", "Descuento Total", "Descuentos". NUNCA es lo mismo que ITBMS.\n' +
+    '   • Si el documento muestra "ITBMS 0.00" o "ITBMS: -" o no muestra ITBMS pero sí descuento → ITBMS=0. NUNCA pongas el descuento como ITBMS.\n\n' +
+
+    '3. **Sanity check matemático obligatorio** — antes de devolver el JSON, verificá:\n' +
+    '       (subtotal − descuento) + itbms ≈ total\n' +
+    '   Si no cuadra dentro de ±$0.05 → tus valores están mal. Volvé a revisar. Si después de revisar sigue sin cuadrar, REDUCÍ confianza al 40-50% Y prioriza el TOTAL impreso como source of truth (es el monto más prominente en negrita).\n\n' +
+
+    '4. **CAMPOS CRÍTICOS** (prioridad máxima de precisión, en orden):\n' +
+    '   a) ruc_otro (RUC del proveedor) — labels: "R.U.C.", "RUC", "RUC Emisor"\n' +
+    '   b) ruc_receptor (RUC del cliente) — labels: "R.U.C.", "RUC Cliente", "Cédula"\n' +
+    '   c) nombre_otro (proveedor) — razón social del que EMITE\n' +
+    '   d) total (importe total) — label: "TOTAL", "IMPORTE TOTAL", "Total a Pagar"\n' +
+    '   e) itbms — solo si está LABELED como tal\n' +
+    '   f) subtotal, fecha\n\n' +
+
+    '5. **CAMPOS DEDUCIDOS** (inferí del contenido):\n' +
+    '   • categoria_dgi: del tipo de producto/servicio + naturaleza del proveedor\n' +
+    '   • La deducibilidad (negocio vs personal) NO la decides — el sistema compara ruc_receptor con el del config. Vos solo extraé el RUC fielmente.\n\n' +
+
+    'FORMATO DE RUC EN PANAMÁ:\n' +
+    '  • Jurídicas: 7 dígitos + DV (ej: 1891245-1-720993 DV 32, 311-77-66961-53)\n' +
+    '  • Naturales: la CÉDULA es el RUC (ej: 8-743-456, 4-123-1234, PE-12-3456, N-21-1234, E-8-1234)\n' +
+    '  • Si el documento muestra "Cédula" o "Cédula/RUC", ese valor ES el RUC del receptor.\n' +
+    '  • No confundir con el número entre paréntesis al lado del nombre (suele ser ID interno del proveedor, NO el RUC).\n\n' +
+
     'Responde SOLO con JSON válido, sin markdown:\n' +
     '{\n' +
-    '  "tipo_transaccion": "gasto",  (siempre "gasto" — WhatsApp solo procesa gastos)\n' +
-    '  "confianza":         0-100  (qué tan seguro estás de los valores extraídos),\n' +
-    '  "legibilidad":       0-100  (calidad visual del documento; 100=perfectamente legible, 0=ilegible),\n' +
+    '  "tipo_transaccion": "gasto",  (siempre "gasto")\n' +
+    '  "confianza":         0-100  (qué tan seguro estás de los valores extraídos; bajá si el sanity check no cuadra),\n' +
+    '  "legibilidad":       0-100  (calidad visual del documento),\n' +
     '  "fecha":             "YYYY-MM-DD" o null,\n' +
     '  "num_factura":       "..." o null,\n' +
-    '  "subtotal":          número,\n' +
-    '  "itbms":             número,\n' +
-    '  "total":             número,\n' +
-    '  "tiene_itbms":       true|false,\n' +
+    '  "subtotal":          número (solo si labeled),\n' +
+    '  "descuento":         número (solo si labeled — para que el sanity check funcione; 0 si no aplica),\n' +
+    '  "itbms":             número (SOLO si labeled como ITBMS/Impuesto; si no, 0),\n' +
+    '  "total":             número (importe final a pagar; SOURCE OF TRUTH),\n' +
+    '  "tiene_itbms":       true|false (true SOLO si itbms > 0 y está labeled),\n' +
     '  "descripcion":       "..." o null,\n' +
-    '  "nombre_otro":       "nombre del proveedor (quien emitió la factura)",\n' +
-    '  "ruc_otro":          "..." o null,\n' +
-    '  "ruc_receptor":      "RUC del RECEPTOR exactamente como aparece en el documento (con guiones). Para personas naturales es la cédula. Si no es visible, null.",\n' +
-    '  "categoria_dgi":     "key DGI del Form 90 — usa SOLO una de la lista de abajo"\n' +
+    '  "nombre_otro":       "razón social del proveedor (quien emite la factura)",\n' +
+    '  "ruc_otro":          "RUC del proveedor (con guiones)" o null,\n' +
+    '  "ruc_receptor":      "RUC del receptor exactamente como aparece (con guiones). Para personas naturales es la cédula. null si no es visible.",\n' +
+    '  "categoria_dgi":     "key DGI del Form 90"\n' +
     '}\n\n' +
     'Categorías permitidas para "categoria_dgi" (keys del Anexo 94 / Form 90 — gastos deducibles):\n' +
     '  alquileres (L46), nomina (L42), combustible_transporte (L56), servicios_publicos (L75),\n' +
@@ -439,8 +491,7 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '  honorarios_profesionales (L60), seguros (L63-66), mantenimiento_reparacion (L67),\n' +
     '  compras_locales (L28 Costo), compras_importadas (L29 Costo), otros_deducibles (L77 default).\n\n' +
     'PROHIBIDAS (estas son del Form 91 para ingresos — NO usar): ventas_servicios, honorarios_comision, alquiler_comercial, alquiler_habitacional, intereses_financieros, salarios_con_retencion, dietas, fuente_extranjera, otros_ingresos.\n\n' +
-    'Si no estás seguro de la categoría, usa "otros_deducibles" como default.\n\n' +
-    'Montos como números. Sin inventar datos: si un campo no es visible, null o 0.';
+    'Si no estás seguro de la categoría, usá "otros_deducibles" como default.';
 
   var payload = {
     model:      'claude-sonnet-4-20250514',
