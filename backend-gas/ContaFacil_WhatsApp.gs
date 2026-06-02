@@ -1313,17 +1313,43 @@ function _whatsappRegistrarHash(hash, pendId) {
   }
 }
 
-// Dedup de 2ª capa: busca duplicados por (num_factura, total).
-// El hash byte-a-byte falla cuando WhatsApp recomprime imágenes o
-// cuando el cliente saca otra foto del mismo ticket. Este check usa
-// los campos extraídos por la IA, así que pisa duros: dos facturas
-// reales nunca comparten el mismo número.
-// Devuelve { ref: 'PENDR-xxx' | 'EGR-xxx' } si encuentra match, null si no.
+// Dedup de 2ª capa: busca duplicados por (num_factura, total) o por
+// (proveedor + total + fecha ±3 días) como fallback. Cubre dos casos:
+//   - facturas tradicionales con num_factura
+//   - comprobantes de banco / pagos online sin num_factura claro
+// El hash byte-a-byte falla cuando WhatsApp recomprime imágenes o el
+// cliente saca otra foto del mismo ticket. Este check usa los campos
+// extraídos por la IA.
+// Devuelve { ref: 'PENDR-xxx' | 'EGR-xxx' } si match, null si no.
 function _whatsappBuscarDuplicadoContenido(parsed) {
   if (!parsed) return null;
   var numFac = String(parsed.num_factura || '').replace(/\s/g, '').toUpperCase();
-  if (!numFac || numFac.length < 4) return null;  // num muy corto: no confiable
   var total  = Number(parsed.total) || 0;
+  var nombre = _waNormProv(parsed.nombre_otro);
+  var fechaMs = _waFechaToMs(parsed.fecha);
+  var TRES_DIAS = 3 * 24 * 60 * 60 * 1000;
+
+  function matchByNum(rowNum) {
+    if (!numFac || numFac.length < 4) return false;
+    var n = String(rowNum || '').replace(/\s/g, '').toUpperCase();
+    return n && n === numFac;
+  }
+  function matchByProvTotalFecha(rowProv, rowTotal, rowFechaRaw) {
+    if (!total || total <= 0) return false;
+    var rProv = _waNormProv(rowProv);
+    if (!nombre || !rProv) return false;
+    // proveedor: uno contiene al otro (mínimo 5 chars) para tolerar
+    // variantes como "CABLE AND WIRELESS FIJO Y OTROS" vs "CABLE WIRELESS"
+    var provMatch = (nombre.length >= 5 && rProv.indexOf(nombre) >= 0) ||
+                    (rProv.length >= 5 && nombre.indexOf(rProv) >= 0);
+    if (!provMatch) return false;
+    var rTot = Number(rowTotal) || 0;
+    if (Math.abs(rTot - total) > 0.05) return false;
+    if (!fechaMs) return true;  // sin fecha en el parsed → no exigimos
+    var rMs = _waFechaToMs(rowFechaRaw);
+    if (!rMs) return true;
+    return Math.abs(rMs - fechaMs) <= TRES_DIAS;
+  }
 
   try {
     var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
@@ -1335,8 +1361,11 @@ function _whatsappBuscarDuplicadoContenido(parsed) {
       for (var i = 0; i < dP.length; i++) {
         var estado = String(dP[i][COL_PEND.ESTADO - 1] || '').toLowerCase();
         if (estado === 'rechazado') continue;
-        var nfP = String(dP[i][COL_PEND.NUM_FAC - 1] || '').replace(/\s/g, '').toUpperCase();
-        if (nfP && nfP === numFac) {
+        if (matchByNum(dP[i][COL_PEND.NUM_FAC - 1]) ||
+            matchByProvTotalFecha(
+              dP[i][COL_PEND.ACREEDOR_NOM - 1],
+              dP[i][COL_PEND.TOTAL - 1],
+              dP[i][COL_PEND.FECHA_FAC - 1])) {
           return { ref: String(dP[i][COL_PEND.ID - 1] || ''), origen: 'pendiente' };
         }
       }
@@ -1345,18 +1374,15 @@ function _whatsappBuscarDuplicadoContenido(parsed) {
     // 2) EGRESOS ya registrados
     var sE = ss.getSheetByName(SHEET_EGRESOS);
     if (sE && sE.getLastRow() > 1) {
-      var lastE = sE.getLastRow();
-      var dE = sE.getRange(2, 1, lastE - 1, Math.max(COL_E.NFACTURA, COL_E.TOTAL)).getValues();
+      var ncolsE = Math.max(COL_E.NFACTURA, COL_E.TOTAL, COL_E.PROVEEDOR, COL_E.FECHA_GASTO);
+      var dE = sE.getRange(2, 1, sE.getLastRow() - 1, ncolsE).getValues();
       for (var j = 0; j < dE.length; j++) {
-        var nfE = String(dE[j][COL_E.NFACTURA - 1] || '').replace(/\s/g, '').toUpperCase();
-        if (nfE && nfE === numFac) {
-          var totE = Number(dE[j][COL_E.TOTAL - 1]) || 0;
-          // Si tenemos total en ambos lados, exigimos que coincida (margen ±0.50)
-          // para evitar matchear cuando dos facturas comparten número por
-          // formato simple (ej "001" en dos proveedores chicos).
-          if (!total || !totE || Math.abs(total - totE) <= 0.5) {
-            return { ref: String(dE[j][COL_E.ID - 1] || ''), origen: 'egreso' };
-          }
+        if (matchByNum(dE[j][COL_E.NFACTURA - 1]) ||
+            matchByProvTotalFecha(
+              dE[j][COL_E.PROVEEDOR - 1],
+              dE[j][COL_E.TOTAL - 1],
+              dE[j][COL_E.FECHA_GASTO - 1])) {
+          return { ref: String(dE[j][COL_E.ID - 1] || ''), origen: 'egreso' };
         }
       }
     }
@@ -1364,6 +1390,28 @@ function _whatsappBuscarDuplicadoContenido(parsed) {
     Logger.log('dedup contenido error: ' + e.message);
   }
   return null;
+}
+
+// Normaliza nombre de proveedor para comparación tolerante:
+// lowercase, sin acentos, sin puntuación, sin sufijos legales comunes.
+function _waNormProv(s) {
+  if (!s) return '';
+  var x = String(s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(s\.?a\.?|s\.?\s*de\s*r\.?l\.?|sociedad anonima|inc|ltd|corp)\b/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+  return x;
+}
+
+// Convierte fecha (Date o string YYYY-MM-DD) a ms epoch. Devuelve 0 si no parsea.
+function _waFechaToMs(v) {
+  if (!v) return 0;
+  if (v instanceof Date) return v.getTime();
+  var m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return 0;
+  try {
+    return Utilities.parseDate(m[1] + '-' + m[2] + '-' + m[3], 'America/Panama', 'yyyy-MM-dd').getTime();
+  } catch (e) { return 0; }
 }
 
 // Libera el hash asociado a un pendiente (cuando se rechaza o elimina),
