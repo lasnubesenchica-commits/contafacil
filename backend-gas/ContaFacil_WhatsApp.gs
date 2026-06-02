@@ -251,6 +251,25 @@ function _whatsappProcesarMensaje(msg, metadata) {
       token, phoneId);
   }
 
+  // ── Dedup de 2ª capa: por contenido extraído ──
+  // El hash SHA-256 del archivo no detecta el caso típico de WhatsApp
+  // donde el cliente saca otra foto del mismo ticket (bytes distintos,
+  // mismo contenido). Buscamos por (ruc_proveedor + num_factura) en
+  // PENDIENTES y EGRESOS. Si Claude pudo extraer ambos campos, este
+  // dedup pisa fuerte: dos facturas reales nunca comparten ese par.
+  var dupContenido = _whatsappBuscarDuplicadoContenido(parsed);
+  if (dupContenido) {
+    Logger.log('Duplicado por contenido extraído: ' + JSON.stringify(dupContenido));
+    _whatsappReply(from,
+      '📋 Esta factura ya está registrada' +
+      (dupContenido.ref ? ' (' + dupContenido.ref + ')' : '') + '.\n\n' +
+      'Proveedor: ' + (parsed.nombre_otro || '?') + '\n' +
+      'N° factura: ' + (parsed.num_factura || '?') + '\n\n' +
+      'Si querés volver a procesarla, primero rechazala desde el panel.',
+      token, phoneId);
+    return;
+  }
+
   // ── Guardar según tipo detectado ──
   var resumen;
   try {
@@ -548,7 +567,9 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '       • IGNORÁ: timestamps de impresión arriba (ej "02/18/2024 09:36 6205..."), fechas de "MEMBER #", "Año:", fechas de "FECHA INSTALACIÓN", o fechas dentro de códigos de barra / strings largos.\n' +
     '       • Si ves múltiples fechas válidas, prioriza la más cercana al label "FACTURA" o "FECHA".\n' +
     '       • Devolvé SIEMPRE en formato YYYY-MM-DD (ISO). Año 4 dígitos. Si solo ves "24" como año, asumí "2024".\n' +
-    '       • Si la fecha NO es legible o no estás seguro, devolvé null. NO inventes.\n\n' +
+    '       • Si la fecha NO es legible o no estás seguro, devolvé null. NO inventes.\n' +
+    '       • PRICESMART específico: el ticket imprime un timestamp del cajero arriba del cuerpo (formato "MM/DD/YYYY HH:MM 6205 009 0010 NNNNNNNN" — con códigos numéricos largos pegados). ESE NO ES LA FECHA. La fecha real está labeled "FECHA:" en formato DD-MM-YYYY (con guiones, no slashes), cerca de "FACTURA:" y "HORA:". Si tenés que elegir entre un slash-date arriba con códigos numéricos pegados y un dash-date abajo labeled FECHA, agarrá SIEMPRE el dash-date.\n' +
+    '       • DGI Panamá específico: el footer puede tener strings como "R00620500060010202402040947..." — la subcadena "20240204" NO es la fecha, es un identificador interno. Ignorá.\n\n' +
 
     '5. **CAMPOS DEDUCIDOS** (inferí del contenido):\n' +
     '   • categoria_dgi: del tipo de producto/servicio + naturaleza del proveedor\n' +
@@ -1290,6 +1311,59 @@ function _whatsappRegistrarHash(hash, pendId) {
   } catch (e) {
     Logger.log('Hash register error: ' + e.message);
   }
+}
+
+// Dedup de 2ª capa: busca duplicados por (num_factura, total).
+// El hash byte-a-byte falla cuando WhatsApp recomprime imágenes o
+// cuando el cliente saca otra foto del mismo ticket. Este check usa
+// los campos extraídos por la IA, así que pisa duros: dos facturas
+// reales nunca comparten el mismo número.
+// Devuelve { ref: 'PENDR-xxx' | 'EGR-xxx' } si encuentra match, null si no.
+function _whatsappBuscarDuplicadoContenido(parsed) {
+  if (!parsed) return null;
+  var numFac = String(parsed.num_factura || '').replace(/\s/g, '').toUpperCase();
+  if (!numFac || numFac.length < 4) return null;  // num muy corto: no confiable
+  var total  = Number(parsed.total) || 0;
+
+  try {
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+    // 1) PENDIENTES no rechazados
+    var sP = ss.getSheetByName(SHEET_ACREEDORES_PENDING);
+    if (sP && sP.getLastRow() > 2) {
+      var dP = sP.getRange(3, 1, sP.getLastRow() - 2, PEND_NCOLS).getValues();
+      for (var i = 0; i < dP.length; i++) {
+        var estado = String(dP[i][COL_PEND.ESTADO - 1] || '').toLowerCase();
+        if (estado === 'rechazado') continue;
+        var nfP = String(dP[i][COL_PEND.NUM_FAC - 1] || '').replace(/\s/g, '').toUpperCase();
+        if (nfP && nfP === numFac) {
+          return { ref: String(dP[i][COL_PEND.ID - 1] || ''), origen: 'pendiente' };
+        }
+      }
+    }
+
+    // 2) EGRESOS ya registrados
+    var sE = ss.getSheetByName(SHEET_EGRESOS);
+    if (sE && sE.getLastRow() > 1) {
+      var lastE = sE.getLastRow();
+      var dE = sE.getRange(2, 1, lastE - 1, Math.max(COL_E.NFACTURA, COL_E.TOTAL)).getValues();
+      for (var j = 0; j < dE.length; j++) {
+        var nfE = String(dE[j][COL_E.NFACTURA - 1] || '').replace(/\s/g, '').toUpperCase();
+        if (nfE && nfE === numFac) {
+          var totE = Number(dE[j][COL_E.TOTAL - 1]) || 0;
+          // Si tenemos total en ambos lados, exigimos que coincida (margen ±0.50)
+          // para evitar matchear cuando dos facturas comparten número por
+          // formato simple (ej "001" en dos proveedores chicos).
+          if (!total || !totE || Math.abs(total - totE) <= 0.5) {
+            return { ref: String(dE[j][COL_E.ID - 1] || ''), origen: 'egreso' };
+          }
+        }
+      }
+    }
+  } catch (e) {
+    Logger.log('dedup contenido error: ' + e.message);
+  }
+  return null;
 }
 
 // Libera el hash asociado a un pendiente (cuando se rechaza o elimina),
