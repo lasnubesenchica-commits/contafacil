@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vivir Claro — Un ebook para despejar la mente y volver a lo esencial</title>
+<meta name="description" content="Vivir Claro es una guía serena para soltar el ruido, recuperar la calma y tomar decisiones desde la claridad. Descárgalo gratis en PDF (laptop) o ePub (móvil).">
+
+<!-- Open Graph / social -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Vivir Claro — Un ebook para volver a lo esencial">
+<meta property="og:description" content="Una guía serena para soltar el ruido, recuperar la calma y vivir con claridad. Descarga gratis en PDF o ePub.">
+<meta property="og:url" content="https://vivirclaro.com/">
+<meta property="og:image" content="https://vivirclaro.com/assets/og-cover.svg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%236b8f71'/%3E%3Ccircle cx='50' cy='50' r='22' fill='none' stroke='%23f7f5f0' stroke-width='5'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --cream:#f7f5f0;
+    --cream-2:#efece4;
+    --ink:#2b3a33;
+    --ink-soft:#54655c;
+    --sage:#6b8f71;
+    --sage-deep:#557a5d;
+    --mist:#a9c6c9;
+    --sand:#e7ddc9;
+    --shadow:0 24px 60px -28px rgba(43,58,51,.45);
+    --radius:22px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--ink);
+    background:var(--cream);
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-weight:500;line-height:1.12;letter-spacing:-.01em}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  a{color:inherit}
+
+  /* soft ambient background */
+  .aura{position:fixed;inset:0;z-index:-1;overflow:hidden}
+  .aura span{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5}
+  .aura span:nth-child(1){width:520px;height:520px;background:#cfe3d6;top:-160px;left:-120px}
+  .aura span:nth-child(2){width:460px;height:460px;background:#dcebec;top:30%;right:-160px}
+  .aura span:nth-child(3){width:480px;height:480px;background:#efe6d2;bottom:-180px;left:20%}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(247,245,240,.72);border-bottom:1px solid rgba(43,58,51,.06)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .brand{display:flex;align-items:center;gap:11px;font-family:'Fraunces',serif;font-size:20px;font-weight:600}
+  .mark{width:30px;height:30px;border-radius:50%;background:var(--sage);display:grid;place-items:center;flex:0 0 auto}
+  .mark::after{content:"";width:13px;height:13px;border-radius:50%;border:2.5px solid var(--cream)}
+  .nav-cta{font-size:14px;font-weight:600;text-decoration:none;padding:9px 18px;border-radius:999px;background:var(--ink);color:var(--cream);transition:transform .2s,background .2s}
+  .nav-cta:hover{transform:translateY(-1px);background:var(--sage-deep)}
+
+  /* hero */
+  header{padding:78px 0 60px}
+  .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sage-deep);background:rgba(107,143,113,.12);padding:7px 14px;border-radius:999px;margin-bottom:22px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--sage)}
+  h1.title{font-size:clamp(2.6rem,5.2vw,4.1rem);margin-bottom:20px}
+  h1.title em{font-style:italic;color:var(--sage-deep)}
+  .lead{font-size:1.16rem;color:var(--ink-soft);max-width:30ch;margin-bottom:32px}
+  .cta-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:10px;font-size:15px;font-weight:600;text-decoration:none;padding:15px 26px;border-radius:14px;transition:transform .2s,box-shadow .2s;cursor:pointer;border:none}
+  .btn-primary{background:var(--ink);color:var(--cream);box-shadow:var(--shadow)}
+  .btn-primary:hover{transform:translateY(-2px)}
+  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid rgba(43,58,51,.18)}
+  .btn-ghost:hover{border-color:var(--sage);color:var(--sage-deep)}
+  .btn svg{width:18px;height:18px}
+  .reassure{margin-top:18px;font-size:13.5px;color:var(--ink-soft);display:flex;align-items:center;gap:8px}
+  .reassure svg{width:15px;height:15px;color:var(--sage)}
+
+  /* book cover */
+  .cover-stage{position:relative;display:grid;place-items:center;perspective:1400px}
+  .book{position:relative;width:300px;aspect-ratio:3/4.3;transform:rotateY(-16deg) rotateX(4deg);transform-style:preserve-3d;transition:transform .6s ease;animation:float 6s ease-in-out infinite}
+  .book:hover{transform:rotateY(-6deg) rotateX(2deg)}
+  @keyframes float{0%,100%{translate:0 0}50%{translate:0 -14px}}
+  .book-face{position:absolute;inset:0;border-radius:6px 14px 14px 6px;background:linear-gradient(155deg,#84a88a,#557a5d 55%,#42624a);box-shadow:var(--shadow);overflow:hidden;padding:32px 28px;display:flex;flex-direction:column;color:#f4f1ea}
+  .book-face::before{content:"";position:absolute;left:0;top:0;bottom:0;width:14px;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0))}
+  .book-ring{width:64px;height:64px;border-radius:50%;border:3px solid rgba(244,241,234,.85);margin-bottom:auto;position:relative}
+  .book-ring::after{content:"";position:absolute;inset:13px;border-radius:50%;border:2px solid rgba(244,241,234,.45)}
+  .book-face h3{font-size:2rem;font-weight:600;letter-spacing:-.02em}
+  .book-face .bk-sub{font-size:.82rem;letter-spacing:.18em;text-transform:uppercase;opacity:.8;margin-top:10px}
+  .book-face .bk-author{margin-top:18px;font-size:.9rem;opacity:.9;font-family:'Inter',sans-serif}
+  .book-spine{position:absolute;left:-2px;top:0;bottom:0;width:14px;transform:translateZ(-1px);background:#3d5a45;border-radius:6px 0 0 6px}
+  .badge-free{position:absolute;top:-14px;right:-14px;background:var(--sand);color:var(--ink);font-size:12px;font-weight:700;letter-spacing:.05em;padding:10px 14px;border-radius:999px;box-shadow:var(--shadow);rotate:6deg;z-index:3}
+
+  /* generic section */
+  section{padding:72px 0}
+  .sec-head{text-align:center;max-width:620px;margin:0 auto 50px}
+  .sec-head h2{font-size:clamp(1.9rem,3.6vw,2.7rem);margin-bottom:14px}
+  .sec-head p{color:var(--ink-soft);font-size:1.05rem}
+  .kicker{font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--sage-deep);margin-bottom:14px;display:block}
+
+  /* pillars */
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .card{background:rgba(255,255,255,.6);border:1px solid rgba(43,58,51,.07);border-radius:var(--radius);padding:30px 26px;transition:transform .3s,box-shadow .3s}
+  .card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+  .ico{width:52px;height:52px;border-radius:14px;background:rgba(107,143,113,.14);display:grid;place-items:center;margin-bottom:18px;color:var(--sage-deep)}
+  .ico svg{width:26px;height:26px}
+  .card h3{font-size:1.25rem;margin-bottom:9px}
+  .card p{color:var(--ink-soft);font-size:.97rem}
+
+  /* inside the book */
+  .inside{background:var(--cream-2);border-radius:34px;padding:60px 48px}
+  .chapters{display:grid;grid-template-columns:1fr 1fr;gap:14px 40px;max-width:760px;margin:0 auto}
+  .chap{display:flex;gap:18px;padding:18px 0;border-bottom:1px solid rgba(43,58,51,.1)}
+  .chap .n{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--sage);flex:0 0 auto;width:34px}
+  .chap h4{font-size:1.05rem;font-weight:600;margin-bottom:3px}
+  .chap p{font-size:.9rem;color:var(--ink-soft);line-height:1.5}
+
+  /* author */
+  .author{display:grid;grid-template-columns:.8fr 1.2fr;gap:48px;align-items:center}
+  .author-photo{aspect-ratio:1;border-radius:26px;background:linear-gradient(155deg,#b8d0bd,#86a98c);display:grid;place-items:center;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .author-photo span{font-family:'Fraunces',serif;font-size:4rem;color:rgba(247,245,240,.9)}
+  .author blockquote{font-family:'Fraunces',serif;font-size:1.5rem;line-height:1.4;margin-bottom:22px}
+  .author p{color:var(--ink-soft)}
+
+  /* download band */
+  .download{background:linear-gradient(160deg,#3d5a45,#2b3a33);color:var(--cream);border-radius:34px;padding:64px 48px;text-align:center;position:relative;overflow:hidden}
+  .download::before{content:"";position:absolute;width:380px;height:380px;border-radius:50%;background:rgba(169,198,201,.18);filter:blur(40px);top:-140px;right:-80px}
+  .download h2{font-size:clamp(2rem,4vw,2.9rem);margin-bottom:14px;position:relative}
+  .download > .wrap-sub{color:rgba(247,245,240,.78);max-width:50ch;margin:0 auto 36px;position:relative}
+  .formats{display:flex;flex-wrap:wrap;gap:18px;justify-content:center;position:relative}
+  .fmt{flex:1 1 260px;max-width:320px;background:rgba(247,245,240,.07);border:1px solid rgba(247,245,240,.16);border-radius:20px;padding:30px 26px;text-align:left;transition:transform .25s,background .25s;text-decoration:none;color:inherit;display:block}
+  .fmt:hover{transform:translateY(-4px);background:rgba(247,245,240,.12)}
+  .fmt.is-recommended{border-color:var(--mist);background:rgba(169,198,201,.16)}
+  .fmt .rec-tag{display:none;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#15241b;background:var(--mist);padding:4px 10px;border-radius:999px;margin-bottom:14px;width:fit-content}
+  .fmt.is-recommended .rec-tag{display:inline-block}
+  .fmt .fmt-ico{width:46px;height:46px;border-radius:12px;background:rgba(247,245,240,.12);display:grid;place-items:center;margin-bottom:16px}
+  .fmt .fmt-ico svg{width:24px;height:24px;color:var(--mist)}
+  .fmt h3{font-size:1.3rem;margin-bottom:6px}
+  .fmt .fmt-for{font-size:.85rem;color:rgba(247,245,240,.7);margin-bottom:18px}
+  .fmt .fmt-go{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:.95rem;color:var(--cream)}
+  .fmt .fmt-go svg{width:16px;height:16px}
+
+  /* faq */
+  details{background:rgba(255,255,255,.55);border:1px solid rgba(43,58,51,.08);border-radius:16px;padding:0 24px;margin-bottom:12px;transition:background .2s}
+  details summary{list-style:none;cursor:pointer;padding:20px 0;font-weight:600;font-size:1.05rem;display:flex;justify-content:space-between;align-items:center}
+  details summary::-webkit-details-marker{display:none}
+  details summary::after{content:"+";font-size:1.5rem;color:var(--sage);font-weight:400;transition:transform .2s}
+  details[open] summary::after{transform:rotate(45deg)}
+  details p{padding:0 0 20px;color:var(--ink-soft)}
+
+  /* footer */
+  footer{padding:56px 0 40px;text-align:center;border-top:1px solid rgba(43,58,51,.08);margin-top:40px}
+  footer .brand{justify-content:center;margin-bottom:14px}
+  footer p{color:var(--ink-soft);font-size:.9rem}
+  footer a{color:var(--sage-deep);text-decoration:none}
+
+  /* reveal animation */
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  @media(max-width:860px){
+    .hero{grid-template-columns:1fr;text-align:center;gap:44px}
+    .lead{margin-left:auto;margin-right:auto}
+    .cta-row,.reassure{justify-content:center}
+    .grid-3{grid-template-columns:1fr}
+    .chapters{grid-template-columns:1fr}
+    .author{grid-template-columns:1fr;text-align:center}
+    .author-photo{max-width:240px;margin:0 auto}
+    .inside,.download{padding:44px 24px}
+    header{padding:48px 0 30px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .book{animation:none}
+    .reveal{transition:none;opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="aura"><span></span><span></span><span></span></div>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="mark"></span>Vivir Claro</div>
+    <a class="nav-cta" href="#descargar">Descargar gratis</a>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap hero">
+    <div class="hero-copy">
+      <span class="eyebrow"><span class="dot"></span>Ebook gratuito</span>
+      <!-- EDITA: título y subtítulo del libro -->
+      <h1 class="title">Despeja la mente.<br><em>Vuelve a lo esencial.</em></h1>
+      <p class="lead">Una guía serena para soltar el ruido, recuperar la calma y tomar decisiones desde la claridad.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#descargar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          Leer ahora gratis
+        </a>
+        <a class="btn btn-ghost" href="#dentro">Ver qué incluye</a>
+      </div>
+      <p class="reassure">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        Sin registro · PDF para laptop · ePub para móvil
+      </p>
+    </div>
+
+    <div class="cover-stage">
+      <div class="book">
+        <span class="badge-free">GRATIS</span>
+        <div class="book-spine"></div>
+        <div class="book-face">
+          <div class="book-ring"></div>
+          <h3>Vivir<br>Claro</h3>
+          <div class="bk-sub">Calma · Enfoque · Sentido</div>
+          <!-- EDITA: nombre del autor/a -->
+          <div class="bk-author">por el equipo de Vivir Claro</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kicker">Por qué este libro</span>
+      <h2>Menos ruido. Más vos.</h2>
+      <p>Vivimos saturados de notificaciones, pendientes y opiniones ajenas. Vivir Claro es una pausa para reordenar lo que de verdad importa.</p>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+        <h3>Calma la mente</h3>
+        <p>Prácticas sencillas para bajar el ritmo interno y dejar de reaccionar en automático.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg></div>
+        <h3>Recupera el foco</h3>
+        <p>Distinguí lo urgente de lo importante y dirigí tu energía hacia lo que sí mueve tu vida.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.5-7 10-7 10z"/></svg></div>
+        <h3>Decide con claridad</h3>
+        <p>Un marco honesto para elegir desde tus valores y no desde el miedo o la prisa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="dentro" class="reveal">
+  <div class="wrap">
+    <div class="inside">
+      <div class="sec-head">
+        <span class="kicker">Dentro del libro</span>
+        <h2>Un recorrido en siete pausas</h2>
+        <p>Capítulos breves, pensados para leerse con calma — uno por día, o todos de una sentada.</p>
+      </div>
+      <!-- EDITA: títulos y descripciones de capítulos -->
+      <div class="chapters">
+        <div class="chap"><div class="n">01</div><div><h4>El ruido invisible</h4><p>Cómo reconocer lo que satura tu día sin que te des cuenta.</p></div></div>
+        <div class="chap"><div class="n">02</div><div><h4>Hacer espacio</h4><p>El arte de soltar para que entre lo esencial.</p></div></div>
+        <div class="chap"><div class="n">03</div><div><h4>Atención plena</h4><p>Volver al presente cuando la mente se dispersa.</p></div></div>
+        <div class="chap"><div class="n">04</div><div><h4>Lo que de verdad importa</h4><p>Definir tus pocas prioridades reales.</p></div></div>
+        <div class="chap"><div class="n">05</div><div><h4>Decidir sin miedo</h4><p>Un método simple para elegir con calma.</p></div></div>
+        <div class="chap"><div class="n">06</div><div><h4>Rutinas que sostienen</h4><p>Pequeños hábitos que protegen tu claridad.</p></div></div>
+        <div class="chap"><div class="n">07</div><div><h4>Vivir claro</h4><p>Integrar todo en una vida más liviana y tuya.</p></div></div>
+        <div class="chap"><div class="n">+</div><div><h4>Guía de práctica</h4><p>Ejercicios y plantillas para empezar hoy mismo.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="author">
+      <div class="author-photo"><span>V</span></div>
+      <div>
+        <span class="kicker">Sobre el autor</span>
+        <!-- EDITA: cita y bio del autor/a -->
+        <blockquote>"Escribí este libro en las épocas en que más necesitaba leerlo."</blockquote>
+        <p>Vivir Claro nació de años buscando la calma en medio del ruido. No es un manual de productividad ni una receta mágica: es un acompañante honesto para volver a vos. Si algo de estas páginas te ordena un poco el día, habrá valido la pena.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="descargar" class="reveal">
+  <div class="wrap">
+    <div class="download">
+      <h2>Llevátelo, es tuyo</h2>
+      <p class="wrap-sub">Elegí el formato según tu dispositivo. Sin pagos, sin registro, sin letra chica.</p>
+      <div class="formats">
+        <a class="fmt" id="fmt-pdf" href="descargas/vivir-claro.pdf" download>
+          <span class="rec-tag">Recomendado para ti</span>
+          <div class="fmt-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+          <h3>PDF</h3>
+          <p class="fmt-for">Ideal para laptop y escritorio. Se ve igual en cualquier pantalla e imprime perfecto.</p>
+          <span class="fmt-go">Descargar PDF <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6l6 6-6 6"/></svg></span>
+        </a>
+        <a class="fmt" id="fmt-epub" href="descargas/vivir-claro.epub" download>
+          <span class="rec-tag">Recomendado para ti</span>
+          <div class="fmt-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 012-2h5v18H5a2 2 0 01-2-2zM21 5a2 2 0 00-2-2h-5v18h5a2 2 0 002-2z"/></svg></div>
+          <h3>ePub</h3>
+          <p class="fmt-for">Ideal para móvil, tablet y e-readers. El texto se adapta y podés ajustar el tamaño.</p>
+          <span class="fmt-go">Descargar ePub <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6l6 6-6 6"/></svg></span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap" style="max-width:760px">
+    <div class="sec-head"><span class="kicker">Dudas frecuentes</span><h2>Preguntas rápidas</h2></div>
+    <details><summary>¿Es realmente gratis?</summary><p>Sí. Podés descargarlo sin pagar nada y sin dejar tus datos. Si te gusta, compartirlo con alguien es el mejor agradecimiento.</p></details>
+    <details><summary>¿Qué formato me conviene?</summary><p>Si vas a leer en laptop o computadora, elegí el <strong>PDF</strong>. Si leés en el teléfono, tablet o un e-reader (Kindle, Kobo), elegí el <strong>ePub</strong>, que adapta el texto a tu pantalla.</p></details>
+    <details><summary>¿Cómo abro el ePub en mi teléfono?</summary><p>En iPhone se abre con la app Libros (Apple Books). En Android podés usar Google Play Libros, Moon+ Reader o cualquier lector de ePub. Solo abrí el archivo descargado.</p></details>
+    <details><summary>¿Puedo compartirlo?</summary><p>¡Claro! Pasalo a quien creas que le venga bien. Te pedimos solo que no lo vendas ni lo modifiques.</p></details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><span class="mark"></span>Vivir Claro</div>
+    <p>Hecho con calma · <a href="#descargar">Descargar el ebook</a></p>
+    <p style="margin-top:8px;opacity:.7">© <span id="year"></span> vivirclaro.com — Todos los derechos reservados.</p>
+  </div>
+</footer>
+
+<script>
+  // Year
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Recommend a format based on device
+  (function(){
+    var isMobile = /Android|iPhone|iPad|iPod|Mobile|Tablet|Silk|Kindle/i.test(navigator.userAgent)
+                   || window.matchMedia('(max-width:768px)').matches;
+    var rec = document.getElementById(isMobile ? 'fmt-epub' : 'fmt-pdf');
+    if(rec){ rec.classList.add('is-recommended'); }
+  })();
+
+  // Reveal on scroll
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {threshold:.12});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+</script>
+</body>
+</html>

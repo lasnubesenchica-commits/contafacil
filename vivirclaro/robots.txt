@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://vivirclaro.com/sitemap.xml

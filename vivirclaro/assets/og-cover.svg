@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#557a5d"/><stop offset="1" stop-color="#2b3a33"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.8" cy="0.2" r="0.6">
+      <stop offset="0" stop-color="#a9c6c9" stop-opacity="0.35"/><stop offset="1" stop-color="#a9c6c9" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <circle cx="150" cy="150" r="46" fill="none" stroke="#f4f1ea" stroke-width="5" opacity="0.9"/>
+  <circle cx="150" cy="150" r="20" fill="none" stroke="#f4f1ea" stroke-width="4" opacity="0.6"/>
+  <text x="100" y="330" font-family="Georgia, serif" font-size="100" fill="#f4f1ea" font-weight="600">Vivir Claro</text>
+  <text x="104" y="400" font-family="Georgia, serif" font-size="36" fill="#cfe3d6">Despeja la mente. Vuelve a lo esencial.</text>
+  <text x="104" y="540" font-family="Arial, sans-serif" font-size="26" fill="#a9c6c9" letter-spacing="3">EBOOK GRATUITO  ·  PDF  ·  ePub</text>
+</svg>
