@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <!-- BalanceClip Pro · Vertical 9:16 para Stories/Reels -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#fff7ed"/>
+      <stop offset="100%" stop-color="#ffedd5"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="waGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#25D366"/>
+      <stop offset="100%" stop-color="#128C7E"/>
+    </linearGradient>
+    <linearGradient id="sparkColor" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#fef9c3"/>
+      <stop offset="100%" stop-color="#facc15"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="8" result="off"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="sparkGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1080" height="1920" fill="url(#bgGrad)"/>
+
+  <!-- HEADER -->
+  <g transform="translate(120 140)">
+    <circle cx="44" cy="44" r="44" fill="url(#orangeGrad)"/>
+    <g transform="translate(44 44) rotate(-12) translate(-18 -32)">
+      <path d="M 12 6 C 12 2.6, 14.6 0, 18 0 C 21.4 0, 24 2.6, 24 6 L 24 54 C 24 59, 20 63, 15 63 C 10 63, 6 59, 6 54 L 6 12 C 6 9.4, 8.2 7.2, 10.8 7.2 C 13.4 7.2, 15.6 9.4, 15.6 12 L 15.6 52 C 15.6 53.4, 16.8 54.6, 18.2 54.6 C 19.6 54.6, 20.8 53.4, 20.8 52 L 20.8 10"
+            fill="none" stroke="#ffffff" stroke-width="5"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="116" y="42" font-family="Inter, Helvetica, Arial, sans-serif" font-size="46" font-weight="800" fill="#1f2937">Balance<tspan fill="#ea580c">Clip</tspan></text>
+    <text x="116" y="80" font-family="Inter, Helvetica, Arial, sans-serif" font-size="22" font-weight="600" fill="#6b7280" letter-spacing="3">PRO · TRACK 01</text>
+  </g>
+
+  <!-- TÍTULO -->
+  <text x="540" y="380" font-family="Inter, Helvetica, Arial, sans-serif" font-size="74" font-weight="800" fill="#111827" text-anchor="middle">Captura por</text>
+  <text x="540" y="470" font-family="Inter, Helvetica, Arial, sans-serif" font-size="88" font-weight="900" fill="#128C7E" text-anchor="middle">WhatsApp</text>
+
+  <!-- FLUJO VERTICAL: 3 cards apiladas -->
+  <g transform="translate(0 600)">
+    <!-- Paso 1: Foto -->
+    <g transform="translate(340 0)" filter="url(#softShadow)">
+      <rect x="0" y="0" width="400" height="200" rx="40" fill="#ffffff"/>
+      <rect x="60" y="40" width="100" height="120" rx="6" fill="#f3f4f6" stroke="#d1d5db" stroke-width="3"/>
+      <line x1="74" y1="64" x2="146" y2="64" stroke="#9ca3af" stroke-width="4" stroke-linecap="round"/>
+      <line x1="74" y1="80" x2="130" y2="80" stroke="#9ca3af" stroke-width="4" stroke-linecap="round"/>
+      <line x1="74" y1="96" x2="140" y2="96" stroke="#9ca3af" stroke-width="4" stroke-linecap="round"/>
+      <line x1="74" y1="124" x2="146" y2="124" stroke="#374151" stroke-width="5" stroke-linecap="round"/>
+      <line x1="74" y1="140" x2="110" y2="140" stroke="#374151" stroke-width="5" stroke-linecap="round"/>
+      <text x="220" y="100" font-family="Inter, Helvetica, Arial, sans-serif" font-size="38" font-weight="800" fill="#374151">1. Foto</text>
+      <text x="220" y="140" font-family="Inter, Helvetica, Arial, sans-serif" font-size="24" font-weight="500" fill="#6b7280">al recibo</text>
+    </g>
+
+    <!-- Flecha abajo 1 -->
+    <text x="540" y="278" font-family="Inter, Helvetica, Arial, sans-serif" font-size="60" fill="#fb923c" text-anchor="middle">↓</text>
+
+    <!-- Paso 2: WhatsApp -->
+    <g transform="translate(340 320)" filter="url(#softShadow)">
+      <rect x="0" y="0" width="400" height="200" rx="40" fill="url(#waGreen)"/>
+      <path d="M 70 60 L 170 60 Q 184 60, 184 74 L 184 120 Q 184 134, 170 134 L 110 134 L 90 156 L 90 134 L 70 134 Q 56 134, 56 120 L 56 74 Q 56 60, 70 60 Z" fill="#ffffff"/>
+      <circle cx="90" cy="96" r="6" fill="#25D366"/>
+      <circle cx="120" cy="96" r="6" fill="#25D366"/>
+      <circle cx="150" cy="96" r="6" fill="#25D366"/>
+      <text x="220" y="100" font-family="Inter, Helvetica, Arial, sans-serif" font-size="38" font-weight="800" fill="#ffffff">2. Manda</text>
+      <text x="220" y="140" font-family="Inter, Helvetica, Arial, sans-serif" font-size="24" font-weight="500" fill="#dcfce7">por WhatsApp</text>
+    </g>
+
+    <!-- Flecha abajo 2 -->
+    <text x="540" y="598" font-family="Inter, Helvetica, Arial, sans-serif" font-size="60" fill="#fb923c" text-anchor="middle">↓</text>
+
+    <!-- Paso 3: Listo -->
+    <g transform="translate(340 640)" filter="url(#softShadow)">
+      <rect x="0" y="0" width="400" height="200" rx="40" fill="#ffffff"/>
+      <circle cx="100" cy="100" r="60" fill="#10b981"/>
+      <path d="M 72 100 L 92 122 L 132 80" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+      <g transform="translate(154 50)" filter="url(#sparkGlow)">
+        <path d="M 0 -20 L 5 -5 L 20 0 L 5 5 L 0 20 L -5 5 L -20 0 L -5 -5 Z" fill="url(#sparkColor)"/>
+      </g>
+      <text x="200" y="100" font-family="Inter, Helvetica, Arial, sans-serif" font-size="38" font-weight="800" fill="#374151">3. Listo</text>
+      <text x="200" y="140" font-family="Inter, Helvetica, Arial, sans-serif" font-size="24" font-weight="500" fill="#6b7280">IA lo guarda</text>
+    </g>
+  </g>
+
+  <!-- BADGE 7 días gratis -->
+  <g transform="translate(540 1600)">
+    <rect x="-330" y="0" width="660" height="120" rx="60" fill="url(#orangeGrad)" filter="url(#softShadow)"/>
+    <text x="0" y="80" font-family="Inter, Helvetica, Arial, sans-serif" font-size="56" font-weight="800" fill="#ffffff" text-anchor="middle">7 DÍAS GRATIS</text>
+  </g>
+
+  <!-- Subtexto -->
+  <text x="540" y="1820" font-family="Inter, Helvetica, Arial, sans-serif" font-size="30" font-weight="500" fill="#6b7280" text-anchor="middle">DGI Panamá · ITBMS · Categoría automática</text>
+</svg>

@@ -2,8 +2,8 @@
      MÓDULO: Reporte de Cierre Anual — DGI
      Prefijo: ca-  |  IIFE independiente
      Formulario: Declaración Jurada Persona Jurídica General
-     Empresa: Consultores Electrotécnicos y Contratistas S.A.
-     RUC: 2470636-1-814806
+     Empresa: (dinámico desde config)
+     RUC: (dinámico desde config)
      Fuentes: ingItems + egrItems + getCotizaciones
 ════════════════════════════════════════════════ -->
 <style>
@@ -410,11 +410,28 @@ const GAS_URL = (typeof window.GAS_URL !== 'undefined' && window.GAS_URL)
              || 'https://script.google.com/macros/s/AKfycbyqdFIXT3D2R9TtKffI2L0xcFB1kLGJY6Lz7MvxFtg_gk6xx86LjsTAJU-h5nn1XWJX/exec';
 
 const EMPRESA = {
-  nombre: 'Consultores Electrotécnicos y Contratistas S.A.',
-  ruc:    '2470636-1-814806',
-  dv:     '—',
+  nombre: '',
+  comercial: '',
+  ruc:    '',
+  dv:     '',
   form:   'Persona Jurídica General',
 };
+
+// Carga datos de empresa desde la config del cliente. Llamada en caLoad.
+async function caCargarEmpresa() {
+  try {
+    const r = await caJsonp('getConfig');
+    const cfg = (r && r.config) || {};
+    EMPRESA.nombre    = cfg.empresa_comercial || cfg.empresa_nombre || '';
+    EMPRESA.comercial = cfg.empresa_comercial || '';
+    EMPRESA.ruc       = cfg.empresa_ruc       || '';
+    EMPRESA.dv        = cfg.empresa_dv        || '';
+    // empresa_nombre puede tener la razón social legal cuando difiere del nombre comercial
+    EMPRESA.razon_social = cfg.empresa_nombre || '';
+  } catch (e) {
+    // sin config, el letterhead queda vacío pero no rompe
+  }
+}
 
 const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
                'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -456,6 +473,7 @@ function caJsonp(action) {
 // ── LOAD ─────────────────────────────────────────
 async function caLoad() {
   try {
+    await caCargarEmpresa();
     const [ingRes, egrRes, stRes] = await Promise.all([
       (typeof ingItems !== 'undefined' && ingItems.length)
         ? Promise.resolve({ success: true, items: ingItems })
@@ -751,10 +769,10 @@ function caRender() {
     <div class="ca-letterhead">
       <div>
         <div class="ca-letterhead-logo">PANADERIA AURORITA</div>
-        <div class="ca-letterhead-sub">Consultores Electrotécnicos y Contratistas S.A.</div>
+        <div class="ca-letterhead-sub">${EMPRESA.razon_social && EMPRESA.razon_social !== EMPRESA.nombre ? caEsc(EMPRESA.razon_social) : ''}</div>
       </div>
       <div class="ca-letterhead-meta">
-        <div><strong>RUC:</strong> 2470636-1-814806</div>
+        <div><strong>RUC:</strong> ${caEsc(EMPRESA.ruc || '—')}${EMPRESA.dv ? ' DV ' + caEsc(EMPRESA.dv) : ''}</div>
         <div><strong>Formulario DGI:</strong> Persona Jurídica General</div>
         <div><strong>Período fiscal:</strong> 1 Enero – 31 Diciembre ${ca_year}</div>
         <div><strong>Generado:</strong> ${generado}</div>
@@ -1082,7 +1100,7 @@ function caRender() {
       Vencimiento: <strong>${vencimiento}</strong>.
     </div>
     <div class="ca-footer">
-      <span>ContaFácil · CEYCO · RUC 2470636-1-814806</span>
+      <span>BalanceClip · ${caEsc(EMPRESA.nombre || '')} · RUC ${caEsc(EMPRESA.ruc || '—')}</span>
       <span>Período fiscal ${ca_year} · Generado ${generado}</span>
     </div>
   `;
