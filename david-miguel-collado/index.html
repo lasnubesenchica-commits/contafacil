@@ -1984,10 +1984,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="rg-zone-body dense">
         <div id="rgEgrFiltersBar" class="op-toolbar" style="flex-wrap:wrap;gap:.5rem;padding:0">
       <select id="rgEgrFechaMode" onchange="rgApplyEgrFecha(this.value)" class="rg-filter-sel">
-        <option value="all">📅 Todas las fechas</option>
+        <option value="ytd" selected>📅 YTD (Año a la fecha)</option>
         <option value="7">Últimos 7 días</option>
         <option value="14">Últimos 14 días</option>
         <option value="30">Últimos 30 días</option>
+        <option value="3m">Últimos 3 meses</option>
+        <option value="6m">Últimos 6 meses</option>
+        <option value="last_year">Año anterior</option>
+        <option value="all">📅 Todas las fechas</option>
         <option value="custom">Rango personalizado…</option>
       </select>
       <span id="rgEgrFechaCustom" style="display:none;gap:.3rem;align-items:center">
@@ -2109,10 +2113,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="rg-zone-body dense">
         <div id="rgIngFiltersBar" class="op-toolbar" style="flex-wrap:wrap;gap:.5rem;padding:0">
           <select id="rgIngFechaMode" onchange="rgApplyIngFecha(this.value)" class="rg-filter-sel">
-            <option value="all">📅 Todas las fechas</option>
+            <option value="ytd" selected>📅 YTD (Año a la fecha)</option>
             <option value="7">Últimos 7 días</option>
             <option value="14">Últimos 14 días</option>
             <option value="30">Últimos 30 días</option>
+            <option value="3m">Últimos 3 meses</option>
+            <option value="6m">Últimos 6 meses</option>
+            <option value="last_year">Año anterior</option>
+            <option value="all">📅 Todas las fechas</option>
             <option value="custom">Rango personalizado…</option>
           </select>
           <span id="rgIngFechaCustom" style="display:none;gap:.3rem;align-items:center">
@@ -6740,11 +6748,11 @@ var rg_ing_filter   = 'all';            // filtro por categoría DGI
 var rg_ing_estado   = 'all';            // 'all' | 'confirmado' | 'pendiente' | 'abono'
 var rg_ing_itbms    = 'all';            // 'all' | 'gravado' | 'exento'
 var _rgIngCliente   = 'TODOS';          // filtro por cliente
-var _rgIngFechaMode = 'all';            // 'all'|'7'|'14'|'30'|'custom'
+var _rgIngFechaMode = 'ytd';            // 'ytd'|'all'|'7'|'14'|'30'|'3m'|'6m'|'last_year'|'custom'
 var _rgEgrAcreedor  = 'TODOS';             // filtro por acreedor
 var _rgEgrSort      = { col: 'fecha', dir: 'desc' }; // ordenamiento activo
 var _rgEgrSel       = new Set();           // IDs seleccionados (bulk)
-var _rgEgrFechaMode = 'all';              // filtro fecha: 'all'|'7'|'14'|'30'|'custom'
+var _rgEgrFechaMode = 'ytd';              // filtro fecha: 'ytd'|'all'|'7'|'14'|'30'|'3m'|'6m'|'last_year'|'custom'
 var _acrDataLoaded = false;   // bandera para no doble-cargar pendientes
 
 // ── Catálogo DGI unificado — Gastos (1-24) + Costos (1-10) + DP ──
@@ -7206,6 +7214,31 @@ function rgSetCliente(v) {
   if (sel) sel.value = _rgIngCliente;
   rgRenderIng();
 }
+
+// Calcula rango {desde, hasta} para los modos de filtro de fecha.
+// Devuelve null si el modo es 'all' o no requiere filtrado.
+function _rgFechaRange(mode) {
+  if (!mode || mode === 'all') return null;
+  const hoy = new Date(); hoy.setHours(23,59,59,999);
+  let desde = null, hasta = hoy;
+  if (mode === 'ytd') {
+    desde = new Date(hoy.getFullYear(), 0, 1); desde.setHours(0,0,0,0);
+  } else if (mode === '3m') {
+    desde = new Date(hoy); desde.setMonth(desde.getMonth() - 3); desde.setHours(0,0,0,0);
+  } else if (mode === '6m') {
+    desde = new Date(hoy); desde.setMonth(desde.getMonth() - 6); desde.setHours(0,0,0,0);
+  } else if (mode === 'last_year') {
+    const y = hoy.getFullYear() - 1;
+    desde = new Date(y, 0, 1); desde.setHours(0,0,0,0);
+    hasta = new Date(y, 11, 31); hasta.setHours(23,59,59,999);
+  } else if (/^\d+$/.test(mode)) {
+    const dias = parseInt(mode, 10);
+    desde = new Date(hoy); desde.setDate(desde.getDate() - dias); desde.setHours(0,0,0,0);
+  }
+  if (!desde) return null;
+  return { desde, hasta };
+}
+
 function rgApplyIngFecha(mode) {
   _rgIngFechaMode = mode || 'all';
   var sel = document.getElementById('rgIngFechaMode');
@@ -7677,25 +7710,25 @@ function rgRenderEgr() {
   if (q) items = items.filter(i =>
     [i.proveedor, i.descripcion, i.num_fac, i.categoria].join(' ').toLowerCase().includes(q)
   );
-  if (_rgEgrFechaMode !== 'all') {
-    const hoy = new Date(); hoy.setHours(23,59,59,999);
-    if (_rgEgrFechaMode === 'custom') {
-      const desdeEl = document.getElementById('rgEgrFechaDesde');
-      const hastaEl = document.getElementById('rgEgrFechaHasta');
-      const desde = desdeEl && desdeEl.value ? new Date(desdeEl.value + 'T00:00:00') : null;
-      const hasta = hastaEl && hastaEl.value ? new Date(hastaEl.value + 'T23:59:59') : null;
-      if (desde || hasta) items = items.filter(i => {
-        if (!i.fecha) return true;
-        const d = new Date(i.fecha + 'T00:00:00');
-        if (desde && d < desde) return false;
-        if (hasta && d > hasta) return false;
-        return true;
-      });
-    } else {
-      const dias  = parseInt(_rgEgrFechaMode);
-      const desde = new Date(hoy); desde.setDate(desde.getDate() - dias); desde.setHours(0,0,0,0);
-      items = items.filter(i => i.fecha && new Date(i.fecha + 'T00:00:00') >= desde);
-    }
+  if (_rgEgrFechaMode === 'custom') {
+    const desdeEl = document.getElementById('rgEgrFechaDesde');
+    const hastaEl = document.getElementById('rgEgrFechaHasta');
+    const desde = desdeEl && desdeEl.value ? new Date(desdeEl.value + 'T00:00:00') : null;
+    const hasta = hastaEl && hastaEl.value ? new Date(hastaEl.value + 'T23:59:59') : null;
+    if (desde || hasta) items = items.filter(i => {
+      if (!i.fecha) return true;
+      const d = new Date(i.fecha + 'T00:00:00');
+      if (desde && d < desde) return false;
+      if (hasta && d > hasta) return false;
+      return true;
+    });
+  } else {
+    const range = _rgFechaRange(_rgEgrFechaMode);
+    if (range) items = items.filter(i => {
+      if (!i.fecha) return true;
+      const d = new Date(i.fecha + 'T00:00:00');
+      return d >= range.desde && d <= range.hasta;
+    });
   }
 
   // ── 4. Poblar dropdown de proveedores (antes del filtro acreedor) ──
@@ -8320,7 +8353,6 @@ function rgRenderIng() {
 
   // Fecha
   if (_rgIngFechaMode !== 'all') {
-    const today = new Date(); today.setHours(0,0,0,0);
     let desde, hasta;
     if (_rgIngFechaMode === 'custom') {
       const d = document.getElementById('rgIngFechaDesde');
@@ -8329,9 +8361,9 @@ function rgRenderIng() {
       hasta = h && h.value ? new Date(h.value) : null;
       if (hasta) hasta.setHours(23,59,59,999);
     } else {
-      const days = parseInt(_rgIngFechaMode) || 0;
-      desde = new Date(today); desde.setDate(today.getDate() - days);
-      hasta = new Date(today); hasta.setHours(23,59,59,999);
+      const range = _rgFechaRange(_rgIngFechaMode);
+      desde = range ? range.desde : null;
+      hasta = range ? range.hasta : null;
     }
     items = items.filter(i => {
       const f = i.fecha_ingreso ? new Date(i.fecha_ingreso) : null;
