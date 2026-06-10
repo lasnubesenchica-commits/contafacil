@@ -1020,6 +1020,52 @@ function _buscarPreferenciaAcreedor(nombre, ruc) {
   return null;
 }
 
+// Busca en la hoja Egresos las facturas pasadas del mismo proveedor y
+// devuelve la categoría más frecuente. Cubre el caso donde el cliente
+// tiene historial (vía email o reclasificación) pero todavía no hay
+// una preferencia explícita en Acreedores_Config.
+// Devuelve null si no hay match o si todas son 'otros_deducibles'.
+function _categoriaHistoricaEgresos(nombre, ruc) {
+  try {
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_EGRESOS);
+    if (!sheet || sheet.getLastRow() < 3) return null;
+
+    var rucNorm = String(ruc || '').replace(/[-\.\s]/g, '').toLowerCase();
+    var nomLower = String(nombre || '').toLowerCase().trim();
+    if (!rucNorm && !nomLower) return null;
+
+    // Columnas relevantes: PROVEEDOR (13), RUC_PROV (14), CATEGORIA (12)
+    var ncols = Math.max(COL_E.PROVEEDOR, COL_E.RUC_PROV, COL_E.CATEGORIA, COL_E.TIPO_EGRESO, COL_E.ESTADO);
+    var data  = sheet.getRange(3, 1, sheet.getLastRow() - 2, ncols).getValues();
+    var counts = {};
+    for (var i = 0; i < data.length; i++) {
+      var estado = String(data[i][COL_E.ESTADO - 1] || '').toLowerCase();
+      if (estado === 'anulado') continue;
+      var rowNom = String(data[i][COL_E.PROVEEDOR - 1] || '').toLowerCase().trim();
+      var rowRuc = String(data[i][COL_E.RUC_PROV - 1] || '').replace(/[-\.\s]/g, '').toLowerCase();
+      var match = (rucNorm && rowRuc && rucNorm === rowRuc) ||
+                  (nomLower && rowNom && nomLower === rowNom);
+      if (!match) continue;
+      var cat = String(data[i][COL_E.CATEGORIA - 1] || data[i][COL_E.TIPO_EGRESO - 1] || '').trim();
+      if (!cat || cat === 'sin_clasificar') continue;
+      counts[cat] = (counts[cat] || 0) + 1;
+    }
+
+    // Pick la más frecuente; si la única es 'otros_deducibles', devolver null
+    // (no aporta info nueva, dejamos que la IA decida).
+    var best = null, bestN = 0;
+    for (var k in counts) {
+      if (counts[k] > bestN) { best = k; bestN = counts[k]; }
+    }
+    if (!best || (best === 'otros_deducibles' && Object.keys(counts).length === 1)) return null;
+    return best;
+  } catch (e) {
+    Logger.log('_categoriaHistoricaEgresos error: ' + e.message);
+    return null;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  AUTO-CREATE — crea un acreedor si no existe en Acreedores_Config
 //  Devuelve siempre el acreedor (existente o nuevo) con flag activo.
@@ -1030,6 +1076,19 @@ function _findOrAutoCreateAcreedor(nombre, ruc, categoriaDef) {
   // 1. Buscar en la lista existente
   var existing = _buscarPreferenciaAcreedor(nombre, ruc);
   if (existing) return existing;
+
+  // 1b. Fallback histórico: si no hay preferencia explícita, mirar los
+  // Egresos pasados del mismo proveedor y usar la categoría más usada.
+  // Cubre el caso donde el cliente ya tiene facturas de este proveedor
+  // categorizadas correctamente (vía email o reclasificación) pero
+  // todavía no había una entrada de Acreedores_Config.
+  if (!categoriaDef || categoriaDef === 'otros_deducibles') {
+    var historica = _categoriaHistoricaEgresos(nombre, ruc);
+    if (historica) {
+      Logger.log('🕰  Categoría histórica encontrada para ' + nombre + ': ' + historica);
+      categoriaDef = historica;
+    }
+  }
 
   // 2. No existe → crear con activo=true
   try {
