@@ -523,6 +523,19 @@ select.f-inp { appearance:none; }
 .pl-tbtn { flex:1; padding:.4rem; border-radius:6px; font-size:.75rem; font-weight:600; color:var(--muted); transition:all .15s; text-align:center; }
 .pl-tbtn.active { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.1); }
 
+.pl-mode-sel {
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .28rem .42rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  max-width: 9rem;
+}
+.pl-mode-sel:focus { border-color: var(--orange); }
 .pl-mode-toggle { display:flex; background:var(--bg2); border-radius:20px; padding:2px; gap:2px; }
 .pl-mode-btn {
   padding:.26rem .72rem; border-radius:20px;
@@ -1021,10 +1034,13 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
             <button class="period-btn" onclick="PL.prev()">‹</button>
             <button class="period-btn" onclick="PL.next()">›</button>
           </div>
-          <div class="pl-mode-toggle">
-            <button class="pl-mode-btn"        id="pl-mode-mes" onclick="PL.setMode('mes')">Mes</button>
-            <button class="pl-mode-btn active" id="pl-mode-ytd" onclick="PL.setMode('ytd')">YTD</button>
-          </div>
+          <select class="pl-mode-sel" id="pl-mode-sel" onchange="PL.setMode(this.value)">
+            <option value="mes">Mes</option>
+            <option value="ytd" selected>YTD</option>
+            <option value="3m">Últimos 3 meses</option>
+            <option value="6m">Últimos 6 meses</option>
+            <option value="last_year">Año anterior</option>
+          </select>
         </div>
       </div>
       <div class="pl-widgets">
@@ -1235,10 +1251,13 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
             <button class="period-btn" onclick="GAS.prev()">‹</button>
             <button class="period-btn" onclick="GAS.next()">›</button>
           </div>
-          <div class="pl-mode-toggle">
-            <button class="pl-mode-btn"        id="gas-mode-mes" onclick="GAS.setMode('mes')">Mes</button>
-            <button class="pl-mode-btn active" id="gas-mode-ytd" onclick="GAS.setMode('ytd')">YTD</button>
-          </div>
+          <select class="pl-mode-sel" id="gas-mode-sel" onchange="GAS.setMode(this.value)">
+            <option value="mes">Mes</option>
+            <option value="ytd" selected>YTD</option>
+            <option value="3m">Últimos 3 meses</option>
+            <option value="6m">Últimos 6 meses</option>
+            <option value="last_year">Año anterior</option>
+          </select>
         </div>
       </div>
 
@@ -1851,7 +1870,33 @@ const PL = (() => {
   let año = new Date().getFullYear(), mes = new Date().getMonth()+1;
   let txMode  = 'ing'; // 'ing' | 'egr' | 'gas'
   let plVista = 'consolidado'; // 'consolidado' | 'detalle'
-  let viewMode = 'ytd'; // 'mes' | 'ytd'  ← YTD por defecto
+  let viewMode = 'ytd'; // 'mes' | 'ytd' | '3m' | '6m' | 'last_year'  ← YTD por defecto
+
+  // Devuelve los keys "año-mes" del objeto periodos correspondientes
+  // al modo de vista (ytd, mes, 3m, 6m, last_year).
+  function _keysForMode(periodos, mode, año, mes) {
+    if (mode === 'ytd') {
+      return Object.keys(periodos).filter(k => periodos[k] && periodos[k].anio === año);
+    }
+    if (mode === 'last_year') {
+      return Object.keys(periodos).filter(k => periodos[k] && periodos[k].anio === (año - 1));
+    }
+    if (mode === '3m' || mode === '6m') {
+      const n = mode === '3m' ? 3 : 6;
+      const keysSet = new Set();
+      let y = año, m = mes;
+      for (let i = 0; i < n; i++) {
+        keysSet.add(y + '-' + m);
+        m--;
+        if (m < 1) { m = 12; y--; }
+      }
+      return Object.keys(periodos).filter(k => keysSet.has(k));
+    }
+    // 'mes' (default)
+    const key = año + '-' + mes;
+    return periodos[key] ? [key] : [];
+  }
+
 
   // ── Navegación mes ───────────────────────────────────────────
   const prev = () => { if(viewMode!=='mes') return; mes--; if(mes<1){mes=12;año--;} renderAll(); };
@@ -1860,9 +1905,10 @@ const PL = (() => {
   // ── Modo MES ↔ YTD ───────────────────────────────────────────
   function setMode(m) {
     viewMode = m;
-    document.getElementById('pl-mode-mes').classList.toggle('active', m==='mes');
-    document.getElementById('pl-mode-ytd').classList.toggle('active', m==='ytd');
+    const sel = document.getElementById('pl-mode-sel');
+    if (sel) sel.value = m;
     document.getElementById('pl-period-nav').style.display = m==='mes' ? 'flex' : 'none';
+    // Badge muestra YTD label cuando aplica; ocultamos para modos custom
     document.getElementById('pl-ytd-badge').classList.toggle('show', m==='ytd');
     renderAll();
   }
@@ -1916,20 +1962,23 @@ const PL = (() => {
 
   // ── Obtener data del período activo ──────────────────────────
   function _getData() {
-    if (viewMode === 'ytd') {
-      const keys = Object.keys(periodos).filter(k => periodos[k].anio === año);
-      return _acumular(keys);
+    if (viewMode === 'mes') {
+      const key = año + '-' + mes;
+      return periodos[key] || { subtotal:0, itbms_cobrado:0, cogs:0, gastos:0,
+                                 itbms_pagado:0, ub:0, un:0, itbms_neto:0,
+                                 ingresos:[], egresos_gasto:[], cogs_items:[] };
     }
-    const key = año + '-' + mes;
-    return periodos[key] || { subtotal:0, itbms_cobrado:0, cogs:0, gastos:0,
-                               itbms_pagado:0, ub:0, un:0, itbms_neto:0,
-                               ingresos:[], egresos_gasto:[], cogs_items:[] };
+    return _acumular(_keysForMode(periodos, viewMode, año, mes));
   }
 
   // ── Render principal ─────────────────────────────────────────
   function renderAll() {
-    document.getElementById('pl-period').textContent = viewMode==='ytd'
-      ? 'Año ' + año : MESES[mes-1] + ' ' + año;
+    document.getElementById('pl-period').textContent =
+      viewMode === 'ytd'       ? 'Año ' + año :
+      viewMode === '3m'        ? 'Últimos 3 meses' :
+      viewMode === '6m'        ? 'Últimos 6 meses' :
+      viewMode === 'last_year' ? 'Año ' + (año - 1) :
+      MESES[mes-1] + ' ' + año;
 
     const d = _getData();
 
@@ -2299,7 +2348,7 @@ const PL = (() => {
     }
   }
 
-  return { load, prev, next, setMode, showTable, switchVista, toggleSection, toggleCat, toggleExpandAll, abrirReclasif, confirmarReclasif,
+  return { load, prev, next, setMode, _keysForMode, showTable, switchVista, toggleSection, toggleCat, toggleExpandAll, abrirReclasif, confirmarReclasif,
            get loaded()   { return _loaded; },
            get periodos() { return periodos; },
            get año()      { return año; },
@@ -2319,14 +2368,14 @@ const GAS = (() => {
 
   function _getItems() {
     const periodos = PL.periodos || {};
-    if (_mode === 'ytd') {
-      const all = [];
-      Object.keys(periodos).filter(k => Number(periodos[k].anio) === _año)
-        .forEach(k => (periodos[k].egresos_gasto || []).forEach(g => all.push(g)));
-      return all;
+    if (_mode === 'mes') {
+      const key = _año + '-' + _mes;
+      return (periodos[key] || {}).egresos_gasto || [];
     }
-    const key = _año + '-' + _mes;
-    return (periodos[key] || {}).egresos_gasto || [];
+    const keys = PL._keysForMode ? PL._keysForMode(periodos, _mode, _año, _mes) : Object.keys(periodos).filter(k => Number(periodos[k].anio) === _año);
+    const all = [];
+    keys.forEach(k => (periodos[k].egresos_gasto || []).forEach(g => all.push(g)));
+    return all;
   }
 
   function _render() {
@@ -2337,8 +2386,12 @@ const GAS = (() => {
     const negTotal  = negItems.reduce((s, g)  => s + (parseFloat(g.total) || 0), 0);
     const persTotal = persItems.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
 
-    document.getElementById('gas-period').textContent = _mode === 'ytd'
-      ? 'Año ' + _año : MESES[_mes - 1] + ' ' + _año;
+    document.getElementById('gas-period').textContent =
+      _mode === 'ytd'       ? 'Año ' + _año :
+      _mode === '3m'        ? 'Últimos 3 meses' :
+      _mode === '6m'        ? 'Últimos 6 meses' :
+      _mode === 'last_year' ? 'Año ' + (_año - 1) :
+      MESES[_mes - 1] + ' ' + _año;
 
     // Widgets
     document.getElementById('gas-w-total').textContent    = fmt(total);
@@ -2436,8 +2489,8 @@ const GAS = (() => {
 
   function setMode(m) {
     _mode = m;
-    document.getElementById('gas-mode-mes').classList.toggle('active', m === 'mes');
-    document.getElementById('gas-mode-ytd').classList.toggle('active', m === 'ytd');
+    const sel = document.getElementById('gas-mode-sel');
+    if (sel) sel.value = m;
     document.getElementById('gas-period-nav').style.display = m === 'mes' ? 'flex' : 'none';
     document.getElementById('gas-ytd-badge').classList.toggle('show', m === 'ytd');
     _render();
