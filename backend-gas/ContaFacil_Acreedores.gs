@@ -1031,9 +1031,19 @@ function _categoriaHistoricaEgresos(nombre, ruc) {
     var sheet = ss.getSheetByName(SHEET_EGRESOS);
     if (!sheet || sheet.getLastRow() < 3) return null;
 
+    // Normalización tolerante: lowercase, sin acentos, sin puntuación.
+    // Tolera diferencias entre "Congregación" vs "Congregacion" y
+    // sufijos legales S.A. / S. de R.L.
+    function _normN(s) {
+      return String(s || '')
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/\b(s\.?a\.?|s\.?\s*de\s*r\.?l\.?|sociedad anonima|inc|ltd|corp)\b/g, '')
+        .replace(/[^a-z0-9]+/g, '');
+    }
     var rucNorm = String(ruc || '').replace(/[-\.\s]/g, '').toLowerCase();
-    var nomLower = String(nombre || '').toLowerCase().trim();
-    if (!rucNorm && !nomLower) return null;
+    var nomNorm = _normN(nombre);
+    if (!rucNorm && !nomNorm) return null;
 
     // Columnas relevantes: PROVEEDOR (13), RUC_PROV (14), CATEGORIA (12)
     var ncols = Math.max(COL_E.PROVEEDOR, COL_E.RUC_PROV, COL_E.CATEGORIA, COL_E.TIPO_EGRESO, COL_E.ESTADO);
@@ -1042,10 +1052,16 @@ function _categoriaHistoricaEgresos(nombre, ruc) {
     for (var i = 0; i < data.length; i++) {
       var estado = String(data[i][COL_E.ESTADO - 1] || '').toLowerCase();
       if (estado === 'anulado') continue;
-      var rowNom = String(data[i][COL_E.PROVEEDOR - 1] || '').toLowerCase().trim();
+      var rowNom = _normN(data[i][COL_E.PROVEEDOR - 1]);
       var rowRuc = String(data[i][COL_E.RUC_PROV - 1] || '').replace(/[-\.\s]/g, '').toLowerCase();
-      var match = (rucNorm && rowRuc && rucNorm === rowRuc) ||
-                  (nomLower && rowNom && nomLower === rowNom);
+      var match = (rucNorm && rowRuc && rucNorm === rowRuc);
+      if (!match && nomNorm && rowNom) {
+        // Exacto o uno contiene al otro (≥6 chars) para tolerar
+        // truncaciones / variantes del mismo nombre.
+        match = (nomNorm === rowNom) ||
+                (nomNorm.length >= 6 && rowNom.indexOf(nomNorm) >= 0) ||
+                (rowNom.length >= 6 && nomNorm.indexOf(rowNom) >= 0);
+      }
       if (!match) continue;
       var cat = String(data[i][COL_E.CATEGORIA - 1] || data[i][COL_E.TIPO_EGRESO - 1] || '').trim();
       if (!cat || cat === 'sin_clasificar') continue;
@@ -1075,10 +1091,38 @@ function _categoriaHistoricaEgresos(nombre, ruc) {
 function _findOrAutoCreateAcreedor(nombre, ruc, categoriaDef) {
   // 1. Buscar en la lista existente
   var existing = _buscarPreferenciaAcreedor(nombre, ruc);
-  if (existing) return existing;
+  if (existing) {
+    // 1a. Si la entrada existente tiene 'otros_deducibles' como categoría
+    // por default (no porque el usuario la haya puesto explícitamente,
+    // sino porque la IA la creó así en una factura previa), intentar
+    // mejorarla mirando el historial de Egresos. Esto recupera del caso
+    // donde una prueba previa creó una entrada subóptima.
+    try {
+      var actualCat = String(existing.categoria_def || '').trim();
+      var notasObj = {};
+      try { notasObj = JSON.parse(existing.notas || '{}'); } catch (e) {}
+      var setByUser = !!notasObj.pref_usuario;
+      if (!setByUser && (!actualCat || actualCat === 'otros_deducibles')) {
+        var hist = _categoriaHistoricaEgresos(nombre, ruc);
+        if (hist) {
+          var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+          var sheet = ss.getSheetByName(SHEET_ACREEDORES_CONFIG);
+          if (sheet && existing._row) {
+            sheet.getRange(existing._row, COL_ACR.CATEGORIA_DEF).setValue(hist);
+            existing.categoria_def = hist;
+            _acreedoresCache = null;
+            Logger.log('🕰  Acreedor upgrade con categoría histórica: ' + nombre + ' → ' + hist);
+          }
+        }
+      }
+    } catch (e) {
+      Logger.log('Upgrade hist error: ' + e.message);
+    }
+    return existing;
+  }
 
-  // 1b. Fallback histórico: si no hay preferencia explícita, mirar los
-  // Egresos pasados del mismo proveedor y usar la categoría más usada.
+  // 1b. Fallback histórico para acreedor nuevo: mirar los Egresos
+  // pasados del mismo proveedor y usar la categoría más usada.
   // Cubre el caso donde el cliente ya tiene facturas de este proveedor
   // categorizadas correctamente (vía email o reclasificación) pero
   // todavía no había una entrada de Acreedores_Config.
