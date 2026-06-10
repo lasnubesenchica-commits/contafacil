@@ -2639,3 +2639,105 @@ function _handleVerificarReenvioGmail(params, callback) {
     }, callback);
   }
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  UTILIDAD ADMIN — limpiar egresos duplicados
+//
+//  Cleanup one-shot para deshacer el daño del bug histórico de race
+//  condition (arreglado en PR #276). Cuando _handleAprobarAcreedor
+//  procesaba un pendiente con ID duplicado, podía crear varios egresos
+//  para la misma factura. Esta función los detecta y marca como
+//  'anulado' (no los elimina — es reversible y queda trazabilidad).
+//
+//  Detección: grupo por (proveedor + num_factura + fecha + total).
+//  Estrategia: mantener el más antiguo de cada grupo (fecha_registro
+//  mínima), anular el resto.
+//
+//  USO (desde el editor de Apps Script):
+//    limpiarEgresosDuplicados()       // dry-run: solo log, no toca nada
+//    limpiarEgresosDuplicados(true)   // ejecuta los cambios
+//
+//  Los reportes (P&L, ITBMS, Cierre Anual) ya filtran estado='anulado',
+//  así que el total inflado se corrige al instante.
+// ════════════════════════════════════════════════════════════════════
+function limpiarEgresosDuplicados(ejecutar) {
+  var dry = !ejecutar;
+  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_EGRESOS);
+  if (!sheet) throw new Error('Hoja Egresos no encontrada');
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 3) { Logger.log('Sin egresos.'); return; }
+
+  var data = sheet.getRange(3, 1, lastRow - 2, EGRESOS_NCOLS).getValues();
+
+  var groups = {};
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    if (!row[COL_E.ID - 1]) continue;
+    var estado = String(row[COL_E.ESTADO - 1] || '').toLowerCase();
+    if (estado === 'anulado') continue;
+
+    var prov  = String(row[COL_E.PROVEEDOR - 1] || '').trim();
+    var nfac  = String(row[COL_E.NFACTURA  - 1] || '').trim();
+    var fecha = row[COL_E.FECHA_GASTO - 1];
+    var fechaStr = (fecha instanceof Date)
+      ? Utilities.formatDate(fecha, 'America/Panama', 'yyyy-MM-dd')
+      : String(fecha || '').slice(0, 10);
+    var total = parseFloat(row[COL_E.TOTAL - 1]) || 0;
+
+    // Requiere num_factura para evitar falsos positivos en gastos
+    // recurrentes sin número (ej: ajustes manuales del mismo monto).
+    if (!nfac || !prov) continue;
+
+    var key = prov + '|' + nfac + '|' + fechaStr + '|' + total.toFixed(2);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({
+      sheetRow: i + 3,
+      id:       String(row[COL_E.ID - 1]),
+      fechaReg: String(row[COL_E.FECHA_REG - 1] || ''),
+      total:    total,
+    });
+  }
+
+  var totalAnulados = 0;
+  var montoInflado = 0;
+  var reporte = [];
+  Object.keys(groups).forEach(function(key) {
+    var rows = groups[key];
+    if (rows.length < 2) return;
+    rows.sort(function(a, b) { return a.fechaReg < b.fechaReg ? -1 : (a.fechaReg > b.fechaReg ? 1 : 0); });
+    var keeper = rows[0];
+    var dupes  = rows.slice(1);
+    reporte.push('  • ' + key + ' — mantener ' + keeper.id + ', anular ' + dupes.length + ' (' + dupes.map(function(d){return d.id}).join(', ') + ')');
+
+    if (!dry) {
+      for (var d = 0; d < dupes.length; d++) {
+        var dup = dupes[d];
+        sheet.getRange(dup.sheetRow, COL_E.ESTADO).setValue('anulado');
+        var notasActuales = String(sheet.getRange(dup.sheetRow, COL_E.NOTAS).getValue() || '');
+        var notaAnulado = 'AUTO-ANULADO duplicado de ' + keeper.id + ' | ' +
+                          Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+        sheet.getRange(dup.sheetRow, COL_E.NOTAS).setValue(
+          notasActuales ? notasActuales + ' | ' + notaAnulado : notaAnulado
+        );
+        sheet.getRange(dup.sheetRow, 1, 1, EGRESOS_NCOLS).setBackground('#FFEBEE');
+      }
+    }
+    totalAnulados += dupes.length;
+    montoInflado  += dupes.length * keeper.total;
+  });
+
+  Logger.log('═══════════════════════════════════════════════');
+  Logger.log(dry ? '🔍 DRY-RUN (no se modificó nada)' : '✅ EJECUTADO');
+  Logger.log('═══════════════════════════════════════════════');
+  Logger.log('Grupos con duplicados encontrados: ' + reporte.length);
+  Logger.log('Egresos a anular: ' + totalAnulados);
+  Logger.log('Monto inflado a recuperar: $' + montoInflado.toFixed(2));
+  Logger.log('');
+  reporte.forEach(function(r) { Logger.log(r); });
+  if (dry) {
+    Logger.log('');
+    Logger.log('Para ejecutar de verdad: limpiarEgresosDuplicados(true)');
+  }
+}
