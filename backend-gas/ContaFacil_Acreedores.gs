@@ -2653,9 +2653,9 @@ function _handleVerificarReenvioGmail(params, callback) {
 //  Estrategia: mantener el más antiguo de cada grupo (fecha_registro
 //  mínima), anular el resto.
 //
-//  USO (desde el editor de Apps Script):
-//    limpiarEgresosDuplicados()       // dry-run: solo log, no toca nada
-//    limpiarEgresosDuplicados(true)   // ejecuta los cambios
+//  USO (desde el editor de Apps Script, dropdown de funciones):
+//    limpiarEgresosDuplicados              → dry-run: solo log, no toca nada
+//    limpiarEgresosDuplicadosEjecutar      → ejecuta los cambios
 //
 //  Los reportes (P&L, ITBMS, Cierre Anual) ya filtran estado='anulado',
 //  así que el total inflado se corrige al instante.
@@ -2738,6 +2738,13 @@ function limpiarEgresosDuplicados(ejecutar) {
   reporte.forEach(function(r) { Logger.log(r); });
   if (dry) {
     Logger.log('');
-    Logger.log('Para ejecutar de verdad: limpiarEgresosDuplicados(true)');
+    Logger.log('Para ejecutar de verdad: corré la función limpiarEgresosDuplicadosEjecutar');
   }
+}
+
+// Wrapper sin argumentos para poder ejecutar desde el dropdown del
+// editor de Apps Script (que no permite pasar parámetros). Ejecuta
+// la limpieza de verdad — marca duplicados como 'anulado'.
+function limpiarEgresosDuplicadosEjecutar() {
+  return limpiarEgresosDuplicados(true);
 }
