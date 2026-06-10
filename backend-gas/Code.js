@@ -3389,6 +3389,24 @@ function _handleReclasificarEgreso(params, callback) {
         notasActual ? notasActual + ' | ' + notaReclasif : notaReclasif
       );
 
+      // Persistir la preferencia en Acreedores_Config para que el bot
+      // de WhatsApp clasifique automáticamente futuras facturas de este
+      // proveedor con la categoría correcta. Es el mismo learning loop
+      // que tiene el botón "Cambiar categoría" de WhatsApp.
+      try {
+        var provNombre = String(data[i][COL_E.PROVEEDOR - 1] || '').trim();
+        var provRuc    = String(data[i][COL_E.RUC_PROV  - 1] || '').trim();
+        if ((provNombre || provRuc) && typeof _handleGuardarPreferencia === 'function') {
+          _handleGuardarPreferencia({
+            nombre:    provNombre,
+            ruc:       provRuc,
+            categoria: nuevoTipo,
+          });
+        }
+      } catch (e) {
+        Logger.log('Pref persistence (reclasificar) error: ' + e.message);
+      }
+
       result.success      = true;
       result.tipo_anterior = tipoAnterior;
       result.tipo_nuevo    = nuevoTipo;
@@ -3447,6 +3465,22 @@ function _handleActualizarCategoria(params, callback) {
           var rowNum = j + 3;
           sheetEgr2.getRange(rowNum, COL_E.TIPO_EGRESO).setValue(categoria);
           sheetEgr2.getRange(rowNum, COL_E.CATEGORIA).setValue(categoria);
+          // Persistir preferencia en Acreedores_Config — feedback loop
+          // para que el bot WhatsApp clasifique futuras facturas del
+          // mismo proveedor con la categoría que el usuario eligió acá.
+          try {
+            var provNombre2 = String(dataEgr2[j][COL_E.PROVEEDOR - 1] || '').trim();
+            var provRuc2    = String(dataEgr2[j][COL_E.RUC_PROV  - 1] || '').trim();
+            if ((provNombre2 || provRuc2) && typeof _handleGuardarPreferencia === 'function') {
+              _handleGuardarPreferencia({
+                nombre:    provNombre2,
+                ruc:       provRuc2,
+                categoria: categoria,
+              });
+            }
+          } catch (e) {
+            Logger.log('Pref persistence (actualizar) error: ' + e.message);
+          }
           break;
         }
       }
