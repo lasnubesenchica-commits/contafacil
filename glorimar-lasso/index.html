@@ -7745,7 +7745,7 @@ function rgRenderEgr() {
     const rowBg       = esPendiente ? 'background:#FFFDE7;' : '';
     // Borde izquierdo verde para items recién agregados (componible con bg pendiente)
     const rowEdge     = esReciente ? 'box-shadow:inset 4px 0 0 #00897B;' : '';
-    const isSel       = _rgEgrSel.has(i._id);
+    const isSel       = _rgEgrSel.has(_rgUidOf(i));
 
     // Badge origen — detecta WhatsApp para mostrar icono específico
     const esWhatsApp  = String(i.gmail_msg_id || i.msg_id || '').indexOf('whatsapp-') === 0
@@ -7796,7 +7796,7 @@ function rgRenderEgr() {
     }
 
     return `<tr style="${rowBg}${rowEdge}${isSel ? 'outline:2px solid #1565C0;outline-offset:-1px;' : ''}">
-      <td style="text-align:center;padding:.4rem .5rem"><input type="checkbox" data-id="${esc(i._id)}" ${isSel?'checked':''} onchange="rgToggleEgrSel('${esc(i._id)}',this.checked)" style="cursor:pointer;width:1rem;height:1rem"></td>
+      <td style="text-align:center;padding:.4rem .5rem"><input type="checkbox" data-id="${esc(_rgUidOf(i))}" ${isSel?'checked':''} onchange="rgToggleEgrSel('${esc(_rgUidOf(i))}',this.checked)" style="cursor:pointer;width:1rem;height:1rem"></td>
       <td style="font-family:'DM Mono',monospace;font-size:.76rem;color:var(--muted);white-space:nowrap">${i.fecha||'—'}</td>
       <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
       <td>${origenBadge}${esReciente ? _NEW_BADGE_HTML : ''}</td>
@@ -7974,6 +7974,17 @@ function rgSelAllEgr(checked) {
 }
 window.rgSelAllEgr = rgSelAllEgr;
 
+// Clave única por VISUAL row para selección bulk. Necesario porque
+// Acreedores_Pending puede tener IDs duplicados (race condition vieja
+// arreglada por LockService en _crearPendiente). Para registrados, _id
+// ya es único; para pendientes con duplicados, compone _id + num_fac.
+function _rgUidOf(item) {
+  if (!item) return '';
+  const base = String(item._id || item.id || '');
+  const extra = item.num_fac && item._tipo === 'pendiente' ? '|' + String(item.num_fac) : '';
+  return base + extra;
+}
+
 function rgUpdBulkBar() {
   const bar = document.getElementById('rgEgrBulkBar');
   if (!bar) return;
@@ -7990,16 +8001,25 @@ function rgUpdBulkBar() {
 
 // ── Bulk approve ──────────────────────────────────────────────
 async function rgBulkAprobar() {
+  // Selecciones ahora son uids compuestos (id|num_fac). Cada uid mapea
+  // a 1 visual row específico, soportando IDs duplicados.
   const pendItems = [..._rgEgrSel]
-    .map(id => _acrData.find(i => String(i.id) === id))
-    .filter(i => i && i.estado === 'borrador');
+    .map(uid => {
+      const [pid, nfac] = uid.split('|');
+      return _acrData.find(i =>
+        String(i.id) === pid &&
+        (nfac == null || String(i.num_fac) === nfac) &&
+        i.estado === 'borrador'
+      );
+    })
+    .filter(i => i);
   if (!pendItems.length) { showToast('No hay pendientes entre los seleccionados'); return; }
   if (!confirm(`¿Aprobar ${pendItems.length} factura${pendItems.length !== 1 ? 's' : ''} pendiente${pendItems.length !== 1 ? 's' : ''} con la categoría sugerida?`)) return;
   let ok = 0, errN = 0;
   for (const item of pendItems) {
     try {
       const categoria = item.categoria || (CATEG_ACREEDOR[0] && CATEG_ACREEDOR[0].valor) || '';
-      const data = await gasJsonp('aprobarAcreedor', { id: item.id, categoria });
+      const data = await gasJsonp('aprobarAcreedor', { id: item.id, num_fac: String(item.num_fac || ''), categoria });
       if (data.success) { _acrData = _acrData.filter(i => i.id !== item.id); ok++; }
       else errN++;
     } catch(e) { errN++; }
@@ -8013,7 +8033,8 @@ window.rgBulkAprobar = rgBulkAprobar;
 
 // ── Bulk delete ───────────────────────────────────────────────
 async function rgBulkEliminar() {
-  const selIds = [..._rgEgrSel];
+  // Convertir uids → ids únicos (la eliminación es por ID, no por row).
+  const selIds = [...new Set([..._rgEgrSel].map(uid => uid.split('|')[0]))];
   if (!selIds.length) return;
   if (!confirm(`¿Eliminar ${selIds.length} registro${selIds.length !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
   let ok = 0;
@@ -10273,7 +10294,7 @@ async function acrAprobarRapido(item) {
   const categoria = item.categoria || CATEG_ACREEDOR[0].valor;
   if (!confirm(`¿Aprobar y registrar egreso de ${item.acreedor_nom} por $${parseFloat(item.total||0).toFixed(2)}?\nCategoría: ${CATEG_ACREEDOR.find(c=>c.valor===categoria)?.label || categoria}`)) return;
   try {
-    const data = await gasJsonp('aprobarAcreedor', { id: item.id, categoria });
+    const data = await gasJsonp('aprobarAcreedor', { id: item.id, num_fac: String(item.num_fac || ''), categoria });
     if (!data.success) throw new Error(data.error || 'Error al aprobar');
     showToast('✅ Egreso registrado: ' + data.egresoId);
     _acrData = _acrData.filter(i => i.id !== item.id);

@@ -1545,6 +1545,10 @@ function _handleAprobarAcreedor(params, callback) {
   try {
     var id = String(params.id || '').trim();
     if (!id) throw new Error('id requerido');
+    // num_fac opcional: cuando hay IDs duplicados (race histórica), el
+    // frontend pasa num_fac para apuntar al row exacto que el usuario
+    // seleccionó. Si no se pasa, fallback al primer borrador con ese ID.
+    var numFacTarget = String(params.num_fac || '').trim();
 
     var ss      = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var sheet   = ss.getSheetByName(SHEET_ACREEDORES_PENDING);
@@ -1561,6 +1565,9 @@ function _handleAprobarAcreedor(params, callback) {
       // rechazados para que el click "Aprobar" del usuario surta efecto.
       var rowEstado = String(data[i][COL_PEND.ESTADO - 1] || '').toLowerCase();
       if (rowEstado && rowEstado !== 'borrador') continue;
+      // Si el frontend especificó num_fac, exigimos match (para apuntar
+      // al row exacto entre duplicados con mismo id).
+      if (numFacTarget && String(data[i][COL_PEND.NUM_FAC - 1] || '').trim() !== numFacTarget) continue;
       var rowNum = i + 3;
       var r      = data[i];
 
@@ -1627,6 +1634,7 @@ function _handleRechazarAcreedor(params, callback) {
   try {
     var id = String(params.id || '').trim();
     if (!id) throw new Error('id requerido');
+    var numFacTarget = String(params.num_fac || '').trim();
     var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var sheet = ss.getSheetByName(SHEET_ACREEDORES_PENDING);
     if (!sheet) throw new Error('Hoja Acreedores_Pending no encontrada');
@@ -1638,6 +1646,7 @@ function _handleRechazarAcreedor(params, callback) {
       // veces por carrera histórica en _crearPendiente).
       var st = String(data[i][COL_PEND.ESTADO - 1] || '').toLowerCase();
       if (st && st !== 'borrador') continue;
+      if (numFacTarget && String(data[i][COL_PEND.NUM_FAC - 1] || '').trim() !== numFacTarget) continue;
       sheet.getRange(i + 3, COL_PEND.ESTADO).setValue('rechazado');
       sheet.getRange(i + 3, 1, 1, PEND_NCOLS).setBackground('#FFEBEE');
       found = true; break;
