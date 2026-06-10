@@ -1931,7 +1931,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <span id="rgHdrTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.04em;color:var(--text);line-height:1">Registro de Gastos</span>
     </div>
     <div id="rgHdrSubtitle" style="font-size:.78rem;color:var(--muted);margin-top:.25rem;line-height:1.45">
-      Captura inteligente de facturas para tu declaración DGI — la IA clasifica, calcula ITBMS y prepara tu cierre anual.
+      Captura inteligente de facturas para tu declaración DGI — la IA clasifica, calcula ITBMS y prepara tu informe anual.
     </div>
   </div>
 
@@ -7130,7 +7130,7 @@ function rgShowTab(tab) {
       ? { icon: '💰', title: 'Registro de Ingresos', subtitle: 'Captura de facturación e ingresos — clasifica por tipo (alquiler, intereses, gravado, exento) y prepara tu declaración DGI.' }
       : tab === 'pl'
       ? { icon: '👤', title: 'Planilla',              subtitle: 'Registro de planilla periódica — los egresos se crean automáticamente en la hoja de Egresos.' }
-      : { icon: '📤', title: 'Registro de Gastos',    subtitle: 'Captura inteligente de facturas para tu declaración DGI — la IA clasifica, calcula ITBMS y prepara tu cierre anual.' };
+      : { icon: '📤', title: 'Registro de Gastos',    subtitle: 'Captura inteligente de facturas para tu declaración DGI — la IA clasifica, calcula ITBMS y prepara tu informe anual.' };
   var hi = document.getElementById('rgHdrIcon');     if (hi) hi.textContent = meta.icon;
   var ht = document.getElementById('rgHdrTitle');    if (ht) ht.textContent = meta.title;
   var hs = document.getElementById('rgHdrSubtitle'); if (hs) hs.textContent = meta.subtitle;

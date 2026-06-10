@@ -122,7 +122,7 @@ function _handleEnviarReporteCierre(data) {
       var rentaAprox  = totIngBruto - totEgr;
 
       var resumen = [
-        ['Cierre Fiscal — Año ' + year, ''],
+        ['Informe Anual — Año ' + year, ''],
         ['', ''],
         ['Ingresos brutos (sin ITBMS)',     totIngBruto],
         ['ITBMS cobrado',                   totItbmsCob],
@@ -179,7 +179,7 @@ function _handleEnviarReporteCierre(data) {
       });
 
       // ── Enviar a cada destinatario ──────────────────────────
-      var subject = 'Cierre Fiscal ' + year + (empresa ? ' — ' + empresa : '');
+      var subject = 'Informe Anual ' + year + (empresa ? ' — ' + empresa : '');
       emails.forEach(function(to){
         GmailApp.sendEmail(to, subject, '', {
           htmlBody:    html,
@@ -535,7 +535,7 @@ function _rptBuildEmailHtml(d, ctx) {
             _rptEsc(ctx.empresa) +
           '</div>' +
           '<div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:4px">' +
-            'Reporte de Cierre Fiscal' +
+            'Informe Anual' +
           '</div>' +
         '</td>' +
         '<td style="text-align:right;vertical-align:top;font-size:11px;color:rgba(255,255,255,.78);line-height:1.7">' +
@@ -551,7 +551,7 @@ function _rptBuildEmailHtml(d, ctx) {
     '<tr><td colspan="2" style="background:#E65100;color:#fff;padding:12px 24px">' +
       '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>' +
         '<td style="font-family:Arial Black,Helvetica,sans-serif;font-size:15px;letter-spacing:.06em;color:#fff">' +
-          'CIERRE FISCAL — AÑO ' + year +
+          'INFORME ANUAL — AÑO ' + year +
         '</td>' +
         '<td style="text-align:right;font-size:11px;color:rgba(255,255,255,.85)">' +
           'Vencimiento: ' + _rptEsc(ctx.vencimiento) +

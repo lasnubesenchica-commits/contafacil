@@ -1625,7 +1625,7 @@ function _buildOnboardingEmailHtml(p) {
             '<li>Hacé los Pasos 1 y 2 arriba (toma ~5 minutos por proveedor)</li>' +
             '<li>Esperá la primera factura — el sistema la captura en hasta 15 min</li>' +
             '<li>Aprobá la factura desde tu dashboard en <strong>Registro General → Pendientes</strong></li>' +
-            '<li>Al final del mes / año, los reportes ITBMS y Cierre Anual se generan automáticamente</li>' +
+            '<li>Al final del mes / año, los reportes ITBMS y Informe Anual se generan automáticamente</li>' +
           '</ol>' +
 
         '</td></tr>' +
