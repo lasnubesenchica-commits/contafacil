@@ -34,7 +34,7 @@ var BATCH_DATA = [
     "fecha": "2026-04-02",
     "proveedor": "SUPER CARNES",
     "total": 29.82,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -43,7 +43,7 @@ var BATCH_DATA = [
     "fecha": "2026-04-10",
     "proveedor": "SUPER CARNES",
     "total": 54.44,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -52,7 +52,7 @@ var BATCH_DATA = [
     "fecha": "2026-04-13",
     "proveedor": "SUPER CARNES",
     "total": 14.87,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -61,7 +61,7 @@ var BATCH_DATA = [
     "fecha": "2026-04-18",
     "proveedor": "SUPER CARNES",
     "total": 15.34,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -70,7 +70,7 @@ var BATCH_DATA = [
     "fecha": "2026-04-24",
     "proveedor": "SUPER CARNES",
     "total": 34.93,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -79,7 +79,7 @@ var BATCH_DATA = [
     "fecha": "2026-04-30",
     "proveedor": "SUPER CARNES",
     "total": 22.1,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -88,7 +88,7 @@ var BATCH_DATA = [
     "fecha": "2026-05-08",
     "proveedor": "SUPER CARNES",
     "total": 42.59,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -97,7 +97,7 @@ var BATCH_DATA = [
     "fecha": "2026-05-08",
     "proveedor": "SUPER CARNES",
     "total": 0.74,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -106,7 +106,7 @@ var BATCH_DATA = [
     "fecha": "2026-05-11",
     "proveedor": "SUPER CARNES",
     "total": 19.68,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -115,7 +115,7 @@ var BATCH_DATA = [
     "fecha": "2026-05-19",
     "proveedor": "SUPER CARNES",
     "total": 12.93,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -124,7 +124,7 @@ var BATCH_DATA = [
     "fecha": "2026-05-20",
     "proveedor": "SUPER CARNES",
     "total": 11.37,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -133,7 +133,7 @@ var BATCH_DATA = [
     "fecha": "2026-05-22",
     "proveedor": "SUPER CARNES",
     "total": 32.85,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -142,7 +142,7 @@ var BATCH_DATA = [
     "fecha": "2026-05-28",
     "proveedor": "SUPER CARNES",
     "total": 44.73,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -151,7 +151,7 @@ var BATCH_DATA = [
     "fecha": "2026-06-01",
     "proveedor": "SUPER CARNES",
     "total": 14.78,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -160,7 +160,7 @@ var BATCH_DATA = [
     "fecha": "2026-06-05",
     "proveedor": "SUPER CARNES",
     "total": 28.96,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra alimentación",
     "num_factura": ""
@@ -169,7 +169,7 @@ var BATCH_DATA = [
     "fecha": "2026-03-20",
     "proveedor": "REY PASEO ALBROOK",
     "total": 65.15,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra supermercado",
     "num_factura": ""
@@ -178,7 +178,7 @@ var BATCH_DATA = [
     "fecha": "2026-04-01",
     "proveedor": "REY PASEO ALBROOK",
     "total": 59.05,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra supermercado",
     "num_factura": ""
@@ -187,7 +187,7 @@ var BATCH_DATA = [
     "fecha": "2026-05-20",
     "proveedor": "REY PASEO ALBROOK",
     "total": 3.96,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra supermercado",
     "num_factura": ""
@@ -196,7 +196,7 @@ var BATCH_DATA = [
     "fecha": "2026-06-04",
     "proveedor": "REY PASEO ALBROOK",
     "total": 5.58,
-    "categoria": "otros_gastos",
+    "categoria": "gastos_alimentacion",
     "alcance": "personal",
     "descripcion": "Compra supermercado",
     "num_factura": ""
@@ -205,90 +205,90 @@ var BATCH_DATA = [
     "fecha": "2026-01-15",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-02-01",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-02-16",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 200.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-03-01",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-03-16",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-03-30",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-04-16",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-05-03",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-05-15",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   },
   {
     "fecha": "2026-05-30",
     "proveedor": "VIVIANA ESTELA ORDOÑEZ ALVAREZ",
     "total": 150.0,
-    "categoria": "otros_gastos",
+    "categoria": "manutencion",
     "alcance": "personal",
-    "descripcion": "Manutención (transferencia)",
+    "descripcion": "Manutención a Viviana",
     "num_factura": ""
   }
 ];

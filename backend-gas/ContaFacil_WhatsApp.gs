@@ -604,6 +604,13 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '  telecomunicaciones (L71), gastos_oficina (L69), publicidad_mercadeo (L68),\n' +
     '  honorarios_profesionales (L60), seguros (L63-66), mantenimiento_reparacion (L67),\n' +
     '  compras_locales (L28 Costo), compras_importadas (L29 Costo), otros_deducibles (L77 default).\n\n' +
+    'NO DEDUCIBLES (Art. 697 Código Fiscal — gastos personales que NO entran al Form 90/91 pero el cliente quiere trackear). Usá estas SOLO si el proveedor/concepto es claramente personal/familiar (NO para gastos del negocio):\n' +
+    '  gastos_alimentacion (supermercado, comida, restaurantes para uso personal),\n' +
+    '  gastos_vestimenta (ropa, calzado personal/familiar),\n' +
+    '  pension_alimenticia, manutencion (transferencias a familiares para sustento),\n' +
+    '  viajes_recreativos (boletos, hoteles para vacaciones),\n' +
+    '  fiestas_entretenimiento (eventos sociales, recreación).\n' +
+    'IMPORTANTE: si una factura es claramente del negocio (compra de inventario, servicios para operación), NUNCA usés categorías no-deducibles aunque el monto sea pequeño.\n\n' +
     'PROHIBIDAS (estas son del Form 91 para ingresos — NO usar): ventas_servicios, honorarios_comision, alquiler_comercial, alquiler_habitacional, intereses_financieros, salarios_con_retencion, dietas, fuente_extranjera, otros_ingresos.\n\n' +
     'Si no estás seguro de la categoría, usá "otros_deducibles" como default.';
 

@@ -45,6 +45,13 @@ var CATEGORIAS_ACREEDOR = [
   { valor: 'tecnologia_software',      label: 'Tecnología y software (L76)'          },
   { valor: 'capacitacion',             label: 'Capacitación y formación (L76)'       },
   { valor: 'otros_deducibles',         label: 'Otros gastos deducibles (L77)'        },
+  // ─── NO DEDUCIBLES (auto-marcan alcance=personal) ─────────────
+  { valor: 'gastos_alimentacion',      label: '🍽️ Gastos de Alimentación',           no_deducible: true },
+  { valor: 'gastos_vestimenta',        label: '👕 Gastos de Vestimenta',             no_deducible: true },
+  { valor: 'pension_alimenticia',      label: '👨‍👩‍👧 Pensión Alimenticia',                no_deducible: true },
+  { valor: 'manutencion',              label: '💸 Manutención',                       no_deducible: true },
+  { valor: 'viajes_recreativos',       label: '✈️ Viajes Recreativos',               no_deducible: true },
+  { valor: 'fiestas_entretenimiento',  label: '🎉 Fiestas y Entretenimiento',         no_deducible: true },
 ];
 
 var COL_ACR = {
@@ -1351,7 +1358,14 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   var dvCli  = _cfgAcr && _cfgAcr.empresa_dv  ? _cfgAcr.empresa_dv  : '';
   // Alcance: deducible solo si la factura está a nombre del negocio.
   // El matcher tolera DV pegado al RUC en cualquiera de los dos lados.
-  var alcancePend = _matchRucPanama(rucRec, rucCli, dvCli) ? 'negocio' : 'personal';
+  // Pero si la categoría es no-deducible (Art. 697: alimentación,
+  // manutención, etc), forzamos personal sin importar el RUC.
+  var alcancePend;
+  if (typeof _esCategoriaNoDeducible === 'function' && _esCategoriaNoDeducible(catSugerida)) {
+    alcancePend = 'personal';
+  } else {
+    alcancePend = _matchRucPanama(rucRec, rucCli, dvCli) ? 'negocio' : 'personal';
+  }
   fila[COL_PEND.NOTAS - 1]       = 'IA confianza cat: ' + (parsed.confianza_categoria || '?') + '%' + notasExtra + ' | alcance:' + alcancePend;
   fila[COL_PEND.EGRESO_ID - 1]   = '';
   fila[COL_PEND.MSG_ID - 1]      = clave || msgId || '';
@@ -1607,7 +1621,14 @@ function _handleAprobarAcreedor(params, callback) {
         filE[COL_E.NOTAS - 1]         = 'acreedor_auto | ' + (r[COL_PEND.NOTAS - 1] || '');
         var notasPend = String(r[COL_PEND.NOTAS - 1] || '');
         var mAlc = notasPend.match(/\balcance:(negocio|personal)\b/);
-        filE[COL_E.ALCANCE - 1]       = mAlc ? mAlc[1] : 'negocio';
+        var catFinal = String(r[COL_PEND.CATEGORIA - 1] || '');
+        // Si la categoría es no-deducible, forzamos alcance=personal
+        // sin importar lo que diga el pendiente (defense in depth).
+        if (typeof _esCategoriaNoDeducible === 'function' && _esCategoriaNoDeducible(catFinal)) {
+          filE[COL_E.ALCANCE - 1] = 'personal';
+        } else {
+          filE[COL_E.ALCANCE - 1] = mAlc ? mAlc[1] : 'negocio';
+        }
         var lastRowE = sheetE.getLastRow() + 1;
         sheetE.getRange(lastRowE, 1, 1, EGRESOS_NCOLS).setValues([filE]);
         sheetE.getRange(lastRowE, COL_E.FECHA_GASTO, 1, 1).setNumberFormat('yyyy-MM-dd');
