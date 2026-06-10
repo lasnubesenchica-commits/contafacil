@@ -1303,6 +1303,15 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
   var sheet = ss.getSheetByName(SHEET_ACREEDORES_PENDING);
   if (!sheet) throw new Error('Hoja Acreedores_Pending no encontrada. Ejecutar initAcreedoresSheets().');
 
+  // Lock para evitar race condition en la generación de IDs y append:
+  // dos emails que llegan simultáneamente leerían el mismo lastRow y
+  // generarían el mismo PENDR-yyyyMM-NNNN, dejando filas duplicadas.
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (e) {
+    Logger.log('LockService timeout en _crearPendiente: ' + e.message);
+  }
+  try {
+
   var ahora    = new Date();
   var fechaReg = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
   var lastRow  = sheet.getLastRow();
@@ -1360,6 +1369,10 @@ function _crearPendiente(ss, acreedor, parsed, driveUrl, clave, msgId, fileName)
     }
   } catch (e) {}
   return id;
+
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
 }
 
 function _getOrCreateLabelAcr(nombre) {
@@ -1543,6 +1556,11 @@ function _handleAprobarAcreedor(params, callback) {
 
     for (var i = 0; i < data.length; i++) {
       if (String(data[i][COL_PEND.ID - 1]) !== id) continue;
+      // Si hay IDs duplicados (race condition histórica), priorizamos
+      // los rows en estado 'borrador'. Saltamos los ya aprobados o
+      // rechazados para que el click "Aprobar" del usuario surta efecto.
+      var rowEstado = String(data[i][COL_PEND.ESTADO - 1] || '').toLowerCase();
+      if (rowEstado && rowEstado !== 'borrador') continue;
       var rowNum = i + 3;
       var r      = data[i];
 
@@ -1616,6 +1634,10 @@ function _handleRechazarAcreedor(params, callback) {
     var found = false;
     for (var i = 0; i < data.length; i++) {
       if (String(data[i][COL_PEND.ID - 1]) !== id) continue;
+      // Saltar rows ya procesados (mismo ID puede aparecer múltiples
+      // veces por carrera histórica en _crearPendiente).
+      var st = String(data[i][COL_PEND.ESTADO - 1] || '').toLowerCase();
+      if (st && st !== 'borrador') continue;
       sheet.getRange(i + 3, COL_PEND.ESTADO).setValue('rechazado');
       sheet.getRange(i + 3, 1, 1, PEND_NCOLS).setBackground('#FFEBEE');
       found = true; break;
