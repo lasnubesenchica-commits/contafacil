@@ -3883,7 +3883,7 @@ const PEND = (() => {
   }
 
   // ── Guardar cambios sin aprobar ───────────────────────
-  async function guardar(id) {
+  async function guardar(id, num_fac) {
     _setMsg(id, '⏳ Guardando…', 'var(--muted)');
     try {
       await fetch(GAS_URL, {
@@ -3892,6 +3892,7 @@ const PEND = (() => {
         body: JSON.stringify({
           action:      'actualizarPendienteAcr',
           id,
+          num_fac:     num_fac || '',
           categoria:   _val('pcat-'   + id),
           descripcion: _val('pdesc-'  + id),
           subtotal:    _val('psub-'   + id) || undefined,
@@ -3900,7 +3901,9 @@ const PEND = (() => {
           alcance:     _val('palc-'   + id) || 'negocio',
         }),
       });
-      const idx = _items.findIndex(i => String(i.id) === String(id));
+      const idx = _items.findIndex(i =>
+        String(i.id) === String(id) && (!num_fac || String(i.num_fac) === String(num_fac))
+      );
       if (idx !== -1) {
         _items[idx].categoria   = _val('pcat-'   + id);
         _items[idx].descripcion = _val('pdesc-'  + id);
@@ -3916,7 +3919,7 @@ const PEND = (() => {
   }
 
   // ── Aprobar → registrar egreso ────────────────────────
-  async function aprobar(id) {
+  async function aprobar(id, num_fac) {
     const cat     = _val('pcat-' + id);
     const alcance = _val('palc-' + id) || 'negocio';
     if (!cat) { toast('Selecciona una categoría', 'err'); return; }
@@ -3928,6 +3931,7 @@ const PEND = (() => {
         body: JSON.stringify({
           action:      'actualizarPendienteAcr',
           id,
+          num_fac:     num_fac || '',
           categoria:   cat,
           descripcion: _val('pdesc-'  + id),
           subtotal:    _val('psub-'   + id) || undefined,
@@ -3937,12 +3941,14 @@ const PEND = (() => {
         }),
       });
       _setMsg(id, '⏳ Registrando egreso…', 'var(--muted)');
-      const r = await jsonpGet('aprobarAcreedor', { id, categoria: cat, alcance }, 30000);
+      const r = await jsonpGet('aprobarAcreedor', { id, num_fac: num_fac || '', categoria: cat, alcance }, 30000);
       if (!r.success) throw new Error(r.error || 'Error al aprobar');
       _setMsg(id, '✅ Egreso registrado: ' + r.egresoId, 'var(--green)');
       toast('Egreso registrado ✓', 'ok');
       setTimeout(() => {
-        _items = _items.filter(i => String(i.id) !== String(id));
+        _items = _items.filter(i =>
+          String(i.id) !== String(id) || (num_fac && String(i.num_fac) !== String(num_fac))
+        );
         if (_expanded === id) _expanded = null;
         _render();
       }, 1200);
@@ -3950,12 +3956,14 @@ const PEND = (() => {
   }
 
   // ── Eliminar ──────────────────────────────────────────
-  async function eliminar(id) {
+  async function eliminar(id, num_fac) {
     if (!confirm('¿Eliminar este registro permanentemente?')) return;
     try {
-      const r = await jsonpGet('eliminarPendienteAcr', { id }, 15000);
+      const r = await jsonpGet('eliminarPendienteAcr', { id, num_fac: num_fac || '' }, 15000);
       if (!r.success) throw new Error(r.error || 'Error');
-      _items = _items.filter(i => String(i.id) !== String(id));
+      _items = _items.filter(i =>
+        String(i.id) !== String(id) || (num_fac && String(i.num_fac) !== String(num_fac))
+      );
       if (_expanded === id) _expanded = null;
       _render();
       toast('Eliminado ✓');
@@ -3971,6 +3979,7 @@ const PEND = (() => {
   // ── Template de una card (compartido por ambas secciones) ────
   function _itemHtml(item) {
     const id      = String(item.id || '');
+    const nfac    = String(item.num_fac || '');
     const nombre  = esc(item.acreedor_nom || '—');
     const total   = parseFloat(item.total || 0);
     const fecha   = String(item.fecha_fac || item.fecha_reg || '').substring(0, 10);
@@ -4054,10 +4063,10 @@ const PEND = (() => {
               : 'Deducible · gastos de empresa, proveedores, insumos, servicios · aplica a DGI'}
           </div>
           <div class="card-acts">
-            <button class="act orange" onclick="PEND.guardar('${id}')">💾 Guardar</button>
-            <button class="act success" onclick="PEND.aprobar('${id}')">✅ Aprobar</button>
+            <button class="act orange" onclick="PEND.guardar('${id}','${nfac}')">💾 Guardar</button>
+            <button class="act success" onclick="PEND.aprobar('${id}','${nfac}')">✅ Aprobar</button>
             <button class="act danger" style="flex:none;min-width:auto;padding:.48rem .72rem"
-                    onclick="PEND.eliminar('${id}')" title="Eliminar">🗑</button>
+                    onclick="PEND.eliminar('${id}','${nfac}')" title="Eliminar">🗑</button>
           </div>
           <div class="pend-msg" id="pmsg-${id}"></div>
         </div>
