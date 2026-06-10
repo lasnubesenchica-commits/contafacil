@@ -645,6 +645,14 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId, contentHash) {
   var catSug     = parsed.categoria_dgi || 'otros_deducibles';
   var acreedor   = _findOrAutoCreateAcreedor(nombreProv, rucProv, catSug);
 
+  // _findOrAutoCreateAcreedor puede haber upgrade-ado categoria_def
+  // mirando preferencia previa o historial de Egresos del proveedor.
+  // El mensaje de WhatsApp tiene que mostrar la categoría REAL que se
+  // va a aplicar al pendiente, no la sugerencia inicial de la IA.
+  if (acreedor && acreedor.categoria_def) {
+    catSug = acreedor.categoria_def;
+  }
+
   // 2. Guardar archivo en Drive
   var fileName = 'WA-' + msgId + '.' + (mime === 'application/pdf' ? 'pdf' : 'jpg');
   blob.setName(fileName);
