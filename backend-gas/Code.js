@@ -3195,7 +3195,29 @@ var CATEGORIAS_GASTO_DGI = [
   { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea_dgi: 'DP-3', seccion: 'personal', emoji: '🏡' },
   { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea_dgi: 'DP-4', seccion: 'personal', emoji: '🎓' },
   { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea_dgi: 'DP-5', seccion: 'personal', emoji: '♿' },
+  // ══════════ NO DEDUCIBLES (Art. 697 Código Fiscal — gastos personales
+  //  de subsistencia, manutención, etc). NO entran a Form 90/91. Sirven
+  //  solo para tracking personal del cliente. Auto-marcan alcance=personal
+  //  para excluirse automáticamente de reportes fiscales (P&L, ITBMS,
+  //  Informe Anual). ══════════
+  { valor: 'gastos_alimentacion',     label: 'Gastos de Alimentación',     linea_dgi: '',  seccion: 'no_deducible', emoji: '🍽️', no_deducible: true },
+  { valor: 'gastos_vestimenta',       label: 'Gastos de Vestimenta',       linea_dgi: '',  seccion: 'no_deducible', emoji: '👕', no_deducible: true },
+  { valor: 'pension_alimenticia',     label: 'Pensión Alimenticia',        linea_dgi: '',  seccion: 'no_deducible', emoji: '👨‍👩‍👧', no_deducible: true },
+  { valor: 'manutencion',             label: 'Manutención',                linea_dgi: '',  seccion: 'no_deducible', emoji: '💸', no_deducible: true },
+  { valor: 'viajes_recreativos',      label: 'Viajes Recreativos',         linea_dgi: '',  seccion: 'no_deducible', emoji: '✈️', no_deducible: true },
+  { valor: 'fiestas_entretenimiento', label: 'Fiestas y Entretenimiento',  linea_dgi: '',  seccion: 'no_deducible', emoji: '🎉', no_deducible: true },
 ];
+
+// Lista cerrada de categorías NO deducibles (Art. 697 Código Fiscal).
+// Cuando un egreso usa una de estas, se fuerza alcance='personal' para
+// que quede excluido de todos los reportes fiscales (P&L, ITBMS, Cierre).
+var CATEGORIAS_NO_DEDUCIBLES_KEYS = [
+  'gastos_alimentacion', 'gastos_vestimenta', 'pension_alimenticia',
+  'manutencion', 'viajes_recreativos', 'fiestas_entretenimiento',
+];
+function _esCategoriaNoDeducible(catKey) {
+  return CATEGORIAS_NO_DEDUCIBLES_KEYS.indexOf(String(catKey || '').trim()) >= 0;
+}
 
 // Categorías que cuentan como COSTO DE VENTAS (Anexo 94 C1-C10), no
 // como gasto operativo. Reducen Utilidad Bruta en el P&L y agregan
@@ -3382,6 +3404,13 @@ function _handleReclasificarEgreso(params, callback) {
       sheet.getRange(rowNum, COL_E.TIPO_EGRESO).setValue(nuevoTipo);
       sheet.getRange(rowNum, COL_E.CATEGORIA).setValue(nuevoTipo);
 
+      // Si la nueva categoría es no-deducible, auto-forzar alcance=personal
+      // para que quede excluida de reportes fiscales. El usuario sigue
+      // viéndola en dashboards y estadísticas de gasto personal.
+      if (typeof _esCategoriaNoDeducible === 'function' && _esCategoriaNoDeducible(nuevoTipo)) {
+        sheet.getRange(rowNum, COL_E.ALCANCE).setValue('personal');
+      }
+
       // Registrar el cambio en notas
       var notasActual = String(sheet.getRange(rowNum, COL_E.NOTAS).getValue() || '');
       var notaReclasif = 'Reclasificado: ' + tipoAnterior + ' → ' + nuevoTipo + ' | ' + stamp;
@@ -3465,6 +3494,10 @@ function _handleActualizarCategoria(params, callback) {
           var rowNum = j + 3;
           sheetEgr2.getRange(rowNum, COL_E.TIPO_EGRESO).setValue(categoria);
           sheetEgr2.getRange(rowNum, COL_E.CATEGORIA).setValue(categoria);
+          // Si la nueva categoría es no-deducible, forzar alcance=personal
+          if (typeof _esCategoriaNoDeducible === 'function' && _esCategoriaNoDeducible(categoria)) {
+            sheetEgr2.getRange(rowNum, COL_E.ALCANCE).setValue('personal');
+          }
           // Persistir preferencia en Acreedores_Config — feedback loop
           // para que el bot WhatsApp clasifique futuras facturas del
           // mismo proveedor con la categoría que el usuario eligió acá.

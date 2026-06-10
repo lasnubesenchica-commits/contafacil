@@ -6795,9 +6795,27 @@ const CATEGORIAS_GASTO_DGI = [
   { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea: 'DP-3', seccion: 'personal', emoji: '🏡' },
   { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea: 'DP-4', seccion: 'personal', emoji: '🎓' },
   { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea: 'DP-5', seccion: 'personal', emoji: '♿' },
+  // ══════════ NO DEDUCIBLES (Art. 697 Código Fiscal) ══════════
+  // Solo para tracking personal. Auto-marcan alcance='personal'
+  // así quedan EXCLUIDOS de Form 90/91, P&L, ITBMS e Informe Anual.
+  { valor: 'gastos_alimentacion',     label: 'Gastos de Alimentación',     linea: '', seccion: 'no_deducible', emoji: '🍽️', no_deducible: true },
+  { valor: 'gastos_vestimenta',       label: 'Gastos de Vestimenta',       linea: '', seccion: 'no_deducible', emoji: '👕',       no_deducible: true },
+  { valor: 'pension_alimenticia',     label: 'Pensión Alimenticia',        linea: '', seccion: 'no_deducible', emoji: '👨‍👩‍👧', no_deducible: true },
+  { valor: 'manutencion',             label: 'Manutención',                linea: '', seccion: 'no_deducible', emoji: '💸',       no_deducible: true },
+  { valor: 'viajes_recreativos',      label: 'Viajes Recreativos',         linea: '', seccion: 'no_deducible', emoji: '✈️',     no_deducible: true },
+  { valor: 'fiestas_entretenimiento', label: 'Fiestas y Entretenimiento',  linea: '', seccion: 'no_deducible', emoji: '🎉',       no_deducible: true },
 ];
 // Alias para compatibilidad con código existente (catChipLabel, Acreedores, etc.)
 const TODAS_CATEGORIAS_EGR = CATEGORIAS_GASTO_DGI;
+// Lista de categorías NO deducibles (Art. 697 Código Fiscal). Cuando
+// el usuario selecciona una de estas, el backend fuerza alcance=personal
+// para excluirlas automáticamente de reportes fiscales.
+const CATS_NO_DEDUCIBLES = new Set([
+  'gastos_alimentacion', 'gastos_vestimenta', 'pension_alimenticia',
+  'manutencion', 'viajes_recreativos', 'fiestas_entretenimiento',
+]);
+function _esNoDeducible(cat) { return CATS_NO_DEDUCIBLES.has(String(cat || '').trim()); }
+
 
 // Mapping legacy → nueva key, para que datos viejos sigan funcionando.
 // Las categorías que existían antes y cambiaron de nombre o se fusionaron
@@ -7388,9 +7406,12 @@ async function catChipSelect(nuevoValor, nuevoLabel) {
         body: JSON.stringify({ action: 'actualizarPendienteAcr', id: _catDropId, categoria: nuevoValor }),
       });
       const idx = _acrData.findIndex(i => String(i.id) === String(_catDropId));
-      if (idx !== -1) _acrData[idx].categoria = nuevoValor;
+      if (idx !== -1) {
+        _acrData[idx].categoria = nuevoValor;
+        if (_esNoDeducible(nuevoValor)) _acrData[idx].alcance = 'personal';
+      }
       drop.classList.remove('open');
-      showToast('✅ Categoría actualizada');
+      showToast('✅ Categoría actualizada' + (_esNoDeducible(nuevoValor) ? ' (no deducible → personal)' : ''));
       rgRenderEgr();
 
     } else if (_catDropTipo === 'pl_gasto') {
@@ -7412,9 +7433,14 @@ async function catChipSelect(nuevoValor, nuevoLabel) {
       if (eg) eg.tipo_egreso = nuevoValor;
       // También en egrItems si está cargado (Registro General)
       const ei = egrItems.findIndex(i => String(i.id_egreso) === String(_catDropId));
-      if (ei !== -1) { egrItems[ei].tipo_egreso = nuevoValor; egrItems[ei].categoria = nuevoValor; }
+      if (ei !== -1) {
+        egrItems[ei].tipo_egreso = nuevoValor;
+        egrItems[ei].categoria = nuevoValor;
+        if (_esNoDeducible(nuevoValor)) egrItems[ei].alcance = 'personal';
+      }
+      if (eg && _esNoDeducible(nuevoValor)) eg.alcance = 'personal';
       drop.classList.remove('open');
-      showToast('✅ Reclasificado');
+      showToast('✅ Reclasificado' + (_esNoDeducible(nuevoValor) ? ' (no deducible → personal)' : ''));
       // Re-render P&L sin fetch completo
       erRender();
       renderDashboard();
