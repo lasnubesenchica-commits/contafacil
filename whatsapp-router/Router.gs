@@ -473,7 +473,7 @@ function _routerEnviarInfoMarketing(to, token, phoneId) {
     '*Cómo te ayudamos*\n' +
     '• 📸 Envías facturas por WhatsApp — IA las lee y categoriza DGI\n' +
     '• 📧 Configuras tus emails de proveedores para reenviar facturas automáticamente\n' +
-    '• 📊 Reportes ITBMS mensual y cierre anual DGI listos para presentar\n' +
+    '• 📊 Reportes ITBMS mensual e informe anual DGI listos para presentar\n' +
     '• 🔐 Panel web personal con tu data privada y segura\n\n' +
     '*Contacto comercial*\n' +
     '📧 ' + email + '\n' +

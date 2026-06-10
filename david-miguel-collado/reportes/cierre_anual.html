@@ -1,5 +1,5 @@
 <!-- ═══════════════════════════════════════════════
-     MÓDULO: Reporte de Cierre Anual — DGI
+     MÓDULO: Informe Anual — DGI
      Prefijo: ca-  |  IIFE independiente
      Formulario: Declaración Jurada Persona Jurídica General
      Empresa: (dinámico desde config)
@@ -362,7 +362,7 @@
   <div id="caEmailModal" class="ca-modal-bg" style="display:none">
     <div class="ca-modal">
       <div class="ca-modal-hdr">
-        <span>📧 Enviar Cierre Anual por email</span>
+        <span>📧 Enviar Informe Anual por email</span>
         <button class="ca-modal-x" onclick="caCloseEmailModal()">×</button>
       </div>
       <div class="ca-modal-body">
@@ -382,7 +382,7 @@
         <div class="ca-modal-info">
           El correo incluye:
           <ul style="margin:.3rem 0 0 1.1rem;padding:0">
-            <li>Resumen del cierre anual en el cuerpo del mensaje (HTML)</li>
+            <li>Resumen del informe anual en el cuerpo del mensaje (HTML)</li>
             <li>Adjunto Excel con detalle de ingresos y gastos</li>
             <li>Link al folder de Drive con los comprobantes</li>
           </ul>
@@ -779,7 +779,7 @@ function caRender() {
       </div>
     </div>
     <div class="ca-report-title">
-      <div class="ca-report-title-text">Reporte de Cierre Fiscal — Año ${ca_year}</div>
+      <div class="ca-report-title-text">Informe Anual — Año ${ca_year}</div>
       <div class="ca-report-title-period">Vencimiento declaración DGI: ${vencimiento}</div>
     </div>
 
@@ -1109,7 +1109,7 @@ function caRender() {
 // ── Print ─────────────────────────────────────────
 function caPrint() {
   const old = document.title;
-  document.title = `Cierre Fiscal ${ca_year} — CEYCO`;
+  document.title = `Informe Anual ${ca_year}` + (EMPRESA.nombre ? ` — ${EMPRESA.nombre}` : ``);
   window.print();
   document.title = old;
 }
