@@ -1665,6 +1665,7 @@ function _handleEliminarPendienteAcr(params, callback) {
   try {
     var id = String(params.id || '').trim();
     if (!id) throw new Error('id requerido');
+    var numFacTarget = String(params.num_fac || '').trim();
     var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var sheet = ss.getSheetByName(SHEET_ACREEDORES_PENDING);
     if (!sheet) throw new Error('Hoja Acreedores_Pending no encontrada');
@@ -1672,6 +1673,12 @@ function _handleEliminarPendienteAcr(params, callback) {
     var found = false;
     for (var i = 0; i < data.length; i++) {
       if (String(data[i][COL_PEND.ID - 1]) !== id) continue;
+      // Si hay IDs duplicados, solo eliminamos borradores (los aprobados
+      // ya generaron egresos y eliminarlos rompería trazabilidad).
+      var st = String(data[i][COL_PEND.ESTADO - 1] || '').toLowerCase();
+      if (st && st !== 'borrador') continue;
+      // Si se pasa num_fac, apunta al row exacto entre duplicados.
+      if (numFacTarget && String(data[i][COL_PEND.NUM_FAC - 1] || '').trim() !== numFacTarget) continue;
       sheet.deleteRow(i + 3);
       found = true; break;
     }
@@ -1826,6 +1833,7 @@ function _handleActualizarPendienteAcr(data) {
   try {
     var id = String(data.id || '').trim();
     if (!id) throw new Error('id requerido');
+    var numFacTarget = String(data.num_fac || '').trim();
     var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var sheet = ss.getSheetByName(SHEET_ACREEDORES_PENDING);
     if (!sheet) throw new Error('Hoja no encontrada');
@@ -1833,6 +1841,13 @@ function _handleActualizarPendienteAcr(data) {
     var found = false;
     for (var i = 0; i < rows.length; i++) {
       if (String(rows[i][COL_PEND.ID - 1]) !== id) continue;
+      // Saltar rows ya procesados (mismo ID puede aparecer múltiples
+      // veces por race condition histórica) — solo editamos borrador.
+      var st = String(rows[i][COL_PEND.ESTADO - 1] || '').toLowerCase();
+      if (st && st !== 'borrador') continue;
+      // Si se pasa num_fac, exigimos match exacto (para apuntar al row
+      // específico cuando hay duplicados de id).
+      if (numFacTarget && String(rows[i][COL_PEND.NUM_FAC - 1] || '').trim() !== numFacTarget) continue;
       var rowNum = i + 3;
       if (data.categoria)   sheet.getRange(rowNum, COL_PEND.CATEGORIA).setValue(data.categoria);
       if (data.descripcion) sheet.getRange(rowNum, COL_PEND.DESCRIPCION).setValue(data.descripcion);
