@@ -200,6 +200,20 @@ function _whatsappProcesarMensaje(msg, metadata) {
     return;
   }
 
+  // ── Si es un xlsx/csv de estado de cuenta bancario, derivamos a análisis
+  //    financiero (no es una factura). Mantiene scope del bot: el cliente
+  //    manda movimientos del banco y recibe insights sobre su flujo, top
+  //    categorías, Yappys, suscripciones y gastos chicos recurrentes.
+  if (tipo === 'document' && _bancoEsEstadoDeCuenta(mediaObj)) {
+    try {
+      _bancoProcesarMovimientos(mediaBlob, mediaObj.filename || '', from, token, phoneId);
+    } catch(err) {
+      Logger.log('Banco procesar error: ' + err.message);
+      _whatsappReply(from, '⚠️ Error analizando el estado de cuenta: ' + err.message, token, phoneId);
+    }
+    return;
+  }
+
   // ── Dedup por contenido (hash SHA-256 del archivo) ──
   // El guard de msg.id solo cubre retries de Meta del mismo evento.
   // Esto cubre el caso de reenviar la misma factura como mensaje nuevo
