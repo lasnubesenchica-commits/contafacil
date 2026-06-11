@@ -210,7 +210,7 @@ function _handleSolicitarCodigoReset(data) {
     // Rate limit: max 3 OTPs por hora
     var rateKey = 'otp_rate_' + phone;
     var current = parseInt(cache.get(rateKey) || '0', 10);
-    if (current >= 3) {
+    if (current >= 5) {
       return _authJsonp({ success: false, error: 'Demasiados intentos. Esperá 1 hora.' });
     }
     cache.put(rateKey, String(current + 1), 3600);
@@ -301,6 +301,17 @@ function _handleVerificarCodigoYResetear(data) {
     Logger.log('verificarCodigoYResetear error: ' + err.message);
     return _authJsonp({ success: false, error: err.message });
   }
+}
+
+// Helper para limpiar el rate limit del OTP cuando estás testeando y
+// te quedaste bloqueado por 1 hora. Corré desde el editor.
+function _resetOtpRateLimit() {
+  var cache = CacheService.getScriptCache();
+  var phone = (typeof OTP_CONFIG !== 'undefined') ? OTP_CONFIG.WA_ADMIN_PHONE : '';
+  if (!phone) { Logger.log('No WA_ADMIN_PHONE en OTP_CONFIG'); return; }
+  cache.remove('otp_rate_' + phone);
+  cache.remove('otp_' + phone);
+  Logger.log('✅ Rate limit limpiado para ' + phone + '. Ya podés volver a pedir OTP.');
 }
 
 // ════════════════════════════════════════════════════════════════
