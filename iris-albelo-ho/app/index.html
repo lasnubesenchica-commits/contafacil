@@ -695,11 +695,19 @@ select.f-inp { appearance:none; }
 #reg-d-search:focus { border-color: var(--orange); }
 .reg-d-section-hdr {
   position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: .5rem;
   padding: .42rem .9rem .35rem;
   font-size: .65rem; font-weight: 700; letter-spacing: .12em;
   text-transform: uppercase; color: var(--muted);
   background: var(--bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   margin: .5rem 0 .15rem;
+}
+.reg-d-section-cnt {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.25rem; padding: 1px 7px;
+  font-size: .6rem; font-weight: 700; letter-spacing: 0;
+  background: var(--bg2); color: var(--muted);
+  border-radius: 999px;
 }
 .reg-d-empty-rich {
   padding: 2.5rem 1.2rem 1.5rem; text-align: center;
@@ -2915,12 +2923,27 @@ const REGD = (() => {
     const d = new Date(String(f).substring(0,10) + 'T12:00:00');
     return d >= r.desde && d <= r.hasta;
   }
-  let _accordOpen = { cats: false, provs: false };
+  let _accordOpen = { cats: true, provs: false };
 
   // ── Categorías DGI label ────────────────────────────────────
   function _catLabel(val) {
     if (!val) return '—';
-    return dgiLabel(val);  // helper global ya existente
+    const raw   = String(val).trim();
+    const lower = raw.toLowerCase();
+    // 1) Match por valor (key) en catálogo DGI
+    if (typeof CATEGORIAS_GASTO_DGI !== 'undefined') {
+      const byValor = CATEGORIAS_GASTO_DGI.find(c => c.valor.toLowerCase() === lower);
+      if (byValor) return byValor.emoji + ' ' + byValor.label;
+      // 2) Match por label (datos legacy guardaron el label en vez de la key)
+      const byLabel = CATEGORIAS_GASTO_DGI.find(c => c.label.toLowerCase() === lower);
+      if (byLabel) return byLabel.emoji + ' ' + byLabel.label;
+    }
+    // 3) Mapa legacy en dgiLabel()
+    const fromLegacy = dgiLabel(raw);
+    if (fromLegacy && fromLegacy !== raw) return fromLegacy;
+    // 4) Humanizar: snake_case → "Snake case"
+    const human = raw.replace(/_/g, ' ');
+    return human.charAt(0).toUpperCase() + human.slice(1).toLowerCase();
   }
 
   // ── Carga de datos ──────────────────────────────────────────
@@ -3253,7 +3276,7 @@ const REGD = (() => {
       groups[groups.length-1].items.push(it);
     });
     list.innerHTML = groups.map(g =>
-      `<div class="reg-d-section-hdr">${esc(g.label)} · ${g.items.length}</div>` +
+      `<div class="reg-d-section-hdr"><span class="reg-d-section-lbl">${esc(g.label)}</span><span class="reg-d-section-cnt">${g.items.length}</span></div>` +
       g.items.map(it => tipo === 'egr' ? _rowEgr(it) : _rowIng(it)).join('')
     ).join('');
     _renderAccordChevrons();
