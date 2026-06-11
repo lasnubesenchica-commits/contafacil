@@ -41,6 +41,14 @@
       "scriptId": "1aWq3LbW3ZZqFQenxb5FsmHvZJV_VQfzqBtjhErKqUIAU0bADklYMu66C",
       "gasDir": "backend-gas",
       "deploymentId": "AKfycbxme_w3mmjZpauHG4-taT_BtK4A4-zUjaQCmto4sKa72-kd65UFYev7f2DeEIXF-Ah5og"
+    },
+    {
+      "id": "whatsapp-router",
+      "nombre": "WhatsApp Router",
+      "scriptId": "127enc2UfHZzfoy_fWpYhKT9oX74YL5knNGWxS9DuPOUTbsUG8GJyULVr",
+      "gasDir": "whatsapp-router",
+      "deploymentId": "AKfycbzzgc0zIe4cQ52jZciIMy6IYfiHNeQsgql5Mz_tPIabSLk4CVMfg8cImlukumGr906orw",
+      "isRouter": true
     }
   ]
 }

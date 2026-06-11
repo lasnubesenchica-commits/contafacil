@@ -130,9 +130,16 @@ async function deployCliente(scriptApi, cliente, repoRoot, otpConfig) {
   const rawFiles = readGasFiles(gasDir);
   if (rawFiles.length === 0) throw new Error(`Sin archivos .gs/.js en ${gasDir}`);
 
-  // 1. Leer config actual del GAS del cliente y re-inyectar
-  const cfg   = await readClientConfig(scriptApi, cliente.scriptId);
-  const files = injectConfig(rawFiles, cfg);
+  // 1. Leer config actual del GAS y re-inyectar — solo para clientes
+  //    "normales". El router no tiene config_operaciones, así que skip.
+  let files = rawFiles;
+  let injected = [];
+  if (!cliente.isRouter) {
+    const cfg = await readClientConfig(scriptApi, cliente.scriptId);
+    files = injectConfig(rawFiles, cfg);
+    injected = Object.entries(cfg).filter(([, v]) => v).map(([k]) => k);
+  }
+
   // 1a. Agregar _OtpConfig.gs generado con los valores de scripts/otp-config.json
   const otpFile = buildOtpConfigFile(cliente, otpConfig);
   if (otpFile) {
@@ -140,11 +147,13 @@ async function deployCliente(scriptApi, cliente, repoRoot, otpConfig) {
     const idx = files.findIndex(f => f.name === otpFile.name);
     if (idx >= 0) files[idx] = otpFile; else files.push(otpFile);
   }
-  const injected = Object.entries(cfg).filter(([, v]) => v).map(([k]) => k);
-  console.log(`\nDeployando ${cliente.nombre} (${files.length} archivos)...`);
+  console.log(`\nDeployando ${cliente.nombre} (${files.length} archivos)${cliente.isRouter ? ' [ROUTER]' : ''}...`);
   files.forEach(f => console.log(`  • ${f.name}  [${f.type}]`));
   if (injected.length) console.log(`  → Config inyectada: ${injected.join(', ')}`);
-  if (otpFile) console.log(`  → _OtpConfig.gs generado (WA_ADMIN_PHONE: ${(otpConfig.WA_ADMIN_PHONE && otpConfig.WA_ADMIN_PHONE[cliente.id]) || '(none)'})`);
+  if (otpFile) {
+    const phone = (otpConfig.WA_ADMIN_PHONE && otpConfig.WA_ADMIN_PHONE[cliente.id]) || '';
+    console.log(`  → _OtpConfig.gs generado${phone ? ' (WA_ADMIN_PHONE: ' + phone + ')' : ' (sin WA_ADMIN_PHONE — router)'}`);
+  }
 
   // 2. Actualizar codigo fuente
   await scriptApi.projects.updateContent({
