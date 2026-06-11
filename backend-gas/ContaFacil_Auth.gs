@@ -302,3 +302,67 @@ function _handleVerificarCodigoYResetear(data) {
     return _authJsonp({ success: false, error: err.message });
   }
 }
+
+// ════════════════════════════════════════════════════════════════
+//  HELPER DE DEBUG — correr desde el editor de Apps Script
+//  Verifica OTP_CONFIG + hace una llamada de prueba al router.
+//  El Log te dice exactamente dónde rompe.
+// ════════════════════════════════════════════════════════════════
+function _debugOtpFlow() {
+  Logger.log('═══════════════════════════════════════');
+  Logger.log('  DEBUG OTP FLOW');
+  Logger.log('═══════════════════════════════════════');
+
+  Logger.log('1. OTP_CONFIG check:');
+  Logger.log('   typeof OTP_CONFIG: ' + (typeof OTP_CONFIG));
+  if (typeof OTP_CONFIG === 'undefined') {
+    Logger.log('   ❌ OTP_CONFIG no está definido — _OtpConfig.gs no se cargó.');
+    return;
+  }
+  Logger.log('   ROUTER_URL:         ' + (OTP_CONFIG.ROUTER_URL || '(empty)'));
+  Logger.log('   ROUTER_RESET_TOKEN: ' + (OTP_CONFIG.ROUTER_RESET_TOKEN ? OTP_CONFIG.ROUTER_RESET_TOKEN.slice(0, 8) + '...' + OTP_CONFIG.ROUTER_RESET_TOKEN.slice(-4) : '(empty)'));
+  Logger.log('   WA_ADMIN_PHONE:     ' + (OTP_CONFIG.WA_ADMIN_PHONE || '(empty)'));
+
+  if (!OTP_CONFIG.ROUTER_URL || !OTP_CONFIG.ROUTER_RESET_TOKEN || !OTP_CONFIG.WA_ADMIN_PHONE) {
+    Logger.log('   ❌ Falta algún valor en OTP_CONFIG.');
+    return;
+  }
+
+  Logger.log('');
+  Logger.log('2. POST al router con datos de prueba:');
+  var testPhone = OTP_CONFIG.WA_ADMIN_PHONE;
+  var testOtp   = '123456';
+  Logger.log('   phone: ' + testPhone);
+  Logger.log('   otp (fake): ' + testOtp);
+
+  try {
+    var resp = UrlFetchApp.fetch(OTP_CONFIG.ROUTER_URL, {
+      method:      'post',
+      contentType: 'application/json',
+      payload:     JSON.stringify({
+        action: 'sendResetOtp',
+        token:  OTP_CONFIG.ROUTER_RESET_TOKEN,
+        phone:  testPhone,
+        otp:    testOtp,
+      }),
+      muteHttpExceptions: true,
+    });
+    Logger.log('   HTTP status: ' + resp.getResponseCode());
+    var body = resp.getContentText() || '';
+    Logger.log('   Response body: ' + body.slice(0, 500));
+    if (body.indexOf('"ok":true') >= 0) {
+      Logger.log('');
+      Logger.log('   ✅ Router aceptó la request → debería haber enviado WhatsApp');
+      Logger.log('      Si NO llegó, revisar META_WHATSAPP_TOKEN/META_PHONE_ID en router GAS');
+    } else if (body.indexOf('forbidden') >= 0) {
+      Logger.log('');
+      Logger.log('   ❌ Router rechazó: token mismatch entre client y router');
+      Logger.log('      Verificar que _OtpConfig.gs del router tiene el mismo token');
+    } else {
+      Logger.log('');
+      Logger.log('   ⚠️  Respuesta inesperada — ver body arriba');
+    }
+  } catch (err) {
+    Logger.log('   ❌ ERROR: ' + err.message);
+  }
+}
