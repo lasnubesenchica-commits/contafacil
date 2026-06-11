@@ -2152,7 +2152,17 @@ async function inicializarSistemaRemoto() {
       if (data.authResetToken) {
         STATE.authResetToken = data.authResetToken;
       }
-      if (btn) { btn.textContent = '✅ Sistema inicializado'; btn.style.background = 'var(--green)'; }
+      // Si el backend devolvió warnings sobre credenciales faltantes,
+      // los mostramos prominente. Skipping silently fue causa del bug
+      // de Glorimar (META tokens missing → el bot no respondía).
+      if (data.warnings && data.warnings.length) {
+        if (btn) { btn.textContent = '⚠️ Inicializado con warnings'; btn.style.background = 'var(--yellow)'; }
+        alert('⚠️ Sistema inicializado pero faltan Script Properties:\n\n' +
+              data.warnings.map(function(w, i) { return (i+1) + '. ' + w; }).join('\n\n') +
+              '\n\nAgregalas manualmente en el editor GAS antes de mandarle la URL al cliente.');
+      } else {
+        if (btn) { btn.textContent = '✅ Sistema inicializado'; btn.style.background = 'var(--green)'; }
+      }
       if (data.authResetToken) {
         alert('Sistema inicializado.\n\nGuarda este AUTH_RESET_TOKEN en lugar seguro (necesario para reset de password de admin):\n\n' + data.authResetToken);
       }
