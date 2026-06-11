@@ -105,6 +105,12 @@
   .client-status.unreachable { background: #F1F3F5; color: var(--muted); }
   .client-status.loading     { background: #E3F2FD; color: var(--blue); }
 
+  .health-diag {
+    margin: 4px 0 12px; padding: 10px 14px;
+    background: #FFF3E0; border: 1px solid #FFCC80; border-radius: 8px;
+    font-size: 12px; color: #B04A00; line-height: 1.55;
+  }
+  .health-diag > div { margin-bottom: 2px; }
   .client-meta {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 10px 24px; font-size: 12px; margin-bottom: 14px;
@@ -372,6 +378,8 @@ function renderClient(client) {
         <span class="client-status ${overall}">${statusLabel}</span>
       </div>
 
+      ${renderHealthDiagnostics(hc, client)}
+
       <div class="client-meta">
         <div class="meta-item">
           <span class="meta-label">Forwarder</span>
@@ -406,9 +414,11 @@ function renderClient(client) {
         </div>
         <div class="meta-item">
           <span class="meta-label">Script Properties</span>
-          <span class="meta-value">
+          <span class="meta-value" style="display:flex;flex-wrap:wrap;gap:4px">
             <span class="meta-pill ${props.CLAUDE_API_KEY === 'set' ? 'on' : 'off'}">CLAUDE_API_KEY</span>
             <span class="meta-pill ${props.AUTH_RESET_TOKEN === 'set' ? 'on' : 'off'}">AUTH_RESET</span>
+            <span class="meta-pill ${props.META_WHATSAPP_TOKEN === 'set' ? 'on' : 'off'}">META_TOKEN</span>
+            <span class="meta-pill ${props.META_PHONE_ID === 'set' ? 'on' : 'off'}">META_PHONE</span>
           </span>
         </div>
       </div>
@@ -420,9 +430,46 @@ function renderClient(client) {
         <button class="btn btn-sm" onclick="forceSyncNow('${client.id}', this)">▶ Forzar sync</button>
         <button class="btn btn-sm" onclick="refreshHealth('${client.id}', this)">🩺 Health check</button>
         <button class="btn btn-sm" onclick="viewConfig('${client.id}')">⚙ Config</button>
+        <button class="btn btn-sm" onclick="dumpHealth('${client.id}')">🐞 Raw</button>
       </div>
-    </div>
-  `;
+    </div>`;
+}
+
+// Banner inline con los errores específicos por sub-check + scopes
+// que faltan. Se muestra arriba de la grilla cuando overall != 'healthy'.
+// Sin esto el panel mostraba todo "—" sin pista de POR QUÉ.
+function renderHealthDiagnostics(hc, client) {
+  if (!hc) return '';
+  if (hc.overall === 'healthy') return '';
+
+  const lines = [];
+  if (hc.overall === 'unreachable') {
+    lines.push('No se pudo contactar el GAS — JSONP timeout o auth requerido (script no público).');
+    if (hc.error) lines.push('Detalle: ' + hc.error);
+  }
+  // Cada sub-check expone .error cuando falla en el backend.
+  if (hc.sheet  && !hc.sheet.ok)  lines.push('📋 Sheet: '  + (hc.sheet.error  || 'sin acceso (¿SHEET_ID no configurado?)'));
+  if (hc.drive  && !hc.drive.ok)  lines.push('📁 Drive: '  + (hc.drive.error  || 'sin acceso (¿VOUCHER_FOLDER_ID no configurado?)'));
+  if (hc.gmail  && !hc.gmail.ok)  lines.push('📧 Gmail: '  + (hc.gmail.error  || 'sin acceso'));
+  if (hc.config && !hc.config.ok) lines.push('⚙ Config: ' + (hc.config.error || 'no se pudo leer el sheet config_operaciones'));
+  if (hc.triggersError)           lines.push('⏱ Triggers: ' + hc.triggersError);
+
+  if (!lines.length) return '';
+  return `<div class="health-diag">
+    ${lines.map(l => '<div>• ' + escapeHtml(l) + '</div>').join('')}
+  </div>`;
+}
+
+// Vuelca la respuesta cruda del healthCheck en el modal de config,
+// como JSON formateado. Útil para diagnosticar "por qué falla X".
+function dumpHealth(clientId) {
+  const hc = HEALTH[clientId];
+  const body = document.getElementById('configDetailBody');
+  if (body) {
+    body.innerHTML = '<pre style="font-family:var(--mono);font-size:11px;white-space:pre-wrap;word-break:break-word;background:var(--surface2);padding:10px;border-radius:6px">' +
+      escapeHtml(JSON.stringify(hc, null, 2)) + '</pre>';
+  }
+  openModal('modalConfig');
 }
 
 // ──────────────────────────────────────────────────────────
