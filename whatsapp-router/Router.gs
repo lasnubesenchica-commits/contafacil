@@ -63,6 +63,11 @@ function doGet(e) {
   var token     = params['hub.verify_token'] || params.hub_verify_token;
   var challenge = params['hub.challenge']    || params.hub_challenge;
 
+  // Admin API (JSONP): leer conversaciones del bot desde el sheet de logs.
+  if (params.action && (params.action === 'getConversations' || params.action === 'getConversation')) {
+    return _routerHandleAdminQuery(params);
+  }
+
   if (mode !== 'subscribe' || !challenge) {
     // Health check / acceso no-Meta
     return ContentService.createTextOutput('BalanceClip Router OK').setMimeType(ContentService.MimeType.TEXT);
@@ -1284,6 +1289,134 @@ function routerOpenLogSheet() {
   var ss = _routerLogEnsureSheet();
   Logger.log('Sheet URL: ' + ss.getUrl());
   return ss.getUrl();
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  ADMIN API — visor read-only de conversaciones del bot
+//  ─────────────────────────────────────────────────────
+//  Sirve JSONP para que el admin panel (balanceclip.net/admin/) pueda
+//  leer la data sin CORS. Auth: query param `adminToken` que matchea
+//  el Script Property ADMIN_TOKEN del router.
+//
+//  Acciones:
+//    ?action=getConversations         — lista de leads agrupada por phone
+//    ?action=getConversation&phone=X  — thread completo de un phone
+// ════════════════════════════════════════════════════════════════════
+
+function _routerHandleAdminQuery(params) {
+  var callback = params.callback || '';
+  function _resp(obj) {
+    var json = JSON.stringify(obj);
+    var body = callback ? (callback + '(' + json + ')') : json;
+    var mime = callback ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON;
+    return ContentService.createTextOutput(body).setMimeType(mime);
+  }
+  var expected = PropertiesService.getScriptProperties().getProperty('ADMIN_TOKEN') || '';
+  if (!expected) return _resp({ ok: false, error: 'ADMIN_TOKEN no configurado en el router' });
+  if (String(params.adminToken || '') !== expected) return _resp({ ok: false, error: 'auth' });
+  try {
+    if (params.action === 'getConversations') return _resp(_routerAdminListConversations(params));
+    if (params.action === 'getConversation')  return _resp(_routerAdminGetConversation(String(params.phone || '')));
+    return _resp({ ok: false, error: 'unknown action' });
+  } catch(err) {
+    return _resp({ ok: false, error: err.message });
+  }
+}
+
+function _routerAdminListConversations(params) {
+  var ss    = _routerLogEnsureSheet();
+  var sheet = ss.getSheetByName('logs') || ss.getSheets()[0];
+  var last  = sheet.getLastRow();
+  if (last < 2) return { ok: true, items: [], total: 0, totalMsgs: 0 };
+  var values = sheet.getRange(2, 1, last - 1, 7).getValues();
+  // Schema columnas: timestamp, phone, dir, tipo, accion, contenido, status
+  var byPhone = {};
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    var phone = String(row[1] || '').trim();
+    if (!phone) continue;
+    var ts = row[0] instanceof Date ? row[0].getTime() : new Date(row[0]).getTime();
+    var dir       = String(row[2] || '');
+    var tipo      = String(row[3] || '');
+    var accion    = String(row[4] || '');
+    var contenido = String(row[5] || '');
+    var c = byPhone[phone];
+    if (!c) {
+      c = byPhone[phone] = {
+        phone: phone, firstTime: ts, lastTime: 0,
+        lastDir: '', lastMsg: '', lastTipo: '', lastAccion: '',
+        msgCount: 0, inCount: 0, outCount: 0,
+        // Status semántico para el chip del lead. Se infiere del lastAccion.
+        signupStatus: '',
+      };
+    }
+    c.msgCount++;
+    if (dir === 'in')  c.inCount++;
+    if (dir === 'out') c.outCount++;
+    if (ts < c.firstTime) c.firstTime = ts;
+    if (ts >= c.lastTime) {
+      c.lastTime   = ts;
+      c.lastDir    = dir;
+      c.lastMsg    = contenido;
+      c.lastTipo   = tipo;
+      c.lastAccion = accion;
+    }
+  }
+  var items = [];
+  Object.keys(byPhone).forEach(function(k){
+    var c = byPhone[k];
+    // Inferir status del lead: el accion del router etiqueta la fase del signup
+    var a = String(c.lastAccion || '').toLowerCase();
+    if (a.indexOf('signup:done') === 0)        c.signupStatus = 'activo';
+    else if (a.indexOf('signup:') === 0)       c.signupStatus = 'signup';
+    else if (a.indexOf('setup:') === 0)        c.signupStatus = 'setup';
+    else if (a.indexOf('wa:apr:') === 0)       c.signupStatus = 'aprobando';
+    else if (c.outCount > 0 && c.inCount > 0)  c.signupStatus = 'activo';
+    else if (c.inCount > 0 && c.outCount === 0) c.signupStatus = 'nuevo';
+    items.push(c);
+  });
+  items.sort(function(a,b){ return b.lastTime - a.lastTime; });
+  var q = String(params.q || '').trim().toLowerCase();
+  if (q) {
+    items = items.filter(function(c){
+      return c.phone.indexOf(q) >= 0
+        || (c.lastMsg && c.lastMsg.toLowerCase().indexOf(q) >= 0);
+    });
+  }
+  var status = String(params.status || '').trim();
+  if (status && status !== 'all') {
+    items = items.filter(function(c){ return c.signupStatus === status; });
+  }
+  var totalMsgs = values.length;
+  var limit  = parseInt(params.limit,  10) || 100;
+  var offset = parseInt(params.offset, 10) || 0;
+  var page = items.slice(offset, offset + limit);
+  return { ok: true, items: page, total: items.length, totalMsgs: totalMsgs };
+}
+
+function _routerAdminGetConversation(phone) {
+  if (!phone) return { ok: false, error: 'phone required' };
+  var ss    = _routerLogEnsureSheet();
+  var sheet = ss.getSheetByName('logs') || ss.getSheets()[0];
+  var last  = sheet.getLastRow();
+  if (last < 2) return { ok: true, phone: phone, items: [] };
+  var values = sheet.getRange(2, 1, last - 1, 7).getValues();
+  var items = [];
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    if (String(row[1] || '').trim() !== phone) continue;
+    var ts = row[0] instanceof Date ? row[0].getTime() : new Date(row[0]).getTime();
+    items.push({
+      time:      ts,
+      dir:       String(row[2] || ''),
+      tipo:      String(row[3] || ''),
+      accion:    String(row[4] || ''),
+      contenido: String(row[5] || ''),
+      status:    String(row[6] || ''),
+    });
+  }
+  items.sort(function(a,b){ return a.time - b.time; });
+  return { ok: true, phone: phone, items: items };
 }
 
 // ════════════════════════════════════════════════════════════════════

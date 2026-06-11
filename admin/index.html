@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BalanceClip — Admin Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F8F9FA; --surface:#FFFFFF; --surface2:#F1F3F5;
+    --border:#DEE2E6; --border2:#CED4DA;
+    --orange:#D04E00; --orange2:#E8620A;
+    --green:#2E7D32; --blue:#1565C0; --red:#C62828;
+    --text:#1A1A2E; --muted:#6C757D;
+    --mono:'DM Mono',monospace; --sans:'Sora',sans-serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; padding:0 0 80px; }
+  .header {
+    border-bottom:1px solid var(--border); padding:20px 40px;
+    display:flex; align-items:center; gap:16px;
+    position:sticky; top:0; background:rgba(248,249,250,0.97);
+    backdrop-filter:blur(8px); z-index:100;
+  }
+  .header-logo { font-family:var(--mono); font-size:13px; color:var(--orange); letter-spacing:3px; font-weight:500; }
+  .header-sep { color:var(--border2); }
+  .header-title { font-size:13px; color:var(--muted); letter-spacing:1px; }
+  .header-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .btn {
+    border:1px solid var(--border2); background:var(--surface); color:var(--text);
+    padding:8px 14px; border-radius:6px; font-family:var(--sans); font-size:12px;
+    font-weight:600; cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;
+  }
+  .btn:hover { border-color:var(--orange); color:var(--orange); }
+  .btn-ghost { background:transparent; border-color:var(--border); }
+  .btn-sm { padding:6px 10px; font-size:11px; }
+  .container { max-width:1100px; margin:0 auto; padding:32px 40px 0; }
+
+  .hero {
+    margin-bottom:32px;
+  }
+  .hero h1 { font-size:28px; font-weight:700; margin-bottom:6px; }
+  .hero p { font-size:13px; color:var(--muted); }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
+  .card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:22px 22px 18px; display:flex; flex-direction:column;
+    cursor:pointer; transition:all .18s; text-decoration:none; color:inherit;
+  }
+  .card:hover { border-color:var(--orange); transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.06); }
+  .card-icon { font-size:28px; margin-bottom:10px; }
+  .card-title { font-size:16px; font-weight:700; margin-bottom:4px; }
+  .card-desc  { font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:14px; flex:1; }
+  .card-meta  { font-size:11px; color:var(--muted); font-family:var(--mono); }
+
+  .auth-banner {
+    background:#FFF3E0; border:1px solid #FFCC80; border-radius:8px;
+    padding:14px 18px; margin-bottom:24px;
+    display:flex; align-items:center; gap:14px; font-size:13px;
+  }
+  .auth-banner.ok { background:#E8F5E9; border-color:#A5D6A7; color:var(--green); }
+  .auth-banner.warn { color:#E65100; }
+  .auth-banner button {
+    margin-left:auto; padding:6px 12px; border-radius:6px; border:1px solid currentColor;
+    background:transparent; color:inherit; font-weight:600; font-size:11px; cursor:pointer;
+  }
+
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(26,26,46,0.6);
+    display:none; align-items:center; justify-content:center; z-index:200;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal {
+    background:var(--surface); border-radius:12px; padding:28px;
+    max-width:480px; width:90%;
+  }
+  .modal h2 { font-size:18px; margin-bottom:8px; }
+  .modal-desc { font-size:13px; color:var(--muted); margin-bottom:18px; }
+  .modal label {
+    display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--muted); margin:12px 0 4px;
+  }
+  .modal input {
+    width:100%; padding:10px 12px; font-size:13px; border:1px solid var(--border2);
+    border-radius:6px; font-family:var(--mono);
+  }
+  .modal input:focus { outline:none; border-color:var(--orange); }
+  .modal-actions {
+    display:flex; gap:8px; justify-content:flex-end; margin-top:20px;
+  }
+  .btn-primary { background:var(--orange); color:#fff; border-color:var(--orange); }
+  .btn-primary:hover { background:var(--orange2); border-color:var(--orange2); color:#fff; }
+
+  @media (max-width:600px) {
+    .header { padding:16px; }
+    .container { padding:20px 16px 0; }
+    .cards { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-logo">BALANCECLIP</span>
+  <span class="header-sep">/</span>
+  <span class="header-title">Admin Hub</span>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" id="btnReauth" onclick="promptToken()">🔑 Cambiar token</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>Centro de administración</h1>
+    <p>Acceso a todas las herramientas internas de BalanceClip.</p>
+  </div>
+
+  <div class="auth-banner" id="authBanner">
+    <span>⏳ Verificando acceso…</span>
+  </div>
+
+  <div class="cards">
+    <a class="card" href="conversaciones.html">
+      <div class="card-icon">💬</div>
+      <div class="card-title">Conversaciones del bot</div>
+      <div class="card-desc">Lee el thread completo de cada lead que interactuó con el bot de WhatsApp (signup, setup, soporte).</div>
+      <div class="card-meta" id="metaConvs">—</div>
+    </a>
+
+    <a class="card" href="../admin.html">
+      <div class="card-icon">🩺</div>
+      <div class="card-title">Salud de clientes</div>
+      <div class="card-desc">Estado por cliente: sync, triggers, sheet, drive, script properties. Acciones: forzar sync, re-enviar email, ver config.</div>
+      <div class="card-meta">/admin.html</div>
+    </a>
+
+    <a class="card" href="../deploy.html">
+      <div class="card-icon">🚀</div>
+      <div class="card-title">Provisionar cliente</div>
+      <div class="card-desc">Wizard de onboarding: crea el GAS project, sheet, drive folder, scripts properties y el deployment público.</div>
+      <div class="card-meta">/deploy.html</div>
+    </a>
+
+    <a class="card" href="https://github.com/lasnubesenchica-commits/contafacil/actions" target="_blank">
+      <div class="card-icon">⚙️</div>
+      <div class="card-title">CI / Deploy automático</div>
+      <div class="card-desc">Workflows de GitHub Actions. Cada push a main que toca <code>backend-gas/</code> redepliega todos los GAS.</div>
+      <div class="card-meta">GitHub Actions ↗</div>
+    </a>
+  </div>
+
+</div>
+
+<!-- Token modal -->
+<div class="modal-overlay" id="modalToken">
+  <div class="modal">
+    <h2>Token de admin</h2>
+    <p class="modal-desc">Configurá <code>ADMIN_TOKEN</code> como Script Property en el router de WhatsApp, y pegalo aquí. Queda guardado en este navegador.</p>
+    <label>ADMIN_TOKEN</label>
+    <input type="password" id="tokenInput" placeholder="ej: 32 chars hex">
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeTokenModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="saveToken()">Guardar y validar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ROUTER_URL = 'https://script.google.com/macros/s/AKfycbzzgc0zIe4cQ52jZciIMy6IYfiHNeQsgql5Mz_tPIabSLk4CVMfg8cImlukumGr906orw/exec';
+
+function getToken() { return localStorage.getItem('bc_admin_token') || ''; }
+function setToken(t) {
+  if (t) localStorage.setItem('bc_admin_token', t);
+  else   localStorage.removeItem('bc_admin_token');
+}
+
+function promptToken() {
+  const cur = getToken();
+  document.getElementById('tokenInput').value = cur;
+  document.getElementById('modalToken').classList.add('active');
+  setTimeout(() => document.getElementById('tokenInput').focus(), 80);
+}
+function closeTokenModal() {
+  document.getElementById('modalToken').classList.remove('active');
+}
+function saveToken() {
+  const t = document.getElementById('tokenInput').value.trim();
+  if (!t) { alert('Token vacío'); return; }
+  setToken(t);
+  closeTokenModal();
+  validateToken();
+}
+
+// JSONP helper para llamar al router (evita CORS)
+let _jsonpSeq = 0;
+function jsonpGet(params, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_bc_cb_' + (++_jsonpSeq) + '_' + Date.now();
+    const qs = Object.keys(params).map(k => encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+    const url = ROUTER_URL + '?' + qs + '&callback=' + cbName;
+    const s = document.createElement('script');
+    let done = false;
+    const cleanup = () => {
+      delete window[cbName];
+      if (s.parentNode) s.parentNode.removeChild(s);
+    };
+    window[cbName] = (data) => { done = true; cleanup(); resolve(data); };
+    s.onerror = () => { if (done) return; cleanup(); reject(new Error('jsonp network error')); };
+    setTimeout(() => { if (done) return; cleanup(); reject(new Error('jsonp timeout')); }, timeoutMs || 15000);
+    s.src = url;
+    document.head.appendChild(s);
+  });
+}
+
+async function validateToken() {
+  const banner = document.getElementById('authBanner');
+  const t = getToken();
+  if (!t) {
+    banner.className = 'auth-banner warn';
+    banner.innerHTML = '<span>🔒 Falta el <code>ADMIN_TOKEN</code> para leer datos del router. Configurá uno como Script Property en el GAS del router.</span><button onclick="promptToken()">Configurar token</button>';
+    return;
+  }
+  banner.className = 'auth-banner';
+  banner.innerHTML = '<span>⏳ Validando token…</span>';
+  try {
+    const data = await jsonpGet({ action:'getConversations', adminToken:t, limit:1 });
+    if (data && data.ok) {
+      banner.className = 'auth-banner ok';
+      banner.innerHTML = '<span>✅ Token válido — ' + (data.total || 0) + ' lead(s) registrado(s), ' + (data.totalMsgs || 0) + ' mensaje(s) totales.</span><button onclick="promptToken()">Cambiar</button>';
+      document.getElementById('metaConvs').textContent = (data.total || 0) + ' leads · ' + (data.totalMsgs || 0) + ' msgs';
+    } else {
+      banner.className = 'auth-banner warn';
+      banner.innerHTML = '<span>⚠️ Router rechazó el token: ' + ((data && data.error) || 'error desconocido') + '</span><button onclick="promptToken()">Reintentar</button>';
+    }
+  } catch (e) {
+    banner.className = 'auth-banner warn';
+    banner.innerHTML = '<span>⚠️ No se pudo contactar el router: ' + e.message + '</span><button onclick="promptToken()">Reintentar</button>';
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeTokenModal();
+});
+
+validateToken();
+</script>
+
+</body>
+</html>
