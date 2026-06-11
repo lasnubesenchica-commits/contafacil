@@ -523,28 +523,59 @@ select.f-inp { appearance:none; }
 .pl-tbtn { flex:1; padding:.4rem; border-radius:6px; font-size:.75rem; font-weight:600; color:var(--muted); transition:all .15s; text-align:center; }
 .pl-tbtn.active { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.1); }
 
-.pl-mode-sel {
-  display: inline-block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+.pl-mode-pickerbtn {
   font-size: .8rem;
-  font-weight: 600;
-  padding: .45rem .7rem;
+  font-weight: 700;
+  padding: .45rem .65rem;
   border: 2px solid #E65100;
   border-radius: 10px;
   background-color: #FFFFFF;
-  color: #0A0A0A;
+  color: #E65100;
   cursor: pointer;
   outline: none;
-  min-width: 7rem;
-  max-width: 12rem;
-  height: auto;
-  line-height: 1.2;
+  min-width: 4.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
   box-shadow: 0 2px 6px rgba(230, 81, 0, .2);
+  -webkit-tap-highlight-color: transparent;
+}
+.pl-mode-pickerbtn:active { transform: scale(.97); background: #FFF3E0; }
+.pl-mode-pickerbtn .pl-arrow {
+  font-size: .65rem; transition: transform .15s; color: #E65100;
+}
+.pl-mode-pickerbtn.open .pl-arrow { transform: rotate(180deg); }
+
+.pl-mode-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  z-index: 100; display: none; align-items: flex-end;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.pl-mode-overlay.show { display: flex; }
+.pl-mode-sheet {
+  width: 100%; background: #FFFFFF; border-radius: 18px 18px 0 0;
+  padding: .8rem .5rem 1.5rem; box-shadow: 0 -4px 20px rgba(0,0,0,.2);
+  animation: pl-sheet-up .2s ease-out;
+}
+@keyframes pl-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.pl-mode-sheet-title {
+  text-align: center; font-size: .72rem; font-weight: 600; color: var(--muted);
+  letter-spacing: .08em; text-transform: uppercase; padding: .35rem 0 .65rem;
+}
+.pl-mode-opt {
+  display: block; width: 100%; padding: .9rem .8rem;
+  border: none; background: transparent; text-align: left;
+  font-size: 1rem; color: var(--text); border-radius: 10px;
+  font-family: inherit; font-weight: 500;
+}
+.pl-mode-opt.active { background: #FFF3E0; color: #E65100; font-weight: 700; }
+.pl-mode-opt:active { background: #FFE0B2; }
+.pl-mode-cancel {
+  display: block; width: 100%; padding: .85rem; margin-top: .5rem;
+  border: none; background: var(--bg2); color: var(--muted);
+  font-size: .95rem; font-weight: 600; border-radius: 10px;
   font-family: inherit;
 }
-.pl-mode-sel:focus { border-color: #BF4400; }
-.pl-mode-sel:active { transform: scale(.98); }
 .pl-mode-toggle { display:flex; background:var(--bg2); border-radius:20px; padding:2px; gap:2px; }
 .pl-mode-btn {
   padding:.26rem .72rem; border-radius:20px;
@@ -1084,13 +1115,19 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
             <button class="period-btn" onclick="PL.prev()">‹</button>
             <button class="period-btn" onclick="PL.next()">›</button>
           </div>
-          <select class="pl-mode-sel" id="pl-mode-sel" onchange="PL.setMode(this.value)">
-            <option value="mes">Mes</option>
-            <option value="ytd" selected>YTD</option>
-            <option value="3m">Últimos 3 meses</option>
-            <option value="6m">Últimos 6 meses</option>
-            <option value="last_year">Año anterior</option>
-          </select>
+          <button class="pl-mode-pickerbtn" id="pl-mode-pickerbtn" onclick="document.getElementById('pl-mode-overlay').classList.add('show');this.classList.add('open')"><span id="pl-mode-label">YTD</span><span class="pl-arrow">▼</span></button>
+          <!-- Overlay del picker (oculto por default) -->
+          <div class="pl-mode-overlay" id="pl-mode-overlay" onclick="if(event.target===this){this.classList.remove('show');document.getElementById('pl-mode-pickerbtn').classList.remove('open')}">
+            <div class="pl-mode-sheet">
+              <div class="pl-mode-sheet-title">Período</div>
+              <button class="pl-mode-opt" onclick="PL.setMode('mes')">Mes</button>
+              <button class="pl-mode-opt" onclick="PL.setMode('ytd')">YTD</button>
+              <button class="pl-mode-opt" onclick="PL.setMode('3m')">Últimos 3 meses</button>
+              <button class="pl-mode-opt" onclick="PL.setMode('6m')">Últimos 6 meses</button>
+              <button class="pl-mode-opt" onclick="PL.setMode('last_year')">Año anterior</button>
+              <button class="pl-mode-cancel" onclick="document.getElementById('pl-mode-overlay').classList.remove('show');document.getElementById('pl-mode-pickerbtn').classList.remove('open')">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="pl-widgets">
@@ -1301,13 +1338,19 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
             <button class="period-btn" onclick="GAS.prev()">‹</button>
             <button class="period-btn" onclick="GAS.next()">›</button>
           </div>
-          <select class="pl-mode-sel" id="gas-mode-sel" onchange="GAS.setMode(this.value)">
-            <option value="mes">Mes</option>
-            <option value="ytd" selected>YTD</option>
-            <option value="3m">Últimos 3 meses</option>
-            <option value="6m">Últimos 6 meses</option>
-            <option value="last_year">Año anterior</option>
-          </select>
+          <button class="pl-mode-pickerbtn" id="gas-mode-pickerbtn" onclick="document.getElementById('gas-mode-overlay').classList.add('show');this.classList.add('open')"><span id="gas-mode-label">YTD</span><span class="pl-arrow">▼</span></button>
+          <!-- Overlay del picker (oculto por default) -->
+          <div class="pl-mode-overlay" id="gas-mode-overlay" onclick="if(event.target===this){this.classList.remove('show');document.getElementById('gas-mode-pickerbtn').classList.remove('open')}">
+            <div class="pl-mode-sheet">
+              <div class="pl-mode-sheet-title">Período</div>
+              <button class="pl-mode-opt" onclick="GAS.setMode('mes')">Mes</button>
+              <button class="pl-mode-opt" onclick="GAS.setMode('ytd')">YTD</button>
+              <button class="pl-mode-opt" onclick="GAS.setMode('3m')">Últimos 3 meses</button>
+              <button class="pl-mode-opt" onclick="GAS.setMode('6m')">Últimos 6 meses</button>
+              <button class="pl-mode-opt" onclick="GAS.setMode('last_year')">Año anterior</button>
+              <button class="pl-mode-cancel" onclick="document.getElementById('gas-mode-overlay').classList.remove('show');document.getElementById('gas-mode-pickerbtn').classList.remove('open')">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2107,11 +2150,21 @@ const PL = (() => {
   // ── Modo MES ↔ YTD ───────────────────────────────────────────
   function setMode(m) {
     viewMode = m;
-    const sel = document.getElementById('pl-mode-sel');
-    if (sel) sel.value = m;
+    const labels = {mes:'Mes', ytd:'YTD', '3m':'3 meses', '6m':'6 meses', last_year:'Año ant.'};
+    const lbl = document.getElementById('pl-mode-label');
+    if (lbl) lbl.textContent = labels[m] || m;
+    // Cerrar overlay si estaba abierto
+    const ovr = document.getElementById('pl-mode-overlay');
+    if (ovr) ovr.classList.remove('show');
+    const btn = document.getElementById('pl-mode-pickerbtn');
+    if (btn) btn.classList.remove('open');
     document.getElementById('pl-period-nav').style.display = m==='mes' ? 'flex' : 'none';
-    // Badge muestra YTD label cuando aplica; ocultamos para modos custom
     document.getElementById('pl-ytd-badge').classList.toggle('show', m==='ytd');
+    // Actualizar opciones activas
+    document.querySelectorAll('#pl-mode-overlay .pl-mode-opt').forEach((opt, idx) => {
+      const keys = ['mes','ytd','3m','6m','last_year'];
+      opt.classList.toggle('active', keys[idx] === m);
+    });
     renderAll();
   }
 
@@ -2691,10 +2744,19 @@ const GAS = (() => {
 
   function setMode(m) {
     _mode = m;
-    const sel = document.getElementById('gas-mode-sel');
-    if (sel) sel.value = m;
+    const labels = {mes:'Mes', ytd:'YTD', '3m':'3 meses', '6m':'6 meses', last_year:'Año ant.'};
+    const lbl = document.getElementById('gas-mode-label');
+    if (lbl) lbl.textContent = labels[m] || m;
+    const ovr = document.getElementById('gas-mode-overlay');
+    if (ovr) ovr.classList.remove('show');
+    const btn = document.getElementById('gas-mode-pickerbtn');
+    if (btn) btn.classList.remove('open');
     document.getElementById('gas-period-nav').style.display = m === 'mes' ? 'flex' : 'none';
     document.getElementById('gas-ytd-badge').classList.toggle('show', m === 'ytd');
+    document.querySelectorAll('#gas-mode-overlay .pl-mode-opt').forEach((opt, idx) => {
+      const keys = ['mes','ytd','3m','6m','last_year'];
+      opt.classList.toggle('active', keys[idx] === m);
+    });
     _render();
   }
 
