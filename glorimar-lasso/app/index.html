@@ -758,6 +758,18 @@ select.f-inp { appearance:none; }
 }
 .reg-fab-opt:active { background: var(--bg2); }
 .reg-fab-icon { font-size: 1.6rem; }
+
+.reg-d-search-wrap { position: relative; padding: .35rem .85rem .15rem; }
+.reg-d-search-icon { position: absolute; left: 1.55rem; top: 50%; transform: translateY(-30%); color: var(--muted); font-size: .9rem; pointer-events: none; }
+.reg-d-search-input {
+  width: 100%; padding: .55rem .8rem .55rem 2.1rem;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 10px; font-size: .85rem; font-family: inherit; outline: none;
+  -webkit-appearance: none;
+}
+.reg-d-search-input::placeholder { color: var(--muted); }
+.reg-d-search-input:focus { border-color: var(--orange); }
+
 .reg-fab-cancel {
   width: 100%; padding: .85rem; margin-top: .25rem;
   background: var(--bg2); color: var(--muted); border: none; border-radius: 12px;
@@ -1289,26 +1301,45 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 
     <!-- REGISTROS -->
     <div id="viewRegistros" style="display:none">
-      <div style="padding:.7rem .85rem .25rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
-          <button onclick="REGD.refresh(this)" class="reg-d-refresh" id="reg-d-refresh" title="Actualizar" style="margin:0">↻</button>
-        </div>
-        <div style="position:relative;margin-top:.55rem">
-          <span style="position:absolute;left:.7rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9rem;pointer-events:none">🔍</span>
-          <input type="search" id="reg-d-search" placeholder="Buscar proveedor, monto, categoría..."
-            oninput="REGD.setSearch(this.value)"
-            style="width:100%;padding:.55rem .8rem .55rem 2.1rem;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;font-size:.85rem;font-family:inherit;outline:none;-webkit-appearance:none">
-        </div>
+      <div style="padding:.7rem .85rem .35rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
+        <button onclick="REGD.refresh(this)" class="reg-d-refresh" id="reg-d-refresh" title="Actualizar" style="margin:0">↻</button>
       </div>
 
 <!-- Vista detallada (única, ya no hay toggle) -->
       <div id="reg-detalle-body">
-        <!-- Mini-widgets -->
+        <!-- 1. Toggle Egresos | Ingresos (contexto primero) -->
+        <div class="reg-d-tabs">
+          <button class="reg-d-tab active" id="reg-d-tab-egr" onclick="REGD.setTipo('egr')">Gastos <span id="reg-d-tab-egr-n"></span></button>
+          <button class="reg-d-tab"        id="reg-d-tab-ing" onclick="REGD.setTipo('ing')">Ingresos <span id="reg-d-tab-ing-n"></span></button>
+        </div>
+
+        <!-- 2. Mini-widgets (KPIs del tipo activo) -->
         <div class="reg-d-widgets" id="reg-d-widgets"></div>
 
-        <!-- Filtros como chips scrollables horizontalmente -->
-        <div class="reg-d-chips" style="display:flex;gap:.4rem;padding:.15rem .85rem .35rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+        <!-- 3. Top categorías -->
+        <div class="reg-d-accord" id="reg-d-accord-cats" onclick="REGD.toggleAccord('cats')">
+          <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span>Top categorías</span>
+          <span class="reg-d-accord-val" id="reg-d-cats-summary">—</span>
+        </div>
+        <div class="reg-d-accord-detail" id="reg-d-cats-detail"></div>
+
+        <!-- 4. Top proveedores -->
+        <div class="reg-d-accord" id="reg-d-accord-provs" onclick="REGD.toggleAccord('provs')">
+          <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span><span id="reg-d-provs-title">Top proveedores</span></span>
+          <span class="reg-d-accord-val" id="reg-d-provs-summary">—</span>
+        </div>
+        <div class="reg-d-accord-detail" id="reg-d-provs-detail"></div>
+
+        <!-- 5. Buscador (sticky para que quede accesible al scrollear) -->
+        <div class="reg-d-search-wrap">
+          <span class="reg-d-search-icon">🔍</span>
+          <input type="search" id="reg-d-search" placeholder="Buscar proveedor, monto, categoría..."
+            oninput="REGD.setSearch(this.value)" class="reg-d-search-input">
+        </div>
+
+        <!-- 6. Filtros como chips (sticky junto al buscador) -->
+        <div class="reg-d-chips" style="display:flex;gap:.4rem;padding:.15rem .85rem .45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
           <select id="reg-d-periodo" class="reg-d-chip" onchange="REGD.setPeriodo(this.value)">
             <option value="ytd" selected>📅 YTD</option>
             <option value="mes">📅 Este mes</option>
@@ -1329,27 +1360,8 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
           </select>
         </div>
 
-        <!-- Toggle Egresos | Ingresos -->
-        <div class="reg-d-tabs">
-          <button class="reg-d-tab active" id="reg-d-tab-egr" onclick="REGD.setTipo('egr')">Gastos <span id="reg-d-tab-egr-n"></span></button>
-          <button class="reg-d-tab"        id="reg-d-tab-ing" onclick="REGD.setTipo('ing')">Ingresos <span id="reg-d-tab-ing-n"></span></button>
-        </div>
-
-        <!-- Top categorías / proveedores (accordion compacto) -->
-        <div class="reg-d-accord" id="reg-d-accord-cats" onclick="REGD.toggleAccord('cats')">
-          <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span>Top categorías</span>
-          <span class="reg-d-accord-val" id="reg-d-cats-summary">—</span>
-        </div>
-        <div class="reg-d-accord-detail" id="reg-d-cats-detail"></div>
-
-        <div class="reg-d-accord" id="reg-d-accord-provs" onclick="REGD.toggleAccord('provs')">
-          <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span><span id="reg-d-provs-title">Top proveedores</span></span>
-          <span class="reg-d-accord-val" id="reg-d-provs-summary">—</span>
-        </div>
-        <div class="reg-d-accord-detail" id="reg-d-provs-detail"></div>
-
-        <!-- Lista agrupada por fecha -->
-        <div style="padding:.55rem .85rem .18rem;display:flex;align-items:center;gap:.4rem">
+        <!-- 7. Lista de entries agrupada por fecha -->
+        <div style="padding:.35rem .85rem .18rem;display:flex;align-items:center;gap:.4rem">
           <span class="sec-lbl" style="padding:0">Registros</span>
           <span class="sec-cnt" id="reg-d-list-n">0</span>
         </div>
@@ -3177,16 +3189,27 @@ const REGD = (() => {
   }
 
   function _sectionLabel(date) {
-    const now = new Date(); now.setHours(0,0,0,0);
-    const d = new Date(String(date).substring(0,10) + 'T12:00:00');
-    const diffDays = Math.floor((now - d) / 86400000);
-    if (diffDays === 0) return 'Hoy';
-    if (diffDays === 1) return 'Ayer';
-    if (diffDays >= 2 && diffDays <= 6) return 'Esta semana';
-    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) return 'Este mes';
+    // Comparación date-only usando Date.UTC para evitar problemas de
+    // timezone/DST. iOS Safari parsea 'YYYY-MM-DDTHH:MM:SS' inconsistente
+    // así que parseamos manualmente los componentes.
+    const dStr  = String(date).substring(0, 10);
+    const parts = dStr.split('-');
+    if (parts.length !== 3) return 'Sin fecha';
+    const dY = parseInt(parts[0], 10);
+    const dM = parseInt(parts[1], 10) - 1;
+    const dD = parseInt(parts[2], 10);
+    const now    = new Date();
+    const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const dUTC     = Date.UTC(dY, dM, dD);
+    const diffDays = Math.round((todayUTC - dUTC) / 86400000);
+    if (diffDays < 0)                          return 'Próximamente';
+    if (diffDays === 0)                        return 'Hoy';
+    if (diffDays === 1)                        return 'Ayer';
+    if (diffDays >= 2 && diffDays <= 6)        return 'Esta semana';
+    if (dY === now.getFullYear() && dM === now.getMonth()) return 'Este mes';
     const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    if (d.getFullYear() === now.getFullYear()) return meses[d.getMonth()];
-    return meses[d.getMonth()] + ' ' + d.getFullYear();
+    if (dY === now.getFullYear()) return meses[dM];
+    return meses[dM] + ' ' + dY;
   }
 
   function _renderList(items) {
