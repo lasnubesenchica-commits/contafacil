@@ -524,18 +524,28 @@ select.f-inp { appearance:none; }
 .pl-tbtn.active { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.1); }
 
 .pl-mode-sel {
-  font-size: .72rem;
+  font-size: .75rem;
   font-weight: 600;
-  padding: .28rem .42rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  padding: .42rem 1.8rem .42rem .65rem;
+  border: 1.5px solid var(--orange);
+  border-radius: 8px;
+  background-color: var(--surface);
   color: var(--text);
   cursor: pointer;
   outline: none;
-  max-width: 9rem;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23E65100' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .55rem center;
+  background-size: 11px;
+  min-width: 6.5rem;
+  max-width: 11rem;
+  box-shadow: 0 1px 3px rgba(230, 81, 0, .15);
 }
-.pl-mode-sel:focus { border-color: var(--orange); }
+.pl-mode-sel:focus { border-color: var(--orange2); box-shadow: 0 0 0 3px rgba(230, 81, 0, .2); }
+.pl-mode-sel:active { transform: scale(.98); }
 .pl-mode-toggle { display:flex; background:var(--bg2); border-radius:20px; padding:2px; gap:2px; }
 .pl-mode-btn {
   padding:.26rem .72rem; border-radius:20px;
