@@ -1279,17 +1279,27 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         <div class="reg-d-widgets" id="reg-d-widgets"></div>
 
         <!-- Filtros -->
-        <div style="padding:.25rem .85rem .35rem;display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
-          <select id="reg-d-estado" class="reg-d-sel" onchange="REGD.setEstado(this.value)">
-            <option value="all">Estado: Todos</option>
-            <option value="pendiente">⏳ Pendientes</option>
-            <option value="registrado">✅ Aprobados</option>
+        <div style="padding:.25rem .85rem .35rem;display:grid;grid-template-columns:1fr;gap:.35rem">
+          <select id="reg-d-periodo" class="reg-d-sel" onchange="REGD.setPeriodo(this.value)">
+            <option value="ytd" selected>📅 YTD (Año a la fecha)</option>
+            <option value="mes">📅 Este mes</option>
+            <option value="3m">📅 Últimos 3 meses</option>
+            <option value="6m">📅 Últimos 6 meses</option>
+            <option value="last_year">📅 Año anterior</option>
+            <option value="all">📅 Todas las fechas</option>
           </select>
-          <select id="reg-d-alcance" class="reg-d-sel" onchange="REGD.setAlcance(this.value)">
-            <option value="all">Tipo: Todos</option>
-            <option value="negocio">✅ Deducible</option>
-            <option value="personal">🚫 No Deducible</option>
-          </select>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
+            <select id="reg-d-estado" class="reg-d-sel" onchange="REGD.setEstado(this.value)">
+              <option value="all">Estado: Todos</option>
+              <option value="pendiente">⏳ Pendientes</option>
+              <option value="registrado">✅ Aprobados</option>
+            </select>
+            <select id="reg-d-alcance" class="reg-d-sel" onchange="REGD.setAlcance(this.value)">
+              <option value="all">Tipo: Todos</option>
+              <option value="negocio">✅ Deducible</option>
+              <option value="personal">🚫 No Deducible</option>
+            </select>
+          </div>
         </div>
 
         <!-- Toggle Egresos | Ingresos -->
@@ -2846,6 +2856,37 @@ const REGD = (() => {
   let tipo    = 'egr';     // 'egr' | 'ing'
   let estado  = 'all';     // 'all' | 'pendiente' | 'registrado'  (egr only — ingresos no usan esto)
   let alcance = 'all';     // 'all' | 'negocio' | 'personal'      (egr only)
+  let periodo = 'ytd';     // 'ytd' | 'mes' | '3m' | '6m' | 'last_year' | 'all'  ← YTD por default
+
+  // Calcula {desde, hasta} para el modo de período activo.
+  function _regdPeriodoRange() {
+    if (periodo === 'all') return null;
+    const hoy = new Date(); hoy.setHours(23,59,59,999);
+    let desde = null, hasta = hoy;
+    if (periodo === 'ytd') {
+      desde = new Date(hoy.getFullYear(), 0, 1); desde.setHours(0,0,0,0);
+    } else if (periodo === 'mes') {
+      desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1); desde.setHours(0,0,0,0);
+    } else if (periodo === '3m') {
+      desde = new Date(hoy); desde.setMonth(desde.getMonth() - 3); desde.setHours(0,0,0,0);
+    } else if (periodo === '6m') {
+      desde = new Date(hoy); desde.setMonth(desde.getMonth() - 6); desde.setHours(0,0,0,0);
+    } else if (periodo === 'last_year') {
+      const y = hoy.getFullYear() - 1;
+      desde = new Date(y, 0, 1); desde.setHours(0,0,0,0);
+      hasta = new Date(y, 11, 31); hasta.setHours(23,59,59,999);
+    }
+    return desde ? { desde, hasta } : null;
+  }
+
+  function _inPeriodo(item, dateField) {
+    const r = _regdPeriodoRange();
+    if (!r) return true;
+    const f = item[dateField];
+    if (!f) return false;
+    const d = new Date(String(f).substring(0,10) + 'T12:00:00');
+    return d >= r.desde && d <= r.hasta;
+  }
   let _accordOpen = { cats: false, provs: false };
 
   // ── Categorías DGI label ────────────────────────────────────
@@ -2922,10 +2963,13 @@ const REGD = (() => {
     if (estado === 'pendiente')  out = out.filter(e => String(e.estado||'').toLowerCase() === 'pendiente');
     if (estado === 'registrado') out = out.filter(e => String(e.estado||'').toLowerCase() === 'registrado');
     if (alcance !== 'all')       out = out.filter(e => (e.alcance || 'negocio') === alcance);
+    out = out.filter(e => _inPeriodo(e, 'fecha_egreso'));
     return out;
   }
   function _filteredIng() {
-    return ing.slice();   // ingresos no tienen estado/alcance editable en este flujo
+    let out = ing.slice();   // ingresos no tienen estado/alcance editable en este flujo
+    out = out.filter(i => _inPeriodo(i, 'fecha_ingreso'));
+    return out;
   }
 
   // ── Setters de filtros (con toggle por click repetido) ─────
@@ -2939,6 +2983,11 @@ const REGD = (() => {
     const want = v || 'all';
     alcance = (alcance === want && want !== 'all') ? 'all' : want;
     const sel = document.getElementById('reg-d-alcance'); if (sel) sel.value = alcance;
+    renderAll();
+  }
+  function setPeriodo(v) {
+    periodo = v || 'ytd';
+    const sel = document.getElementById('reg-d-periodo'); if (sel) sel.value = periodo;
     renderAll();
   }
   function setTipo(v) {
@@ -3211,7 +3260,7 @@ const REGD = (() => {
   function invalidate() { _loaded = false; }
 
   return {
-    onEnter, refresh, setEstado, setAlcance, setTipo, toggleAccord,
+    onEnter, refresh, setEstado, setAlcance, setPeriodo, setTipo, toggleAccord,
     borrar, editarIngreso, verFactura, updateIngresoLocal, invalidate,
     _wClick,
   };
