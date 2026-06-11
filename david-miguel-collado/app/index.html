@@ -1001,7 +1001,48 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
     <button class="login-btn" onclick="doLogin()" id="loginBtn">Entrar</button>
     <div id="loginError" style="display:none;color:#FFAB91;font-size:.8rem;margin-top:.6rem;text-align:center"></div>
     <div id="loginResetWrap" style="margin-top:.7rem;font-size:.72rem;color:rgba(255,255,255,.55);text-align:center;display:none;padding:0 1rem">
-      <a href="javascript:void(0)" onclick="loginReset()" style="color:rgba(255,255,255,.7);text-decoration:underline">¿Olvidaste tu contraseña? Reset</a>
+      <a href="javascript:void(0)" onclick="loginResetIniciar()" style="color:#FFB74D;text-decoration:underline;font-weight:600">¿Olvidaste tu contraseña?</a>
+    </div>
+
+    <!-- FLUJO RESET OTP — 3 estados (mobile) -->
+    <div id="resetStep1" style="display:none;margin-top:.4rem">
+      <div style="font-size:.95rem;font-weight:600;color:#fff;text-align:center;margin:.5rem 0">Restablecer contraseña</div>
+      <div style="font-size:.78rem;color:var(--muted);margin:.4rem 0 .8rem;line-height:1.5;text-align:center;padding:0 1rem">Ingresá tu WhatsApp registrado. Te mandamos un código.</div>
+      <input type="tel" id="resetPhone" placeholder="50769812266" autocomplete="tel"
+        style="width:calc(100% - 2rem);max-width:300px;margin:0 1rem .5rem;padding:.7rem .9rem;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;font-size:.95rem;font-family:inherit;text-align:center;outline:none" onkeydown="if(event.key==='Enter')resetSolicitarCodigo()">
+      <button class="login-btn" id="resetStep1Btn" onclick="resetSolicitarCodigo()">Enviar código</button>
+      <div id="resetStep1Err" style="display:none;color:#FFAB91;font-size:.8rem;margin-top:.6rem;text-align:center;padding:0 1rem"></div>
+      <a href="javascript:void(0)" onclick="loginResetCancelar()" style="color:rgba(255,255,255,.6);font-size:.72rem;text-align:center;display:block;margin-top:.7rem;text-decoration:underline">← Volver al login</a>
+    </div>
+
+    <div id="resetStep2" style="display:none;margin-top:.4rem">
+      <div style="font-size:.95rem;font-weight:600;color:#fff;text-align:center;margin:.5rem 0">Código de verificación</div>
+      <div style="font-size:.78rem;color:var(--muted);margin:.4rem 0 .8rem;line-height:1.5;text-align:center;padding:0 1rem">Ingresá el código de 6 dígitos que te enviamos.</div>
+      <input type="text" inputmode="numeric" pattern="\d{6}" maxlength="6" id="resetOtp" placeholder="000000" autocomplete="one-time-code"
+        style="width:calc(100% - 2rem);max-width:300px;margin:0 1rem .5rem;padding:.7rem .9rem;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;font-size:.95rem;font-family:inherit;text-align:center;outline:none; letter-spacing:.5em; font-size:1.4rem; font-family:'DM Mono',monospace"
+        oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"
+        onkeydown="if(event.key==='Enter')resetContinuarConCodigo()">
+      <button class="login-btn" id="resetStep2Btn" onclick="resetContinuarConCodigo()">Verificar</button>
+      <div id="resetStep2Err" style="display:none;color:#FFAB91;font-size:.8rem;margin-top:.6rem;text-align:center;padding:0 1rem"></div>
+      <div style="text-align:center;margin-top:.7rem">
+        <a href="javascript:void(0)" id="resetReenviarLink" onclick="resetReenviarCodigo()" style="color:rgba(255,255,255,.6);font-size:.72rem;text-decoration:underline">Reenviar</a>
+        &nbsp;·&nbsp;
+        <a href="javascript:void(0)" onclick="loginResetCancelar()" style="color:rgba(255,255,255,.6);font-size:.72rem;text-decoration:underline">Cancelar</a>
+      </div>
+    </div>
+
+    <div id="resetStep3" style="display:none;margin-top:.4rem">
+      <div style="font-size:.95rem;font-weight:600;color:#fff;text-align:center;margin:.5rem 0">Nueva contraseña</div>
+      <div style="font-size:.78rem;color:var(--muted);margin:.4rem 0 .8rem;line-height:1.5;text-align:center;padding:0 1rem">Establecé tu nueva contraseña y entrá al sistema.</div>
+      <input type="password" id="resetNewPwd" placeholder="Mínimo 4 caracteres" autocomplete="new-password"
+        style="width:calc(100% - 2rem);max-width:300px;margin:0 1rem .5rem;padding:.7rem .9rem;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;font-size:.95rem;font-family:inherit;text-align:center;outline:none"
+        onkeydown="if(event.key==='Enter')document.getElementById('resetNewPwd2').focus()">
+      <input type="password" id="resetNewPwd2" placeholder="Repetí la contraseña" autocomplete="new-password"
+        style="width:calc(100% - 2rem);max-width:300px;margin:0 1rem .5rem;padding:.7rem .9rem;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;font-size:.95rem;font-family:inherit;text-align:center;outline:none"
+        onkeydown="if(event.key==='Enter')resetFinalizar()">
+      <button class="login-btn" id="resetStep3Btn" onclick="resetFinalizar()">Establecer y entrar</button>
+      <div id="resetStep3Err" style="display:none;color:#FFAB91;font-size:.8rem;margin-top:.6rem;text-align:center;padding:0 1rem"></div>
+      <a href="javascript:void(0)" onclick="loginResetCancelar()" style="color:rgba(255,255,255,.6);font-size:.72rem;text-align:center;display:block;margin-top:.7rem;text-decoration:underline">Cancelar</a>
     </div>
   </div>
 </div>
@@ -1628,6 +1669,158 @@ function logout() {
   _renderLoginMode();
 }
 
+// ══════════════════════════════════════════════════════════════
+//  RESET DE PASSWORD VIA WHATSAPP OTP (mobile)
+//  Mismo flujo que desktop. Ver index.html del cliente para docs.
+// ══════════════════════════════════════════════════════════════
+function _resetMostrar(step) {
+  ['loginPwd','loginPwd2','loginBtn','loginError','loginModeHint','loginResetWrap','loginSub']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  ['resetStep1','resetStep2','resetStep3']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (id === 'resetStep' + step) ? 'block' : 'none'; });
+}
+function _resetOcultar() {
+  ['resetStep1','resetStep2','resetStep3']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  ['loginSub','loginModeHint','loginPwd','loginBtn'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = '';
+  });
+  const setup = _authHasPassword === false;
+  const pwd2 = document.getElementById('loginPwd2');
+  if (pwd2) pwd2.style.display = setup ? '' : 'none';
+  const reset = document.getElementById('loginResetWrap');
+  if (reset) reset.style.display = setup ? 'none' : 'block';
+}
+function _resetShowErr(stepId, msg) {
+  const el = document.getElementById(stepId + 'Err');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+function _resetClearErr(stepId) {
+  const el = document.getElementById(stepId + 'Err');
+  if (el) el.style.display = 'none';
+}
+
+let _resetPhoneNormalized = '';
+
+function loginResetIniciar() {
+  _resetMostrar(1);
+  setTimeout(() => { const el = document.getElementById('resetPhone'); if (el) el.focus(); }, 100);
+}
+window.loginResetIniciar = loginResetIniciar;
+
+function loginResetCancelar() {
+  _resetOcultar();
+  _resetPhoneNormalized = '';
+}
+window.loginResetCancelar = loginResetCancelar;
+
+async function resetSolicitarCodigo() {
+  _resetClearErr('resetStep1');
+  const phoneInput = document.getElementById('resetPhone').value.trim();
+  let phone = phoneInput.replace(/\D/g, '');
+  if (!phone || phone.length < 8) {
+    _resetShowErr('resetStep1', 'Ingresá un número de WhatsApp válido'); return;
+  }
+  if (phone.length === 8) phone = '507' + phone;
+  _resetPhoneNormalized = phone;
+
+  const btn = document.getElementById('resetStep1Btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const r = await _authBackendPost('solicitarCodigoReset', { phone });
+    if (!r || !r.success) {
+      _resetShowErr('resetStep1', (r && r.error) || 'No se pudo enviar el código');
+      if (btn) { btn.disabled = false; btn.textContent = 'Enviar código'; }
+      return;
+    }
+    _resetMostrar(2);
+    setTimeout(() => { const el = document.getElementById('resetOtp'); if (el) el.focus(); }, 100);
+  } catch (e) {
+    _resetShowErr('resetStep1', 'Error de red');
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar código'; }
+  }
+}
+window.resetSolicitarCodigo = resetSolicitarCodigo;
+
+async function resetReenviarCodigo() {
+  if (!_resetPhoneNormalized) { _resetMostrar(1); return; }
+  _resetClearErr('resetStep2');
+  const link = document.getElementById('resetReenviarLink');
+  if (link) { link.textContent = 'Enviando…'; link.style.pointerEvents = 'none'; }
+  try {
+    const r = await _authBackendPost('solicitarCodigoReset', { phone: _resetPhoneNormalized });
+    if (!r || !r.success) {
+      _resetShowErr('resetStep2', (r && r.error) || 'No se pudo reenviar');
+    } else {
+      _resetShowErr('resetStep2', '✓ Código reenviado');
+      const errEl = document.getElementById('resetStep2Err');
+      if (errEl) errEl.style.color = '#A5D6A7';
+    }
+  } catch (e) {
+    _resetShowErr('resetStep2', 'Error de red');
+  }
+  setTimeout(() => {
+    if (link) { link.textContent = 'Reenviar'; link.style.pointerEvents = ''; }
+    const errEl = document.getElementById('resetStep2Err');
+    if (errEl) errEl.style.color = '';
+  }, 2500);
+}
+window.resetReenviarCodigo = resetReenviarCodigo;
+
+function resetContinuarConCodigo() {
+  _resetClearErr('resetStep2');
+  const code = document.getElementById('resetOtp').value.trim();
+  if (!/^\d{6}$/.test(code)) {
+    _resetShowErr('resetStep2', 'El código debe ser de 6 dígitos'); return;
+  }
+  _resetMostrar(3);
+  setTimeout(() => { const el = document.getElementById('resetNewPwd'); if (el) el.focus(); }, 100);
+}
+window.resetContinuarConCodigo = resetContinuarConCodigo;
+
+async function resetFinalizar() {
+  _resetClearErr('resetStep3');
+  const pwd  = document.getElementById('resetNewPwd').value;
+  const pwd2 = document.getElementById('resetNewPwd2').value;
+  const code = document.getElementById('resetOtp').value.trim();
+
+  if (!pwd || pwd.length < 4) {
+    _resetShowErr('resetStep3', 'La contraseña debe tener al menos 4 caracteres'); return;
+  }
+  if (pwd !== pwd2) {
+    _resetShowErr('resetStep3', 'Las contraseñas no coinciden'); return;
+  }
+
+  const btn = document.getElementById('resetStep3Btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Estableciendo…'; }
+  try {
+    const r = await _authBackendPost('verificarCodigoYResetear', {
+      phone: _resetPhoneNormalized, code, newPassword: pwd,
+    });
+    if (!r || !r.success) {
+      _resetShowErr('resetStep3', (r && r.error) || 'No se pudo establecer la contraseña');
+      if (btn) { btn.disabled = false; btn.textContent = 'Establecer y entrar'; }
+      if (r && r.error && /expirado|incorrecto/i.test(r.error)) {
+        setTimeout(() => _resetMostrar(2), 1500);
+      }
+      return;
+    }
+    _authHasPassword = true;
+    if (r.autoAuth) _authMark();
+    document.getElementById('resetNewPwd').value  = '';
+    document.getElementById('resetNewPwd2').value = '';
+    document.getElementById('resetOtp').value     = '';
+    document.getElementById('resetPhone').value   = '';
+    _resetPhoneNormalized = '';
+    _enterApp();
+  } catch (e) {
+    _resetShowErr('resetStep3', 'Error de red');
+    if (btn) { btn.disabled = false; btn.textContent = 'Establecer y entrar'; }
+  }
+}
+window.resetFinalizar = resetFinalizar;
+
+// Fallback admin override (legacy)
 function loginReset() {
   alert(
     'Por seguridad, el reset de contraseña requiere intervención del equipo BalanceClip.\n\n' +
