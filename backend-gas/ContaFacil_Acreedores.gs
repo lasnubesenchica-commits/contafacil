@@ -918,6 +918,7 @@ function _claudeParsearFacturaAcreedor(pdfB64, acreedor) {
     return c.valor + ' - ' + c.label;
   }).join('\n');
 
+  var anioActual = parseInt(Utilities.formatDate(new Date(), 'America/Panama', 'yyyy'), 10);
   var promptOverride = acreedor.prompt_override || '';
   var prompt =
     'Eres un extractor de facturas de ' + acreedor.nombre +
@@ -929,6 +930,7 @@ function _claudeParsearFacturaAcreedor(pdfB64, acreedor) {
     'categoria_sugerida debe ser uno de:\n' + catList + '\n' +
     'confianza_categoria: número de 0 a 100.\n' +
     'ruc_receptor: RUC del receptor/cliente a quien va dirigida la factura (solo dígitos y guiones, sin DV). null si no aparece.\n' +
+    'fecha: formato Panamá DD/MM/YYYY → devolvé como YYYY-MM-DD. AÑO SANITY CHECK: estamos en ' + anioActual + ', las facturas llegan en tiempo real. Si tu lectura da un año >2 años en el pasado (ej: ' + (anioActual - 6) + ' cuando estamos en ' + anioActual + '), revisá el dígito final — "0"↔"6", "0"↔"8", "5"↔"6" se confunden en PDFs de baja calidad. Solo aceptás un año pasado si está claramente legible.\n' +
     'Si un campo no está visible usar null. Montos como números.';
 
   var payload = {
@@ -967,6 +969,7 @@ function _claudeParsearFacturaLibre(pdfB64, fileName, mediaType) {
     return c.valor + ' - ' + c.label;
   }).join('\n');
 
+  var anioActual = parseInt(Utilities.formatDate(new Date(), 'America/Panama', 'yyyy'), 10);
   var prompt =
     'Eres un extractor de facturas de gastos operativos panameñas.\n' +
     'Extrae todos los campos del documento y responde SOLO con JSON válido, sin markdown:\n' +
@@ -979,6 +982,7 @@ function _claudeParsearFacturaLibre(pdfB64, fileName, mediaType) {
     '- ruc_receptor: RUC del RECEPTOR (a quien va dirigida, sección "Cliente"). Solo dígitos y guiones, sin DV. null si no aparece.\n' +
     '- descripcion: servicio o producto facturado en pocas palabras.\n' +
     '- confianza_categoria: 0-100, qué tan seguro estás de la categoría.\n' +
+    '- fecha: formato Panamá DD/MM/YYYY → YYYY-MM-DD. AÑO SANITY CHECK: estamos en ' + anioActual + '. Si tu lectura da un año >2 años en el pasado (ej: ' + (anioActual - 6) + '), revisá el dígito final — "0"↔"6", "0"↔"8", "5"↔"6" se confunden en docs gastados o crops. Solo aceptás un año pasado si la fecha está claramente legible.\n' +
     '- Si un campo no es visible usar null. Montos como números sin símbolo de moneda.';
 
   var contentBlock = mediaType === 'application/pdf'
