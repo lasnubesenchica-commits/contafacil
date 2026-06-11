@@ -1238,6 +1238,23 @@ async function goStep3() {
     ]);
   }
 
+  // 6b. Registrar el celular del admin en scripts/otp-config.json para
+  //     que el próximo deploy-gas.js inyecte _OtpConfig.gs y el flujo de
+  //     reset de password vía WhatsApp funcione para este cliente.
+  var l6b = addLog('', 'Registrando WA admin en otp-config.json...', '', true);
+  await sleep(200);
+  STATE.otpRegistroOK = false;
+  try {
+    var slug    = _slugifyClientId(STATE.negocio);
+    var waPhone = normalizarTelefonoPanama(STATE.waNum);
+    if (!waPhone) throw new Error('waNum no normalizable');
+    await registerInOtpConfig(slug, waPhone);
+    updateLog(l6b, '✅', 'OTP config actualizado (' + slug + ' → ' + waPhone + ')');
+    STATE.otpRegistroOK = true;
+  } catch(e) {
+    updateLog(l6b, '⚠️', 'No se pudo actualizar otp-config.json: ' + e.message + ' — el reset de password no funcionará hasta agregarlo manualmente');
+  }
+
   // 7. Crear carpeta admin del cliente (copia de iris-albelo-ho/ con GAS_URL reemplazado)
   var clientId = _slugifyClientId(STATE.negocio);
   var l7 = addLog('', 'Creando carpeta admin del cliente...', '', true);
@@ -1734,6 +1751,25 @@ async function registerInGitHub(scriptId, deploymentId) {
 
   var newContent = JSON.stringify(parsed, null, 2) + '\n';
   await githubPutFile('clients.json', newContent, 'provisioner: agregar cliente ' + clientId, fileData.sha);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  registerInOtpConfig — agrega <slug>: <phone> al map
+//  WA_ADMIN_PHONE de scripts/otp-config.json. Sin esto, el
+//  deploy-gas.js no inyecta _OtpConfig.gs para el cliente
+//  nuevo y el flujo de reset de password no envía el OTP.
+//
+//  Idempotente: si el slug ya está, lo sobreescribe.
+// ═══════════════════════════════════════════════════════════
+async function registerInOtpConfig(slug, waPhone) {
+  if (!slug || !waPhone) throw new Error('slug o waPhone vacío');
+  var fileData = await githubGetFile('scripts/otp-config.json');
+  var currentContent = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
+  var parsed = JSON.parse(currentContent);
+  if (!parsed.WA_ADMIN_PHONE) parsed.WA_ADMIN_PHONE = {};
+  parsed.WA_ADMIN_PHONE[slug] = waPhone;
+  var newContent = JSON.stringify(parsed, null, 2) + '\n';
+  await githubPutFile('scripts/otp-config.json', newContent, 'provisioner: OTP phone ' + slug, fileData.sha);
 }
 
 // ═══════════════════════════════════════════════════════════
