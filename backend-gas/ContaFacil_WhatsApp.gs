@@ -486,6 +486,10 @@ function _whatsappClasificarYExtraer(b64, mime) {
   var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
 
+  // Año actual en hora Panamá — se inyecta al prompt como referencia
+  // para el sanity check de fecha (evitar misreads tipo 26→20).
+  var anioActual = parseInt(Utilities.formatDate(new Date(), 'America/Panama', 'yyyy'), 10);
+
   // Cargar contexto del negocio del config para que el prompt pueda
   // referirse al usuario por nombre + RUC y la IA sepa exactamente
   // qué RUC buscar en la factura (deducibilidad).
@@ -566,8 +570,11 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '       • Si NO está labeled, agarrá la que aparece junto a "FACTURA No" o el número de comprobante.\n' +
     '       • IGNORÁ: timestamps de impresión arriba (ej "02/18/2024 09:36 6205..."), fechas de "MEMBER #", "Año:", fechas de "FECHA INSTALACIÓN", o fechas dentro de códigos de barra / strings largos.\n' +
     '       • Si ves múltiples fechas válidas, prioriza la más cercana al label "FACTURA" o "FECHA".\n' +
-    '       • Devolvé SIEMPRE en formato YYYY-MM-DD (ISO). Año 4 dígitos. Si solo ves "24" como año, asumí "2024".\n' +
+    '       • Devolvé SIEMPRE en formato YYYY-MM-DD (ISO). Año 4 dígitos. Si solo ves "' + (anioActual % 100) + '" como año, asumí "' + anioActual + '".\n' +
     '       • Si la fecha NO es legible o no estás seguro, devolvé null. NO inventes.\n' +
+    '       • **AÑO SANITY CHECK** (CRÍTICO): estamos en el año ' + anioActual + ' y las facturas llegan en tiempo real por WhatsApp. Si tu lectura te da un año más de 2 años en el pasado (ej: ' + (anioActual - 6) + ' o ' + (anioActual - 5) + ' cuando estamos en ' + anioActual + '), VOLVÉ A MIRAR el dígito final del año — '+
+    'los pares comúnmente confundidos en impresión térmica gastada, crop incompleto o resolución baja son: "0"↔"6" (un "' + (anioActual % 100) + '" puede leerse como "20"), "0"↔"8", "5"↔"6", "1"↔"7". '+
+    'Solo aceptás un año >2 años atrás si la fecha está CLARAMENTE legible y nítida (sin pixelación, sin manchas, sin crop). En la duda, prioriza el año más reciente que sea visualmente compatible.\n' +
     '       • PRICESMART específico: el ticket imprime un timestamp del cajero arriba del cuerpo (formato "MM/DD/YYYY HH:MM 6205 009 0010 NNNNNNNN" — con códigos numéricos largos pegados). ESE NO ES LA FECHA. La fecha real está labeled "FECHA:" en formato DD-MM-YYYY (con guiones, no slashes), cerca de "FACTURA:" y "HORA:". Si tenés que elegir entre un slash-date arriba con códigos numéricos pegados y un dash-date abajo labeled FECHA, agarrá SIEMPRE el dash-date.\n' +
     '       • DGI Panamá específico: el footer puede tener strings como "R00620500060010202402040947..." — la subcadena "20240204" NO es la fecha, es un identificador interno. Ignorá.\n\n' +
 
