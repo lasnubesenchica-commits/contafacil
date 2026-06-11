@@ -673,6 +673,97 @@ select.f-inp { appearance:none; }
 .reg-d-row-actions .ic-btn.edit{ color:#1565C0;border-color:#BBDEFB; }
 .reg-d-row-actions .ic-btn.del{  color:#B71C1C;border-color:#FFCDD2; }
 .reg-d-empty{ padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.75rem; }
+/* ═══════════════════════════════════════════════════════════
+   REGD vista detallada — refactor UX 2026-06
+   Chips, FAB, secciones por fecha, search, empty state
+   ═══════════════════════════════════════════════════════════ */
+.reg-d-chips::-webkit-scrollbar { display: none; }
+.reg-d-chip {
+  flex-shrink: 0;
+  font-size: .72rem; font-weight: 600;
+  padding: .42rem .68rem; border: 1px solid var(--border);
+  border-radius: 100px; background: var(--surface); color: var(--text);
+  outline: none; font-family: inherit; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  padding-right: 1.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236C6C70' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .55rem center;
+  background-size: 8px;
+}
+#reg-d-search::placeholder { color: var(--muted); }
+#reg-d-search:focus { border-color: var(--orange); }
+.reg-d-section-hdr {
+  position: sticky; top: 0; z-index: 5;
+  padding: .42rem .9rem .35rem;
+  font-size: .65rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+  background: var(--bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  margin: .5rem 0 .15rem;
+}
+.reg-d-empty-rich {
+  padding: 2.5rem 1.2rem 1.5rem; text-align: center;
+}
+.reg-d-empty-rich .icon { font-size: 2.5rem; margin-bottom: .55rem; }
+.reg-d-empty-rich .title {
+  font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: .3rem;
+}
+.reg-d-empty-rich .sub {
+  font-size: .78rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.45;
+}
+.reg-d-empty-rich .cta {
+  display: inline-block; padding: .55rem 1rem; border-radius: 100px;
+  background: var(--orange); color: #fff; font-weight: 600; font-size: .78rem;
+  border: none; cursor: pointer; font-family: inherit;
+}
+.reg-d-empty-rich .cta.ghost {
+  background: transparent; color: var(--orange); border: 1px solid var(--orange);
+  margin-right: .35rem;
+}
+
+/* FAB ─── Floating Action Button + sheet */
+.reg-fab {
+  position: fixed; right: 1rem; bottom: calc(env(safe-area-inset-bottom, 0) + 5.5rem);
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--orange); color: #fff; font-size: 1.8rem; font-weight: 300;
+  border: none; cursor: pointer; z-index: 50;
+  box-shadow: 0 4px 16px rgba(230, 81, 0, .45), 0 1px 3px rgba(0,0,0,.2);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .15s, background .15s;
+}
+.reg-fab:active { transform: scale(.92); background: var(--orange2); }
+.reg-fab.open { transform: rotate(45deg); background: #757575; }
+
+.reg-fab-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  z-index: 49; opacity: 0; pointer-events: none;
+  transition: opacity .2s; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.reg-fab-backdrop.show { opacity: 1; pointer-events: auto; }
+
+.reg-fab-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 51;
+  background: var(--surface); border-radius: 18px 18px 0 0;
+  padding: 1rem .9rem calc(env(safe-area-inset-bottom, 0) + 1rem);
+  transform: translateY(100%); transition: transform .25s ease-out;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.2);
+}
+.reg-fab-sheet.show { transform: translateY(0); }
+.reg-fab-opt {
+  display: flex; align-items: center; gap: .8rem; width: 100%;
+  padding: .9rem .85rem; margin-bottom: .45rem;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.reg-fab-opt:active { background: var(--bg2); }
+.reg-fab-icon { font-size: 1.6rem; }
+.reg-fab-cancel {
+  width: 100%; padding: .85rem; margin-top: .25rem;
+  background: var(--bg2); color: var(--muted); border: none; border-radius: 12px;
+  font-weight: 600; font-size: .9rem; cursor: pointer; font-family: inherit;
+}
+
 .reg-d-badge-est{ font-size:.6rem;font-weight:700;padding:.06rem .35rem;border-radius:4px; }
 .reg-d-badge-est.pend{ background:#FFF9C4;color:#795548; }
 .reg-d-badge-est.reg{  background:#E8F5E9;color:#1B5E20; }
@@ -1198,108 +1289,44 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 
     <!-- REGISTROS -->
     <div id="viewRegistros" style="display:none">
-      <div style="padding:.85rem .85rem .38rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem">
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem" id="reg-subtitle">Ingresos y gastos · desde cámara o galería</div>
+      <div style="padding:.7rem .85rem .25rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
+          <button onclick="REGD.refresh(this)" class="reg-d-refresh" id="reg-d-refresh" title="Actualizar" style="margin:0">↻</button>
         </div>
-        <div class="reg-view-toggle" style="display:flex;background:var(--bg2);border-radius:100px;padding:2px;flex-shrink:0">
-          <button class="reg-view-btn active" id="reg-view-simple" onclick="REGVIEW.set('simple')">Simple</button>
-          <button class="reg-view-btn"        id="reg-view-detalle" onclick="REGVIEW.set('detalle')">Detallada</button>
-        </div>
-      </div>
-
-      <!-- ═══════════ VISTA SIMPLE (default) ═══════════ -->
-      <div id="reg-simple-body">
-      <!-- Botones de registro (arriba) -->
-      <div style="padding:.38rem .85rem .2rem">
-        <button class="reg-btn reg-btn-egr" onclick="REG.openEgreso()">
-          <div class="reg-btn-icon">📤</div>
-          <div class="reg-btn-body">
-            <div class="reg-btn-title">Registrar gasto</div>
-            <div class="reg-btn-sub">Combustible, insumos, servicios, facturas de proveedores…</div>
-          </div>
-          <div class="reg-btn-chev">›</div>
-        </button>
-      </div>
-      <div style="padding:.2rem .85rem .15rem">
-        <button class="reg-btn reg-btn-ing" onclick="REG.openIngreso()">
-          <div class="reg-btn-icon">💰</div>
-          <div class="reg-btn-body">
-            <div class="reg-btn-title">Registrar ingreso</div>
-            <div class="reg-btn-sub">Pagos de clientes, transferencias, vouchers Yappy…</div>
-          </div>
-          <div class="reg-btn-chev">›</div>
-        </button>
-      </div>
-
-      <!-- Tip IA -->
-      <div style="margin:.15rem .85rem .5rem;background:var(--indigo-bg);border-radius:var(--r);padding:.62rem .8rem;display:flex;gap:.55rem;align-items:flex-start">
-        <span style="font-size:1rem;flex-shrink:0">✨</span>
-        <div style="font-size:.72rem;color:var(--indigo);line-height:1.5">
-          <strong>Lector IA:</strong> adjunta una foto de la factura o voucher y los campos se llenan automáticamente. Revisa y confirma.
+        <div style="position:relative;margin-top:.55rem">
+          <span style="position:absolute;left:.7rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9rem;pointer-events:none">🔍</span>
+          <input type="search" id="reg-d-search" placeholder="Buscar proveedor, monto, categoría..."
+            oninput="REGD.setSearch(this.value)"
+            style="width:100%;padding:.55rem .8rem .55rem 2.1rem;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;font-size:.85rem;font-family:inherit;outline:none;-webkit-appearance:none">
         </div>
       </div>
 
-      <!-- PENDIENTES POR WHATSAPP ───────────────── -->
-      <div id="pendWhatsAppSection" style="display:none">
-        <div class="pend-section-hdr">
-          <div class="pend-section-title">
-            📲 Recibidos por WhatsApp
-            <span class="pend-count" id="pendCountWa">0</span>
-          </div>
-        </div>
-        <div class="card-list" id="pend-list-wa" style="padding-top:0"></div>
-      </div>
-      <!-- PENDIENTES POR EMAIL ─────────────────── -->
-      <div id="pendEmailSection">
-        <div class="pend-section-hdr">
-          <div class="pend-section-title">
-            📧 Recibidos por email
-            <span class="pend-count" id="pendCount">…</span>
-          </div>
-          <button class="btn-sync-egr" id="btnSyncEgr" onclick="PEND.sync()">
-            ⟳ Sincronizar
-          </button>
-        </div>
-        <div class="card-list" id="pend-list" style="padding-top:0"></div>
-      </div>
-      <!-- ───────────────────────────────────── -->
-      </div><!-- /reg-simple-body -->
-
-      <!-- ═══════════ VISTA DETALLADA ═══════════ -->
-      <div id="reg-detalle-body" style="display:none">
-        <!-- Quick action buttons (compactos) -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.38rem .85rem .25rem">
-          <button class="reg-mini-btn reg-mini-btn-egr" onclick="REG.openEgreso()">📤 Registrar gasto</button>
-          <button class="reg-mini-btn reg-mini-btn-ing" onclick="REG.openIngreso()">💰 Registrar ingreso</button>
-        </div>
-
+<!-- Vista detallada (única, ya no hay toggle) -->
+      <div id="reg-detalle-body">
         <!-- Mini-widgets -->
         <div class="reg-d-widgets" id="reg-d-widgets"></div>
 
-        <!-- Filtros -->
-        <div style="padding:.25rem .85rem .35rem;display:grid;grid-template-columns:1fr;gap:.35rem">
-          <select id="reg-d-periodo" class="reg-d-sel" onchange="REGD.setPeriodo(this.value)">
-            <option value="ytd" selected>📅 YTD (Año a la fecha)</option>
+        <!-- Filtros como chips scrollables horizontalmente -->
+        <div class="reg-d-chips" style="display:flex;gap:.4rem;padding:.15rem .85rem .35rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+          <select id="reg-d-periodo" class="reg-d-chip" onchange="REGD.setPeriodo(this.value)">
+            <option value="ytd" selected>📅 YTD</option>
             <option value="mes">📅 Este mes</option>
             <option value="3m">📅 Últimos 3 meses</option>
             <option value="6m">📅 Últimos 6 meses</option>
             <option value="last_year">📅 Año anterior</option>
-            <option value="all">📅 Todas las fechas</option>
+            <option value="all">📅 Todas</option>
           </select>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
-            <select id="reg-d-estado" class="reg-d-sel" onchange="REGD.setEstado(this.value)">
-              <option value="all">Estado: Todos</option>
-              <option value="pendiente">⏳ Pendientes</option>
-              <option value="registrado">✅ Aprobados</option>
-            </select>
-            <select id="reg-d-alcance" class="reg-d-sel" onchange="REGD.setAlcance(this.value)">
-              <option value="all">Tipo: Todos</option>
-              <option value="negocio">✅ Deducible</option>
-              <option value="personal">🚫 No Deducible</option>
-            </select>
-          </div>
+          <select id="reg-d-estado" class="reg-d-chip" onchange="REGD.setEstado(this.value)">
+            <option value="all">Estado: Todos</option>
+            <option value="pendiente">⏳ Pendientes</option>
+            <option value="registrado">✅ Aprobados</option>
+          </select>
+          <select id="reg-d-alcance" class="reg-d-chip" onchange="REGD.setAlcance(this.value)">
+            <option value="all">Tipo: Todos</option>
+            <option value="negocio">✅ Deducible</option>
+            <option value="personal">🚫 No Deducible</option>
+          </select>
         </div>
 
         <!-- Toggle Egresos | Ingresos -->
@@ -1321,16 +1348,34 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
         </div>
         <div class="reg-d-accord-detail" id="reg-d-provs-detail"></div>
 
-        <!-- Lista de registros -->
-        <div style="padding:.55rem .85rem .18rem;display:flex;align-items:center;gap:.4rem;justify-content:space-between">
-          <div style="display:flex;align-items:center;gap:.4rem">
-            <span class="sec-lbl" style="padding:0">Registros</span>
-            <span class="sec-cnt" id="reg-d-list-n">0</span>
-          </div>
-          <button onclick="REGD.refresh(this)" class="reg-d-refresh" id="reg-d-refresh" title="Actualizar">↻</button>
+        <!-- Lista agrupada por fecha -->
+        <div style="padding:.55rem .85rem .18rem;display:flex;align-items:center;gap:.4rem">
+          <span class="sec-lbl" style="padding:0">Registros</span>
+          <span class="sec-cnt" id="reg-d-list-n">0</span>
         </div>
         <div id="reg-d-list" class="tx-list"></div>
       </div><!-- /reg-detalle-body -->
+
+      <!-- FAB: agregar registro -->
+      <button class="reg-fab" id="reg-fab" onclick="REGD.fabToggle()" aria-label="Agregar registro">+</button>
+      <div class="reg-fab-sheet" id="reg-fab-sheet">
+        <button class="reg-fab-opt egr" onclick="REGD.fabClose();REG.openEgreso()">
+          <span class="reg-fab-icon">📤</span>
+          <div style="text-align:left">
+            <div style="font-weight:700;font-size:.95rem">Registrar gasto</div>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:500">Foto, PDF o manual</div>
+          </div>
+        </button>
+        <button class="reg-fab-opt ing" onclick="REGD.fabClose();REG.openIngreso()">
+          <span class="reg-fab-icon">💰</span>
+          <div style="text-align:left">
+            <div style="font-weight:700;font-size:.95rem">Registrar ingreso</div>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:500">Factura emitida</div>
+          </div>
+        </button>
+        <button class="reg-fab-cancel" onclick="REGD.fabClose()">Cancelar</button>
+      </div>
+      <div class="reg-fab-backdrop" id="reg-fab-backdrop" onclick="REGD.fabClose()"></div>
 
     </div><!-- /viewRegistros -->
 
@@ -1669,7 +1714,7 @@ function _enterApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   switchView('registros');
-  if (typeof REGVIEW !== 'undefined') REGVIEW.init();
+  if (typeof REGD !== 'undefined') REGD.onEnter();
   loadAll();
 }
 
@@ -1942,7 +1987,7 @@ function switchView(v) {
   if (v === 'pl' && !PL.loaded) PL.load();
   if (v === 'registros') {
     if (!PEND.loaded) PEND.load();
-    if (typeof REGVIEW !== 'undefined') REGVIEW.init();
+    if (typeof REGD !== 'undefined') REGD.onEnter();
   }
   if (v === 'gastos') GAS.onEnter();
 }
@@ -2812,39 +2857,6 @@ const GAS = (() => {
   }
 
   return { onEnter, setMode, prev, next, toggleSection };
-})();
-
-
-// ════════════════════════════════════════════════════════
-//  MÓDULO REGVIEW — Toggle Simple|Detallada en Registros
-// ════════════════════════════════════════════════════════
-const REGVIEW = (() => {
-  const KEY = 'iris_reg_view';
-  let mode = (function(){ try { return localStorage.getItem(KEY) || 'simple'; } catch(_){ return 'simple'; } })();
-
-  function _apply() {
-    const isDet = mode === 'detalle';
-    document.getElementById('reg-simple-body').style.display  = isDet ? 'none' : '';
-    document.getElementById('reg-detalle-body').style.display = isDet ? '' : 'none';
-    document.getElementById('reg-view-simple').classList.toggle('active', !isDet);
-    document.getElementById('reg-view-detalle').classList.toggle('active', isDet);
-    const sub = document.getElementById('reg-subtitle');
-    if (sub) sub.textContent = isDet
-      ? 'Vista detallada · todos los registros'
-      : 'Ingresos y gastos · desde cámara o galería';
-    if (isDet && typeof REGD !== 'undefined') REGD.onEnter();
-  }
-  function set(v) {
-    mode = v;
-    try { localStorage.setItem(KEY, v); } catch(_){}
-    _apply();
-  }
-  function get() { return mode; }
-  function init() { _apply(); }
-  return { set, get, init };
-})();
-
-
 // ════════════════════════════════════════════════════════
 //  MÓDULO REGD — Vista Detallada de Registros
 //  Carga getEgresos + getIngresos, renderiza widgets, filtros,
@@ -2857,6 +2869,7 @@ const REGD = (() => {
   let estado  = 'all';     // 'all' | 'pendiente' | 'registrado'  (egr only — ingresos no usan esto)
   let alcance = 'all';     // 'all' | 'negocio' | 'personal'      (egr only)
   let periodo = 'ytd';     // 'ytd' | 'mes' | '3m' | '6m' | 'last_year' | 'all'  ← YTD por default
+  let q = '';              // texto de búsqueda (proveedor, descripción, monto, categoría)
 
   // Calcula {desde, hasta} para el modo de período activo.
   function _regdPeriodoRange() {
@@ -2958,17 +2971,28 @@ const REGD = (() => {
   }
 
   // ── Filtros aplicados al set egr ────────────────────────────
+  function _matchSearch(it, isEgr) {
+    if (!q) return true;
+    const qq = q.toLowerCase().trim();
+    if (!qq) return true;
+    const fields = isEgr
+      ? [it.proveedor, it.descripcion, it.tipo_egreso, it.categoria, it.num_factura, it.notas, String(it.total||'')]
+      : [it.nombre_cliente, it.descripcion, it.categoria_ingreso, it.tipo_ingreso, it.num_factura, it.notas, String(it.total||'')];
+    return fields.some(f => f && String(f).toLowerCase().includes(qq));
+  }
   function _filteredEgr() {
     let out = egr.slice();
     if (estado === 'pendiente')  out = out.filter(e => String(e.estado||'').toLowerCase() === 'pendiente');
     if (estado === 'registrado') out = out.filter(e => String(e.estado||'').toLowerCase() === 'registrado');
     if (alcance !== 'all')       out = out.filter(e => (e.alcance || 'negocio') === alcance);
     out = out.filter(e => _inPeriodo(e, 'fecha_egreso'));
+    out = out.filter(e => _matchSearch(e, true));
     return out;
   }
   function _filteredIng() {
-    let out = ing.slice();   // ingresos no tienen estado/alcance editable en este flujo
+    let out = ing.slice();
     out = out.filter(i => _inPeriodo(i, 'fecha_ingreso'));
+    out = out.filter(i => _matchSearch(i, false));
     return out;
   }
 
@@ -2989,6 +3013,33 @@ const REGD = (() => {
     periodo = v || 'ytd';
     const sel = document.getElementById('reg-d-periodo'); if (sel) sel.value = periodo;
     renderAll();
+  }
+  function setSearch(v) {
+    q = String(v || '');
+    renderAll();
+  }
+  function clearFilters() {
+    q = ''; periodo = 'ytd'; estado = 'all'; alcance = 'all';
+    const s = document.getElementById('reg-d-search'); if (s) s.value = '';
+    const p = document.getElementById('reg-d-periodo'); if (p) p.value = 'ytd';
+    const e = document.getElementById('reg-d-estado'); if (e) e.value = 'all';
+    const a = document.getElementById('reg-d-alcance'); if (a) a.value = 'all';
+    renderAll();
+  }
+
+  // ── FAB (Floating Action Button) ──────────────────────────────
+  let _fabOpen = false;
+  function fabToggle() {
+    _fabOpen = !_fabOpen;
+    document.getElementById('reg-fab').classList.toggle('open', _fabOpen);
+    document.getElementById('reg-fab-sheet').classList.toggle('show', _fabOpen);
+    document.getElementById('reg-fab-backdrop').classList.toggle('show', _fabOpen);
+  }
+  function fabClose() {
+    _fabOpen = false;
+    document.getElementById('reg-fab').classList.remove('open');
+    document.getElementById('reg-fab-sheet').classList.remove('show');
+    document.getElementById('reg-fab-backdrop').classList.remove('show');
   }
   function setTipo(v) {
     tipo = v;
@@ -3122,17 +3173,60 @@ const REGD = (() => {
     });
   }
 
+  function _sectionLabel(date) {
+    const now = new Date(); now.setHours(0,0,0,0);
+    const d = new Date(String(date).substring(0,10) + 'T12:00:00');
+    const diffDays = Math.floor((now - d) / 86400000);
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays >= 2 && diffDays <= 6) return 'Esta semana';
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) return 'Este mes';
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    if (d.getFullYear() === now.getFullYear()) return meses[d.getMonth()];
+    return meses[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
   function _renderList(items) {
     document.getElementById('reg-d-list-n').textContent = items.length;
     const list = document.getElementById('reg-d-list');
     if (!items.length) {
-      list.innerHTML = '<div class="reg-d-empty">Sin registros</div>';
+      const tieneFiltros = q || periodo !== 'ytd' || estado !== 'all' || alcance !== 'all';
+      const tipoTxt = tipo === 'egr' ? 'gastos' : 'ingresos';
+      list.innerHTML = tieneFiltros
+        ? `<div class="reg-d-empty-rich">
+            <div class="icon">🔍</div>
+            <div class="title">Sin resultados</div>
+            <div class="sub">No encontramos ${tipoTxt} con los filtros actuales.<br>Probá limpiar la búsqueda o cambiar el período.</div>
+            <button class="cta ghost" onclick="REGD.clearFilters()">Limpiar filtros</button>
+            <button class="cta" onclick="REGD.fabToggle()">+ Registrar</button>
+          </div>`
+        : `<div class="reg-d-empty-rich">
+            <div class="icon">${tipo==='egr'?'📤':'💰'}</div>
+            <div class="title">Sin ${tipoTxt} todavía</div>
+            <div class="sub">${tipo==='egr'?'Mandá una factura por WhatsApp o tocá el botón abajo para agregar.':'Registrá tu primer ingreso desde acá.'}</div>
+            <button class="cta" onclick="REGD.fabToggle()">+ Registrar ${tipo==='egr'?'gasto':'ingreso'}</button>
+          </div>`;
       _renderAccordChevrons();
       return;
     }
     items.sort((a,b) => String((tipo==='egr'?b.fecha_egreso:b.fecha_ingreso)||'')
                           .localeCompare(String((tipo==='egr'?a.fecha_egreso:a.fecha_ingreso)||'')));
-    list.innerHTML = items.map(it => tipo === 'egr' ? _rowEgr(it) : _rowIng(it)).join('');
+    // Agrupar por sección de fecha (Hoy / Ayer / Esta semana / Este mes / Mes año)
+    const groups = [];
+    let currentLabel = null;
+    items.forEach(it => {
+      const fecha = tipo==='egr' ? it.fecha_egreso : it.fecha_ingreso;
+      const lbl = fecha ? _sectionLabel(fecha) : 'Sin fecha';
+      if (lbl !== currentLabel) {
+        groups.push({ label: lbl, items: [] });
+        currentLabel = lbl;
+      }
+      groups[groups.length-1].items.push(it);
+    });
+    list.innerHTML = groups.map(g =>
+      `<div class="reg-d-section-hdr">${esc(g.label)} · ${g.items.length}</div>` +
+      g.items.map(it => tipo === 'egr' ? _rowEgr(it) : _rowIng(it)).join('')
+    ).join('');
     _renderAccordChevrons();
   }
 
@@ -3260,7 +3354,7 @@ const REGD = (() => {
   function invalidate() { _loaded = false; }
 
   return {
-    onEnter, refresh, setEstado, setAlcance, setPeriodo, setTipo, toggleAccord,
+    onEnter, refresh, setEstado, setAlcance, setPeriodo, setSearch, clearFilters, fabToggle, fabClose, setTipo, toggleAccord,
     borrar, editarIngreso, verFactura, updateIngresoLocal, invalidate,
     _wClick,
   };
