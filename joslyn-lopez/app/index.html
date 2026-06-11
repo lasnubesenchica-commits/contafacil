@@ -523,19 +523,59 @@ select.f-inp { appearance:none; }
 .pl-tbtn { flex:1; padding:.4rem; border-radius:6px; font-size:.75rem; font-weight:600; color:var(--muted); transition:all .15s; text-align:center; }
 .pl-tbtn.active { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.1); }
 
-.pl-mode-sel {
-  font-size: .72rem;
-  font-weight: 600;
-  padding: .28rem .42rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
+.pl-mode-pickerbtn {
+  font-size: .8rem;
+  font-weight: 700;
+  padding: .45rem .65rem;
+  border: 2px solid #E65100;
+  border-radius: 10px;
+  background-color: #FFFFFF;
+  color: #E65100;
   cursor: pointer;
   outline: none;
-  max-width: 9rem;
+  min-width: 4.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  box-shadow: 0 2px 6px rgba(230, 81, 0, .2);
+  -webkit-tap-highlight-color: transparent;
 }
-.pl-mode-sel:focus { border-color: var(--orange); }
+.pl-mode-pickerbtn:active { transform: scale(.97); background: #FFF3E0; }
+.pl-mode-pickerbtn .pl-arrow {
+  font-size: .65rem; transition: transform .15s; color: #E65100;
+}
+.pl-mode-pickerbtn.open .pl-arrow { transform: rotate(180deg); }
+
+.pl-mode-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  z-index: 100; display: none; align-items: flex-end;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.pl-mode-overlay.show { display: flex; }
+.pl-mode-sheet {
+  width: 100%; background: #FFFFFF; border-radius: 18px 18px 0 0;
+  padding: .8rem .5rem 1.5rem; box-shadow: 0 -4px 20px rgba(0,0,0,.2);
+  animation: pl-sheet-up .2s ease-out;
+}
+@keyframes pl-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.pl-mode-sheet-title {
+  text-align: center; font-size: .72rem; font-weight: 600; color: var(--muted);
+  letter-spacing: .08em; text-transform: uppercase; padding: .35rem 0 .65rem;
+}
+.pl-mode-opt {
+  display: block; width: 100%; padding: .9rem .8rem;
+  border: none; background: transparent; text-align: left;
+  font-size: 1rem; color: var(--text); border-radius: 10px;
+  font-family: inherit; font-weight: 500;
+}
+.pl-mode-opt.active { background: #FFF3E0; color: #E65100; font-weight: 700; }
+.pl-mode-opt:active { background: #FFE0B2; }
+.pl-mode-cancel {
+  display: block; width: 100%; padding: .85rem; margin-top: .5rem;
+  border: none; background: var(--bg2); color: var(--muted);
+  font-size: .95rem; font-weight: 600; border-radius: 10px;
+  font-family: inherit;
+}
 .pl-mode-toggle { display:flex; background:var(--bg2); border-radius:20px; padding:2px; gap:2px; }
 .pl-mode-btn {
   padding:.26rem .72rem; border-radius:20px;
@@ -633,6 +673,109 @@ select.f-inp { appearance:none; }
 .reg-d-row-actions .ic-btn.edit{ color:#1565C0;border-color:#BBDEFB; }
 .reg-d-row-actions .ic-btn.del{  color:#B71C1C;border-color:#FFCDD2; }
 .reg-d-empty{ padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.75rem; }
+/* ═══════════════════════════════════════════════════════════
+   REGD vista detallada — refactor UX 2026-06
+   Chips, FAB, secciones por fecha, search, empty state
+   ═══════════════════════════════════════════════════════════ */
+.reg-d-chips::-webkit-scrollbar { display: none; }
+.reg-d-chip {
+  flex-shrink: 0;
+  font-size: .72rem; font-weight: 600;
+  padding: .42rem .68rem; border: 1px solid var(--border);
+  border-radius: 100px; background: var(--surface); color: var(--text);
+  outline: none; font-family: inherit; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  padding-right: 1.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236C6C70' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .55rem center;
+  background-size: 8px;
+}
+#reg-d-search::placeholder { color: var(--muted); }
+#reg-d-search:focus { border-color: var(--orange); }
+.reg-d-section-hdr {
+  position: sticky; top: 0; z-index: 5;
+  padding: .42rem .9rem .35rem;
+  font-size: .65rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+  background: var(--bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  margin: .5rem 0 .15rem;
+}
+.reg-d-empty-rich {
+  padding: 2.5rem 1.2rem 1.5rem; text-align: center;
+}
+.reg-d-empty-rich .icon { font-size: 2.5rem; margin-bottom: .55rem; }
+.reg-d-empty-rich .title {
+  font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: .3rem;
+}
+.reg-d-empty-rich .sub {
+  font-size: .78rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.45;
+}
+.reg-d-empty-rich .cta {
+  display: inline-block; padding: .55rem 1rem; border-radius: 100px;
+  background: var(--orange); color: #fff; font-weight: 600; font-size: .78rem;
+  border: none; cursor: pointer; font-family: inherit;
+}
+.reg-d-empty-rich .cta.ghost {
+  background: transparent; color: var(--orange); border: 1px solid var(--orange);
+  margin-right: .35rem;
+}
+
+/* FAB ─── Floating Action Button + sheet */
+.reg-fab {
+  position: fixed; right: 1rem; bottom: calc(env(safe-area-inset-bottom, 0) + 5.5rem);
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--orange); color: #fff; font-size: 1.8rem; font-weight: 300;
+  border: none; cursor: pointer; z-index: 50;
+  box-shadow: 0 4px 16px rgba(230, 81, 0, .45), 0 1px 3px rgba(0,0,0,.2);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .15s, background .15s;
+}
+.reg-fab:active { transform: scale(.92); background: var(--orange2); }
+.reg-fab.open { transform: rotate(45deg); background: #757575; }
+
+.reg-fab-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  z-index: 49; opacity: 0; pointer-events: none;
+  transition: opacity .2s; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.reg-fab-backdrop.show { opacity: 1; pointer-events: auto; }
+
+.reg-fab-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 51;
+  background: var(--surface); border-radius: 18px 18px 0 0;
+  padding: 1rem .9rem calc(env(safe-area-inset-bottom, 0) + 1rem);
+  transform: translateY(100%); transition: transform .25s ease-out;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.2);
+}
+.reg-fab-sheet.show { transform: translateY(0); }
+.reg-fab-opt {
+  display: flex; align-items: center; gap: .8rem; width: 100%;
+  padding: .9rem .85rem; margin-bottom: .45rem;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.reg-fab-opt:active { background: var(--bg2); }
+.reg-fab-icon { font-size: 1.6rem; }
+
+.reg-d-search-wrap { position: relative; padding: .35rem .85rem .15rem; }
+.reg-d-search-icon { position: absolute; left: 1.55rem; top: 50%; transform: translateY(-30%); color: var(--muted); font-size: .9rem; pointer-events: none; }
+.reg-d-search-input {
+  width: 100%; padding: .55rem .8rem .55rem 2.1rem;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 10px; font-size: .85rem; font-family: inherit; outline: none;
+  -webkit-appearance: none;
+}
+.reg-d-search-input::placeholder { color: var(--muted); }
+.reg-d-search-input:focus { border-color: var(--orange); }
+
+.reg-fab-cancel {
+  width: 100%; padding: .85rem; margin-top: .25rem;
+  background: var(--bg2); color: var(--muted); border: none; border-radius: 12px;
+  font-weight: 600; font-size: .9rem; cursor: pointer; font-family: inherit;
+}
+
 .reg-d-badge-est{ font-size:.6rem;font-weight:700;padding:.06rem .35rem;border-radius:4px; }
 .reg-d-badge-est.pend{ background:#FFF9C4;color:#795548; }
 .reg-d-badge-est.reg{  background:#E8F5E9;color:#1B5E20; }
@@ -1008,7 +1151,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
     <div id="resetStep1" style="display:none;margin-top:.4rem">
       <div style="font-size:.95rem;font-weight:600;color:#fff;text-align:center;margin:.5rem 0">Restablecer contraseña</div>
       <div style="font-size:.78rem;color:var(--muted);margin:.4rem 0 .8rem;line-height:1.5;text-align:center;padding:0 1rem">Ingresá tu WhatsApp registrado. Te mandamos un código.</div>
-      <input type="tel" id="resetPhone" placeholder="50769812266" autocomplete="tel"
+      <input type="tel" id="resetPhone" placeholder="507XXXXXXXX" autocomplete="tel"
         style="width:calc(100% - 2rem);max-width:300px;margin:0 1rem .5rem;padding:.7rem .9rem;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;font-size:.95rem;font-family:inherit;text-align:center;outline:none" onkeydown="if(event.key==='Enter')resetSolicitarCodigo()">
       <button class="login-btn" id="resetStep1Btn" onclick="resetSolicitarCodigo()">Enviar código</button>
       <div id="resetStep1Err" style="display:none;color:#FFAB91;font-size:.8rem;margin-top:.6rem;text-align:center;padding:0 1rem"></div>
@@ -1075,13 +1218,19 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
             <button class="period-btn" onclick="PL.prev()">‹</button>
             <button class="period-btn" onclick="PL.next()">›</button>
           </div>
-          <select class="pl-mode-sel" id="pl-mode-sel" onchange="PL.setMode(this.value)">
-            <option value="mes">Mes</option>
-            <option value="ytd" selected>YTD</option>
-            <option value="3m">Últimos 3 meses</option>
-            <option value="6m">Últimos 6 meses</option>
-            <option value="last_year">Año anterior</option>
-          </select>
+          <button id="pl-mode-pickerbtn" onclick="document.getElementById('pl-mode-overlay').classList.add('show')" style="display:inline-flex !important;visibility:visible !important;opacity:1 !important;position:relative !important;font-size:.85rem;font-weight:700;padding:.5rem .8rem;border:2px solid #E65100 !important;border-radius:10px;background:#FFFFFF !important;color:#E65100 !important;cursor:pointer;outline:none;min-width:5rem;height:auto;align-items:center;gap:.4rem;box-shadow:0 2px 8px rgba(230,81,0,.25);font-family:inherit;-webkit-tap-highlight-color:transparent">📅 <span id="pl-mode-label">YTD</span> ▼</button>
+          <!-- Overlay del picker (oculto por default) -->
+          <div class="pl-mode-overlay" id="pl-mode-overlay" onclick="if(event.target===this){this.classList.remove('show');document.getElementById('pl-mode-pickerbtn').classList.remove('open')}">
+            <div class="pl-mode-sheet">
+              <div class="pl-mode-sheet-title">Período</div>
+              <button class="pl-mode-opt" onclick="PL.setMode('mes')">Mes</button>
+              <button class="pl-mode-opt" onclick="PL.setMode('ytd')">YTD</button>
+              <button class="pl-mode-opt" onclick="PL.setMode('3m')">Últimos 3 meses</button>
+              <button class="pl-mode-opt" onclick="PL.setMode('6m')">Últimos 6 meses</button>
+              <button class="pl-mode-opt" onclick="PL.setMode('last_year')">Año anterior</button>
+              <button class="pl-mode-cancel" onclick="document.getElementById('pl-mode-overlay').classList.remove('show');document.getElementById('pl-mode-pickerbtn').classList.remove('open')">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="pl-widgets">
@@ -1152,129 +1301,93 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
 
     <!-- REGISTROS -->
     <div id="viewRegistros" style="display:none">
-      <div style="padding:.85rem .85rem .38rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem">
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:.18rem" id="reg-subtitle">Ingresos y gastos · desde cámara o galería</div>
-        </div>
-        <div class="reg-view-toggle" style="display:flex;background:var(--bg2);border-radius:100px;padding:2px;flex-shrink:0">
-          <button class="reg-view-btn active" id="reg-view-simple" onclick="REGVIEW.set('simple')">Simple</button>
-          <button class="reg-view-btn"        id="reg-view-detalle" onclick="REGVIEW.set('detalle')">Detallada</button>
-        </div>
+      <div style="padding:.7rem .85rem .35rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.06em;color:var(--text)">Registro general</div>
+        <button onclick="REGD.refresh(this)" class="reg-d-refresh" id="reg-d-refresh" title="Actualizar" style="margin:0">↻</button>
       </div>
 
-      <!-- ═══════════ VISTA SIMPLE (default) ═══════════ -->
-      <div id="reg-simple-body">
-      <!-- Botones de registro (arriba) -->
-      <div style="padding:.38rem .85rem .2rem">
-        <button class="reg-btn reg-btn-egr" onclick="REG.openEgreso()">
-          <div class="reg-btn-icon">📤</div>
-          <div class="reg-btn-body">
-            <div class="reg-btn-title">Registrar gasto</div>
-            <div class="reg-btn-sub">Combustible, insumos, servicios, facturas de proveedores…</div>
-          </div>
-          <div class="reg-btn-chev">›</div>
-        </button>
-      </div>
-      <div style="padding:.2rem .85rem .15rem">
-        <button class="reg-btn reg-btn-ing" onclick="REG.openIngreso()">
-          <div class="reg-btn-icon">💰</div>
-          <div class="reg-btn-body">
-            <div class="reg-btn-title">Registrar ingreso</div>
-            <div class="reg-btn-sub">Pagos de clientes, transferencias, vouchers Yappy…</div>
-          </div>
-          <div class="reg-btn-chev">›</div>
-        </button>
-      </div>
-
-      <!-- Tip IA -->
-      <div style="margin:.15rem .85rem .5rem;background:var(--indigo-bg);border-radius:var(--r);padding:.62rem .8rem;display:flex;gap:.55rem;align-items:flex-start">
-        <span style="font-size:1rem;flex-shrink:0">✨</span>
-        <div style="font-size:.72rem;color:var(--indigo);line-height:1.5">
-          <strong>Lector IA:</strong> adjunta una foto de la factura o voucher y los campos se llenan automáticamente. Revisa y confirma.
-        </div>
-      </div>
-
-      <!-- PENDIENTES POR WHATSAPP ───────────────── -->
-      <div id="pendWhatsAppSection" style="display:none">
-        <div class="pend-section-hdr">
-          <div class="pend-section-title">
-            📲 Recibidos por WhatsApp
-            <span class="pend-count" id="pendCountWa">0</span>
-          </div>
-        </div>
-        <div class="card-list" id="pend-list-wa" style="padding-top:0"></div>
-      </div>
-      <!-- PENDIENTES POR EMAIL ─────────────────── -->
-      <div id="pendEmailSection">
-        <div class="pend-section-hdr">
-          <div class="pend-section-title">
-            📧 Recibidos por email
-            <span class="pend-count" id="pendCount">…</span>
-          </div>
-          <button class="btn-sync-egr" id="btnSyncEgr" onclick="PEND.sync()">
-            ⟳ Sincronizar
-          </button>
-        </div>
-        <div class="card-list" id="pend-list" style="padding-top:0"></div>
-      </div>
-      <!-- ───────────────────────────────────── -->
-      </div><!-- /reg-simple-body -->
-
-      <!-- ═══════════ VISTA DETALLADA ═══════════ -->
-      <div id="reg-detalle-body" style="display:none">
-        <!-- Quick action buttons (compactos) -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.38rem .85rem .25rem">
-          <button class="reg-mini-btn reg-mini-btn-egr" onclick="REG.openEgreso()">📤 Registrar gasto</button>
-          <button class="reg-mini-btn reg-mini-btn-ing" onclick="REG.openIngreso()">💰 Registrar ingreso</button>
-        </div>
-
-        <!-- Mini-widgets -->
-        <div class="reg-d-widgets" id="reg-d-widgets"></div>
-
-        <!-- Filtros -->
-        <div style="padding:.25rem .85rem .35rem;display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
-          <select id="reg-d-estado" class="reg-d-sel" onchange="REGD.setEstado(this.value)">
-            <option value="all">Estado: Todos</option>
-            <option value="pendiente">⏳ Pendientes</option>
-            <option value="registrado">✅ Aprobados</option>
-          </select>
-          <select id="reg-d-alcance" class="reg-d-sel" onchange="REGD.setAlcance(this.value)">
-            <option value="all">Tipo: Todos</option>
-            <option value="negocio">✅ Deducible</option>
-            <option value="personal">🚫 No Deducible</option>
-          </select>
-        </div>
-
-        <!-- Toggle Egresos | Ingresos -->
+<!-- Vista detallada (única, ya no hay toggle) -->
+      <div id="reg-detalle-body">
+        <!-- 1. Toggle Egresos | Ingresos (contexto primero) -->
         <div class="reg-d-tabs">
           <button class="reg-d-tab active" id="reg-d-tab-egr" onclick="REGD.setTipo('egr')">Gastos <span id="reg-d-tab-egr-n"></span></button>
           <button class="reg-d-tab"        id="reg-d-tab-ing" onclick="REGD.setTipo('ing')">Ingresos <span id="reg-d-tab-ing-n"></span></button>
         </div>
 
-        <!-- Top categorías / proveedores (accordion compacto) -->
+        <!-- 2. Mini-widgets (KPIs del tipo activo) -->
+        <div class="reg-d-widgets" id="reg-d-widgets"></div>
+
+        <!-- 3. Top categorías -->
         <div class="reg-d-accord" id="reg-d-accord-cats" onclick="REGD.toggleAccord('cats')">
           <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span>Top categorías</span>
           <span class="reg-d-accord-val" id="reg-d-cats-summary">—</span>
         </div>
         <div class="reg-d-accord-detail" id="reg-d-cats-detail"></div>
 
+        <!-- 4. Top proveedores -->
         <div class="reg-d-accord" id="reg-d-accord-provs" onclick="REGD.toggleAccord('provs')">
           <span class="reg-d-accord-lbl"><span class="reg-d-accord-chev">▶</span><span id="reg-d-provs-title">Top proveedores</span></span>
           <span class="reg-d-accord-val" id="reg-d-provs-summary">—</span>
         </div>
         <div class="reg-d-accord-detail" id="reg-d-provs-detail"></div>
 
-        <!-- Lista de registros -->
-        <div style="padding:.55rem .85rem .18rem;display:flex;align-items:center;gap:.4rem;justify-content:space-between">
-          <div style="display:flex;align-items:center;gap:.4rem">
-            <span class="sec-lbl" style="padding:0">Registros</span>
-            <span class="sec-cnt" id="reg-d-list-n">0</span>
-          </div>
-          <button onclick="REGD.refresh(this)" class="reg-d-refresh" id="reg-d-refresh" title="Actualizar">↻</button>
+        <!-- 5. Buscador (sticky para que quede accesible al scrollear) -->
+        <div class="reg-d-search-wrap">
+          <span class="reg-d-search-icon">🔍</span>
+          <input type="search" id="reg-d-search" placeholder="Buscar proveedor, monto, categoría..."
+            oninput="REGD.setSearch(this.value)" class="reg-d-search-input">
+        </div>
+
+        <!-- 6. Filtros como chips (sticky junto al buscador) -->
+        <div class="reg-d-chips" style="display:flex;gap:.4rem;padding:.15rem .85rem .45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+          <select id="reg-d-periodo" class="reg-d-chip" onchange="REGD.setPeriodo(this.value)">
+            <option value="ytd" selected>📅 YTD</option>
+            <option value="mes">📅 Este mes</option>
+            <option value="3m">📅 Últimos 3 meses</option>
+            <option value="6m">📅 Últimos 6 meses</option>
+            <option value="last_year">📅 Año anterior</option>
+            <option value="all">📅 Todas</option>
+          </select>
+          <select id="reg-d-estado" class="reg-d-chip" onchange="REGD.setEstado(this.value)">
+            <option value="all">Estado: Todos</option>
+            <option value="pendiente">⏳ Pendientes</option>
+            <option value="registrado">✅ Aprobados</option>
+          </select>
+          <select id="reg-d-alcance" class="reg-d-chip" onchange="REGD.setAlcance(this.value)">
+            <option value="all">Tipo: Todos</option>
+            <option value="negocio">✅ Deducible</option>
+            <option value="personal">🚫 No Deducible</option>
+          </select>
+        </div>
+
+        <!-- 7. Lista de entries agrupada por fecha -->
+        <div style="padding:.35rem .85rem .18rem;display:flex;align-items:center;gap:.4rem">
+          <span class="sec-lbl" style="padding:0">Registros</span>
+          <span class="sec-cnt" id="reg-d-list-n">0</span>
         </div>
         <div id="reg-d-list" class="tx-list"></div>
       </div><!-- /reg-detalle-body -->
+
+      <!-- FAB: agregar registro -->
+      <button class="reg-fab" id="reg-fab" onclick="REGD.fabToggle()" aria-label="Agregar registro">+</button>
+      <div class="reg-fab-sheet" id="reg-fab-sheet">
+        <button class="reg-fab-opt egr" onclick="REGD.fabClose();REG.openEgreso()">
+          <span class="reg-fab-icon">📤</span>
+          <div style="text-align:left">
+            <div style="font-weight:700;font-size:.95rem">Registrar gasto</div>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:500">Foto, PDF o manual</div>
+          </div>
+        </button>
+        <button class="reg-fab-opt ing" onclick="REGD.fabClose();REG.openIngreso()">
+          <span class="reg-fab-icon">💰</span>
+          <div style="text-align:left">
+            <div style="font-weight:700;font-size:.95rem">Registrar ingreso</div>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:500">Factura emitida</div>
+          </div>
+        </button>
+        <button class="reg-fab-cancel" onclick="REGD.fabClose()">Cancelar</button>
+      </div>
+      <div class="reg-fab-backdrop" id="reg-fab-backdrop" onclick="REGD.fabClose()"></div>
 
     </div><!-- /viewRegistros -->
 
@@ -1292,13 +1405,19 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
             <button class="period-btn" onclick="GAS.prev()">‹</button>
             <button class="period-btn" onclick="GAS.next()">›</button>
           </div>
-          <select class="pl-mode-sel" id="gas-mode-sel" onchange="GAS.setMode(this.value)">
-            <option value="mes">Mes</option>
-            <option value="ytd" selected>YTD</option>
-            <option value="3m">Últimos 3 meses</option>
-            <option value="6m">Últimos 6 meses</option>
-            <option value="last_year">Año anterior</option>
-          </select>
+          <button id="gas-mode-pickerbtn" onclick="document.getElementById('gas-mode-overlay').classList.add('show')" style="display:inline-flex !important;visibility:visible !important;opacity:1 !important;position:relative !important;font-size:.85rem;font-weight:700;padding:.5rem .8rem;border:2px solid #E65100 !important;border-radius:10px;background:#FFFFFF !important;color:#E65100 !important;cursor:pointer;outline:none;min-width:5rem;height:auto;align-items:center;gap:.4rem;box-shadow:0 2px 8px rgba(230,81,0,.25);font-family:inherit;-webkit-tap-highlight-color:transparent">📅 <span id="gas-mode-label">YTD</span> ▼</button>
+          <!-- Overlay del picker (oculto por default) -->
+          <div class="pl-mode-overlay" id="gas-mode-overlay" onclick="if(event.target===this){this.classList.remove('show');document.getElementById('gas-mode-pickerbtn').classList.remove('open')}">
+            <div class="pl-mode-sheet">
+              <div class="pl-mode-sheet-title">Período</div>
+              <button class="pl-mode-opt" onclick="GAS.setMode('mes')">Mes</button>
+              <button class="pl-mode-opt" onclick="GAS.setMode('ytd')">YTD</button>
+              <button class="pl-mode-opt" onclick="GAS.setMode('3m')">Últimos 3 meses</button>
+              <button class="pl-mode-opt" onclick="GAS.setMode('6m')">Últimos 6 meses</button>
+              <button class="pl-mode-opt" onclick="GAS.setMode('last_year')">Año anterior</button>
+              <button class="pl-mode-cancel" onclick="document.getElementById('gas-mode-overlay').classList.remove('show');document.getElementById('gas-mode-pickerbtn').classList.remove('open')">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1607,7 +1726,7 @@ function _enterApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   switchView('registros');
-  if (typeof REGVIEW !== 'undefined') REGVIEW.init();
+  if (typeof REGD !== 'undefined') REGD.onEnter();
   loadAll();
 }
 
@@ -1880,7 +1999,7 @@ function switchView(v) {
   if (v === 'pl' && !PL.loaded) PL.load();
   if (v === 'registros') {
     if (!PEND.loaded) PEND.load();
-    if (typeof REGVIEW !== 'undefined') REGVIEW.init();
+    if (typeof REGD !== 'undefined') REGD.onEnter();
   }
   if (v === 'gastos') GAS.onEnter();
 }
@@ -2098,11 +2217,21 @@ const PL = (() => {
   // ── Modo MES ↔ YTD ───────────────────────────────────────────
   function setMode(m) {
     viewMode = m;
-    const sel = document.getElementById('pl-mode-sel');
-    if (sel) sel.value = m;
+    const labels = {mes:'Mes', ytd:'YTD', '3m':'3 meses', '6m':'6 meses', last_year:'Año ant.'};
+    const lbl = document.getElementById('pl-mode-label');
+    if (lbl) lbl.textContent = labels[m] || m;
+    // Cerrar overlay si estaba abierto
+    const ovr = document.getElementById('pl-mode-overlay');
+    if (ovr) ovr.classList.remove('show');
+    const btn = document.getElementById('pl-mode-pickerbtn');
+    if (btn) btn.classList.remove('open');
     document.getElementById('pl-period-nav').style.display = m==='mes' ? 'flex' : 'none';
-    // Badge muestra YTD label cuando aplica; ocultamos para modos custom
     document.getElementById('pl-ytd-badge').classList.toggle('show', m==='ytd');
+    // Actualizar opciones activas
+    document.querySelectorAll('#pl-mode-overlay .pl-mode-opt').forEach((opt, idx) => {
+      const keys = ['mes','ytd','3m','6m','last_year'];
+      opt.classList.toggle('active', keys[idx] === m);
+    });
     renderAll();
   }
 
@@ -2682,10 +2811,19 @@ const GAS = (() => {
 
   function setMode(m) {
     _mode = m;
-    const sel = document.getElementById('gas-mode-sel');
-    if (sel) sel.value = m;
+    const labels = {mes:'Mes', ytd:'YTD', '3m':'3 meses', '6m':'6 meses', last_year:'Año ant.'};
+    const lbl = document.getElementById('gas-mode-label');
+    if (lbl) lbl.textContent = labels[m] || m;
+    const ovr = document.getElementById('gas-mode-overlay');
+    if (ovr) ovr.classList.remove('show');
+    const btn = document.getElementById('gas-mode-pickerbtn');
+    if (btn) btn.classList.remove('open');
     document.getElementById('gas-period-nav').style.display = m === 'mes' ? 'flex' : 'none';
     document.getElementById('gas-ytd-badge').classList.toggle('show', m === 'ytd');
+    document.querySelectorAll('#gas-mode-overlay .pl-mode-opt').forEach((opt, idx) => {
+      const keys = ['mes','ytd','3m','6m','last_year'];
+      opt.classList.toggle('active', keys[idx] === m);
+    });
     _render();
   }
 
@@ -2735,36 +2873,6 @@ const GAS = (() => {
 
 
 // ════════════════════════════════════════════════════════
-//  MÓDULO REGVIEW — Toggle Simple|Detallada en Registros
-// ════════════════════════════════════════════════════════
-const REGVIEW = (() => {
-  const KEY = 'iris_reg_view';
-  let mode = (function(){ try { return localStorage.getItem(KEY) || 'simple'; } catch(_){ return 'simple'; } })();
-
-  function _apply() {
-    const isDet = mode === 'detalle';
-    document.getElementById('reg-simple-body').style.display  = isDet ? 'none' : '';
-    document.getElementById('reg-detalle-body').style.display = isDet ? '' : 'none';
-    document.getElementById('reg-view-simple').classList.toggle('active', !isDet);
-    document.getElementById('reg-view-detalle').classList.toggle('active', isDet);
-    const sub = document.getElementById('reg-subtitle');
-    if (sub) sub.textContent = isDet
-      ? 'Vista detallada · todos los registros'
-      : 'Ingresos y gastos · desde cámara o galería';
-    if (isDet && typeof REGD !== 'undefined') REGD.onEnter();
-  }
-  function set(v) {
-    mode = v;
-    try { localStorage.setItem(KEY, v); } catch(_){}
-    _apply();
-  }
-  function get() { return mode; }
-  function init() { _apply(); }
-  return { set, get, init };
-})();
-
-
-// ════════════════════════════════════════════════════════
 //  MÓDULO REGD — Vista Detallada de Registros
 //  Carga getEgresos + getIngresos, renderiza widgets, filtros,
 //  toggle tabs, accordeones de top cats/provs, lista con acciones.
@@ -2775,6 +2883,38 @@ const REGD = (() => {
   let tipo    = 'egr';     // 'egr' | 'ing'
   let estado  = 'all';     // 'all' | 'pendiente' | 'registrado'  (egr only — ingresos no usan esto)
   let alcance = 'all';     // 'all' | 'negocio' | 'personal'      (egr only)
+  let periodo = 'ytd';     // 'ytd' | 'mes' | '3m' | '6m' | 'last_year' | 'all'  ← YTD por default
+  let q = '';              // texto de búsqueda (proveedor, descripción, monto, categoría)
+
+  // Calcula {desde, hasta} para el modo de período activo.
+  function _regdPeriodoRange() {
+    if (periodo === 'all') return null;
+    const hoy = new Date(); hoy.setHours(23,59,59,999);
+    let desde = null, hasta = hoy;
+    if (periodo === 'ytd') {
+      desde = new Date(hoy.getFullYear(), 0, 1); desde.setHours(0,0,0,0);
+    } else if (periodo === 'mes') {
+      desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1); desde.setHours(0,0,0,0);
+    } else if (periodo === '3m') {
+      desde = new Date(hoy); desde.setMonth(desde.getMonth() - 3); desde.setHours(0,0,0,0);
+    } else if (periodo === '6m') {
+      desde = new Date(hoy); desde.setMonth(desde.getMonth() - 6); desde.setHours(0,0,0,0);
+    } else if (periodo === 'last_year') {
+      const y = hoy.getFullYear() - 1;
+      desde = new Date(y, 0, 1); desde.setHours(0,0,0,0);
+      hasta = new Date(y, 11, 31); hasta.setHours(23,59,59,999);
+    }
+    return desde ? { desde, hasta } : null;
+  }
+
+  function _inPeriodo(item, dateField) {
+    const r = _regdPeriodoRange();
+    if (!r) return true;
+    const f = item[dateField];
+    if (!f) return false;
+    const d = new Date(String(f).substring(0,10) + 'T12:00:00');
+    return d >= r.desde && d <= r.hasta;
+  }
   let _accordOpen = { cats: false, provs: false };
 
   // ── Categorías DGI label ────────────────────────────────────
@@ -2849,15 +2989,29 @@ const REGD = (() => {
   }
 
   // ── Filtros aplicados al set egr ────────────────────────────
+  function _matchSearch(it, isEgr) {
+    if (!q) return true;
+    const qq = q.toLowerCase().trim();
+    if (!qq) return true;
+    const fields = isEgr
+      ? [it.proveedor, it.descripcion, it.tipo_egreso, it.categoria, it.num_factura, it.notas, String(it.total||'')]
+      : [it.nombre_cliente, it.descripcion, it.categoria_ingreso, it.tipo_ingreso, it.num_factura, it.notas, String(it.total||'')];
+    return fields.some(f => f && String(f).toLowerCase().includes(qq));
+  }
   function _filteredEgr() {
     let out = egr.slice();
     if (estado === 'pendiente')  out = out.filter(e => String(e.estado||'').toLowerCase() === 'pendiente');
     if (estado === 'registrado') out = out.filter(e => String(e.estado||'').toLowerCase() === 'registrado');
     if (alcance !== 'all')       out = out.filter(e => (e.alcance || 'negocio') === alcance);
+    out = out.filter(e => _inPeriodo(e, 'fecha_egreso'));
+    out = out.filter(e => _matchSearch(e, true));
     return out;
   }
   function _filteredIng() {
-    return ing.slice();   // ingresos no tienen estado/alcance editable en este flujo
+    let out = ing.slice();
+    out = out.filter(i => _inPeriodo(i, 'fecha_ingreso'));
+    out = out.filter(i => _matchSearch(i, false));
+    return out;
   }
 
   // ── Setters de filtros (con toggle por click repetido) ─────
@@ -2872,6 +3026,38 @@ const REGD = (() => {
     alcance = (alcance === want && want !== 'all') ? 'all' : want;
     const sel = document.getElementById('reg-d-alcance'); if (sel) sel.value = alcance;
     renderAll();
+  }
+  function setPeriodo(v) {
+    periodo = v || 'ytd';
+    const sel = document.getElementById('reg-d-periodo'); if (sel) sel.value = periodo;
+    renderAll();
+  }
+  function setSearch(v) {
+    q = String(v || '');
+    renderAll();
+  }
+  function clearFilters() {
+    q = ''; periodo = 'ytd'; estado = 'all'; alcance = 'all';
+    const s = document.getElementById('reg-d-search'); if (s) s.value = '';
+    const p = document.getElementById('reg-d-periodo'); if (p) p.value = 'ytd';
+    const e = document.getElementById('reg-d-estado'); if (e) e.value = 'all';
+    const a = document.getElementById('reg-d-alcance'); if (a) a.value = 'all';
+    renderAll();
+  }
+
+  // ── FAB (Floating Action Button) ──────────────────────────────
+  let _fabOpen = false;
+  function fabToggle() {
+    _fabOpen = !_fabOpen;
+    document.getElementById('reg-fab').classList.toggle('open', _fabOpen);
+    document.getElementById('reg-fab-sheet').classList.toggle('show', _fabOpen);
+    document.getElementById('reg-fab-backdrop').classList.toggle('show', _fabOpen);
+  }
+  function fabClose() {
+    _fabOpen = false;
+    document.getElementById('reg-fab').classList.remove('open');
+    document.getElementById('reg-fab-sheet').classList.remove('show');
+    document.getElementById('reg-fab-backdrop').classList.remove('show');
   }
   function setTipo(v) {
     tipo = v;
@@ -3005,17 +3191,71 @@ const REGD = (() => {
     });
   }
 
+  function _sectionLabel(date) {
+    // Comparación date-only usando Date.UTC para evitar problemas de
+    // timezone/DST. iOS Safari parsea 'YYYY-MM-DDTHH:MM:SS' inconsistente
+    // así que parseamos manualmente los componentes.
+    const dStr  = String(date).substring(0, 10);
+    const parts = dStr.split('-');
+    if (parts.length !== 3) return 'Sin fecha';
+    const dY = parseInt(parts[0], 10);
+    const dM = parseInt(parts[1], 10) - 1;
+    const dD = parseInt(parts[2], 10);
+    const now    = new Date();
+    const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const dUTC     = Date.UTC(dY, dM, dD);
+    const diffDays = Math.round((todayUTC - dUTC) / 86400000);
+    if (diffDays < 0)                          return 'Próximamente';
+    if (diffDays === 0)                        return 'Hoy';
+    if (diffDays === 1)                        return 'Ayer';
+    if (diffDays >= 2 && diffDays <= 6)        return 'Esta semana';
+    if (dY === now.getFullYear() && dM === now.getMonth()) return 'Este mes';
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    if (dY === now.getFullYear()) return meses[dM];
+    return meses[dM] + ' ' + dY;
+  }
+
   function _renderList(items) {
     document.getElementById('reg-d-list-n').textContent = items.length;
     const list = document.getElementById('reg-d-list');
     if (!items.length) {
-      list.innerHTML = '<div class="reg-d-empty">Sin registros</div>';
+      const tieneFiltros = q || periodo !== 'ytd' || estado !== 'all' || alcance !== 'all';
+      const tipoTxt = tipo === 'egr' ? 'gastos' : 'ingresos';
+      list.innerHTML = tieneFiltros
+        ? `<div class="reg-d-empty-rich">
+            <div class="icon">🔍</div>
+            <div class="title">Sin resultados</div>
+            <div class="sub">No encontramos ${tipoTxt} con los filtros actuales.<br>Probá limpiar la búsqueda o cambiar el período.</div>
+            <button class="cta ghost" onclick="REGD.clearFilters()">Limpiar filtros</button>
+            <button class="cta" onclick="REGD.fabToggle()">+ Registrar</button>
+          </div>`
+        : `<div class="reg-d-empty-rich">
+            <div class="icon">${tipo==='egr'?'📤':'💰'}</div>
+            <div class="title">Sin ${tipoTxt} todavía</div>
+            <div class="sub">${tipo==='egr'?'Mandá una factura por WhatsApp o tocá el botón abajo para agregar.':'Registrá tu primer ingreso desde acá.'}</div>
+            <button class="cta" onclick="REGD.fabToggle()">+ Registrar ${tipo==='egr'?'gasto':'ingreso'}</button>
+          </div>`;
       _renderAccordChevrons();
       return;
     }
     items.sort((a,b) => String((tipo==='egr'?b.fecha_egreso:b.fecha_ingreso)||'')
                           .localeCompare(String((tipo==='egr'?a.fecha_egreso:a.fecha_ingreso)||'')));
-    list.innerHTML = items.map(it => tipo === 'egr' ? _rowEgr(it) : _rowIng(it)).join('');
+    // Agrupar por sección de fecha (Hoy / Ayer / Esta semana / Este mes / Mes año)
+    const groups = [];
+    let currentLabel = null;
+    items.forEach(it => {
+      const fecha = tipo==='egr' ? it.fecha_egreso : it.fecha_ingreso;
+      const lbl = fecha ? _sectionLabel(fecha) : 'Sin fecha';
+      if (lbl !== currentLabel) {
+        groups.push({ label: lbl, items: [] });
+        currentLabel = lbl;
+      }
+      groups[groups.length-1].items.push(it);
+    });
+    list.innerHTML = groups.map(g =>
+      `<div class="reg-d-section-hdr">${esc(g.label)} · ${g.items.length}</div>` +
+      g.items.map(it => tipo === 'egr' ? _rowEgr(it) : _rowIng(it)).join('')
+    ).join('');
     _renderAccordChevrons();
   }
 
@@ -3143,7 +3383,7 @@ const REGD = (() => {
   function invalidate() { _loaded = false; }
 
   return {
-    onEnter, refresh, setEstado, setAlcance, setTipo, toggleAccord,
+    onEnter, refresh, setEstado, setAlcance, setPeriodo, setSearch, clearFilters, fabToggle, fabClose, setTipo, toggleAccord,
     borrar, editarIngreso, verFactura, updateIngresoLocal, invalidate,
     _wClick,
   };
