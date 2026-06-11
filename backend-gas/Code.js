@@ -549,7 +549,6 @@ function doGet(e) {
     if (action === 'sincronizarEmailsST')    return _handleSincronizarEmailsST(params, callback);
     // ── CONFIGURACIÓN OPERACIONES ──────────────────────────────
     if (action === 'getConfig')      return _handleGetConfigPublic(params, callback);
-    if (action === 'healthCheck')    return _handleGetConfigPublic(params, callback);
     if (action === 'anularItemCV')   return _handleAnularItemCV(params, callback);
     if (action === 'eliminarItemCV') return _handleEliminarItemCV(params, callback);
     // ── PROVEEDORES ─────────────────────────────────────────────
