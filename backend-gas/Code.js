@@ -1284,7 +1284,7 @@ function inicializarSistema() {
 }
 
 function _handleInicializarSistema(params, callback) {
-  var result = { success: false, message: '', authResetToken: null };
+  var result = { success: false, message: '', authResetToken: null, warnings: [] };
   try {
     inicializarSistema();
 
@@ -1295,15 +1295,22 @@ function _handleInicializarSistema(params, callback) {
     var props = PropertiesService.getScriptProperties();
     if (params && params.claudeApiKey) {
       props.setProperty('CLAUDE_API_KEY', String(params.claudeApiKey));
+    } else if (!props.getProperty('CLAUDE_API_KEY')) {
+      result.warnings.push('CLAUDE_API_KEY no se recibió ni existe — el OCR de facturas no va a funcionar hasta agregarla manualmente.');
     }
     // META credentials — sin esto la GAS recibe el forward del router
     // pero no puede descargar la factura ni responder al usuario por
-    // WhatsApp Cloud API.
+    // WhatsApp Cloud API. Skipping silently es un bug histórico (ver
+    // caso Glorimar: pidió facturas al bot y el bot no respondió).
     if (params && params.metaWhatsappToken) {
       props.setProperty('META_WHATSAPP_TOKEN', String(params.metaWhatsappToken));
+    } else if (!props.getProperty('META_WHATSAPP_TOKEN')) {
+      result.warnings.push('META_WHATSAPP_TOKEN no se recibió ni existe — el bot va a procesar facturas pero NO va a responderle al cliente por WhatsApp.');
     }
     if (params && params.metaPhoneId) {
       props.setProperty('META_PHONE_ID', String(params.metaPhoneId));
+    } else if (!props.getProperty('META_PHONE_ID')) {
+      result.warnings.push('META_PHONE_ID no se recibió ni existe — el bot no va a poder enviar mensajes por WhatsApp.');
     }
     if (params && params.authResetToken) {
       props.setProperty('AUTH_RESET_TOKEN', String(params.authResetToken));
@@ -1315,7 +1322,9 @@ function _handleInicializarSistema(params, callback) {
     }
 
     result.success = true;
-    result.message = 'Sistema inicializado correctamente.';
+    result.message = result.warnings.length
+      ? 'Sistema inicializado, pero con ' + result.warnings.length + ' warning(s) — revisá Script Properties.'
+      : 'Sistema inicializado correctamente.';
   } catch (e) {
     result.message = 'Error: ' + e.message;
     Logger.log('Error inicializarSistema: ' + e.message);

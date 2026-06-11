@@ -277,10 +277,8 @@ async function loadAll() {
 }
 
 async function loadHealth(client) {
-  const url = webAppUrl(client) + '?action=healthCheck';
   try {
-    const res = await fetch(url);
-    HEALTH[client.id] = await res.json();
+    HEALTH[client.id] = await jsonpGet(webAppUrl(client), { action: 'healthCheck' });
   } catch (e) {
     HEALTH[client.id] = { overall: 'unreachable', error: e.message };
   }
@@ -288,6 +286,35 @@ async function loadHealth(client) {
 
 function webAppUrl(client) {
   return 'https://script.google.com/macros/s/' + client.deploymentId + '/exec';
+}
+
+// ────────────────────────────────────────────────────────────
+//  JSONP helper — evita el CORS block del fetch contra GAS.
+//  GAS no devuelve Access-Control-Allow-Origin para fetch
+//  desde un browser cross-origin, así que el patrón es inyectar
+//  un <script> con callback=…  y el endpoint envuelve el JSON.
+// ────────────────────────────────────────────────────────────
+let _jsonpSeq = 0;
+function jsonpGet(url, params, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_bc_hc_' + (++_jsonpSeq) + '_' + Date.now();
+    const qs = Object.keys(params || {})
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
+      .join('&');
+    const sep  = url.indexOf('?') >= 0 ? '&' : '?';
+    const full = url + sep + (qs ? qs + '&' : '') + 'callback=' + cbName;
+    const s = document.createElement('script');
+    let done = false;
+    const cleanup = () => {
+      delete window[cbName];
+      if (s.parentNode) s.parentNode.removeChild(s);
+    };
+    window[cbName] = (data) => { done = true; cleanup(); resolve(data); };
+    s.onerror = () => { if (done) return; cleanup(); reject(new Error('jsonp network error')); };
+    setTimeout(() => { if (done) return; cleanup(); reject(new Error('jsonp timeout')); }, timeoutMs || 20000);
+    s.src = full;
+    document.head.appendChild(s);
+  });
 }
 
 // ──────────────────────────────────────────────────────────
@@ -449,8 +476,7 @@ async function forceSyncNow(slug, btn) {
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = '⏳ Sync…';
   try {
-    const res = await fetch(webAppUrl(client) + '?action=runSyncNow');
-    const data = await res.json();
+    const data = await jsonpGet(webAppUrl(client), { action: 'runSyncNow' }, 60000);
     if (data.success) {
       toast('✅ Sync ejecutado en ' + (data.durationMs/1000).toFixed(1) + 's — refrescá el dashboard del cliente para ver los nuevos pendientes', 'success');
     } else {
@@ -480,8 +506,7 @@ async function viewConfig(slug) {
   body.innerHTML = '⏳ Cargando…';
   openModal('modalConfig');
   try {
-    const res = await fetch(webAppUrl(client) + '?action=getConfigSummary');
-    const data = await res.json();
+    const data = await jsonpGet(webAppUrl(client), { action: 'getConfigSummary' });
     if (!data.success) {
       body.innerHTML = '<div style="color:var(--red)">Error: ' + escapeHtml(data.error || 'desconocido') + '</div>';
       return;
