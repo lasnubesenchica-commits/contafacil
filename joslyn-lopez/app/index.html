@@ -1115,7 +1115,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
             <button class="period-btn" onclick="PL.prev()">‹</button>
             <button class="period-btn" onclick="PL.next()">›</button>
           </div>
-          <button class="pl-mode-pickerbtn" id="pl-mode-pickerbtn" onclick="document.getElementById('pl-mode-overlay').classList.add('show');this.classList.add('open')"><span id="pl-mode-label">YTD</span><span class="pl-arrow">▼</span></button>
+          <button id="pl-mode-pickerbtn" onclick="document.getElementById('pl-mode-overlay').classList.add('show')" style="display:inline-flex !important;visibility:visible !important;opacity:1 !important;position:relative !important;font-size:.85rem;font-weight:700;padding:.5rem .8rem;border:2px solid #E65100 !important;border-radius:10px;background:#FFFFFF !important;color:#E65100 !important;cursor:pointer;outline:none;min-width:5rem;height:auto;align-items:center;gap:.4rem;box-shadow:0 2px 8px rgba(230,81,0,.25);font-family:inherit;-webkit-tap-highlight-color:transparent">📅 <span id="pl-mode-label">YTD</span> ▼</button>
           <!-- Overlay del picker (oculto por default) -->
           <div class="pl-mode-overlay" id="pl-mode-overlay" onclick="if(event.target===this){this.classList.remove('show');document.getElementById('pl-mode-pickerbtn').classList.remove('open')}">
             <div class="pl-mode-sheet">
@@ -1338,7 +1338,7 @@ select.pf-inp { appearance:none; -webkit-appearance:none; }
             <button class="period-btn" onclick="GAS.prev()">‹</button>
             <button class="period-btn" onclick="GAS.next()">›</button>
           </div>
-          <button class="pl-mode-pickerbtn" id="gas-mode-pickerbtn" onclick="document.getElementById('gas-mode-overlay').classList.add('show');this.classList.add('open')"><span id="gas-mode-label">YTD</span><span class="pl-arrow">▼</span></button>
+          <button id="gas-mode-pickerbtn" onclick="document.getElementById('gas-mode-overlay').classList.add('show')" style="display:inline-flex !important;visibility:visible !important;opacity:1 !important;position:relative !important;font-size:.85rem;font-weight:700;padding:.5rem .8rem;border:2px solid #E65100 !important;border-radius:10px;background:#FFFFFF !important;color:#E65100 !important;cursor:pointer;outline:none;min-width:5rem;height:auto;align-items:center;gap:.4rem;box-shadow:0 2px 8px rgba(230,81,0,.25);font-family:inherit;-webkit-tap-highlight-color:transparent">📅 <span id="gas-mode-label">YTD</span> ▼</button>
           <!-- Overlay del picker (oculto por default) -->
           <div class="pl-mode-overlay" id="gas-mode-overlay" onclick="if(event.target===this){this.classList.remove('show');document.getElementById('gas-mode-pickerbtn').classList.remove('open')}">
             <div class="pl-mode-sheet">
