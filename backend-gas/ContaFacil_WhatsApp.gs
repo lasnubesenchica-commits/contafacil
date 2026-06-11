@@ -162,9 +162,16 @@ function _whatsappProcesarMensaje(msg, metadata) {
     return;
   }
 
-  // ── Mensaje de texto: responder con instrucciones simples ──
+  // ── Mensaje de texto: chequear primero si está en modo "categoría
+  //    libre" (acaba de tapear "✏ Otra…"); si no, responder con
+  //    instrucciones simples.
   if (tipo === 'text') {
     var body = (msg.text && msg.text.body) || '';
+    var pendIdEnCurso = _waGetCatTextoState(from);
+    if (pendIdEnCurso) {
+      _whatsappOnCategoriaTexto(body, pendIdEnCurso, from, token, phoneId);
+      return;
+    }
     _whatsappReply(from, '¡Hola! 👋 Soy el asistente fiscal de BalanceClip.\n\n' +
       'Mándame una foto o PDF de tu factura/recibo y la registro automáticamente. ' +
       'La IA detecta si es gasto o ingreso, le saca el monto, la categoría DGI y la deja pendiente ' +
@@ -1047,6 +1054,7 @@ function _whatsappOnInteractive(msg, from, token, phoneId) {
   if (accion === 'apr')      _whatsappOnAprobar(pendId, from, token, phoneId);
   else if (accion === 'cat') _whatsappOnCambiarCat(pendId, from, token, phoneId);
   else if (accion === 'set') _whatsappOnSetCat(pendId, parts[3] || '', from, token, phoneId);
+  else if (accion === 'otr') _whatsappOnOtraCategoria(pendId, from, token, phoneId);
   else if (accion === 'rej') _whatsappOnRechazar(pendId, from, token, phoneId);
   else Logger.log('Acción desconocida: ' + accion);
 }
@@ -1101,18 +1109,12 @@ function _whatsappOnAprobar(pendId, from, token, phoneId) {
 // ────────────────────────────────────────────────────────────────────
 function _whatsappOnCambiarCat(pendId, from, token, phoneId) {
   if (!pendId) { _whatsappReply(from, '⚠️ ID inválido.', token, phoneId); return; }
-  // Construir secciones con IDs que incluyan el pendId
-  var sections = WA_CAT_SECTIONS.map(function(s) {
-    return {
-      title: s.title,
-      rows: s.rows.map(function(r) {
-        return { id: 'wa:set:' + pendId + ':' + r.key, title: r.title, description: r.desc };
-      }),
-    };
-  });
+  // Armar secciones dinámicas: top categorías usadas por ESTE cliente
+  // (últimos 6 meses) + "Otra…" como escape hatch al final.
+  var sections = _waBuildCatSectionsDinamicas(pendId);
   var ok = _whatsappReplyLista(from,
     'Elige la categoría DGI correcta para ' + pendId + '.\n' +
-    '(¿No está la que buscas? Abre la app desde: ' + _whatsappFrontendUrl() + '#registroGastos)',
+    '(¿No está? Tapeá "✏ Otra" al final y escribí el nombre — yo lo busco)',
     'Ver categorías',
     sections, token, phoneId);
   // Si Meta rechaza el list message (p.ej. límites no documentados),
@@ -1448,4 +1450,262 @@ function _whatsappLiberarHashByPendId(pendId) {
   } catch (e) {
     Logger.log('Hash liberation error: ' + e.message);
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  LISTA DINÁMICA DE CATEGORÍAS (auto-learning + escape hatch "Otra…")
+//  ─────────────────────────────────────────────────────────────────
+//  En vez del array hardcoded WA_CAT_SECTIONS de 10 categorías iguales
+//  para todos los clientes, armamos la lista en runtime con las 9 más
+//  usadas en los Egresos de este cliente en los últimos 6 meses + 1
+//  fila final "✏ Otra…" para escapar a texto libre + fuzzy match.
+//
+//  Por qué 9+1 y no 10: Meta limita la list a 10 filas totales (no
+//  por sección). Necesitamos el slot 10 para "Otra…", siempre.
+// ════════════════════════════════════════════════════════════════════
+
+var _WA_CAT_LIMIT_PER_LIST = 9;       // 9 más usadas + 1 "Otra" = 10 filas
+var _WA_CAT_LOOKBACK_DAYS  = 180;     // ventana de aprendizaje
+var _WA_CAT_MIN_HISTORICO  = 5;       // si hay <5 egresos clasificados, fallback a default
+
+function _waBuildCatSectionsDinamicas(pendId) {
+  var topKeys = null;
+  try { topKeys = _whatsappTopCategoriasUsadas(_WA_CAT_LIMIT_PER_LIST); }
+  catch(e) { Logger.log('topCategorias error: ' + e.message); }
+
+  // Si no hay suficiente histórico, caer al curated default.
+  if (!topKeys || !topKeys.length) {
+    return _waSectionsConOtra(WA_CAT_SECTIONS, pendId);
+  }
+
+  // Mapear keys a {key, label, desc} usando el catálogo DGI.
+  var rows = topKeys.map(function(k) {
+    var c = _waCatalogoDGIByKey(k);
+    return {
+      key:   k,
+      title: (c ? c.label : k).substring(0, 24),                  // Meta cap
+      desc:  c ? ((c.seccion === 'costo' ? 'C' : 'G') + (c.linea_dgi || '')) : '',
+    };
+  });
+  return _waSectionsConOtra([{ title: 'Tus categorías más usadas', rows: rows }], pendId);
+}
+
+function _waSectionsConOtra(secciones, pendId) {
+  // Aplana las filas de todas las secciones con el id 'wa:set:<pendId>:<key>'.
+  var out = secciones.map(function(s) {
+    return {
+      title: s.title,
+      rows: s.rows.map(function(r) {
+        return { id: 'wa:set:' + pendId + ':' + r.key, title: r.title, description: r.desc };
+      }),
+    };
+  });
+  // Agregar "Otra…" como última fila de la última sección (escape hatch).
+  if (out.length) {
+    var last = out[out.length - 1];
+    last.rows.push({
+      id:          'wa:otr:' + pendId,
+      title:       '✏ Otra…',
+      description: 'Escribir el nombre',
+    });
+    // Si justo esa sección quedó con >10 filas, truncar antes de "Otra".
+    if (last.rows.length > 10) {
+      var otra = last.rows.pop();
+      last.rows = last.rows.slice(0, 9);
+      last.rows.push(otra);
+    }
+  }
+  return out;
+}
+
+// Lee la hoja Egresos y devuelve las top-N categorías (tipo_egreso) más
+// usadas por monto * frecuencia en los últimos N días. Excluye vacías,
+// 'sin_clasificar' y categorías personales/no-deducibles (no aplican al
+// flujo típico de gastos del bot).
+function _whatsappTopCategoriasUsadas(limit) {
+  limit = Math.max(1, limit || _WA_CAT_LIMIT_PER_LIST);
+  var sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_EGRESOS);
+  if (!sheet) return null;
+  var last = sheet.getLastRow();
+  if (last < 2) return null;
+  // Solo leemos las últimas ~600 filas para no pagar el costo de leer
+  // años de historia — suficiente para tener señal reciente.
+  var startRow = Math.max(2, last - 600);
+  var nRows    = last - startRow + 1;
+  var values   = sheet.getRange(startRow, 1, nRows, sheet.getLastColumn()).getValues();
+
+  var cutoff = Date.now() - _WA_CAT_LOOKBACK_DAYS * 86400000;
+  var SKIP = { '': 1, 'sin_clasificar': 1 };
+  var counts = {};
+  var clasificados = 0;
+
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    var fGasto = row[COL_E.FECHA_GASTO - 1];
+    var ts = fGasto instanceof Date ? fGasto.getTime() : new Date(fGasto).getTime();
+    if (!ts || ts < cutoff) continue;
+    var tipo = String(row[COL_E.TIPO_EGRESO - 1] || '').trim();
+    if (SKIP[tipo]) continue;
+    // Saltar categorías personales/no-deducibles para mantener la lista
+    // del bot focused en gastos del negocio (uso típico).
+    var c = _waCatalogoDGIByKey(tipo);
+    if (c && (c.seccion === 'personal' || c.no_deducible)) continue;
+    counts[tipo] = (counts[tipo] || 0) + 1;
+    clasificados++;
+  }
+  if (clasificados < _WA_CAT_MIN_HISTORICO) return null;
+  var keys = Object.keys(counts);
+  keys.sort(function(a, b) { return counts[b] - counts[a]; });
+  return keys.slice(0, limit);
+}
+
+// Busca una entrada del catálogo DGI por su valor (key). Devuelve null
+// si no existe (ej: key custom legacy que ya no está en el catálogo).
+function _waCatalogoDGIByKey(key) {
+  if (!key || typeof CATEGORIAS_GASTO_DGI === 'undefined') return null;
+  for (var i = 0; i < CATEGORIAS_GASTO_DGI.length; i++) {
+    if (CATEGORIAS_GASTO_DGI[i].valor === key) return CATEGORIAS_GASTO_DGI[i];
+  }
+  return null;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  "OTRA…" — texto libre + fuzzy match
+//  ────────────────────────────────────────────────────────────────
+//  Cuando el usuario tapea "✏ Otra…", guardamos state en CacheService
+//  ("este número está en modo categoría-libre para PENDR-X") y le
+//  pedimos que escriba el nombre. El siguiente mensaje de texto suyo
+//  se interpreta como nombre de categoría y se matchea fuzzy contra
+//  el catálogo DGI completo.
+// ════════════════════════════════════════════════════════════════════
+
+var _WA_CAT_TXT_TTL = 10 * 60;        // 10 min para responder
+
+function _waSetCatTextoState(from, pendId) {
+  if (!from || !pendId) return;
+  CacheService.getScriptCache().put('wa_cattxt_' + from, String(pendId), _WA_CAT_TXT_TTL);
+}
+function _waGetCatTextoState(from) {
+  if (!from) return null;
+  return CacheService.getScriptCache().get('wa_cattxt_' + from) || null;
+}
+function _waClearCatTextoState(from) {
+  if (!from) return;
+  CacheService.getScriptCache().remove('wa_cattxt_' + from);
+}
+
+function _whatsappOnOtraCategoria(pendId, from, token, phoneId) {
+  if (!pendId) { _whatsappReply(from, '⚠️ ID inválido.', token, phoneId); return; }
+  _waSetCatTextoState(from, pendId);
+  _whatsappReply(from,
+    '✏ Escribí el nombre de la categoría para *' + pendId + '* — yo busco la coincidencia DGI.\n\n' +
+    'Ejemplos: _oficina_, _nómina_, _internet_, _mantenimiento_, _publicidad_, _viáticos_.\n\n' +
+    '(Tenés 10 minutos. Si te confundís, mandá la palabra "cancelar")',
+    token, phoneId
+  );
+}
+
+function _whatsappOnCategoriaTexto(text, pendId, from, token, phoneId) {
+  var raw = String(text || '').trim();
+  if (!raw) return;
+  if (/^cancelar\b/i.test(raw)) {
+    _waClearCatTextoState(from);
+    _whatsappReply(from, '👌 Cancelado. El pendiente *' + pendId + '* queda como estaba.', token, phoneId);
+    return;
+  }
+  var match = _waFuzzyMatchCategoria(raw);
+  if (!match || !match.scored.length) {
+    _whatsappReply(from,
+      '🤔 No encontré una categoría DGI parecida a "' + raw + '".\n\n' +
+      'Probá con una palabra más simple (ej: "internet", "papelería") o mandá "cancelar".',
+      token, phoneId
+    );
+    return;
+  }
+  // Match único claro: aplicar y limpiar estado.
+  if (match.winner) {
+    _waClearCatTextoState(from);
+    var c = match.winner;
+    _whatsappReply(from,
+      '✅ Entendí "' + raw + '" como *' + (c.emoji ? c.emoji + ' ' : '') + c.label + '*.\nAplicando…',
+      token, phoneId
+    );
+    _whatsappOnSetCat(pendId, c.valor, from, token, phoneId);
+    return;
+  }
+  // Ambiguo: ofrecer top 3 como botones (o list si fueran más).
+  var btns = match.scored.slice(0, 3).map(function(x) {
+    return {
+      id:    'wa:set:' + pendId + ':' + x.c.valor,
+      title: ((x.c.emoji || '') + ' ' + x.c.label).trim().substring(0, 20),
+    };
+  });
+  _whatsappReplyBotones(from,
+    '🤔 "' + raw + '" se parece a varias. ¿Cuál querés?',
+    'Sugerencias DGI',
+    btns, token, phoneId
+  );
+  // No limpiamos state: si el usuario manda otro texto, lo re-procesamos.
+  // Si tapea uno de los botones, _whatsappOnSetCat hará la limpieza al
+  // aprobar. (Si queremos ser puristas, limpiamos aquí — el state expira
+  // solo a los 10 min de todos modos.)
+}
+
+// Fuzzy match contra CATEGORIAS_GASTO_DGI.
+// Estrategia de score (sin librerías externas, todo en Apps Script):
+//   1. Normalizar input y label: lowercase + strip accents
+//   2. Score por capas (en orden de preferencia):
+//       100  exact match contra valor o label
+//        90  label empieza con el input
+//        78  input es substring del label
+//        70  input es substring del valor
+//        50  cobertura word-by-word: % palabras del input que aparecen
+//             en label, escaladas a [0,50]
+//
+//  Decisión:
+//   • Ganador único si top score ≥ 70 O (gap con 2do ≥ 15)
+//   • Ambiguo si hay 2-3 con score ≥ 40 cercanos
+//   • Sin match si top < 40
+function _waFuzzyMatchCategoria(input) {
+  if (typeof CATEGORIAS_GASTO_DGI === 'undefined') return null;
+  var norm = _waNorm(input);
+  if (!norm) return null;
+  var words = norm.split(/\s+/).filter(Boolean);
+
+  var scored = [];
+  for (var i = 0; i < CATEGORIAS_GASTO_DGI.length; i++) {
+    var c = CATEGORIAS_GASTO_DGI[i];
+    var lbl = _waNorm(c.label);
+    var val = _waNorm(c.valor);
+    var s = 0;
+    if (lbl === norm || val === norm)          s = 100;
+    else if (lbl.indexOf(norm) === 0)          s = 90;
+    else if (lbl.indexOf(norm) >= 0)           s = 78;
+    else if (val.indexOf(norm) >= 0)           s = 70;
+    else {
+      var matched = 0;
+      for (var w = 0; w < words.length; w++) {
+        if (words[w].length >= 3 && (lbl.indexOf(words[w]) >= 0 || val.indexOf(words[w]) >= 0)) matched++;
+      }
+      if (matched > 0) s = Math.floor((matched / words.length) * 50);
+    }
+    if (s > 0) scored.push({ c: c, score: s });
+  }
+  scored.sort(function(a, b) { return b.score - a.score; });
+
+  if (!scored.length || scored[0].score < 40) return { winner: null, scored: scored };
+  // Ganador claro
+  if (scored[0].score >= 70 ||
+      (scored.length === 1) ||
+      (scored[0].score - scored[1].score >= 15)) {
+    return { winner: scored[0].c, scored: scored };
+  }
+  // Ambiguo
+  return { winner: null, scored: scored };
+}
+
+// Normaliza para fuzzy match: lowercase + strip accents (NFD).
+function _waNorm(s) {
+  if (s == null) return '';
+  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 }
