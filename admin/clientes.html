@@ -187,8 +187,9 @@
   <span class="header-sep">/</span>
   <span class="header-title">Admin Panel</span>
   <div class="header-actions">
+    <a class="btn btn-ghost btn-sm" href="./">← Admin Hub</a>
     <button class="btn btn-ghost btn-sm" onclick="loadAll()">↻ Refresh</button>
-    <a class="btn btn-primary btn-sm" href="deploy.html">+ Nuevo cliente</a>
+    <a class="btn btn-primary btn-sm" href="../deploy.html">+ Nuevo cliente</a>
   </div>
 </div>
 
@@ -310,7 +311,7 @@ function renderSummary() {
 function renderClients() {
   const list = document.getElementById('clientsList');
   if (!CLIENTS.length) {
-    list.innerHTML = '<div class="empty-state">No hay clientes registrados todavía. <a href="deploy.html">+ Provisionar el primero</a></div>';
+    list.innerHTML = '<div class="empty-state">No hay clientes registrados todavía. <a href="../deploy.html">+ Provisionar el primero</a></div>';
     return;
   }
   list.innerHTML = CLIENTS.map(c => renderClient(c)).join('');
