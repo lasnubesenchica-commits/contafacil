@@ -1,0 +1,12 @@
+{
+  "_comment": "Config para reset de password via OTP por WhatsApp. El deploy script (deploy-gas.js) lee este archivo y genera _OtpConfig.gs para cada cliente con las constantes embebidas. Si el repo es público y se quiere rotar el token, edita ROUTER_RESET_TOKEN y hace push.",
+  "ROUTER_URL": "https://script.google.com/macros/s/AKfycbzzgc0zIe4cQ52jZciIMy6IYfiHNeQsgql5Mz_tPIabSLk4CVMfg8cImlukumGr906orw/exec",
+  "ROUTER_RESET_TOKEN": "e5c7ba186e3ff82cb4e2fafaaba88b5bae2ef9fbe4026f9adaaec1193f5f8995",
+  "WA_ADMIN_PHONE": {
+    "joslyn-lopez":          "50769812266",
+    "iris-albelo-ho":        "50760909384",
+    "david-miguel-collado":  "50769144058",
+    "panaderia-aurorita":    "50760267983",
+    "glorimar-lasso":        "50761000079"
+  }
+}

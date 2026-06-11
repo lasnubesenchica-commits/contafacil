@@ -106,7 +106,24 @@ async function findWebAppDeploymentId(scriptApi, scriptId) {
   return null;
 }
 
-async function deployCliente(scriptApi, cliente, repoRoot) {
+function buildOtpConfigFile(cliente, otpConfig) {
+  if (!otpConfig) return null;
+  const phone = (otpConfig.WA_ADMIN_PHONE && otpConfig.WA_ADMIN_PHONE[cliente.id]) || '';
+  const source =
+    '// ════════════════════════════════════════════════════════════════\n' +
+    '//  _OtpConfig — generado automáticamente por deploy-gas.js\n' +
+    '//  NO editar a mano. Para cambiar valores, editá scripts/otp-config.json\n' +
+    '//  y volvé a deployar.\n' +
+    '// ════════════════════════════════════════════════════════════════\n' +
+    'var OTP_CONFIG = {\n' +
+    `  ROUTER_URL:         '${otpConfig.ROUTER_URL || ''}',\n` +
+    `  ROUTER_RESET_TOKEN: '${otpConfig.ROUTER_RESET_TOKEN || ''}',\n` +
+    `  WA_ADMIN_PHONE:     '${phone}',\n` +
+    '};\n';
+  return { name: '_OtpConfig', type: 'SERVER_JS', source };
+}
+
+async function deployCliente(scriptApi, cliente, repoRoot, otpConfig) {
   const gasDir = path.join(repoRoot, cliente.gasDir);
   if (!fs.existsSync(gasDir)) throw new Error(`Directorio no encontrado: ${gasDir}`);
 
@@ -116,10 +133,18 @@ async function deployCliente(scriptApi, cliente, repoRoot) {
   // 1. Leer config actual del GAS del cliente y re-inyectar
   const cfg   = await readClientConfig(scriptApi, cliente.scriptId);
   const files = injectConfig(rawFiles, cfg);
+  // 1a. Agregar _OtpConfig.gs generado con los valores de scripts/otp-config.json
+  const otpFile = buildOtpConfigFile(cliente, otpConfig);
+  if (otpFile) {
+    // Remover si ya existe (re-deploys idempotentes)
+    const idx = files.findIndex(f => f.name === otpFile.name);
+    if (idx >= 0) files[idx] = otpFile; else files.push(otpFile);
+  }
   const injected = Object.entries(cfg).filter(([, v]) => v).map(([k]) => k);
   console.log(`\nDeployando ${cliente.nombre} (${files.length} archivos)...`);
   files.forEach(f => console.log(`  • ${f.name}  [${f.type}]`));
   if (injected.length) console.log(`  → Config inyectada: ${injected.join(', ')}`);
+  if (otpFile) console.log(`  → _OtpConfig.gs generado (WA_ADMIN_PHONE: ${(otpConfig.WA_ADMIN_PHONE && otpConfig.WA_ADMIN_PHONE[cliente.id]) || '(none)'})`);
 
   // 2. Actualizar codigo fuente
   await scriptApi.projects.updateContent({
@@ -174,6 +199,20 @@ async function main() {
   const clientsData = JSON.parse(fs.readFileSync(clientsFile, 'utf8'));
   console.log(`Clientes a deployar: ${clientsData.clientes.length}`);
 
+  // Cargar config para reset de password via OTP (opcional). Si no existe,
+  // los clientes se deployan sin OTP_CONFIG y el flujo de reset usa Script
+  // Properties como fallback.
+  let otpConfig = null;
+  const otpConfigPath = path.join(repoRoot, 'scripts', 'otp-config.json');
+  if (fs.existsSync(otpConfigPath)) {
+    try {
+      otpConfig = JSON.parse(fs.readFileSync(otpConfigPath, 'utf8'));
+      console.log(`OTP config cargado: ROUTER_URL=${(otpConfig.ROUTER_URL || '').slice(0, 50)}..., ${Object.keys(otpConfig.WA_ADMIN_PHONE || {}).length} phones`);
+    } catch (e) {
+      console.warn(`Warning: scripts/otp-config.json existe pero no parsea — ${e.message}`);
+    }
+  }
+
   const auth      = getAuthClient();
   const scriptApi = google.script({ version: 'v1', auth });
 
@@ -182,7 +221,7 @@ async function main() {
 
   for (const cliente of clientsData.clientes) {
     try {
-      const { deploymentId, deploymentFixed } = await deployCliente(scriptApi, cliente, repoRoot);
+      const { deploymentId, deploymentFixed } = await deployCliente(scriptApi, cliente, repoRoot, otpConfig);
       // Actualizar clients.json si encontramos un deploymentId diferente
       if (deploymentFixed && deploymentId !== cliente.deploymentId) {
         console.log(`  → Actualizando deploymentId en clients.json para ${cliente.nombre}`);

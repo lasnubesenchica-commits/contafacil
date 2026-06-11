@@ -1355,7 +1355,14 @@ function routerTestConfig() {
 // ════════════════════════════════════════════════════════════════════
 function _routerHandleSendResetOtp(data) {
   var props    = PropertiesService.getScriptProperties();
-  var expected = props.getProperty('ROUTER_RESET_TOKEN') || '';
+  // Token viene de OTP_CONFIG si fue inyectado por deploy-gas.js (router
+  // no entra en clients.json hoy, así que en práctica se usa Script Property).
+  var expected = '';
+  if (typeof OTP_CONFIG !== 'undefined' && OTP_CONFIG.ROUTER_RESET_TOKEN) {
+    expected = OTP_CONFIG.ROUTER_RESET_TOKEN;
+  } else {
+    expected = props.getProperty('ROUTER_RESET_TOKEN') || '';
+  }
   if (!expected || data.token !== expected) {
     Logger.log('sendResetOtp: token shared-secret inválido');
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'forbidden' }))

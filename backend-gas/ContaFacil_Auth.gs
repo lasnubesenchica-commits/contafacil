@@ -182,9 +182,17 @@ function _handleSolicitarCodigoReset(data) {
     // Normalizar: si vino sin código país y son 8 dígitos (Panamá), prepend 507
     if (phone.length === 8) phone = '507' + phone;
 
-    // Verificar contra el WhatsApp configurado para esta empresa
-    var cfg = _getConfig();
-    var registered = String(cfg.wa_admin_phone || '').replace(/\D/g, '').trim();
+    // Verificar contra el WhatsApp configurado para esta empresa.
+    // Primero busca en OTP_CONFIG (inyectado por deploy-gas.js desde
+    // scripts/otp-config.json), después fallback a config_operaciones.
+    var registered = '';
+    if (typeof OTP_CONFIG !== 'undefined' && OTP_CONFIG.WA_ADMIN_PHONE) {
+      registered = String(OTP_CONFIG.WA_ADMIN_PHONE).replace(/\D/g, '').trim();
+    }
+    if (!registered) {
+      var cfg = _getConfig();
+      registered = String(cfg.wa_admin_phone || '').replace(/\D/g, '').trim();
+    }
     if (registered && registered.length === 8) registered = '507' + registered;
     if (!registered) {
       return _authJsonp({
@@ -211,12 +219,21 @@ function _handleSolicitarCodigoReset(data) {
     var otp = String(Math.floor(100000 + Math.random() * 900000));
     cache.put('otp_' + phone, otp, 300); // 5 min TTL
 
-    // Enviar al router
-    var props = PropertiesService.getScriptProperties();
-    var routerUrl   = props.getProperty('ROUTER_URL')         || '';
-    var routerToken = props.getProperty('ROUTER_RESET_TOKEN') || '';
+    // Enviar al router. Las credenciales vienen de OTP_CONFIG (inyectado
+    // por deploy-gas.js) con fallback a Script Properties para retrocompat.
+    var routerUrl   = '';
+    var routerToken = '';
+    if (typeof OTP_CONFIG !== 'undefined') {
+      routerUrl   = OTP_CONFIG.ROUTER_URL         || '';
+      routerToken = OTP_CONFIG.ROUTER_RESET_TOKEN || '';
+    }
     if (!routerUrl || !routerToken) {
-      Logger.log('⚠️ ROUTER_URL o ROUTER_RESET_TOKEN no configurado en Script Properties — OTP no enviado');
+      var props = PropertiesService.getScriptProperties();
+      routerUrl   = routerUrl   || props.getProperty('ROUTER_URL')         || '';
+      routerToken = routerToken || props.getProperty('ROUTER_RESET_TOKEN') || '';
+    }
+    if (!routerUrl || !routerToken) {
+      Logger.log('⚠️ ROUTER_URL o ROUTER_RESET_TOKEN no configurado (ni en OTP_CONFIG ni en Script Properties) — OTP no enviado');
       return _authJsonp({
         success: false,
         error: 'Servicio temporalmente no disponible. Contactá a soporte.'
