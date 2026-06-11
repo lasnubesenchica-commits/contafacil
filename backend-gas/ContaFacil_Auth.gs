@@ -156,3 +156,132 @@ function _handleResetPassword(data) {
     return _authJsonp({ success: false, error: err.message });
   }
 }
+
+// ════════════════════════════════════════════════════════════════
+//  RESET POR OTP VIA WHATSAPP (self-service del cliente)
+//
+//  Flujo:
+//   1. solicitarCodigoReset({ phone }) → valida phone contra config,
+//      genera OTP 6 dígitos, lo guarda en CacheService (5 min TTL),
+//      POSTea al router para que el bot lo mande por WhatsApp.
+//   2. verificarCodigoYResetear({ phone, code, newPassword }) →
+//      valida OTP en cache, hashea nueva password, devuelve autoAuth.
+//
+//  Rate limit: max 3 OTPs/hora por número (CacheService).
+//
+//  Requiere Script Properties:
+//   - ROUTER_URL          — URL del router de WhatsApp
+//   - ROUTER_RESET_TOKEN  — shared secret para autenticar con el router
+// ════════════════════════════════════════════════════════════════
+function _handleSolicitarCodigoReset(data) {
+  try {
+    var phone = String(data.phone || '').replace(/\D/g, '').trim();
+    if (!phone || phone.length < 8) {
+      return _authJsonp({ success: false, error: 'Número de WhatsApp inválido' });
+    }
+    // Normalizar: si vino sin código país y son 8 dígitos (Panamá), prepend 507
+    if (phone.length === 8) phone = '507' + phone;
+
+    // Verificar contra el WhatsApp configurado para esta empresa
+    var cfg = _getConfig();
+    var registered = String(cfg.wa_admin_phone || '').replace(/\D/g, '').trim();
+    if (registered && registered.length === 8) registered = '507' + registered;
+    if (!registered) {
+      return _authJsonp({
+        success: false,
+        error: 'No hay WhatsApp configurado para esta cuenta. Contactá a soporte de BalanceClip.'
+      });
+    }
+    if (registered !== phone) {
+      Utilities.sleep(1500);
+      return _authJsonp({ success: false, error: 'Ese número no está registrado en esta cuenta' });
+    }
+
+    var cache = CacheService.getScriptCache();
+
+    // Rate limit: max 3 OTPs por hora
+    var rateKey = 'otp_rate_' + phone;
+    var current = parseInt(cache.get(rateKey) || '0', 10);
+    if (current >= 3) {
+      return _authJsonp({ success: false, error: 'Demasiados intentos. Esperá 1 hora.' });
+    }
+    cache.put(rateKey, String(current + 1), 3600);
+
+    // Generar OTP de 6 dígitos
+    var otp = String(Math.floor(100000 + Math.random() * 900000));
+    cache.put('otp_' + phone, otp, 300); // 5 min TTL
+
+    // Enviar al router
+    var props = PropertiesService.getScriptProperties();
+    var routerUrl   = props.getProperty('ROUTER_URL')         || '';
+    var routerToken = props.getProperty('ROUTER_RESET_TOKEN') || '';
+    if (!routerUrl || !routerToken) {
+      Logger.log('⚠️ ROUTER_URL o ROUTER_RESET_TOKEN no configurado en Script Properties — OTP no enviado');
+      return _authJsonp({
+        success: false,
+        error: 'Servicio temporalmente no disponible. Contactá a soporte.'
+      });
+    }
+
+    try {
+      UrlFetchApp.fetch(routerUrl, {
+        method:      'post',
+        contentType: 'application/json',
+        payload:     JSON.stringify({
+          action: 'sendResetOtp',
+          token:  routerToken,
+          phone:  phone,
+          otp:    otp,
+        }),
+        muteHttpExceptions: true,
+      });
+    } catch (err) {
+      Logger.log('Error enviando OTP al router: ' + err.message);
+      return _authJsonp({ success: false, error: 'No se pudo enviar el código' });
+    }
+
+    Logger.log('🔐 OTP de reset solicitado para ' + phone);
+    return _authJsonp({ success: true, sent_to: phone.slice(0, 3) + '***' + phone.slice(-4) });
+  } catch (err) {
+    Logger.log('solicitarCodigoReset error: ' + err.message);
+    return _authJsonp({ success: false, error: err.message });
+  }
+}
+
+function _handleVerificarCodigoYResetear(data) {
+  try {
+    var phone = String(data.phone || '').replace(/\D/g, '').trim();
+    if (phone.length === 8) phone = '507' + phone;
+    var code        = String(data.code || '').trim();
+    var newPassword = String(data.newPassword || '');
+
+    if (!phone)               return _authJsonp({ success: false, error: 'phone requerido' });
+    if (!/^\d{6}$/.test(code)) return _authJsonp({ success: false, error: 'código debe ser 6 dígitos' });
+    if (newPassword.length < 4) {
+      return _authJsonp({ success: false, error: 'La contraseña debe tener al menos 4 caracteres' });
+    }
+
+    var cache = CacheService.getScriptCache();
+    var stored = cache.get('otp_' + phone);
+    if (!stored) {
+      return _authJsonp({ success: false, error: 'Código expirado. Pedí uno nuevo.' });
+    }
+    if (stored !== code) {
+      Utilities.sleep(1500);
+      return _authJsonp({ success: false, error: 'Código incorrecto' });
+    }
+
+    // Single-use: invalidar el OTP inmediatamente
+    cache.remove('otp_' + phone);
+
+    // Setear nueva password
+    _authWriteHash(_authHashServer(newPassword));
+    Logger.log('🔓 Password reseteada via WhatsApp OTP por ' + phone);
+
+    // autoAuth: true → el frontend marca bc_authed=1 sin pedir login otra vez
+    return _authJsonp({ success: true, autoAuth: true });
+  } catch (err) {
+    Logger.log('verificarCodigoYResetear error: ' + err.message);
+    return _authJsonp({ success: false, error: err.message });
+  }
+}

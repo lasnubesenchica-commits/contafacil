@@ -91,6 +91,11 @@ function doPost(e) {
     if (data && data.action === 'verifyEmailCode') {
       return _routerHandleVerifyCode(data);
     }
+    // Endpoint interno: client GAS pidiendo enviar OTP de reset de
+    // password vía WhatsApp al cliente.
+    if (data && data.action === 'sendResetOtp') {
+      return _routerHandleSendResetOtp(data);
+    }
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'not whatsapp webhook' }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
@@ -1336,4 +1341,44 @@ function routerTestConfig() {
       } catch(err) { Logger.log('  +' + phone + ' (parse error)'); }
     });
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  RESET DE PASSWORD VIA OTP — endpoint llamado por client GAS
+//
+//  El client GAS (ContaFacil_Auth → _handleSolicitarCodigoReset)
+//  genera un OTP de 6 dígitos y nos lo manda. Nosotros lo entregamos
+//  por WhatsApp al cliente.
+//
+//  Verifica el shared secret ROUTER_RESET_TOKEN para que solo los
+//  client GAS confiables puedan disparar envíos de OTP.
+// ════════════════════════════════════════════════════════════════════
+function _routerHandleSendResetOtp(data) {
+  var props    = PropertiesService.getScriptProperties();
+  var expected = props.getProperty('ROUTER_RESET_TOKEN') || '';
+  if (!expected || data.token !== expected) {
+    Logger.log('sendResetOtp: token shared-secret inválido');
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'forbidden' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  var phone = String(data.phone || '').replace(/\D/g, '').trim();
+  var otp   = String(data.otp || '').trim();
+  if (!phone || !/^\d{6}$/.test(otp)) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing phone/otp' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  var metaToken = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId   = props.getProperty('META_PHONE_ID');
+
+  // Insertar espacio en el OTP para que sea más legible (482 931).
+  var otpDisplay = otp.slice(0, 3) + ' ' + otp.slice(3);
+  var body =
+    '🔐 *Código para restablecer contraseña*\n\n' +
+    'Tu código: *' + otpDisplay + '*\n\n' +
+    'Válido 5 minutos. Si no fuiste vos, ignorá este mensaje.';
+  _routerSendText(phone, body, metaToken, phoneId);
+
+  Logger.log('sendResetOtp: OTP enviado a ' + phone);
+  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+    .setMimeType(ContentService.MimeType.JSON);
 }

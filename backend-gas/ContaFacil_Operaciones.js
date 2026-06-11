@@ -283,6 +283,7 @@ function _handleGuardarConfig(data) {
       'email_st_remitente',
       'trigger_op_intervalo',
       'trigger_st_intervalo',
+      'wa_admin_phone',       // ← WhatsApp del admin (para reset de password via OTP)
     ];
 
     var existing = sheet.getDataRange().getValues();

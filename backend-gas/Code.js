@@ -377,6 +377,8 @@ function doPost(e) {
     if (action === 'verifyPassword')              return _handleVerifyPassword(data);
     if (action === 'setPassword')                 return _handleSetPassword(data);
     if (action === 'resetPassword')               return _handleResetPassword(data);
+    if (action === 'solicitarCodigoReset')        return _handleSolicitarCodigoReset(data);
+    if (action === 'verificarCodigoYResetear')    return _handleVerificarCodigoYResetear(data);
 
     // ── REPORTES por email ──────────────────────────────────────
     if (action === 'enviarReporteCierre')         return _handleEnviarReporteCierre(data);
