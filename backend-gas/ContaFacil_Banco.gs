@@ -1686,8 +1686,11 @@ function _bancoPoblarDetalleSheet(sh, title, movs, kind) {
   var barCol   = totalCol + 2;
 
   if (grupos.length >= 1 && nMeses >= 1) {
-    // Section title (merged)
-    sh.getRange(nextRow, 1, 1, matrixWidth).merge().setValues([['¿DÓNDE SE VA LA PLATA? (POR DESTINATARIO × MES)']])
+    // Section title — setValue antes del merge para evitar mismatch de
+    // dimensiones (después de merge el setValues espera dim del rango
+    // original, no la celda fusionada).
+    sh.getRange(nextRow, 1).setValue('¿DÓNDE SE VA LA PLATA? (POR DESTINATARIO × MES)');
+    sh.getRange(nextRow, 1, 1, matrixWidth).merge()
       .setFontSize(12).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF')
       .setHorizontalAlignment('center');
     nextRow++;
