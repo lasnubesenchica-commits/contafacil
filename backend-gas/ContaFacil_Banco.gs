@@ -121,6 +121,11 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
   // límite de 1024 chars del body interactivo.
   try { _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId); }
   catch(err) { Logger.log('Banco menu drill error: ' + err.message); }
+
+  // Reporte PDF ejecutivo — el "wow" final. Auto-enviado para máximo
+  // impacto. Si falla, no rompe el flujo principal.
+  try { _bancoEnviarReportePDF(analisis, from, token, phoneId); }
+  catch(err) { Logger.log('Banco PDF report error: ' + err.message + ' ' + (err.stack || '')); }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -2959,4 +2964,366 @@ function _bancoComputarPasos(hallazgos, saludRows) {
   });
   var seen = {};
   return pasos.filter(function(p) { if (seen[p]) return false; seen[p] = true; return true; });
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  REPORTE PDF EJECUTIVO
+//  ──────────────────────────────────────────────────────────────────
+//  Genera un PDF de 2-3 páginas con los insights más importantes del
+//  análisis bancario, branded con el logo y colores de BalanceClip.
+//
+//  Pipeline:
+//    HTML template (con SVG inline para charts) → newBlob('text/html')
+//    → getAs('application/pdf') → upload a Meta → enviar como document.
+//
+//  Diseñado para servir como artefacto compartible — el cliente puede
+//  archivarlo, mostrarlo a su contador, o usarlo de referencia.
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoEnviarReportePDF(analisis, from, token, phoneId) {
+  var html = _bancoBuildHTMLReporte(analisis);
+  var blob = Utilities.newBlob(html, 'text/html', 'reporte.html').getAs('application/pdf');
+  var fname = 'reporte-bancario-' + Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd') + '.pdf';
+  blob.setName(fname);
+  var mediaId = _bancoUploadMediaWA(blob, fname, token, phoneId);
+  _bancoSendDocumentWA(from, mediaId, fname, '📑 Tu reporte ejecutivo en PDF', token, phoneId);
+}
+
+function _bancoBuildHTMLReporte(a) {
+  var fmt = function(n) { return '$' + (isFinite(n) ? Number(n).toFixed(2) : '0.00'); };
+  var fmtShort = function(n) {
+    if (!isFinite(n)) return '$0';
+    return Math.abs(n) < 5 ? '$' + n.toFixed(2) : '$' + Math.round(n).toLocaleString('en-US');
+  };
+  var fechaStr = function(d) {
+    return d ? Utilities.formatDate(d, 'America/Panama', "d 'de' MMMM yyyy") : '—';
+  };
+  var hoy = Utilities.formatDate(new Date(), 'America/Panama', "d MMM yyyy");
+  var ahorro = a.totalIn > 0 ? Math.round(((a.totalIn - a.totalOut) / a.totalIn) * 100) : 0;
+  var deltaSaldoStr = '';
+  if (a.deltaSaldo != null) {
+    deltaSaldoStr = (a.deltaSaldo >= 0 ? '+' : '−') + fmt(Math.abs(a.deltaSaldo));
+  }
+
+  // Semáforo de salud
+  var semaforo = _bancoPDFComputarSemaforo(a, ahorro);
+  // Hallazgos
+  var hallazgos = _bancoPDFComputarHallazgos(a, ahorro);
+
+  var css = (
+    "body{font-family:Helvetica,Arial,sans-serif;color:#1f2937;margin:0;padding:32px;font-size:13px;line-height:1.45;}" +
+    ".header{display:flex;align-items:center;border-bottom:3px solid #fb923c;padding-bottom:14px;margin-bottom:24px;}" +
+    ".logo{width:54px;height:54px;margin-right:14px;border-radius:50%;}" +
+    ".brand{font-size:24px;font-weight:800;}" +
+    ".brand .bc{color:#ea580c;}" +
+    ".tagline{font-size:11px;color:#6b7280;letter-spacing:1.5px;}" +
+    ".meta{margin-left:auto;font-size:11px;color:#6b7280;text-align:right;}" +
+    ".hero{background:#fff7ed;border:1px solid #fed7aa;padding:22px;border-radius:12px;margin-bottom:24px;}" +
+    ".hero .kicker{font-size:10px;color:#9a3412;letter-spacing:2px;font-weight:700;}" +
+    ".hero h1{margin:6px 0 2px;font-size:22px;color:#1f2937;}" +
+    ".hero .subtitle{color:#6b7280;font-size:12px;}" +
+    ".hero .saldo{margin-top:14px;font-size:34px;font-weight:900;color:#1f2937;letter-spacing:-1px;}" +
+    ".hero .delta{font-size:14px;font-weight:600;margin-top:2px;}" +
+    ".delta.up{color:#059669;}" +
+    ".delta.down{color:#dc2626;}" +
+    ".section{margin-bottom:22px;}" +
+    ".section h2{font-size:15px;color:#1f2937;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin:0 0 14px;}" +
+    ".section h3{font-size:13px;color:#374151;margin:14px 0 8px;}" +
+    ".cards{display:table;width:100%;border-spacing:8px 0;table-layout:fixed;}" +
+    ".card{display:table-cell;padding:12px 10px;border-radius:8px;vertical-align:top;}" +
+    ".card .label{font-size:9px;text-transform:uppercase;font-weight:700;opacity:0.75;letter-spacing:1px;}" +
+    ".card .value{font-size:17px;font-weight:900;margin:4px 0 2px;}" +
+    ".card .note{font-size:10px;opacity:0.85;}" +
+    ".card.green{background:#d1fae5;color:#064e3b;}" +
+    ".card.yellow{background:#fef3c7;color:#78350f;}" +
+    ".card.red{background:#fee2e2;color:#7f1d1d;}" +
+    ".bar-row{display:table;width:100%;font-size:12px;margin:5px 0;}" +
+    ".bar-row > div{display:table-cell;vertical-align:middle;}" +
+    ".bar-row .blabel{width:32%;padding-right:8px;}" +
+    ".bar-row .bouter{width:40%;height:16px;background:#f3f4f6;border-radius:4px;overflow:hidden;}" +
+    ".bar-row .bouter .bfill{height:16px;background:linear-gradient(90deg,#fb923c,#ea580c);}" +
+    ".bar-row .bvalue{width:28%;padding-left:10px;text-align:right;font-weight:600;}" +
+    ".insight{padding:10px 14px;background:#fff7ed;border-left:4px solid #fb923c;margin-bottom:8px;border-radius:0 4px 4px 0;}" +
+    ".insight .ttl{font-weight:700;color:#9a3412;font-size:13px;}" +
+    ".insight .body{font-size:12px;color:#374151;margin-top:2px;}" +
+    ".table{width:100%;border-collapse:collapse;font-size:12px;}" +
+    ".table th{background:#f9fafb;color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;padding:8px 6px;text-align:left;border-bottom:1px solid #e5e7eb;}" +
+    ".table td{padding:8px 6px;border-bottom:1px solid #f3f4f6;}" +
+    ".table td.amount{text-align:right;font-weight:600;font-family:'Courier New',monospace;}" +
+    ".step{padding:6px 0 6px 24px;position:relative;font-size:12px;}" +
+    ".step:before{content:'☐';position:absolute;left:0;color:#fb923c;font-weight:bold;}" +
+    ".footer{margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb;font-size:10px;color:#6b7280;text-align:center;}" +
+    ".footer a{color:#ea580c;text-decoration:none;}" +
+    ".page-break{page-break-before:always;}"
+  );
+
+  // SVG del logo — círculo naranja + paperclip blanco (versión del catalog)
+  var logoSVG = (
+    "<svg class='logo' viewBox='0 0 52 52' xmlns='http://www.w3.org/2000/svg'>" +
+    "<defs><linearGradient id='og' x1='0%' y1='0%' x2='100%' y2='100%'>" +
+    "<stop offset='0%' stop-color='#fb923c'/><stop offset='100%' stop-color='#ea580c'/></linearGradient></defs>" +
+    "<circle cx='26' cy='26' r='26' fill='url(#og)'/>" +
+    "<g transform='translate(26 26) rotate(-12) translate(-10 -18)'>" +
+    "<path d='M 7 3.5 C 7 1.5, 8.5 0, 10.5 0 C 12.5 0, 14 1.5, 14 3.5 L 14 31.5 C 14 34.4, 11.6 36.7, 8.75 36.7 C 5.9 36.7, 3.5 34.4, 3.5 31.5 L 3.5 7 C 3.5 5.5, 4.8 4.2, 6.3 4.2 C 7.8 4.2, 9.1 5.5, 9.1 7 L 9.1 30.3 C 9.1 31.1, 9.8 31.8, 10.6 31.8 C 11.4 31.8, 12.1 31.1, 12.1 30.3 L 12.1 5.8' " +
+    "fill='none' stroke='#ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></g></svg>"
+  );
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' + css + '</style></head><body>';
+
+  // ── HEADER ──
+  html += '<div class="header">' + logoSVG +
+          '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
+          '<div class="tagline">REPORTE EJECUTIVO BANCARIO</div></div>' +
+          '<div class="meta">Generado<br><strong>' + hoy + '</strong></div></div>';
+
+  // ── HERO ──
+  html += '<div class="hero">';
+  html += '<div class="kicker">PERÍODO ANALIZADO</div>';
+  html += '<h1>' + fechaStr(a.inicio) + ' – ' + fechaStr(a.fin) + '</h1>';
+  html += '<div class="subtitle">' + a.dias + ' días · ' + a.nMovs + ' movimientos</div>';
+  if (a.saldoFin != null) {
+    html += '<div class="saldo">' + fmt(a.saldoFin) + '</div>';
+    if (deltaSaldoStr) {
+      var cls = a.deltaSaldo >= 0 ? 'up' : 'down';
+      var arrow = a.deltaSaldo >= 0 ? '↗' : '↘';
+      html += '<div class="delta ' + cls + '">' + arrow + ' ' + deltaSaldoStr + ' vs saldo inicial (' + fmt(a.saldoIni) + ')</div>';
+    }
+  } else {
+    html += '<div class="saldo">' + fmt(a.totalIn - a.totalOut) + ' <span style="font-size:14px;color:#6b7280;">flujo neto</span></div>';
+  }
+  html += '</div>';
+
+  // ── FLUJO (3 cards: ingresos / gastos / ahorro) ──
+  html += '<div class="section"><h2>Flujo del período</h2><div class="cards">';
+  html += '<div class="card green"><div class="label">Ingresos</div><div class="value">' + fmtShort(a.totalIn) + '</div></div>';
+  html += '<div class="card red"><div class="label">Gastos</div><div class="value">' + fmtShort(a.totalOut) + '</div></div>';
+  var ahCls = a.neto >= 0 ? 'green' : 'red';
+  html += '<div class="card ' + ahCls + '"><div class="label">' + (a.neto >= 0 ? 'Ahorro neto' : 'Déficit') + '</div><div class="value">' + fmtShort(Math.abs(a.neto)) + '</div><div class="note">' + (ahorro >= 0 ? '+' : '') + ahorro + '% del ingreso</div></div>';
+  html += '</div></div>';
+
+  // ── SEMAFORO ──
+  html += '<div class="section"><h2>Semáforo de salud financiera</h2><div class="cards">';
+  semaforo.forEach(function(s) {
+    html += '<div class="card ' + s.color + '"><div class="label">' + s.label + '</div>' +
+            '<div class="value">' + s.valor + '</div><div class="note">' + s.comentario + '</div></div>';
+  });
+  html += '</div></div>';
+
+  // ── HALLAZGOS ──
+  if (hallazgos.length) {
+    html += '<div class="section"><h2>Hallazgos accionables</h2>';
+    hallazgos.forEach(function(h) {
+      html += '<div class="insight"><div class="ttl">' + h.titulo + '</div><div class="body">' + h.body + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  html += '<div class="page-break"></div>';
+
+  // ── HEADER página 2 ──
+  html += '<div class="header">' + logoSVG +
+          '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
+          '<div class="tagline">REPORTE EJECUTIVO BANCARIO · pág. 2</div></div>' +
+          '<div class="meta">Categorías y patrones</div></div>';
+
+  // ── TOP CATEGORÍAS ──
+  if (a.topCats && a.topCats.length) {
+    html += '<div class="section"><h2>Top categorías de gasto</h2>';
+    var maxCat = a.topCats[0].sum;
+    a.topCats.slice(0, 8).forEach(function(c) {
+      var pct = a.totalOut > 0 ? Math.round((c.sum / a.totalOut) * 100) : 0;
+      var w = Math.round((c.sum / maxCat) * 100);
+      html += '<div class="bar-row"><div class="blabel">' + _bancoCatLabel(c.cat) + '</div>' +
+              '<div class="bouter"><div class="bfill" style="width:' + w + '%;"></div></div>' +
+              '<div class="bvalue">' + fmtShort(c.sum) + ' (' + pct + '%)</div></div>';
+    });
+    html += '</div>';
+  }
+
+  // ── DESGLOSE #1 y #2 ──
+  if (a.topCatDesgloses && a.topCatDesgloses.length) {
+    html += '<div class="section"><h2>¿A dónde se va la plata?</h2>';
+    a.topCatDesgloses.forEach(function(d, idx) {
+      if (!d.top || !d.top.length) return;
+      var rank = idx === 0 ? '#1' : '#2';
+      html += '<h3>' + rank + ' · ' + _bancoCatLabel(d.cat) + '  <span style="color:#9ca3af;font-weight:400;font-size:11px;">total ' + fmtShort(d.sum) + '</span></h3>';
+      var maxD = d.top[0].sum;
+      d.top.forEach(function(item) {
+        var pctIt = d.sum > 0 ? Math.round((item.sum / d.sum) * 100) : 0;
+        var w = Math.round((item.sum / maxD) * 100);
+        html += '<div class="bar-row"><div class="blabel">' + _bancoEscapeHTML(item.name) + '</div>' +
+                '<div class="bouter"><div class="bfill" style="width:' + w + '%;"></div></div>' +
+                '<div class="bvalue">' + fmtShort(item.sum) + ' (' + pctIt + '%)</div></div>';
+      });
+    });
+    html += '</div>';
+  }
+
+  // ── TENDENCIA MENSUAL ──
+  if (a.historial && a.historial.length >= 2) {
+    html += '<div class="section"><h2>Tendencia mensual</h2>';
+    var maxMes = Math.max.apply(null, a.historial.map(function(h) { return h.totalOut; }));
+    a.historial.forEach(function(h, i) {
+      var w = Math.round((h.totalOut / maxMes) * 100);
+      var dStr = '';
+      if (i > 0 && a.historial[i-1].totalOut > 0) {
+        var pct = Math.round(((h.totalOut - a.historial[i-1].totalOut) / a.historial[i-1].totalOut) * 100);
+        if (pct > 5)       dStr = ' <span style="color:#dc2626;">(+' + pct + '%)</span>';
+        else if (pct < -5) dStr = ' <span style="color:#059669;">(' + pct + '%)</span>';
+      }
+      html += '<div class="bar-row"><div class="blabel">' + _bancoMesLabelFull(h.yearMonth) + (h.parcial ? ' <em>(parcial)</em>' : '') + '</div>' +
+              '<div class="bouter"><div class="bfill" style="width:' + w + '%;"></div></div>' +
+              '<div class="bvalue">' + fmtShort(h.totalOut) + dStr + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  html += '<div class="page-break"></div>';
+
+  // ── HEADER página 3 ──
+  html += '<div class="header">' + logoSVG +
+          '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
+          '<div class="tagline">REPORTE EJECUTIVO BANCARIO · pág. 3</div></div>' +
+          '<div class="meta">Acciones y deducibles</div></div>';
+
+  // ── FORM 90 ──
+  if (a.form90 && a.form90.length) {
+    html += '<div class="section"><h2>Deducibles Form 90 (DGI Panamá)</h2>';
+    html += '<table class="table"><tr><th>Categoría</th><th>Línea</th><th style="text-align:right;">Monto</th></tr>';
+    a.form90.forEach(function(f) {
+      html += '<tr><td>' + f.label + '</td><td>' + f.linea + '</td><td class="amount">' + fmt(f.sum) + '</td></tr>';
+    });
+    html += '</table>';
+    html += '<div style="font-size:11px;color:#6b7280;margin-top:8px;font-style:italic;">Registrá estos gastos como deducibles en tu app de ContaFacil para bajar tu ISR.</div>';
+    html += '</div>';
+  }
+
+  // ── SUSCRIPCIONES ──
+  if (a.suscripciones && a.suscripciones.length) {
+    html += '<div class="section"><h2>Suscripciones recurrentes detectadas</h2>';
+    html += '<table class="table"><tr><th>Merchant</th><th style="text-align:center;">Cargos</th><th style="text-align:right;">Promedio/mes</th></tr>';
+    a.suscripciones.forEach(function(s) {
+      html += '<tr><td>' + _bancoEscapeHTML(s.merchant) + '</td><td style="text-align:center;">' + s.count + '</td><td class="amount">' + fmt(s.avg) + '</td></tr>';
+    });
+    html += '</table></div>';
+  }
+
+  // ── PRÓXIMOS PASOS ──
+  var pasos = _bancoPDFComputarPasos(a, ahorro);
+  if (pasos.length) {
+    html += '<div class="section"><h2>Próximos pasos recomendados</h2>';
+    pasos.forEach(function(p) { html += '<div class="step">' + p + '</div>'; });
+    html += '</div>';
+  }
+
+  // ── FOOTER ──
+  html += '<div class="footer">';
+  html += 'Generado por <strong>BalanceClip</strong> · <a href="https://balanceclip.net">balanceclip.net</a><br>';
+  html += 'Análisis automatizado de tu cuenta — esto es orientación general. Para temas fiscales específicos, consultá con tu contador.<br>';
+  html += 'Tu data nunca se guarda en servidores compartidos; el análisis se hace en tu instancia privada.';
+  html += '</div>';
+
+  html += '</body></html>';
+  return html;
+}
+
+// Computa los 4 indicadores del semáforo para el PDF.
+function _bancoPDFComputarSemaforo(a, ahorro) {
+  var rows = [];
+  // 1. Ahorro
+  if (ahorro >= 15)      rows.push({ label: 'Ahorro', valor: ahorro + '%', color: 'green', comentario: 'Saludable' });
+  else if (ahorro >= 5)  rows.push({ label: 'Ahorro', valor: ahorro + '%', color: 'yellow', comentario: 'Aceptable' });
+  else if (ahorro >= 0)  rows.push({ label: 'Ahorro', valor: ahorro + '%', color: 'yellow', comentario: 'Justo al límite' });
+  else                   rows.push({ label: 'Ahorro', valor: ahorro + '%', color: 'red', comentario: 'Déficit' });
+
+  // 2. Concentración top cat consumo
+  var CATS_NO = ['ach_salida', 'yappy_salida', 'pago_tarjeta'];
+  var topConsumo = (a.topCats || []).filter(function(c) { return CATS_NO.indexOf(c.cat) < 0; })[0];
+  if (topConsumo && a.totalOut > 0) {
+    var pct = Math.round((topConsumo.sum / a.totalOut) * 100);
+    if (pct >= 40)       rows.push({ label: 'Concentración', valor: pct + '%', color: 'red', comentario: _bancoCatPlain(topConsumo.cat) + ' alta' });
+    else if (pct >= 25)  rows.push({ label: 'Concentración', valor: pct + '%', color: 'yellow', comentario: 'Aceptable' });
+    else                 rows.push({ label: 'Concentración', valor: pct + '%', color: 'green', comentario: 'Diversa' });
+  }
+
+  // 3. Tendencia saldo
+  if (a.deltaSaldo != null) {
+    if (a.deltaSaldo > 50)        rows.push({ label: 'Tendencia', valor: '↗', color: 'green', comentario: 'Saldo subiendo' });
+    else if (a.deltaSaldo >= -50) rows.push({ label: 'Tendencia', valor: '~', color: 'yellow', comentario: 'Estable' });
+    else                          rows.push({ label: 'Tendencia', valor: '↘', color: 'red', comentario: 'Saldo bajando' });
+  }
+
+  // 4. Runway
+  if (a.saldoFin != null && a.dias > 0 && a.totalOut > 0) {
+    var diario = a.totalOut / a.dias;
+    var runway = diario > 0 ? Math.floor(a.saldoFin / diario) : 999;
+    if (runway >= 30)      rows.push({ label: 'Runway', valor: runway + 'd', color: 'green', comentario: '30+ días' });
+    else if (runway >= 15) rows.push({ label: 'Runway', valor: runway + 'd', color: 'yellow', comentario: 'Colchón medio' });
+    else                   rows.push({ label: 'Runway', valor: runway + 'd', color: 'red', comentario: '< 15 días' });
+  }
+  return rows;
+}
+
+// Hallazgos accionables para el PDF (similar a oportunidad pero ampliado).
+function _bancoPDFComputarHallazgos(a, ahorro) {
+  var fmt = function(n) { return '$' + Number(n).toFixed(0); };
+  var out = [];
+  if (a.suscripciones && a.suscripciones.length) {
+    var subTot = a.suscripciones.reduce(function(s, x) { return s + x.avg; }, 0);
+    out.push({
+      titulo: '🔁 ' + a.suscripciones.length + ' suscripción(es) recurrente(s) ≈ ' + fmt(subTot) + '/mes',
+      body:   'Top: ' + a.suscripciones[0].merchant + '. Auditá las que no usás — cancelar las olvidadas es la victoria más rápida.',
+    });
+  }
+  if (a.pequenos && a.pequenos.count >= 10) {
+    var anual = a.dias > 0 ? (a.pequenos.suma / a.dias) * 365 : 0;
+    if (anual >= 200) {
+      out.push({
+        titulo: '☕ ' + a.pequenos.count + ' compras chicas < $10 = ' + fmt(a.pequenos.suma),
+        body:   'Proyección anual ' + fmt(anual) + '. Bajándolas 50% ahorrás ' + fmt(anual / 2) + ' al año.',
+      });
+    }
+  }
+  if (a.topMerchant && a.topMerchant.sum >= 100 && a.totalOut > 0) {
+    var pct = Math.round((a.topMerchant.sum / a.totalOut) * 100);
+    out.push({
+      titulo: '🏆 Top merchant: ' + a.topMerchant.name + ' · ' + fmt(a.topMerchant.sum) + ' (' + pct + '%)',
+      body:   'Evaluá si hay alternativa más barata o si es un gasto discrecional reducible.',
+    });
+  }
+  if (a.form90 && a.form90.length) {
+    var f90sum = a.form90.reduce(function(s, x) { return s + x.sum; }, 0);
+    out.push({
+      titulo: '💡 Posibles deducibles Form 90 detectados: ' + fmt(f90sum),
+      body:   'Registralos en tu ContaFacil como gastos personales deducibles — bajan tu ISR del año.',
+    });
+  }
+  return out.slice(0, 4);
+}
+
+// Próximos pasos para el PDF (checklist más rico que el del Excel).
+function _bancoPDFComputarPasos(a, ahorro) {
+  var pasos = [];
+  if (a.suscripciones && a.suscripciones.length) {
+    pasos.push('Auditar las suscripciones detectadas — cancelar las que no usás (impacto inmediato en gasto mensual).');
+  }
+  if (a.form90 && a.form90.length) {
+    pasos.push('Registrar los gastos médicos / educativos / seguros detectados como deducibles en ContaFacil (Form 90 DGI Panamá).');
+  }
+  if (ahorro < 10) {
+    pasos.push('Apartar el ahorro al INICIO del mes (no al final). Apuntá a 15%+ del ingreso bruto.');
+  }
+  if (a.pequenos && a.pequenos.count >= 10) {
+    pasos.push('Identificar las 3-5 categorías de gastos chicos más frecuentes y cortarlas al 50% — atacan el "death by a thousand cuts".');
+  }
+  if (a.deltaSaldo != null && a.deltaSaldo < -50) {
+    pasos.push('Tu saldo bajó en el período — revisar cargos grandes uno por uno y crear un colchón mínimo de emergencia (1 mes de gastos).');
+  }
+  pasos.push('Volvé a subir un nuevo estado de cuenta el mes que viene para comparar evolución y ver si los cambios surtieron efecto.');
+  return pasos;
+}
+
+// Escape básico de HTML para nombres de destinatarios.
+function _bancoEscapeHTML(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
