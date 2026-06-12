@@ -1813,9 +1813,18 @@ function _bancoEsPreguntaAsesor(text) {
 function _bancoHandleAsesor(question, from, token, phoneId) {
   var cache = _bancoLoadCache(from);
   if (!cache) {
-    // Sin cache, no podemos responder con contexto. El caller cae al
-    // welcome estándar.
-    return false;
+    // Hay pregunta pero no hay cache → respondemos explícito para
+    // mantener los dos flujos separados (asesor vs facturas). Antes
+    // dejábamos caer al welcome de facturas y confundía: el usuario
+    // preguntó sobre finanzas y recibía instrucciones de facturas.
+    _whatsappReply(from,
+      '💬 Para analizarte la plata necesito tu estado de cuenta primero.\n\n' +
+      '📊 *Para análisis financiero*: mandame el archivo *.xlsx* que descargás de tu banco ' +
+      '(en Banco General: "Últimos movimientos" → Excel).\n\n' +
+      '🧾 *Para procesar una factura*: mandame la foto o PDF del recibo.\n\n' +
+      'Una vez tenga tu estado de cuenta, podrás preguntarme cualquier cosa por hasta una hora.',
+      token, phoneId);
+    return true;  // attended — NO caer al welcome de facturas
   }
   _whatsappReply(from, '🤔 Pensando en tu situación financiera…', token, phoneId);
   try {
@@ -1839,6 +1848,7 @@ function _bancoBuildAsesorContext(cache) {
   var catTotals = {};
   var byMerchant = {};
   var byMonth = {};
+  var byMonthCat = {};   // ym → { cat → sum } para responder "qué pasó en mayo"
   var yappyOut = {}, yappyIn = {};
 
   movs.forEach(function(m) {
@@ -1853,6 +1863,10 @@ function _bancoBuildAsesorContext(cache) {
       catTotals[m.cat] = (catTotals[m.cat] || 0) + (-m.monto);
       var mk = m.descripcion.split(/-\d{4}-?\d|\s+\d{6,}/)[0].trim().substring(0, 30);
       byMerchant[mk] = (byMerchant[mk] || 0) + (-m.monto);
+      // Mes × Cat — el desglose que el asesor necesitaba para responder
+      // preguntas tipo "¿por qué gasté tanto en mayo?".
+      if (!byMonthCat[ym]) byMonthCat[ym] = {};
+      byMonthCat[ym][m.cat] = (byMonthCat[ym][m.cat] || 0) + (-m.monto);
     }
     var ym2 = /YAPPY\s+BG\s+(A|DE)\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(m.descripcion);
     if (ym2) {
@@ -1889,9 +1903,25 @@ function _bancoBuildAsesorContext(cache) {
   meses.forEach(function(ym) {
     ctx += '  ' + ym + ': ingreso $' + byMonth[ym].in.toFixed(0) + ', gasto $' + byMonth[ym].out.toFixed(0) + '\n';
   });
-  ctx += '\nTOP CATEGORÍAS DE GASTO:\n';
+  ctx += '\nTOP CATEGORÍAS DE GASTO (período completo):\n';
   topCats.forEach(function(c) {
     ctx += '  ' + c.cat + ': $' + c.sum.toFixed(2) + ' (' + Math.round(c.sum / totalOut * 100) + '%)\n';
+  });
+  // Desglose mes × categoría — top 6 cats por cada mes con su monto.
+  // Sin esto el asesor no puede responder "¿qué pasó en mayo?" más allá
+  // de los totales agregados. ~500 tokens extra, despreciable.
+  ctx += '\nGASTO POR MES Y CATEGORÍA:\n';
+  meses.forEach(function(ym) {
+    var catsMes = byMonthCat[ym] || {};
+    var topCatsMes = Object.keys(catsMes)
+      .map(function(c) { return { cat: c, sum: catsMes[c] }; })
+      .sort(function(a, b) { return b.sum - a.sum; })
+      .slice(0, 6);
+    if (!topCatsMes.length) return;
+    ctx += '  ' + ym + ':\n';
+    topCatsMes.forEach(function(c) {
+      ctx += '    ' + c.cat + ': $' + c.sum.toFixed(2) + '\n';
+    });
   });
   ctx += '\nTOP MERCHANTS:\n';
   topM.forEach(function(m) { ctx += '  ' + m.name + ': $' + m.sum.toFixed(2) + '\n'; });
