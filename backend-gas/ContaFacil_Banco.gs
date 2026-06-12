@@ -61,6 +61,20 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
   catch(err) { Logger.log('Banco Claude error: ' + err.message); }
 
   var analisis = _bancoAnalizar(movs, categorias);
+
+  // Persistir aggregates por mes + cargar historial previo para deltas.
+  // Privacy: solo guardamos totales mensuales agregados (totales por cat
+  // como JSON), nunca movimientos individuales. Idempotente: re-subir
+  // el mismo período sobreescribe sus rows.
+  var historial = [];
+  try {
+    _bancoPersistirMensual(from, movs, categorias);
+    historial = _bancoLeerHistorial(from);
+  } catch(err) {
+    Logger.log('Banco historial error: ' + err.message);
+  }
+  analisis.historial = historial;
+
   var msgText  = _bancoFormatearMensaje(analisis);
   _whatsappReply(from, msgText, token, phoneId);
 }
@@ -668,10 +682,23 @@ function _bancoFormatearMensaje(a) {
 
   if (a.topCats.length) {
     msg += '*Top categorías de gasto*\n';
-    a.topCats.forEach(function(c) {
-      var p = pct(c.sum, a.totalOut);
-      msg += _bancoCatLabel(c.cat) + ': ' + fmt(c.sum) + ' (' + p + '%)\n';
-    });
+    msg += '```\n' + _bancoBarsCategorias(a.topCats, a.totalOut) + '```\n\n';
+  }
+
+  // Tendencia mensual + deltas — solo si hay ≥2 meses de historial
+  // (caso contrario no aporta nada nuevo vs el bloque de Flujo).
+  if (a.historial && a.historial.length >= 2) {
+    msg += '*📈 Tendencia mensual*\n';
+    msg += '```\n' + _bancoBarsTendencia(a.historial) + '```\n';
+    var deltas = _bancoComputarDeltasMesAnt(a.historial);
+    if (deltas && deltas.length) {
+      var d0 = deltas[0];
+      // Si el mes actual está parcial, advertirlo en el header — comparar
+      // 11 días vs un mes completo da % engañosos sin esta nota.
+      var parcialNote = d0.curParcial ? ' (parcial)' : '';
+      msg += '\n*' + d0.label + parcialNote + ' vs ' + d0.prevLabel + '*\n';
+      msg += '```\n' + _bancoBarsDeltas(d0.cats) + '```\n';
+    }
     msg += '\n';
   }
 
@@ -709,4 +736,257 @@ function _bancoFormatearMensaje(a) {
   msg += '📈 _Mandame el del próximo mes y te muestro cómo evolucionaste._';
 
   return msg.substring(0, 4000);  // WhatsApp text cap
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  BARS — render Unicode bar charts dentro de bloques monospace (```)
+// ════════════════════════════════════════════════════════════════════
+
+var _BANCO_BAR_W = 10;          // ancho de la barra en chars
+var _BANCO_NAME_W = 16;         // ancho del nombre de cat (sin emoji)
+
+function _bancoBar(part, max, width) {
+  width = width || _BANCO_BAR_W;
+  var filled = max > 0 ? Math.round((part / max) * width) : 0;
+  if (filled > width) filled = width;
+  if (filled < 0)     filled = 0;
+  // Si tiene valor mayor a 0 pero redondea a 0 segmentos, mostramos al
+  // menos uno para que el usuario sepa que algo hay (no ceros raros).
+  if (filled === 0 && part > 0) filled = 1;
+  var s = '';
+  for (var i = 0; i < filled; i++)  s += '█';
+  for (var j = filled; j < width; j++) s += '░';
+  return s;
+}
+
+// Pad a un string a un ancho fijo (en chars). Si es más corto que w,
+// pad con espacios; si más largo, trunca con "…". No considera el
+// ancho real de chars unicode (los emojis varían por plataforma).
+function _bancoPadCat(label, w) {
+  w = w || _BANCO_NAME_W;
+  // Para alineación más consistente entre plataformas, separamos el
+  // emoji (suele ser 1 ó 2 chars wide pero unpredictable) del texto.
+  var emojiMatch = String(label).match(/^(\S+)\s+(.+)$/);
+  var emoji = '', text = String(label);
+  if (emojiMatch) { emoji = emojiMatch[1]; text = emojiMatch[2]; }
+  if (text.length > w - 1) text = text.substring(0, w - 1) + '…';
+  while (text.length < w) text += ' ';
+  return (emoji ? emoji + ' ' : '') + text;
+}
+
+// Render de las top categorías como bars proporcionales al total.
+function _bancoBarsCategorias(topCats, totalOut) {
+  if (!topCats || !topCats.length) return '';
+  var max = Math.max.apply(null, topCats.map(function(c) { return c.sum; }));
+  return topCats.map(function(c) {
+    var bar = _bancoBar(c.sum, max);
+    var pct = totalOut > 0 ? Math.round((c.sum / totalOut) * 100) : 0;
+    return _bancoPadCat(_bancoCatLabel(c.cat)) + ' ' + bar + ' ' + _bancoFmtDolar(c.sum) + ' (' + pct + '%)';
+  }).join('\n') + '\n';
+}
+
+// Render de la tendencia mensual — cada fila un mes con bar relativo
+// al MAYOR mes del rango.
+function _bancoBarsTendencia(historial) {
+  if (!historial || !historial.length) return '';
+  // historial viene ordenado de más viejo a más nuevo
+  var max = Math.max.apply(null, historial.map(function(h) { return h.totalOut; }));
+  return historial.map(function(h, i) {
+    var bar = _bancoBar(h.totalOut, max);
+    var arrow = '';
+    if (i > 0) {
+      var prev = historial[i-1].totalOut;
+      if (prev > 0) {
+        if (h.totalOut > prev * 1.05)      arrow = ' ↗';
+        else if (h.totalOut < prev * 0.95) arrow = ' ↘';
+      }
+    }
+    var label = _bancoMesLabel(h.yearMonth);
+    var parcial = h.parcial ? ' parcial' : '';
+    return label + ' ' + bar + ' ' + _bancoFmtDolar(h.totalOut) + arrow + parcial;
+  }).join('\n') + '\n';
+}
+
+// Render de deltas entre el último mes y el anterior — cat por cat
+function _bancoBarsDeltas(cats) {
+  if (!cats || !cats.length) return '';
+  return cats.map(function(c) {
+    var name = _bancoPadCat(_bancoCatLabel(c.cat));
+    var prev = _bancoFmtDolar(c.prev);
+    var cur  = _bancoFmtDolar(c.cur);
+    var arrow, sign;
+    if (c.deltaPct === null) { arrow = '🆕'; sign = ''; }
+    else if (c.deltaPct > 5)  { arrow = '↗'; sign = '+' + Math.round(c.deltaPct) + '%'; }
+    else if (c.deltaPct < -5) { arrow = '↘'; sign = Math.round(c.deltaPct) + '%'; }
+    else                      { arrow = '='; sign = ''; }
+    return name + ' ' + prev + ' → ' + cur + '  ' + arrow + ' ' + sign;
+  }).join('\n') + '\n';
+}
+
+function _bancoMesLabel(ym) {
+  var meses = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  var parts = String(ym || '').split('-');
+  if (parts.length !== 2) return ym || '???';
+  var m = parseInt(parts[1], 10);
+  return (meses[m-1] || '???');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  PERSISTENCIA — sheet Banco_Historico
+//  ────────────────────────────────────────────────────────────────
+//  Solo guardamos AGGREGATES por mes (totales + cat totals como JSON).
+//  Nunca movimientos individuales. Cada upload sobreescribe los meses
+//  que cubre (idempotente — re-subir el mismo período es seguro).
+//
+//  Schema:
+//    A  phone        — número (sin +) del usuario
+//    B  year_month   — YYYY-MM
+//    C  total_in     — número
+//    D  total_out    — número
+//    E  cats_json    — JSON { cat: sumOut, ... }
+//    F  n_movs       — número
+//    G  parcial      — true si el mes está incompleto (último día del
+//                      mes > último día con movimientos)
+//    H  updated_at   — timestamp ISO
+// ════════════════════════════════════════════════════════════════════
+
+var _BANCO_SHEET = 'Banco_Historico';
+
+function _bancoEnsureHistorialSheet() {
+  var ss = SpreadsheetApp.getActive();
+  var sh = ss.getSheetByName(_BANCO_SHEET);
+  if (sh) return sh;
+  sh = ss.insertSheet(_BANCO_SHEET);
+  sh.getRange(1, 1, 1, 8).setValues([[
+    'phone','year_month','total_in','total_out','cats_json','n_movs','parcial','updated_at'
+  ]]);
+  sh.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#f3f4f6');
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(5, 300);
+  return sh;
+}
+
+function _bancoPersistirMensual(phone, movs, categorias) {
+  if (!phone || !movs || !movs.length) return;
+  var sh = _bancoEnsureHistorialSheet();
+
+  // Agregar por YYYY-MM
+  var byMonth = {};
+  movs.forEach(function(m) {
+    if (!m.fecha) return;
+    var ym = Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM');
+    if (!byMonth[ym]) byMonth[ym] = { totalIn: 0, totalOut: 0, cats: {}, n: 0, lastDay: 0 };
+    var b = byMonth[ym];
+    b.n++;
+    var day = parseInt(Utilities.formatDate(m.fecha, 'America/Panama', 'd'), 10);
+    if (day > b.lastDay) b.lastDay = day;
+    if (m.monto >= 0) {
+      b.totalIn += m.monto;
+    } else {
+      b.totalOut += -m.monto;
+      var cat = categorias[m.descripcion] || 'otro';
+      b.cats[cat] = (b.cats[cat] || 0) + (-m.monto);
+    }
+  });
+
+  // Determinar si cada mes está "parcial" — comparando lastDay vs el
+  // último día calendárico del mes. Si lastDay < último día Y el mes
+  // es el actual (no pasado), lo marcamos parcial.
+  var ahora = new Date();
+  var ymActual = Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM');
+  Object.keys(byMonth).forEach(function(ym) {
+    var b = byMonth[ym];
+    var parts = ym.split('-');
+    var ult = new Date(parseInt(parts[0],10), parseInt(parts[1],10), 0).getDate();
+    b.parcial = (ym === ymActual && b.lastDay < ult);
+  });
+
+  // Cargar rows existentes para idempotencia (mismo phone + ym → reemplazar)
+  var last = sh.getLastRow();
+  var rowMap = {};   // key "phone|ym" → row number (2-based)
+  if (last >= 2) {
+    var rows = sh.getRange(2, 1, last - 1, 2).getValues();
+    for (var i = 0; i < rows.length; i++) {
+      var p = String(rows[i][0] || '');
+      var y = String(rows[i][1] || '');
+      if (p && y) rowMap[p + '|' + y] = i + 2;
+    }
+  }
+
+  var now = new Date();
+  var toAppend = [];
+  Object.keys(byMonth).forEach(function(ym) {
+    var b = byMonth[ym];
+    var row = [phone, ym, b.totalIn, b.totalOut, JSON.stringify(b.cats), b.n, b.parcial, now];
+    var key = phone + '|' + ym;
+    if (rowMap[key]) {
+      sh.getRange(rowMap[key], 1, 1, 8).setValues([row]);
+    } else {
+      toAppend.push(row);
+    }
+  });
+  if (toAppend.length) {
+    sh.getRange(sh.getLastRow() + 1, 1, toAppend.length, 8).setValues(toAppend);
+  }
+}
+
+// Devuelve los meses históricos del usuario, ordenados por year_month
+// asc. Cap a 12 meses para no inundar el bar chart.
+function _bancoLeerHistorial(phone) {
+  if (!phone) return [];
+  var ss = SpreadsheetApp.getActive();
+  var sh = ss.getSheetByName(_BANCO_SHEET);
+  if (!sh) return [];
+  var last = sh.getLastRow();
+  if (last < 2) return [];
+  var values = sh.getRange(2, 1, last - 1, 8).getValues();
+  var out = [];
+  for (var i = 0; i < values.length; i++) {
+    if (String(values[i][0] || '') !== phone) continue;
+    var cats = {};
+    try { cats = JSON.parse(values[i][4] || '{}'); }
+    catch(e) {}
+    out.push({
+      yearMonth: String(values[i][1] || ''),
+      totalIn:   Number(values[i][2]) || 0,
+      totalOut:  Number(values[i][3]) || 0,
+      cats:      cats,
+      nMovs:     Number(values[i][5]) || 0,
+      parcial:   values[i][6] === true || String(values[i][6]).toLowerCase() === 'true',
+    });
+  }
+  out.sort(function(a, b) { return a.yearMonth.localeCompare(b.yearMonth); });
+  // Cap a 12 meses para mantener el chart legible.
+  if (out.length > 12) out = out.slice(out.length - 12);
+  return out;
+}
+
+// Computa deltas entre el último mes del historial y el anterior.
+// Devuelve [{ label, prevLabel, cats: [{cat, prev, cur, deltaPct}] }].
+// Solo top 5 cats del mes actual para no inundar.
+function _bancoComputarDeltasMesAnt(historial) {
+  if (!historial || historial.length < 2) return [];
+  var cur  = historial[historial.length - 1];
+  var prev = historial[historial.length - 2];
+  // Si el mes actual está parcial, sería injusto comparar montos
+  // absolutos. Reportamos igual pero el mensaje "<mes> vs <mes>" deja
+  // claro que es la foto hasta hoy.
+  var keys = Object.keys(cur.cats);
+  keys.sort(function(a, b) { return (cur.cats[b]||0) - (cur.cats[a]||0); });
+  keys = keys.slice(0, 5);
+  var cats = keys.map(function(k) {
+    var curV  = cur.cats[k]  || 0;
+    var prevV = prev.cats[k] || 0;
+    var pct;
+    if (prevV === 0 && curV > 0)      pct = null;  // nuevo
+    else if (prevV === 0 && curV === 0) pct = 0;
+    else                                pct = ((curV - prevV) / prevV) * 100;
+    return { cat: k, prev: prevV, cur: curV, deltaPct: pct };
+  });
+  return [{
+    label:       _bancoMesLabel(cur.yearMonth)  + ' ' + cur.yearMonth.split('-')[0],
+    prevLabel:   _bancoMesLabel(prev.yearMonth) + ' ' + prev.yearMonth.split('-')[0],
+    curParcial:  !!cur.parcial,
+    cats:        cats,
+  }];
 }
