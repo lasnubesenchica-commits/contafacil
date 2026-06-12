@@ -853,8 +853,22 @@ function _bancoFormatearMensaje(a) {
     m2 += '\n';
   }
 
-  m2 += '👇 *Menú abajo* — detalle por cat/mes o descargar reportes\n';
-  m2 += '💬 *O preguntame:* _"¿está alto mi gasto en comida?"_\n\n';
+  m2 += '👇 *Menú abajo* — detalle por cat/mes o descargar reportes\n\n';
+
+  m2 += '💬 *O preguntame en lenguaje natural:*\n';
+  m2 += '_Entendiendo tus gastos_\n';
+  m2 += '• _"¿está alto mi gasto en comida?"_\n';
+  m2 += '• _"¿a quién le pago más en transferencias?"_\n';
+  m2 += '• _"muéstrame los gastos de transporte en mayo"_\n';
+  m2 += '_Detectando patrones_\n';
+  m2 += '• _"¿qué suscripciones tengo activas?"_\n';
+  m2 += '• _"¿hay algún cargo raro o inusual?"_\n';
+  m2 += '• _"¿en qué mes gasté más y por qué?"_\n';
+  m2 += '_Optimizando_\n';
+  m2 += '• _"¿qué deducibles del Form 90 puedo aprovechar?"_\n';
+  m2 += '• _"¿cuánto debería ahorrar al mes?"_\n';
+  m2 += '• _"si dejo de mandarle Yappys a X ¿cuánto ahorro?"_\n\n';
+
   m2 += '📥 _Bajá el *Reporte PDF* o el *Excel* desde el menú para ' +
         'ver la matriz destinatario×mes, semáforo de salud y todos ' +
         'los insights accionables._';
@@ -3092,10 +3106,10 @@ function _bancoBuildHTMLReporte(a) {
     ".donut-wrap{display:table;width:100%;table-layout:fixed;margin:8px 0;}" +
     ".donut-wrap .donut{display:table-cell;vertical-align:middle;width:42%;text-align:center;}" +
     ".donut-wrap .legend{display:table-cell;vertical-align:middle;width:58%;padding-left:12px;font-size:12px;}" +
-    ".legend .item{padding:4px 0;display:table;width:100%;}" +
-    ".legend .swatch{display:table-cell;width:12px;height:12px;border-radius:3px;}" +
-    ".legend .lname{display:table-cell;padding-left:7px;}" +
-    ".legend .lval{display:table-cell;text-align:right;font-weight:700;color:#1f2937;}" +
+    ".legend .item{padding:6px 0;display:table;width:100%;border-bottom:1px solid #f3f4f6;}" +
+    ".legend .swatch{display:table-cell;vertical-align:middle;width:18px;}" +
+    ".legend .lname{display:table-cell;vertical-align:middle;padding-left:8px;}" +
+    ".legend .lval{display:table-cell;vertical-align:middle;text-align:right;font-weight:700;color:#1f2937;}" +
     ".table{width:100%;border-collapse:collapse;font-size:13px;}" +
     ".table th{background:#f9fafb;color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;padding:9px 6px;text-align:left;border-bottom:2px solid #e5e7eb;}" +
     ".table td{padding:9px 6px;border-bottom:1px solid #f3f4f6;}" +
@@ -3202,9 +3216,13 @@ function _bancoBuildHTMLReporte(a) {
     var total = topForDonut.reduce(function(s, x) { return s + x.value; }, 0);
     topForDonut.forEach(function(item) {
       var pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+      // Swatch como SVG inline — los PDF viewers renderean el fill garantizado.
+      // Los table-cells con background-color a veces se ignoran en la conversión.
+      var swatch = '<svg width="14" height="14" xmlns="http://www.w3.org/2000/svg">' +
+                   '<rect width="14" height="14" rx="3" ry="3" fill="' + item.color + '"/></svg>';
       html += '<div class="item">' +
-              '<div class="swatch" style="background:' + item.color + ';"></div>' +
-              '<div class="lname">' + item.name + '<br><span style="font-size:11px;color:#6b7280;">' + pct + '%</span></div>' +
+              '<div class="swatch">' + swatch + '</div>' +
+              '<div class="lname">' + item.name + '<br><span style="font-size:10px;color:#6b7280;">' + pct + '%</span></div>' +
               '<div class="lval">' + fmtShort(item.value) + '</div></div>';
     });
     html += '</div></div></div>';
