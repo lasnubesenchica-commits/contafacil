@@ -812,23 +812,12 @@ function _bancoFormatearMensaje(a) {
          fmt(Math.abs(a.neto)) +
          (a.totalIn > 0 ? ' (' + (ahorro >= 0 ? '+' : '') + ahorro + '%)' : '') + '\n\n';
 
-  // ─── Top categorías de gasto (con barras) ────────────────────
+  // ─── Top categorías + desglose anidado ───────────────────────
+  // Un solo bloque: top 5 cats con barras, y debajo de #1 y #2 sus
+  // top destinatarios indentados. Mismo lenguaje visual para todo.
   if (a.topCats.length) {
     msg += '*Top categorías de gasto*\n';
-    msg += '```\n' + _bancoBarsCategorias(a.topCats, a.totalOut) + '```\n\n';
-  }
-
-  // ─── Desglose top 1 y top 2 cats por destinatario ────────────
-  // Tabla monospace: WhatsApp usa fuente proporcional fuera de ``` y los
-  // $ no alinean — adentro sí. Padding de nombre a ancho fijo, montos
-  // y % alineados a la derecha.
-  if (a.topCatDesgloses && a.topCatDesgloses.length) {
-    a.topCatDesgloses.forEach(function(d, idx) {
-      if (!d.top || !d.top.length) return;
-      var rank = idx === 0 ? '#1' : '#2';
-      msg += '🔍 *¿A dónde va ' + rank + ': ' + _bancoCatLabel(d.cat) + '?*\n';
-      msg += '```\n' + _bancoFmtTablaDestinatarios(d.top, d.sum) + '```\n\n';
-    });
+    msg += '```\n' + _bancoBarsCategoriasConDesglose(a.topCats, a.topCatDesgloses, a.totalOut) + '```\n\n';
   }
 
   // ─── Tendencia mensual + deltas ──────────────────────────────
@@ -909,6 +898,37 @@ function _bancoBarsCategorias(topCats, totalOut) {
     var pct = totalOut > 0 ? Math.round((c.sum / totalOut) * 100) : 0;
     return _bancoPadCat(_bancoCatLabel(c.cat)) + ' ' + bar + ' ' + _bancoFmtDolar(c.sum) + ' (' + pct + '%)';
   }).join('\n') + '\n';
+}
+
+// Versión expandida: top cats + el top 4 de destinatarios indentado
+// debajo de los cats que tengan desglose (#1 y #2 por design). Todo
+// en el mismo lenguaje visual (nombre + bar + monto + %).
+function _bancoBarsCategoriasConDesglose(topCats, topCatDesgloses, totalOut) {
+  if (!topCats || !topCats.length) return '';
+  var max = Math.max.apply(null, topCats.map(function(c) { return c.sum; }));
+  var DEST_NAME_W = 17;  // 1 menos que cat (compensar el espacio de indent)
+  var padR = function(s, w) { while (s.length < w) s += ' '; return s; };
+  var desglosesByCat = {};
+  (topCatDesgloses || []).forEach(function(d) { desglosesByCat[d.cat] = d; });
+
+  var lines = [];
+  topCats.forEach(function(c) {
+    var bar = _bancoBar(c.sum, max);
+    var pct = totalOut > 0 ? Math.round((c.sum / totalOut) * 100) : 0;
+    lines.push(_bancoPadCat(_bancoCatLabel(c.cat)) + ' ' + bar + ' ' + _bancoFmtDolarCompacto(c.sum) + ' (' + pct + '%)');
+    var d = desglosesByCat[c.cat];
+    if (d && d.top && d.top.length) {
+      var maxDest = Math.max.apply(null, d.top.map(function(x) { return x.sum; }));
+      d.top.forEach(function(item) {
+        var name = String(item.name);
+        if (name.length > DEST_NAME_W) name = name.substring(0, DEST_NAME_W - 1) + '…';
+        var bar2  = _bancoBar(item.sum, maxDest);
+        var pctIt = d.sum > 0 ? Math.round((item.sum / d.sum) * 100) : 0;
+        lines.push('  ' + padR(name, DEST_NAME_W) + ' ' + bar2 + ' ' + _bancoFmtDolarCompacto(item.sum) + ' (' + pctIt + '%)');
+      });
+    }
+  });
+  return lines.join('\n') + '\n';
 }
 
 // Render de la tendencia mensual — cada fila un mes con bar relativo
