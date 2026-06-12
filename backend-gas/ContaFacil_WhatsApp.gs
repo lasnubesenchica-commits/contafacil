@@ -196,10 +196,19 @@ function _whatsappProcesarMensaje(msg, metadata) {
       _bancoHandleDrill(drill, from, token, phoneId);
       return;
     }
-    _whatsappReply(from, '¡Hola! 👋 Soy el asistente fiscal de BalanceClip.\n\n' +
-      'Mándame una foto o PDF de tu factura/recibo y la registro automáticamente. ' +
-      'La IA detecta si es gasto o ingreso, le saca el monto, la categoría DGI y la deja pendiente ' +
-      'para que la apruebes desde la app:\n' + _whatsappFrontendUrl(), token, phoneId);
+    _whatsappReply(from,
+      '¡Hola! 👋 Soy el asistente de BalanceClip.\n\n' +
+      'Hago 2 cosas, podés usar la que necesites:\n\n' +
+      '📸 *Registrar una factura*\n' +
+      'Mandame una foto o PDF de tu factura/recibo. Le saco monto + categoría DGI ' +
+      'y la dejo pendiente en la app para que la apruebes:\n' +
+      _whatsappFrontendUrl() + '\n\n' +
+      '📊 *Analizar tu estado de cuenta bancario*\n' +
+      'Mandame el .xlsx de tu cuenta de Banco General. Te doy:\n' +
+      '• Saldo, flujo, top categorías y destinatarios\n' +
+      '• Excel con diagnóstico y drill-downs\n' +
+      '• Asesor IA: preguntame "¿cuánto gasté en comida?"',
+      token, phoneId);
     return;
   }
 

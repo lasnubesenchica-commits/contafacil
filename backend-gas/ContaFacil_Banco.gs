@@ -1156,8 +1156,10 @@ function _bancoLoadCache(phone) {
 function _bancoDrillIntent(text) {
   var t = _bancoNorm(text || '');
   if (!t) return null;
-  // "excel" o "ver excel" / "descargar excel" — comando de export
-  if (/^(ver\s+|descargar\s+)?excel\b/.test(t) || /^(ver\s+|descargar\s+)?xlsx\b/.test(t)) {
+  // Cualquier mensaje con la palabra "excel" o "xlsx" (independiente del
+  // verbo o frase) dispara el export. Ej: "excel", "mandame el excel",
+  // "necesito el excel", "el archivo excel por favor", "ver xlsx".
+  if (/\b(excel|xlsx)\b/.test(t)) {
     return { type: 'excel' };
   }
   // Pelar prefijo "ver" / "drill" / "d" / "detalle"
