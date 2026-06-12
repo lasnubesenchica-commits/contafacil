@@ -701,13 +701,71 @@ function _bancoAnalizar(movs, categorias) {
     inicio: inicio, fin: fin,
     saldoIni: saldoIni, saldoFin: saldoFin, deltaSaldo: deltaSaldo,
     topCats: topCats,
+    topCatDesgloses: _bancoComputarTopCatDesgloses(movs, categorias, topCats, 2, 4),
     topMerchant: topMerchant,
     topYappyOut: topYappyOut, topYappyIn: topYappyIn,
     suscripciones: suscripciones.slice(0, 5),
     pequenos: { count: pequenos.length, suma: sumaPequenos },
     form90: form90,
     flags: flags,
+    oportunidad: _bancoComputarOportunidad(suscripciones, pequenos.length, sumaPequenos, dias, topMerchant, totalOut),
   };
+}
+
+// Para los top N categorías de gasto, agrupa por destinatario/merchant
+// y devuelve el top M destinatarios de cada una. Es el "gancho" del
+// mensaje: responde directo "el #1 de tu gasto fue Comida — y se fue a
+// Riba Smith, Super 99 y…". Reusa _bancoExtractDestinatario.
+function _bancoComputarTopCatDesgloses(movs, categorias, topCats, nCats, nDest) {
+  return topCats.slice(0, nCats).map(function(tc) {
+    var byDest = {};
+    movs.forEach(function(m) {
+      if (m.monto >= 0) return;
+      if ((categorias[m.descripcion] || 'otro') !== tc.cat) return;
+      var key = _bancoExtractDestinatario(m);
+      byDest[key] = (byDest[key] || 0) + (-m.monto);
+    });
+    var top = Object.keys(byDest).map(function(k) {
+      return { name: k, sum: byDest[k] };
+    }).sort(function(a, b) { return b.sum - a.sum; }).slice(0, nDest);
+    return { cat: tc.cat, sum: tc.sum, top: top };
+  });
+}
+
+// Consolida los hallazgos accionables en 1-2 bullets enfocados en
+// "dónde está la mayor oportunidad de ahorro". Prioridad:
+//  1. Suscripciones (cambio inmediato, alto impacto mensual)
+//  2. Gastos chicos significativos ($200+/año proyectado)
+//  3. Top merchant (si no hubo suscripciones ni chicos)
+function _bancoComputarOportunidad(suscripciones, nPequenos, sumaPequenos, dias, topMerchant, totalOut) {
+  var out = [];
+  if (suscripciones.length) {
+    var subTotal = suscripciones.reduce(function(s, x) { return s + x.avg; }, 0);
+    out.push({
+      icon: '🔁',
+      title: suscripciones.length + ' suscripción(es) recurrente(s) ≈ ' + _bancoFmtDolar(subTotal) + '/mes',
+      accion: 'Auditá las que no usás y cancelá. Top: ' + suscripciones[0].merchant,
+    });
+  }
+  if (nPequenos >= 10 && dias > 0) {
+    var anual = (sumaPequenos / dias) * 365;
+    if (anual >= 200) {
+      out.push({
+        icon: '☕',
+        title: nPequenos + ' compras <$10 = ' + _bancoFmtDolar(sumaPequenos) + ' (~' + _bancoFmtDolar(anual) + '/año)',
+        accion: 'Recortando 50% ahorrás ' + _bancoFmtDolar(anual / 2) + '/año.',
+      });
+    }
+  }
+  if (out.length === 0 && topMerchant && topMerchant.sum >= 100 && totalOut > 0) {
+    var pctTm = Math.round((topMerchant.sum / totalOut) * 100);
+    out.push({
+      icon: '🏆',
+      title: 'Top gasto: ' + topMerchant.name + ' ' + _bancoFmtDolar(topMerchant.sum) + ' (' + pctTm + '%)',
+      accion: 'Evaluá si hay alternativa más barata o si se puede reducir.',
+    });
+  }
+  return out.slice(0, 2);
 }
 
 function _bancoFmtDolar(n) { return '$' + (isFinite(n) ? Number(n).toFixed(2) : '0.00'); }
@@ -734,65 +792,56 @@ function _bancoFormatearMensaje(a) {
   };
 
   var ahorro = a.totalIn > 0 ? Math.round((a.neto / a.totalIn) * 100) : 0;
-  var msg = '📊 *Análisis de movimientos*\n';
-  msg += '_' + fechaStr(a.inicio) + ' – ' + fechaStr(a.fin) + ' · ' + a.dias + ' días · ' + a.nMovs + ' movs_\n\n';
 
-  // Saldo — contexto absoluto. "Ahorraste $X" sin saber el saldo
-  // miente: capaz tenés balance bajando hacia 0.
+  // ─── Header compacto: período + saldo en 2 líneas ────────────
+  var msg = '📊 *Análisis · ' + fechaStr(a.inicio) + ' – ' + fechaStr(a.fin) +
+            ' · ' + a.nMovs + ' movs*\n';
   if (a.saldoIni != null && a.saldoFin != null) {
     var arrow = a.deltaSaldo >= 0 ? '↗' : '↘';
     var sign  = a.deltaSaldo >= 0 ? '+' : '−';
-    msg += '*Saldo*\n💵 ' + fmt(a.saldoIni) + ' ' + arrow + ' ' + fmt(a.saldoFin) +
-           ' (' + sign + fmt(Math.abs(a.deltaSaldo)) + ')\n\n';
+    msg += '💵 Saldo ' + fmt(a.saldoIni) + ' ' + arrow + ' ' + fmt(a.saldoFin) +
+           ' (' + sign + fmt(Math.abs(a.deltaSaldo)) + ')\n';
   }
+  msg += '\n';
 
+  // ─── Flujo ───────────────────────────────────────────────────
   msg += '*Flujo*\n';
-  msg += '✅ Ingresaste: ' + fmt(a.totalIn) + '\n';
-  msg += '❌ Gastaste:    ' + fmt(a.totalOut) + '\n';
-  msg += (a.neto >= 0 ? '💰 Ahorrado:   ' : '⚠️ Déficit:    ') +
+  msg += '✅ Ingresos: ' + fmt(a.totalIn) + '\n';
+  msg += '❌ Gastos:   ' + fmt(a.totalOut) + '\n';
+  msg += (a.neto >= 0 ? '💰 Ahorro:    ' : '⚠️ Déficit:   ') +
          fmt(Math.abs(a.neto)) +
          (a.totalIn > 0 ? ' (' + (ahorro >= 0 ? '+' : '') + ahorro + '%)' : '') + '\n\n';
 
-  // Banderas de salud — destacadas para que se vean primero.
-  if (a.flags && a.flags.length) {
-    msg += '*Atención*\n';
-    a.flags.forEach(function(f) { msg += f + '\n'; });
-    msg += '\n';
-  }
-
-  // Form 90 — match único de ContaFacil. Mostrar arriba del fold.
-  if (a.form90 && a.form90.length) {
-    msg += '💡 *Posibles deducibles · Form 90*\n';
-    a.form90.forEach(function(f) {
-      msg += '   • ' + f.label + ' (' + f.linea + '): ' + fmt(f.sum) + '\n';
-      if (f.nota) msg += '     ' + f.nota + '\n';
-    });
-    msg += '_Si son personales, registralos como gasto deducible en tu app._\n\n';
-  }
-
-  // Top merchant — punzante, dato accionable.
-  if (a.topMerchant && a.topMerchant.sum >= 5) {
-    var pctMerch = pct(a.topMerchant.sum, a.totalOut);
-    msg += '🏆 *Tu gasto más grande:* ' + a.topMerchant.name +
-           ' ' + fmt(a.topMerchant.sum) +
-           (pctMerch > 0 ? ' (' + pctMerch + '%)' : '') + '\n\n';
-  }
-
+  // ─── Top categorías de gasto (con barras) ────────────────────
   if (a.topCats.length) {
     msg += '*Top categorías de gasto*\n';
     msg += '```\n' + _bancoBarsCategorias(a.topCats, a.totalOut) + '```\n\n';
   }
 
-  // Tendencia mensual + deltas — solo si hay ≥2 meses de historial
-  // (caso contrario no aporta nada nuevo vs el bloque de Flujo).
+  // ─── Desglose top 1 y top 2 cats por destinatario ────────────
+  // El gancho: la categoría más grande se rompe en sus top 4
+  // destinatarios. El usuario ve directo a quién/dónde se va.
+  if (a.topCatDesgloses && a.topCatDesgloses.length) {
+    a.topCatDesgloses.forEach(function(d, idx) {
+      if (!d.top || !d.top.length) return;
+      var rank = idx === 0 ? '#1' : '#2';
+      msg += '🔍 *¿A dónde va ' + rank + ': ' + _bancoCatLabel(d.cat) + '?*\n';
+      d.top.forEach(function(item, i) {
+        var pctIt = d.sum > 0 ? Math.round((item.sum / d.sum) * 100) : 0;
+        msg += '   ' + (i+1) + '. ' + item.name + ': ' + fmt(item.sum) +
+               ' (' + pctIt + '%)\n';
+      });
+      msg += '\n';
+    });
+  }
+
+  // ─── Tendencia mensual + deltas ──────────────────────────────
   if (a.historial && a.historial.length >= 2) {
     msg += '*📈 Tendencia mensual*\n';
     msg += '```\n' + _bancoBarsTendencia(a.historial) + '```\n';
     var deltas = _bancoComputarDeltasMesAnt(a.historial);
     if (deltas && deltas.length) {
       var d0 = deltas[0];
-      // Si el mes actual está parcial, advertirlo en el header — comparar
-      // 11 días vs un mes completo da % engañosos sin esta nota.
       var parcialNote = d0.curParcial ? ' (parcial)' : '';
       msg += '\n*' + d0.label + parcialNote + ' vs ' + d0.prevLabel + '*\n';
       msg += '```\n' + _bancoBarsDeltas(d0.cats) + '```\n';
@@ -800,43 +849,21 @@ function _bancoFormatearMensaje(a) {
     msg += '\n';
   }
 
-  if (a.topYappyOut.length || a.topYappyIn.length) {
-    msg += '*Yappys*\n';
-    if (a.topYappyOut.length) {
-      msg += '💸 Le mandaste a:\n';
-      a.topYappyOut.forEach(function(y) { msg += '   • ' + y.name + ': ' + fmt(y.sum) + '\n'; });
-    }
-    if (a.topYappyIn.length) {
-      msg += '💰 Recibiste de:\n';
-      a.topYappyIn.forEach(function(y) { msg += '   • ' + y.name + ': ' + fmt(y.sum) + '\n'; });
-    }
-    msg += '\n';
-  }
-
-  if (a.suscripciones.length) {
-    msg += '🔁 *Cargos recurrentes detectados*\n';
-    a.suscripciones.forEach(function(s) {
-      msg += '   • ' + s.merchant + ': ' + fmt(s.avg) + ' (' + s.count + 'x)\n';
+  // ─── Oportunidad de ahorro (1-2 bullets accionables) ─────────
+  if (a.oportunidad && a.oportunidad.length) {
+    msg += '💡 *Tu mayor oportunidad de ahorro*\n';
+    a.oportunidad.forEach(function(op) {
+      msg += op.icon + ' ' + op.title + '\n';
+      msg += '   → ' + op.accion + '\n';
     });
-    msg += '_Revisalos — quizás hay suscripciones olvidadas._\n\n';
-  }
-
-  if (a.pequenos.count >= 5) {
-    msg += '☕ *Gastos chicos que suman*\n';
-    msg += a.pequenos.count + ' compras < $10 = ' + fmt(a.pequenos.suma) + '\n';
-    var anual = a.dias > 0 ? (a.pequenos.suma / a.dias) * 365 : 0;
-    if (anual > 100) {
-      msg += '_Al ritmo actual, esos chicos te cuestan ~' + fmt(anual) + ' al año._\n';
-    }
     msg += '\n';
   }
 
-  msg += '📈 _Mandame el del próximo mes y te muestro cómo evolucionaste._\n\n';
-  msg += '👇 *Menú abajo* — detalle de cualquier categoría, mes, o descargar Excel.\n\n';
-  msg += '💬 *O preguntame cualquier cosa* en lenguaje natural:\n';
-  msg += '   _"¿cuánto debería ahorrar?"_\n';
-  msg += '   _"¿es alto mi gasto en comida?"_\n';
-  msg += '   _"si dejo de mandar Yappys a X, ¿cuánto ahorro?"_';
+  // ─── Cierre: menú + asesor + CTA al Excel ────────────────────
+  msg += '👇 *Menú abajo* — drill por cat/mes o descargar Excel\n';
+  msg += '💬 *O preguntame:* _"¿está alto mi gasto en comida?"_\n\n';
+  msg += '📥 _El Excel trae mucho más: matriz destinatario×mes con heatmap, ' +
+         'suscripciones, semáforo de salud y diagnóstico ejecutivo. Pedí "excel"._';
 
   return msg.substring(0, 4000);  // WhatsApp text cap
 }
