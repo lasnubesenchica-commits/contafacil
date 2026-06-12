@@ -291,22 +291,27 @@ function _bancoClasificarDescripciones(movs) {
   // Deduplicar descripciones para reducir tokens.
   var unicas = {};
   for (var i = 0; i < movs.length; i++) unicas[movs[i].descripcion] = true;
-  var lista = Object.keys(unicas).slice(0, 200);
+  var lista = Object.keys(unicas).slice(0, 500);  // tope alto: el formato compacto soporta volumen
   if (!lista.length) return {};
 
+  // Formato compacto: input numerado, output "N=cat" por línea.
+  // Antes el output JSON repetía las descripciones largas como keys
+  // → con 200+ descripciones el output excedía max_tokens y volvía
+  // truncado (fallback a vacío → todo se clasificaba como 'otro').
+  // El compact format reduce ~7× los tokens de output.
   var prompt =
-    'Eres un clasificador de movimientos bancarios panameños. Te paso una lista de DESCRIPCIONES.\n\n' +
-    'Para CADA una, devolveme la categoría más probable. Categorías válidas:\n\n' +
-    '  comida           — restaurantes, café (Kotowa, Starbucks), supermercado pequeño, delivery (UBER EATS, PEDIDOSYA, RAPPI)\n' +
-    '  transporte       — UBER (NO Eats), taxi, gasolinera, peaje, parking\n' +
-    '  telco            — Más Móvil, +Móvil, Tigo, Cable Onda, MASMOVIL, internet, celular\n' +
-    '  servicios        — luz (ENSA, IDAAN), agua, gas, electricidad\n' +
-    '  entretenimiento  — Netflix, Spotify, Disney+, HBO, Twitch, cine, juegos\n' +
+    'Eres un clasificador de movimientos bancarios panameños. Te paso una lista NUMERADA de descripciones.\n\n' +
+    'Para CADA línea, devolveme la categoría más probable. Categorías válidas:\n\n' +
+    '  comida           — restaurantes, café (Kotowa, Starbucks, McDonalds), supermercado pequeño, delivery (UBER EATS, PEDIDOSYA, RAPPI)\n' +
+    '  transporte       — UBER RIDES (NO Eats), taxi, gasolinera (TERPEL, PUMA, DELTA), peaje, parking\n' +
+    '  telco            — Más Móvil, +Móvil, Tigo, Cable Onda, internet, celular\n' +
+    '  servicios        — luz (ENSA), agua (IDAAN), gas, electricidad\n' +
+    '  entretenimiento  — Netflix, Spotify, Disney+, HBO, Twitch, CINEPOLIS, cine\n' +
     '  ads              — Facebook Ads (FACEBK), Google Ads (GOOGL), TikTok ads\n' +
     '  yappy_salida     — YAPPY BG A <nombre> (vos mandando)\n' +
     '  yappy_entrada    — YAPPY BG DE <nombre> (vos recibiendo)\n' +
-    '  ach_salida       — ACH/transferencia saliente, PAGO ACH\n' +
-    '  ach_entrada      — ACH entrante, DEPÓSITO, ABONO\n' +
+    '  ach_salida       — BANCA MOVIL TRANSFERENCIA A, ACH/transferencia saliente, PAGO ACH\n' +
+    '  ach_entrada      — ACH entrante, DEPOSITO, ABONO, deposito cuenta\n' +
     '  retiro_atm       — RETIRO CAJERO, ATM\n' +
     '  pago_tarjeta     — PAGO TARJETA CRÉDITO\n' +
     '  prestamo         — pago préstamo, cuota leasing\n' +
@@ -316,16 +321,20 @@ function _bancoClasificarDescripciones(movs) {
     '  belleza          — peluquería, barbería, spa, salón, Kevins Studio\n' +
     '  comercio         — PriceSmart, Super 99, Riba Smith, Xtra, El Machetazo\n' +
     '  ropa             — Zara, H&M, almacenes, tiendas de ropa\n' +
+    '  hospedaje        — agoda, booking, hoteles, airbnb\n' +
     '  comision_banco   — cargos del banco, comisión, ITBMS bancario\n' +
     '  otro             — todo lo demás\n\n' +
-    'Devuelve SOLO JSON válido, sin markdown:\n' +
-    '{ "<descripcion exacta>": "<categoria>", ... }\n\n' +
+    'FORMATO de RESPUESTA: una línea por entrada con "N=categoria". Sin comentarios, sin explicaciones, sin markdown.\n\n' +
+    'Ejemplo:\n' +
+    '  1=transporte\n' +
+    '  2=comida\n' +
+    '  3=telco\n\n' +
     'DESCRIPCIONES:\n' +
     lista.map(function(d, i) { return (i + 1) + '. ' + d; }).join('\n');
 
   var payload = {
     model:      'claude-haiku-4-5-20251001',
-    max_tokens: 4000,
+    max_tokens: 8000,  // suficiente para ~500 líneas "N=cat"
     messages:   [{ role: 'user', content: prompt }],
   };
   var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
@@ -341,10 +350,17 @@ function _bancoClasificarDescripciones(movs) {
   }
   var data = JSON.parse(res.getContentText());
   var text = (data.content && data.content[0] && data.content[0].text) || '';
-  var jm   = text.match(/\{[\s\S]*\}/);
-  if (!jm) return {};
-  try { return JSON.parse(jm[0]); }
-  catch(e) { Logger.log('Banco clasif JSON parse: ' + e.message); return {}; }
+  // Parsear el formato compacto. Tolera lineas en blanco, espacios y prefijos.
+  var out = {};
+  var lineas = text.split(/\r?\n/);
+  for (var li = 0; li < lineas.length; li++) {
+    var match = /^\s*(\d+)\s*=\s*([a-z_]+)\s*$/.exec(lineas[li]);
+    if (!match) continue;
+    var idx = parseInt(match[1], 10) - 1;
+    var cat = match[2];
+    if (idx >= 0 && idx < lista.length) out[lista[idx]] = cat;
+  }
+  return out;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -374,10 +390,12 @@ function _bancoAnalizar(movs, categorias) {
       // Merchant key para detección de suscripciones — solo cargos.
       // Recortamos el sufijo de tarjeta "-4187-94XX-XXXX-0953" o ref ACH.
       var mk = m.descripcion.split(/-\d{4}-?\d|\s+\d{6,}/)[0].trim().substring(0, 40);
-      if (!byMerchantOut[mk]) byMerchantOut[mk] = { count: 0, sum: 0, montos: [] };
+      if (!byMerchantOut[mk]) byMerchantOut[mk] = { count: 0, sum: 0, montos: [], fechas: [], cat: null };
       byMerchantOut[mk].count++;
       byMerchantOut[mk].sum += -monto;
       byMerchantOut[mk].montos.push(monto);
+      byMerchantOut[mk].fechas.push(m.fecha);
+      byMerchantOut[mk].cat = categorias[m.descripcion] || byMerchantOut[mk].cat || 'otro';
     }
 
     // Extraer nombre Yappy del texto: "YAPPY BG A/DE <NOMBRE> [POR …]"
@@ -405,18 +423,33 @@ function _bancoAnalizar(movs, categorias) {
     .map(function(k) { return { name: k, sum: yappyIn[k] }; })
     .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 3);
 
-  // Suscripciones: mismo merchant (de gastos) ≥ 2 veces con montos
-  // similares (variación < 15% sobre el promedio).
+  // Suscripciones: mismo merchant (de gastos) ≥ 3 veces con montos
+  // similares (variación < 15% del promedio) y patrón mensual (intervalo
+  // mediano entre cargos 22-38 días). Antes el threshold de 2x daba
+  // muchos falsos positivos (clínica/restaurante/cine visitados 2 veces
+  // por casualidad).
   var suscripciones = [];
   Object.keys(byMerchantOut).forEach(function(mk) {
     var info = byMerchantOut[mk];
-    if (info.count < 2) return;
+    if (info.count < 3) return;
     var avg = info.sum / info.count;
     if (avg < 3) return;
     var allClose = info.montos.every(function(x) {
       return Math.abs(Math.abs(x) - avg) / avg < 0.15;
     });
-    if (allClose) suscripciones.push({ merchant: mk, count: info.count, avg: avg });
+    if (!allClose) return;
+    // Patrón mensual: ordenar fechas y verificar que el intervalo
+    // mediano entre cargos consecutivos cae en [22, 38] días.
+    var fechasOrd = info.fechas.slice().filter(Boolean).sort(function(a, b) { return a - b; });
+    if (fechasOrd.length < 3) return;
+    var intervalos = [];
+    for (var i = 1; i < fechasOrd.length; i++) {
+      intervalos.push((fechasOrd[i] - fechasOrd[i-1]) / 86400000);
+    }
+    intervalos.sort(function(a, b) { return a - b; });
+    var mediana = intervalos[Math.floor(intervalos.length / 2)];
+    if (mediana < 22 || mediana > 38) return;
+    suscripciones.push({ merchant: mk, count: info.count, avg: avg });
   });
   suscripciones.sort(function(a, b) { return b.avg - a.avg; });
 
@@ -459,14 +492,19 @@ function _bancoAnalizar(movs, categorias) {
     deltaSaldo = saldoFin - saldoIni;
   }
 
-  // Top merchant — el que se llevó más plata acumulada (single insight
-  // más punzante que el "top categoría" que abstrae).
+  // Top merchant — el que se llevó más plata acumulada en GASTOS REALES.
+  // Excluimos transferencias internas (ach_salida) y movimientos a la
+  // propia cuenta del usuario (ej "BANCA MOVIL TRANSFERENCIA A …"
+  // donde estás moviendo plata entre tus cuentas, no gastando).
   var topMerchant = null;
   var bestSum = 0;
   Object.keys(byMerchantOut).forEach(function(mk) {
-    if (byMerchantOut[mk].sum > bestSum) {
-      bestSum = byMerchantOut[mk].sum;
-      topMerchant = { name: mk, sum: byMerchantOut[mk].sum, count: byMerchantOut[mk].count };
+    var info = byMerchantOut[mk];
+    if (info.cat === 'ach_salida' || info.cat === 'pago_tarjeta') return;
+    if (/BANCA\s+MOVIL\s+TRANSFER|TRANSFER.*CUENTA|PAGO\s+TC|PAGO\s+TARJETA/i.test(mk)) return;
+    if (info.sum > bestSum) {
+      bestSum = info.sum;
+      topMerchant = { name: mk, sum: info.sum, count: info.count };
     }
   });
 
@@ -505,15 +543,23 @@ function _bancoAnalizar(movs, categorias) {
   if (deltaSaldo != null && deltaSaldo < -20) {
     flags.push('📉 Tu saldo bajó ' + _bancoFmtDolar(Math.abs(deltaSaldo)) + ' en este período.');
   }
-  if (topCats.length && topCats[0].sum / Math.max(totalOut, 1) > 0.4) {
+  // Concentración alta — solo si la cat ganadora NO es 'otro' (sino es
+  // artefacto de Claude no clasificando, no de un patrón real) y supera
+  // el 40% del gasto.
+  if (topCats.length && topCats[0].cat !== 'otro' &&
+      topCats[0].sum / Math.max(totalOut, 1) > 0.4) {
     flags.push('🎯 Una sola categoría (' + _bancoCatLabel(topCats[0].cat) + ') se llevó el ' +
                Math.round((topCats[0].sum / totalOut) * 100) + '% de tu gasto — concentración alta.');
   }
-  if (saldoFin != null && dias > 0 && totalOut > 0) {
+  // Runway — solo si el saldo está BAJANDO (deltaSaldo < 0). Si la
+  // persona tiene ingresos sostenidos compensando, no es señal real
+  // de riesgo: el saldo se recupera al próximo ingreso.
+  if (saldoFin != null && deltaSaldo != null && deltaSaldo < 0 &&
+      dias > 0 && totalOut > 0) {
     var gastoDiario = totalOut / dias;
     var runwayDias  = gastoDiario > 0 ? Math.floor(saldoFin / gastoDiario) : 999;
     if (runwayDias < 7) {
-      flags.push('⏳ Al ritmo de gasto actual, tu saldo dura ~' + runwayDias + ' día(s) más.');
+      flags.push('⏳ Al ritmo de gasto actual y con saldo bajando, tu saldo dura ~' + runwayDias + ' día(s) más.');
     }
   }
 
