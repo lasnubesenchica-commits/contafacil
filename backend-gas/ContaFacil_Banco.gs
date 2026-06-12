@@ -1109,6 +1109,7 @@ function _bancoCacheAnalisis(phone, movs, categorias, historial) {
       m: m.monto,
       d: m.descripcion,
       c: categorias[m.descripcion] || 'otro',
+      s: (m.saldo != null && !isNaN(m.saldo)) ? m.saldo : null,
     };
   });
   var payload = JSON.stringify({
@@ -1137,7 +1138,7 @@ function _bancoLoadCache(phone) {
     var data = JSON.parse(raw);
     // Rehidratar fechas como Date objects
     data.movs = data.movs.map(function(m) {
-      return { fecha: new Date(m.f), monto: m.m, descripcion: m.d, cat: m.c };
+      return { fecha: new Date(m.f), monto: m.m, descripcion: m.d, cat: m.c, saldo: m.s };
     });
     return data;
   } catch(e) {
