@@ -1612,7 +1612,8 @@ function _bancoPoblarXlsx(ss, cache) {
 }
 
 // Pobla una hoja de detalle (cat o mes) con back-link al Resumen,
-// título, total + un listado de los movimientos correspondientes.
+// título, total, breakdown "¿Dónde se va la plata?" agrupando por
+// destinatario/merchant, y al final el listado crudo de movimientos.
 function _bancoPoblarDetalleSheet(sh, title, movs, kind) {
   var total = movs.reduce(function(s, m) { return s + Math.abs(m.monto < 0 ? m.monto : 0); }, 0);
   var nMovs = movs.length;
@@ -1623,26 +1624,113 @@ function _bancoPoblarDetalleSheet(sh, title, movs, kind) {
     [title, '', 'Total:', total, ''],
     ['', '', '# Movs:', nMovs, ''],
     ['', '', '', '', ''],
-    ['Fecha','Monto','Tipo','Descripción','Categoría'],
   ];
+
+  // Breakdown por destinatario/merchant — responde "¿adónde se va la plata?"
+  // antes de mostrar transacciones sueltas. Solo si hay >1 destinatario.
+  var grupos = _bancoAgruparPorDestinatario(movs);
+  var TOP_N = 20;
+  var breakdownDataStart = 0, breakdownDataRows = 0, breakdownHeaderRow = 0;
+  if (grupos.length > 1) {
+    breakdownHeaderRow = rows.length + 1;  // 1-based
+    rows.push(['¿DÓNDE SE VA LA PLATA?', '', '', '', '']);
+    rows.push(['Destinatario / Merchant', '# Movs', 'Total', '% del total', '']);
+    breakdownDataStart = rows.length + 1;
+    grupos.slice(0, TOP_N).forEach(function(g) {
+      var pct = total > 0 ? Math.round((g.total / total) * 100) : 0;
+      rows.push([g.name, g.count, g.total, pct + '%', '']);
+    });
+    breakdownDataRows = Math.min(grupos.length, TOP_N);
+    if (grupos.length > TOP_N) {
+      var resto = grupos.slice(TOP_N);
+      var sumResto   = resto.reduce(function(s, g) { return s + g.total; }, 0);
+      var countResto = resto.reduce(function(s, g) { return s + g.count; }, 0);
+      var pctResto   = total > 0 ? Math.round((sumResto / total) * 100) : 0;
+      rows.push(['Otros (' + resto.length + ' más)', countResto, sumResto, pctResto + '%', '']);
+      breakdownDataRows++;
+    }
+    rows.push(['', '', '', '', '']);
+  }
+
+  // Header del listado crudo
+  var movHeaderRow = rows.length + 1;  // 1-based
+  rows.push(['Fecha','Monto','Tipo','Descripción','Categoría']);
   movs.slice().sort(function(a, b) { return b.fecha - a.fecha; }).forEach(function(m) {
     rows.push([m.fecha, m.monto, m.monto >= 0 ? 'Ingreso' : 'Gasto', m.descripcion, _bancoCatLabel(m.cat)]);
   });
+
   sh.getRange(1, 1, rows.length, 5).setValues(rows);
   sh.getRange(3, 1).setFontWeight('bold').setFontSize(13);
-  sh.getRange(6, 1, 1, 5).setFontWeight('bold').setBackground('#F1F3F5');
-  sh.setFrozenRows(6);
-  sh.setColumnWidth(1, 110);
+
+  // Estilos del breakdown
+  if (breakdownHeaderRow) {
+    sh.getRange(breakdownHeaderRow, 1, 1, 5).merge().setFontSize(12).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
+    sh.getRange(breakdownHeaderRow + 1, 1, 1, 4).setFontWeight('bold').setBackground('#F1F3F5');
+    sh.getRange(breakdownDataStart, 3, breakdownDataRows, 1).setNumberFormat('$#,##0.00');
+    sh.getRange(breakdownDataStart, 1, breakdownDataRows, 1).setFontWeight('bold');
+  }
+
+  // Header del listado crudo
+  sh.getRange(movHeaderRow, 1, 1, 5).setFontWeight('bold').setBackground('#F1F3F5');
+  sh.setFrozenRows(movHeaderRow);
+
+  sh.setColumnWidth(1, 230);
   sh.setColumnWidth(2, 90);
-  sh.setColumnWidth(3, 80);
-  sh.setColumnWidth(4, 380);
+  sh.setColumnWidth(3, 100);
+  sh.setColumnWidth(4, 360);
   sh.setColumnWidth(5, 180);
-  // AutoFilter en el rango de datos
+
+  // AutoFilter solo en el rango de movimientos crudos
   try {
     var existingFilter = sh.getFilter();
     if (existingFilter) existingFilter.remove();
-    if (rows.length > 6) sh.getRange(6, 1, rows.length - 5, 5).createFilter();
+    var movDataRows = rows.length - movHeaderRow + 1;
+    if (movDataRows > 1) sh.getRange(movHeaderRow, 1, movDataRows, 5).createFilter();
   } catch(e) { Logger.log('Banco detalle filter skip: ' + e.message); }
+}
+
+// Extrae un nombre de destinatario/merchant a partir de la descripción
+// de un mov. Soporta los formatos más comunes de Banco General:
+// Yappy, ACH/Banca Móvil, Pago TC; el resto cae a "merchant genérico"
+// (descripción truncada limpiando códigos largos y fechas).
+function _bancoExtractDestinatario(m) {
+  var d = String((m && m.descripcion) || '');
+  // Yappy salida
+  var ym = /^YAPPY\s+BG\s+A\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(d);
+  if (ym) return ym[1].split(/\s+/).slice(0, 4).join(' ');
+  // Yappy entrada
+  var yme = /^YAPPY\s+BG\s+DE\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(d);
+  if (yme) return yme[1].split(/\s+/).slice(0, 4).join(' ');
+  // ACH / Banca Móvil transferencia salida → nombre del destinatario
+  var ach = /(?:BANCA\s+MOVIL\s+TRANSFERENCIA|PAGO\s+ACH|TRANSFER\w*)\s+A\s+\d+\s+(.+?)(?:\s+(?:ahorros|corriente|cta)\b|\s+ENTRE\s+CUENTAS|\s+PROPIAS?|\s*$)/i.exec(d);
+  if (ach) {
+    var nm = ach[1].split(/\s+/).slice(0, 5).join(' ');
+    return nm || 'Transferencia sin nombre';
+  }
+  // Pago Tarjeta Crédito
+  if (/^PAGO\s+TC\b/i.test(d)) {
+    var tcm = /PAGO\s+TC\s+(\S+(?:\s+\S+)?)/i.exec(d);
+    if (tcm) return 'Pago TC ' + tcm[1];
+    return 'Pago Tarjeta Crédito';
+  }
+  // Merchant genérico: descartar fechas, IDs largos, referencias
+  var mk = d.split(/-\d{4}-?\d|\s+\d{6,}|\s+ID:|\s+#\d|\s+\d{1,2}\/\d{1,2}/)[0].trim().substring(0, 50);
+  return mk || d.substring(0, 50) || 'Sin descripción';
+}
+
+// Agrupa movs (gastos) por destinatario/merchant. Devuelve un array
+// [{ name, count, total }] ordenado por total descendente.
+function _bancoAgruparPorDestinatario(movs) {
+  var by = {};
+  movs.forEach(function(m) {
+    if (!m || m.monto >= 0) return;  // solo gastos
+    var key = _bancoExtractDestinatario(m);
+    if (!by[key]) by[key] = { name: key, count: 0, total: 0 };
+    by[key].count++;
+    by[key].total += -m.monto;
+  });
+  return Object.keys(by).map(function(k) { return by[k]; })
+    .sort(function(a, b) { return b.total - a.total; });
 }
 
 // Devuelve solo el texto de la categoría (sin emoji). "🍽 Comida" → "Comida"
