@@ -70,8 +70,9 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
   try {
     _bancoPersistirMensual(from, movs, categorias);
     historial = _bancoLeerHistorial(from);
+    Logger.log('Banco historial: ' + historial.length + ' meses para phone=' + from);
   } catch(err) {
-    Logger.log('Banco historial error: ' + err.message);
+    Logger.log('Banco historial error: ' + err.message + ' stack=' + (err.stack || ''));
   }
   analisis.historial = historial;
 
@@ -853,7 +854,7 @@ function _bancoMesLabel(ym) {
 var _BANCO_SHEET = 'Banco_Historico';
 
 function _bancoEnsureHistorialSheet() {
-  var ss = SpreadsheetApp.getActive();
+  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
   var sh = ss.getSheetByName(_BANCO_SHEET);
   if (sh) return sh;
   sh = ss.insertSheet(_BANCO_SHEET);
@@ -863,6 +864,7 @@ function _bancoEnsureHistorialSheet() {
   sh.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#f3f4f6');
   sh.setFrozenRows(1);
   sh.setColumnWidth(5, 300);
+  Logger.log('Banco_Historico sheet creado');
   return sh;
 }
 
@@ -934,7 +936,7 @@ function _bancoPersistirMensual(phone, movs, categorias) {
 // asc. Cap a 12 meses para no inundar el bar chart.
 function _bancoLeerHistorial(phone) {
   if (!phone) return [];
-  var ss = SpreadsheetApp.getActive();
+  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
   var sh = ss.getSheetByName(_BANCO_SHEET);
   if (!sh) return [];
   var last = sh.getLastRow();
