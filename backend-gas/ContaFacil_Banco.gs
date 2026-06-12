@@ -112,8 +112,12 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
   try { _bancoCacheAnalisis(from, movs, categorias, historial); }
   catch(err) { Logger.log('Banco cache error: ' + err.message); }
 
-  var msgText  = _bancoFormatearMensaje(analisis);
-  _whatsappReply(from, msgText, token, phoneId);
+  // _bancoFormatearMensaje devuelve ahora un array de 2 mensajes
+  // (header→desglose, tendencia→cierre) para que cada uno quede dentro
+  // del límite de "Leer más" de WhatsApp mobile (~1500 chars).
+  var msgs = _bancoFormatearMensaje(analisis);
+  if (typeof msgs === 'string') msgs = [msgs];
+  msgs.forEach(function(t) { _whatsappReply(from, t, token, phoneId); });
 
   // Después del análisis principal mandar el menú interactivo con
   // botones de drill (top cats + meses recientes + descargar Excel).
@@ -786,82 +790,76 @@ function _bancoCatLabel(c) {
 
 function _bancoFormatearMensaje(a) {
   var fmt = _bancoFmtDolar;
-  var pct = function(part, whole) { return whole > 0 ? Math.round((part / whole) * 100) : 0; };
   var fechaStr = function(d) {
     return d ? Utilities.formatDate(d, 'America/Panama', 'd MMM') : '—';
   };
 
   var ahorro = a.totalIn > 0 ? Math.round((a.neto / a.totalIn) * 100) : 0;
 
-  // ─── Header compacto: período + saldo en 2 líneas ────────────
-  var msg = '📊 *Análisis · ' + fechaStr(a.inicio) + ' – ' + fechaStr(a.fin) +
-            ' · ' + a.nMovs + ' movs*\n';
+  // ═══ MENSAJE 1 — Header + Flujo + Top cats + Desglose ═══
+  var m1 = '';
+  m1 += '📊 *Análisis · ' + fechaStr(a.inicio) + ' – ' + fechaStr(a.fin) +
+        ' · ' + a.nMovs + ' movs*\n';
   if (a.saldoIni != null && a.saldoFin != null) {
     var arrow = a.deltaSaldo >= 0 ? '↗' : '↘';
     var sign  = a.deltaSaldo >= 0 ? '+' : '−';
-    msg += '💵 Saldo ' + fmt(a.saldoIni) + ' ' + arrow + ' ' + fmt(a.saldoFin) +
-           ' (' + sign + fmt(Math.abs(a.deltaSaldo)) + ')\n';
+    m1 += '💵 Saldo ' + fmt(a.saldoIni) + ' ' + arrow + ' ' + fmt(a.saldoFin) +
+          ' (' + sign + fmt(Math.abs(a.deltaSaldo)) + ')\n';
   }
-  msg += '\n';
+  m1 += '\n*Flujo*\n';
+  m1 += '✅ Ingresos: ' + fmt(a.totalIn) + '\n';
+  m1 += '❌ Gastos:   ' + fmt(a.totalOut) + '\n';
+  m1 += (a.neto >= 0 ? '💰 Ahorro:    ' : '⚠️ Déficit:   ') +
+        fmt(Math.abs(a.neto)) +
+        (a.totalIn > 0 ? ' (' + (ahorro >= 0 ? '+' : '') + ahorro + '%)' : '') + '\n\n';
 
-  // ─── Flujo ───────────────────────────────────────────────────
-  msg += '*Flujo*\n';
-  msg += '✅ Ingresos: ' + fmt(a.totalIn) + '\n';
-  msg += '❌ Gastos:   ' + fmt(a.totalOut) + '\n';
-  msg += (a.neto >= 0 ? '💰 Ahorro:    ' : '⚠️ Déficit:   ') +
-         fmt(Math.abs(a.neto)) +
-         (a.totalIn > 0 ? ' (' + (ahorro >= 0 ? '+' : '') + ahorro + '%)' : '') + '\n\n';
-
-  // ─── Top categorías de gasto (con barras) ────────────────────
   if (a.topCats.length) {
-    msg += '*Top categorías de gasto*\n';
-    msg += '```\n' + _bancoBarsCategorias(a.topCats, a.totalOut) + '```\n\n';
+    m1 += '*Top categorías de gasto*\n';
+    m1 += '```\n' + _bancoBarsCategorias(a.topCats, a.totalOut) + '```\n\n';
   }
 
-  // ─── Desglose top 1 y top 2 cats por destinatario ────────────
-  // Tabla monospace: WhatsApp usa fuente proporcional fuera de ``` y los
-  // $ no alinean — adentro sí. Padding de nombre a ancho fijo, montos
-  // y % alineados a la derecha.
   if (a.topCatDesgloses && a.topCatDesgloses.length) {
     a.topCatDesgloses.forEach(function(d, idx) {
       if (!d.top || !d.top.length) return;
       var rank = idx === 0 ? '#1' : '#2';
-      msg += '🔍 *¿A dónde va ' + rank + ': ' + _bancoCatLabel(d.cat) + '?*\n';
-      msg += '```\n' + _bancoFmtTablaDestinatarios(d.top, d.sum) + '```\n\n';
+      m1 += '🔍 *¿A dónde va ' + rank + ': ' + _bancoCatLabel(d.cat) + '?*\n';
+      m1 += '```\n' + _bancoFmtTablaDestinatarios(d.top, d.sum) + '```\n\n';
     });
   }
 
-  // ─── Tendencia mensual + deltas ──────────────────────────────
+  m1 += '_Sigue ↓ tendencia mensual + oportunidades…_';
+
+  // ═══ MENSAJE 2 — Tendencia + Oportunidad + Cierre ═══
+  var m2 = '';
   if (a.historial && a.historial.length >= 2) {
-    msg += '*📈 Tendencia mensual*\n';
-    msg += '```\n' + _bancoBarsTendencia(a.historial) + '```\n';
+    m2 += '*📈 Tendencia mensual*\n';
+    m2 += '```\n' + _bancoBarsTendencia(a.historial) + '```\n';
     var deltas = _bancoComputarDeltasMesAnt(a.historial);
     if (deltas && deltas.length) {
       var d0 = deltas[0];
       var parcialNote = d0.curParcial ? ' (parcial)' : '';
-      msg += '\n*' + d0.label + parcialNote + ' vs ' + d0.prevLabel + '*\n';
-      msg += '```\n' + _bancoBarsDeltas(d0.cats) + '```\n';
+      m2 += '\n*' + d0.label + parcialNote + ' vs ' + d0.prevLabel + '*\n';
+      m2 += '```\n' + _bancoBarsDeltas(d0.cats) + '```\n';
     }
-    msg += '\n';
+    m2 += '\n';
   }
 
-  // ─── Oportunidad de ahorro (1-2 bullets accionables) ─────────
   if (a.oportunidad && a.oportunidad.length) {
-    msg += '💡 *Tu mayor oportunidad de ahorro*\n';
+    m2 += '💡 *Tu mayor oportunidad de ahorro*\n';
     a.oportunidad.forEach(function(op) {
-      msg += op.icon + ' ' + op.title + '\n';
-      msg += '   → ' + op.accion + '\n';
+      m2 += op.icon + ' ' + op.title + '\n';
+      m2 += '   → ' + op.accion + '\n';
     });
-    msg += '\n';
+    m2 += '\n';
   }
 
-  // ─── Cierre: menú + asesor + CTA al Excel ────────────────────
-  msg += '👇 *Menú abajo* — drill por cat/mes o descargar Excel\n';
-  msg += '💬 *O preguntame:* _"¿está alto mi gasto en comida?"_\n\n';
-  msg += '📥 _El Excel trae mucho más: matriz destinatario×mes con heatmap, ' +
-         'suscripciones, semáforo de salud y diagnóstico ejecutivo. Pedí "excel"._';
+  m2 += '👇 *Menú abajo* — detalle por cat/mes o descargar reportes\n';
+  m2 += '💬 *O preguntame:* _"¿está alto mi gasto en comida?"_\n\n';
+  m2 += '📥 _Bajá el *Reporte PDF* o el *Excel* desde el menú para ' +
+        'ver la matriz destinatario×mes, semáforo de salud y todos ' +
+        'los insights accionables._';
 
-  return msg.substring(0, 4000);  // WhatsApp text cap
+  return [m1.substring(0, 4000), m2.substring(0, 4000)];
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2612,7 +2610,7 @@ function _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId) {
   // Descargas PRIMERO — para que el usuario sepa que puede tener
   // entregables visuales fácilmente accesibles sin scrollear.
   sections.push({
-    title: '📥 Descargar',
+    title: '📥 Descargas',
     rows: [
       {
         id:          'wa:bdrill:pdf',
@@ -2629,7 +2627,7 @@ function _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId) {
 
   if (topCats.length) {
     sections.push({
-      title: '📊 Categorías',
+      title: '🔍 Detalle por categoría',
       rows: topCats.map(function(c) {
         // Title cap 24 — _bancoCatLabel devuelve "🏷 Nombre" (~18-22 chars)
         return {
@@ -2643,7 +2641,7 @@ function _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId) {
 
   if (meses.length) {
     sections.push({
-      title: '📅 Meses',
+      title: '🔍 Detalle por mes',
       rows: meses.map(function(ym) {
         var label = _bancoMesLabel(ym) + ' ' + ym.split('-')[0];  // "JUN 2026"
         var info  = byMonth[ym];
@@ -3231,7 +3229,7 @@ function _bancoBuildHTMLReporte(a) {
     html += '</div>';
   }
 
-  // ── TENDENCIA MENSUAL — bar chart vertical SVG ──
+  // ── TENDENCIA MENSUAL — bar chart vertical SVG + insights ──
   if (a.historial && a.historial.length >= 2) {
     html += '<div class="section"><h2>Tendencia mensual</h2>';
     var meses = a.historial.map(function(h) {
@@ -3242,6 +3240,33 @@ function _bancoBuildHTMLReporte(a) {
       };
     });
     html += _bancoPDFBarChartVertical(meses, 480, 240);
+
+    // Insights del período — números clave que enriquecen la gráfica:
+    // promedio, mes más alto/bajo, variación, tendencia direccional.
+    var ins = _bancoPDFComputarInsightsTendencia(a.historial);
+    if (ins) {
+      html += '<div class="cards-grid" style="margin-top:14px;">';
+      // Primera fila: promedio + variación
+      html += '<div class="row">';
+      html += '<div class="card" style="background:#fef3c7;color:#78350f;"><div class="label">Promedio mensual</div>' +
+              '<div class="value">' + ins.promedioStr + '</div><div class="note">de gasto</div></div>';
+      html += '<div class="card" style="background:#dbeafe;color:#1e3a8a;"><div class="label">Variación</div>' +
+              '<div class="value">' + ins.variacionStr + '</div><div class="note">entre mayor y menor</div></div>';
+      html += '</div>';
+      // Segunda fila: mes más caro + más barato
+      html += '<div class="row">';
+      html += '<div class="card red"><div class="label">Mes más caro</div>' +
+              '<div class="value">' + ins.maxStr + '</div><div class="note">' + ins.maxLabel + ' · ' + ins.maxDeltaStr + ' vs promedio</div></div>';
+      html += '<div class="card green"><div class="label">Mes más barato</div>' +
+              '<div class="value">' + ins.minStr + '</div><div class="note">' + ins.minLabel + ' · ' + ins.minDeltaStr + ' vs promedio</div></div>';
+      html += '</div>';
+      html += '</div>';
+
+      // Lectura direccional
+      html += '<div class="insight" style="margin-top:14px;"><div class="ttl">' +
+              ins.tendenciaIcon + ' Tendencia: ' + ins.tendenciaLabel + '</div>' +
+              '<div class="body">' + ins.tendenciaBody + '</div></div>';
+    }
     html += '</div>';
   }
 
@@ -3449,6 +3474,66 @@ function _bancoPDFComputarHallazgos(a, ahorro) {
     });
   }
   return out.slice(0, 4);
+}
+
+// Insights del período para acompañar la gráfica de tendencia mensual.
+// Devuelve null si no hay suficiente data (necesita ≥2 meses).
+function _bancoPDFComputarInsightsTendencia(historial) {
+  if (!historial || historial.length < 2) return null;
+  var fmtShort = function(n) {
+    if (!isFinite(n)) return '$0';
+    return Math.abs(n) < 5 ? '$' + n.toFixed(2) : '$' + Math.round(n).toLocaleString('en-US');
+  };
+  var values = historial.map(function(h) { return h.totalOut; });
+  var labels = historial.map(function(h) { return _bancoMesLabelFull(h.yearMonth); });
+  var n = values.length;
+  var sum = values.reduce(function(s, v) { return s + v; }, 0);
+  var promedio = sum / n;
+  var maxIdx = 0, minIdx = 0;
+  for (var i = 1; i < n; i++) {
+    if (values[i] > values[maxIdx]) maxIdx = i;
+    if (values[i] < values[minIdx]) minIdx = i;
+  }
+  var max = values[maxIdx], min = values[minIdx];
+  var variacion = promedio > 0 ? Math.round(((max - min) / promedio) * 100) : 0;
+  var maxDeltaPct = promedio > 0 ? Math.round(((max - promedio) / promedio) * 100) : 0;
+  var minDeltaPct = promedio > 0 ? Math.round(((min - promedio) / promedio) * 100) : 0;
+
+  // Tendencia direccional: comparar promedio de últimos 3 (o todos si <3)
+  // vs promedio de primeros 3 (o todos si <3).
+  var k = Math.min(3, Math.floor(n / 2));
+  if (k < 1) k = 1;
+  var firstK = values.slice(0, k).reduce(function(s, v) { return s + v; }, 0) / k;
+  var lastK  = values.slice(-k).reduce(function(s, v) { return s + v; }, 0) / k;
+  var tendDelta = firstK > 0 ? ((lastK - firstK) / firstK) * 100 : 0;
+  var tendenciaIcon, tendenciaLabel, tendenciaBody;
+  if (tendDelta > 10) {
+    tendenciaIcon = '📈';
+    tendenciaLabel = 'subiendo';
+    tendenciaBody = 'Tus gastos vienen creciendo: ' + Math.round(tendDelta) + '% más en los últimos ' + k + ' meses vs los primeros ' + k + '. Vale la pena revisar qué categoría se está expandiendo.';
+  } else if (tendDelta < -10) {
+    tendenciaIcon = '📉';
+    tendenciaLabel = 'bajando';
+    tendenciaBody = 'Tus gastos vienen reduciendo: ' + Math.round(Math.abs(tendDelta)) + '% menos en los últimos ' + k + ' meses vs los primeros ' + k + '. Seguí así.';
+  } else {
+    tendenciaIcon = '➡️';
+    tendenciaLabel = 'estable';
+    tendenciaBody = 'Tus gastos mensuales se mantienen relativamente parejos (variación <10% entre primeros y últimos meses). Consistencia financiera.';
+  }
+
+  return {
+    promedioStr:   fmtShort(promedio),
+    variacionStr:  variacion + '%',
+    maxStr:        fmtShort(max),
+    maxLabel:      labels[maxIdx],
+    maxDeltaStr:   (maxDeltaPct >= 0 ? '+' : '') + maxDeltaPct + '%',
+    minStr:        fmtShort(min),
+    minLabel:      labels[minIdx],
+    minDeltaStr:   (minDeltaPct >= 0 ? '+' : '') + minDeltaPct + '%',
+    tendenciaIcon: tendenciaIcon,
+    tendenciaLabel: tendenciaLabel,
+    tendenciaBody: tendenciaBody,
+  };
 }
 
 // Próximos pasos para el PDF (checklist más rico que el del Excel).
