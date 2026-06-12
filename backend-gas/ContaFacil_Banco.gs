@@ -856,16 +856,33 @@ var _BANCO_SHEET = 'Banco_Historico';
 function _bancoEnsureHistorialSheet() {
   var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
   var sh = ss.getSheetByName(_BANCO_SHEET);
-  if (sh) return sh;
-  sh = ss.insertSheet(_BANCO_SHEET);
-  sh.getRange(1, 1, 1, 8).setValues([[
-    'phone','year_month','total_in','total_out','cats_json','n_movs','parcial','updated_at'
-  ]]);
-  sh.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#f3f4f6');
-  sh.setFrozenRows(1);
-  sh.setColumnWidth(5, 300);
-  Logger.log('Banco_Historico sheet creado');
+  if (!sh) {
+    sh = ss.insertSheet(_BANCO_SHEET);
+    sh.getRange(1, 1, 1, 8).setValues([[
+      'phone','year_month','total_in','total_out','cats_json','n_movs','parcial','updated_at'
+    ]]);
+    sh.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#f3f4f6');
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(5, 300);
+    Logger.log('Banco_Historico sheet creado');
+  }
+  // Forzar text format en col A (phone) y B (year_month). Sin esto Sheets
+  // auto-convierte "2026-06" a Date (interpretado como 2026-06-01) y al
+  // leer de vuelta sale como Date object — rompe sort y labels.
+  // Idempotente: aplicar siempre es safe (incluso a un sheet ya existente
+  // con rows mal-formateadas que vamos a re-normalizar al leer).
+  sh.getRange('A:B').setNumberFormat('@');
   return sh;
+}
+
+// Normaliza year_month leído del sheet — puede venir como string ya
+// formateado ("2026-06") o como Date object (de filas escritas antes
+// del fix de text format).
+function _bancoNormalizarYM(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, 'America/Panama', 'yyyy-MM');
+  }
+  return String(v || '');
 }
 
 function _bancoPersistirMensual(phone, movs, categorias) {
@@ -910,7 +927,7 @@ function _bancoPersistirMensual(phone, movs, categorias) {
     var rows = sh.getRange(2, 1, last - 1, 2).getValues();
     for (var i = 0; i < rows.length; i++) {
       var p = String(rows[i][0] || '');
-      var y = String(rows[i][1] || '');
+      var y = _bancoNormalizarYM(rows[i][1]);  // por si filas viejas tienen Date en B
       if (p && y) rowMap[p + '|' + y] = i + 2;
     }
   }
@@ -949,7 +966,7 @@ function _bancoLeerHistorial(phone) {
     try { cats = JSON.parse(values[i][4] || '{}'); }
     catch(e) {}
     out.push({
-      yearMonth: String(values[i][1] || ''),
+      yearMonth: _bancoNormalizarYM(values[i][1]),
       totalIn:   Number(values[i][2]) || 0,
       totalOut:  Number(values[i][3]) || 0,
       cats:      cats,
