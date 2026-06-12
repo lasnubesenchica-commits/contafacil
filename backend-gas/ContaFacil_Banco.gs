@@ -328,37 +328,91 @@ function _bancoClasificarDescripciones(movs) {
   // → con 200+ descripciones el output excedía max_tokens y volvía
   // truncado (fallback a vacío → todo se clasificaba como 'otro').
   // El compact format reduce ~7× los tokens de output.
+  //
+  // PROMPT v2: enriquecido con tabla explícita de merchants panameños
+  // canónicos. Antes el clasificador infería (y a veces fallaba) en
+  // merchants comunes como REY, RIBA SMITH, ARROCHA, COLEGIO LAS
+  // ESCLAVAS. Ahora le damos la lista y le pedimos match por substring
+  // como prioridad sobre la inferencia.
   var prompt =
-    'Eres un clasificador de movimientos bancarios panameños. Te paso una lista NUMERADA de descripciones.\n\n' +
-    'Para CADA línea, devolveme la categoría más probable. Categorías válidas:\n\n' +
-    '  comida           — restaurantes, café (Kotowa, Starbucks, McDonalds), supermercado pequeño, delivery (UBER EATS, PEDIDOSYA, RAPPI)\n' +
-    '  transporte       — UBER RIDES (NO Eats), taxi, gasolinera (TERPEL, PUMA, DELTA), peaje, parking\n' +
-    '  telco            — Más Móvil, +Móvil, Tigo, Cable Onda, internet, celular\n' +
-    '  servicios        — luz (ENSA), agua (IDAAN), gas, electricidad\n' +
-    '  entretenimiento  — Netflix, Spotify, Disney+, HBO, Twitch, CINEPOLIS, cine\n' +
-    '  ads              — Facebook Ads (FACEBK), Google Ads (GOOGL), TikTok ads\n' +
-    '  yappy_salida     — YAPPY BG A <nombre> (vos mandando)\n' +
-    '  yappy_entrada    — YAPPY BG DE <nombre> (vos recibiendo)\n' +
-    '  ach_salida       — BANCA MOVIL TRANSFERENCIA A, ACH/transferencia saliente, PAGO ACH\n' +
-    '  ach_entrada      — ACH entrante, DEPOSITO, ABONO, deposito cuenta\n' +
+    'Eres un clasificador de movimientos bancarios PANAMEÑOS especializado. Te paso una lista NUMERADA de descripciones; devolveme la categoría más precisa para cada una.\n\n' +
+    '═══════════════ CATEGORÍAS VÁLIDAS ═══════════════\n\n' +
+    '  comida           — restaurantes, café, comida rápida, supermercados de alimentación, panadería, delivery\n' +
+    '  transporte       — combustible, ride-share (UBER RIDES), taxi, parking, peaje\n' +
+    '  telco            — celular, internet, cable, telefonía\n' +
+    '  servicios        — luz, agua, gas, electricidad\n' +
+    '  entretenimiento  — suscripciones streaming, cine, juegos, espectáculos\n' +
+    '  ads              — publicidad digital (Facebook/Google/TikTok Ads)\n' +
+    '  yappy_salida     — YAPPY BG A <nombre> (vos mandando P2P)\n' +
+    '  yappy_entrada    — YAPPY BG DE <nombre> (vos recibiendo P2P)\n' +
+    '  ach_salida       — transferencias bancarias salientes\n' +
+    '  ach_entrada      — ACH/depósitos entrantes\n' +
     '  retiro_atm       — RETIRO CAJERO, ATM\n' +
-    '  pago_tarjeta     — PAGO TARJETA CRÉDITO\n' +
-    '  prestamo         — pago préstamo, cuota leasing\n' +
-    '  seguro           — Assa, Mapfre, Pan-American, prima seguro\n' +
-    '  educacion        — colegio, universidad (USMA, ULACIT, UTP), matrícula\n' +
-    '  salud            — farmacia (Arrocha, MetroFarma), médico, clínica, hospital\n' +
-    '  belleza          — peluquería, barbería, spa, salón, Kevins Studio\n' +
-    '  comercio         — PriceSmart, Super 99, Riba Smith, Xtra, El Machetazo\n' +
-    '  ropa             — Zara, H&M, almacenes, tiendas de ropa\n' +
-    '  hospedaje        — agoda, booking, hoteles, airbnb\n' +
-    '  comision_banco   — cargos del banco, comisión, ITBMS bancario\n' +
+    '  pago_tarjeta     — PAGO TARJETA DE CRÉDITO\n' +
+    '  prestamo         — pagos de préstamo, leasing, cuotas\n' +
+    '  seguro           — primas de seguro (auto, vida, salud, casa)\n' +
+    '  educacion        — colegios, universidades, matrículas, colegiaturas (DEDUCIBLE Form 90 DP-2)\n' +
+    '  salud            — farmacias, médicos, hospitales, laboratorios, dentistas (DEDUCIBLE Form 90 DP-1)\n' +
+    '  belleza          — peluquería, barbería, spa, salón, manicure\n' +
+    '  comercio         — retail GENERAL no-alimentación (electrónica, ferretería, oficina)\n' +
+    '  ropa             — tiendas de ropa, calzado\n' +
+    '  hospedaje        — hoteles, Airbnb, hostales\n' +
+    '  comision_banco   — comisiones del banco, mantenimiento cuenta, ITBMS bancario\n' +
     '  otro             — todo lo demás\n\n' +
-    'FORMATO de RESPUESTA: una línea por entrada con "N=categoria". Sin comentarios, sin explicaciones, sin markdown.\n\n' +
+    '═══════════ TABLA DE MERCHANTS PANAMEÑOS ═══════════\n' +
+    'REGLA: si la descripción contiene (substring, case-insensitive) cualquiera de los nombres de abajo, usa la categoría indicada. Esta tabla TIENE PRIORIDAD sobre tu inferencia.\n\n' +
+    '🍽 comida:\n' +
+    '   Supermercados grandes: REY · RIBA SMITH · SUPER 99 · EL MACHETAZO · XTRA · ROMERO · NOVEY MARKET · COMERCIAL FACEBOOK · MERCADO · PRICESMART · COSTCO\n' +
+    '   Mini supers/mercados: MINI SUPER · SUPER CARNES · FRUTERIA · FRUTAS Y VERDURAS · QUESOS · CARNICERIA · ABARROTERIA · COLMADO\n' +
+    '   Cadenas comida: MCDONALDS · KFC · BURGER KING · SUBWAY · TGI FRIDAYS · T.G.I.FRIDAY · POPEYES · BAJA FRESH · ONE WOK · WENDYS · FRIDAYS · DOMINOS · PIZZA HUT\n' +
+    '   Restaurantes/café: KOTOWA · STARBUCKS · JUAN VALDEZ · BOQUETE BAKERY · BZA PARRIL · BJ LA PARRIL · CHURRERIA · TOTUMAS · BOCAS RICAS · DURAN COFFE · ANANSI · MAITO\n' +
+    '   Heladerías/postres: GELARTI · HELADERIA · YOGEN · YOGURT · DULCERIA · POSTRES\n' +
+    '   Genéricos: BAKERY · PANADERIA · RESTAURANTE · CAFE · COFFEE · PIZZERIA · SUSHI · GRILL · BISTRO · COCINA · DELI · QUESERIA\n' +
+    '   Bebidas/licor: FELIPE MOTTA · LICORERIA · CERVECERIA · VINOTECA · MOTTA INTERNATIONAL · VINO · LICOR\n' +
+    '   Delivery: UBER EATS · PEDIDOSYA · RAPPI · GLOVO · APPETITO24\n\n' +
+    '🚗 transporte:\n' +
+    '   Combustible: TERPEL · PUMA · DELTA · ACCEL · GASOLINERA · ESTACION DE SERVICIO\n' +
+    '   Movilidad: UBER RIDES · UBER (sin EATS) · CABIFY · TAXI · DIDI\n' +
+    '   Otros: PANAMAPASS · AUTOPISTA · PARKING · ESTACIONAMIENTO · SLP PARKING · MULTIPARKING\n\n' +
+    '📱 telco: +MOVIL · MAS MOVIL · MASMOVIL · MAS M (sufijo en "SERVICIO CELULAR MAS M") · TIGO · CABLE ONDA · CLARO · DIGICEL · RECARGA TELEFONIA · SERVICIO CELULAR\n\n' +
+    '💡 servicios: ENSA · IDAAN · EDEMET · GAS TROPIGAS · NATURGY · DGI (impuestos no son servicios, ver "otro")\n\n' +
+    '🎬 entretenimiento:\n' +
+    '   Suscripciones: APPLE.COM · NETFLIX · SPOTIFY · HBO MAX · DISNEY+ · AMAZON PRIME · YOUTUBE PREMIUM · PARAMOUNT · CLAUDE.AI · CHATGPT · OPENAI\n' +
+    '   Cine: CINEPOLIS · CINEMARK · CINE\n' +
+    '   Eventos: TICKETPLUS · TUTICKET\n' +
+    '   Hosting/web: HOSTINGER · GODADDY · NAMECHEAP · DIGITAL OCEAN · AWS (cuando es personal)\n\n' +
+    '📢 ads: FACEBK · FACEBOOK ADS · GOOGL · GOOGLE ADS · TIKTOK ADS · INSTAGRAM ADS · LINKEDIN ADS\n\n' +
+    '🏥 salud (DEDUCIBLE Form 90 DP-1):\n' +
+    '   Farmacias: ARROCHA · METRO FARMA · METROFARM · EL JAVILLO · FARMACIA · FARMA VALUE · FARMACIA DON BOSCO · FARMACIA SAN JUAN · FARMASAVE\n' +
+    '   Médico: HOSPITAL · CLINICA · LABORATORIO · CONSULTORIO · DENTAL · ODONTOLOGIA · CIRUGIA · GINECOLOGIA · PEDIATRA · DR. · DRA. · MEDICO · CENTRO MEDICO\n' +
+    '   Mascotas (veterinarios y similares también aplican salud para tracking personal): VETERINARIO · CLINICA VETERINARIA · MASCOTAS · PET\n' +
+    '   IMPORTANTE: FELIPE MOTTA NO es farmacia — es cadena de licorerías/wine shop (clasifica como "comida").\n\n' +
+    '🎓 educacion (DEDUCIBLE Form 90 DP-2):\n' +
+    '   Colegios: COLEGIO LAS ESCLAVAS · COLEGIO BLISS · ST MARY · SAN FRANCISCO · EPISCOPAL · KING\'S COLLEGE · ACADEMIA INTERAMERICANA · COLEGIO + cualquier nombre · ESCUELA\n' +
+    '   Universidades: USMA · ULACIT · UTP · UMIP · QLU · UDELAS · FLORIDA STATE · UNIVERSITY OF · UNIVERSIDAD\n' +
+    '   Genérico: MATRICULA · COLEGIATURA · MENSUALIDAD ESCOLAR\n\n' +
+    '💄 belleza: KEVINS STUDIO · ESTETICA · PELUQUERIA · BARBERIA · BARBER · SPA · SALON · NAILS · MANICURE · PEDICURE · BARBER SHOP\n\n' +
+    '👕 ropa: ZARA · H&M · FOREVER 21 · BERSHKA · MANGO · ALDO · TOMMY HILFIGER · NIKE · ADIDAS · ALMACEN · BOUTIQUE · MULTIPLAZA (ropa)\n\n' +
+    '🏨 hospedaje: HOTEL · AIRBNB · BOOKING.COM · AGODA · EXPEDIA · HOSTAL · RESORT · CABAÑA · POSADA · HOSTEL\n\n' +
+    '🛡 seguro: ASSA · MAPFRE · PAN-AMERICAN · SEGURO MUNDIAL · INTERNACIONAL DE SEGUROS · ANCON SEGUROS · ACERTA · PRIMA · SEGURO DE FRAUDE · COMPAÑIA DE SEGURO\n\n' +
+    '🛒 comercio (NO alimentación): NOVEY (ferretería) · COCHEZ · DO IT CENTER · CASA DE LAS BATERIAS · OFFICE DEPOT · PANAFOTO · MULTI MAX · ELECTRO MOTORS · MEDIA MARKT\n\n' +
+    '🏦 comision_banco: ITBMS · COMISION · MANTENIMIENTO CUENTA · CARGO DE SERVICIO · CARGO POR · INTERESES BANCARIOS · IMPUESTO SEGURO\n\n' +
+    '═══════════════ REGLAS ESPECIALES (resuelven ambigüedades) ═══════════════\n' +
+    '1. YAPPY BG A <merchant conocido>: si el nombre matchea un merchant (ej: "Pedidos Ya", "App Panapass", comercio), usa la CAT DEL MERCHANT (comida, transporte, etc.), NO yappy_salida. Solo usa yappy_salida cuando el destinatario es claramente una persona física.\n' +
+    '2. BANCA MOVIL TRANSFERENCIA A <merchant conocido>: idem — si el destinatario es Cía. de Seguro, Colegio, Hospital, etc., usa esa cat, no ach_salida.\n' +
+    '3. RECARGA TELEFONIA / RECARGA CELULAR: siempre telco, aunque el descriptor empiece por BANCA MOVIL.\n' +
+    '4. PriceSmart en Panamá: principalmente alimentación/bulk grocery → comida.\n' +
+    '5. FELIPE MOTTA: licorería/wine shop, NO farmacia → comida (bebidas).\n' +
+    '6. UBER: si dice "UBER EATS" → comida; si dice "UBER RIDES" o solo "UBER" → transporte.\n' +
+    '7. INTERES CUENTA DE AHORROS: ach_entrada (es interés ganado, ingreso).\n' +
+    '8. YAPPY BS (no BG): tratar igual que YAPPY BG (mismo tipo de mov, distinto producto Banco).\n\n' +
+    '═══════════════ FORMATO DE RESPUESTA ═══════════════\n' +
+    'Una línea por entrada con "N=categoria". Sin comentarios, sin explicaciones, sin markdown.\n\n' +
     'Ejemplo:\n' +
     '  1=transporte\n' +
     '  2=comida\n' +
     '  3=telco\n\n' +
-    'DESCRIPCIONES:\n' +
+    '═══════════════ DESCRIPCIONES A CLASIFICAR ═══════════════\n' +
     lista.map(function(d, i) { return (i + 1) + '. ' + d; }).join('\n');
 
   var payload = {
