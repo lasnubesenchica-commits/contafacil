@@ -1802,11 +1802,24 @@ function _bancoSendDocumentWA(to, mediaId, filename, caption, token, phoneId) {
 function _bancoEsPreguntaAsesor(text) {
   var t = _bancoNorm(text);
   if (!t || t.length < 4) return false;
-  // Termina en signo de pregunta (?) o empieza con palabra interrogativa
-  if (/\?\s*$/.test(t)) return true;
-  if (/^(que|cuanto|cuanta|cuantas|cuantos|como|cuando|donde|por que|porque|deberia|debo|puedo|conviene|es|son|hay|tengo|tenia|si yo|si dejo|si bajo)\b/.test(t)) return true;
-  // Frases imperativas de consejo
-  if (/^(consejo|asesorame|aconsejame|recomiendame|recomendacion|sugerencia|ayudame)\b/.test(t)) return true;
+
+  // 1) Signo de pregunta EN CUALQUIER LUGAR (no solo al final).
+  //    "Puedes ayudarme con X? Quizás Y" → asesor.
+  if (/\?/.test(t)) return true;
+
+  // 2) Empieza con palabra interrogativa o de petición/sugerencia.
+  if (/^(que|cuanto|cuanta|cuantas|cuantos|como|cuando|donde|por que|porque|deberia|debo|puedo|puedes|podrias|podria|conviene|es|son|hay|tengo|tenia|tendria|cual|cuales|en que|si yo|si dejo|si bajo|me)\b/.test(t)) return true;
+
+  // 3) Verbos de petición/consejo/análisis en CUALQUIER parte del texto.
+  //    Captura cosas tipo "necesito que me ayudes", "queria ver si me podes
+  //    explicar", "quiero recomendaciones", etc.
+  if (/\b(ayudame|ayudarme|ayuda|aconsejame|asesorame|recomienda|recomendaci|sugiere|sugerencia|consejo|analiza|analizame|dime|cuentame|explica|explicame|compara|comparame|comparar|optimiza|optimizame|necesito|quiero|quisiera|queria|me podes|me puedes|me podrias)\b/.test(t)) return true;
+
+  // 4) Mensajes largos (5+ palabras) que tocan conceptos financieros.
+  //    Filtra falsos positivos en comandos cortos como "comida" o "mayo".
+  var words = t.split(/\s+/).filter(Boolean).length;
+  if (words >= 5 && /\b(ahorrar|ahorro|gasto|gastos|gastando|gastar|presupuesto|ingreso|ingresos|deuda|deudas|inversion|invertir|optimizar|reducir|bajar|aumentar|finanzas|plata|dinero|oportunidad|oportunidades)\b/.test(t)) return true;
+
   return false;
 }
 
