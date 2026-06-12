@@ -1926,14 +1926,14 @@ function _bancoExtractDestinatario(m) {
   var d = String((m && m.descripcion) || '');
   // Yappy salida
   var ym = /^YAPPY\s+BG\s+A\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(d);
-  if (ym) return ym[1].split(/\s+/).slice(0, 4).join(' ');
+  if (ym) return _bancoTomarNombreLimpio(ym[1], 4);
   // Yappy entrada
   var yme = /^YAPPY\s+BG\s+DE\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(d);
-  if (yme) return yme[1].split(/\s+/).slice(0, 4).join(' ');
+  if (yme) return _bancoTomarNombreLimpio(yme[1], 4);
   // ACH / Banca Móvil transferencia salida → nombre del destinatario
   var ach = /(?:BANCA\s+MOVIL\s+TRANSFERENCIA|PAGO\s+ACH|TRANSFER\w*)\s+A\s+\d+\s+(.+?)(?:\s+(?:ahorros|corriente|cta)\b|\s+ENTRE\s+CUENTAS|\s+PROPIAS?|\s*$)/i.exec(d);
   if (ach) {
-    var nm = ach[1].split(/\s+/).slice(0, 5).join(' ');
+    var nm = _bancoTomarNombreLimpio(ach[1], 5);
     return nm || 'Transferencia sin nombre';
   }
   // Pago Tarjeta Crédito
@@ -1945,6 +1945,30 @@ function _bancoExtractDestinatario(m) {
   // Merchant genérico: descartar fechas, IDs largos, referencias
   var mk = d.split(/-\d{4}-?\d|\s+\d{6,}|\s+ID:|\s+#\d|\s+\d{1,2}\/\d{1,2}/)[0].trim().substring(0, 50);
   return mk || d.substring(0, 50) || 'Sin descripción';
+}
+
+// Toma palabras del nombre extraído hasta encontrar:
+//  - Una palabra que arranca con letra minúscula (concepto/razón que el
+//    usuario agregó después del nombre — "mayo", "manutencion", "ahorro")
+//  - Un número (año, código)
+//  - Un sufijo conocido del banco (POR, PARA, etc.)
+//  - El límite máximo `maxWords`
+// Banco General entrega los nombres SIEMPRE en MAYÚSCULAS, así que el
+// primer token lowercase marca el inicio del texto agregado por el cliente.
+function _bancoTomarNombreLimpio(raw, maxWords) {
+  var STOP = /^(POR|PARA|REF|REFERENCIA|CONCEPTO)$/i;
+  var tokens = String(raw || '').split(/\s+/);
+  var keep = [];
+  for (var i = 0; i < tokens.length; i++) {
+    var t = tokens[i];
+    if (!t) continue;
+    if (STOP.test(t)) break;
+    if (/^\d/.test(t)) break;                     // año / código
+    if (/^[a-záéíóúñ]/.test(t)) break;            // concepto en minúscula
+    keep.push(t);
+    if (keep.length >= (maxWords || 5)) break;
+  }
+  return keep.join(' ');
 }
 
 // Agrupa movs (gastos) por destinatario/merchant. Devuelve un array
