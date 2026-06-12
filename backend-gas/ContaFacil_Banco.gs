@@ -845,9 +845,9 @@ function _bancoFormatearMensaje(a) {
     m2 += '\n';
   }
 
-  m2 += '👇 *Menú abajo* — detalle por cat/mes o descargar reportes\n\n';
+  m2 += '👇 *Menú abajo* — detalle por categoría/mes o descargar reportes\n\n';
 
-  m2 += '💬 *O preguntame en lenguaje natural:*\n';
+  m2 += '💬 *O pregúntame en lenguaje natural:*\n';
   m2 += '_Entendiendo tus gastos_\n';
   m2 += '• _"¿está alto mi gasto en comida?"_\n';
   m2 += '• _"¿a quién le pago más en transferencias?"_\n';
@@ -859,11 +859,11 @@ function _bancoFormatearMensaje(a) {
   m2 += '_Optimizando_\n';
   m2 += '• _"¿qué deducibles del Form 90 puedo aprovechar?"_\n';
   m2 += '• _"¿cuánto debería ahorrar al mes?"_\n';
-  m2 += '• _"si dejo de mandarle Yappys a X ¿cuánto ahorro?"_\n\n';
+  m2 += '• _"si dejo de enviarle Yappys a X ¿cuánto ahorro?"_\n\n';
 
-  m2 += '📥 _Bajá el *Reporte PDF* o el *Excel* desde el menú para ' +
-        'ver la matriz destinatario×mes, semáforo de salud y todos ' +
-        'los insights accionables._';
+  m2 += '📥 _Descarga el *Reporte PDF* o el *Excel* desde el menú para ' +
+        'ver la matriz destinatario × mes, el semáforo de salud financiera ' +
+        'y todos los insights accionables._';
 
   return [m1.substring(0, 4000), m2.substring(0, 4000)];
 }

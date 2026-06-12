@@ -146,8 +146,8 @@ function _routerForwardMensaje(msg, metadata) {
   var phoneId = props.getProperty('META_PHONE_ID') || (metadata.phone_number_id || '');
   var adminPhone = props.getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
 
-  // ── 1. Interactivos del flujo de SIGNUP (funcionan también para
-  //      números todavía no en el mapa, ya que el signup es para ellos).
+  // ── 1. Interactivos del flujo de SIGNUP / ANÁLISIS PROSPECT
+  //      (funcionan también para números todavía no en el mapa).
   if (msg.type === 'interactive') {
     var iaReplyTop = msg.interactive || {};
     var btnIdTop = (iaReplyTop.list_reply   && iaReplyTop.list_reply.id)   ||
@@ -156,10 +156,23 @@ function _routerForwardMensaje(msg, metadata) {
       _routerHandleSignupReply(from, btnIdTop, token, phoneId);
       return;
     }
+    if (btnIdTop === 'analisis:chat') {
+      _routerEnviarAnalisisChatConfirm(from, token, phoneId);
+      return;
+    }
+    if (btnIdTop === 'analisis:email') {
+      _routerEnviarAnalisisEmailIntro(from, token, phoneId);
+      return;
+    }
   }
 
-  // ── 2. Texto durante un signup en curso (también para no-mapeados).
+  // ── 2. Texto durante un setup en curso (signup o capture de email análisis).
   if (msg.type === 'text') {
+    var analisisEmailState = _routerGetAnalisisEmailState(from);
+    if (analisisEmailState && analisisEmailState.step === 'awaiting_email') {
+      _routerHandleAnalisisEmailText(from, (msg.text && msg.text.body) || '', token, phoneId);
+      return;
+    }
     var signupState = _routerGetSignupState(from);
     if (signupState) {
       _routerHandleSignupText(from, (msg.text && msg.text.body) || '', token, phoneId);
@@ -456,9 +469,9 @@ function _routerReplyDesconocido(to, token, phoneId) {
             '👋 ¡Hola! Soy *BalanceClip* — asistente fiscal automatizado para profesionales y negocios en Panamá. 🇵🇦\n\n' +
             'Llevo tus finanzas por WhatsApp, sin entrar a una app:\n\n' +
             '📸 *Registro tus facturas y gastos*\n' +
-            'Mandame foto/PDF o reenviá emails → una IA las lee, categoriza según DGI y las deja listas para aprobar.\n\n' +
+            'Mandame foto/PDF o reenviá emails → una IA los lee, categoriza según DGI y los deja listos para aprobar.\n\n' +
             '📊 *Analizo tu cuenta de Banco General*\n' +
-            'Subís el .xlsx → te devuelvo Excel ejecutivo con flujo, top gastos, suscripciones y un asesor IA.\n\n' +
+            'Subís el .xlsx → te devuelvo análisis al instante, reporte PDF ejecutivo, Excel con matriz destinatario × mes y asesor IA.\n\n' +
             'Reportes ITBMS mensual e informe anual DGI listos para presentar.\n\n' +
             '¿Qué te interesa probar?'
           },
@@ -513,17 +526,17 @@ function _routerEnviarInfoFacturas(to, token, phoneId) {
           type: 'button',
           body: { text:
             '📸 *Registrar tus facturas y gastos*\n\n' +
-            'Mandame foto, PDF o reenviame emails de tus facturas/recibos. Una IA:\n\n' +
+            'Envíame foto, PDF o reenvía emails de tus facturas/recibos. Una IA:\n\n' +
             '• Extrae monto, fecha, proveedor y RUC\n' +
             '• Sugiere la categoría DGI apropiada\n' +
             '• Detecta ITBMS y si es deducible\n' +
             '• Te pide aprobar con 1 botón\n\n' +
             'Funciona con facturas fiscales, electrónicas, recibos Yappy, transferencias y PDFs.\n\n' +
-            '🧾 *Reportes que sacás*\n' +
+            '🧾 *Reportes que obtienes*\n' +
             '• Declaración ITBMS mensual\n' +
             '• Informe anual DGI (Form 90)\n' +
             '• Panel web con todo tu histórico\n\n' +
-            '¿Lo probás *gratis 7 días*?'
+            '¿Lo pruebas *gratis 7 días*?'
           },
           action: {
             buttons: [
@@ -541,6 +554,7 @@ function _routerEnviarInfoFacturas(to, token, phoneId) {
 // Sub-card del welcome de prospecto: detalla el flujo de análisis bancario,
 // con instrucciones de cómo descargar el xlsx de Banco General.
 // Disparado por btn "📊 Analizar Cuenta" (signup:analisis) en _routerReplyDesconocido.
+// Muestra el cómo + 2 vías para entregar el xlsx (chat o email).
 function _routerEnviarInfoAnalisis(to, token, phoneId) {
   if (!token || !phoneId) return;
   try {
@@ -556,23 +570,22 @@ function _routerEnviarInfoAnalisis(to, token, phoneId) {
           type: 'button',
           body: { text:
             '📊 *Analizar tu cuenta de Banco General*\n\n' +
-            'Subís el .xlsx de tu cuenta y te devuelvo en 30 segundos:\n\n' +
+            'Envíame el .xlsx de tu cuenta y te devuelvo en 30 segundos:\n\n' +
             '• Saldo, flujo, ahorro y top categorías\n' +
-            '• Excel ejecutivo con *diagnóstico financiero*, semáforo de salud y drill-down por destinatario/merchant\n' +
-            '• *Asesor IA*: preguntame en lenguaje natural — _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi plata?"_, etc.\n\n' +
+            '• *Reporte PDF ejecutivo* con semáforo de salud, donut chart de categorías y tendencia mensual\n' +
+            '• Excel con matriz destinatario × mes (heatmap) y drill-down por categoría\n' +
+            '• *Asesor IA*: pregúntame en lenguaje natural — _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi dinero?"_\n\n' +
             '📥 *Cómo descargar tu xlsx*\n' +
-            '1. Entrá a Banca en Línea de Banco General desde tu laptop\n' +
-            '2. Movimientos / Estado de cuenta\n' +
-            '3. Elegí el rango (recomendado: últimos 12 meses)\n' +
-            '4. Exportar a Excel (.xlsx)\n' +
-            '5. Mandámelo a este chat 📎\n\n' +
-            '_Próximamente vas a poder mandarlo también a *analisis@balanceclip.net* directo desde tu laptop._\n\n' +
-            '¿Lo probás *gratis 7 días*?'
+            '1. Entra a Banca en Línea de Banco General desde tu laptop\n' +
+            '2. Movimientos → Estado de cuenta\n' +
+            '3. Elige el rango (recomendado: últimos 12 meses)\n' +
+            '4. Exportar a Excel (.xlsx)\n\n' +
+            '¿Cómo prefieres enviármelo?'
           },
           action: {
             buttons: [
-              { type: 'reply', reply: { id: 'signup:start', title: '🎁 Probar 7 días' } },
-              { type: 'reply', reply: { id: 'signup:info',  title: 'ℹ️ Más info' } },
+              { type: 'reply', reply: { id: 'analisis:chat',  title: '💬 Por este chat' } },
+              { type: 'reply', reply: { id: 'analisis:email', title: '📧 Por email' } },
             ],
           },
         },
@@ -580,6 +593,80 @@ function _routerEnviarInfoAnalisis(to, token, phoneId) {
       muteHttpExceptions: true,
     });
   } catch(err) { Logger.log('InfoAnalisis ERROR: ' + err.message); }
+}
+
+// Disparado por btn "💬 Por este chat" (analisis:chat).
+// Sólo confirma que el bot queda a la espera del archivo.
+function _routerEnviarAnalisisChatConfirm(to, token, phoneId) {
+  _routerSendText(to,
+    '✅ *Perfecto, te espero.*\n\n' +
+    'Cuando tengas el .xlsx descargado, adjúntalo aquí (📎 → Documento) y lo analizo al instante.\n\n' +
+    '_Tip: el análisis es totalmente privado. Tu archivo se procesa en memoria y no se guarda en servidores compartidos._',
+    token, phoneId);
+}
+
+// Disparado por btn "📧 Por email" (analisis:email).
+// Da instrucciones del alias y pide el email del usuario para mapear
+// futuras llegadas a su número de WhatsApp.
+function _routerEnviarAnalisisEmailIntro(to, token, phoneId) {
+  // Guardar estado: esperamos que el visitante responda con su email.
+  _routerSetAnalisisEmailState(to, { step: 'awaiting_email', ts: Date.now() });
+  _routerSendText(to,
+    '📧 *Enviar por email*\n\n' +
+    'Reenvía el .xlsx (o adjúntalo a un email) a:\n\n' +
+    '*analisis@balanceclip.net*\n\n' +
+    'Como aún no eres cliente, necesito asociar tu correo a este chat para enviarte el análisis aquí.\n\n' +
+    '👉 *Respóndeme con el email desde el cual vas a enviar* el archivo (ejemplo: `tunombre@gmail.com`).\n\n' +
+    '_Una vez registrado, cualquier xlsx que envíes desde ese email te llegará analizado a este WhatsApp en menos de 10 minutos._',
+    token, phoneId);
+}
+
+// State machine simple para capturar el email del visitante. Vive en
+// Script Properties con TTL de 30 min.
+var _ANALISIS_EMAIL_TTL_MS = 30 * 60 * 1000;
+
+function _routerGetAnalisisEmailState(from) {
+  var raw = PropertiesService.getScriptProperties().getProperty('analisis_email_' + from);
+  if (!raw) return null;
+  try {
+    var s = JSON.parse(raw);
+    if (!s.ts || (Date.now() - s.ts) > _ANALISIS_EMAIL_TTL_MS) {
+      _routerClearAnalisisEmailState(from);
+      return null;
+    }
+    return s;
+  } catch(e) { return null; }
+}
+function _routerSetAnalisisEmailState(from, state) {
+  state.ts = Date.now();
+  PropertiesService.getScriptProperties().setProperty('analisis_email_' + from, JSON.stringify(state));
+}
+function _routerClearAnalisisEmailState(from) {
+  PropertiesService.getScriptProperties().deleteProperty('analisis_email_' + from);
+}
+
+// Procesa el texto del usuario mientras está en el flujo de email-setup.
+// Valida formato, guarda el mapping email→phone, confirma.
+function _routerHandleAnalisisEmailText(from, body, token, phoneId) {
+  var email = String(body || '').trim().toLowerCase();
+  var emailRe = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
+  if (!emailRe.test(email)) {
+    _routerSendText(from,
+      '⚠️ Eso no parece un email válido. ¿Puedes escribirlo nuevamente?\n\n' +
+      'Ejemplo: *tunombre@gmail.com*',
+      token, phoneId);
+    return;
+  }
+  // Guardar mapping global email→phone (mismo formato que el flow de
+  // "configurar email" — el watcher de analisis@ usa esta clave).
+  PropertiesService.getScriptProperties().setProperty('email_' + email, from);
+  _routerClearAnalisisEmailState(from);
+  _routerSendText(from,
+    '✅ *Email registrado:* ' + email + '\n\n' +
+    'Ya puedes enviar tu xlsx a *analisis@balanceclip.net* desde esa cuenta.\n\n' +
+    'En menos de 10 minutos te llega el análisis aquí.\n\n' +
+    '_Si prefieres enviarlo ahora por chat, adjúntalo directamente (📎 → Documento)._',
+    token, phoneId);
 }
 
 // ════════════════════════════════════════════════════════════════════
