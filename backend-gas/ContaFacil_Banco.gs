@@ -1643,81 +1643,199 @@ function _bancoPoblarXlsx(ss, cache) {
 }
 
 // Pobla una hoja de detalle (cat o mes) con back-link al Resumen,
-// título, total, breakdown "¿Dónde se va la plata?" agrupando por
-// destinatario/merchant, y al final el listado crudo de movimientos.
+// título, total, una matriz "destinatario × mes" con heatmap para
+// ver patrones temporales por destinatario, y abajo el listado crudo
+// de movimientos.
 function _bancoPoblarDetalleSheet(sh, title, movs, kind) {
   var total = movs.reduce(function(s, m) { return s + Math.abs(m.monto < 0 ? m.monto : 0); }, 0);
   var nMovs = movs.length;
 
-  var rows = [
+  // Meses presentes en los gastos (cap a últimos 12)
+  var mesesSet = {};
+  movs.forEach(function(m) {
+    if (!m || m.monto >= 0 || !m.fecha) return;
+    var ym = Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM');
+    mesesSet[ym] = true;
+  });
+  var meses = Object.keys(mesesSet).sort().slice(-12);
+  var nMeses = meses.length;
+
+  // Agrupar por destinatario × mes
+  var grupos = _bancoAgruparPorDestinatarioMes(movs, meses);
+  var TOP_N = 20;
+
+  // ─── HEADER + METADATA (5 cols) ────────────────────────────────
+  var headerRows = [
     ['=HYPERLINK("#\'Resumen\'!A1","← Volver al Resumen")', '', '', '', ''],
     ['', '', '', '', ''],
     [title, '', 'Total:', total, ''],
     ['', '', '# Movs:', nMovs, ''],
     ['', '', '', '', ''],
   ];
+  sh.getRange(1, 1, headerRows.length, 5).setValues(headerRows);
+  sh.getRange(3, 1).setFontWeight('bold').setFontSize(13);
+  var nextRow = headerRows.length + 1;
 
-  // Breakdown por destinatario/merchant — responde "¿adónde se va la plata?"
-  // antes de mostrar transacciones sueltas. Solo si hay >1 destinatario.
-  var grupos = _bancoAgruparPorDestinatario(movs);
-  var TOP_N = 20;
-  var breakdownDataStart = 0, breakdownDataRows = 0, breakdownHeaderRow = 0;
-  if (grupos.length > 1) {
-    breakdownHeaderRow = rows.length + 1;  // 1-based
-    rows.push(['¿DÓNDE SE VA LA PLATA?', '', '', '', '']);
-    rows.push(['Destinatario / Merchant', '# Movs', 'Total', '% del total', '']);
-    breakdownDataStart = rows.length + 1;
-    grupos.slice(0, TOP_N).forEach(function(g) {
+  // ─── MATRIZ: Destinatario × Mes (con heatmap + barras) ─────────
+  // Width: dest + nMeses + total + % + bar
+  var matrixWidth = 1 + Math.max(nMeses, 1) + 3;
+  var matrixDataStart = 0, matrixDataRows = 0;
+  var monthColStart = 2;  // col B
+  var totalCol = monthColStart + nMeses;
+  var pctCol   = totalCol + 1;
+  var barCol   = totalCol + 2;
+
+  if (grupos.length >= 1 && nMeses >= 1) {
+    // Section title (merged)
+    sh.getRange(nextRow, 1, 1, matrixWidth).merge().setValues([['¿DÓNDE SE VA LA PLATA? (POR DESTINATARIO × MES)']])
+      .setFontSize(12).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF')
+      .setHorizontalAlignment('center');
+    nextRow++;
+
+    // Column headers
+    var colHeader = ['Destinatario / Merchant'];
+    meses.forEach(function(ym) { colHeader.push(_bancoMesAbbrev(ym)); });
+    colHeader.push('Total');
+    colHeader.push('%');
+    colHeader.push('');
+    sh.getRange(nextRow, 1, 1, matrixWidth).setValues([colHeader])
+      .setFontWeight('bold').setBackground('#F1F3F5').setHorizontalAlignment('center');
+    sh.getRange(nextRow, 1).setHorizontalAlignment('left');
+    nextRow++;
+
+    // Data rows
+    matrixDataStart = nextRow;
+    var topN = grupos.slice(0, TOP_N);
+    var dataRows = topN.map(function(g) {
+      var row = [g.name];
+      meses.forEach(function(ym) { row.push(g.perMonth[ym] || 0); });
+      row.push(g.total);
       var pct = total > 0 ? Math.round((g.total / total) * 100) : 0;
-      rows.push([g.name, g.count, g.total, pct + '%', '']);
+      row.push(pct + '%');
+      row.push(_bancoBarUnicode(g.total, grupos[0].total, 12));
+      return row;
     });
-    breakdownDataRows = Math.min(grupos.length, TOP_N);
     if (grupos.length > TOP_N) {
       var resto = grupos.slice(TOP_N);
-      var sumResto   = resto.reduce(function(s, g) { return s + g.total; }, 0);
-      var countResto = resto.reduce(function(s, g) { return s + g.count; }, 0);
-      var pctResto   = total > 0 ? Math.round((sumResto / total) * 100) : 0;
-      rows.push(['Otros (' + resto.length + ' más)', countResto, sumResto, pctResto + '%', '']);
-      breakdownDataRows++;
+      var sumResto = resto.reduce(function(s, g) { return s + g.total; }, 0);
+      var restoRow = ['Otros (' + resto.length + ' más)'];
+      meses.forEach(function(ym) {
+        var s = 0;
+        resto.forEach(function(g) { s += (g.perMonth[ym] || 0); });
+        restoRow.push(s);
+      });
+      restoRow.push(sumResto);
+      var pctR = total > 0 ? Math.round((sumResto / total) * 100) : 0;
+      restoRow.push(pctR + '%');
+      restoRow.push('');
+      dataRows.push(restoRow);
     }
-    rows.push(['', '', '', '', '']);
+    matrixDataRows = dataRows.length;
+    sh.getRange(matrixDataStart, 1, matrixDataRows, matrixWidth).setValues(dataRows);
+
+    // Estilos
+    sh.getRange(matrixDataStart, 1, matrixDataRows, 1).setFontWeight('bold');
+    sh.getRange(matrixDataStart, monthColStart, matrixDataRows, nMeses + 1).setNumberFormat('$#,##0');
+    sh.getRange(matrixDataStart, pctCol, matrixDataRows, 1).setHorizontalAlignment('right');
+    sh.getRange(matrixDataStart, totalCol, matrixDataRows, 1).setFontWeight('bold');
+
+    // Heatmap (color scale) en las celdas de meses
+    if (nMeses > 0) {
+      try {
+        var hmRange = sh.getRange(matrixDataStart, monthColStart, matrixDataRows, nMeses);
+        var rule = SpreadsheetApp.newConditionalFormatRule()
+          .setGradientMinpointWithValue('#E8F5E9', SpreadsheetApp.InterpolationType.NUMBER, '0')
+          .setGradientMaxpoint('#EF5350')
+          .setRanges([hmRange])
+          .build();
+        var existing = sh.getConditionalFormatRules();
+        existing.push(rule);
+        sh.setConditionalFormatRules(existing);
+      } catch(e) { Logger.log('Heatmap skip: ' + e.message); }
+    }
+
+    nextRow = matrixDataStart + matrixDataRows + 1;  // +1 separator
   }
 
-  // Header del listado crudo
-  var movHeaderRow = rows.length + 1;  // 1-based
-  rows.push(['Fecha','Monto','Tipo','Descripción','Categoría']);
-  movs.slice().sort(function(a, b) { return b.fecha - a.fecha; }).forEach(function(m) {
-    rows.push([m.fecha, m.monto, m.monto >= 0 ? 'Ingreso' : 'Gasto', m.descripcion, _bancoCatLabel(m.cat)]);
-  });
-
-  sh.getRange(1, 1, rows.length, 5).setValues(rows);
-  sh.getRange(3, 1).setFontWeight('bold').setFontSize(13);
-
-  // Estilos del breakdown
-  if (breakdownHeaderRow) {
-    sh.getRange(breakdownHeaderRow, 1, 1, 5).merge().setFontSize(12).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
-    sh.getRange(breakdownHeaderRow + 1, 1, 1, 4).setFontWeight('bold').setBackground('#F1F3F5');
-    sh.getRange(breakdownDataStart, 3, breakdownDataRows, 1).setNumberFormat('$#,##0.00');
-    sh.getRange(breakdownDataStart, 1, breakdownDataRows, 1).setFontWeight('bold');
-  }
-
-  // Header del listado crudo
+  // ─── MOVIMIENTOS CRUDOS (5 cols) ───────────────────────────────
+  var movHeaderRow = nextRow;
+  var movsHeader = ['Fecha', 'Monto', 'Tipo', 'Descripción', 'Categoría'];
+  var sortedMovs = movs.slice().sort(function(a, b) { return b.fecha - a.fecha; });
+  var movsData = [movsHeader].concat(sortedMovs.map(function(m) {
+    return [m.fecha, m.monto, m.monto >= 0 ? 'Ingreso' : 'Gasto', m.descripcion, _bancoCatLabel(m.cat)];
+  }));
+  sh.getRange(movHeaderRow, 1, movsData.length, 5).setValues(movsData);
   sh.getRange(movHeaderRow, 1, 1, 5).setFontWeight('bold').setBackground('#F1F3F5');
+
+  // Freeze al header de movimientos
   sh.setFrozenRows(movHeaderRow);
 
-  sh.setColumnWidth(1, 230);
-  sh.setColumnWidth(2, 90);
-  sh.setColumnWidth(3, 100);
-  sh.setColumnWidth(4, 360);
-  sh.setColumnWidth(5, 180);
+  // Column widths — optimizados para la matriz cuando existe; los anchos
+  // de la sección movs se ajustan a esos mismos cols (descripción wrappea).
+  sh.setColumnWidth(1, 240);
+  if (nMeses >= 1) {
+    for (var i = 0; i < nMeses; i++) sh.setColumnWidth(monthColStart + i, 80);
+    sh.setColumnWidth(totalCol, 100);
+    sh.setColumnWidth(pctCol, 65);
+    sh.setColumnWidth(barCol, 130);
+  } else {
+    sh.setColumnWidth(2, 90);
+    sh.setColumnWidth(3, 100);
+    sh.setColumnWidth(4, 360);
+    sh.setColumnWidth(5, 180);
+  }
 
-  // AutoFilter solo en el rango de movimientos crudos
+  // Wrap text en col 4 de movs (descripción) — necesario porque la col es
+  // angosta cuando hay matriz ancha arriba.
+  if (sortedMovs.length > 0) {
+    sh.getRange(movHeaderRow + 1, 4, sortedMovs.length, 1).setWrap(true);
+  }
+
+  // AutoFilter en el rango de movs crudos
   try {
     var existingFilter = sh.getFilter();
     if (existingFilter) existingFilter.remove();
-    var movDataRows = rows.length - movHeaderRow + 1;
-    if (movDataRows > 1) sh.getRange(movHeaderRow, 1, movDataRows, 5).createFilter();
+    if (sortedMovs.length > 0) {
+      sh.getRange(movHeaderRow, 1, sortedMovs.length + 1, 5).createFilter();
+    }
   } catch(e) { Logger.log('Banco detalle filter skip: ' + e.message); }
+}
+
+// Abreviatura compacta de un yyyy-MM: "2026-06" → "Jun '26".
+function _bancoMesAbbrev(ym) {
+  var meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var parts = String(ym || '').split('-');
+  if (parts.length !== 2) return ym || '???';
+  var m = parseInt(parts[1], 10);
+  var y = parts[0].substring(2);
+  return (meses[m-1] || '???') + " '" + y;
+}
+
+// Barra Unicode proporcional al valor sobre un máximo. Ancho max chars.
+function _bancoBarUnicode(value, max, width) {
+  if (!max || max <= 0 || !isFinite(value) || value <= 0) return '';
+  var ratio = Math.min(1, value / max);
+  var filled = Math.round(ratio * width);
+  var s = '';
+  for (var i = 0; i < filled; i++) s += '█';
+  return s;
+}
+
+// Agrupa movs (gastos) por destinatario y desglosa por mes. Devuelve
+// [{ name, count, total, perMonth: { ym: total } }] ordenado por total desc.
+function _bancoAgruparPorDestinatarioMes(movs, meses) {
+  var by = {};
+  movs.forEach(function(m) {
+    if (!m || m.monto >= 0 || !m.fecha) return;
+    var key = _bancoExtractDestinatario(m);
+    var ym  = Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM');
+    if (!by[key]) by[key] = { name: key, count: 0, total: 0, perMonth: {} };
+    by[key].count++;
+    by[key].total += -m.monto;
+    by[key].perMonth[ym] = (by[key].perMonth[ym] || 0) + (-m.monto);
+  });
+  return Object.keys(by).map(function(k) { return by[k]; })
+    .sort(function(a, b) { return b.total - a.total; });
 }
 
 // Extrae un nombre de destinatario/merchant a partir de la descripción
