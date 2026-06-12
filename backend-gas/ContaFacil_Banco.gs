@@ -819,19 +819,15 @@ function _bancoFormatearMensaje(a) {
   }
 
   // ─── Desglose top 1 y top 2 cats por destinatario ────────────
-  // El gancho: la categoría más grande se rompe en sus top 4
-  // destinatarios. El usuario ve directo a quién/dónde se va.
+  // Tabla monospace: WhatsApp usa fuente proporcional fuera de ``` y los
+  // $ no alinean — adentro sí. Padding de nombre a ancho fijo, montos
+  // y % alineados a la derecha.
   if (a.topCatDesgloses && a.topCatDesgloses.length) {
     a.topCatDesgloses.forEach(function(d, idx) {
       if (!d.top || !d.top.length) return;
       var rank = idx === 0 ? '#1' : '#2';
       msg += '🔍 *¿A dónde va ' + rank + ': ' + _bancoCatLabel(d.cat) + '?*\n';
-      d.top.forEach(function(item, i) {
-        var pctIt = d.sum > 0 ? Math.round((item.sum / d.sum) * 100) : 0;
-        msg += '   ' + (i+1) + '. ' + item.name + ': ' + fmt(item.sum) +
-               ' (' + pctIt + '%)\n';
-      });
-      msg += '\n';
+      msg += '```\n' + _bancoFmtTablaDestinatarios(d.top, d.sum) + '```\n\n';
     });
   }
 
@@ -937,20 +933,54 @@ function _bancoBarsTendencia(historial) {
   }).join('\n') + '\n';
 }
 
-// Render de deltas entre el último mes y el anterior — cat por cat
+// Render de deltas entre el último mes y el anterior — cat por cat.
+// Sin emojis adentro del bloque (rompen el alineado en mobile WhatsApp);
+// el ↗ / ↘ son ASCII-like y SÍ alinean.
 function _bancoBarsDeltas(cats) {
   if (!cats || !cats.length) return '';
+  var NAME_W = 14, AMT_W = 7;
+  var padR = function(s, w) { s = String(s); while (s.length < w) s += ' '; return s; };
+  var padL = function(s, w) { s = String(s); while (s.length < w) s = ' ' + s; return s; };
   return cats.map(function(c) {
-    var name = _bancoPadCat(_bancoCatLabel(c.cat));
-    var prev = _bancoFmtDolar(c.prev);
-    var cur  = _bancoFmtDolar(c.cur);
-    var arrow, sign;
-    if (c.deltaPct === null) { arrow = '🆕'; sign = ''; }
-    else if (c.deltaPct > 5)  { arrow = '↗'; sign = '+' + Math.round(c.deltaPct) + '%'; }
-    else if (c.deltaPct < -5) { arrow = '↘'; sign = Math.round(c.deltaPct) + '%'; }
-    else                      { arrow = '='; sign = ''; }
-    return name + ' ' + prev + ' → ' + cur + '  ' + arrow + ' ' + sign;
+    var label = _bancoCatLabel(c.cat);
+    var em = label.match(/^(\S+)\s+(.+)$/);
+    var nameNoEmoji = em ? em[2] : label;
+    if (nameNoEmoji.length > NAME_W) nameNoEmoji = nameNoEmoji.substring(0, NAME_W - 1) + '…';
+    var prev = padL(_bancoFmtDolarCompacto(c.prev), AMT_W);
+    var cur  = padL(_bancoFmtDolarCompacto(c.cur), AMT_W);
+    var pctStr;
+    if (c.deltaPct === null)       pctStr = 'NUEVO';
+    else if (c.deltaPct > 5)       pctStr = '+' + Math.round(c.deltaPct) + '%';
+    else if (c.deltaPct < -5)      pctStr = Math.round(c.deltaPct) + '%';
+    else                           pctStr = '~';
+    return padR(nameNoEmoji, NAME_W) + prev + ' → ' + cur + '  ' + padL(pctStr, 6);
   }).join('\n') + '\n';
+}
+
+// Tabla compacta de destinatarios para el desglose. Cada fila:
+//   <name padded N> <amount padded R 7> <pct padded R 4>
+function _bancoFmtTablaDestinatarios(top, sumTotal) {
+  if (!top || !top.length) return '';
+  var NAME_W = 22, AMT_W = 7;
+  var padR = function(s, w) { s = String(s); while (s.length < w) s += ' '; return s; };
+  var padL = function(s, w) { s = String(s); while (s.length < w) s = ' ' + s; return s; };
+  return top.map(function(item) {
+    var name = String(item.name);
+    if (name.length > NAME_W) name = name.substring(0, NAME_W - 1) + '…';
+    var amt = padL(_bancoFmtDolarCompacto(item.sum), AMT_W);
+    var pctIt = sumTotal > 0 ? Math.round((item.sum / sumTotal) * 100) : 0;
+    var pctStr = padL(pctIt + '%', 4);
+    return padR(name, NAME_W) + amt + ' ' + pctStr;
+  }).join('\n') + '\n';
+}
+
+// Versión compacta del fmt $ — sin decimales (más fácil de alinear).
+// Para los valores chicos (<$5) sí mostramos decimales.
+function _bancoFmtDolarCompacto(n) {
+  if (!isFinite(n)) return '$0';
+  var abs = Math.abs(n);
+  if (abs < 5) return '$' + Number(n).toFixed(2);
+  return '$' + Math.round(n);
 }
 
 function _bancoMesLabel(ym) {
