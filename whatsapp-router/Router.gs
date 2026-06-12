@@ -1619,3 +1619,231 @@ function _routerHandleSendResetOtp(data) {
   return ContentService.createTextOutput(JSON.stringify({ ok: true }))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  WATCHER DE analisis@balanceclip.net — análisis bancario por email
+//  ──────────────────────────────────────────────────────────────────
+//  El catch-all de balanceclip.net entrega todo a un solo inbox. Este
+//  watcher pesca los emails dirigidos al alias analisis@, extrae el
+//  xlsx adjunto, resuelve sender → phone vía el mapping de Properties
+//  y forwardea al client GAS correspondiente.
+//
+//  La idea es bajar la fricción del análisis bancario: descargar el
+//  xlsx desde Banca en Línea de Banco General se hace típicamente
+//  desde laptop, donde es más fácil mandar por email que por WhatsApp.
+//
+//  Trigger: time-based cada 10 min (instalar con
+//  _installAnalisisBancoTrigger desde el editor).
+// ════════════════════════════════════════════════════════════════════
+
+var ANALISIS_ALIAS_EMAIL  = 'analisis@balanceclip.net';
+var ANALISIS_LABEL_DONE   = 'analizado_cf_banco';
+
+function procesarEmailsAnalisisBanco() {
+  var props   = PropertiesService.getScriptProperties();
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID');
+  var clientsMap = _routerGetClientsMap();
+
+  // Query amplio + validación destino en código (mismo patrón que el
+  // watcher de Acreedores). El catch-all puede entregar a cualquier
+  // *@balanceclip.net, así que filtramos por análisis del To/headers.
+  var query   = 'has:attachment -label:' + ANALISIS_LABEL_DONE + ' newer_than:7d';
+  var threads = GmailApp.search(query, 0, 50);
+  Logger.log('📧 Watcher analisis: ' + threads.length + ' threads candidatos');
+
+  var doneLabel = _routerGetOrCreateLabel(ANALISIS_LABEL_DONE);
+  var processed = 0, skipped = 0;
+
+  for (var t = 0; t < threads.length; t++) {
+    var thread   = threads[t];
+    var messages = thread.getMessages();
+    var hitInThread = false;
+
+    for (var m = 0; m < messages.length; m++) {
+      var msg = messages[m];
+      try {
+        // ¿El mensaje fue enviado a analisis@?
+        if (!_routerEmailDestinoEsAlias(msg, ANALISIS_ALIAS_EMAIL)) {
+          skipped++;
+          continue;
+        }
+        // Sender → phone
+        var senderEmail = _routerExtractSenderEmail(msg);
+        if (!senderEmail) {
+          Logger.log('  ⏭ Sin sender válido — skip');
+          skipped++;
+          continue;
+        }
+        var phone = props.getProperty('email_' + senderEmail.toLowerCase());
+        if (!phone) {
+          Logger.log('  ⏭ Sender ' + senderEmail + ' no tiene mapping email→phone');
+          _routerNotifySenderSinRegistrar(senderEmail, msg);
+          hitInThread = true;  // marcamos para no reprocesar
+          skipped++;
+          continue;
+        }
+        // Phone → clientUrl
+        var clientUrl = clientsMap[phone];
+        if (!clientUrl) {
+          Logger.log('  ⏭ Phone ' + phone + ' no tiene clientUrl en CLIENTS_MAP_JSON');
+          skipped++;
+          continue;
+        }
+        // Primer xlsx del email
+        var xlsxAtt = _routerPickXlsxAttachment(msg);
+        if (!xlsxAtt) {
+          Logger.log('  ⏭ Email de ' + senderEmail + ' sin adjunto xlsx');
+          if (token && phoneId) {
+            _routerSendText(phone,
+              '📧 Recibí un email tuyo en analisis@balanceclip.net pero no encontré un .xlsx adjunto. ' +
+              'Asegurate de adjuntar el estado de cuenta exportado desde Banca en Línea.',
+              token, phoneId);
+          }
+          hitInThread = true;
+          skipped++;
+          continue;
+        }
+        // Forward al client GAS
+        var ok = _routerForwardBancoEmail(clientUrl, phone, xlsxAtt);
+        if (ok) {
+          processed++;
+          hitInThread = true;
+          Logger.log('  ✓ Forwarded a ' + clientUrl.substring(0, 60) + '… para phone=' + phone);
+        } else {
+          Logger.log('  ✗ Forward falló para phone=' + phone);
+        }
+      } catch(err) {
+        Logger.log('  ❌ Error procesando mensaje: ' + err.message);
+      }
+    }
+    if (hitInThread) {
+      try { thread.addLabel(doneLabel); } catch(e) { Logger.log('No pude poner label: ' + e.message); }
+    }
+  }
+
+  Logger.log('📧 Watcher analisis: procesados=' + processed + ' skipped=' + skipped);
+  return { processed: processed, skipped: skipped };
+}
+
+// Variante local de _emailDestinoEsAlias (no compartimos código con el
+// client GAS porque el router es su propio Apps Script project).
+function _routerEmailDestinoEsAlias(msg, alias) {
+  if (!alias) return true;
+  try {
+    var raw = String(msg.getRawContent() || '').toLowerCase();
+    return raw.substring(0, 12000).indexOf(String(alias).toLowerCase()) !== -1;
+  } catch(e) {
+    Logger.log('  ⚠️ No se pudo validar destino: ' + e.message);
+    return false;
+  }
+}
+
+// Extrae el sender email del header From: "Nombre <email@dom>" → email@dom.
+function _routerExtractSenderEmail(msg) {
+  try {
+    var from = String(msg.getFrom() || '');
+    var match = /<([^>]+)>/.exec(from);
+    if (match) return match[1].trim().toLowerCase();
+    // Caso sin ángulos: "email@dom"
+    var bare = from.trim().toLowerCase();
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bare)) return bare;
+    return null;
+  } catch(e) { return null; }
+}
+
+// Toma el primer adjunto que parezca xlsx (mime o extensión).
+function _routerPickXlsxAttachment(msg) {
+  try {
+    var atts = msg.getAttachments() || [];
+    for (var i = 0; i < atts.length; i++) {
+      var a = atts[i];
+      var name = String(a.getName() || '').toLowerCase();
+      var mime = String(a.getContentType() || '').toLowerCase();
+      if (mime.indexOf('spreadsheetml') >= 0 || mime.indexOf('ms-excel') >= 0 ||
+          /\.(xlsx|xls)$/.test(name)) {
+        return a;
+      }
+    }
+  } catch(e) { Logger.log('PickXlsx ERROR: ' + e.message); }
+  return null;
+}
+
+// Envía el xlsx (como base64) al client GAS. Reusa el patrón de forward
+// existente (POST a clientUrl con action específico).
+function _routerForwardBancoEmail(clientUrl, phone, attachment) {
+  try {
+    var blob = attachment.copyBlob();
+    var bytes = blob.getBytes();
+    var payload = {
+      action:   'procesarBancoEmailForward',
+      from:     phone,
+      filename: blob.getName() || 'estado-de-cuenta.xlsx',
+      mime:     blob.getContentType() || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      blob:     Utilities.base64Encode(bytes),
+    };
+    var resp = UrlFetchApp.fetch(clientUrl, {
+      method:             'post',
+      contentType:        'application/json',
+      payload:            JSON.stringify(payload),
+      muteHttpExceptions: true,
+      followRedirects:    true,
+    });
+    var rc = resp.getResponseCode();
+    var body = (resp.getContentText() || '').substring(0, 200);
+    var ok = (rc >= 200 && rc < 300) && body.indexOf('"ok":true') !== -1;
+    if (!ok) Logger.log('Forward banco email HTTP ' + rc + ' body=' + body);
+    return ok;
+  } catch(err) {
+    Logger.log('_routerForwardBancoEmail ERROR: ' + err.message);
+    return false;
+  }
+}
+
+// Cuando un email llega de un sender sin mapping, le contestamos por email
+// con instrucciones para registrar su email vía el bot.
+function _routerNotifySenderSinRegistrar(senderEmail, msg) {
+  try {
+    var subject = 'Tu email no está registrado en BalanceClip';
+    var body =
+      'Hola,\n\n' +
+      'Recibimos tu email en analisis@balanceclip.net, pero tu dirección ' +
+      senderEmail + ' todavía no está asociada a una cuenta de BalanceClip.\n\n' +
+      'Para activar el atajo email→análisis, escribime "configurar email" ' +
+      'al bot de WhatsApp de BalanceClip y registrá tu email desde ahí. ' +
+      'Una vez registrado, cualquier estado de cuenta que mandes a este ' +
+      'alias va a llegar directo a tu WhatsApp con el análisis listo.\n\n' +
+      '— BalanceClip';
+    GmailApp.sendEmail(senderEmail, subject, body);
+  } catch(e) {
+    Logger.log('Reply sin registrar ERROR: ' + e.message);
+  }
+}
+
+// Crea (o devuelve) un label Gmail. Wrapper defensivo.
+function _routerGetOrCreateLabel(name) {
+  try {
+    var lbl = GmailApp.getUserLabelByName(name);
+    return lbl || GmailApp.createLabel(name);
+  } catch(e) {
+    Logger.log('GetOrCreateLabel ERROR: ' + e.message);
+    return null;
+  }
+}
+
+// Instalar el trigger time-based cada 10 min. Ejecutar manualmente desde
+// el editor de Apps Script una vez por deployment.
+function _installAnalisisBancoTrigger() {
+  // Limpiar triggers viejos
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'procesarEmailsAnalisisBanco') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('procesarEmailsAnalisisBanco')
+    .timeBased()
+    .everyMinutes(10)
+    .create();
+  Logger.log('✓ Trigger instalado: procesarEmailsAnalisisBanco cada 10 min');
+}
