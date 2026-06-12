@@ -1460,9 +1460,21 @@ function _bancoPoblarXlsx(ss, cache) {
     .slice(0, 10);
   var meses = Object.keys(mesMovs).sort().slice(-12);
 
-  // ─── Hoja 1: Resumen ────────────────────────────────────────
-  var sh1 = ss.getActiveSheet();
-  sh1.setName('Resumen');
+  // ─── Hoja 1: Diagnóstico (executive summary al frente) ──────
+  // Es lo PRIMERO que ve el usuario al abrir el xlsx. La data cruda
+  // (Resumen, Movimientos, etc.) queda en las hojas siguientes.
+  var shD = ss.getActiveSheet();
+  shD.setName('Diagnóstico');
+  try {
+    _bancoPoblarDiagnostico(shD, cache, {
+      totalIn: totalIn, totalOut: totalOut,
+      catTotals: catTotals, catMovs: catMovs, mesMovs: mesMovs,
+      topCats: topCats, meses: meses,
+    });
+  } catch(e) { Logger.log('Banco Diagnóstico skip: ' + e.message); }
+
+  // ─── Hoja 2: Resumen ────────────────────────────────────────
+  var sh1 = ss.insertSheet('Resumen');
   var rows = [
     ['ANÁLISIS BANCARIO', '', '', ''],
     ['Generado',       new Date(), '', ''],
@@ -1593,20 +1605,8 @@ function _bancoPoblarXlsx(ss, cache) {
     sh3.setFrozenRows(1);
   }
 
-  // ─── Hoja Diagnóstico (executive summary + insights) ────────
-  // Se agrega AL FINAL para no romper la numeración/columnas existentes;
-  // si la generación falla, el resto del Excel sigue intacto.
-  try {
-    var shD = ss.insertSheet('Diagnóstico');
-    _bancoPoblarDiagnostico(shD, cache, {
-      totalIn: totalIn, totalOut: totalOut,
-      catTotals: catTotals, catMovs: catMovs, mesMovs: mesMovs,
-      topCats: topCats, meses: meses,
-    });
-  } catch(e) { Logger.log('Banco Diagnóstico skip: ' + e.message); }
-
-  // Volver a poner Resumen al frente
-  ss.setActiveSheet(sh1);
+  // Diagnóstico es lo primero que el usuario ve al abrir el xlsx
+  ss.setActiveSheet(shD);
   SpreadsheetApp.flush();
 }
 
