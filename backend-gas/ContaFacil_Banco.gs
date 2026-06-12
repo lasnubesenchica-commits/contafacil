@@ -85,6 +85,13 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
 
   var msgText  = _bancoFormatearMensaje(analisis);
   _whatsappReply(from, msgText, token, phoneId);
+
+  // Después del análisis principal mandar el menú interactivo con
+  // botones de drill (top cats + meses recientes + descargar Excel).
+  // Es un mensaje SEPARADO porque el análisis principal supera el
+  // límite de 1024 chars del body interactivo.
+  try { _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId); }
+  catch(err) { Logger.log('Banco menu drill error: ' + err.message); }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -741,10 +748,12 @@ function _bancoFormatearMensaje(a) {
     msg += '\n';
   }
 
-  msg += '📈 _Mandame el del próximo mes y te muestro cómo evolucionaste._\n';
-  msg += '💡 _Tip: respondé `ver <categoría o mes>` para detalle, `excel` para descargar la data,_\n';
-  msg += '   _o preguntame cualquier cosa sobre tus finanzas (ej: "¿cuánto debería ahorrar?",_\n';
-  msg += '   _"¿es alto mi gasto en comida?", "¿cómo bajo los gastos chicos?")._';
+  msg += '📈 _Mandame el del próximo mes y te muestro cómo evolucionaste._\n\n';
+  msg += '👇 *Menú abajo* — detalle de cualquier categoría, mes, o descargar Excel.\n\n';
+  msg += '💬 *O preguntame cualquier cosa* en lenguaje natural:\n';
+  msg += '   _"¿cuánto debería ahorrar?"_\n';
+  msg += '   _"¿es alto mi gasto en comida?"_\n';
+  msg += '   _"si dejo de mandar Yappys a X, ¿cuánto ahorro?"_';
 
   return msg.substring(0, 4000);  // WhatsApp text cap
 }
@@ -1959,4 +1968,113 @@ function _bancoRenderRespuestaAsesor(text) {
     t += '\n\n_💬 Esto es orientación general — para temas de impuestos o inversiones específicas, contrastá con tu contador._';
   }
   return t.substring(0, 4000);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  MENÚ INTERACTIVO DE DRILL — list message tras el análisis
+//  ──────────────────────────────────────────────────────────────────
+//  Mostrar buttons tapables para drill-down en vez de depender de
+//  comandos de texto. Separa visualmente "datos predecibles" (menú)
+//  de "preguntas abiertas" (lenguaje natural → asesor).
+//
+//  Layout: 10 items totales máx (límite WhatsApp interactive list):
+//    📊 Categorías  — top 5 por gasto
+//    📅 Meses       — más recientes (4)
+//    📥 Descargar   — 1 (Excel)
+//
+//  Button id format: wa:bdrill:<tipo>:<param>
+//    wa:bdrill:cat:comida       → drill cat
+//    wa:bdrill:mes:2026-05      → drill mes
+//    wa:bdrill:excel            → export xlsx
+//
+//  Manejados en _whatsappOnInteractive vía branch accion === 'bdrill'.
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId) {
+  if (!movs || !movs.length) return false;
+
+  var catTotals = {};
+  var byMonth = {};
+  movs.forEach(function(m) {
+    var ym = Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM');
+    if (m.monto >= 0) {
+      byMonth[ym] = byMonth[ym] || { out: 0, in: 0 };
+      byMonth[ym].in += m.monto;
+    } else {
+      var cat = categorias[m.descripcion] || 'otro';
+      catTotals[cat] = (catTotals[cat] || 0) + (-m.monto);
+      byMonth[ym] = byMonth[ym] || { out: 0, in: 0 };
+      byMonth[ym].out += -m.monto;
+    }
+  });
+
+  var topCats = Object.keys(catTotals)
+    .map(function(c) { return { cat: c, sum: catTotals[c] }; })
+    .sort(function(a, b) { return b.sum - a.sum; })
+    .slice(0, 5);
+  // Meses más recientes — newest first para que el último mes esté arriba
+  var meses = Object.keys(byMonth).sort().reverse().slice(0, 4);
+
+  var sections = [];
+
+  if (topCats.length) {
+    sections.push({
+      title: '📊 Categorías',
+      rows: topCats.map(function(c) {
+        // Title cap 24 — _bancoCatLabel devuelve "🏷 Nombre" (~18-22 chars)
+        return {
+          id:          'wa:bdrill:cat:' + c.cat,
+          title:       _bancoCatLabel(c.cat).substring(0, 24),
+          description: _bancoFmtDolar(c.sum),
+        };
+      }),
+    });
+  }
+
+  if (meses.length) {
+    sections.push({
+      title: '📅 Meses',
+      rows: meses.map(function(ym) {
+        var label = _bancoMesLabel(ym) + ' ' + ym.split('-')[0];  // "JUN 2026"
+        var info  = byMonth[ym];
+        return {
+          id:          'wa:bdrill:mes:' + ym,
+          title:       label.substring(0, 24),
+          description: 'Gasto: ' + _bancoFmtDolar(info.out),
+        };
+      }),
+    });
+  }
+
+  sections.push({
+    title: '📥 Descargar',
+    rows: [{
+      id:          'wa:bdrill:excel',
+      title:       '📥 Excel completo',
+      description: 'Con drill-downs por cat y mes',
+    }],
+  });
+
+  return _whatsappReplyLista(
+    from,
+    '🔍 *Ver detalle de:*',
+    'Ver opciones',
+    sections, token, phoneId
+  );
+}
+
+// Convierte un button id de drill (sin el prefijo wa:bdrill:) al
+// intent que entiende _bancoHandleDrill. Llamado desde el dispatcher
+// de _whatsappOnInteractive.
+function _bancoHandleDrillBoton(parts, from, token, phoneId) {
+  // parts viene del split de "wa:bdrill:<tipo>[:param]" cortado en bdrill
+  // Ej: ["cat", "comida"], ["mes", "2026-05"], ["excel"]
+  if (!parts || !parts.length) return;
+  var tipo = parts[0];
+  var intent;
+  if (tipo === 'cat')        intent = { type: 'cat',   cat: parts[1] };
+  else if (tipo === 'mes')   intent = { type: 'month', ym:  parts[1] };
+  else if (tipo === 'excel') intent = { type: 'excel' };
+  else { Logger.log('Drill boton tipo desconocido: ' + tipo); return; }
+  _bancoHandleDrill(intent, from, token, phoneId);
 }
