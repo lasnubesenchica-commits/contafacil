@@ -617,7 +617,7 @@ function _routerEnviarAnalisisEmailIntro(to, token, phoneId) {
     '*analisis@balanceclip.net*\n\n' +
     '👉 *Escríbeme en este chat tu email para identificarlo.*\n' +
     'Ejemplo: `tunombre@gmail.com`\n\n' +
-    '_Una vez identificado, cualquier xlsx que envíes desde ese email te llegará analizado a este WhatsApp en menos de 10 minutos._',
+    '_Una vez identificado, cualquier xlsx que envíes desde ese email te llegará analizado a este WhatsApp en menos de 1 minuto._',
     token, phoneId);
 }
 
@@ -663,7 +663,7 @@ function _routerHandleAnalisisEmailText(from, body, token, phoneId) {
   _routerClearAnalisisEmailState(from);
   _routerSendText(from,
     '✅ *Listo, identifiqué tu email:* ' + email + '\n\n' +
-    'Envía tu xlsx a *analisis@balanceclip.net* desde esa cuenta y en menos de 10 minutos te llega el análisis aquí.\n\n' +
+    'Envía tu xlsx a *analisis@balanceclip.net* desde esa cuenta y en menos de 1 minuto te llega el análisis aquí.\n\n' +
     '_Si prefieres enviarlo ahora por chat, adjúntalo directamente (📎 → Documento)._',
     token, phoneId);
 }
@@ -1718,7 +1718,7 @@ function _routerHandleSendResetOtp(data) {
 //  xlsx desde Banca en Línea de Banco General se hace típicamente
 //  desde laptop, donde es más fácil mandar por email que por WhatsApp.
 //
-//  Trigger: time-based cada 10 min (instalar con
+//  Trigger: time-based cada 1 min (instalar con
 //  _installAnalisisBancoTrigger desde el editor).
 // ════════════════════════════════════════════════════════════════════
 
@@ -1917,7 +1917,7 @@ function _routerGetOrCreateLabel(name) {
   }
 }
 
-// Instalar el trigger time-based cada 10 min. Ejecutar manualmente desde
+// Instalar el trigger time-based cada 1 min. Ejecutar manualmente desde
 // el editor de Apps Script una vez por deployment.
 function _installAnalisisBancoTrigger() {
   // Limpiar triggers viejos
@@ -1929,7 +1929,7 @@ function _installAnalisisBancoTrigger() {
   }
   ScriptApp.newTrigger('procesarEmailsAnalisisBanco')
     .timeBased()
-    .everyMinutes(10)
+    .everyMinutes(1)
     .create();
-  Logger.log('✓ Trigger instalado: procesarEmailsAnalisisBanco cada 10 min');
+  Logger.log('✓ Trigger instalado: procesarEmailsAnalisisBanco cada 1 min');
 }
