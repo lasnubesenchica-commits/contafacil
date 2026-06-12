@@ -833,15 +833,7 @@ function _bancoFormatearMensaje(a) {
   var m2 = '';
   if (a.historial && a.historial.length >= 2) {
     m2 += '*📈 Tendencia mensual*\n';
-    m2 += '```\n' + _bancoBarsTendencia(a.historial) + '```\n';
-    var deltas = _bancoComputarDeltasMesAnt(a.historial);
-    if (deltas && deltas.length) {
-      var d0 = deltas[0];
-      var parcialNote = d0.curParcial ? ' (parcial)' : '';
-      m2 += '\n*' + d0.label + parcialNote + ' vs ' + d0.prevLabel + '*\n';
-      m2 += '```\n' + _bancoBarsDeltas(d0.cats) + '```\n';
-    }
-    m2 += '\n';
+    m2 += '```\n' + _bancoBarsTendencia(a.historial) + '```\n\n';
   }
 
   if (a.oportunidad && a.oportunidad.length) {
@@ -3048,10 +3040,22 @@ function _bancoBuildHTMLReporte(a) {
   var semaforo = _bancoPDFComputarSemaforo(a, ahorro);
   var hallazgos = _bancoPDFComputarHallazgos(a, ahorro);
 
-  // Paleta para charts (slices del donut + bars). Mantiene la
-  // identidad de marca: domina la familia naranja, complementos
-  // teal/verde/violeta para diferenciar slices.
-  var PALETA = ['#fb923c','#ea580c','#f59e0b','#dc2626','#0891b2','#059669','#7c3aed','#db2777','#6b7280','#9ca3af'];
+  // Paleta para slices del donut. Marca abre con el naranja BalanceClip
+  // (top cat más prominente), después colores categóricamente distintos
+  // para que adyacentes nunca compitan visualmente. Sin duplicados de
+  // matiz en los primeros 6 (que son los que el cliente realmente ve).
+  var PALETA = [
+    '#ea580c',  // 1. naranja BalanceClip — top cat
+    '#0891b2',  // 2. teal
+    '#7c3aed',  // 3. violeta
+    '#059669',  // 4. verde esmeralda
+    '#dc2626',  // 5. rojo
+    '#f59e0b',  // 6. amber/oro
+    '#0284c7',  // 7. azul
+    '#db2777',  // 8. rosa/magenta
+    '#65a30d',  // 9. verde lima
+    '#6b7280',  // 10. gris (Otros)
+  ];
 
   // CSS optimizado para lectura mobile sin zoom: fuentes más grandes,
   // padding más generoso, cards más altas, single column dominante.
@@ -3208,7 +3212,7 @@ function _bancoBuildHTMLReporte(a) {
     // Si hay más cats, agrupar en "Otros"
     if (a.topCats.length > 6) {
       var rest = a.topCats.slice(6).reduce(function(s, c) { return s + c.sum; }, 0);
-      if (rest > 0) topForDonut.push({ name: 'Otros', value: rest, color: PALETA[8] });
+      if (rest > 0) topForDonut.push({ name: 'Otros', value: rest, color: PALETA[9] });
     }
     html += '<div class="donut-wrap"><div class="donut">' +
             _bancoPDFDonutChart(topForDonut, 200, 0.58) +
