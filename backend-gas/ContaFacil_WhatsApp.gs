@@ -1089,9 +1089,10 @@ function _whatsappOnInteractive(msg, from, token, phoneId) {
   }
   var accion = parts[1];
   var pendId = parts[2];
-  if (accion === 'apr')      _whatsappOnAprobar(pendId, from, token, phoneId);
-  else if (accion === 'cat') _whatsappOnCambiarCat(pendId, from, token, phoneId);
-  else if (accion === 'set') _whatsappOnSetCat(pendId, parts[3] || '', from, token, phoneId);
+  if (accion === 'apr')         _whatsappOnAprobar(pendId, from, token, phoneId);
+  else if (accion === 'cat')    _whatsappOnCambiarCat(pendId, from, token, phoneId);
+  else if (accion === 'set')    _whatsappOnSetCat(pendId, parts[3] || '', from, token, phoneId);
+  else if (accion === 'bdrill') _bancoHandleDrillBoton(parts.slice(2), from, token, phoneId);
   else if (accion === 'otr') _whatsappOnOtraCategoria(pendId, from, token, phoneId);
   else if (accion === 'rej') _whatsappOnRechazar(pendId, from, token, phoneId);
   else Logger.log('Acción desconocida: ' + accion);
