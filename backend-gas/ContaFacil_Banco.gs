@@ -121,11 +121,6 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
   // límite de 1024 chars del body interactivo.
   try { _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId); }
   catch(err) { Logger.log('Banco menu drill error: ' + err.message); }
-
-  // Reporte PDF ejecutivo — el "wow" final. Auto-enviado para máximo
-  // impacto. Si falla, no rompe el flujo principal.
-  try { _bancoEnviarReportePDF(analisis, from, token, phoneId); }
-  catch(err) { Logger.log('Banco PDF report error: ' + err.message + ' ' + (err.stack || '')); }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -1270,6 +1265,10 @@ function _bancoDrillIntent(text) {
   if (/\b(excel|xlsx)\b/.test(t)) {
     return { type: 'excel' };
   }
+  // Mismo patrón para "pdf" o "reporte" — genera el PDF ejecutivo.
+  if (/\b(pdf|reporte)\b/.test(t)) {
+    return { type: 'pdf' };
+  }
   // Pelar prefijo "ver" / "drill" / "d" / "detalle"
   var stripped = t.replace(/^(ver|drill|detalle|d)\s+/, '').trim();
   if (!stripped) return null;
@@ -1386,6 +1385,7 @@ function _bancoHandleDrill(intent, from, token, phoneId) {
   else if (intent.type === 'month') msg = _bancoRenderDrillMes(cache, intent.ym);
   else if (intent.type === 'cross') msg = _bancoRenderDrillCross(cache, intent.cat, intent.ym);
   else if (intent.type === 'excel') { _bancoExportarExcel(cache, from, token, phoneId); return; }
+  else if (intent.type === 'pdf')   { _bancoExportarPDF(cache, from, token, phoneId); return; }
   if (!msg) {
     _whatsappReply(from, '🤔 No encontré data para eso. Probá `ver mayo` o `ver comida`.', token, phoneId);
     return;
@@ -1542,6 +1542,23 @@ function _bancoExportarExcel(cache, from, token, phoneId) {
     if (tempId) {
       try { DriveApp.getFileById(tempId).setTrashed(true); } catch(e) {}
     }
+  }
+}
+
+// Genera y envía el reporte PDF on-demand. Necesita re-computar el
+// analisis desde cache.movs (porque la cache solo guarda los movs
+// slim, no el objeto analisis completo).
+function _bancoExportarPDF(cache, from, token, phoneId) {
+  _whatsappReply(from, '📑 Generando tu reporte PDF, dame un momento…', token, phoneId);
+  try {
+    var categorias = {};
+    cache.movs.forEach(function(m) { categorias[m.descripcion] = m.cat; });
+    var analisis = _bancoAnalizar(cache.movs, categorias);
+    analisis.historial = cache.historial || [];
+    _bancoEnviarReportePDF(analisis, from, token, phoneId);
+  } catch(err) {
+    Logger.log('Banco PDF export error: ' + err.message + ' ' + (err.stack || ''));
+    _whatsappReply(from, '⚠️ No pude generar el PDF: ' + err.message, token, phoneId);
   }
 }
 
@@ -2591,6 +2608,24 @@ function _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId) {
 
   var sections = [];
 
+  // Descargas PRIMERO — para que el usuario sepa que puede tener
+  // entregables visuales fácilmente accesibles sin scrollear.
+  sections.push({
+    title: '📥 Descargar',
+    rows: [
+      {
+        id:          'wa:bdrill:pdf',
+        title:       '📑 Reporte PDF',
+        description: 'Ejecutivo, branded, mobile-friendly',
+      },
+      {
+        id:          'wa:bdrill:excel',
+        title:       '📊 Excel completo',
+        description: 'Con drill-downs por cat y mes',
+      },
+    ],
+  });
+
   if (topCats.length) {
     sections.push({
       title: '📊 Categorías',
@@ -2620,15 +2655,6 @@ function _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId) {
     });
   }
 
-  sections.push({
-    title: '📥 Descargar',
-    rows: [{
-      id:          'wa:bdrill:excel',
-      title:       '📥 Excel completo',
-      description: 'Con drill-downs por cat y mes',
-    }],
-  });
-
   return _whatsappReplyLista(
     from,
     '🔍 *Ver detalle de:*',
@@ -2649,6 +2675,7 @@ function _bancoHandleDrillBoton(parts, from, token, phoneId) {
   if (tipo === 'cat')        intent = { type: 'cat',   cat: parts[1] };
   else if (tipo === 'mes')   intent = { type: 'month', ym:  parts[1] };
   else if (tipo === 'excel') intent = { type: 'excel' };
+  else if (tipo === 'pdf')   intent = { type: 'pdf' };
   else { Logger.log('Drill boton tipo desconocido: ' + tipo); return; }
   _bancoHandleDrill(intent, from, token, phoneId);
 }
@@ -3016,68 +3043,67 @@ function _bancoBuildHTMLReporte(a) {
   // CSS optimizado para lectura mobile sin zoom: fuentes más grandes,
   // padding más generoso, cards más altas, single column dominante.
   var css = (
-    "body{font-family:Helvetica,Arial,sans-serif;color:#1f2937;margin:0;padding:36px 28px;font-size:16px;line-height:1.5;}" +
-    ".header{display:flex;align-items:center;border-bottom:4px solid #fb923c;padding-bottom:18px;margin-bottom:28px;}" +
-    ".logo{width:68px;height:68px;margin-right:18px;border-radius:50%;}" +
-    ".brand{font-size:30px;font-weight:800;line-height:1;}" +
+    // Página angosta tipo phone-portrait (A5): el PDF abre legible en mobile sin
+    // necesidad de zoom. Si Drive ignora el @page, queda Letter por default
+    // pero el contenido sigue siendo grande.
+    "@page{size:148mm 210mm;margin:0;}" +
+    "body{font-family:Helvetica,Arial,sans-serif;color:#1f2937;margin:0;padding:22px 18px;font-size:14px;line-height:1.5;}" +
+    ".header{display:flex;align-items:center;border-bottom:3px solid #fb923c;padding-bottom:12px;margin-bottom:18px;page-break-after:avoid;}" +
+    ".logo{width:48px;height:48px;margin-right:12px;border-radius:50%;}" +
+    ".brand{font-size:22px;font-weight:800;line-height:1;}" +
     ".brand .bc{color:#ea580c;}" +
-    ".tagline{font-size:12px;color:#6b7280;letter-spacing:1.8px;margin-top:4px;font-weight:600;}" +
-    ".meta{margin-left:auto;font-size:13px;color:#6b7280;text-align:right;line-height:1.4;}" +
-    ".meta strong{display:block;font-size:15px;color:#1f2937;}" +
-    ".hero{background:#fff7ed;border:2px solid #fed7aa;padding:28px;border-radius:14px;margin-bottom:28px;}" +
-    ".hero .kicker{font-size:12px;color:#9a3412;letter-spacing:2.5px;font-weight:800;}" +
-    ".hero h1{margin:10px 0 4px;font-size:26px;color:#1f2937;line-height:1.2;}" +
-    ".hero .subtitle{color:#6b7280;font-size:14px;}" +
-    ".hero .saldo{margin-top:20px;font-size:48px;font-weight:900;color:#1f2937;letter-spacing:-2px;line-height:1;}" +
-    ".hero .delta{font-size:17px;font-weight:700;margin-top:8px;}" +
+    ".tagline{font-size:10px;color:#6b7280;letter-spacing:1.5px;margin-top:3px;font-weight:600;}" +
+    ".meta{margin-left:auto;font-size:10px;color:#6b7280;text-align:right;line-height:1.4;}" +
+    ".meta strong{display:block;font-size:12px;color:#1f2937;}" +
+    ".hero{background:#fff7ed;border:2px solid #fed7aa;padding:18px;border-radius:12px;margin-bottom:18px;}" +
+    ".hero .kicker{font-size:10px;color:#9a3412;letter-spacing:2px;font-weight:800;}" +
+    ".hero h1{margin:8px 0 2px;font-size:18px;color:#1f2937;line-height:1.2;}" +
+    ".hero .subtitle{color:#6b7280;font-size:12px;}" +
+    ".hero .saldo{margin-top:14px;font-size:34px;font-weight:900;color:#1f2937;letter-spacing:-1.5px;line-height:1;}" +
+    ".hero .delta{font-size:13px;font-weight:700;margin-top:5px;}" +
     ".delta.up{color:#059669;}" +
     ".delta.down{color:#dc2626;}" +
-    ".section{margin-bottom:30px;}" +
-    ".section h2{font-size:20px;color:#1f2937;border-bottom:2px solid #fed7aa;padding-bottom:8px;margin:0 0 18px;}" +
-    ".section h3{font-size:17px;color:#374151;margin:20px 0 12px;font-weight:700;}" +
+    // page-break-inside: avoid → mantiene cada section unida (título + contenido).
+    // Esto fixea el bug del título de Tendencia en página separada de su gráfica.
+    ".section{margin-bottom:20px;page-break-inside:avoid;}" +
+    ".section h2{font-size:15px;color:#1f2937;border-bottom:2px solid #fed7aa;padding-bottom:6px;margin:0 0 12px;page-break-after:avoid;}" +
+    ".section h3{font-size:13px;color:#374151;margin:14px 0 8px;font-weight:700;page-break-after:avoid;}" +
     ".section h3 .pill{display:inline-block;background:#fb923c;color:#fff;font-size:12px;padding:2px 8px;border-radius:10px;margin-right:8px;vertical-align:middle;}" +
     // Flujo: 3 cards en 1 fila (siguen siendo legibles porque van GRANDES)
     ".cards-3{display:table;width:100%;border-spacing:10px 0;table-layout:fixed;}" +
-    ".cards-3 .card{display:table-cell;padding:18px 14px;border-radius:12px;vertical-align:top;text-align:center;}" +
-    // Semáforo: 2x2 grid usando flex
-    ".cards-grid{display:table;width:100%;border-spacing:10px;table-layout:fixed;}" +
+    ".cards-3 .card{display:table-cell;padding:14px 10px;border-radius:10px;vertical-align:top;text-align:center;}" +
+    ".cards-grid{display:table;width:100%;border-spacing:8px;table-layout:fixed;}" +
     ".cards-grid .row{display:table-row;}" +
-    ".cards-grid .card{display:table-cell;padding:18px 14px;border-radius:12px;vertical-align:top;width:50%;}" +
-    ".card .label{font-size:11px;text-transform:uppercase;font-weight:800;opacity:0.78;letter-spacing:1.5px;}" +
-    ".card .value{font-size:26px;font-weight:900;margin:6px 0 4px;line-height:1.1;}" +
-    ".card .note{font-size:13px;opacity:0.9;font-weight:600;}" +
+    ".cards-grid .card{display:table-cell;padding:14px 10px;border-radius:10px;vertical-align:top;width:50%;}" +
+    ".card .label{font-size:10px;text-transform:uppercase;font-weight:800;opacity:0.78;letter-spacing:1.2px;}" +
+    ".card .value{font-size:20px;font-weight:900;margin:5px 0 3px;line-height:1.1;}" +
+    ".card .note{font-size:11px;opacity:0.9;font-weight:600;}" +
     ".card.green{background:#d1fae5;color:#064e3b;}" +
     ".card.yellow{background:#fef3c7;color:#78350f;}" +
     ".card.red{background:#fee2e2;color:#7f1d1d;}" +
-    // Bar rows — más grandes para mobile
-    ".bar-row{display:table;width:100%;font-size:15px;margin:8px 0;}" +
+    ".bar-row{display:table;width:100%;font-size:13px;margin:6px 0;}" +
     ".bar-row > div{display:table-cell;vertical-align:middle;}" +
-    ".bar-row .blabel{width:32%;padding-right:10px;font-weight:600;}" +
-    ".bar-row .bouter{width:40%;height:22px;background:#f3f4f6;border-radius:6px;overflow:hidden;}" +
-    ".bar-row .bouter .bfill{height:22px;background:linear-gradient(90deg,#fb923c,#ea580c);border-radius:6px;}" +
-    ".bar-row .bvalue{width:28%;padding-left:12px;text-align:right;font-weight:700;}" +
-    // Insights — más aire
-    ".insight{padding:16px 20px;background:#fff7ed;border-left:5px solid #fb923c;margin-bottom:12px;border-radius:0 6px 6px 0;}" +
-    ".insight .ttl{font-weight:800;color:#9a3412;font-size:16px;}" +
-    ".insight .body{font-size:14px;color:#374151;margin-top:4px;line-height:1.5;}" +
-    // Donut chart container
+    ".bar-row .blabel{width:35%;padding-right:8px;font-weight:600;}" +
+    ".bar-row .bouter{width:35%;height:18px;background:#f3f4f6;border-radius:5px;overflow:hidden;}" +
+    ".bar-row .bouter .bfill{height:18px;background:linear-gradient(90deg,#fb923c,#ea580c);border-radius:5px;}" +
+    ".bar-row .bvalue{width:30%;padding-left:8px;text-align:right;font-weight:700;}" +
+    ".insight{padding:12px 14px;background:#fff7ed;border-left:4px solid #fb923c;margin-bottom:10px;border-radius:0 5px 5px 0;page-break-inside:avoid;}" +
+    ".insight .ttl{font-weight:800;color:#9a3412;font-size:14px;}" +
+    ".insight .body{font-size:12px;color:#374151;margin-top:3px;line-height:1.5;}" +
     ".donut-wrap{display:table;width:100%;table-layout:fixed;margin:8px 0;}" +
-    ".donut-wrap .donut{display:table-cell;vertical-align:middle;width:50%;text-align:center;}" +
-    ".donut-wrap .legend{display:table-cell;vertical-align:middle;width:50%;padding-left:18px;font-size:14px;}" +
-    ".legend .item{padding:5px 0;display:table;width:100%;}" +
-    ".legend .swatch{display:table-cell;width:14px;height:14px;border-radius:3px;}" +
-    ".legend .lname{display:table-cell;padding-left:8px;}" +
+    ".donut-wrap .donut{display:table-cell;vertical-align:middle;width:42%;text-align:center;}" +
+    ".donut-wrap .legend{display:table-cell;vertical-align:middle;width:58%;padding-left:12px;font-size:12px;}" +
+    ".legend .item{padding:4px 0;display:table;width:100%;}" +
+    ".legend .swatch{display:table-cell;width:12px;height:12px;border-radius:3px;}" +
+    ".legend .lname{display:table-cell;padding-left:7px;}" +
     ".legend .lval{display:table-cell;text-align:right;font-weight:700;color:#1f2937;}" +
-    // Tablas
-    ".table{width:100%;border-collapse:collapse;font-size:15px;}" +
-    ".table th{background:#f9fafb;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;padding:11px 8px;text-align:left;border-bottom:2px solid #e5e7eb;}" +
-    ".table td{padding:11px 8px;border-bottom:1px solid #f3f4f6;}" +
+    ".table{width:100%;border-collapse:collapse;font-size:13px;}" +
+    ".table th{background:#f9fafb;color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;padding:9px 6px;text-align:left;border-bottom:2px solid #e5e7eb;}" +
+    ".table td{padding:9px 6px;border-bottom:1px solid #f3f4f6;}" +
     ".table td.amount{text-align:right;font-weight:700;font-family:'Courier New',monospace;}" +
-    // Pasos
-    ".step{padding:11px 0 11px 32px;position:relative;font-size:15px;line-height:1.5;}" +
-    ".step:before{content:'☐';position:absolute;left:0;font-size:20px;color:#fb923c;font-weight:bold;top:8px;}" +
-    // Footer
-    ".footer{margin-top:38px;padding-top:18px;border-top:2px solid #fed7aa;font-size:12px;color:#6b7280;text-align:center;line-height:1.7;}" +
+    ".step{padding:9px 0 9px 26px;position:relative;font-size:13px;line-height:1.5;}" +
+    ".step:before{content:'☐';position:absolute;left:0;font-size:17px;color:#fb923c;font-weight:bold;top:7px;}" +
+    ".footer{margin-top:28px;padding-top:14px;border-top:2px solid #fed7aa;font-size:11px;color:#6b7280;text-align:center;line-height:1.7;}" +
     ".footer a{color:#ea580c;text-decoration:none;font-weight:700;}" +
     ".footer strong{color:#1f2937;}" +
     ".page-break{page-break-before:always;}"
@@ -3172,7 +3198,7 @@ function _bancoBuildHTMLReporte(a) {
       if (rest > 0) topForDonut.push({ name: 'Otros', value: rest, color: PALETA[8] });
     }
     html += '<div class="donut-wrap"><div class="donut">' +
-            _bancoPDFDonutChart(topForDonut, 240, 0.58) +
+            _bancoPDFDonutChart(topForDonut, 200, 0.58) +
             '</div><div class="legend">';
     var total = topForDonut.reduce(function(s, x) { return s + x.value; }, 0);
     topForDonut.forEach(function(item) {
@@ -3214,7 +3240,7 @@ function _bancoBuildHTMLReporte(a) {
         parcial:  h.parcial,
       };
     });
-    html += _bancoPDFBarChartVertical(meses, 540, 260);
+    html += _bancoPDFBarChartVertical(meses, 480, 240);
     html += '</div>';
   }
 
