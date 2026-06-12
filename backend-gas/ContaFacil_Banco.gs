@@ -2603,8 +2603,9 @@ function _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId) {
     .map(function(c) { return { cat: c, sum: catTotals[c] }; })
     .sort(function(a, b) { return b.sum - a.sum; })
     .slice(0, 5);
-  // Meses más recientes — newest first para que el último mes esté arriba
-  var meses = Object.keys(byMonth).sort().reverse().slice(0, 4);
+  // Meses más recientes — newest first. Cap a 3 porque WhatsApp
+  // interactive list cap total = 10 rows: 2 descargas + 5 top cats + 3 meses.
+  var meses = Object.keys(byMonth).sort().reverse().slice(0, 3);
 
   var sections = [];
 
