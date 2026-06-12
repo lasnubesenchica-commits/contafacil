@@ -919,22 +919,27 @@ function _bancoBarsCategorias(topCats, totalOut) {
 // mes vs mes anterior entre paréntesis.
 function _bancoBarsTendencia(historial) {
   if (!historial || !historial.length) return '';
-  var NAME_W = 19;  // mismo ancho que destinatarios (compensa emoji cats)
+  var NAME_W = 19;
   var max = Math.max.apply(null, historial.map(function(h) { return h.totalOut; }));
   return historial.map(function(h, i) {
     var bar = _bancoBar(h.totalOut, max);
-    var pct = i === 0 ? 0 : (historial[i-1].totalOut > 0
+    var pct = i === 0 ? null : (historial[i-1].totalOut > 0
       ? Math.round(((h.totalOut - historial[i-1].totalOut) / historial[i-1].totalOut) * 100)
-      : 0);
-    var pctStr;
-    if (i === 0)                pctStr = '—';
-    else if (pct > 5)            pctStr = '+' + pct + '%';
-    else if (pct < -5)           pctStr = pct + '%';
-    else                         pctStr = '~';
-    var label = _bancoMesLabelFull(h.yearMonth) + (h.parcial ? ' (parcial)' : '');
+      : null);
+    // El primer mes no tiene anterior — omitimos el paréntesis. Para el
+    // resto: + / - / ~ (sin cambio significativo).
+    var deltaPart = '';
+    if (pct !== null) {
+      var pctStr = (pct > 5)  ? '+' + pct + '%'
+                 : (pct < -5) ? pct + '%'
+                 : '~';
+      deltaPart = ' (' + pctStr + ')';
+    }
+    // Sin año (redundante, el período total ya está en el header).
+    var label = _bancoMesLabelFull(h.yearMonth) + (h.parcial ? ' parcial' : '');
     if (label.length > NAME_W) label = label.substring(0, NAME_W - 1) + '…';
     while (label.length < NAME_W) label += ' ';
-    return label + ' ' + bar + ' ' + _bancoFmtDolar(h.totalOut) + ' (' + pctStr + ')';
+    return label + ' ' + bar + ' ' + _bancoFmtDolar(h.totalOut) + deltaPart;
   }).join('\n') + '\n';
 }
 
@@ -963,7 +968,7 @@ function _bancoMesLabelFull(ym) {
   var parts = String(ym || '').split('-');
   if (parts.length !== 2) return ym || '???';
   var m = parseInt(parts[1], 10);
-  return (meses[m-1] || '???') + ' ' + parts[0];
+  return meses[m-1] || '???';
 }
 
 // Tabla de destinatarios — formato visualmente IDÉNTICO a
