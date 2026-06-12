@@ -2268,9 +2268,12 @@ function _bancoBuildAsesorContext(cache) {
   var totalIn = 0, totalOut = 0;
   var catTotals = {};
   var byMerchant = {};
+  var byCatDest = {};        // cat → { destinatario limpio → sum }
+  var byMonthDest = {};      // ym → { destinatario limpio → sum }
   var byMonth = {};
-  var byMonthCat = {};   // ym → { cat → sum } para responder "qué pasó en mayo"
+  var byMonthCat = {};
   var yappyOut = {}, yappyIn = {};
+  var byMerchantSubs = {};   // suscripciones
 
   movs.forEach(function(m) {
     var ym = Utilities.formatDate(new Date(m.fecha), 'America/Panama', 'yyyy-MM');
@@ -2284,10 +2287,20 @@ function _bancoBuildAsesorContext(cache) {
       catTotals[m.cat] = (catTotals[m.cat] || 0) + (-m.monto);
       var mk = m.descripcion.split(/-\d{4}-?\d|\s+\d{6,}/)[0].trim().substring(0, 30);
       byMerchant[mk] = (byMerchant[mk] || 0) + (-m.monto);
-      // Mes × Cat — el desglose que el asesor necesitaba para responder
-      // preguntas tipo "¿por qué gasté tanto en mayo?".
       if (!byMonthCat[ym]) byMonthCat[ym] = {};
       byMonthCat[ym][m.cat] = (byMonthCat[ym][m.cat] || 0) + (-m.monto);
+      // Destinatario limpio (reusa el extractor con dedup)
+      var dest = _bancoExtractDestinatario(m);
+      if (!byCatDest[m.cat]) byCatDest[m.cat] = {};
+      byCatDest[m.cat][dest] = (byCatDest[m.cat][dest] || 0) + (-m.monto);
+      if (!byMonthDest[ym]) byMonthDest[ym] = {};
+      byMonthDest[ym][dest] = (byMonthDest[ym][dest] || 0) + (-m.monto);
+      // Suscripciones: agrupar por merchant key
+      if (!byMerchantSubs[mk]) byMerchantSubs[mk] = { count: 0, sum: 0, montos: [], fechas: [] };
+      byMerchantSubs[mk].count++;
+      byMerchantSubs[mk].sum += -m.monto;
+      byMerchantSubs[mk].montos.push(m.monto);
+      byMerchantSubs[mk].fechas.push(new Date(m.fecha));
     }
     var ym2 = /YAPPY\s+BG\s+(A|DE)\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(m.descripcion);
     if (ym2) {
@@ -2305,17 +2318,67 @@ function _bancoBuildAsesorContext(cache) {
     .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 5);
   var topYO = Object.keys(yappyOut)
     .map(function(k) { return { name: k, sum: yappyOut[k] }; })
-    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 3);
+    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 5);
   var topYI = Object.keys(yappyIn)
     .map(function(k) { return { name: k, sum: yappyIn[k] }; })
-    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 3);
+    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 5);
 
   var meses = Object.keys(byMonth).sort();
   var pequenos = movs.filter(function(m) { return m.monto < 0 && m.monto > -10; });
   var sumaPeq = pequenos.reduce(function(s, m) { return s + Math.abs(m.monto); }, 0);
 
+  // Saldo inicial / final
+  var first = movs[0], last = movs[movs.length - 1];
+  var saldoIni = null, saldoFin = null;
+  if (first && last && first.saldo != null && last.saldo != null) {
+    var firstF = first.fecha && new Date(first.fecha), lastF = last.fecha && new Date(last.fecha);
+    var bgStyle = !firstF || !lastF || firstF >= lastF;
+    var newest = bgStyle ? first : last;
+    var oldest = bgStyle ? last  : first;
+    if (newest.saldo != null && oldest.saldo != null) {
+      saldoFin = newest.saldo;
+      saldoIni = oldest.saldo - oldest.monto;
+    }
+  }
+
+  // Suscripciones (3+ cargos mensuales con monto estable)
+  var suscripciones = [];
+  Object.keys(byMerchantSubs).forEach(function(mk) {
+    var info = byMerchantSubs[mk];
+    if (info.count < 3) return;
+    var avg = info.sum / info.count;
+    if (avg < 3) return;
+    var allClose = info.montos.every(function(x) { return Math.abs(Math.abs(x) - avg) / avg < 0.15; });
+    if (!allClose) return;
+    var fOrd = info.fechas.slice().filter(Boolean).sort(function(a, b) { return a - b; });
+    if (fOrd.length < 3) return;
+    var intervalos = [];
+    for (var i = 1; i < fOrd.length; i++) intervalos.push((fOrd[i] - fOrd[i-1]) / 86400000);
+    intervalos.sort(function(a, b) { return a - b; });
+    var mediana = intervalos[Math.floor(intervalos.length / 2)];
+    if (mediana < 22 || mediana > 38) return;
+    suscripciones.push({ merchant: mk, count: info.count, avg: avg });
+  });
+  suscripciones.sort(function(a, b) { return b.avg - a.avg; });
+
+  // Form 90 deducibles
+  var form90Map = {
+    salud:     'Gastos médicos (DP-1)',
+    educacion: 'Gastos escolares (DP-2)',
+    seguro:    'Seguros de salud (DP-1)',
+    prestamo:  'Intereses préstamos (DP-3/DP-4)',
+  };
+  var form90 = [];
+  Object.keys(form90Map).forEach(function(c) {
+    if (catTotals[c]) form90.push({ label: form90Map[c], sum: catTotals[c] });
+  });
+
   var ctx = '';
   ctx += 'RANGO: ' + meses[0] + ' a ' + meses[meses.length - 1] + ' (' + meses.length + ' meses, ' + movs.length + ' movs)\n';
+  if (saldoIni != null && saldoFin != null) {
+    ctx += 'SALDO INICIAL: $' + saldoIni.toFixed(2) + '\n';
+    ctx += 'SALDO FINAL:   $' + saldoFin.toFixed(2) + ' (delta $' + (saldoFin - saldoIni).toFixed(2) + ')\n';
+  }
   ctx += 'INGRESOS TOTALES: $' + totalIn.toFixed(2) + '\n';
   ctx += 'GASTOS TOTALES:   $' + totalOut.toFixed(2) + '\n';
   ctx += 'AHORRO NETO:      $' + (totalIn - totalOut).toFixed(2) + ' (' + (totalIn > 0 ? Math.round((totalIn - totalOut) / totalIn * 100) : 0) + '% del ingreso)\n\n';
@@ -2324,14 +2387,27 @@ function _bancoBuildAsesorContext(cache) {
   meses.forEach(function(ym) {
     ctx += '  ' + ym + ': ingreso $' + byMonth[ym].in.toFixed(0) + ', gasto $' + byMonth[ym].out.toFixed(0) + '\n';
   });
+
   ctx += '\nTOP CATEGORÍAS DE GASTO (período completo):\n';
   topCats.forEach(function(c) {
     ctx += '  ' + c.cat + ': $' + c.sum.toFixed(2) + ' (' + Math.round(c.sum / totalOut * 100) + '%)\n';
   });
-  // Desglose mes × categoría — top 6 cats por cada mes con su monto.
-  // Sin esto el asesor no puede responder "¿qué pasó en mayo?" más allá
-  // de los totales agregados. ~500 tokens extra, despreciable.
-  ctx += '\nGASTO POR MES Y CATEGORÍA:\n';
+
+  // Desglose por destinatario dentro de cada top cat — habilita
+  // "¿a quién le pago más en transfer salida?", "¿cuánto le mandé a X?"
+  ctx += '\nTOP DESTINATARIOS POR CATEGORÍA (top 5 cats × top 5 destinatarios):\n';
+  topCats.slice(0, 5).forEach(function(c) {
+    var dest = byCatDest[c.cat] || {};
+    var topDest = Object.keys(dest).map(function(k) { return { name: k, sum: dest[k] }; })
+      .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 5);
+    if (!topDest.length) return;
+    ctx += '  ' + c.cat + ':\n';
+    topDest.forEach(function(t) {
+      ctx += '    ' + t.name + ': $' + t.sum.toFixed(2) + '\n';
+    });
+  });
+
+  ctx += '\nGASTO POR MES Y CATEGORÍA (top 6 cats por mes):\n';
   meses.forEach(function(ym) {
     var catsMes = byMonthCat[ym] || {};
     var topCatsMes = Object.keys(catsMes)
@@ -2344,8 +2420,23 @@ function _bancoBuildAsesorContext(cache) {
       ctx += '    ' + c.cat + ': $' + c.sum.toFixed(2) + '\n';
     });
   });
-  ctx += '\nTOP MERCHANTS:\n';
+
+  // Destinatarios por mes — "¿a quién le mandé más en mayo?"
+  ctx += '\nTOP DESTINATARIOS POR MES (top 5 por mes):\n';
+  meses.forEach(function(ym) {
+    var dest = byMonthDest[ym] || {};
+    var topDestMes = Object.keys(dest).map(function(k) { return { name: k, sum: dest[k] }; })
+      .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 5);
+    if (!topDestMes.length) return;
+    ctx += '  ' + ym + ':\n';
+    topDestMes.forEach(function(t) {
+      ctx += '    ' + t.name + ': $' + t.sum.toFixed(2) + '\n';
+    });
+  });
+
+  ctx += '\nTOP MERCHANTS (agrupados por descripción):\n';
   topM.forEach(function(m) { ctx += '  ' + m.name + ': $' + m.sum.toFixed(2) + '\n'; });
+
   if (topYO.length) {
     ctx += '\nYAPPYS QUE MÁS ENVIASTE:\n';
     topYO.forEach(function(y) { ctx += '  a ' + y.name + ': $' + y.sum.toFixed(2) + '\n'; });
@@ -2354,6 +2445,19 @@ function _bancoBuildAsesorContext(cache) {
     ctx += '\nYAPPYS QUE MÁS RECIBISTE:\n';
     topYI.forEach(function(y) { ctx += '  de ' + y.name + ': $' + y.sum.toFixed(2) + '\n'; });
   }
+
+  if (suscripciones.length) {
+    ctx += '\nSUSCRIPCIONES RECURRENTES DETECTADAS (3+ cargos mensuales estables):\n';
+    suscripciones.slice(0, 8).forEach(function(s) {
+      ctx += '  ' + s.merchant + ': ~$' + s.avg.toFixed(2) + '/mes (' + s.count + ' cargos)\n';
+    });
+  }
+
+  if (form90.length) {
+    ctx += '\nDEDUCIBLES FORM 90 (DGI Panamá) DETECTADOS:\n';
+    form90.forEach(function(f) { ctx += '  ' + f.label + ': $' + f.sum.toFixed(2) + '\n'; });
+  }
+
   if (pequenos.length >= 5) {
     ctx += '\nGASTOS CHICOS (<$10): ' + pequenos.length + ' compras = $' + sumaPeq.toFixed(2) + '\n';
   }
