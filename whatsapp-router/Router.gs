@@ -615,9 +615,9 @@ function _routerEnviarAnalisisEmailIntro(to, token, phoneId) {
     '📧 *Enviar por email*\n\n' +
     'Reenvía el .xlsx (o adjúntalo a un email) a:\n\n' +
     '*analisis@balanceclip.net*\n\n' +
-    'Como aún no eres cliente, necesito asociar tu correo a este chat para enviarte el análisis aquí.\n\n' +
-    '👉 *Respóndeme con el email desde el cual vas a enviar* el archivo (ejemplo: `tunombre@gmail.com`).\n\n' +
-    '_Una vez registrado, cualquier xlsx que envíes desde ese email te llegará analizado a este WhatsApp en menos de 10 minutos._',
+    '👉 *Escríbeme en este chat tu email para identificarlo.*\n' +
+    'Ejemplo: `tunombre@gmail.com`\n\n' +
+    '_Una vez identificado, cualquier xlsx que envíes desde ese email te llegará analizado a este WhatsApp en menos de 10 minutos._',
     token, phoneId);
 }
 
@@ -662,9 +662,8 @@ function _routerHandleAnalisisEmailText(from, body, token, phoneId) {
   PropertiesService.getScriptProperties().setProperty('email_' + email, from);
   _routerClearAnalisisEmailState(from);
   _routerSendText(from,
-    '✅ *Email registrado:* ' + email + '\n\n' +
-    'Ya puedes enviar tu xlsx a *analisis@balanceclip.net* desde esa cuenta.\n\n' +
-    'En menos de 10 minutos te llega el análisis aquí.\n\n' +
+    '✅ *Listo, identifiqué tu email:* ' + email + '\n\n' +
+    'Envía tu xlsx a *analisis@balanceclip.net* desde esa cuenta y en menos de 10 minutos te llega el análisis aquí.\n\n' +
     '_Si prefieres enviarlo ahora por chat, adjúntalo directamente (📎 → Documento)._',
     token, phoneId);
 }
