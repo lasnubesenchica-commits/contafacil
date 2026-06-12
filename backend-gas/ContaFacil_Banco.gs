@@ -960,21 +960,23 @@ function _bancoBarsDeltas(cats) {
   }).join('\n') + '\n';
 }
 
-// Tabla de destinatarios — mismo formato visual que _bancoBarsCategorias
-// (nombre padded + bar Unicode proporcional + monto + %). El bar es
-// relativo al máximo del grupo (el destinatario #1 del cat).
+// Tabla de destinatarios — formato visualmente IDÉNTICO a
+// _bancoBarsCategorias. Mismos helpers de bar y monto, mismo orden de
+// campos, mismo ancho efectivo del nombre. La diferencia con cats es
+// que los nombres NO tienen emoji prefix, así que padeamos a 19 chars
+// para compensar el ancho visual del emoji+espacio del lado cats
+// (emoji renderea ~2 cols en mobile + 1 space + 16 text pad = ~19).
 function _bancoFmtTablaDestinatarios(top, sumTotal) {
   if (!top || !top.length) return '';
-  var NAME_W = 18;
+  var NAME_W = 19;
   var max = Math.max.apply(null, top.map(function(x) { return x.sum; }));
-  var padR = function(s, w) { s = String(s); while (s.length < w) s += ' '; return s; };
   return top.map(function(item) {
     var name = String(item.name);
     if (name.length > NAME_W) name = name.substring(0, NAME_W - 1) + '…';
+    while (name.length < NAME_W) name += ' ';
     var bar = _bancoBar(item.sum, max);
     var pctIt = sumTotal > 0 ? Math.round((item.sum / sumTotal) * 100) : 0;
-    return padR(name, NAME_W) + ' ' + bar + ' ' + _bancoFmtDolarCompacto(item.sum) +
-           ' (' + pctIt + '%)';
+    return name + ' ' + bar + ' ' + _bancoFmtDolar(item.sum) + ' (' + pctIt + '%)';
   }).join('\n') + '\n';
 }
 
