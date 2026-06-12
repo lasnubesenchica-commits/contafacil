@@ -1433,7 +1433,27 @@ function _bancoPoblarXlsx(ss, cache) {
       '=HYPERLINK("#' + "'" + snName.replace(/'/g, "''") + "'" + '!A1","→ Ver detalle")',
     ]);
   });
-  // Acceso a la data raw
+  // Acceso a la data raw + P2P/Transferencias consolidados.
+  var byYappy = _bancoConsolidarYappys(cache.movs);
+  var byACH   = _bancoConsolidarACH(cache.movs);
+  var hayYappys = Object.keys(byYappy).length > 0;
+  var hayACH    = Object.keys(byACH).length > 0;
+
+  if (hayYappys || hayACH) {
+    rows.push(['', '', '', '']);
+    rows.push(['P2P Y TRANSFERENCIAS', '', '', 'Drill-down']);
+    if (hayYappys) {
+      var nContactos = Object.keys(byYappy).length;
+      rows.push(['Yappys por contacto', '', nContactos + ' contactos',
+        '=HYPERLINK("#\'Yappys por contacto\'!A1","→ Ver detalle")']);
+    }
+    if (hayACH) {
+      var nDest = Object.keys(byACH).length;
+      rows.push(['Transferencias bancarias', '', nDest + ' destinos',
+        '=HYPERLINK("#\'Transferencias\'!A1","→ Ver detalle")']);
+    }
+  }
+
   rows.push(['', '', '', '']);
   rows.push(['', '', '', '=HYPERLINK("#\'Movimientos\'!A1","→ Ver todos los movimientos")']);
 
@@ -1483,6 +1503,18 @@ function _bancoPoblarXlsx(ss, cache) {
     if (existingFilter) existingFilter.remove();
     sh2.getRange(1, 1, movRows.length, 5).createFilter();
   } catch(e) { Logger.log('Banco filter create skip: ' + e.message); }
+
+  // ─── Hoja Yappys por contacto (si hay Yappys detectados) ────
+  if (hayYappys) {
+    var shY = ss.insertSheet('Yappys por contacto');
+    _bancoPoblarYappysSheet(shY, byYappy);
+  }
+
+  // ─── Hoja Transferencias (si hay ACH/transferencias) ────────
+  if (hayACH) {
+    var shT = ss.insertSheet('Transferencias');
+    _bancoPoblarACHSheet(shT, byACH);
+  }
 
   // ─── Hoja Mensual (si hay historial multi-mes) ──────────────
   if (cache.historial && cache.historial.length) {
@@ -1549,6 +1581,137 @@ function _bancoSheetSafeName(name) {
   var s = String(name || '').replace(/[:\/\\?*\[\]]/g, '');
   if (s.length > 31) s = s.substring(0, 28) + '...';
   return s;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  CONSOLIDACIONES P2P + ACH para los nuevos drill-downs del xlsx
+// ════════════════════════════════════════════════════════════════════
+
+// Agrupa Yappys por contacto en ambas direcciones. Soporta el formato
+// "YAPPY BG A/DE <NOMBRE> [POR <razón>]". Tomamos las primeras 4
+// palabras del nombre para más fidelidad que en el bot.
+function _bancoConsolidarYappys(movs) {
+  var by = {};
+  movs.forEach(function(m) {
+    var match = /YAPPY\s+BG\s+(A|DE)\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(m.descripcion || '');
+    if (!match) return;
+    var dir  = match[1].toUpperCase();
+    var name = match[2].split(/\s+/).slice(0, 4).join(' ').trim();
+    if (!name) return;
+    if (!by[name]) by[name] = { sent: 0, sentCount: 0, received: 0, receivedCount: 0 };
+    if (dir === 'A') {
+      by[name].sent += Math.abs(m.monto);
+      by[name].sentCount++;
+    } else {
+      by[name].received += Math.abs(m.monto);
+      by[name].receivedCount++;
+    }
+  });
+  return by;
+}
+
+// Agrupa transferencias bancarias (BANCA MOVIL TRANSFERENCIA / PAGO ACH)
+// por destino. Tomamos el nombre que sigue al número de cuenta.
+function _bancoConsolidarACH(movs) {
+  var by = {};
+  movs.forEach(function(m) {
+    if (m.monto >= 0) return;
+    var d = String(m.descripcion || '');
+    // BANCA MOVIL TRANSFERENCIA A <acctNum> <NAME ...> [<tipo cuenta>]
+    // El verbo + " A " + número de cuenta + nombre. Consumimos el "A "
+    // y el número para que el destino captado sea solo el nombre.
+    var match = /(?:BANCA\s+MOVIL\s+TRANSFERENCIA|PAGO\s+ACH|TRANSFER\w*)\s+A\s+\d+\s+(.+?)(?:\s+(?:ahorros|corriente|cta)\b|\s*$)/i.exec(d);
+    if (!match) return;
+    // Cortar el nombre cuando aparece un concept word ("ENTRE CUENTAS",
+    // "PAGO POR", etc.) o cuando arranca una palabra lowercase (los
+    // bancos meten el motivo en mayúsculas o minúsculas; si vienen
+    // como concepto del usuario suelen ir lowercase).
+    var STOP = /^(ENTRE|CUENTAS?|PROPIAS?|POR|PAGO|RETORNO|RESERVA)$/i;
+    var parts = match[1].split(/\s+/);
+    var keep = [];
+    for (var i = 0; i < parts.length && keep.length < 5; i++) {
+      var p = parts[i];
+      if (!p) continue;
+      if (STOP.test(p) && keep.length > 0) break;
+      if (/^[a-záéíóúñ]/.test(p) && keep.length > 0) break;
+      keep.push(p);
+    }
+    var dest = keep.join(' ').substring(0, 50);
+    if (!dest) return;
+    if (!by[dest]) by[dest] = { sum: 0, count: 0 };
+    by[dest].sum += -m.monto;
+    by[dest].count++;
+  });
+  return by;
+}
+
+function _bancoPoblarYappysSheet(sh, byYappy) {
+  // Sort por flujo absoluto (más grande primero)
+  var keys = Object.keys(byYappy).sort(function(a, b) {
+    var fa = Math.abs(byYappy[a].sent - byYappy[a].received);
+    var fb = Math.abs(byYappy[b].sent - byYappy[b].received);
+    return fb - fa;
+  });
+  var rows = [
+    ['=HYPERLINK("#\'Resumen\'!A1","← Volver al Resumen")', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['Yappys por contacto', '', '', '', '', ''],
+    [keys.length + ' contactos', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['Contacto', '# Enviados', 'Total enviado', '# Recibidos', 'Total recibido', 'Flujo neto'],
+  ];
+  var totSent = 0, totRecv = 0;
+  keys.forEach(function(k) {
+    var y = byYappy[k];
+    var flujo = y.received - y.sent;  // positivo si recibí más que mandé
+    rows.push([k, y.sentCount, y.sent, y.receivedCount, y.received, flujo]);
+    totSent += y.sent; totRecv += y.received;
+  });
+  rows.push(['TOTAL', '', totSent, '', totRecv, totRecv - totSent]);
+  sh.getRange(1, 1, rows.length, 6).setValues(rows);
+  sh.getRange(3, 1).setFontWeight('bold').setFontSize(13);
+  sh.getRange(6, 1, 1, 6).setFontWeight('bold').setBackground('#F1F3F5');
+  sh.getRange(rows.length, 1, 1, 6).setFontWeight('bold').setBackground('#FFF3E0');
+  sh.setFrozenRows(6);
+  sh.setColumnWidth(1, 280);
+  sh.setColumnWidth(2, 100);
+  sh.setColumnWidth(3, 120);
+  sh.setColumnWidth(4, 100);
+  sh.setColumnWidth(5, 120);
+  sh.setColumnWidth(6, 110);
+  try {
+    if (rows.length > 7) sh.getRange(6, 1, rows.length - 6, 6).createFilter();
+  } catch(e) {}
+}
+
+function _bancoPoblarACHSheet(sh, byACH) {
+  var keys = Object.keys(byACH).sort(function(a, b) { return byACH[b].sum - byACH[a].sum; });
+  var rows = [
+    ['=HYPERLINK("#\'Resumen\'!A1","← Volver al Resumen")', '', ''],
+    ['', '', ''],
+    ['Transferencias bancarias por destino', '', ''],
+    [keys.length + ' destinos', '', ''],
+    ['', '', ''],
+    ['Destino', '# Transferencias', 'Total enviado'],
+  ];
+  var tot = 0;
+  keys.forEach(function(k) {
+    var x = byACH[k];
+    rows.push([k, x.count, x.sum]);
+    tot += x.sum;
+  });
+  rows.push(['TOTAL', '', tot]);
+  sh.getRange(1, 1, rows.length, 3).setValues(rows);
+  sh.getRange(3, 1).setFontWeight('bold').setFontSize(13);
+  sh.getRange(6, 1, 1, 3).setFontWeight('bold').setBackground('#F1F3F5');
+  sh.getRange(rows.length, 1, 1, 3).setFontWeight('bold').setBackground('#FFF3E0');
+  sh.setFrozenRows(6);
+  sh.setColumnWidth(1, 360);
+  sh.setColumnWidth(2, 140);
+  sh.setColumnWidth(3, 140);
+  try {
+    if (rows.length > 7) sh.getRange(6, 1, rows.length - 6, 3).createFilter();
+  } catch(e) {}
 }
 
 // Exporta el spreadsheet identificado por sheetId a bytes xlsx vía
