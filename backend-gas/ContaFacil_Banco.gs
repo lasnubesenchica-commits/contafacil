@@ -19,6 +19,35 @@
 // Heuristic: detectar si un mensaje document es un estado de cuenta.
 // Banco General exporta como .xlsx (mime: vnd.openxmlformats-…sheet).
 // También aceptamos .xls y .csv por si vienen de otros bancos panameños.
+// Procesa un xlsx que llegó por email a analisis@balanceclip.net y fue
+// forwardeado por el router. data = { from, blob (base64), filename, mime }.
+// Reusa _bancoProcesarMovimientos, que ya manda los resultados por WhatsApp
+// y deja el cache listo para drill-downs y asesor.
+function _bancoHandleEmailForward(data) {
+  try {
+    var props   = PropertiesService.getScriptProperties();
+    var token   = props.getProperty('META_WHATSAPP_TOKEN');
+    var phoneId = props.getProperty('META_PHONE_ID');
+    if (!token || !phoneId) {
+      Logger.log('_bancoHandleEmailForward: META_WHATSAPP_TOKEN / META_PHONE_ID no configurados');
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'wa_creds_missing' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var bytes    = Utilities.base64Decode(data.blob);
+    var filename = data.filename || 'estado-de-cuenta.xlsx';
+    var mime     = data.mime || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    var blob     = Utilities.newBlob(bytes, mime, filename);
+
+    _bancoProcesarMovimientos(blob, filename, data.from, token, phoneId);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    Logger.log('_bancoHandleEmailForward ERROR: ' + err.message + ' ' + (err.stack || ''));
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 function _bancoEsEstadoDeCuenta(mediaObj) {
   var filename = String((mediaObj && mediaObj.filename) || '').toLowerCase();
   var mime     = String((mediaObj && mediaObj.mime_type) || '').toLowerCase();

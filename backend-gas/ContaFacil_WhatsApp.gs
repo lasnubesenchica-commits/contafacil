@@ -84,9 +84,15 @@ function _whatsappHandleWebhook(data) {
   if (data.object === 'whatsapp_business_account') {
     return _whatsappHandleWebhookMeta(data);
   }
-  // Caso 2: forward del Router (multi-tenant)
+  // Caso 2: forward del Router (multi-tenant) — mensaje de WhatsApp
   if (data.action === 'procesarWhatsAppForward' && data.msg) {
     return _whatsappHandleForward(data);
+  }
+  // Caso 3: forward del Router con un xlsx que llegó por email a
+  // analisis@balanceclip.net. El router ya resolvió sender → phone y
+  // empaquetó el blob como base64. Reusamos el pipeline de banco.
+  if (data.action === 'procesarBancoEmailForward' && data.blob && data.from) {
+    return _bancoHandleEmailForward(data);
   }
   return null;
 }
