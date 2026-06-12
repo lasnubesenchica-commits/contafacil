@@ -3005,59 +3005,84 @@ function _bancoBuildHTMLReporte(a) {
     deltaSaldoStr = (a.deltaSaldo >= 0 ? '+' : '−') + fmt(Math.abs(a.deltaSaldo));
   }
 
-  // Semáforo de salud
   var semaforo = _bancoPDFComputarSemaforo(a, ahorro);
-  // Hallazgos
   var hallazgos = _bancoPDFComputarHallazgos(a, ahorro);
 
+  // Paleta para charts (slices del donut + bars). Mantiene la
+  // identidad de marca: domina la familia naranja, complementos
+  // teal/verde/violeta para diferenciar slices.
+  var PALETA = ['#fb923c','#ea580c','#f59e0b','#dc2626','#0891b2','#059669','#7c3aed','#db2777','#6b7280','#9ca3af'];
+
+  // CSS optimizado para lectura mobile sin zoom: fuentes más grandes,
+  // padding más generoso, cards más altas, single column dominante.
   var css = (
-    "body{font-family:Helvetica,Arial,sans-serif;color:#1f2937;margin:0;padding:32px;font-size:13px;line-height:1.45;}" +
-    ".header{display:flex;align-items:center;border-bottom:3px solid #fb923c;padding-bottom:14px;margin-bottom:24px;}" +
-    ".logo{width:54px;height:54px;margin-right:14px;border-radius:50%;}" +
-    ".brand{font-size:24px;font-weight:800;}" +
+    "body{font-family:Helvetica,Arial,sans-serif;color:#1f2937;margin:0;padding:36px 28px;font-size:16px;line-height:1.5;}" +
+    ".header{display:flex;align-items:center;border-bottom:4px solid #fb923c;padding-bottom:18px;margin-bottom:28px;}" +
+    ".logo{width:68px;height:68px;margin-right:18px;border-radius:50%;}" +
+    ".brand{font-size:30px;font-weight:800;line-height:1;}" +
     ".brand .bc{color:#ea580c;}" +
-    ".tagline{font-size:11px;color:#6b7280;letter-spacing:1.5px;}" +
-    ".meta{margin-left:auto;font-size:11px;color:#6b7280;text-align:right;}" +
-    ".hero{background:#fff7ed;border:1px solid #fed7aa;padding:22px;border-radius:12px;margin-bottom:24px;}" +
-    ".hero .kicker{font-size:10px;color:#9a3412;letter-spacing:2px;font-weight:700;}" +
-    ".hero h1{margin:6px 0 2px;font-size:22px;color:#1f2937;}" +
-    ".hero .subtitle{color:#6b7280;font-size:12px;}" +
-    ".hero .saldo{margin-top:14px;font-size:34px;font-weight:900;color:#1f2937;letter-spacing:-1px;}" +
-    ".hero .delta{font-size:14px;font-weight:600;margin-top:2px;}" +
+    ".tagline{font-size:12px;color:#6b7280;letter-spacing:1.8px;margin-top:4px;font-weight:600;}" +
+    ".meta{margin-left:auto;font-size:13px;color:#6b7280;text-align:right;line-height:1.4;}" +
+    ".meta strong{display:block;font-size:15px;color:#1f2937;}" +
+    ".hero{background:#fff7ed;border:2px solid #fed7aa;padding:28px;border-radius:14px;margin-bottom:28px;}" +
+    ".hero .kicker{font-size:12px;color:#9a3412;letter-spacing:2.5px;font-weight:800;}" +
+    ".hero h1{margin:10px 0 4px;font-size:26px;color:#1f2937;line-height:1.2;}" +
+    ".hero .subtitle{color:#6b7280;font-size:14px;}" +
+    ".hero .saldo{margin-top:20px;font-size:48px;font-weight:900;color:#1f2937;letter-spacing:-2px;line-height:1;}" +
+    ".hero .delta{font-size:17px;font-weight:700;margin-top:8px;}" +
     ".delta.up{color:#059669;}" +
     ".delta.down{color:#dc2626;}" +
-    ".section{margin-bottom:22px;}" +
-    ".section h2{font-size:15px;color:#1f2937;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin:0 0 14px;}" +
-    ".section h3{font-size:13px;color:#374151;margin:14px 0 8px;}" +
-    ".cards{display:table;width:100%;border-spacing:8px 0;table-layout:fixed;}" +
-    ".card{display:table-cell;padding:12px 10px;border-radius:8px;vertical-align:top;}" +
-    ".card .label{font-size:9px;text-transform:uppercase;font-weight:700;opacity:0.75;letter-spacing:1px;}" +
-    ".card .value{font-size:17px;font-weight:900;margin:4px 0 2px;}" +
-    ".card .note{font-size:10px;opacity:0.85;}" +
+    ".section{margin-bottom:30px;}" +
+    ".section h2{font-size:20px;color:#1f2937;border-bottom:2px solid #fed7aa;padding-bottom:8px;margin:0 0 18px;}" +
+    ".section h3{font-size:17px;color:#374151;margin:20px 0 12px;font-weight:700;}" +
+    ".section h3 .pill{display:inline-block;background:#fb923c;color:#fff;font-size:12px;padding:2px 8px;border-radius:10px;margin-right:8px;vertical-align:middle;}" +
+    // Flujo: 3 cards en 1 fila (siguen siendo legibles porque van GRANDES)
+    ".cards-3{display:table;width:100%;border-spacing:10px 0;table-layout:fixed;}" +
+    ".cards-3 .card{display:table-cell;padding:18px 14px;border-radius:12px;vertical-align:top;text-align:center;}" +
+    // Semáforo: 2x2 grid usando flex
+    ".cards-grid{display:table;width:100%;border-spacing:10px;table-layout:fixed;}" +
+    ".cards-grid .row{display:table-row;}" +
+    ".cards-grid .card{display:table-cell;padding:18px 14px;border-radius:12px;vertical-align:top;width:50%;}" +
+    ".card .label{font-size:11px;text-transform:uppercase;font-weight:800;opacity:0.78;letter-spacing:1.5px;}" +
+    ".card .value{font-size:26px;font-weight:900;margin:6px 0 4px;line-height:1.1;}" +
+    ".card .note{font-size:13px;opacity:0.9;font-weight:600;}" +
     ".card.green{background:#d1fae5;color:#064e3b;}" +
     ".card.yellow{background:#fef3c7;color:#78350f;}" +
     ".card.red{background:#fee2e2;color:#7f1d1d;}" +
-    ".bar-row{display:table;width:100%;font-size:12px;margin:5px 0;}" +
+    // Bar rows — más grandes para mobile
+    ".bar-row{display:table;width:100%;font-size:15px;margin:8px 0;}" +
     ".bar-row > div{display:table-cell;vertical-align:middle;}" +
-    ".bar-row .blabel{width:32%;padding-right:8px;}" +
-    ".bar-row .bouter{width:40%;height:16px;background:#f3f4f6;border-radius:4px;overflow:hidden;}" +
-    ".bar-row .bouter .bfill{height:16px;background:linear-gradient(90deg,#fb923c,#ea580c);}" +
-    ".bar-row .bvalue{width:28%;padding-left:10px;text-align:right;font-weight:600;}" +
-    ".insight{padding:10px 14px;background:#fff7ed;border-left:4px solid #fb923c;margin-bottom:8px;border-radius:0 4px 4px 0;}" +
-    ".insight .ttl{font-weight:700;color:#9a3412;font-size:13px;}" +
-    ".insight .body{font-size:12px;color:#374151;margin-top:2px;}" +
-    ".table{width:100%;border-collapse:collapse;font-size:12px;}" +
-    ".table th{background:#f9fafb;color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;padding:8px 6px;text-align:left;border-bottom:1px solid #e5e7eb;}" +
-    ".table td{padding:8px 6px;border-bottom:1px solid #f3f4f6;}" +
-    ".table td.amount{text-align:right;font-weight:600;font-family:'Courier New',monospace;}" +
-    ".step{padding:6px 0 6px 24px;position:relative;font-size:12px;}" +
-    ".step:before{content:'☐';position:absolute;left:0;color:#fb923c;font-weight:bold;}" +
-    ".footer{margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb;font-size:10px;color:#6b7280;text-align:center;}" +
-    ".footer a{color:#ea580c;text-decoration:none;}" +
+    ".bar-row .blabel{width:32%;padding-right:10px;font-weight:600;}" +
+    ".bar-row .bouter{width:40%;height:22px;background:#f3f4f6;border-radius:6px;overflow:hidden;}" +
+    ".bar-row .bouter .bfill{height:22px;background:linear-gradient(90deg,#fb923c,#ea580c);border-radius:6px;}" +
+    ".bar-row .bvalue{width:28%;padding-left:12px;text-align:right;font-weight:700;}" +
+    // Insights — más aire
+    ".insight{padding:16px 20px;background:#fff7ed;border-left:5px solid #fb923c;margin-bottom:12px;border-radius:0 6px 6px 0;}" +
+    ".insight .ttl{font-weight:800;color:#9a3412;font-size:16px;}" +
+    ".insight .body{font-size:14px;color:#374151;margin-top:4px;line-height:1.5;}" +
+    // Donut chart container
+    ".donut-wrap{display:table;width:100%;table-layout:fixed;margin:8px 0;}" +
+    ".donut-wrap .donut{display:table-cell;vertical-align:middle;width:50%;text-align:center;}" +
+    ".donut-wrap .legend{display:table-cell;vertical-align:middle;width:50%;padding-left:18px;font-size:14px;}" +
+    ".legend .item{padding:5px 0;display:table;width:100%;}" +
+    ".legend .swatch{display:table-cell;width:14px;height:14px;border-radius:3px;}" +
+    ".legend .lname{display:table-cell;padding-left:8px;}" +
+    ".legend .lval{display:table-cell;text-align:right;font-weight:700;color:#1f2937;}" +
+    // Tablas
+    ".table{width:100%;border-collapse:collapse;font-size:15px;}" +
+    ".table th{background:#f9fafb;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;padding:11px 8px;text-align:left;border-bottom:2px solid #e5e7eb;}" +
+    ".table td{padding:11px 8px;border-bottom:1px solid #f3f4f6;}" +
+    ".table td.amount{text-align:right;font-weight:700;font-family:'Courier New',monospace;}" +
+    // Pasos
+    ".step{padding:11px 0 11px 32px;position:relative;font-size:15px;line-height:1.5;}" +
+    ".step:before{content:'☐';position:absolute;left:0;font-size:20px;color:#fb923c;font-weight:bold;top:8px;}" +
+    // Footer
+    ".footer{margin-top:38px;padding-top:18px;border-top:2px solid #fed7aa;font-size:12px;color:#6b7280;text-align:center;line-height:1.7;}" +
+    ".footer a{color:#ea580c;text-decoration:none;font-weight:700;}" +
+    ".footer strong{color:#1f2937;}" +
     ".page-break{page-break-before:always;}"
   );
 
-  // SVG del logo — círculo naranja + paperclip blanco (versión del catalog)
   var logoSVG = (
     "<svg class='logo' viewBox='0 0 52 52' xmlns='http://www.w3.org/2000/svg'>" +
     "<defs><linearGradient id='og' x1='0%' y1='0%' x2='100%' y2='100%'>" +
@@ -3074,7 +3099,7 @@ function _bancoBuildHTMLReporte(a) {
   html += '<div class="header">' + logoSVG +
           '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
           '<div class="tagline">REPORTE EJECUTIVO BANCARIO</div></div>' +
-          '<div class="meta">Generado<br><strong>' + hoy + '</strong></div></div>';
+          '<div class="meta">Generado<strong>' + hoy + '</strong></div></div>';
 
   // ── HERO ──
   html += '<div class="hero">';
@@ -3089,24 +3114,33 @@ function _bancoBuildHTMLReporte(a) {
       html += '<div class="delta ' + cls + '">' + arrow + ' ' + deltaSaldoStr + ' vs saldo inicial (' + fmt(a.saldoIni) + ')</div>';
     }
   } else {
-    html += '<div class="saldo">' + fmt(a.totalIn - a.totalOut) + ' <span style="font-size:14px;color:#6b7280;">flujo neto</span></div>';
+    html += '<div class="saldo">' + fmt(a.totalIn - a.totalOut) + '</div>';
+    html += '<div class="delta" style="color:#6b7280;">flujo neto del período</div>';
   }
   html += '</div>';
 
-  // ── FLUJO (3 cards: ingresos / gastos / ahorro) ──
-  html += '<div class="section"><h2>Flujo del período</h2><div class="cards">';
+  // ── FLUJO (3 cards grandes en una fila) ──
+  html += '<div class="section"><h2>Flujo del período</h2><div class="cards-3">';
   html += '<div class="card green"><div class="label">Ingresos</div><div class="value">' + fmtShort(a.totalIn) + '</div></div>';
   html += '<div class="card red"><div class="label">Gastos</div><div class="value">' + fmtShort(a.totalOut) + '</div></div>';
   var ahCls = a.neto >= 0 ? 'green' : 'red';
   html += '<div class="card ' + ahCls + '"><div class="label">' + (a.neto >= 0 ? 'Ahorro neto' : 'Déficit') + '</div><div class="value">' + fmtShort(Math.abs(a.neto)) + '</div><div class="note">' + (ahorro >= 0 ? '+' : '') + ahorro + '% del ingreso</div></div>';
   html += '</div></div>';
 
-  // ── SEMAFORO ──
-  html += '<div class="section"><h2>Semáforo de salud financiera</h2><div class="cards">';
-  semaforo.forEach(function(s) {
-    html += '<div class="card ' + s.color + '"><div class="label">' + s.label + '</div>' +
-            '<div class="value">' + s.valor + '</div><div class="note">' + s.comentario + '</div></div>';
-  });
+  // ── SEMAFORO (2x2 grid en lugar de 4 en una fila) ──
+  html += '<div class="section"><h2>Semáforo de salud financiera</h2><div class="cards-grid">';
+  for (var si = 0; si < semaforo.length; si += 2) {
+    html += '<div class="row">';
+    html += '<div class="card ' + semaforo[si].color + '"><div class="label">' + semaforo[si].label + '</div>' +
+            '<div class="value">' + semaforo[si].valor + '</div><div class="note">' + semaforo[si].comentario + '</div></div>';
+    if (semaforo[si+1]) {
+      html += '<div class="card ' + semaforo[si+1].color + '"><div class="label">' + semaforo[si+1].label + '</div>' +
+              '<div class="value">' + semaforo[si+1].valor + '</div><div class="note">' + semaforo[si+1].comentario + '</div></div>';
+    } else {
+      html += '<div></div>';
+    }
+    html += '</div>';
+  }
   html += '</div></div>';
 
   // ── HALLAZGOS ──
@@ -3123,30 +3157,41 @@ function _bancoBuildHTMLReporte(a) {
   // ── HEADER página 2 ──
   html += '<div class="header">' + logoSVG +
           '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
-          '<div class="tagline">REPORTE EJECUTIVO BANCARIO · pág. 2</div></div>' +
-          '<div class="meta">Categorías y patrones</div></div>';
+          '<div class="tagline">REPORTE · CATEGORÍAS Y PATRONES</div></div>' +
+          '<div class="meta">Página<strong>2 de 3</strong></div></div>';
 
-  // ── TOP CATEGORÍAS ──
+  // ── TOP CATEGORÍAS: donut chart + leyenda ──
   if (a.topCats && a.topCats.length) {
     html += '<div class="section"><h2>Top categorías de gasto</h2>';
-    var maxCat = a.topCats[0].sum;
-    a.topCats.slice(0, 8).forEach(function(c) {
-      var pct = a.totalOut > 0 ? Math.round((c.sum / a.totalOut) * 100) : 0;
-      var w = Math.round((c.sum / maxCat) * 100);
-      html += '<div class="bar-row"><div class="blabel">' + _bancoCatLabel(c.cat) + '</div>' +
-              '<div class="bouter"><div class="bfill" style="width:' + w + '%;"></div></div>' +
-              '<div class="bvalue">' + fmtShort(c.sum) + ' (' + pct + '%)</div></div>';
+    var topForDonut = a.topCats.slice(0, 6).map(function(c, i) {
+      return { name: _bancoCatLabel(c.cat), value: c.sum, color: PALETA[i % PALETA.length] };
     });
-    html += '</div>';
+    // Si hay más cats, agrupar en "Otros"
+    if (a.topCats.length > 6) {
+      var rest = a.topCats.slice(6).reduce(function(s, c) { return s + c.sum; }, 0);
+      if (rest > 0) topForDonut.push({ name: 'Otros', value: rest, color: PALETA[8] });
+    }
+    html += '<div class="donut-wrap"><div class="donut">' +
+            _bancoPDFDonutChart(topForDonut, 240, 0.58) +
+            '</div><div class="legend">';
+    var total = topForDonut.reduce(function(s, x) { return s + x.value; }, 0);
+    topForDonut.forEach(function(item) {
+      var pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+      html += '<div class="item">' +
+              '<div class="swatch" style="background:' + item.color + ';"></div>' +
+              '<div class="lname">' + item.name + '<br><span style="font-size:11px;color:#6b7280;">' + pct + '%</span></div>' +
+              '<div class="lval">' + fmtShort(item.value) + '</div></div>';
+    });
+    html += '</div></div></div>';
   }
 
-  // ── DESGLOSE #1 y #2 ──
+  // ── DESGLOSE #1 y #2 — barras horizontales grandes ──
   if (a.topCatDesgloses && a.topCatDesgloses.length) {
     html += '<div class="section"><h2>¿A dónde se va la plata?</h2>';
     a.topCatDesgloses.forEach(function(d, idx) {
       if (!d.top || !d.top.length) return;
       var rank = idx === 0 ? '#1' : '#2';
-      html += '<h3>' + rank + ' · ' + _bancoCatLabel(d.cat) + '  <span style="color:#9ca3af;font-weight:400;font-size:11px;">total ' + fmtShort(d.sum) + '</span></h3>';
+      html += '<h3><span class="pill">' + rank + '</span>' + _bancoCatLabel(d.cat) + '  <span style="color:#9ca3af;font-weight:500;font-size:14px;">· ' + fmtShort(d.sum) + '</span></h3>';
       var maxD = d.top[0].sum;
       d.top.forEach(function(item) {
         var pctIt = d.sum > 0 ? Math.round((item.sum / d.sum) * 100) : 0;
@@ -3159,22 +3204,17 @@ function _bancoBuildHTMLReporte(a) {
     html += '</div>';
   }
 
-  // ── TENDENCIA MENSUAL ──
+  // ── TENDENCIA MENSUAL — bar chart vertical SVG ──
   if (a.historial && a.historial.length >= 2) {
     html += '<div class="section"><h2>Tendencia mensual</h2>';
-    var maxMes = Math.max.apply(null, a.historial.map(function(h) { return h.totalOut; }));
-    a.historial.forEach(function(h, i) {
-      var w = Math.round((h.totalOut / maxMes) * 100);
-      var dStr = '';
-      if (i > 0 && a.historial[i-1].totalOut > 0) {
-        var pct = Math.round(((h.totalOut - a.historial[i-1].totalOut) / a.historial[i-1].totalOut) * 100);
-        if (pct > 5)       dStr = ' <span style="color:#dc2626;">(+' + pct + '%)</span>';
-        else if (pct < -5) dStr = ' <span style="color:#059669;">(' + pct + '%)</span>';
-      }
-      html += '<div class="bar-row"><div class="blabel">' + _bancoMesLabelFull(h.yearMonth) + (h.parcial ? ' <em>(parcial)</em>' : '') + '</div>' +
-              '<div class="bouter"><div class="bfill" style="width:' + w + '%;"></div></div>' +
-              '<div class="bvalue">' + fmtShort(h.totalOut) + dStr + '</div></div>';
+    var meses = a.historial.map(function(h) {
+      return {
+        label:    _bancoMesLabelFull(h.yearMonth).substring(0, 3),
+        value:    h.totalOut,
+        parcial:  h.parcial,
+      };
     });
+    html += _bancoPDFBarChartVertical(meses, 540, 260);
     html += '</div>';
   }
 
@@ -3183,10 +3223,9 @@ function _bancoBuildHTMLReporte(a) {
   // ── HEADER página 3 ──
   html += '<div class="header">' + logoSVG +
           '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
-          '<div class="tagline">REPORTE EJECUTIVO BANCARIO · pág. 3</div></div>' +
-          '<div class="meta">Acciones y deducibles</div></div>';
+          '<div class="tagline">REPORTE · ACCIONES Y DEDUCIBLES</div></div>' +
+          '<div class="meta">Página<strong>3 de 3</strong></div></div>';
 
-  // ── FORM 90 ──
   if (a.form90 && a.form90.length) {
     html += '<div class="section"><h2>Deducibles Form 90 (DGI Panamá)</h2>';
     html += '<table class="table"><tr><th>Categoría</th><th>Línea</th><th style="text-align:right;">Monto</th></tr>';
@@ -3194,11 +3233,10 @@ function _bancoBuildHTMLReporte(a) {
       html += '<tr><td>' + f.label + '</td><td>' + f.linea + '</td><td class="amount">' + fmt(f.sum) + '</td></tr>';
     });
     html += '</table>';
-    html += '<div style="font-size:11px;color:#6b7280;margin-top:8px;font-style:italic;">Registrá estos gastos como deducibles en tu app de ContaFacil para bajar tu ISR.</div>';
+    html += '<div style="font-size:13px;color:#6b7280;margin-top:12px;font-style:italic;">Registrá estos gastos como deducibles en tu app de ContaFacil para bajar tu ISR.</div>';
     html += '</div>';
   }
 
-  // ── SUSCRIPCIONES ──
   if (a.suscripciones && a.suscripciones.length) {
     html += '<div class="section"><h2>Suscripciones recurrentes detectadas</h2>';
     html += '<table class="table"><tr><th>Merchant</th><th style="text-align:center;">Cargos</th><th style="text-align:right;">Promedio/mes</th></tr>';
@@ -3208,7 +3246,6 @@ function _bancoBuildHTMLReporte(a) {
     html += '</table></div>';
   }
 
-  // ── PRÓXIMOS PASOS ──
   var pasos = _bancoPDFComputarPasos(a, ahorro);
   if (pasos.length) {
     html += '<div class="section"><h2>Próximos pasos recomendados</h2>';
@@ -3216,15 +3253,101 @@ function _bancoBuildHTMLReporte(a) {
     html += '</div>';
   }
 
-  // ── FOOTER ──
   html += '<div class="footer">';
   html += 'Generado por <strong>BalanceClip</strong> · <a href="https://balanceclip.net">balanceclip.net</a><br>';
-  html += 'Análisis automatizado de tu cuenta — esto es orientación general. Para temas fiscales específicos, consultá con tu contador.<br>';
-  html += 'Tu data nunca se guarda en servidores compartidos; el análisis se hace en tu instancia privada.';
+  html += 'Análisis automatizado de tu cuenta — esto es orientación general.<br>Para temas fiscales específicos, consultá con tu contador.';
   html += '</div>';
 
   html += '</body></html>';
   return html;
+}
+
+// Genera un donut chart SVG. items: [{name, value, color}].
+// hole: ratio del agujero interno (0.5 = donut clásico, 0 = pie).
+function _bancoPDFDonutChart(items, size, hole) {
+  var cx = size / 2, cy = size / 2;
+  var r  = size / 2 * 0.92;
+  var ir = r * (hole || 0);
+  var total = items.reduce(function(s, x) { return s + x.value; }, 0);
+  if (total <= 0) return '';
+  var startAngle = -Math.PI / 2;  // arrancar arriba
+  var slices = '';
+  items.forEach(function(item) {
+    var pct = item.value / total;
+    if (pct <= 0) return;
+    var sweep = pct * 2 * Math.PI;
+    var endAngle = startAngle + sweep;
+    var x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+    var x2 = cx + r * Math.cos(endAngle),   y2 = cy + r * Math.sin(endAngle);
+    var largeArc = sweep > Math.PI ? 1 : 0;
+    var d;
+    if (ir > 0) {
+      var ix1 = cx + ir * Math.cos(startAngle), iy1 = cy + ir * Math.sin(startAngle);
+      var ix2 = cx + ir * Math.cos(endAngle),   iy2 = cy + ir * Math.sin(endAngle);
+      d = 'M ' + x1.toFixed(2) + ',' + y1.toFixed(2) +
+          ' A ' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 ' + largeArc + ' 1 ' + x2.toFixed(2) + ',' + y2.toFixed(2) +
+          ' L ' + ix2.toFixed(2) + ',' + iy2.toFixed(2) +
+          ' A ' + ir.toFixed(2) + ',' + ir.toFixed(2) + ' 0 ' + largeArc + ' 0 ' + ix1.toFixed(2) + ',' + iy1.toFixed(2) + ' Z';
+    } else {
+      d = 'M ' + cx + ',' + cy + ' L ' + x1.toFixed(2) + ',' + y1.toFixed(2) +
+          ' A ' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 ' + largeArc + ' 1 ' + x2.toFixed(2) + ',' + y2.toFixed(2) + ' Z';
+    }
+    slices += '<path d="' + d + '" fill="' + item.color + '" stroke="#fff" stroke-width="2"/>';
+    startAngle = endAngle;
+  });
+  // Total en el centro (para donuts)
+  var center = '';
+  if (ir > 0) {
+    center = '<text x="' + cx + '" y="' + (cy - 4) + '" text-anchor="middle" font-family="Helvetica" font-size="14" fill="#6b7280" font-weight="600">TOTAL</text>' +
+             '<text x="' + cx + '" y="' + (cy + 22) + '" text-anchor="middle" font-family="Helvetica" font-size="26" fill="#1f2937" font-weight="900">$' + Math.round(total).toLocaleString('en-US') + '</text>';
+  }
+  return '<svg width="100%" viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg" style="max-width:240px;">' +
+         slices + center + '</svg>';
+}
+
+// Genera un bar chart vertical SVG con etiquetas. items: [{label, value, parcial?}].
+function _bancoPDFBarChartVertical(items, width, height) {
+  if (!items || !items.length) return '';
+  var max = Math.max.apply(null, items.map(function(x) { return x.value; }));
+  if (!max) return '';
+  var padT = 28, padB = 50, padL = 50, padR = 14;
+  var chartW = width - padL - padR;
+  var chartH = height - padT - padB;
+  var n = items.length;
+  var step = chartW / n;
+  var barW = Math.min(step * 0.66, 56);
+  // Eje Y con 4 ticks
+  var ticks = '';
+  for (var t = 0; t <= 4; t++) {
+    var val = max * (1 - t / 4);
+    var y = padT + (chartH * t / 4);
+    ticks += '<line x1="' + padL + '" y1="' + y.toFixed(2) + '" x2="' + (width - padR) + '" y2="' + y.toFixed(2) + '" stroke="#e5e7eb" stroke-width="1"/>';
+    ticks += '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-family="Helvetica" font-size="11" fill="#9ca3af">$' + Math.round(val).toLocaleString('en-US') + '</text>';
+  }
+  // Bars
+  var bars = '';
+  items.forEach(function(item, i) {
+    var h = (item.value / max) * chartH;
+    var x = padL + step * i + (step - barW) / 2;
+    var y = padT + chartH - h;
+    var fill = item.parcial ? 'url(#barGradParcial)' : 'url(#barGrad)';
+    bars += '<rect x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '" width="' + barW.toFixed(2) + '" height="' + h.toFixed(2) + '" fill="' + fill + '" rx="4"/>';
+    bars += '<text x="' + (x + barW/2).toFixed(2) + '" y="' + (y - 6).toFixed(2) + '" text-anchor="middle" font-family="Helvetica" font-size="12" fill="#1f2937" font-weight="700">$' + Math.round(item.value).toLocaleString('en-US') + '</text>';
+    bars += '<text x="' + (x + barW/2).toFixed(2) + '" y="' + (padT + chartH + 22).toFixed(2) + '" text-anchor="middle" font-family="Helvetica" font-size="13" fill="#374151" font-weight="600">' + item.label + (item.parcial ? '*' : '') + '</text>';
+  });
+  var footnote = '';
+  if (items.some(function(x) { return x.parcial; })) {
+    footnote = '<text x="' + padL + '" y="' + (height - 4) + '" font-family="Helvetica" font-size="11" fill="#9ca3af" font-style="italic">* mes parcial</text>';
+  }
+  return '<svg width="100%" viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;">' +
+         '<defs>' +
+         '<linearGradient id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">' +
+         '<stop offset="0%" stop-color="#fb923c"/><stop offset="100%" stop-color="#ea580c"/></linearGradient>' +
+         '<linearGradient id="barGradParcial" x1="0%" y1="0%" x2="0%" y2="100%">' +
+         '<stop offset="0%" stop-color="#fed7aa"/><stop offset="100%" stop-color="#fdba74"/></linearGradient>' +
+         '</defs>' +
+         ticks + bars + footnote +
+         '</svg>';
 }
 
 // Computa los 4 indicadores del semáforo para el PDF.
