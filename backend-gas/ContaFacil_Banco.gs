@@ -1109,6 +1109,7 @@ function _bancoCacheAnalisis(phone, movs, categorias, historial) {
       m: m.monto,
       d: m.descripcion,
       c: categorias[m.descripcion] || 'otro',
+      s: (m.saldo != null && !isNaN(m.saldo)) ? m.saldo : null,
     };
   });
   var payload = JSON.stringify({
@@ -1137,7 +1138,7 @@ function _bancoLoadCache(phone) {
     var data = JSON.parse(raw);
     // Rehidratar fechas como Date objects
     data.movs = data.movs.map(function(m) {
-      return { fecha: new Date(m.f), monto: m.m, descripcion: m.d, cat: m.c };
+      return { fecha: new Date(m.f), monto: m.m, descripcion: m.d, cat: m.c, saldo: m.s };
     });
     return data;
   } catch(e) {
@@ -1460,9 +1461,19 @@ function _bancoPoblarXlsx(ss, cache) {
     .slice(0, 10);
   var meses = Object.keys(mesMovs).sort().slice(-12);
 
-  // ─── Hoja 1: Resumen ────────────────────────────────────────
-  var sh1 = ss.getActiveSheet();
-  sh1.setName('Resumen');
+  // ─── Hoja 1: Diagnóstico (executive summary + insights accionables) ─
+  // Es lo PRIMERO que ve el usuario al abrir el xlsx. Cocina los
+  // hallazgos para que entienda en 30 segundos qué hacer con su plata.
+  var shD = ss.getActiveSheet();
+  shD.setName('Diagnóstico');
+  _bancoPoblarDiagnostico(shD, cache, {
+    totalIn: totalIn, totalOut: totalOut,
+    catTotals: catTotals, catMovs: catMovs, mesMovs: mesMovs,
+    topCats: topCats, meses: meses,
+  });
+
+  // ─── Hoja 2: Resumen (KPIs + tablas con hyperlinks) ─────────
+  var sh1 = ss.insertSheet('Resumen');
   var rows = [
     ['ANÁLISIS BANCARIO', '', '', ''],
     ['Generado',       new Date(), '', ''],
@@ -1594,7 +1605,7 @@ function _bancoPoblarXlsx(ss, cache) {
   }
 
   // Volver a poner Resumen al frente
-  ss.setActiveSheet(sh1);
+  ss.setActiveSheet(shD);  // Diagnóstico es lo primero que el usuario ve
   SpreadsheetApp.flush();
 }
 
@@ -2174,4 +2185,335 @@ function _bancoHandleDrillBoton(parts, from, token, phoneId) {
   else if (tipo === 'excel') intent = { type: 'excel' };
   else { Logger.log('Drill boton tipo desconocido: ' + tipo); return; }
   _bancoHandleDrill(intent, from, token, phoneId);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  HOJA DIAGNÓSTICO — executive summary del Excel
+//  ──────────────────────────────────────────────────────────────────
+//  Es lo PRIMERO que ve el cliente al abrir el archivo. La data cruda
+//  está en las hojas siguientes (Resumen, Movimientos, etc.); esta
+//  hoja le dice qué pasó, cómo está su salud financiera, y qué hacer.
+//
+//  Layout (4 cols):
+//    1. Título + período
+//    2. RESUMEN EJECUTIVO (saldo, flujo, ahorro)
+//    3. SEMÁFORO DE SALUD FINANCIERA (4 indicadores con colores)
+//    4. HALLAZGOS ACCIONABLES (hasta 5 insights concretos)
+//    5. PRÓXIMOS PASOS (checklist accionable)
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoPoblarDiagnostico(sh, cache, agg) {
+  var movs = cache.movs;
+  var totalIn = agg.totalIn, totalOut = agg.totalOut;
+  var catTotals = agg.catTotals, catMovs = agg.catMovs, mesMovs = agg.mesMovs;
+  var meses = agg.meses;
+  var fmt = _bancoFmtDolar;
+
+  // Computar saldo inicial / final (mismo método que _bancoAnalizar)
+  var first = movs[0], last = movs[movs.length - 1];
+  var saldoIni = null, saldoFin = null, deltaSaldo = null;
+  if (first && last && first.saldo != null && last.saldo != null) {
+    var bgStyle = !first.fecha || !last.fecha || first.fecha >= last.fecha;
+    var newest = bgStyle ? first : last;
+    var oldest = bgStyle ? last  : first;
+    if (newest.saldo != null && oldest.saldo != null) {
+      saldoFin   = newest.saldo;
+      saldoIni   = oldest.saldo - oldest.monto;
+      deltaSaldo = saldoFin - saldoIni;
+    }
+  }
+
+  var ahorroPct = totalIn > 0 ? Math.round(((totalIn - totalOut) / totalIn) * 100) : 0;
+  var fechas = movs.map(function(m) { return m.fecha; }).filter(Boolean).sort(function(a, b) { return a - b; });
+  var dias = fechas.length ? Math.max(1, Math.round((fechas[fechas.length-1] - fechas[0]) / 86400000) + 1) : 0;
+  var periodoStr = _bancoFmtPeriodo(fechas[0], fechas[fechas.length-1]);
+
+  // Top cat de CONSUMO (excluir transferencias)
+  var CATS_TRANSFER = ['ach_salida', 'yappy_salida', 'pago_tarjeta'];
+  var topConsumo = Object.keys(catTotals)
+    .filter(function(c) { return CATS_TRANSFER.indexOf(c) < 0 && c !== 'otro'; })
+    .sort(function(a, b) { return catTotals[b] - catTotals[a]; });
+  var topConsumoCat = topConsumo[0];
+  var topConsumoPct = topConsumoCat ? Math.round((catTotals[topConsumoCat] / totalOut) * 100) : 0;
+
+  // ─── Construir rows ───────────────────────────────────────
+  var rows = [];
+  // Título
+  rows.push(['DIAGNÓSTICO FINANCIERO', '', '', '']);
+  rows.push([periodoStr + '  ·  ' + dias + ' días  ·  ' + movs.length + ' movimientos', '', '', '']);
+  rows.push(['', '', '', '']);
+
+  // SECCIÓN 1: Resumen ejecutivo
+  rows.push(['📊 RESUMEN EJECUTIVO', '', '', '']);
+  if (saldoIni != null && saldoFin != null) {
+    var arrow = deltaSaldo >= 0 ? '↗' : '↘';
+    var sign  = deltaSaldo >= 0 ? '+' : '−';
+    rows.push(['Saldo', fmt(saldoIni) + ' ' + arrow + ' ' + fmt(saldoFin), sign + fmt(Math.abs(deltaSaldo)), '']);
+  }
+  rows.push(['Ingreso total',     fmt(totalIn),  '', '']);
+  rows.push(['Gasto total',       fmt(totalOut), '', '']);
+  var netoLabel = totalIn >= totalOut ? 'Ahorrado' : 'Déficit';
+  rows.push([netoLabel, fmt(Math.abs(totalIn - totalOut)), ahorroPct + '% del ingreso', '']);
+  rows.push(['', '', '', '']);
+
+  // SECCIÓN 2: Semáforo de salud financiera
+  rows.push(['🏥 SEMÁFORO DE SALUD FINANCIERA', 'Valor', 'Estado', 'Comentario']);
+  var saludRows = [];
+
+  // Indicador 1: Ahorro
+  var ahorroEstado, ahorroEmoji, ahorroComentario;
+  if (ahorroPct >= 15)      { ahorroEstado = '🟢 Sano';     ahorroEmoji = 'green';  ahorroComentario = 'Estándar saludable es 15%+. Vas bien.'; }
+  else if (ahorroPct >= 5)  { ahorroEstado = '🟡 Mejorable'; ahorroEmoji = 'yellow'; ahorroComentario = 'Estándar saludable es 15%+. Espacio para apretar.'; }
+  else if (ahorroPct >= 0)  { ahorroEstado = '🔴 Bajo';     ahorroEmoji = 'red';    ahorroComentario = 'Ahorrás menos del 5%. Auditar gastos discrecionales.'; }
+  else                      { ahorroEstado = '🔴 Déficit';  ahorroEmoji = 'red';    ahorroComentario = 'Gastás más de lo que ingresás. Crítico.'; }
+  saludRows.push({ label: 'Ahorro', valor: ahorroPct + '%', estado: ahorroEstado, color: ahorroEmoji, comentario: ahorroComentario });
+
+  // Indicador 2: Concentración (cat de consumo dominante)
+  if (topConsumoCat) {
+    var concEstado, concColor, concComentario;
+    if (topConsumoPct >= 40)      { concEstado = '🔴 Alta';      concColor = 'red';    concComentario = topConsumoPct + '% en una sola cat. Diversificá.'; }
+    else if (topConsumoPct >= 25) { concEstado = '🟡 Moderada';  concColor = 'yellow'; concComentario = 'Concentración aceptable.'; }
+    else                          { concEstado = '🟢 Diversa';   concColor = 'green';  concComentario = 'Gasto bien distribuido entre categorías.'; }
+    saludRows.push({ label: 'Concentración top cat consumo', valor: _bancoCatLabel(topConsumoCat) + ' ' + topConsumoPct + '%', estado: concEstado, color: concColor, comentario: concComentario });
+  }
+
+  // Indicador 3: Tendencia saldo
+  if (deltaSaldo != null) {
+    var tendEstado, tendColor, tendComentario;
+    if (deltaSaldo > 50)         { tendEstado = '🟢 Subiendo';  tendColor = 'green';  tendComentario = 'Saldo creció ' + fmt(deltaSaldo) + ' — patrimonio neto al alza.'; }
+    else if (deltaSaldo >= -50)  { tendEstado = '🟡 Estable';   tendColor = 'yellow'; tendComentario = 'Saldo cambió poco ' + (deltaSaldo >= 0 ? '+' : '−') + fmt(Math.abs(deltaSaldo)); }
+    else                         { tendEstado = '🔴 Bajando';   tendColor = 'red';    tendComentario = 'Saldo cayó ' + fmt(Math.abs(deltaSaldo)) + ' — revisar gastos.'; }
+    saludRows.push({ label: 'Tendencia del saldo', valor: fmt(deltaSaldo), estado: tendEstado, color: tendColor, comentario: tendComentario });
+  }
+
+  // Indicador 4: Runway (días con saldo actual al ritmo de gasto)
+  if (saldoFin != null && dias > 0 && totalOut > 0) {
+    var gastoDiario = totalOut / dias;
+    var runwayDias = gastoDiario > 0 ? Math.floor(saldoFin / gastoDiario) : 999;
+    var runEstado, runColor, runComentario;
+    if (runwayDias >= 30)       { runEstado = '🟢 30+ días';   runColor = 'green';  runComentario = 'Tenés buen colchón al ritmo actual.'; }
+    else if (runwayDias >= 15)  { runEstado = '🟡 15-29 días'; runColor = 'yellow'; runComentario = 'Colchón medio. Considerá aumentar ahorro.'; }
+    else                        { runEstado = '🔴 < 15 días';  runColor = 'red';    runComentario = 'Si paran los ingresos, saldo dura poco.'; }
+    saludRows.push({ label: 'Runway (saldo ÷ gasto diario)', valor: runwayDias + ' días', estado: runEstado, color: runColor, comentario: runComentario });
+  }
+
+  saludRows.forEach(function(r) { rows.push([r.label, r.valor, r.estado, r.comentario]); });
+  var saludStartRow = rows.length - saludRows.length + 1;  // 1-based
+  rows.push(['', '', '', '']);
+
+  // SECCIÓN 3: Hallazgos accionables
+  var hallazgos = _bancoComputarHallazgos(movs, totalIn, totalOut, catTotals, catMovs, dias);
+  if (hallazgos.length) {
+    rows.push(['💡 HALLAZGOS ACCIONABLES', '', '', '']);
+    hallazgos.forEach(function(h, i) {
+      rows.push([(i+1) + '. ' + h.titulo, h.dato, h.accion, '']);
+    });
+    rows.push(['', '', '', '']);
+  }
+
+  // SECCIÓN 4: Próximos pasos (checklist)
+  var pasos = _bancoComputarPasos(hallazgos, saludRows);
+  if (pasos.length) {
+    rows.push(['📋 PRÓXIMOS PASOS RECOMENDADOS', '', '', '']);
+    pasos.forEach(function(p) {
+      rows.push(['☐', p, '', '']);
+    });
+    rows.push(['', '', '', '']);
+  }
+
+  // Footer con orientación
+  rows.push(['', '', '', '']);
+  rows.push(['📑 NAVEGACIÓN', '', '', '']);
+  rows.push(['Resumen y drill-downs', '', '', '=HYPERLINK("#\'Resumen\'!A1","→ Ir al Resumen")']);
+  rows.push(['Todos los movimientos', '', '', '=HYPERLINK("#\'Movimientos\'!A1","→ Ver Movimientos")']);
+  rows.push(['Yappys por contacto', '', '', '=HYPERLINK("#\'Yappys por contacto\'!A1","→ Ver Yappys")']);
+
+  // ─── Aplicar al sheet ───────────────────────────────────────
+  sh.getRange(1, 1, rows.length, 4).setValues(rows);
+
+  // Estilos
+  // Título
+  sh.getRange(1, 1, 1, 4).merge().setFontSize(18).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF').setHorizontalAlignment('center');
+  sh.getRange(2, 1, 1, 4).merge().setFontSize(11).setFontColor('#6C757D').setHorizontalAlignment('center');
+
+  // Section headers (fondo gris claro, bold)
+  var sectionHeaders = ['📊 RESUMEN EJECUTIVO', '🏥 SEMÁFORO DE SALUD FINANCIERA', '💡 HALLAZGOS ACCIONABLES', '📋 PRÓXIMOS PASOS RECOMENDADOS', '📑 NAVEGACIÓN'];
+  for (var r = 0; r < rows.length; r++) {
+    if (sectionHeaders.indexOf(rows[r][0]) >= 0) {
+      sh.getRange(r + 1, 1, 1, 4).merge().setFontSize(13).setFontWeight('bold').setBackground('#F1F3F5').setFontColor('#1A1A2E');
+    }
+  }
+
+  // Colores del semáforo en la columna C
+  var SEM_COLORS = { green: '#D4EDDA', yellow: '#FFF3CD', red: '#F8D7DA' };
+  saludRows.forEach(function(r, i) {
+    var bg = SEM_COLORS[r.color] || '#FFFFFF';
+    sh.getRange(saludStartRow + i, 3).setBackground(bg).setFontWeight('bold');
+  });
+
+  // Anchos de columna
+  sh.setColumnWidth(1, 280);
+  sh.setColumnWidth(2, 140);
+  sh.setColumnWidth(3, 180);
+  sh.setColumnWidth(4, 360);
+
+  // Esconder gridlines para look más limpio
+  sh.setHiddenGridlines(true);
+  // Wrap text en columna comentario
+  sh.getRange(1, 4, rows.length, 1).setWrap(true);
+
+  // Freeze el título
+  sh.setFrozenRows(2);
+}
+
+function _bancoFmtPeriodo(d1, d2) {
+  if (!d1 || !d2) return '—';
+  var meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var s = d1.getDate() + ' ' + meses[d1.getMonth()];
+  var e = d2.getDate() + ' ' + meses[d2.getMonth()] + ' ' + d2.getFullYear();
+  return s + ' – ' + e;
+}
+
+// Computa hasta 5 hallazgos accionables basados en los datos.
+// Cada hallazgo: { titulo, dato, accion }
+function _bancoComputarHallazgos(movs, totalIn, totalOut, catTotals, catMovs, dias) {
+  var out = [];
+  var fmt = _bancoFmtDolar;
+
+  // Form 90 — deducibles personales detectados
+  var saludTot = catTotals['salud'] || 0;
+  var educTot  = catTotals['educacion'] || 0;
+  var seguroTot = catTotals['seguro'] || 0;
+  var prestTot = catTotals['prestamo'] || 0;
+  var form90Sum = saludTot + educTot + seguroTot + prestTot;
+  if (form90Sum >= 50) {
+    var parts = [];
+    if (saludTot >= 20)  parts.push('Salud ' + fmt(saludTot) + ' (DP-1)');
+    if (educTot >= 20)   parts.push('Educación ' + fmt(educTot) + ' (DP-2)');
+    if (seguroTot >= 20) parts.push('Seguros ' + fmt(seguroTot));
+    if (prestTot >= 20)  parts.push('Préstamos ' + fmt(prestTot) + ' (DP-3/4)');
+    out.push({
+      titulo: 'Deducibles Form 90 detectados',
+      dato:   fmt(form90Sum) + ' total',
+      accion: parts.join(' · ') + ' — registrar como Gasto Personal en ContaFacil.',
+    });
+  }
+
+  // Top merchant real de consumo
+  var byMerchant = {};
+  movs.forEach(function(m) {
+    if (m.monto >= 0) return;
+    var CATS_NO = ['ach_salida', 'yappy_salida', 'pago_tarjeta'];
+    if (CATS_NO.indexOf(m.cat) >= 0) return;
+    if (/^YAPPY\s+BG\s+|BANCA\s+MOVIL|PAGO\s+TC/i.test(m.descripcion)) return;
+    var mk = m.descripcion.split(/-\d{4}-?\d|\s+\d{6,}/)[0].trim().substring(0, 35);
+    byMerchant[mk] = (byMerchant[mk] || 0) + (-m.monto);
+  });
+  var topM = Object.keys(byMerchant).map(function(k) { return { name: k, sum: byMerchant[k] }; })
+    .sort(function(a, b) { return b.sum - a.sum; });
+  if (topM.length && topM[0].sum >= 30) {
+    var pct = Math.round((topM[0].sum / totalOut) * 100);
+    out.push({
+      titulo: 'Merchant donde más gastaste',
+      dato:   topM[0].name + ' ' + fmt(topM[0].sum) + ' (' + pct + '%)',
+      accion: 'Revisar si vale la pena reducir o cambiar.',
+    });
+  }
+
+  // Suscripciones detectadas (mismo merchant 3+ veces con monto similar)
+  var byMSubs = {};
+  movs.forEach(function(m) {
+    if (m.monto >= 0) return;
+    var mk = m.descripcion.split(/-\d{4}-?\d|\s+\d{6,}/)[0].trim().substring(0, 35);
+    if (!byMSubs[mk]) byMSubs[mk] = { sum: 0, count: 0, montos: [], fechas: [] };
+    byMSubs[mk].count++;
+    byMSubs[mk].sum += -m.monto;
+    byMSubs[mk].montos.push(m.monto);
+    byMSubs[mk].fechas.push(m.fecha);
+  });
+  var subsDetectadas = [];
+  Object.keys(byMSubs).forEach(function(mk) {
+    var info = byMSubs[mk];
+    if (info.count < 3) return;
+    var avg = info.sum / info.count;
+    if (avg < 3) return;
+    var allClose = info.montos.every(function(x) { return Math.abs(Math.abs(x) - avg) / avg < 0.15; });
+    if (!allClose) return;
+    var fechasOrd = info.fechas.slice().filter(Boolean).sort(function(a, b) { return a - b; });
+    var intervalos = [];
+    for (var i = 1; i < fechasOrd.length; i++) intervalos.push((fechasOrd[i] - fechasOrd[i-1]) / 86400000);
+    intervalos.sort(function(a, b) { return a - b; });
+    var mediana = intervalos[Math.floor(intervalos.length / 2)];
+    if (mediana < 22 || mediana > 38) return;
+    subsDetectadas.push({ merchant: mk, avg: avg, count: info.count });
+  });
+  subsDetectadas.sort(function(a, b) { return b.avg - a.avg; });
+  if (subsDetectadas.length) {
+    var subTot = subsDetectadas.reduce(function(s, x) { return s + x.avg; }, 0);
+    var topSub = subsDetectadas[0];
+    out.push({
+      titulo: 'Suscripciones recurrentes detectadas',
+      dato:   subsDetectadas.length + ' (≈' + fmt(subTot) + '/mes)',
+      accion: 'Top: ' + topSub.merchant + ' ' + fmt(topSub.avg) + ' · auditar las que no usás.',
+    });
+  }
+
+  // Gastos chicos (<$10)
+  var chicos = movs.filter(function(m) { return m.monto < 0 && m.monto > -10; });
+  if (chicos.length >= 10) {
+    var sumChicos = chicos.reduce(function(s, m) { return s + Math.abs(m.monto); }, 0);
+    var anual = dias > 0 ? (sumChicos / dias) * 365 : 0;
+    out.push({
+      titulo: 'Gastos chicos que suman',
+      dato:   chicos.length + ' compras <$10 = ' + fmt(sumChicos),
+      accion: 'Proyección anual ' + fmt(anual) + '. Bajándolos 50% ahorrás ' + fmt(anual / 2) + '/año.',
+    });
+  }
+
+  // Top Yappy destinatario (si > 5% del gasto total)
+  var byYappy = {};
+  movs.forEach(function(m) {
+    if (m.monto >= 0) return;
+    var ym = /^YAPPY\s+BG\s+A\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(m.descripcion);
+    if (!ym) return;
+    var name = ym[1].split(/\s+/).slice(0, 3).join(' ');
+    byYappy[name] = (byYappy[name] || 0) + Math.abs(m.monto);
+  });
+  var topY = Object.keys(byYappy).map(function(k) { return { name: k, sum: byYappy[k] }; })
+    .sort(function(a, b) { return b.sum - a.sum; });
+  if (topY.length && topY[0].sum / Math.max(totalOut, 1) > 0.05) {
+    var pctY = Math.round((topY[0].sum / totalOut) * 100);
+    out.push({
+      titulo: 'Yappys concentrados en un destinatario',
+      dato:   topY[0].name + ' ' + fmt(topY[0].sum) + ' (' + pctY + '%)',
+      accion: 'Si es proveedor recurrente, registralo como Acreedor en ContaFacil.',
+    });
+  }
+
+  // Cap a 5
+  return out.slice(0, 5);
+}
+
+// Convierte hallazgos + flags de salud en próximos pasos accionables.
+function _bancoComputarPasos(hallazgos, saludRows) {
+  var pasos = [];
+  hallazgos.forEach(function(h) {
+    if (/Form 90/i.test(h.titulo))           pasos.push('Registrar salud, educación y otros deducibles como Gastos Personales en ContaFacil para tu Form 90.');
+    else if (/Suscripciones/i.test(h.titulo)) pasos.push('Auditar las suscripciones recurrentes en la hoja "Movimientos" (filtrar por merchant) y dar de baja las que no usás.');
+    else if (/chicos/i.test(h.titulo))        pasos.push('Identificar las 3-5 categorías de gastos chicos más frecuentes y cortarlas al 50%.');
+    else if (/Yappys concentrados/i.test(h.titulo)) pasos.push('Si el Yappy es a proveedor recurrente, registralo como Acreedor para emitir factura.');
+    else if (/Merchant donde más/i.test(h.titulo))  pasos.push('Evaluar si el top merchant es necesario o si hay alternativa más barata.');
+  });
+  // Pasos derivados de health flags
+  saludRows.forEach(function(r) {
+    if (r.label === 'Ahorro' && r.color !== 'green') {
+      pasos.push('Apartar el ahorro al INICIO del mes (no al final). Apuntá a 15%+ del ingreso.');
+    }
+    if (r.label === 'Runway (saldo ÷ gasto diario)' && r.color === 'red') {
+      pasos.push('Construir colchón de emergencia de al menos 1 mes de gastos.');
+    }
+  });
+  // Dedup preservando orden
+  var seen = {};
+  return pasos.filter(function(p) { if (seen[p]) return false; seen[p] = true; return true; });
 }
