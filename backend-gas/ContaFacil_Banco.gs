@@ -742,7 +742,9 @@ function _bancoFormatearMensaje(a) {
   }
 
   msg += '📈 _Mandame el del próximo mes y te muestro cómo evolucionaste._\n';
-  msg += '💡 _Tip: respondé `ver <categoría o mes>` para detalle, o `excel` para descargar la data._';
+  msg += '💡 _Tip: respondé `ver <categoría o mes>` para detalle, `excel` para descargar la data,_\n';
+  msg += '   _o preguntame cualquier cosa sobre tus finanzas (ej: "¿cuánto debería ahorrar?",_\n';
+  msg += '   _"¿es alto mi gasto en comida?", "¿cómo bajo los gastos chicos?")._';
 
   return msg.substring(0, 4000);  // WhatsApp text cap
 }
@@ -1030,7 +1032,7 @@ function _bancoComputarDeltasMesAnt(historial) {
 //  exportable. Cuando el cache expira la data se va.
 // ════════════════════════════════════════════════════════════════════
 
-var _BANCO_CACHE_TTL = 30 * 60;   // 30 min
+var _BANCO_CACHE_TTL = 60 * 60;   // 1 hora (CacheService permite hasta 6h)
 
 function _bancoCacheKey(phone) { return 'banco_last_' + String(phone || ''); }
 
@@ -1200,7 +1202,7 @@ function _bancoHandleDrill(intent, from, token, phoneId) {
   var cache = _bancoLoadCache(from);
   if (!cache) {
     _whatsappReply(from,
-      '⏳ No tengo un análisis reciente tuyo cacheado (expiraron los 30 min).\n\n' +
+      '⏳ No tengo un análisis reciente tuyo cacheado (expiró la hora).\n\n' +
       'Mandame el xlsx del banco otra vez y después podés pedir drill-downs.',
       token, phoneId);
     return;
@@ -1773,4 +1775,188 @@ function _bancoSendDocumentWA(to, mediaId, filename, caption, token, phoneId) {
     payload:            JSON.stringify(payload),
     muteHttpExceptions: true,
   });
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  MODO ASESOR — Claude Sonnet 4.6 contestando preguntas sobre las
+//  finanzas del usuario con el contexto del último análisis cacheado.
+//  ──────────────────────────────────────────────────────────────────
+//  Detección: texto que no matchea un comando conocido (drill/excel)
+//  y huele a pregunta. Usa el cache de 1h del último análisis para
+//  inyectar contexto slim (aggregates, no movs individuales) al prompt.
+//
+//  Modelo: Sonnet 4.6. Razonamiento financiero importa, y el costo
+//  marginal sobre Haiku (~1 centavo por pregunta) es despreciable
+//  contra la calidad del consejo accionable.
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoEsPreguntaAsesor(text) {
+  var t = _bancoNorm(text);
+  if (!t || t.length < 4) return false;
+  // Termina en signo de pregunta (?) o empieza con palabra interrogativa
+  if (/\?\s*$/.test(t)) return true;
+  if (/^(que|cuanto|cuanta|cuantas|cuantos|como|cuando|donde|por que|porque|deberia|debo|puedo|conviene|es|son|hay|tengo|tenia|si yo|si dejo|si bajo)\b/.test(t)) return true;
+  // Frases imperativas de consejo
+  if (/^(consejo|asesorame|aconsejame|recomiendame|recomendacion|sugerencia|ayudame)\b/.test(t)) return true;
+  return false;
+}
+
+function _bancoHandleAsesor(question, from, token, phoneId) {
+  var cache = _bancoLoadCache(from);
+  if (!cache) {
+    // Sin cache, no podemos responder con contexto. El caller cae al
+    // welcome estándar.
+    return false;
+  }
+  _whatsappReply(from, '🤔 Pensando en tu situación financiera…', token, phoneId);
+  try {
+    var context = _bancoBuildAsesorContext(cache);
+    var respuesta = _bancoConsultarAsesor(question, context);
+    _whatsappReply(from, _bancoRenderRespuestaAsesor(respuesta), token, phoneId);
+  } catch(err) {
+    Logger.log('Banco asesor error: ' + err.message);
+    _whatsappReply(from, '⚠️ No pude procesar tu pregunta ahora: ' + err.message, token, phoneId);
+  }
+  return true;
+}
+
+// Arma un resumen slim del análisis para inyectar al prompt — solo
+// aggregates, nunca movs individuales. Mantiene el prompt acotado
+// (~1.5K tokens) y preserva la privacy del usuario.
+function _bancoBuildAsesorContext(cache) {
+  var movs = cache.movs || [];
+  if (!movs.length) return '(sin datos)';
+  var totalIn = 0, totalOut = 0;
+  var catTotals = {};
+  var byMerchant = {};
+  var byMonth = {};
+  var yappyOut = {}, yappyIn = {};
+
+  movs.forEach(function(m) {
+    var ym = Utilities.formatDate(new Date(m.fecha), 'America/Panama', 'yyyy-MM');
+    if (!byMonth[ym]) byMonth[ym] = { in: 0, out: 0 };
+    if (m.monto >= 0) {
+      totalIn += m.monto;
+      byMonth[ym].in += m.monto;
+    } else {
+      totalOut += -m.monto;
+      byMonth[ym].out += -m.monto;
+      catTotals[m.cat] = (catTotals[m.cat] || 0) + (-m.monto);
+      var mk = m.descripcion.split(/-\d{4}-?\d|\s+\d{6,}/)[0].trim().substring(0, 30);
+      byMerchant[mk] = (byMerchant[mk] || 0) + (-m.monto);
+    }
+    var ym2 = /YAPPY\s+BG\s+(A|DE)\s+(.+?)(?:\s+POR\b|\s*$)/i.exec(m.descripcion);
+    if (ym2) {
+      var name = ym2[2].split(/\s+/).slice(0, 3).join(' ');
+      if (ym2[1].toUpperCase() === 'A') yappyOut[name] = (yappyOut[name] || 0) + Math.abs(m.monto);
+      else                              yappyIn[name]  = (yappyIn[name]  || 0) + Math.abs(m.monto);
+    }
+  });
+
+  var topCats = Object.keys(catTotals)
+    .map(function(c) { return { cat: c, sum: catTotals[c] }; })
+    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 8);
+  var topM = Object.keys(byMerchant)
+    .map(function(k) { return { name: k, sum: byMerchant[k] }; })
+    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 5);
+  var topYO = Object.keys(yappyOut)
+    .map(function(k) { return { name: k, sum: yappyOut[k] }; })
+    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 3);
+  var topYI = Object.keys(yappyIn)
+    .map(function(k) { return { name: k, sum: yappyIn[k] }; })
+    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 3);
+
+  var meses = Object.keys(byMonth).sort();
+  var pequenos = movs.filter(function(m) { return m.monto < 0 && m.monto > -10; });
+  var sumaPeq = pequenos.reduce(function(s, m) { return s + Math.abs(m.monto); }, 0);
+
+  var ctx = '';
+  ctx += 'RANGO: ' + meses[0] + ' a ' + meses[meses.length - 1] + ' (' + meses.length + ' meses, ' + movs.length + ' movs)\n';
+  ctx += 'INGRESOS TOTALES: $' + totalIn.toFixed(2) + '\n';
+  ctx += 'GASTOS TOTALES:   $' + totalOut.toFixed(2) + '\n';
+  ctx += 'AHORRO NETO:      $' + (totalIn - totalOut).toFixed(2) + ' (' + (totalIn > 0 ? Math.round((totalIn - totalOut) / totalIn * 100) : 0) + '% del ingreso)\n\n';
+
+  ctx += 'GASTO POR MES:\n';
+  meses.forEach(function(ym) {
+    ctx += '  ' + ym + ': ingreso $' + byMonth[ym].in.toFixed(0) + ', gasto $' + byMonth[ym].out.toFixed(0) + '\n';
+  });
+  ctx += '\nTOP CATEGORÍAS DE GASTO:\n';
+  topCats.forEach(function(c) {
+    ctx += '  ' + c.cat + ': $' + c.sum.toFixed(2) + ' (' + Math.round(c.sum / totalOut * 100) + '%)\n';
+  });
+  ctx += '\nTOP MERCHANTS:\n';
+  topM.forEach(function(m) { ctx += '  ' + m.name + ': $' + m.sum.toFixed(2) + '\n'; });
+  if (topYO.length) {
+    ctx += '\nYAPPYS QUE MÁS ENVIASTE:\n';
+    topYO.forEach(function(y) { ctx += '  a ' + y.name + ': $' + y.sum.toFixed(2) + '\n'; });
+  }
+  if (topYI.length) {
+    ctx += '\nYAPPYS QUE MÁS RECIBISTE:\n';
+    topYI.forEach(function(y) { ctx += '  de ' + y.name + ': $' + y.sum.toFixed(2) + '\n'; });
+  }
+  if (pequenos.length >= 5) {
+    ctx += '\nGASTOS CHICOS (<$10): ' + pequenos.length + ' compras = $' + sumaPeq.toFixed(2) + '\n';
+  }
+  return ctx;
+}
+
+// Llama a Claude Sonnet 4.6 con system prompt de asesor financiero
+// panameño + el contexto + la pregunta. Devuelve el texto plano.
+function _bancoConsultarAsesor(question, context) {
+  var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
+
+  var system =
+    'Sos un asesor financiero personal hablando con un cliente panameño vía WhatsApp.\n\n' +
+    'Tu trabajo: darle consejo concreto, accionable y honesto sobre sus finanzas usando los datos REALES de su cuenta bancaria que te paso abajo.\n\n' +
+    'REGLAS:\n' +
+    '1. Usá los números reales del contexto. Cuando cites cifras, usalas exactas ($ y centavos).\n' +
+    '2. Andá al grano. WhatsApp = mensaje corto. Máximo 6-8 líneas a menos que la pregunta lo demande.\n' +
+    '3. Si la pregunta requiere asumir algo (ej: "¿cuánto debería ahorrar?"), hacé una recomendación concreta basada en su patrón actual, no le devuelvas la pelota pidiendo más info.\n' +
+    '4. Si detectás algo problemático (ahorro <10%, suscripciones olvidadas, gasto concentrado), señalalo.\n' +
+    '5. Si detectás deducibles personales del Form 90 panameño (salud, educación, intereses hipotecarios, préstamos educativos), recordá que pueden bajar su ISR.\n' +
+    '6. NO inventes datos que no estén en el contexto. Si te falta info para responder bien, decílo en una línea.\n' +
+    '7. Usá formato WhatsApp simple: *bold*, _italic_, viñetas con •. Sin markdown complejo, sin headers de #.\n' +
+    '8. Tono: cercano, directo, sin paja motivacional. Si la persona está en buen camino decílo; si no, también.\n' +
+    '9. Vos sos un asistente, no un asesor financiero licenciado. No des consejos de inversión específicos (qué acciones comprar, etc.) — quedate en presupuesto, ahorro, gastos, optimización fiscal personal.\n\n' +
+    'CONTEXTO FINANCIERO DEL CLIENTE:\n' +
+    context;
+
+  var payload = {
+    model:      'claude-sonnet-4-6',
+    max_tokens: 1500,
+    system:     system,
+    messages:   [{ role: 'user', content: question }],
+  };
+  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method:             'post',
+    contentType:        'application/json',
+    payload:            JSON.stringify(payload),
+    headers:            { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() !== 200) {
+    var body = res.getContentText().substring(0, 400);
+    Logger.log('Claude asesor error ' + res.getResponseCode() + ': ' + body);
+    throw new Error('Claude HTTP ' + res.getResponseCode());
+  }
+  var data = JSON.parse(res.getContentText());
+  // Concatenar todos los text blocks (Sonnet podría devolver thinking + text)
+  var out = '';
+  if (data.content && data.content.length) {
+    for (var i = 0; i < data.content.length; i++) {
+      if (data.content[i].type === 'text') out += data.content[i].text;
+    }
+  }
+  return out.trim() || '(sin respuesta)';
+}
+
+function _bancoRenderRespuestaAsesor(text) {
+  // Cap a WhatsApp 4000 chars, agregar un caveat suave al final si no
+  // viene ya en la respuesta.
+  var t = String(text || '').substring(0, 3700);
+  if (!/asesor licenciado|contador|profesional/i.test(t)) {
+    t += '\n\n_💬 Esto es orientación general — para temas de impuestos o inversiones específicas, contrastá con tu contador._';
+  }
+  return t.substring(0, 4000);
 }
