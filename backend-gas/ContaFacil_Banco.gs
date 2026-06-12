@@ -1788,10 +1788,13 @@ function _bancoPoblarDetalleSheet(sh, title, movs, kind) {
     sh.setColumnWidth(5, 180);
   }
 
-  // Wrap text en col 4 de movs (descripción) — necesario porque la col es
-  // angosta cuando hay matriz ancha arriba.
+  // Descripción: overflow (no wrap) para que las filas mantengan altura
+  // normal. Si el texto excede el ancho de col, se clipa visualmente —
+  // el usuario puede ensanchar la col o hacer click en la celda para ver
+  // el contenido completo. Es preferible a wrap, que hace filas enormes.
   if (sortedMovs.length > 0) {
-    sh.getRange(movHeaderRow + 1, 4, sortedMovs.length, 1).setWrap(true);
+    sh.getRange(movHeaderRow + 1, 4, sortedMovs.length, 1)
+      .setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW);
   }
 
   // AutoFilter en el rango de movs crudos
