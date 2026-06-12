@@ -76,6 +76,13 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
   }
   analisis.historial = historial;
 
+  // Cachear el análisis crudo (movs + categorias + historial) por 30 min
+  // para que el usuario pueda pedir drill-downs vía texto sin reenviar
+  // el archivo. La data del banco NO va a un sheet persistente — solo
+  // CacheService (TTL automático, no buscable, scope del script).
+  try { _bancoCacheAnalisis(from, movs, categorias, historial); }
+  catch(err) { Logger.log('Banco cache error: ' + err.message); }
+
   var msgText  = _bancoFormatearMensaje(analisis);
   _whatsappReply(from, msgText, token, phoneId);
 }
@@ -734,7 +741,8 @@ function _bancoFormatearMensaje(a) {
     msg += '\n';
   }
 
-  msg += '📈 _Mandame el del próximo mes y te muestro cómo evolucionaste._';
+  msg += '📈 _Mandame el del próximo mes y te muestro cómo evolucionaste._\n';
+  msg += '💡 _Tip: respondé `ver <categoría o mes>` para detalle, o `excel` para descargar la data._';
 
   return msg.substring(0, 4000);  // WhatsApp text cap
 }
@@ -1008,4 +1016,475 @@ function _bancoComputarDeltasMesAnt(historial) {
     curParcial:  !!cur.parcial,
     cats:        cats,
   }];
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  CACHE DEL ÚLTIMO ANÁLISIS — para drill-downs por texto
+//  ──────────────────────────────────────────────────────────────────
+//  Tras procesar el upload guardamos un snapshot slim en CacheService
+//  con TTL 30 min. El usuario puede pedir "ver comida" o "ver mayo"
+//  durante esa ventana sin reenviar el archivo. Pasado el TTL el bot
+//  responde "expiró, mandame el archivo otra vez".
+//
+//  Privacy: CacheService es scope del script, no buscable, no
+//  exportable. Cuando el cache expira la data se va.
+// ════════════════════════════════════════════════════════════════════
+
+var _BANCO_CACHE_TTL = 30 * 60;   // 30 min
+
+function _bancoCacheKey(phone) { return 'banco_last_' + String(phone || ''); }
+
+function _bancoCacheAnalisis(phone, movs, categorias, historial) {
+  if (!phone || !movs || !movs.length) return;
+  // Slim movs: solo fields que los drill-downs necesitan, sin metadata
+  // verbose. Reduce tamaño del cache ~3×.
+  var slim = movs.map(function(m) {
+    return {
+      f: m.fecha ? m.fecha.getTime() : 0,
+      m: m.monto,
+      d: m.descripcion,
+      c: categorias[m.descripcion] || 'otro',
+    };
+  });
+  var payload = JSON.stringify({
+    ts:        Date.now(),
+    movs:      slim,
+    historial: historial || [],
+  });
+  // CacheService.put max: 100 KB por entry. 460 movs slim ~36 KB,
+  // suficiente headroom. Si nos pasamos, truncar movs al primer
+  // chunk de 100 KB (raro caso).
+  if (payload.length > 95000) {
+    Logger.log('Banco cache payload > 95KB, truncating movs');
+    while (slim.length > 100 && payload.length > 95000) {
+      slim = slim.slice(0, Math.floor(slim.length * 0.9));
+      payload = JSON.stringify({ ts: Date.now(), movs: slim, historial: historial });
+    }
+  }
+  CacheService.getScriptCache().put(_bancoCacheKey(phone), payload, _BANCO_CACHE_TTL);
+}
+
+function _bancoLoadCache(phone) {
+  if (!phone) return null;
+  var raw = CacheService.getScriptCache().get(_bancoCacheKey(phone));
+  if (!raw) return null;
+  try {
+    var data = JSON.parse(raw);
+    // Rehidratar fechas como Date objects
+    data.movs = data.movs.map(function(m) {
+      return { fecha: new Date(m.f), monto: m.m, descripcion: m.d, cat: m.c };
+    });
+    return data;
+  } catch(e) {
+    Logger.log('Banco cache parse error: ' + e.message);
+    return null;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  INTENT PARSER — detecta el comando del usuario y devuelve qué
+//  drill ejecutar. Devuelve null si el texto no calza con ningún
+//  patrón conocido.
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoDrillIntent(text) {
+  var t = _bancoNorm(text || '');
+  if (!t) return null;
+  // "excel" o "ver excel" / "descargar excel" — comando de export
+  if (/^(ver\s+|descargar\s+)?excel\b/.test(t) || /^(ver\s+|descargar\s+)?xlsx\b/.test(t)) {
+    return { type: 'excel' };
+  }
+  // Pelar prefijo "ver" / "drill" / "d" / "detalle"
+  var stripped = t.replace(/^(ver|drill|detalle|d)\s+/, '').trim();
+  if (!stripped) return null;
+  // Permitir explícito YYYY-MM
+  var ymM = /\b(20\d{2})[-\/](\d{1,2})\b/.exec(stripped);
+  // Buscar cat y mes en el texto stripped
+  var cat = _bancoMatchCat(stripped);
+  var ym  = ymM ? (ymM[1] + '-' + String(parseInt(ymM[2], 10)).padStart(2, '0')) :
+                  _bancoMatchMes(stripped);
+  if (cat && ym)  return { type: 'cross', cat: cat, ym: ym };
+  if (cat)        return { type: 'cat',   cat: cat };
+  if (ym)         return { type: 'month', ym: ym };
+  // Permitir solo número de mes (1..12)
+  var mNum = /^(\d{1,2})$/.exec(stripped);
+  if (mNum) {
+    var m = parseInt(mNum[1], 10);
+    if (m >= 1 && m <= 12) {
+      var yr = new Date().getFullYear();
+      return { type: 'month', ym: yr + '-' + String(m).padStart(2, '0') };
+    }
+  }
+  return null;
+}
+
+function _bancoNorm(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+// Devuelve la key de categoría que matchea el texto. Soporta tanto la
+// key directa ("comida") como sinónimos comunes ("transporte"→transporte,
+// "uber"→transporte). Fuzzy: substring match contra label normalizado.
+function _bancoMatchCat(text) {
+  var t = _bancoNorm(text);
+  if (!t) return null;
+  // Catálogo local con sinónimos comunes que la gente usaría en chat
+  var SINON = {
+    comida: ['comida','restaurant','restaurantes','restaurante','food','almuerzo','cena','desayuno','cafe','starbucks','kotowa','mcdonalds'],
+    transporte: ['transporte','transporte','uber','taxi','gasolina','combustible','gasolinera','peaje'],
+    telco: ['telco','celular','telefono','internet','mas movil','tigo','cable onda'],
+    servicios: ['servicios','luz','agua','electricidad','ensa','idaan'],
+    entretenimiento: ['entretenimiento','netflix','spotify','disney','hbo','cine','cinepolis'],
+    ads: ['ads','publicidad','facebook ads','facebk','google ads'],
+    yappy_salida: ['yappy salida','yappys','yappy','yappy out'],
+    yappy_entrada: ['yappy entrada','yappy in','recibido'],
+    ach_salida: ['transferencia','ach','transfer','banca movil'],
+    ach_entrada: ['deposito','abono','transferencia entrante'],
+    retiro_atm: ['atm','retiro','cajero'],
+    pago_tarjeta: ['pago tarjeta','pago tc','tarjeta de credito'],
+    prestamo: ['prestamo','leasing','cuota'],
+    seguro: ['seguro','seguros','assa','mapfre'],
+    educacion: ['educacion','colegio','universidad','matricula','usma','ulacit'],
+    salud: ['salud','farmacia','medico','clinica','hospital','arrocha','metrofarma'],
+    belleza: ['belleza','peluqueria','barberia','spa','kevins'],
+    comercio: ['comercio','supermercado','pricesmart','super 99','riba smith','xtra'],
+    ropa: ['ropa','zara','h&m','almacen'],
+    comision_banco: ['comision','itbms bancario'],
+  };
+  for (var key in SINON) {
+    var arr = SINON[key];
+    for (var i = 0; i < arr.length; i++) {
+      if (t.indexOf(_bancoNorm(arr[i])) >= 0) return key;
+    }
+  }
+  return null;
+}
+
+// Detecta nombre de mes en texto. Soporta abreviado y completo, con
+// y sin acentos. Devuelve "YYYY-MM" usando el año actual.
+function _bancoMatchMes(text) {
+  var t = _bancoNorm(text);
+  var meses = {
+    'ene':1,'enero':1,'jan':1,
+    'feb':2,'febrero':2,
+    'mar':3,'marzo':3,
+    'abr':4,'abril':4,'apr':4,
+    'may':5,'mayo':5,
+    'jun':6,'junio':6,
+    'jul':7,'julio':7,
+    'ago':8,'agosto':8,'aug':8,
+    'sep':9,'sept':9,'septiembre':9,
+    'oct':10,'octubre':10,
+    'nov':11,'noviembre':11,
+    'dic':12,'diciembre':12,'dec':12,
+  };
+  // Buscar primero el nombre largo (evitar que "marzo" matchee "mar")
+  var ordered = Object.keys(meses).sort(function(a,b){ return b.length - a.length; });
+  for (var i = 0; i < ordered.length; i++) {
+    if (t.indexOf(ordered[i]) >= 0) {
+      var yr = new Date().getFullYear();
+      // Si el texto incluye un año explícito ej "mayo 2025" usarlo
+      var yrM = /\b(20\d{2})\b/.exec(t);
+      if (yrM) yr = parseInt(yrM[1], 10);
+      return yr + '-' + String(meses[ordered[i]]).padStart(2, '0');
+    }
+  }
+  return null;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  DRILL HANDLERS — renderean el detalle solicitado
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoHandleDrill(intent, from, token, phoneId) {
+  var cache = _bancoLoadCache(from);
+  if (!cache) {
+    _whatsappReply(from,
+      '⏳ No tengo un análisis reciente tuyo cacheado (expiraron los 30 min).\n\n' +
+      'Mandame el xlsx del banco otra vez y después podés pedir drill-downs.',
+      token, phoneId);
+    return;
+  }
+  var msg = '';
+  if (intent.type === 'cat')        msg = _bancoRenderDrillCat(cache, intent.cat);
+  else if (intent.type === 'month') msg = _bancoRenderDrillMes(cache, intent.ym);
+  else if (intent.type === 'cross') msg = _bancoRenderDrillCross(cache, intent.cat, intent.ym);
+  else if (intent.type === 'excel') { _bancoExportarExcel(cache, from, token, phoneId); return; }
+  if (!msg) {
+    _whatsappReply(from, '🤔 No encontré data para eso. Probá `ver mayo` o `ver comida`.', token, phoneId);
+    return;
+  }
+  _whatsappReply(from, msg, token, phoneId);
+}
+
+function _bancoRenderDrillCat(cache, catKey) {
+  var fmt = _bancoFmtDolar;
+  var matches = cache.movs.filter(function(m) { return m.cat === catKey && m.monto < 0; });
+  if (!matches.length) return '🤔 No encontré gastos clasificados como *' + _bancoCatLabel(catKey) + '* en el último análisis.';
+  var total = matches.reduce(function(s, m) { return s + (-m.monto); }, 0);
+
+  // Top merchants — agrupar por merchant key
+  var byM = {};
+  matches.forEach(function(m) {
+    var mk = m.descripcion.split(/-\d{4}-?\d|\s+\d{6,}/)[0].trim().substring(0, 30);
+    if (!byM[mk]) byM[mk] = { sum: 0, count: 0 };
+    byM[mk].sum += -m.monto;
+    byM[mk].count++;
+  });
+  var topM = Object.keys(byM).map(function(k) { return { name: k, sum: byM[k].sum, count: byM[k].count }; })
+    .sort(function(a, b) { return b.sum - a.sum; });
+
+  var msg = _bancoCatLabel(catKey) + ' — *' + fmt(total) + '* en ' + matches.length + ' mov(s)\n\n';
+  msg += '*Top merchants:*\n';
+  var medals = ['🥇','🥈','🥉'];
+  topM.slice(0, 5).forEach(function(m, i) {
+    var pre = i < 3 ? medals[i] : '  ';
+    msg += pre + ' ' + m.name + ' — ' + fmt(m.sum) + ' (' + m.count + 'x)\n';
+  });
+  if (topM.length > 5) msg += '   + ' + (topM.length - 5) + ' más\n';
+  msg += '\n';
+
+  // Por mes — bars relativos al máximo mensual
+  var byMes = {};
+  matches.forEach(function(m) {
+    var ym = Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM');
+    byMes[ym] = (byMes[ym] || 0) + (-m.monto);
+  });
+  var meses = Object.keys(byMes).sort();
+  if (meses.length > 1) {
+    var maxMes = Math.max.apply(null, meses.map(function(k){ return byMes[k]; }));
+    msg += '*Por mes:*\n```\n';
+    meses.forEach(function(ym) {
+      msg += _bancoMesLabel(ym) + ' ' + _bancoBar(byMes[ym], maxMes) + ' ' + fmt(byMes[ym]) + '\n';
+    });
+    msg += '```\n';
+  }
+  return msg.substring(0, 4000);
+}
+
+function _bancoRenderDrillMes(cache, ym) {
+  var fmt = _bancoFmtDolar;
+  var matches = cache.movs.filter(function(m) {
+    return Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM') === ym;
+  });
+  if (!matches.length) return '🤔 No encontré movimientos en *' + _bancoMesLabel(ym) + ' ' + ym.split('-')[0] + '* en el último análisis.';
+
+  var totalIn = 0, totalOut = 0;
+  var catTotals = {};
+  var byMerchant = {};
+  matches.forEach(function(m) {
+    if (m.monto >= 0) totalIn += m.monto;
+    else {
+      totalOut += -m.monto;
+      catTotals[m.cat] = (catTotals[m.cat] || 0) + (-m.monto);
+      var mk = m.descripcion.split(/-\d{4}-?\d|\s+\d{6,}/)[0].trim().substring(0, 30);
+      if (!byMerchant[mk]) byMerchant[mk] = { sum: 0, count: 0, cat: m.cat };
+      byMerchant[mk].sum += -m.monto;
+      byMerchant[mk].count++;
+    }
+  });
+
+  var msg = '📅 *' + _bancoMesLabel(ym) + ' ' + ym.split('-')[0] + '* — ' + matches.length + ' movs\n\n';
+  msg += '✅ Ingreso: ' + fmt(totalIn) + ' · ❌ Gasto: ' + fmt(totalOut);
+  msg += ' · ' + (totalIn - totalOut >= 0 ? '💰' : '⚠️') + ' ' + fmt(totalIn - totalOut) + '\n\n';
+
+  // Top categorías
+  var topCats = Object.keys(catTotals).map(function(c) { return { cat: c, sum: catTotals[c] }; })
+    .sort(function(a, b) { return b.sum - a.sum; }).slice(0, 5);
+  if (topCats.length) {
+    msg += '*Top categorías:*\n```\n' + _bancoBarsCategorias(topCats, totalOut) + '```\n\n';
+  }
+
+  // Top merchants no-transferencia
+  var CATS_NO = ['ach_salida','yappy_salida','pago_tarjeta'];
+  var topM = Object.keys(byMerchant)
+    .filter(function(k) { return CATS_NO.indexOf(byMerchant[k].cat) < 0 && !/^YAPPY|TRANSFER/i.test(k); })
+    .map(function(k) { return { name: k, sum: byMerchant[k].sum, count: byMerchant[k].count }; })
+    .sort(function(a, b) { return b.sum - a.sum; });
+  if (topM.length) {
+    msg += '*Top merchants (excluye transfers):*\n';
+    var medals = ['🥇','🥈','🥉'];
+    topM.slice(0, 5).forEach(function(m, i) {
+      var pre = i < 3 ? medals[i] : '  ';
+      msg += pre + ' ' + m.name + ' — ' + fmt(m.sum) + ' (' + m.count + 'x)\n';
+    });
+  }
+  return msg.substring(0, 4000);
+}
+
+function _bancoRenderDrillCross(cache, catKey, ym) {
+  var fmt = _bancoFmtDolar;
+  var matches = cache.movs.filter(function(m) {
+    if (m.cat !== catKey || m.monto >= 0) return false;
+    return Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM') === ym;
+  });
+  if (!matches.length) return '🤔 No encontré ' + _bancoCatLabel(catKey) + ' en ' + _bancoMesLabel(ym) + ' ' + ym.split('-')[0] + '.';
+  var total = matches.reduce(function(s, m) { return s + (-m.monto); }, 0);
+
+  var msg = _bancoCatLabel(catKey) + ' en *' + _bancoMesLabel(ym) + ' ' + ym.split('-')[0] + '* — *' + fmt(total) + '*\n\n';
+  // Listar cada mov con fecha
+  matches.sort(function(a, b) { return b.fecha - a.fecha; });
+  matches.slice(0, 15).forEach(function(m) {
+    var d = Utilities.formatDate(m.fecha, 'America/Panama', 'd MMM');
+    msg += '  • ' + d + ' — ' + fmt(-m.monto) + ' ' + (m.descripcion.length > 35 ? m.descripcion.substring(0, 35) + '…' : m.descripcion) + '\n';
+  });
+  if (matches.length > 15) msg += '\n_+ ' + (matches.length - 15) + ' más_';
+  return msg.substring(0, 4000);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  EXPORT EXCEL — generar xlsx con la data analizada
+//  ────────────────────────────────────────────────────────────────
+//  Pipeline:
+//    1. Crear un Spreadsheet temporal con SpreadsheetApp.create
+//    2. Poblarlo con sheets Resumen + Movimientos + Mensual
+//    3. Exportar como xlsx vía Drive REST API
+//    4. Subir bytes a Meta como media
+//    5. Mandar mensaje type=document con el media_id
+//    6. Borrar el Spreadsheet temporal
+//
+//  Privacy: el sheet temporal vive en el Drive del owner del script
+//  por ~5s, después se borra. Nunca se comparte.
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoExportarExcel(cache, from, token, phoneId) {
+  _whatsappReply(from, '📥 Generando tu Excel, dame un momento…', token, phoneId);
+  var tempId = null;
+  try {
+    var ss = SpreadsheetApp.create('analisis-' + Date.now());
+    tempId = ss.getId();
+    _bancoPoblarXlsx(ss, cache);
+    var xlsxBlob = _bancoSheetToXlsxBlob(tempId);
+    var fname = 'analisis-bancario-' + Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd') + '.xlsx';
+    xlsxBlob.setName(fname);
+    var mediaId = _bancoUploadMediaWA(xlsxBlob, fname, token, phoneId);
+    _bancoSendDocumentWA(from, mediaId, fname, '📊 Tu análisis bancario completo', token, phoneId);
+  } catch(err) {
+    Logger.log('Banco excel export error: ' + err.message + ' ' + (err.stack || ''));
+    _whatsappReply(from, '⚠️ No pude generar el Excel: ' + err.message, token, phoneId);
+  } finally {
+    if (tempId) {
+      try { DriveApp.getFileById(tempId).setTrashed(true); } catch(e) {}
+    }
+  }
+}
+
+function _bancoPoblarXlsx(ss, cache) {
+  // Sheet 1: Resumen
+  var sh1 = ss.getActiveSheet();
+  sh1.setName('Resumen');
+  var totalIn = 0, totalOut = 0, catTotals = {};
+  cache.movs.forEach(function(m) {
+    if (m.monto >= 0) totalIn += m.monto;
+    else { totalOut += -m.monto; catTotals[m.cat] = (catTotals[m.cat] || 0) + (-m.monto); }
+  });
+  var rows = [
+    ['ANÁLISIS BANCARIO', ''],
+    ['Generado',       new Date()],
+    ['Movimientos',    cache.movs.length],
+    ['', ''],
+    ['Total ingresos', totalIn],
+    ['Total gastos',   totalOut],
+    ['Neto',           totalIn - totalOut],
+    ['', ''],
+    ['TOP CATEGORÍAS DE GASTO', ''],
+  ];
+  Object.keys(catTotals).sort(function(a,b){ return catTotals[b]-catTotals[a]; }).forEach(function(c) {
+    rows.push([_bancoCatLabel(c).replace(/^.\s+/, ''), catTotals[c]]);
+  });
+  sh1.getRange(1, 1, rows.length, 2).setValues(rows);
+  sh1.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
+  sh1.getRange(9, 1, 1, 2).setFontWeight('bold').setBackground('#F1F3F5');
+  sh1.setColumnWidth(1, 240);
+  sh1.setColumnWidth(2, 140);
+
+  // Sheet 2: Movimientos
+  var sh2 = ss.insertSheet('Movimientos');
+  var movRows = [['Fecha','Monto','Tipo','Descripción','Categoría']];
+  cache.movs.slice().sort(function(a, b) { return b.fecha - a.fecha; }).forEach(function(m) {
+    movRows.push([m.fecha, m.monto, m.monto >= 0 ? 'Ingreso' : 'Gasto', m.descripcion, _bancoCatLabel(m.cat)]);
+  });
+  sh2.getRange(1, 1, movRows.length, 5).setValues(movRows);
+  sh2.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#F1F3F5');
+  sh2.setFrozenRows(1);
+  sh2.setColumnWidth(1, 100);
+  sh2.setColumnWidth(2, 90);
+  sh2.setColumnWidth(3, 80);
+  sh2.setColumnWidth(4, 380);
+  sh2.setColumnWidth(5, 180);
+
+  // Sheet 3: Mensual (si hay historial)
+  if (cache.historial && cache.historial.length) {
+    var sh3 = ss.insertSheet('Mensual');
+    var mRows = [['Mes','Ingresos','Gastos','Neto','# Movs','Parcial']];
+    cache.historial.forEach(function(h) {
+      mRows.push([h.yearMonth, h.totalIn, h.totalOut, h.totalIn - h.totalOut, h.nMovs, h.parcial ? 'Sí' : 'No']);
+    });
+    sh3.getRange(1, 1, mRows.length, 6).setValues(mRows);
+    sh3.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#F1F3F5');
+    sh3.setFrozenRows(1);
+  }
+
+  SpreadsheetApp.flush();
+}
+
+// Exporta el spreadsheet identificado por sheetId a bytes xlsx vía
+// Drive REST API. Requiere el scope drive (ya autorizado por el resto
+// del backend).
+function _bancoSheetToXlsxBlob(sheetId) {
+  var url = 'https://docs.google.com/spreadsheets/d/' + sheetId +
+            '/export?format=xlsx';
+  var res = UrlFetchApp.fetch(url, {
+    method: 'get',
+    headers: { 'Authorization': 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() !== 200) {
+    throw new Error('Drive export HTTP ' + res.getResponseCode() + ': ' + res.getContentText().substring(0, 200));
+  }
+  return res.getBlob();
+}
+
+// Sube un blob a la Cloud API de Meta como media. Devuelve el media_id.
+function _bancoUploadMediaWA(blob, filename, token, phoneId) {
+  var url = 'https://graph.facebook.com/v19.0/' + phoneId + '/media';
+  var payload = {
+    messaging_product: 'whatsapp',
+    file:              blob,
+    type:              blob.getContentType() || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  };
+  var res = UrlFetchApp.fetch(url, {
+    method:             'post',
+    headers:            { 'Authorization': 'Bearer ' + token },
+    payload:            payload,
+    muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() !== 200) {
+    throw new Error('Meta media upload HTTP ' + res.getResponseCode() + ': ' + res.getContentText().substring(0, 300));
+  }
+  var data = JSON.parse(res.getContentText());
+  if (!data.id) throw new Error('Meta media upload sin id: ' + res.getContentText().substring(0, 200));
+  return data.id;
+}
+
+// Envía un documento ya uploaded vía media_id.
+function _bancoSendDocumentWA(to, mediaId, filename, caption, token, phoneId) {
+  var url = 'https://graph.facebook.com/v19.0/' + phoneId + '/messages';
+  var payload = {
+    messaging_product: 'whatsapp',
+    to:    to,
+    type:  'document',
+    document: {
+      id:       mediaId,
+      filename: filename,
+      caption:  caption || '',
+    },
+  };
+  UrlFetchApp.fetch(url, {
+    method:             'post',
+    contentType:        'application/json',
+    headers:            { 'Authorization': 'Bearer ' + token },
+    payload:            JSON.stringify(payload),
+    muteHttpExceptions: true,
+  });
 }

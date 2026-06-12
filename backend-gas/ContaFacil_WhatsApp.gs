@@ -172,6 +172,17 @@ function _whatsappProcesarMensaje(msg, metadata) {
       _whatsappOnCategoriaTexto(body, pendIdEnCurso, from, token, phoneId);
       return;
     }
+    // Drill-down sobre el último análisis bancario cacheado.
+    //   "ver comida"  → drill por cat
+    //   "ver mayo"    → drill por mes
+    //   "ver 2026-05" → drill por mes (formato explícito)
+    //   "comida mayo" → drill cruzado
+    //   "excel"       → bajar XLSX con la data analizada
+    var drill = _bancoDrillIntent(body);
+    if (drill) {
+      _bancoHandleDrill(drill, from, token, phoneId);
+      return;
+    }
     _whatsappReply(from, '¡Hola! 👋 Soy el asistente fiscal de BalanceClip.\n\n' +
       'Mándame una foto o PDF de tu factura/recibo y la registro automáticamente. ' +
       'La IA detecta si es gasto o ingreso, le saca el monto, la categoría DGI y la deja pendiente ' +
