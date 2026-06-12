@@ -178,6 +178,19 @@ function _whatsappProcesarMensaje(msg, metadata) {
     //   "ver 2026-05" → drill por mes (formato explícito)
     //   "comida mayo" → drill cruzado
     //   "excel"       → bajar XLSX con la data analizada
+    // Orden de prioridad:
+    //   1. Si suena claramente a pregunta abierta ("¿cuánto debería…?") →
+    //      asesor (con cache); si no hay cache, cae al welcome.
+    //   2. Si matchea un comando de drill ("ver comida", "mayo", "excel") →
+    //      drill-down.
+    //   3. Si no, welcome estándar.
+    // Asesor primero porque el drill intent matchea palabras de cat dentro
+    // de oraciones más largas ("gasto en comida" → matchearía drill por
+    // "comida" — pero el usuario está preguntando, no pidiendo drill).
+    if (_bancoEsPreguntaAsesor(body)) {
+      var attended = _bancoHandleAsesor(body, from, token, phoneId);
+      if (attended) return;
+    }
     var drill = _bancoDrillIntent(body);
     if (drill) {
       _bancoHandleDrill(drill, from, token, phoneId);
