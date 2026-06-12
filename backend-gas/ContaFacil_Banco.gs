@@ -957,20 +957,21 @@ function _bancoBarsDeltas(cats) {
   }).join('\n') + '\n';
 }
 
-// Tabla compacta de destinatarios para el desglose. Cada fila:
-//   <name padded N> <amount padded R 7> <pct padded R 4>
+// Tabla de destinatarios — mismo formato visual que _bancoBarsCategorias
+// (nombre padded + bar Unicode proporcional + monto + %). El bar es
+// relativo al máximo del grupo (el destinatario #1 del cat).
 function _bancoFmtTablaDestinatarios(top, sumTotal) {
   if (!top || !top.length) return '';
-  var NAME_W = 22, AMT_W = 7;
+  var NAME_W = 18;
+  var max = Math.max.apply(null, top.map(function(x) { return x.sum; }));
   var padR = function(s, w) { s = String(s); while (s.length < w) s += ' '; return s; };
-  var padL = function(s, w) { s = String(s); while (s.length < w) s = ' ' + s; return s; };
   return top.map(function(item) {
     var name = String(item.name);
     if (name.length > NAME_W) name = name.substring(0, NAME_W - 1) + '…';
-    var amt = padL(_bancoFmtDolarCompacto(item.sum), AMT_W);
+    var bar = _bancoBar(item.sum, max);
     var pctIt = sumTotal > 0 ? Math.round((item.sum / sumTotal) * 100) : 0;
-    var pctStr = padL(pctIt + '%', 4);
-    return padR(name, NAME_W) + amt + ' ' + pctStr;
+    return padR(name, NAME_W) + ' ' + bar + ' ' + _bancoFmtDolarCompacto(item.sum) +
+           ' (' + pctIt + '%)';
   }).join('\n') + '\n';
 }
 
