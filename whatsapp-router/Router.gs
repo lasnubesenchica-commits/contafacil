@@ -366,28 +366,26 @@ function _routerMarcarSaludado(from) {
 function _routerEnviarBienvenida(to, token, phoneId) {
   if (!token || !phoneId) { Logger.log('No puedo enviar bienvenida — faltan token/phoneId'); return; }
   var body =
-    '🤖 *¡Hola! Soy el asistente fiscal de BalanceClip*\n\n' +
-    'Te ayudo a registrar tus *gastos* sin que tengas que abrir la app.\n\n' +
-    '📸 *Cómo funciona*\n' +
-    '1. Mándame una foto o PDF de tu factura/recibo de gasto\n' +
-    '2. Una IA lee el documento y extrae monto, fecha, proveedor y RUC\n' +
-    '3. Sugiere la categoría DGI Panamá apropiada\n' +
-    '4. Te respondo con 2 botones:\n' +
-    '   ✅ *Aprobar* (acepta lo sugerido)\n' +
-    '   📝 *Cambiar categoría* (lista de opciones)\n' +
-    '5. El gasto queda registrado en tu sistema\n\n' +
-    '✨ *Detecto automáticamente*\n' +
-    '• Monto, ITBMS y total\n' +
-    '• Proveedor y su RUC\n' +
-    '• Si es deducible (RUC del negocio como receptor)\n' +
-    '• Categoría DGI sugerida\n\n' +
-    '💡 *Tips*\n' +
-    '• Funciona con: facturas fiscales y electrónicas, recibos Yappy, transferencias, PDFs\n' +
-    '• Para revisar, modificar o aprobar manualmente, abre tu panel en balanceclip.net\n\n' +
-    '📋 *Comandos*\n' +
-    '• *ayuda* — ver estas instrucciones de nuevo\n' +
-    '• *configurar email* — configurar reenvío automático de facturas desde tu Gmail/Outlook a *facturas@balanceclip.net* (así no tienes que mandar manualmente las que te llegan por email)\n\n' +
-    '¿Listo? Mándame tu primera factura 📤';
+    '🤖 *¡Hola! Soy el asistente de BalanceClip*\n\n' +
+    'Tengo 2 funciones, usá la que necesites:\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    '📸 *Registrar facturas y gastos*\n\n' +
+    'Mandame foto o PDF de tu factura/recibo. La IA detecta monto, fecha, proveedor, RUC y categoría DGI, y te respondo con 2 botones:\n' +
+    '   ✅ *Aprobar* — acepta lo sugerido\n' +
+    '   📝 *Cambiar categoría* — lista de opciones\n\n' +
+    'Funciona con facturas fiscales, electrónicas, Yappy, transferencias y PDFs. Revisás todo en balanceclip.net\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    '📊 *Analizar estado de cuenta bancario*\n\n' +
+    'Mandame el .xlsx de tu cuenta de Banco General. Te doy:\n' +
+    '• Resumen de saldo, flujo y top categorías al instante\n' +
+    '• Excel ejecutivo con diagnóstico, semáforo de salud y drill-downs por destinatario/merchant\n' +
+    '• *Asesor IA*: preguntame _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi plata?"_, etc.\n\n' +
+    'Drill por texto: *ver comida*, *ver mayo*, *excel*.\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    '📋 *Comandos útiles*\n' +
+    '• *ayuda* — ver estas instrucciones\n' +
+    '• *configurar email* — reenvío automático de facturas desde tu Gmail/Outlook a *facturas@balanceclip.net*\n\n' +
+    '¿Listo? Mandame una factura o un .xlsx 📤';
   _routerSendText(to, body, token, phoneId);
 }
 
@@ -455,17 +453,19 @@ function _routerReplyDesconocido(to, token, phoneId) {
         interactive: {
           type: 'button',
           body: { text:
-            '👋 ¡Hola! Soy *BalanceClip* — el asistente fiscal automatizado para profesionales y negocios en Panamá. 🇵🇦\n\n' +
-            'Te ayudo a registrar tus gastos:\n' +
-            '📸 Mandándome facturas por WhatsApp\n' +
-            '📧 O reenviándolas por email\n\n' +
-            'Una IA las lee, las categoriza según DGI y las deja listas en tu contabilidad. ✨\n\n' +
-            '¿Quieres probarlo *gratis 7 días*?'
+            '👋 ¡Hola! Soy *BalanceClip* — asistente fiscal automatizado para profesionales y negocios en Panamá. 🇵🇦\n\n' +
+            'Llevo tus finanzas por WhatsApp, sin entrar a una app:\n\n' +
+            '📸 *Registro tus facturas y gastos*\n' +
+            'Mandame foto/PDF o reenviá emails → una IA las lee, categoriza según DGI y las deja listas para aprobar.\n\n' +
+            '📊 *Analizo tu cuenta de Banco General*\n' +
+            'Subís el .xlsx → te devuelvo Excel ejecutivo con flujo, top gastos, suscripciones y un asesor IA.\n\n' +
+            'Reportes ITBMS mensual e informe anual DGI listos para presentar.\n\n' +
+            '¿Qué te interesa probar?'
           },
           action: {
             buttons: [
-              { type: 'reply', reply: { id: 'signup:start', title: '🎁 Probar 7 días' } },
-              { type: 'reply', reply: { id: 'signup:info',  title: 'ℹ️ Más info' } },
+              { type: 'reply', reply: { id: 'signup:facturas', title: '📸 Registrar Gastos' } },
+              { type: 'reply', reply: { id: 'signup:analisis', title: '📊 Analizar Cuenta' } },
             ],
           },
         },
@@ -494,6 +494,92 @@ function _routerEnviarInfoMarketing(to, token, phoneId) {
     '💬 WhatsApp: ' + waNum + '\n\n' +
     'Si quieres *probar gratis 7 días*, escríbeme *demo* y arrancamos el registro. 🎁';
   _routerSendText(to, body, token, phoneId);
+}
+
+// Sub-card del welcome de prospecto: detalla el flujo de facturas + CTAs.
+// Disparado por btn "📸 Registrar Gastos" (signup:facturas) en _routerReplyDesconocido.
+function _routerEnviarInfoFacturas(to, token, phoneId) {
+  if (!token || !phoneId) return;
+  try {
+    UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text:
+            '📸 *Registrar tus facturas y gastos*\n\n' +
+            'Mandame foto, PDF o reenviame emails de tus facturas/recibos. Una IA:\n\n' +
+            '• Extrae monto, fecha, proveedor y RUC\n' +
+            '• Sugiere la categoría DGI apropiada\n' +
+            '• Detecta ITBMS y si es deducible\n' +
+            '• Te pide aprobar con 1 botón\n\n' +
+            'Funciona con facturas fiscales, electrónicas, recibos Yappy, transferencias y PDFs.\n\n' +
+            '🧾 *Reportes que sacás*\n' +
+            '• Declaración ITBMS mensual\n' +
+            '• Informe anual DGI (Form 90)\n' +
+            '• Panel web con todo tu histórico\n\n' +
+            '¿Lo probás *gratis 7 días*?'
+          },
+          action: {
+            buttons: [
+              { type: 'reply', reply: { id: 'signup:start', title: '🎁 Probar 7 días' } },
+              { type: 'reply', reply: { id: 'signup:info',  title: 'ℹ️ Más info' } },
+            ],
+          },
+        },
+      }),
+      muteHttpExceptions: true,
+    });
+  } catch(err) { Logger.log('InfoFacturas ERROR: ' + err.message); }
+}
+
+// Sub-card del welcome de prospecto: detalla el flujo de análisis bancario,
+// con instrucciones de cómo descargar el xlsx de Banco General.
+// Disparado por btn "📊 Analizar Cuenta" (signup:analisis) en _routerReplyDesconocido.
+function _routerEnviarInfoAnalisis(to, token, phoneId) {
+  if (!token || !phoneId) return;
+  try {
+    UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text:
+            '📊 *Analizar tu cuenta de Banco General*\n\n' +
+            'Subís el .xlsx de tu cuenta y te devuelvo en 30 segundos:\n\n' +
+            '• Saldo, flujo, ahorro y top categorías\n' +
+            '• Excel ejecutivo con *diagnóstico financiero*, semáforo de salud y drill-down por destinatario/merchant\n' +
+            '• *Asesor IA*: preguntame en lenguaje natural — _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi plata?"_, etc.\n\n' +
+            '📥 *Cómo descargar tu xlsx*\n' +
+            '1. Entrá a Banca en Línea de Banco General desde tu laptop\n' +
+            '2. Movimientos / Estado de cuenta\n' +
+            '3. Elegí el rango (recomendado: últimos 12 meses)\n' +
+            '4. Exportar a Excel (.xlsx)\n' +
+            '5. Mandámelo a este chat 📎\n\n' +
+            '_Próximamente vas a poder mandarlo también a *analisis@balanceclip.net* directo desde tu laptop._\n\n' +
+            '¿Lo probás *gratis 7 días*?'
+          },
+          action: {
+            buttons: [
+              { type: 'reply', reply: { id: 'signup:start', title: '🎁 Probar 7 días' } },
+              { type: 'reply', reply: { id: 'signup:info',  title: 'ℹ️ Más info' } },
+            ],
+          },
+        },
+      }),
+      muteHttpExceptions: true,
+    });
+  } catch(err) { Logger.log('InfoAnalisis ERROR: ' + err.message); }
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -777,6 +863,14 @@ function _routerClearSignupState(from) {
 
 function _routerHandleSignupReply(from, btnId, token, phoneId) {
   var action = btnId.replace('signup:', '');
+  if (action === 'facturas') {
+    _routerEnviarInfoFacturas(from, token, phoneId);
+    return;
+  }
+  if (action === 'analisis') {
+    _routerEnviarInfoAnalisis(from, token, phoneId);
+    return;
+  }
   if (action === 'info') {
     _routerEnviarInfoMarketing(from, token, phoneId);
     return;
