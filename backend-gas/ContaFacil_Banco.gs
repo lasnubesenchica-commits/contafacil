@@ -493,15 +493,18 @@ function _bancoAnalizar(movs, categorias) {
   }
 
   // Top merchant — el que se llevó más plata acumulada en GASTOS REALES.
-  // Excluimos transferencias internas (ach_salida) y movimientos a la
-  // propia cuenta del usuario (ej "BANCA MOVIL TRANSFERENCIA A …"
-  // donde estás moviendo plata entre tus cuentas, no gastando).
+  // Excluimos:
+  //  - ach_salida y transferencias por banca móvil (mover plata entre
+  //    cuentas propias o pagar tarjetas — no es consumo)
+  //  - yappy_salida (P2P a una persona, no un "merchant")
+  //  - pago_tarjeta (es un settlement, los cargos individuales ya cuentan)
   var topMerchant = null;
   var bestSum = 0;
+  var CATS_NO_MERCHANT = ['ach_salida', 'yappy_salida', 'pago_tarjeta'];
   Object.keys(byMerchantOut).forEach(function(mk) {
     var info = byMerchantOut[mk];
-    if (info.cat === 'ach_salida' || info.cat === 'pago_tarjeta') return;
-    if (/BANCA\s+MOVIL\s+TRANSFER|TRANSFER.*CUENTA|PAGO\s+TC|PAGO\s+TARJETA/i.test(mk)) return;
+    if (CATS_NO_MERCHANT.indexOf(info.cat) >= 0) return;
+    if (/BANCA\s+MOVIL\s+TRANSFER|TRANSFER.*CUENTA|PAGO\s+TC|PAGO\s+TARJETA|^YAPPY\s+BG\s+/i.test(mk)) return;
     if (info.sum > bestSum) {
       bestSum = info.sum;
       topMerchant = { name: mk, sum: info.sum, count: info.count };
@@ -536,21 +539,38 @@ function _bancoAnalizar(movs, categorias) {
   // Triggers conservadores: solo levantamos bandera cuando la señal
   // es clara, para no convertirnos en un bot alarmista.
   var flags = [];
-  var ratioGasto = totalIn > 0 ? totalOut / totalIn : 0;
-  if (totalIn > 0 && ratioGasto > 0.9 && totalOut - totalIn > 20) {
-    flags.push('⚠️ Gastaste el ' + Math.round(ratioGasto * 100) + '% de lo que ingresaste — margen muy ajustado.');
+  var ahorroPct = totalIn > 0 ? (totalIn - totalOut) / totalIn : 0;
+
+  // Ahorro bajo — más informativo que la flag anterior de "gastaste 90%".
+  // Reemplaza la flag ratio. Solo aplica si tuviste ingreso real
+  // ($100+) y el ahorro fue positivo pero bajo (<10%). El caso de
+  // déficit (ahorroPct < 0) ya se ve en el bloque Flujo como "Déficit".
+  if (totalIn > 100 && ahorroPct >= 0 && ahorroPct < 0.1) {
+    flags.push('💪 Ahorraste solo ' + Math.round(ahorroPct * 100) +
+               '% de tu ingreso — espacio para ajustar gastos discrecionales.');
   }
+
   if (deltaSaldo != null && deltaSaldo < -20) {
     flags.push('📉 Tu saldo bajó ' + _bancoFmtDolar(Math.abs(deltaSaldo)) + ' en este período.');
   }
-  // Concentración alta — solo si la cat ganadora NO es 'otro' (sino es
-  // artefacto de Claude no clasificando, no de un patrón real) y supera
-  // el 40% del gasto.
-  if (topCats.length && topCats[0].cat !== 'otro' &&
-      topCats[0].sum / Math.max(totalOut, 1) > 0.4) {
-    flags.push('🎯 Una sola categoría (' + _bancoCatLabel(topCats[0].cat) + ') se llevó el ' +
-               Math.round((topCats[0].sum / totalOut) * 100) + '% de tu gasto — concentración alta.');
+
+  // Concentración — diferenciamos entre cat de consumo real (alarma)
+  // vs cat de transferencia (info neutral). "Tu top categoría es
+  // Transfer salida 49%" no es problema: es plata moviéndose entre
+  // cuentas o yendo a personas, no consumo concentrado.
+  var CATS_TRANSFER = ['ach_salida', 'yappy_salida', 'pago_tarjeta'];
+  if (topCats.length && topCats[0].sum / Math.max(totalOut, 1) > 0.4) {
+    var c0 = topCats[0];
+    var pct0 = Math.round((c0.sum / totalOut) * 100);
+    if (CATS_TRANSFER.indexOf(c0.cat) >= 0) {
+      flags.push('💱 El ' + pct0 + '% de tus salidas fue ' + _bancoCatLabel(c0.cat) +
+                 ' — verificá si fueron a cuentas propias o pagos reales.');
+    } else if (c0.cat !== 'otro') {
+      flags.push('🎯 Una sola categoría (' + _bancoCatLabel(c0.cat) +
+                 ') se llevó el ' + pct0 + '% de tu gasto — concentración alta.');
+    }
   }
+
   // Runway — solo si el saldo está BAJANDO (deltaSaldo < 0). Si la
   // persona tiene ingresos sostenidos compensando, no es señal real
   // de riesgo: el saldo se recupera al próximo ingreso.
