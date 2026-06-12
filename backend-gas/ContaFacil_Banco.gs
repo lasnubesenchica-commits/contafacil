@@ -424,23 +424,115 @@ function _bancoAnalizar(movs, categorias) {
   var pequenos = movs.filter(function(m) { return m.monto < 0 && m.monto > -10; });
   var sumaPequenos = pequenos.reduce(function(s, m) { return s + Math.abs(m.monto); }, 0);
 
-  // Rango de fechas
+  // Rango de fechas + saldo inicial/final.
+  // BG exporta newest-first pero buscamos por fecha por robustez en
+  // caso de bancos que sorten al revés.
   var fechas = movs.map(function(m) { return m.fecha; }).filter(Boolean)
                    .sort(function(a, b) { return a - b; });
   var inicio = fechas[0];
   var fin    = fechas[fechas.length - 1];
   var dias   = fechas.length ? Math.max(1, Math.round((fin - inicio) / 86400000) + 1) : 0;
 
+  // Saldo: el saldo[N] mostrado en la fila N es el saldo DESPUÉS de
+  // aplicar ese movimiento. Para tener el saldo inicial del período,
+  // tomamos el más viejo y restamos su monto (reverse). El final es
+  // simplemente el del más reciente.
+  //
+  // Detectar orden del export: BG y la mayoría exportan newest-first.
+  // Usamos la fecha del primer vs último elemento del array; si hay
+  // empate (BG pone el mismo timestamp para movs del mismo día) caemos
+  // a "newest-first" por default (asumimos BG).
+  var newestMov, oldestMov;
+  if (movs.length === 1) {
+    newestMov = oldestMov = movs[0];
+  } else {
+    var first = movs[0], last = movs[movs.length - 1];
+    var bgStyle = !first.fecha || !last.fecha || first.fecha >= last.fecha;
+    newestMov = bgStyle ? first : last;
+    oldestMov = bgStyle ? last  : first;
+  }
+  var saldoIni = null, saldoFin = null, deltaSaldo = null;
+  if (newestMov && newestMov.saldo != null && !isNaN(newestMov.saldo) &&
+      oldestMov && oldestMov.saldo != null && !isNaN(oldestMov.saldo)) {
+    saldoFin   = newestMov.saldo;
+    saldoIni   = oldestMov.saldo - oldestMov.monto;
+    deltaSaldo = saldoFin - saldoIni;
+  }
+
+  // Top merchant — el que se llevó más plata acumulada (single insight
+  // más punzante que el "top categoría" que abstrae).
+  var topMerchant = null;
+  var bestSum = 0;
+  Object.keys(byMerchantOut).forEach(function(mk) {
+    if (byMerchantOut[mk].sum > bestSum) {
+      bestSum = byMerchantOut[mk].sum;
+      topMerchant = { name: mk, sum: byMerchantOut[mk].sum, count: byMerchantOut[mk].count };
+    }
+  });
+
+  // Form 90 (DGI Panamá) — deducibles personales que detectamos en el
+  // estado de cuenta. El match único de ContaFacil: ningún otro app
+  // de finanzas panameño hace este cruce.
+  // Mapa categoría bancaria → línea del Form 90.
+  var form90Map = {
+    salud:     { label: 'Gastos médicos',         linea: 'DP-1' },
+    educacion: { label: 'Gastos escolares',       linea: 'DP-2' },
+    seguro:    { label: 'Seguros de salud',       linea: 'DP-1', nota: '_(solo si el seguro es médico)_' },
+    prestamo:  { label: 'Intereses préstamos',    linea: 'DP-3/DP-4', nota: '_(verificar si es hipotecario o educativo)_' },
+  };
+  var form90 = [];
+  Object.keys(form90Map).forEach(function(c) {
+    if (catTotalsOut[c]) {
+      form90.push({
+        cat:    c,
+        label:  form90Map[c].label,
+        linea:  form90Map[c].linea,
+        nota:   form90Map[c].nota || '',
+        sum:    catTotalsOut[c].sum,
+        count:  catTotalsOut[c].count,
+      });
+    }
+  });
+
+  // Health flags — heurísticas sobre la salud financiera del período.
+  // Triggers conservadores: solo levantamos bandera cuando la señal
+  // es clara, para no convertirnos en un bot alarmista.
+  var flags = [];
+  var ratioGasto = totalIn > 0 ? totalOut / totalIn : 0;
+  if (totalIn > 0 && ratioGasto > 0.9 && totalOut - totalIn > 20) {
+    flags.push('⚠️ Gastaste el ' + Math.round(ratioGasto * 100) + '% de lo que ingresaste — margen muy ajustado.');
+  }
+  if (deltaSaldo != null && deltaSaldo < -20) {
+    flags.push('📉 Tu saldo bajó ' + _bancoFmtDolar(Math.abs(deltaSaldo)) + ' en este período.');
+  }
+  if (topCats.length && topCats[0].sum / Math.max(totalOut, 1) > 0.4) {
+    flags.push('🎯 Una sola categoría (' + _bancoCatLabel(topCats[0].cat) + ') se llevó el ' +
+               Math.round((topCats[0].sum / totalOut) * 100) + '% de tu gasto — concentración alta.');
+  }
+  if (saldoFin != null && dias > 0 && totalOut > 0) {
+    var gastoDiario = totalOut / dias;
+    var runwayDias  = gastoDiario > 0 ? Math.floor(saldoFin / gastoDiario) : 999;
+    if (runwayDias < 7) {
+      flags.push('⏳ Al ritmo de gasto actual, tu saldo dura ~' + runwayDias + ' día(s) más.');
+    }
+  }
+
   return {
     totalIn: totalIn, totalOut: totalOut, neto: totalIn - totalOut,
     nMovs: movs.length, dias: dias,
     inicio: inicio, fin: fin,
+    saldoIni: saldoIni, saldoFin: saldoFin, deltaSaldo: deltaSaldo,
     topCats: topCats,
+    topMerchant: topMerchant,
     topYappyOut: topYappyOut, topYappyIn: topYappyIn,
     suscripciones: suscripciones.slice(0, 5),
     pequenos: { count: pequenos.length, suma: sumaPequenos },
+    form90: form90,
+    flags: flags,
   };
 }
+
+function _bancoFmtDolar(n) { return '$' + (isFinite(n) ? Number(n).toFixed(2) : '0.00'); }
 
 function _bancoCatLabel(c) {
   var L = {
@@ -457,7 +549,7 @@ function _bancoCatLabel(c) {
 }
 
 function _bancoFormatearMensaje(a) {
-  var fmt = function(n) { return '$' + (isFinite(n) ? Number(n).toFixed(2) : '0.00'); };
+  var fmt = _bancoFmtDolar;
   var pct = function(part, whole) { return whole > 0 ? Math.round((part / whole) * 100) : 0; };
   var fechaStr = function(d) {
     return d ? Utilities.formatDate(d, 'America/Panama', 'd MMM') : '—';
@@ -467,12 +559,46 @@ function _bancoFormatearMensaje(a) {
   var msg = '📊 *Análisis de movimientos*\n';
   msg += '_' + fechaStr(a.inicio) + ' – ' + fechaStr(a.fin) + ' · ' + a.dias + ' días · ' + a.nMovs + ' movs_\n\n';
 
+  // Saldo — contexto absoluto. "Ahorraste $X" sin saber el saldo
+  // miente: capaz tenés balance bajando hacia 0.
+  if (a.saldoIni != null && a.saldoFin != null) {
+    var arrow = a.deltaSaldo >= 0 ? '↗' : '↘';
+    var sign  = a.deltaSaldo >= 0 ? '+' : '−';
+    msg += '*Saldo*\n💵 ' + fmt(a.saldoIni) + ' ' + arrow + ' ' + fmt(a.saldoFin) +
+           ' (' + sign + fmt(Math.abs(a.deltaSaldo)) + ')\n\n';
+  }
+
   msg += '*Flujo*\n';
   msg += '✅ Ingresaste: ' + fmt(a.totalIn) + '\n';
   msg += '❌ Gastaste:    ' + fmt(a.totalOut) + '\n';
   msg += (a.neto >= 0 ? '💰 Ahorrado:   ' : '⚠️ Déficit:    ') +
          fmt(Math.abs(a.neto)) +
          (a.totalIn > 0 ? ' (' + (ahorro >= 0 ? '+' : '') + ahorro + '%)' : '') + '\n\n';
+
+  // Banderas de salud — destacadas para que se vean primero.
+  if (a.flags && a.flags.length) {
+    msg += '*Atención*\n';
+    a.flags.forEach(function(f) { msg += f + '\n'; });
+    msg += '\n';
+  }
+
+  // Form 90 — match único de ContaFacil. Mostrar arriba del fold.
+  if (a.form90 && a.form90.length) {
+    msg += '💡 *Posibles deducibles · Form 90*\n';
+    a.form90.forEach(function(f) {
+      msg += '   • ' + f.label + ' (' + f.linea + '): ' + fmt(f.sum) + '\n';
+      if (f.nota) msg += '     ' + f.nota + '\n';
+    });
+    msg += '_Si son personales, registralos como gasto deducible en tu app._\n\n';
+  }
+
+  // Top merchant — punzante, dato accionable.
+  if (a.topMerchant && a.topMerchant.sum >= 5) {
+    var pctMerch = pct(a.topMerchant.sum, a.totalOut);
+    msg += '🏆 *Tu gasto más grande:* ' + a.topMerchant.name +
+           ' ' + fmt(a.topMerchant.sum) +
+           (pctMerch > 0 ? ' (' + pctMerch + '%)' : '') + '\n\n';
+  }
 
   if (a.topCats.length) {
     msg += '*Top categorías de gasto*\n';
@@ -511,7 +637,10 @@ function _bancoFormatearMensaje(a) {
     if (anual > 100) {
       msg += '_Al ritmo actual, esos chicos te cuestan ~' + fmt(anual) + ' al año._\n';
     }
+    msg += '\n';
   }
+
+  msg += '📈 _Mandame el del próximo mes y te muestro cómo evolucionaste._';
 
   return msg.substring(0, 4000);  // WhatsApp text cap
 }
