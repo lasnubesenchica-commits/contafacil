@@ -1370,35 +1370,98 @@ function _bancoExportarExcel(cache, from, token, phoneId) {
 }
 
 function _bancoPoblarXlsx(ss, cache) {
-  // Sheet 1: Resumen
+  // ─── Pre-computar agregados ──────────────────────────────────
+  var totalIn = 0, totalOut = 0;
+  var catTotals = {};                  // cat → sumOut
+  var catMovs = {};                    // cat → [movs (gastos)]
+  var mesMovs = {};                    // ym → [movs (todos)]
+  cache.movs.forEach(function(m) {
+    if (m.monto >= 0) {
+      totalIn += m.monto;
+    } else {
+      totalOut += -m.monto;
+      catTotals[m.cat] = (catTotals[m.cat] || 0) + (-m.monto);
+      if (!catMovs[m.cat]) catMovs[m.cat] = [];
+      catMovs[m.cat].push(m);
+    }
+    var ym = Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM');
+    if (!mesMovs[ym]) mesMovs[ym] = [];
+    mesMovs[ym].push(m);
+  });
+
+  // Cap a top 10 cats por gasto + todos los meses con data (cap 12)
+  var topCats = Object.keys(catTotals)
+    .sort(function(a, b) { return catTotals[b] - catTotals[a]; })
+    .slice(0, 10);
+  var meses = Object.keys(mesMovs).sort().slice(-12);
+
+  // ─── Hoja 1: Resumen ────────────────────────────────────────
   var sh1 = ss.getActiveSheet();
   sh1.setName('Resumen');
-  var totalIn = 0, totalOut = 0, catTotals = {};
-  cache.movs.forEach(function(m) {
-    if (m.monto >= 0) totalIn += m.monto;
-    else { totalOut += -m.monto; catTotals[m.cat] = (catTotals[m.cat] || 0) + (-m.monto); }
-  });
   var rows = [
-    ['ANÁLISIS BANCARIO', ''],
-    ['Generado',       new Date()],
-    ['Movimientos',    cache.movs.length],
-    ['', ''],
-    ['Total ingresos', totalIn],
-    ['Total gastos',   totalOut],
-    ['Neto',           totalIn - totalOut],
-    ['', ''],
-    ['TOP CATEGORÍAS DE GASTO', ''],
+    ['ANÁLISIS BANCARIO', '', '', ''],
+    ['Generado',       new Date(), '', ''],
+    ['Movimientos',    cache.movs.length, '', ''],
+    ['', '', '', ''],
+    ['Total ingresos', totalIn, '', ''],
+    ['Total gastos',   totalOut, '', ''],
+    ['Neto',           totalIn - totalOut, '', ''],
+    ['', '', '', ''],
+    ['TOP CATEGORÍAS DE GASTO', 'Monto', '# Movs', 'Drill-down'],
   ];
-  Object.keys(catTotals).sort(function(a,b){ return catTotals[b]-catTotals[a]; }).forEach(function(c) {
-    rows.push([_bancoCatLabel(c).replace(/^.\s+/, ''), catTotals[c]]);
+  // Por cada top cat: link al sheet "Detalle - <cat>"
+  topCats.forEach(function(c) {
+    var label  = _bancoCatPlain(c);
+    var snName = _bancoSheetSafeName('Detalle - ' + label);
+    rows.push([
+      _bancoCatLabel(c),
+      catTotals[c],
+      (catMovs[c] || []).length,
+      '=HYPERLINK("#' + "'" + snName.replace(/'/g, "''") + "'" + '!A1","→ Ver detalle")',
+    ]);
   });
-  sh1.getRange(1, 1, rows.length, 2).setValues(rows);
-  sh1.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
-  sh1.getRange(9, 1, 1, 2).setFontWeight('bold').setBackground('#F1F3F5');
-  sh1.setColumnWidth(1, 240);
-  sh1.setColumnWidth(2, 140);
+  // Separador y header de meses
+  rows.push(['', '', '', '']);
+  rows.push(['POR MES', 'Gasto', '# Movs', 'Drill-down']);
+  meses.forEach(function(ym) {
+    var snName = _bancoSheetSafeName('Mes - ' + _bancoMesLabel(ym) + ' ' + ym.split('-')[0]);
+    var out = 0, n = 0;
+    mesMovs[ym].forEach(function(m) { n++; if (m.monto < 0) out += -m.monto; });
+    rows.push([
+      _bancoMesLabel(ym) + ' ' + ym.split('-')[0],
+      out, n,
+      '=HYPERLINK("#' + "'" + snName.replace(/'/g, "''") + "'" + '!A1","→ Ver detalle")',
+    ]);
+  });
+  // Acceso a la data raw
+  rows.push(['', '', '', '']);
+  rows.push(['', '', '', '=HYPERLINK("#\'Movimientos\'!A1","→ Ver todos los movimientos")']);
 
-  // Sheet 2: Movimientos
+  sh1.getRange(1, 1, rows.length, 4).setValues(rows);
+  sh1.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
+  sh1.getRange(9, 1, 1, 4).setFontWeight('bold').setBackground('#F1F3F5');
+  // Row del header "POR MES"
+  var mesHeaderRow = 9 + topCats.length + 2;
+  sh1.getRange(mesHeaderRow, 1, 1, 4).setFontWeight('bold').setBackground('#F1F3F5');
+  sh1.setColumnWidth(1, 240);
+  sh1.setColumnWidth(2, 110);
+  sh1.setColumnWidth(3, 80);
+  sh1.setColumnWidth(4, 180);
+
+  // ─── Hoja por cada top cat ──────────────────────────────────
+  topCats.forEach(function(c) {
+    var label = _bancoCatPlain(c);
+    var sh    = ss.insertSheet(_bancoSheetSafeName('Detalle - ' + label));
+    _bancoPoblarDetalleSheet(sh, _bancoCatLabel(c), catMovs[c] || [], 'cat');
+  });
+
+  // ─── Hoja por cada mes con data ─────────────────────────────
+  meses.forEach(function(ym) {
+    var sh = ss.insertSheet(_bancoSheetSafeName('Mes - ' + _bancoMesLabel(ym) + ' ' + ym.split('-')[0]));
+    _bancoPoblarDetalleSheet(sh, _bancoMesLabel(ym) + ' ' + ym.split('-')[0], mesMovs[ym], 'mes');
+  });
+
+  // ─── Hoja Movimientos (full con filter habilitado) ──────────
   var sh2 = ss.insertSheet('Movimientos');
   var movRows = [['Fecha','Monto','Tipo','Descripción','Categoría']];
   cache.movs.slice().sort(function(a, b) { return b.fecha - a.fecha; }).forEach(function(m) {
@@ -1412,8 +1475,16 @@ function _bancoPoblarXlsx(ss, cache) {
   sh2.setColumnWidth(3, 80);
   sh2.setColumnWidth(4, 380);
   sh2.setColumnWidth(5, 180);
+  // AutoFilter — habilita los dropdowns nativos de Excel en cada columna,
+  // sobrevive al export xlsx. El usuario puede filtrar manualmente cualquier
+  // columna sin necesidad de un sheet de detalle dedicado.
+  try {
+    var existingFilter = sh2.getFilter();
+    if (existingFilter) existingFilter.remove();
+    sh2.getRange(1, 1, movRows.length, 5).createFilter();
+  } catch(e) { Logger.log('Banco filter create skip: ' + e.message); }
 
-  // Sheet 3: Mensual (si hay historial)
+  // ─── Hoja Mensual (si hay historial multi-mes) ──────────────
   if (cache.historial && cache.historial.length) {
     var sh3 = ss.insertSheet('Mensual');
     var mRows = [['Mes','Ingresos','Gastos','Neto','# Movs','Parcial']];
@@ -1425,7 +1496,59 @@ function _bancoPoblarXlsx(ss, cache) {
     sh3.setFrozenRows(1);
   }
 
+  // Volver a poner Resumen al frente
+  ss.setActiveSheet(sh1);
   SpreadsheetApp.flush();
+}
+
+// Pobla una hoja de detalle (cat o mes) con back-link al Resumen,
+// título, total + un listado de los movimientos correspondientes.
+function _bancoPoblarDetalleSheet(sh, title, movs, kind) {
+  var total = movs.reduce(function(s, m) { return s + Math.abs(m.monto < 0 ? m.monto : 0); }, 0);
+  var nMovs = movs.length;
+
+  var rows = [
+    ['=HYPERLINK("#\'Resumen\'!A1","← Volver al Resumen")', '', '', '', ''],
+    ['', '', '', '', ''],
+    [title, '', 'Total:', total, ''],
+    ['', '', '# Movs:', nMovs, ''],
+    ['', '', '', '', ''],
+    ['Fecha','Monto','Tipo','Descripción','Categoría'],
+  ];
+  movs.slice().sort(function(a, b) { return b.fecha - a.fecha; }).forEach(function(m) {
+    rows.push([m.fecha, m.monto, m.monto >= 0 ? 'Ingreso' : 'Gasto', m.descripcion, _bancoCatLabel(m.cat)]);
+  });
+  sh.getRange(1, 1, rows.length, 5).setValues(rows);
+  sh.getRange(3, 1).setFontWeight('bold').setFontSize(13);
+  sh.getRange(6, 1, 1, 5).setFontWeight('bold').setBackground('#F1F3F5');
+  sh.setFrozenRows(6);
+  sh.setColumnWidth(1, 110);
+  sh.setColumnWidth(2, 90);
+  sh.setColumnWidth(3, 80);
+  sh.setColumnWidth(4, 380);
+  sh.setColumnWidth(5, 180);
+  // AutoFilter en el rango de datos
+  try {
+    var existingFilter = sh.getFilter();
+    if (existingFilter) existingFilter.remove();
+    if (rows.length > 6) sh.getRange(6, 1, rows.length - 5, 5).createFilter();
+  } catch(e) { Logger.log('Banco detalle filter skip: ' + e.message); }
+}
+
+// Devuelve solo el texto de la categoría (sin emoji). "🍽 Comida" → "Comida"
+function _bancoCatPlain(c) {
+  var l = _bancoCatLabel(c);
+  var m = /^\S+\s+(.+)$/.exec(l);
+  return m ? m[1] : l;
+}
+
+// Sanitiza un nombre para usar como sheet name xlsx.
+// - Max 31 chars
+// - Sin chars prohibidos por Excel: : \ / ? * [ ]
+function _bancoSheetSafeName(name) {
+  var s = String(name || '').replace(/[:\/\\?*\[\]]/g, '');
+  if (s.length > 31) s = s.substring(0, 28) + '...';
+  return s;
 }
 
 // Exporta el spreadsheet identificado por sheetId a bytes xlsx vía
