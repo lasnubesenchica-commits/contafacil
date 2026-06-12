@@ -2461,6 +2461,20 @@ function _bancoBuildAsesorContext(cache) {
   if (pequenos.length >= 5) {
     ctx += '\nGASTOS CHICOS (<$10): ' + pequenos.length + ' compras = $' + sumaPeq.toFixed(2) + '\n';
   }
+
+  // Transacciones individuales — habilita "mostrame los gastos de X
+  // en mes Y", "qué fue ese cargo del 15 de junio", etc. Sin esto el
+  // asesor solo tiene agregados. Sonnet 4.6 maneja 200k tokens, esto
+  // suele rondar 10-30k para 12 meses.
+  ctx += '\nTRANSACCIONES INDIVIDUALES (formato: fecha cat monto descripcion):\n';
+  movs.forEach(function(m) {
+    var f = Utilities.formatDate(new Date(m.fecha), 'America/Panama', 'yyyy-MM-dd');
+    var monto = (m.monto >= 0 ? '+' : '') + m.monto.toFixed(2);
+    var desc = String(m.descripcion || '').substring(0, 80);
+    var cat = m.cat || 'otro';
+    ctx += f + ' ' + cat + ' ' + monto + ' ' + desc + '\n';
+  });
+
   return ctx;
 }
 
