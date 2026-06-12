@@ -276,10 +276,13 @@ function _routerForwardMensaje(msg, metadata) {
     if (primera || pidióAyuda) {
       _routerEnviarBienvenida(from, token, phoneId);
       _routerMarcarSaludado(from);
-    } else {
-      _routerReplyAyudaBreve(from, token, phoneId);
+      return;
     }
-    return;
+    // Texto no-trigger: en lugar de responder con "no entendí" desde el
+    // router, dejamos caer al forward al client GAS. Esto habilita los
+    // drill-downs por texto del módulo banco ("ver mayo", "excel") y
+    // cualquier comando futuro del cliente. Si el client GAS tampoco
+    // sabe qué hacer con el texto, manda su propio welcome de fallback.
   }
 
   // ── Media (image/document) e interactivos → forward al cliente GAS ──
