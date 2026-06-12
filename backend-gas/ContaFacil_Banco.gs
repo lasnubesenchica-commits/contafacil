@@ -916,44 +916,47 @@ function _bancoBarsCategorias(topCats, totalOut) {
 function _bancoBarsTendencia(historial) {
   if (!historial || !historial.length) return '';
   // historial viene ordenado de más viejo a más nuevo
+  var NAME_W = 18;
   var max = Math.max.apply(null, historial.map(function(h) { return h.totalOut; }));
+  var padR = function(s, w) { while (s.length < w) s += ' '; return s; };
   return historial.map(function(h, i) {
     var bar = _bancoBar(h.totalOut, max);
-    var arrow = '';
+    var deltaStr = '';
     if (i > 0) {
       var prev = historial[i-1].totalOut;
       if (prev > 0) {
-        if (h.totalOut > prev * 1.05)      arrow = ' ↗';
-        else if (h.totalOut < prev * 0.95) arrow = ' ↘';
+        var pct = Math.round(((h.totalOut - prev) / prev) * 100);
+        if (pct > 5)       deltaStr = ' (+' + pct + '%)';
+        else if (pct < -5) deltaStr = ' (' + pct + '%)';
       }
     }
-    var label = _bancoMesLabel(h.yearMonth);
-    var parcial = h.parcial ? ' parcial' : '';
-    return label + ' ' + bar + ' ' + _bancoFmtDolar(h.totalOut) + arrow + parcial;
+    var label = _bancoMesLabel(h.yearMonth) + (h.parcial ? ' parcial' : '');
+    return padR(label, NAME_W) + ' ' + bar + ' ' + _bancoFmtDolarCompacto(h.totalOut) + deltaStr;
   }).join('\n') + '\n';
 }
 
 // Render de deltas entre el último mes y el anterior — cat por cat.
-// Sin emojis adentro del bloque (rompen el alineado en mobile WhatsApp);
-// el ↗ / ↘ son ASCII-like y SÍ alinean.
+// Mismo formato visual que cats y destinatarios: <name padded> <bar>
+// <$current> (<delta%>). Bar proporcional al cat con mayor gasto en
+// el mes actual. Cat new/sin cambio significativo se marca explícito.
 function _bancoBarsDeltas(cats) {
   if (!cats || !cats.length) return '';
-  var NAME_W = 14, AMT_W = 7;
-  var padR = function(s, w) { s = String(s); while (s.length < w) s += ' '; return s; };
-  var padL = function(s, w) { s = String(s); while (s.length < w) s = ' ' + s; return s; };
+  var NAME_W = 18;
+  var max = Math.max.apply(null, cats.map(function(c) { return c.cur; }));
+  var padR = function(s, w) { while (s.length < w) s += ' '; return s; };
   return cats.map(function(c) {
     var label = _bancoCatLabel(c.cat);
     var em = label.match(/^(\S+)\s+(.+)$/);
     var nameNoEmoji = em ? em[2] : label;
     if (nameNoEmoji.length > NAME_W) nameNoEmoji = nameNoEmoji.substring(0, NAME_W - 1) + '…';
-    var prev = padL(_bancoFmtDolarCompacto(c.prev), AMT_W);
-    var cur  = padL(_bancoFmtDolarCompacto(c.cur), AMT_W);
+    var bar = _bancoBar(c.cur, max);
     var pctStr;
     if (c.deltaPct === null)       pctStr = 'NUEVO';
     else if (c.deltaPct > 5)       pctStr = '+' + Math.round(c.deltaPct) + '%';
     else if (c.deltaPct < -5)      pctStr = Math.round(c.deltaPct) + '%';
     else                           pctStr = '~';
-    return padR(nameNoEmoji, NAME_W) + prev + ' → ' + cur + '  ' + padL(pctStr, 6);
+    return padR(nameNoEmoji, NAME_W) + ' ' + bar + ' ' + _bancoFmtDolarCompacto(c.cur) +
+           ' (' + pctStr + ')';
   }).join('\n') + '\n';
 }
 
