@@ -474,7 +474,8 @@ function _routerReplyDesconocido(to, token, phoneId) {
             'Subís el .xlsx → te devuelvo análisis al instante, reporte PDF ejecutivo, Excel con matriz destinatario × mes y asesor IA.\n\n' +
             'Reportes ITBMS mensual e informe anual DGI listos para presentar.\n\n' +
             '¿Qué te interesa probar?\n\n' +
-            '_Al usar el servicio aceptas nuestros términos y política de privacidad: balanceclip.net/privacidad_'
+            '_Al usar el servicio aceptas nuestros términos y política de privacidad._\n' +
+            'https://balanceclip.net/privacidad/'
           },
           action: {
             buttons: [
