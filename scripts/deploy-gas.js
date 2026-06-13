@@ -130,6 +130,19 @@ async function deployCliente(scriptApi, cliente, repoRoot, otpConfig) {
   const rawFiles = readGasFiles(gasDir);
   if (rawFiles.length === 0) throw new Error(`Sin archivos .gs/.js en ${gasDir}`);
 
+  // El router incluye ContaFacil_Banco.gs del backend para procesar
+  // análisis de visitantes (modo DEMO, sin persistencia). El bridge
+  // _DemoBancoBridge.gs (ya en whatsapp-router/) provee los helpers
+  // que ese módulo necesita.
+  if (cliente.isRouter) {
+    const bancoFile = path.join(repoRoot, 'backend-gas', 'ContaFacil_Banco.gs');
+    if (fs.existsSync(bancoFile)) {
+      const source = fs.readFileSync(bancoFile, 'utf8');
+      rawFiles.push({ name: 'ContaFacil_Banco', type: 'SERVER_JS', source });
+      console.log(`  → Incluido backend-gas/ContaFacil_Banco.gs (demo mode)`);
+    }
+  }
+
   // 1. Leer config actual del GAS y re-inyectar — solo para clientes
   //    "normales". El router no tiene config_operaciones, así que skip.
   let files = rawFiles;
