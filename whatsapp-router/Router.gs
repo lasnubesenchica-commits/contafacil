@@ -193,11 +193,21 @@ function _routerForwardMensaje(msg, metadata) {
   var map = _routerGetClientsMap();
   var clientUrl = map[from];
 
-  // ── Número desconocido → ofrecer signup (con texto marketing + botones) ──
+  // ── Número desconocido: si manda un xlsx o ya está en sesión demo
+  //    activa → route al GAS demo. Si no, welcome con botones.
   if (!clientUrl) {
-    Logger.log('Numero no reconocido: ' + from);
-    _routerReplyDesconocido(from, token, phoneId);
-    return;
+    var demoUrl = props.getProperty('DEMO_CLIENT_URL');
+    var isXlsxDoc = (msg.type === 'document') && _routerEsXlsxAttachment(msg);
+    var hasDemoSession = _routerGetDemoSession(from);
+    if (demoUrl && (isXlsxDoc || hasDemoSession)) {
+      if (isXlsxDoc) _routerSetDemoSession(from);
+      clientUrl = demoUrl;
+      Logger.log('Visitor → DEMO GAS (xlsx=' + isXlsxDoc + ' session=' + !!hasDemoSession + ')');
+    } else {
+      Logger.log('Numero no reconocido: ' + _routerMaskPhone(from));
+      _routerReplyDesconocido(from, token, phoneId);
+      return;
+    }
   }
 
   // ── Interceptar respuestas interactivas del flujo de setup de email ──
@@ -1774,12 +1784,20 @@ function procesarEmailsAnalisisBanco() {
           skipped++;
           continue;
         }
-        // Phone → clientUrl
+        // Phone → clientUrl. Si no es cliente registrado, fallback al
+        // demo GAS (mismo flujo que WhatsApp xlsx para visitantes).
         var clientUrl = clientsMap[phone];
         if (!clientUrl) {
-          Logger.log('  ⏭ Phone ' + _routerMaskPhone(phone) + ' no tiene clientUrl en CLIENTS_MAP_JSON');
-          skipped++;
-          continue;
+          var demoUrlEmail = props.getProperty('DEMO_CLIENT_URL');
+          if (demoUrlEmail) {
+            clientUrl = demoUrlEmail;
+            _routerSetDemoSession(phone);  // marcar sesión por si después interactúa por WA
+            Logger.log('  ↪ Phone ' + _routerMaskPhone(phone) + ' → DEMO GAS (no registrado)');
+          } else {
+            Logger.log('  ⏭ Phone ' + _routerMaskPhone(phone) + ' no tiene clientUrl y no hay DEMO_CLIENT_URL');
+            skipped++;
+            continue;
+          }
         }
         // Primer xlsx del email
         var xlsxAtt = _routerPickXlsxAttachment(msg);
@@ -2024,6 +2042,50 @@ function _routerMaskEmail(e) {
   var domain = s.substring(at);
   var prefix = local.substring(0, Math.min(2, local.length));
   return prefix + '***' + domain;  // ej: "jo***@gmail.com"
+}
+
+// ──────────────────────────────────────────────────────────────────────
+//  Modo DEMO para visitantes (no registrados en CLIENTS_MAP_JSON).
+//  Cuando suben xlsx, ruteamos al GAS demo (Script Property DEMO_CLIENT_URL).
+//  La sesión vive 1h: durante ese tiempo, cualquier mensaje del visitor
+//  (drill, asesor IA, descargar PDF, etc.) sigue ruteándose al demo.
+//  Después de 1h, sin actividad nueva, vuelve al welcome.
+// ──────────────────────────────────────────────────────────────────────
+
+var _DEMO_SESSION_TTL_MS = 60 * 60 * 1000;  // 1h, alineado con cache TTL del banco
+
+function _routerGetDemoSession(from) {
+  var raw = PropertiesService.getScriptProperties().getProperty('demo_sess_' + from);
+  if (!raw) return null;
+  try {
+    var s = JSON.parse(raw);
+    if (!s.ts || (Date.now() - s.ts) > _DEMO_SESSION_TTL_MS) {
+      PropertiesService.getScriptProperties().deleteProperty('demo_sess_' + from);
+      return null;
+    }
+    return s;
+  } catch(e) { return null; }
+}
+
+function _routerSetDemoSession(from) {
+  PropertiesService.getScriptProperties().setProperty(
+    'demo_sess_' + from,
+    JSON.stringify({ ts: Date.now() })
+  );
+}
+
+// Detecta si un mensaje de tipo document es un xlsx/csv (mismos criterios
+// que _bancoEsEstadoDeCuenta del backend).
+function _routerEsXlsxAttachment(msg) {
+  if (!msg || msg.type !== 'document') return false;
+  var doc = msg.document || {};
+  var filename = String(doc.filename || '').toLowerCase();
+  var mime     = String(doc.mime_type || '').toLowerCase();
+  if (mime.indexOf('spreadsheetml') >= 0) return true;
+  if (mime.indexOf('ms-excel') >= 0)      return true;
+  if (mime === 'text/csv')                return true;
+  if (/\.(xlsx|xls|csv)$/.test(filename)) return true;
+  return false;
 }
 
 function _routerMaskPhone(p) {
