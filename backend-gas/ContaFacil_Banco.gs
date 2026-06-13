@@ -3123,6 +3123,11 @@ function _bancoBuildHTMLReporte(a) {
     ".footer{margin-top:28px;padding-top:14px;border-top:2px solid #fed7aa;font-size:11px;color:#6b7280;text-align:center;line-height:1.7;}" +
     ".footer a{color:#ea580c;text-decoration:none;font-weight:700;}" +
     ".footer strong{color:#1f2937;}" +
+    // Leyenda con definiciones de los indicadores del semáforo
+    ".legend-defs{margin-top:14px;padding:12px 14px;background:#f9fafb;border-radius:8px;font-size:11px;color:#374151;line-height:1.55;}" +
+    ".legend-defs .ld-item{padding:5px 0;}" +
+    ".legend-defs .ld-item b{color:#1f2937;}" +
+    ".legend-defs .ld-th{display:block;color:#6b7280;font-size:10px;margin-top:2px;}" +
     ".page-break{page-break-before:always;}"
   );
 
@@ -3184,7 +3189,23 @@ function _bancoBuildHTMLReporte(a) {
     }
     html += '</div>';
   }
-  html += '</div></div>';
+  html += '</div>';
+
+  // Leyenda: definiciones + rangos saludables para cada indicador.
+  // Va dentro de la misma .section para que no se separe del semáforo
+  // por un page-break.
+  html += '<div class="legend-defs">' +
+    '<div class="ld-item"><b>Ahorro</b>: porcentaje del ingreso que no gastaste. ' +
+      '<span class="ld-th">🟢 ≥15% · 🟡 5–14% · 🔴 &lt;5%</span></div>' +
+    '<div class="ld-item"><b>Concentración</b>: qué porcentaje de tus gastos se va a tu categoría de consumo más grande. ' +
+      'Alta concentración = depender mucho de una sola fuente. ' +
+      '<span class="ld-th">🟢 &lt;25% · 🟡 25–39% · 🔴 ≥40%</span></div>' +
+    '<div class="ld-item"><b>Tendencia</b>: si tu saldo bancario subió o bajó en el período analizado. ' +
+      '<span class="ld-th">🟢 subió · 🟡 estable · 🔴 bajó</span></div>' +
+    '<div class="ld-item"><b>Runway</b>: cuántos días podrías seguir viviendo con tu saldo actual al ritmo de gasto promedio (sin nuevos ingresos). ' +
+      'Es tu colchón de emergencia. ' +
+      '<span class="ld-th">🟢 ≥30 días · 🟡 15–29 · 🔴 &lt;15</span></div>' +
+    '</div></div>';
 
   // ── HALLAZGOS ──
   if (hallazgos.length) {
