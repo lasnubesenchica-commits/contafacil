@@ -194,20 +194,21 @@ function _routerForwardMensaje(msg, metadata) {
   var clientUrl = map[from];
 
   // ── Número desconocido: si manda un xlsx o ya está en sesión demo
-  //    activa → route al GAS demo. Si no, welcome con botones.
+  //    activa → procesar INLINE como demo (sin HTTP roundtrip).
+  //    El módulo ContaFacil_Banco está incluido en este proyecto y
+  //    detecta IS_DEMO=true para skip persistencia.
   if (!clientUrl) {
-    var demoUrl = props.getProperty('DEMO_CLIENT_URL');
     var isXlsxDoc = (msg.type === 'document') && _routerEsXlsxAttachment(msg);
     var hasDemoSession = _routerGetDemoSession(from);
-    if (demoUrl && (isXlsxDoc || hasDemoSession)) {
+    if (isXlsxDoc || hasDemoSession) {
       if (isXlsxDoc) _routerSetDemoSession(from);
-      clientUrl = demoUrl;
-      Logger.log('Visitor → DEMO GAS (xlsx=' + isXlsxDoc + ' session=' + !!hasDemoSession + ')');
-    } else {
-      Logger.log('Numero no reconocido: ' + _routerMaskPhone(from));
-      _routerReplyDesconocido(from, token, phoneId);
+      Logger.log('Visitor → DEMO inline (xlsx=' + isXlsxDoc + ' session=' + !!hasDemoSession + ')');
+      _routerHandleVisitorInline(msg, from, token, phoneId);
       return;
     }
+    Logger.log('Numero no reconocido: ' + _routerMaskPhone(from));
+    _routerReplyDesconocido(from, token, phoneId);
+    return;
   }
 
   // ── Interceptar respuestas interactivas del flujo de setup de email ──
@@ -1784,43 +1785,50 @@ function procesarEmailsAnalisisBanco() {
           skipped++;
           continue;
         }
-        // Phone → clientUrl. Si no es cliente registrado, fallback al
-        // demo GAS (mismo flujo que WhatsApp xlsx para visitantes).
+        // Phone → clientUrl. Si NO es cliente registrado, procesar
+        // INLINE como visitante (modo demo, sin persistencia).
         var clientUrl = clientsMap[phone];
-        if (!clientUrl) {
-          var demoUrlEmail = props.getProperty('DEMO_CLIENT_URL');
-          if (demoUrlEmail) {
-            clientUrl = demoUrlEmail;
-            _routerSetDemoSession(phone);  // marcar sesión por si después interactúa por WA
-            Logger.log('  ↪ Phone ' + _routerMaskPhone(phone) + ' → DEMO GAS (no registrado)');
-          } else {
-            Logger.log('  ⏭ Phone ' + _routerMaskPhone(phone) + ' no tiene clientUrl y no hay DEMO_CLIENT_URL');
-            skipped++;
-            continue;
-          }
-        }
-        // Primer xlsx del email
+        var isVisitor = !clientUrl;
+        if (isVisitor) _routerSetDemoSession(phone);
+
+        // Extraer el xlsx
         var xlsxAtt = _routerPickXlsxAttachment(msg);
         if (!xlsxAtt) {
           Logger.log('  ⏭ Email de ' + _routerMaskEmail(senderEmail) + ' sin adjunto xlsx');
           if (token && phoneId) {
             _routerSendText(phone,
               '📧 Recibí un email tuyo en analisis@balanceclip.net pero no encontré un .xlsx adjunto. ' +
-              'Asegurate de adjuntar el estado de cuenta exportado desde Banca en Línea.',
+              'Asegúrate de adjuntar el estado de cuenta exportado desde Banca en Línea.',
               token, phoneId);
           }
           hitInThread = true;
           skipped++;
           continue;
         }
-        // Forward al client GAS
-        var ok = _routerForwardBancoEmail(clientUrl, phone, xlsxAtt);
-        if (ok) {
-          processed++;
-          hitInThread = true;
-          Logger.log('  ✓ Forwarded a clientGAS para phone=' + _routerMaskPhone(phone));
+
+        if (isVisitor) {
+          // Procesamiento inline (sin HTTP) usando el módulo banco
+          // incluido en este proyecto (modo DEMO).
+          try {
+            var blob = xlsxAtt.copyBlob();
+            blob.setName(xlsxAtt.getName() || 'estado-de-cuenta.xlsx');
+            _bancoProcesarMovimientos(blob, blob.getName(), phone, token, phoneId);
+            processed++;
+            hitInThread = true;
+            Logger.log('  ✓ Procesado inline (demo) para phone=' + _routerMaskPhone(phone));
+          } catch(errInline) {
+            Logger.log('  ✗ Procesamiento inline falló: ' + errInline.message);
+          }
         } else {
-          Logger.log('  ✗ Forward falló para phone=' + phone);
+          // Cliente registrado: forward por HTTP al client GAS
+          var ok = _routerForwardBancoEmail(clientUrl, phone, xlsxAtt);
+          if (ok) {
+            processed++;
+            hitInThread = true;
+            Logger.log('  ✓ Forwarded a clientGAS para phone=' + _routerMaskPhone(phone));
+          } else {
+            Logger.log('  ✗ Forward falló para phone=' + _routerMaskPhone(phone));
+          }
         }
       } catch(err) {
         Logger.log('  ❌ Error procesando mensaje: ' + err.message);
@@ -2046,10 +2054,12 @@ function _routerMaskEmail(e) {
 
 // ──────────────────────────────────────────────────────────────────────
 //  Modo DEMO para visitantes (no registrados en CLIENTS_MAP_JSON).
-//  Cuando suben xlsx, ruteamos al GAS demo (Script Property DEMO_CLIENT_URL).
-//  La sesión vive 1h: durante ese tiempo, cualquier mensaje del visitor
-//  (drill, asesor IA, descargar PDF, etc.) sigue ruteándose al demo.
-//  Después de 1h, sin actividad nueva, vuelve al welcome.
+//  El router mismo procesa el xlsx inline (sin HTTP a otro GAS) usando
+//  el módulo ContaFacil_Banco.gs que se incluye en el deploy del router.
+//  Requiere Script Property IS_DEMO=true en el router para que el banco
+//  skip la persistencia (no hay Banco_Historico para visitantes).
+//  La sesión vive 1h: durante ese tiempo cualquier mensaje del visitor
+//  (drill, asesor IA, descargas) se procesa inline.
 // ──────────────────────────────────────────────────────────────────────
 
 var _DEMO_SESSION_TTL_MS = 60 * 60 * 1000;  // 1h, alineado con cache TTL del banco
@@ -2086,6 +2096,60 @@ function _routerEsXlsxAttachment(msg) {
   if (mime === 'text/csv')                return true;
   if (/\.(xlsx|xls|csv)$/.test(filename)) return true;
   return false;
+}
+
+// Procesa un mensaje de visitante INLINE (demo). Llama directo a las
+// funciones del módulo banco que está incluido en este proyecto.
+//   - xlsx → _bancoProcesarMovimientos (parsear, clasificar, cachear,
+//     responder con análisis + menú)
+//   - texto en sesión demo → drill, asesor, descargas (excel/PDF)
+//   - interactive (botones del menú post-análisis) → drill/exports
+function _routerHandleVisitorInline(msg, from, token, phoneId) {
+  try {
+    var tipo = msg.type;
+    if (tipo === 'document' && _routerEsXlsxAttachment(msg)) {
+      var doc = msg.document || {};
+      var mediaId = doc.id;
+      var filename = doc.filename || 'estado-de-cuenta.xlsx';
+      if (!mediaId) { Logger.log('Visitor doc sin media_id'); return; }
+      var blob = _whatsappDescargarMedia(mediaId, token);
+      _bancoProcesarMovimientos(blob, filename, from, token, phoneId);
+      return;
+    }
+    if (tipo === 'text') {
+      var body = (msg.text && msg.text.body) || '';
+      // Asesor IA (pregunta natural) ó drill por texto ("ver comida",
+      // "excel", "pdf"). Ambos viven en ContaFacil_Banco.gs.
+      if (_bancoEsPreguntaAsesor && _bancoEsPreguntaAsesor(body)) {
+        if (_bancoHandleAsesor(body, from, token, phoneId)) return;
+      }
+      var drill = _bancoDrillIntent(body);
+      if (drill) { _bancoHandleDrill(drill, from, token, phoneId); return; }
+      // Texto no reconocido durante sesión: respuesta simple
+      _routerSendText(from,
+        '🤔 No entendí. Probá comandos como _"ver comida"_, _"excel"_, _"pdf"_, ' +
+        'o pregúntame algo como _"¿cuánto gasté en mayo?"_',
+        token, phoneId);
+      return;
+    }
+    if (tipo === 'interactive') {
+      // Botones del menú post-análisis: wa:bdrill:cat:X / mes:Y / excel / pdf
+      var ia = msg.interactive || {};
+      var bid = (ia.list_reply && ia.list_reply.id) || (ia.button_reply && ia.button_reply.id) || '';
+      if (bid.indexOf('wa:bdrill:') === 0) {
+        var parts = bid.split(':').slice(2);
+        _bancoHandleDrillBoton(parts, from, token, phoneId);
+        return;
+      }
+      Logger.log('Visitor interactive sin handler: ' + bid);
+      return;
+    }
+  } catch(err) {
+    Logger.log('Visitor inline ERROR: ' + err.message + ' ' + (err.stack || ''));
+    _routerSendText(from,
+      '⚠️ Hubo un error procesando tu archivo. Intentá nuevamente o escríbeme *ayuda*.',
+      token, phoneId);
+  }
 }
 
 function _routerMaskPhone(p) {
