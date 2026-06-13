@@ -98,3 +98,73 @@ function _whatsappDescargarMedia(mediaId, token) {
   }
   return r2.getBlob();
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  DOCTOR — verifica permisos del router
+//  ──────────────────────────────────────────────────────────────────
+//  Ejecutar UNA VEZ desde el editor de Apps Script del router después
+//  de cada deploy que agregue scopes nuevos. Toca todos los servicios
+//  que el router usa para que Apps Script dispare el OAuth dialog
+//  con TODOS los permisos a aprobar en una sola pasada.
+//
+//  Reporta OK/FAIL por servicio en el Log (View → Executions o Ctrl+Enter).
+//  Si algo marca FAIL, el mensaje incluye el error exacto.
+// ════════════════════════════════════════════════════════════════════
+
+function _routerVerificarPermisos() {
+  var results = [];
+  var addOK   = function(s) { results.push('✓ ' + s); Logger.log('✓ ' + s); };
+  var addFail = function(s, e) { var m = '✗ ' + s + ' — ' + (e && e.message ? e.message : e); results.push(m); Logger.log(m); };
+
+  // 1. PropertiesService
+  try { PropertiesService.getScriptProperties().getKeys(); addOK('PropertiesService'); }
+  catch(e) { addFail('PropertiesService', e); }
+
+  // 2. UrlFetchApp (ping a graph.facebook.com sin body, expect 4xx OK)
+  try { UrlFetchApp.fetch('https://graph.facebook.com', { muteHttpExceptions: true }); addOK('UrlFetchApp (HTTP externo)'); }
+  catch(e) { addFail('UrlFetchApp', e); }
+
+  // 3. GmailApp — listar labels (no consume cuota material)
+  try { GmailApp.getUserLabels().length; addOK('GmailApp (read inbox/labels)'); }
+  catch(e) { addFail('GmailApp', e); }
+
+  // 4. Advanced Gmail Service — needed for delete permanente
+  try {
+    if (typeof Gmail === 'undefined' || !Gmail || !Gmail.Users || !Gmail.Users.Labels) {
+      throw new Error('Gmail advanced service NO habilitado (revisar appsscript.json dependencies)');
+    }
+    Gmail.Users.Labels.list('me');
+    addOK('Gmail Advanced (delete permanente)');
+  } catch(e) { addFail('Gmail Advanced', e); }
+
+  // 5. ScriptApp — leer triggers existentes
+  try { ScriptApp.getProjectTriggers().length; addOK('ScriptApp (triggers)'); }
+  catch(e) { addFail('ScriptApp', e); }
+
+  // 6. CacheService — set + get + remove
+  try {
+    var c = CacheService.getScriptCache();
+    c.put('_doctor_ping', '1', 60);
+    if (c.get('_doctor_ping') !== '1') throw new Error('get devolvió valor inesperado');
+    c.remove('_doctor_ping');
+    addOK('CacheService');
+  } catch(e) { addFail('CacheService', e); }
+
+  // 7. SpreadsheetApp + DriveApp (genera + trashes un sheet temp tipo el Excel export)
+  try {
+    var ss = SpreadsheetApp.create('_doctor_ping_' + Date.now());
+    var id = ss.getId();
+    DriveApp.getFileById(id).setTrashed(true);
+    addOK('SpreadsheetApp + DriveApp (Excel export)');
+  } catch(e) { addFail('SpreadsheetApp + DriveApp', e); }
+
+  // 8. Properties IS_DEMO check (informativo, no es permiso)
+  var isDemo = PropertiesService.getScriptProperties().getProperty('IS_DEMO');
+  if (isDemo === 'true') addOK('IS_DEMO = true (modo demo activo para visitantes)');
+  else addFail('IS_DEMO no configurado', new Error('Falta Script Property: IS_DEMO=true'));
+
+  Logger.log('\n──────────── RESUMEN ────────────');
+  results.forEach(function(r) { Logger.log(r); });
+  return results;
+}
+
