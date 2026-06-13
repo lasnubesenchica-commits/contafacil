@@ -92,16 +92,21 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
   var analisis = _bancoAnalizar(movs, categorias);
 
   // Persistir aggregates por mes + cargar historial previo para deltas.
-  // Privacy: solo guardamos totales mensuales agregados (totales por cat
-  // como JSON), nunca movimientos individuales. Idempotente: re-subir
-  // el mismo período sobreescribe sus rows.
+  // Privacy: solo guardamos totales mensuales agregados, nunca movs
+  // individuales. Idempotente: re-subir el mismo período sobreescribe.
+  // En modo DEMO (visitantes no registrados), NO persistimos nada —
+  // cumple Ley 81 Art. 5 (minimización) y la policy pública.
   var historial = [];
-  try {
-    _bancoPersistirMensual(from, movs, categorias);
-    historial = _bancoLeerHistorial(from);
-    Logger.log('Banco historial: ' + historial.length + ' meses para phone=' + from);
-  } catch(err) {
-    Logger.log('Banco historial error: ' + err.message + ' stack=' + (err.stack || ''));
+  if (!_bancoEsDemo()) {
+    try {
+      _bancoPersistirMensual(from, movs, categorias);
+      historial = _bancoLeerHistorial(from);
+      Logger.log('Banco historial: ' + historial.length + ' meses para phone=' + from);
+    } catch(err) {
+      Logger.log('Banco historial error: ' + err.message + ' stack=' + (err.stack || ''));
+    }
+  } else {
+    Logger.log('Banco DEMO: persistencia + historial skipped para visitor');
   }
   analisis.historial = historial;
 
@@ -774,6 +779,15 @@ function _bancoComputarOportunidad(suscripciones, nPequenos, sumaPequenos, dias,
 
 function _bancoFmtDolar(n) { return '$' + (isFinite(n) ? Number(n).toFixed(2) : '0.00'); }
 
+// Si está en modo DEMO (visitantes no registrados): saltamos persistencia,
+// agregamos un banner de "registrate" al cierre del análisis. Activa via
+// Script Property IS_DEMO = "true" en el GAS dedicado a visitantes.
+function _bancoEsDemo() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty('IS_DEMO') === 'true';
+  } catch(e) { return false; }
+}
+
 function _bancoCatLabel(c) {
   var L = {
     comida: '🍽 Comida', transporte: '🚗 Transporte', telco: '📱 Telco',
@@ -864,6 +878,17 @@ function _bancoFormatearMensaje(a) {
   m2 += '📥 _Descarga el *Reporte PDF* o el *Excel* desde el menú para ' +
         'ver la matriz destinatario × mes, el semáforo de salud financiera ' +
         'y todos los insights accionables._';
+
+  // Banner solo para visitantes (modo DEMO): explica la limitación de
+  // no-historial y los invita a registrarse para guardar evolución.
+  if (_bancoEsDemo()) {
+    m2 += '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    m2 += '🎁 *Estás en modo demo*\n';
+    m2 += 'Tu data NO se guarda — el análisis es solo para esta sesión. ' +
+          'Si quieres mantener histórico mes a mes (tendencias, evolución, ' +
+          'benchmarks), registrate con la prueba *gratis 7 días*. ' +
+          'Escribe *demo* para empezar.';
+  }
 
   return [m1.substring(0, 4000), m2.substring(0, 4000)];
 }
