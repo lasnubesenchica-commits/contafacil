@@ -3625,3 +3625,70 @@ function _bancoPDFComputarPasos(a, ahorro) {
 function _bancoEscapeHTML(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  PURGA DE HISTORIAL (Banco_Historico) — retención 24 meses
+//  ──────────────────────────────────────────────────────────────────
+//  Cumple la política de privacidad pública:
+//    "Agregados mensuales … Hasta 24 meses, exclusivamente para
+//     mostrarte evolución y tendencias en tus análisis posteriores."
+//
+//  Borra filas cuya year_month es anterior a (hoy − 24 meses). Hace
+//  delete real de las rows del sheet (no anonimización), porque la
+//  columna `phone` es PII identificable.
+//
+//  Trigger: mensual el primer día (instalar con
+//  _installPurgaHistorialTrigger desde el editor).
+// ════════════════════════════════════════════════════════════════════
+
+function purgarBancoHistorialAntiguo() {
+  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  var sh = ss.getSheetByName(_BANCO_SHEET);
+  if (!sh) { Logger.log('Purga historial: sheet no existe'); return { borradas: 0 }; }
+  var last = sh.getLastRow();
+  if (last < 2) { Logger.log('Purga historial: sin filas'); return { borradas: 0 }; }
+
+  // Cutoff: hoy menos 24 meses. Comparamos como string "YYYY-MM" porque
+  // así están guardados los year_month.
+  var hoy = new Date();
+  var cutoffDate = new Date(hoy.getFullYear(), hoy.getMonth() - 24, 1);
+  var cutoff = Utilities.formatDate(cutoffDate, 'America/Panama', 'yyyy-MM');
+
+  // Leer columna B (year_month) de todas las filas
+  var values = sh.getRange(2, 1, last - 1, 2).getValues();
+  var toDelete = [];   // rows 2-based a borrar
+  for (var i = 0; i < values.length; i++) {
+    var ym = _bancoNormalizarYM(values[i][1]);
+    if (!ym) continue;
+    if (ym < cutoff) toDelete.push(i + 2);  // +2 = 1 por header + 1 por base
+  }
+
+  // Borrar de abajo hacia arriba para no shiftear índices
+  toDelete.sort(function(a, b) { return b - a; });
+  toDelete.forEach(function(rowNum) {
+    sh.deleteRow(rowNum);
+  });
+
+  Logger.log('🧹 Purga Banco_Historico: ' + toDelete.length +
+             ' filas borradas (cutoff ' + cutoff + ')');
+  return { borradas: toDelete.length, cutoff: cutoff };
+}
+
+// Instalador del trigger mensual. Ejecutar UNA VEZ desde el editor de
+// cada cliente GAS (es per-client porque cada cliente tiene su propio
+// Banco_Historico en su spreadsheet).
+function _installPurgaHistorialTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'purgarBancoHistorialAntiguo') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  // Mensual, día 1, a las 3 AM hora Panamá
+  ScriptApp.newTrigger('purgarBancoHistorialAntiguo')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(3)
+    .create();
+  Logger.log('✓ Trigger instalado: purgarBancoHistorialAntiguo mensual día 1 @ 3 AM');
+}
