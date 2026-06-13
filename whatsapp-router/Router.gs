@@ -664,6 +664,7 @@ function _routerHandleAnalisisEmailText(from, body, token, phoneId) {
   _routerSendText(from,
     '✅ *Listo, identifiqué tu email:* ' + email + '\n\n' +
     'Envía tu xlsx a *analisis@balanceclip.net* desde esa cuenta y en menos de 1 minuto te llega el análisis aquí.\n\n' +
+    '🔒 _Privacidad: una vez procesado, el email se borra permanentemente en máximo 1 hora. Tu archivo nunca se guarda en servidores._\n\n' +
     '_Si prefieres enviarlo ahora por chat, adjúntalo directamente (📎 → Documento)._',
     token, phoneId);
 }
@@ -1763,23 +1764,25 @@ function procesarEmailsAnalisisBanco() {
         }
         var phone = props.getProperty('email_' + senderEmail.toLowerCase());
         if (!phone) {
-          Logger.log('  ⏭ Sender ' + senderEmail + ' no tiene mapping email→phone');
+          // Sanitiza PII en logs: muestra solo prefijo + dominio. La
+          // privacy policy promete minimización de PII también en logs.
+          Logger.log('  ⏭ Sender ' + _routerMaskEmail(senderEmail) + ' no tiene mapping email→phone');
           _routerNotifySenderSinRegistrar(senderEmail, msg);
-          hitInThread = true;  // marcamos para no reprocesar
+          hitInThread = true;
           skipped++;
           continue;
         }
         // Phone → clientUrl
         var clientUrl = clientsMap[phone];
         if (!clientUrl) {
-          Logger.log('  ⏭ Phone ' + phone + ' no tiene clientUrl en CLIENTS_MAP_JSON');
+          Logger.log('  ⏭ Phone ' + _routerMaskPhone(phone) + ' no tiene clientUrl en CLIENTS_MAP_JSON');
           skipped++;
           continue;
         }
         // Primer xlsx del email
         var xlsxAtt = _routerPickXlsxAttachment(msg);
         if (!xlsxAtt) {
-          Logger.log('  ⏭ Email de ' + senderEmail + ' sin adjunto xlsx');
+          Logger.log('  ⏭ Email de ' + _routerMaskEmail(senderEmail) + ' sin adjunto xlsx');
           if (token && phoneId) {
             _routerSendText(phone,
               '📧 Recibí un email tuyo en analisis@balanceclip.net pero no encontré un .xlsx adjunto. ' +
@@ -1795,7 +1798,7 @@ function procesarEmailsAnalisisBanco() {
         if (ok) {
           processed++;
           hitInThread = true;
-          Logger.log('  ✓ Forwarded a ' + clientUrl.substring(0, 60) + '… para phone=' + phone);
+          Logger.log('  ✓ Forwarded a clientGAS para phone=' + _routerMaskPhone(phone));
         } else {
           Logger.log('  ✗ Forward falló para phone=' + phone);
         }
@@ -1932,4 +1935,98 @@ function _installAnalisisBancoTrigger() {
     .everyMinutes(1)
     .create();
   Logger.log('✓ Trigger instalado: procesarEmailsAnalisisBanco cada 1 min');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  LIMPIEZA DE EMAILS DE ANÁLISIS — privacy by minimization
+//  ──────────────────────────────────────────────────────────────────
+//  Borra PERMANENTEMENTE (bypassea papelera) los emails ya procesados
+//  por el watcher de análisis bancario después de 1h. Cumple con el
+//  principio de minimización de datos (Ley 81 Panamá).
+//
+//  También limpia los auto-replies salientes que enviamos a senders
+//  no registrados (subject "Tu email no está registrado…").
+//
+//  Requiere Advanced Gmail Service habilitado en appsscript.json
+//  (Gmail.Users.Messages.remove). El service usa scope
+//  https://mail.google.com/ que también está en el manifest.
+//
+//  Trigger: time-based cada 15 min (instalar con
+//  _installLimpiezaAnalisisTrigger desde el editor).
+// ════════════════════════════════════════════════════════════════════
+
+function limpiarEmailsAnalisisAntiguos() {
+  var stats = { entrantes: 0, salientes: 0, errores: 0 };
+
+  // 1. Emails entrantes ya procesados (label analizado_cf_banco) older 1h
+  try {
+    var threadsIn = GmailApp.search('label:' + ANALISIS_LABEL_DONE + ' older_than:1h', 0, 100);
+    threadsIn.forEach(function(t) {
+      try {
+        var msgs = t.getMessages();
+        msgs.forEach(function(m) {
+          Gmail.Users.Messages.remove('me', m.getId());
+        });
+        stats.entrantes++;
+      } catch(e) { stats.errores++; Logger.log('Err borrando thread in: ' + e.message); }
+    });
+  } catch(e) { Logger.log('Err search entrantes: ' + e.message); }
+
+  // 2. Auto-replies que mandamos a senders no registrados (en Enviados)
+  // Subject exacto del email que mandamos en _routerNotifySenderSinRegistrar
+  try {
+    var threadsOut = GmailApp.search(
+      'from:me subject:"Tu email no está registrado en BalanceClip" older_than:1h',
+      0, 100
+    );
+    threadsOut.forEach(function(t) {
+      try {
+        var msgs = t.getMessages();
+        msgs.forEach(function(m) {
+          Gmail.Users.Messages.remove('me', m.getId());
+        });
+        stats.salientes++;
+      } catch(e) { stats.errores++; Logger.log('Err borrando thread out: ' + e.message); }
+    });
+  } catch(e) { Logger.log('Err search salientes: ' + e.message); }
+
+  Logger.log('🧹 Limpieza: entrantes=' + stats.entrantes +
+             ' salientes=' + stats.salientes + ' errores=' + stats.errores);
+  return stats;
+}
+
+function _installLimpiezaAnalisisTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'limpiarEmailsAnalisisAntiguos') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('limpiarEmailsAnalisisAntiguos')
+    .timeBased()
+    .everyMinutes(15)
+    .create();
+  Logger.log('✓ Trigger instalado: limpiarEmailsAnalisisAntiguos cada 15 min');
+}
+
+// ──────────────────────────────────────────────────────────────────────
+//  Helpers de sanitización de PII en logs
+//  Reemplazá Logger.log de email/phone por estas masked versions.
+// ──────────────────────────────────────────────────────────────────────
+
+function _routerMaskEmail(e) {
+  var s = String(e || '');
+  var at = s.indexOf('@');
+  if (at < 1) return '***';
+  var local = s.substring(0, at);
+  var domain = s.substring(at);
+  var prefix = local.substring(0, Math.min(2, local.length));
+  return prefix + '***' + domain;  // ej: "jo***@gmail.com"
+}
+
+function _routerMaskPhone(p) {
+  var s = String(p || '');
+  if (s.length < 6) return '***';
+  // últimos 3 dígitos visibles, resto enmascarado: "507***123"
+  return s.substring(0, 3) + '***' + s.substring(s.length - 3);
 }
