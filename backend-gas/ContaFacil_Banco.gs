@@ -3128,6 +3128,12 @@ function _bancoBuildHTMLReporte(a) {
     ".legend-defs .ld-item{padding:5px 0;}" +
     ".legend-defs .ld-item b{color:#1f2937;}" +
     ".legend-defs .ld-th{display:block;color:#6b7280;font-size:10px;margin-top:2px;}" +
+    // PORTADA — primera página con título grande centrado + hero
+    ".cover-page{min-height:180mm;}" +
+    ".cover-content{padding-top:42mm;text-align:center;}" +
+    ".cover-title{font-size:38px;font-weight:900;color:#1f2937;letter-spacing:-1.5px;margin:0 0 6px;line-height:1.1;}" +
+    ".cover-subtitle{font-size:12px;color:#6b7280;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;margin-bottom:30px;}" +
+    ".cover-content .hero{margin-bottom:0;text-align:left;}" +
     ".page-break{page-break-before:always;}"
   );
 
@@ -3143,11 +3149,16 @@ function _bancoBuildHTMLReporte(a) {
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' + css + '</style></head><body>';
 
-  // ── HEADER ──
+  // ── PORTADA (Página 1): título grande + hero centrados verticalmente ──
+  html += '<div class="cover-page">';
   html += '<div class="header">' + logoSVG +
           '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
           '<div class="tagline">REPORTE EJECUTIVO BANCARIO</div></div>' +
           '<div class="meta">Generado<strong>' + hoy + '</strong></div></div>';
+
+  html += '<div class="cover-content">';
+  html += '<div class="cover-title">Reporte Bancario</div>';
+  html += '<div class="cover-subtitle">Análisis ejecutivo de tu cuenta</div>';
 
   // ── HERO ──
   html += '<div class="hero">';
@@ -3165,7 +3176,16 @@ function _bancoBuildHTMLReporte(a) {
     html += '<div class="saldo">' + fmt(a.totalIn - a.totalOut) + '</div>';
     html += '<div class="delta" style="color:#6b7280;">flujo neto del período</div>';
   }
-  html += '</div>';
+  html += '</div>';  // .hero
+  html += '</div>';  // .cover-content
+  html += '</div>';  // .cover-page
+  html += '<div class="page-break"></div>';
+
+  // ── PÁGINA 2: Header + Flujo + Semáforo + Hallazgos ──
+  html += '<div class="header">' + logoSVG +
+          '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
+          '<div class="tagline">REPORTE · RESUMEN EJECUTIVO</div></div>' +
+          '<div class="meta">Página<strong>2 de 4</strong></div></div>';
 
   // ── FLUJO (3 cards grandes en una fila) ──
   html += '<div class="section"><h2>Flujo del período</h2><div class="cards-3">';
@@ -3222,7 +3242,7 @@ function _bancoBuildHTMLReporte(a) {
   html += '<div class="header">' + logoSVG +
           '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
           '<div class="tagline">REPORTE · CATEGORÍAS Y PATRONES</div></div>' +
-          '<div class="meta">Página<strong>2 de 3</strong></div></div>';
+          '<div class="meta">Página<strong>3 de 4</strong></div></div>';
 
   // ── TOP CATEGORÍAS: donut chart + leyenda ──
   if (a.topCats && a.topCats.length) {
@@ -3319,7 +3339,7 @@ function _bancoBuildHTMLReporte(a) {
   html += '<div class="header">' + logoSVG +
           '<div><div class="brand">Balance<span class="bc">Clip</span></div>' +
           '<div class="tagline">REPORTE · ACCIONES Y DEDUCIBLES</div></div>' +
-          '<div class="meta">Página<strong>3 de 3</strong></div></div>';
+          '<div class="meta">Página<strong>4 de 4</strong></div></div>';
 
   if (a.form90 && a.form90.length) {
     html += '<div class="section"><h2>Deducibles Form 90 (DGI Panamá)</h2>';
