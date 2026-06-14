@@ -163,6 +163,17 @@ function _routerVerificarPermisos() {
   if (isDemo === 'true') addOK('IS_DEMO = true (modo demo activo para visitantes)');
   else addFail('IS_DEMO no configurado', new Error('Falta Script Property: IS_DEMO=true'));
 
+  // 9. CLAUDE_API_KEY — necesaria para clasificación de movs (Haiku)
+  //    y asesor financiero (Sonnet). Sin esto, todas las transacciones
+  //    caen a categoría "otro" y el asesor no responde.
+  var claudeKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (claudeKey && claudeKey.length > 20) {
+    addOK('CLAUDE_API_KEY configurada (' + claudeKey.substring(0, 7) + '…)');
+  } else {
+    addFail('CLAUDE_API_KEY no configurada',
+            new Error('Falta Script Property: CLAUDE_API_KEY. Sin ella, los movs no se clasifican (todo "otro") y el asesor no responde.'));
+  }
+
   Logger.log('\n──────────── RESUMEN ────────────');
   results.forEach(function(r) { Logger.log(r); });
   return results;
