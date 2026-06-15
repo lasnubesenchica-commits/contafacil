@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seppelec — Flujo CxC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --orange:#E05A00; --orange2:#CC5200;
+  --bg:#F5F5F7; --bg2:#EBEBED; --bg3:#E0E0E3;
+  --border:rgba(0,0,0,0.09);
+  --text:#0A0A0A; --muted:#6C6C70; --chrome:#AEAEB2; --white:#FFFFFF;
+  /* status palette */
+  --azul:#1565C0; --azul-bg:#E3F2FD;
+  --verde:#1B7A33; --verde-bg:#E3F6E8;          /* pagado */
+  --rojo:#D32F2F; --rojo-bg:#FDE7E7;            /* por cobrar (dentro de 60d) */
+  --rojoosc:#7A0C0C; --rojoosc-bg:#F6D6D6;      /* outstanding > 60d (vencido) */
+  --gris:#6C6C70; --gris-bg:#ECECEE;            /* orden de compra sin facturar */
+  --amar:#9A6A00; --amar-bg:#FFF6DB;            /* abono parcial */
+  --r:8px; --r2:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:4rem}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select{font-family:inherit}
+
+/* ── HEADER ── */
+.topbar{
+  position:sticky;top:0;z-index:50;background:rgba(245,245,247,.92);
+  backdrop-filter:blur(20px);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.7rem 1.5rem;gap:1rem;flex-wrap:wrap;
+}
+.brand{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.06em;line-height:1}
+.brand span{color:var(--orange)}
+.brand small{display:block;font-family:'DM Sans';font-size:.62rem;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.topbar-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;font-weight:600;
+  border:1px solid var(--border);background:var(--white);color:var(--text);
+  border-radius:100px;padding:.45rem .9rem;transition:all .15s;
+}
+.btn:hover{border-color:var(--orange);color:var(--orange)}
+.btn.primary{background:var(--orange);color:#fff;border-color:var(--orange)}
+.btn.primary:hover{background:var(--orange2);color:#fff}
+.btn.ghost{background:transparent}
+.sync{display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;color:var(--muted);
+  background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:.35rem .7rem;white-space:nowrap}
+.sync.ok{color:var(--verde);background:var(--verde-bg);border-color:rgba(27,122,51,.25)}
+.sync.saving{color:var(--orange);background:#FBEEE4;border-color:rgba(224,90,0,.25)}
+.sync.err{color:var(--rojoosc);background:var(--rojoosc-bg);border-color:rgba(122,12,12,.25)}
+.sync.local{color:var(--amar);background:var(--amar-bg);border-color:rgba(154,106,0,.25)}
+#lockBtn.editing{background:var(--verde-bg);color:var(--verde);border-color:rgba(27,122,51,.3)}
+body.readonly .edit-only{display:none!important}
+body.readonly .del-btn{display:none}
+/* modal */
+.modal{position:fixed;inset:0;z-index:300;background:rgba(10,10,10,.45);display:none;
+  align-items:center;justify-content:center;padding:1rem}
+.modal.show{display:flex}
+.modal-card{background:var(--white);border-radius:18px;padding:1.6rem;width:340px;
+  box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.modal-card h3{font-size:1rem;margin-bottom:.3rem}
+.modal-card p{font-size:.78rem;color:var(--muted);margin-bottom:1rem}
+.modal-card input{width:100%;border:1px solid var(--border);border-radius:var(--r);
+  padding:.7rem .9rem;font-size:.95rem;outline:none;margin-bottom:.6rem}
+.modal-card input:focus{border-color:var(--orange)}
+.modal-err{font-size:.74rem;color:var(--rojo);margin-bottom:.6rem;display:none}
+.modal-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.4rem}
+
+.wrap{max-width:1500px;margin:0 auto;padding:1.25rem 1.5rem}
+
+/* ── KPI CARDS ── */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;margin-bottom:1.25rem}
+.kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);padding:.9rem 1rem}
+.kpi .lbl{font-size:.64rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi .val{font-family:'DM Mono',monospace;font-size:1.35rem;font-weight:500;margin-top:.25rem;letter-spacing:-.01em}
+.kpi .sub{font-size:.66rem;color:var(--muted);margin-top:.15rem}
+.kpi.accent .val{color:var(--orange)}
+.kpi.rojo .val{color:var(--rojo)}
+.kpi.rojoosc .val{color:var(--rojoosc)}
+.kpi.verde .val{color:var(--verde)}
+.kpi.editable{cursor:pointer}
+.kpi.editable input{font-family:'DM Mono',monospace;font-size:1.2rem;width:100%;border:1px dashed var(--orange);
+  border-radius:6px;padding:.1rem .3rem;background:#fff}
+
+/* ── SECTION ── */
+.section{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);
+  margin-bottom:1.25rem;overflow:hidden}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:.9rem 1.1rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.section-head h2{font-size:.95rem;font-weight:700;letter-spacing:.01em}
+.section-head .hint{font-size:.72rem;color:var(--muted);font-weight:400}
+
+/* ── ORDERS TABLE ── */
+.tbl-scroll{overflow-x:auto}
+table.orders{width:100%;border-collapse:collapse;font-size:.8rem;min-width:840px}
+table.orders th{
+  text-align:left;font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);padding:.55rem .6rem;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--white);white-space:nowrap}
+table.orders td{padding:.35rem .6rem;border-bottom:1px solid var(--bg2);vertical-align:middle}
+table.orders tr:hover td{background:#FAFAFB}
+table.orders input,table.orders select{
+  width:100%;border:1px solid transparent;background:transparent;border-radius:6px;
+  padding:.3rem .4rem;font-size:.8rem;color:var(--text)}
+table.orders input:focus,table.orders select:focus{border-color:var(--orange);background:#fff;outline:none}
+table.orders input[type=date]{min-width:120px}
+table.orders .num input{font-family:'DM Mono',monospace;text-align:right}
+.col-amt{text-align:right;font-family:'DM Mono',monospace}
+.due{font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted);white-space:nowrap}
+.dias{font-family:'DM Mono',monospace;font-size:.72rem;font-weight:600;text-align:center;white-space:nowrap}
+.del-btn{color:var(--chrome);font-size:1rem;padding:.1rem .4rem;border-radius:6px;line-height:1}
+.del-btn:hover{color:var(--rojo);background:var(--rojoosc-bg)}
+
+/* status badge / select coloring */
+.st{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.03em;
+  padding:.2rem .5rem;border-radius:100px;white-space:nowrap}
+.st-orden{background:var(--gris-bg);color:var(--gris)}
+.st-facturado{background:var(--azul-bg);color:var(--azul)}
+.st-abonado{background:var(--amar-bg);color:var(--amar)}
+.st-pagado{background:var(--verde-bg);color:var(--verde)}
+.st-vencido{background:var(--rojoosc-bg);color:var(--rojoosc)}
+select.st-sel{border-radius:100px;font-weight:700;font-size:.7rem;padding:.25rem .5rem;border:1px solid var(--border)}
+
+/* ── CALENDAR MATRIX ── */
+.cal-scroll{overflow:auto;max-height:74vh}
+table.cal{border-collapse:separate;border-spacing:0;font-size:.7rem;white-space:nowrap}
+table.cal th,table.cal td{border-right:1px solid var(--bg2);border-bottom:1px solid var(--bg2);
+  padding:.3rem .45rem;text-align:right;font-family:'DM Mono',monospace}
+/* sticky label columns */
+table.cal .c-po{position:sticky;left:0;z-index:3;background:var(--white);text-align:left;
+  min-width:150px;max-width:150px;font-family:'DM Sans';font-weight:600;white-space:normal;line-height:1.15}
+table.cal .c-fac{position:sticky;left:150px;z-index:3;background:var(--white);text-align:left;
+  min-width:72px;font-family:'DM Sans';color:var(--muted);font-size:.66rem}
+table.cal thead th{position:sticky;top:0;z-index:4;background:#fff}
+table.cal thead .c-po{z-index:6}
+table.cal thead .c-fac{z-index:6}
+table.cal thead th.wk{min-width:62px;font-size:.6rem;color:var(--muted);font-weight:600;line-height:1.2}
+table.cal thead th.wk .d{font-weight:400;color:var(--chrome);font-size:.58rem}
+table.cal th.saldo,table.cal td.saldo{background:#FBF4EF;border-left:2px solid var(--orange);
+  min-width:78px;font-weight:600}
+table.cal thead th.saldo{color:var(--orange);font-size:.58rem}
+table.cal tbody tr:hover td:not(.saldo){background:#FAFAFB}
+
+/* month band */
+table.cal thead tr.mb th{font-family:'DM Sans';font-weight:700;font-size:.62rem;letter-spacing:.05em;
+  text-transform:uppercase;text-align:center;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:5;padding:.3rem}
+
+/* cell value chips */
+.v{display:inline-block;padding:.12rem .35rem;border-radius:5px;font-weight:500}
+.v-fact{background:var(--azul-bg);color:var(--azul)}
+.v-cobrar{background:var(--rojo-bg);color:var(--rojo);font-weight:600}
+.v-vencido{background:var(--rojoosc-bg);color:var(--rojoosc);font-weight:700}
+.v-pago{background:var(--verde-bg);color:var(--verde);font-weight:600}
+.v-orden{background:var(--gris-bg);color:var(--gris)}
+
+/* footer totals */
+table.cal tfoot td{font-family:'DM Mono',monospace;font-weight:600;background:#fff;
+  border-top:2px solid var(--border);position:sticky;bottom:0;z-index:2}
+table.cal tfoot td.c-po{z-index:4;font-family:'DM Sans';text-transform:uppercase;font-size:.62rem;
+  letter-spacing:.04em;color:var(--muted)}
+table.cal tfoot tr.r-saldo td{background:#FBF4EF;color:var(--orange)}
+table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:.4rem .9rem;padding:.7rem 1.1rem;border-top:1px solid var(--border);
+  font-size:.7rem;color:var(--muted);align-items:center}
+.legend b{font-weight:700;color:var(--text);margin-right:.2rem}
+.lg{display:inline-flex;align-items:center;gap:.35rem}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+.empty{padding:2rem;text-align:center;color:var(--muted);font-size:.85rem}
+.toast{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);background:#0A0A0A;color:#fff;
+  font-size:.8rem;padding:.6rem 1.1rem;border-radius:100px;opacity:0;transition:opacity .25s;z-index:200;pointer-events:none}
+.toast.show{opacity:1}
+@media(max-width:640px){.wrap{padding:1rem .75rem}.brand{font-size:1.25rem}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">SEPPELEC<span> · CxC</span>
+    <small id="negocio">Cuentas por cobrar y flujo de caja</small>
+  </div>
+  <div class="topbar-actions">
+    <span class="sync" id="sync" title="Estado de sincronización">●&nbsp;<span id="syncTxt">Conectando…</span></span>
+    <button class="btn" id="lockBtn" title="Modo edición">🔒 Solo lectura</button>
+    <button class="btn edit-only" id="addBtn">＋ Orden / Factura</button>
+    <button class="btn ghost edit-only" id="impBtn">Importar</button>
+    <button class="btn ghost" id="expBtn">Exportar</button>
+    <button class="btn ghost" id="csvBtn">CSV</button>
+    <input type="file" id="fileInput" accept="application/json" hidden>
+  </div>
+</div>
+<div id="cfgBanner" style="display:none;background:#FFF6DB;border-bottom:1px solid #E6Cf7a;color:#7A5A00;
+  font-size:.78rem;padding:.5rem 1.5rem">⚠️ Backend no configurado — trabajando en modo local. Define <code>GAS_URL</code> con el deployment de Seppelec para compartir con tus jefes.</div>
+
+<div class="wrap">
+
+  <!-- KPIs -->
+  <div class="kpis" id="kpis"></div>
+
+  <!-- ORDERS TABLE -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <h2>Órdenes de compra y facturas</h2>
+        <span class="hint">Registra el ciclo: Orden → Facturado → Abonado → Pagado. El vencimiento se calcula a 60 días de la fecha de factura.</span>
+      </div>
+    </div>
+    <div class="tbl-scroll">
+      <table class="orders" id="ordersTbl">
+        <thead><tr>
+          <th>Orden de compra</th><th>Factura</th><th>Fecha factura</th>
+          <th class="num">Monto</th><th>Estado</th><th>Fecha pago</th>
+          <th class="num">Abonado</th><th>Vence (60d)</th><th>Días</th><th></th>
+        </tr></thead>
+        <tbody id="ordersBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <h2>Calendario semanal · <span id="calYear"></span> · Semana 1 a 52</h2>
+        <span class="hint">El monto facturado aparece la semana de emisión (azul). La gestión de cobro se muestra en la semana del vencimiento a 60 días (rojo) sin afectar el saldo hasta registrar el pago.</span>
+      </div>
+    </div>
+    <div class="cal-scroll">
+      <table class="cal" id="calTbl"></table>
+    </div>
+    <div class="legend">
+      <b>Leyenda:</b>
+      <span class="lg"><span class="sw" style="background:var(--azul-bg);border:1px solid var(--azul)"></span>Facturado (emitida)</span>
+      <span class="lg"><span class="sw" style="background:var(--rojo-bg);border:1px solid var(--rojo)"></span>Por cobrar ≤ 60 días</span>
+      <span class="lg"><span class="sw" style="background:var(--rojoosc-bg);border:1px solid var(--rojoosc)"></span>Outstanding &gt; 60 días</span>
+      <span class="lg"><span class="sw" style="background:var(--verde-bg);border:1px solid var(--verde)"></span>Pagado</span>
+      <span class="lg"><span class="sw" style="background:var(--gris-bg);border:1px solid var(--gris)"></span>Orden sin facturar</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal" id="pwModal">
+  <div class="modal-card">
+    <h3 id="pwTitle">Desbloquear edición</h3>
+    <p id="pwHint">Ingresa la contraseña para editar. Los jefes pueden ver sin contraseña.</p>
+    <input type="password" id="pwInput" placeholder="Contraseña" autocomplete="current-password">
+    <div class="modal-err" id="pwErr"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="pwCancel">Cancelar</button>
+      <button class="btn primary" id="pwOk">Desbloquear</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================================================================
+   SEPPELEC · FLUJO CXC — Control de cuentas por cobrar y flujo de caja
+   Datos compartidos vía backend Google Apps Script (pestaña Flujo_CXC).
+   localStorage se usa sólo como caché offline. Así la usuaria edita y
+   sus jefes ven lo mismo abriendo el enlace.
+   Lógica:
+   - Vencimiento = Fecha de factura + 60 días (Reglas 1 y 2).
+   - El monto facturado se ubica en la semana de emisión (azul).
+   - El "por cobrar" se ubica en la semana del vencimiento (rojo / rojo
+     oscuro si ya pasó), como alerta de gestión de cobro (Regla 4) — NO
+     reduce el saldo del mes hasta que se registre un pago.
+   - El pago/abono se ubica en su semana (verde) y sí reduce el saldo.
+   - Saldo de fin de mes = Facturado acumulado − Pagado acumulado (Regla 3).
+   - El estado lo controla la usuaria (Regla 5).
+   =================================================================== */
+
+/* GAS_URL: URL /exec de la app web de Apps Script (seppelec/Codigo.gs).
+   Sistema STANDALONE — no depende de nada más. Si algún día se borra esta
+   implementación, repón aquí la nueva URL /exec.                       */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwr1ofTkPdvyscIULM0UErGmiZ6MTVl2xkm4wEqVdEvSbXXeI0vQJRhamdQnyk92-6B/exec';
+const BACKEND = /script\.google\.com\/macros\//.test(GAS_URL) && !/PENDIENTE/.test(GAS_URL);
+
+const LS_KEY = 'flujo_cxc_seppelec_v1';
+const PLAZO_DIAS = 60;
+const YEAR = 2026;
+const LINEA_DEFAULT = 70000;
+
+/* ---------- seed data (extraído del Excel del cliente) ---------- */
+const SEED = {
+  linea: LINEA_DEFAULT,
+  rows: [
+    {po:'4200001507-4200001866', inv:'F26069', fInv:'2026-02-23', monto:25003.47, estado:'pagado',  fPago:'2026-05-11', abonado:25003.47},
+    {po:'4200001885-4200001862', inv:'F26092', fInv:'2026-03-12', monto:4786.22,  estado:'pagado',  fPago:'2026-05-11', abonado:4786.22},
+    {po:'4200001894/4200001909/4200001974/4200002085/4200002183', inv:'F26155', fInv:'2026-04-07', monto:54626.78, estado:'pagado', fPago:'2026-05-18', abonado:54626.78},
+    {po:'4200002008', inv:'F26225', fInv:'2026-05-14', monto:28179.52, estado:'facturado', fPago:'', abonado:0},
+    {po:'4200002297', inv:'F26247', fInv:'2026-05-25', monto:11297.40, estado:'facturado', fPago:'', abonado:0},
+    {po:'4200002238', inv:'F26247', fInv:'2026-05-25', monto:1285.80,  estado:'facturado', fPago:'', abonado:0},
+    {po:'4200002304', inv:'F26247', fInv:'2026-05-25', monto:2407.60,  estado:'facturado', fPago:'', abonado:0},
+    {po:'4200002014', inv:'F26248', fInv:'2026-05-26', monto:24528.66, estado:'facturado', fPago:'', abonado:0},
+    {po:'4200002051', inv:'', fInv:'', monto:2301.02,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002051', inv:'', fInv:'', monto:5155.54,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200001981', inv:'', fInv:'', monto:7491.07,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002286', inv:'', fInv:'', monto:6696.30,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200001983', inv:'', fInv:'', monto:9607.69,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002053', inv:'', fInv:'', monto:15456.56, estado:'orden', fPago:'', abonado:0},
+    {po:'4200001955', inv:'', fInv:'', monto:24014.58, estado:'orden', fPago:'', abonado:0},
+    {po:'4200002056', inv:'', fInv:'', monto:10239.40, estado:'orden', fPago:'', abonado:0},
+    {po:'4200002071', inv:'', fInv:'', monto:13004.15, estado:'orden', fPago:'', abonado:0},
+    {po:'4200001864', inv:'', fInv:'', monto:8958.00,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002058', inv:'', fInv:'', monto:10033.38, estado:'orden', fPago:'', abonado:0},
+    {po:'4200002055', inv:'', fInv:'', monto:14564.31, estado:'orden', fPago:'', abonado:0},
+    {po:'4200002052', inv:'', fInv:'', monto:28325.64, estado:'orden', fPago:'', abonado:0},
+    {po:'4200002175', inv:'', fInv:'', monto:1616.78,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002357', inv:'', fInv:'', monto:537.02,   estado:'orden', fPago:'', abonado:0},
+    {po:'4200002382', inv:'', fInv:'', monto:17548.75, estado:'orden', fPago:'', abonado:0},
+    {po:'4200002518', inv:'', fInv:'', monto:20401.80, estado:'orden', fPago:'', abonado:0},
+    {po:'4200002601', inv:'', fInv:'', monto:2143.00,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002621', inv:'', fInv:'', monto:6002.25,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002647', inv:'', fInv:'', monto:8869.58,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002646', inv:'', fInv:'', monto:7961.49,  estado:'orden', fPago:'', abonado:0},
+    {po:'4200002704', inv:'', fInv:'', monto:4781.39,  estado:'orden', fPago:'', abonado:0}
+  ]
+};
+
+const ESTADOS = ['orden','facturado','abonado','pagado'];
+const ESTADO_LBL = {orden:'Orden', facturado:'Facturado', abonado:'Abonado', pagado:'Pagado'};
+
+/* ---------- state ---------- */
+let state = loadCache();          // arranca desde caché para pintar rápido
+
+function loadCache(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){ const s = JSON.parse(raw); if(s && Array.isArray(s.rows)) return s; }
+  }catch(e){}
+  return JSON.parse(JSON.stringify(SEED));
+}
+
+/* ---------- backend comms (Google Apps Script) ---------- */
+function gasJsonp(action, params){
+  return new Promise((resolve,reject)=>{
+    const cb='_fx_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    let qs='?action='+encodeURIComponent(action)+'&callback='+cb;
+    if(params) Object.keys(params).forEach(k=>qs+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k]));
+    const s=document.createElement('script');
+    const done=ok=>{ delete window[cb]; if(s.parentNode) s.parentNode.removeChild(s); };
+    window[cb]=r=>{ done(); resolve(r); };
+    s.onerror=()=>{ done(); reject(new Error('red')); };
+    s.src=GAS_URL+qs; document.body.appendChild(s);
+    setTimeout(()=>{ if(window[cb]){ done(); reject(new Error('timeout')); } }, 30000);
+  });
+}
+function gasPost(action, body){
+  return fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(Object.assign({action},body||{}))}).then(r=>r.json());
+}
+
+/* ---------- sync indicator ---------- */
+function setSync(cls, txt){
+  const el=document.getElementById('sync'); const t=document.getElementById('syncTxt');
+  if(!el) return; el.className='sync '+cls; if(t) t.textContent=txt;
+}
+
+/* ---------- persistence: cache + debounced backend save ---------- */
+let _saveTimer=null, _saving=false, _pending=false;
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+  if(!BACKEND) return;
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(pushSave, 700);          // agrupa ediciones rápidas
+}
+async function pushSave(){
+  if(!BACKEND) return;
+  if(_saving){ _pending=true; return; }
+  _saving=true; setSync('saving','Guardando…');
+  try{
+    const r=await gasPost('saveFlujoCxc',{rows:state.rows, linea:state.linea});
+    if(r && r.success){ setSync('ok','Sincronizado'); }
+    else { setSync('err','Error al guardar'); }
+  }catch(e){ setSync('err','Sin conexión'); }
+  _saving=false;
+  if(_pending){ _pending=false; pushSave(); }
+}
+
+/* ---------- boot: pull from backend, fall back to cache ---------- */
+async function boot(){
+  renderAll();                                   // pinta desde caché
+  if(!BACKEND){
+    document.getElementById('cfgBanner').style.display='block';
+    setSync('local','Modo local');
+    return;
+  }
+  setSync('saving','Conectando…');
+  try{
+    const r=await gasJsonp('getFlujoCxc');
+    if(r && r.success && Array.isArray(r.rows)){
+      if(r.rows.length){                         // hay datos en el servidor
+        state={ linea:(r.linea!=null?r.linea:LINEA_DEFAULT), rows:r.rows };
+        try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+        renderAll(); setSync('ok','Sincronizado');
+      } else {                                   // servidor vacío → sembrar una vez
+        state=JSON.parse(JSON.stringify(SEED));
+        renderAll(); await pushSave();
+      }
+    } else { setSync('err','Error al cargar'); }
+  }catch(e){ setSync('err','Sin conexión'); }
+}
+
+/* ===================================================================
+   Acceso: los jefes VEN sin contraseña; editar requiere desbloquear.
+   Reutiliza los endpoints de Auth del backend (getAuthState /
+   verifyPassword / setPassword). Si no hay backend, edita libre.
+   =================================================================== */
+const AUTH_REMEMBER = 'bc_authed';
+let EDIT = !BACKEND;          // sin backend => edición libre (modo local)
+let HAS_PW = false;
+
+function applyEditMode(){
+  document.body.classList.toggle('readonly', !EDIT);
+  const b=document.getElementById('lockBtn');
+  if(EDIT){ b.classList.add('editing'); b.textContent='🔓 Editando'; }
+  else { b.classList.remove('editing'); b.textContent='🔒 Solo lectura'; }
+  renderAll();
+}
+async function authInit(){
+  if(!BACKEND){ applyEditMode(); return; }
+  try{
+    const r=await gasJsonp('getAuthState');
+    HAS_PW = !!(r && r.success && r.hasPassword);
+  }catch(e){ HAS_PW=false; }
+  // recordar desbloqueo previo en este dispositivo (el de ella)
+  try{ if(localStorage.getItem(AUTH_REMEMBER)==='1') EDIT=true; }catch(e){}
+  applyEditMode();
+}
+function openPw(){
+  const m=document.getElementById('pwModal');
+  document.getElementById('pwErr').style.display='none';
+  document.getElementById('pwInput').value='';
+  if(!HAS_PW){
+    document.getElementById('pwTitle').textContent='Crear contraseña de edición';
+    document.getElementById('pwHint').textContent='Aún no hay contraseña. Define una; los jefes seguirán viendo sin ella.';
+    document.getElementById('pwOk').textContent='Crear y editar';
+  } else {
+    document.getElementById('pwTitle').textContent='Desbloquear edición';
+    document.getElementById('pwHint').textContent='Ingresa la contraseña para editar. Los jefes pueden ver sin contraseña.';
+    document.getElementById('pwOk').textContent='Desbloquear';
+  }
+  m.classList.add('show');
+  setTimeout(()=>document.getElementById('pwInput').focus(),50);
+}
+function closePw(){ document.getElementById('pwModal').classList.remove('show'); }
+async function submitPw(){
+  const pw=document.getElementById('pwInput').value;
+  const err=document.getElementById('pwErr');
+  if(!pw){ err.textContent='Escribe la contraseña.'; err.style.display='block'; return; }
+  try{
+    let r;
+    if(!HAS_PW){ r=await gasPost('setPassword',{password:pw}); if(r&&r.success) HAS_PW=true; }
+    else { r=await gasPost('verifyPassword',{password:pw}); if(r) r.success = r.valid; }
+    if(r && r.success){
+      EDIT=true; try{ localStorage.setItem(AUTH_REMEMBER,'1'); }catch(e){}
+      closePw(); applyEditMode(); toast('Edición habilitada');
+    } else { err.textContent='Contraseña incorrecta.'; err.style.display='block'; }
+  }catch(e){ err.textContent='Error de conexión.'; err.style.display='block'; }
+}
+function lockEdit(){
+  EDIT=false; try{ localStorage.removeItem(AUTH_REMEMBER); }catch(e){}
+  applyEditMode(); toast('Bloqueado');
+}
+
+/* ---------- date helpers ---------- */
+function parseD(s){ if(!s) return null; const p=s.split('-'); if(p.length!==3) return null;
+  const d=new Date(+p[0], +p[1]-1, +p[2]); return isNaN(d)?null:d; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function fmtD(d){ return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0'); }
+function todayD(){ const t=new Date(); return new Date(t.getFullYear(),t.getMonth(),t.getDate()); }
+const TODAY = todayD();
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+/* ---------- build 52-week calendar (Monday based, ISO month by Thursday) ---------- */
+function buildWeeks(){
+  // first Monday of the ISO week containing Jan 1
+  let d = new Date(YEAR,0,1);
+  const dow = (d.getDay()+6)%7;        // 0=Mon
+  d = addDays(d, -dow);
+  const weeks=[];
+  for(let i=0;i<52;i++){
+    const start = addDays(d, i*7);
+    const thu = addDays(start,3);       // ISO: week belongs to month of its Thursday
+    weeks.push({ idx:i+1, start, end:addDays(start,7), month:thu.getMonth() });
+  }
+  return weeks;
+}
+const WEEKS = buildWeeks();
+// month -> last week idx present (for placing SALDO column)
+const MONTHS_PRESENT = [...new Set(WEEKS.map(w=>w.month))];
+function weekOf(date){
+  if(!date) return -1;
+  for(const w of WEEKS){ if(date>=w.start && date<w.end) return w.idx; }
+  if(date < WEEKS[0].start) return 1;            // older invoices fold into week 1
+  return WEEKS[WEEKS.length-1].idx;              // future folds into last week
+}
+
+/* ---------- per-row computed events ---------- */
+function computeRow(r){
+  const fInv = parseD(r.fInv);
+  const due  = fInv ? addDays(fInv, PLAZO_DIAS) : null;
+  const abonado = +r.abonado || 0;
+  const pagadoTotal = r.estado==='pagado' ? (r.monto) : (r.estado==='abonado' ? abonado : 0);
+  const pendiente = Math.max(0, (r.monto||0) - pagadoTotal);
+  const overdue = due ? (due < TODAY && pendiente > 0.005) : false;
+  const facturada = (r.estado==='facturado' || r.estado==='abonado' || r.estado==='pagado') && !!fInv;
+  return { fInv, due, abonado, pagadoTotal, pendiente, overdue, facturada,
+           wInv: weekOf(fInv), wDue: weekOf(due), wPago: weekOf(parseD(r.fPago)) };
+}
+
+/* ---------- KPIs ---------- */
+function renderKPIs(){
+  let facturado=0, pagado=0, porCobrar=0, vencido=0, consumido=0, ordenes=0;
+  state.rows.forEach(r=>{
+    const c = computeRow(r);
+    if(c.facturada){ facturado += r.monto; }
+    pagado += c.pagadoTotal;
+    if(c.facturada && c.pendiente>0.005){
+      consumido += c.pendiente;
+      if(c.overdue) vencido += c.pendiente; else porCobrar += c.pendiente;
+    }
+    if(r.estado==='orden') ordenes += (r.monto||0);
+  });
+  const linea = +state.linea || LINEA_DEFAULT;
+  const totalCxC = porCobrar + vencido;
+  const disponible = linea - consumido;
+  const K = [
+    {lbl:'Línea de crédito', val:money(linea), cls:EDIT?'editable':'', id:'kLinea', sub:EDIT?'clic para editar':''},
+    {lbl:'Consumido (CxC vivo)', val:money(consumido), cls:'accent', sub:'facturado sin pagar'},
+    {lbl:'Saldo disponible', val:money(disponible), cls: disponible<0?'rojo':'verde', sub:'línea − consumido'},
+    {lbl:'Total por cobrar', val:money(totalCxC), cls:'', sub:'≤60d + vencido'},
+    {lbl:'Por vencer ≤ 60d', val:money(porCobrar), cls:'rojo', sub:'dentro de plazo'},
+    {lbl:'Outstanding >60d', val:money(vencido), cls:'rojoosc', sub:'gestión urgente'},
+    {lbl:'Pagado acumulado', val:money(pagado), cls:'verde', sub:'cobrado'},
+    {lbl:'Órdenes sin facturar', val:money(ordenes), cls:'', sub:'pipeline'}
+  ];
+  document.getElementById('kpis').innerHTML = K.map(k=>`
+    <div class="kpi ${k.cls}" ${k.id?`id="${k.id}"`:''}>
+      <div class="lbl">${k.lbl}</div>
+      <div class="val">${k.val}</div>
+      <div class="sub">${k.sub||''}</div>
+    </div>`).join('');
+  const kl = document.getElementById('kLinea');
+  if(kl && EDIT) kl.onclick = ()=>{
+    const v=kl.querySelector('.val');
+    v.innerHTML = `<input type="number" value="${linea}" step="0.01">`;
+    const inp=v.querySelector('input'); inp.focus(); inp.select();
+    const commit=()=>{ state.linea = +inp.value||LINEA_DEFAULT; save(); renderKPIs(); };
+    inp.onblur=commit; inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); };
+    kl.onclick=null;
+  };
+}
+
+/* ---------- orders table ---------- */
+function renderOrders(){
+  const body = document.getElementById('ordersBody');
+  if(!state.rows.length){ body.innerHTML = `<tr><td colspan="10" class="empty">Sin registros. Usa “＋ Orden / Factura”.</td></tr>`; return; }
+  body.innerHTML = state.rows.map((r,i)=>{
+    const c = computeRow(r);
+    const estVis = c.overdue ? 'vencido' : r.estado;
+    const dueTxt = c.due ? c.due.toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    let diasTxt='—', diasColor='var(--muted)';
+    if(c.due && c.pendiente>0.005){
+      const dd = Math.round((c.due - TODAY)/86400000);
+      diasTxt = dd>=0 ? dd+'d' : Math.abs(dd)+'d venc.';
+      diasColor = dd<0 ? 'var(--rojoosc)' : (dd<=15?'var(--rojo)':'var(--muted)');
+    } else if(r.estado==='pagado'){ diasTxt='✓'; diasColor='var(--verde)'; }
+    const ro = EDIT ? '' : 'disabled';
+    return `<tr data-i="${i}">
+      <td><input class="f-po" value="${esc(r.po)}" placeholder="N. orden" ${ro}></td>
+      <td><input class="f-inv" value="${esc(r.inv)}" placeholder="N. factura" ${ro}></td>
+      <td><input class="f-fInv" type="date" value="${r.fInv||''}" ${ro}></td>
+      <td class="num"><input class="f-monto" type="number" step="0.01" value="${r.monto||''}" ${ro}></td>
+      <td><select class="f-estado st-sel st-${estVis}" ${ro}>
+        ${ESTADOS.map(e=>`<option value="${e}" ${r.estado===e?'selected':''}>${ESTADO_LBL[e]}</option>`).join('')}
+      </select></td>
+      <td><input class="f-fPago" type="date" value="${r.fPago||''}" ${!EDIT||r.estado==='orden'||r.estado==='facturado'?'disabled':''}></td>
+      <td class="num"><input class="f-abonado" type="number" step="0.01" value="${r.abonado||''}" ${EDIT&&r.estado==='abonado'?'':'disabled'} placeholder="${r.estado==='pagado'?'total':'0'}"></td>
+      <td class="due">${dueTxt}</td>
+      <td class="dias" style="color:${diasColor}">${diasTxt}</td>
+      <td><button class="del-btn" title="Eliminar">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  // wire events
+  body.querySelectorAll('tr').forEach(tr=>{
+    const i = +tr.dataset.i; const r = state.rows[i]; if(!r) return;
+    const upd = (k,val)=>{ r[k]=val; save(); renderAll(); };
+    tr.querySelector('.f-po').onchange   = e=>upd('po', e.target.value);
+    tr.querySelector('.f-inv').onchange  = e=>upd('inv', e.target.value);
+    tr.querySelector('.f-fInv').onchange = e=>upd('fInv', e.target.value);
+    tr.querySelector('.f-monto').onchange= e=>upd('monto', +e.target.value||0);
+    tr.querySelector('.f-fPago').onchange= e=>upd('fPago', e.target.value);
+    tr.querySelector('.f-abonado').onchange= e=>upd('abonado', +e.target.value||0);
+    tr.querySelector('.f-estado').onchange = e=>{
+      r.estado = e.target.value;
+      if(r.estado==='pagado'){ r.abonado = r.monto; if(!r.fPago) r.fPago = isoToday(); }
+      if(r.estado==='abonado' && !r.fPago) r.fPago = isoToday();
+      if(r.estado==='orden'||r.estado==='facturado'){ r.fPago=''; r.abonado=0; }
+      save(); renderAll();
+    };
+    tr.querySelector('.del-btn').onclick = ()=>{
+      if(confirm('¿Eliminar este registro?')){ state.rows.splice(i,1); save(); renderAll(); }
+    };
+  });
+}
+
+/* ---------- calendar matrix ---------- */
+function renderCalendar(){
+  document.getElementById('calYear').textContent = YEAR;
+  // column model: weeks, with a SALDO column appended after the last week of each present month
+  const cols=[];
+  WEEKS.forEach(w=>{
+    cols.push({type:'wk', w});
+    const lastOfMonth = !WEEKS.some(x=>x.month===w.month && x.idx>w.idx);
+    if(lastOfMonth) cols.push({type:'saldo', month:w.month});
+  });
+
+  // header: month band + week row
+  let monthBand='<tr class="mb"><th class="c-po">Mes →</th><th class="c-fac"></th>';
+  // group consecutive cols by month for the band
+  let bandGroups=[];
+  cols.forEach(c=>{
+    const m = c.type==='wk'? c.w.month : c.month;
+    const last = bandGroups[bandGroups.length-1];
+    if(last && last.m===m) last.span++; else bandGroups.push({m, span:1});
+  });
+  bandGroups.forEach(g=> monthBand += `<th colspan="${g.span}">${MESES[g.m]}</th>`);
+  monthBand+='</tr>';
+
+  let head='<tr><th class="c-po">Orden / Factura</th><th class="c-fac">Estado</th>';
+  cols.forEach(c=>{
+    if(c.type==='wk') head += `<th class="wk">S${c.w.idx}<div class="d">${fmtD(c.w.start)}</div></th>`;
+    else head += `<th class="saldo">SALDO<br>${MESES[c.month]}</th>`;
+  });
+  head+='</tr>';
+
+  // body rows
+  const computed = state.rows.map(computeRow);
+  let bodyRows = state.rows.map((r,ri)=>{
+    const c = computed[ri];
+    const estVis = c.overdue?'vencido':r.estado;
+    let row = `<tr><td class="c-po" title="${esc(r.po)}">${esc(r.po||'—')}${r.inv?` · <span style="color:var(--muted)">${esc(r.inv)}</span>`:''}</td>`+
+              `<td class="c-fac"><span class="st st-${estVis}">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span></td>`;
+    cols.forEach(col=>{
+      if(col.type==='saldo'){ row += `<td class="saldo"></td>`; return; }
+      const wi = col.w.idx;
+      let chip='';
+      // facturado (azul) en semana de emisión
+      if(c.facturada && c.wInv===wi){
+        chip += `<span class="v v-fact">${moneyShort(r.monto)}</span>`;
+      }
+      // por cobrar (rojo / rojo oscuro) en semana de vencimiento
+      if((r.estado==='facturado'||r.estado==='abonado') && c.pendiente>0.005 && c.wDue===wi){
+        chip += `<span class="v ${c.overdue?'v-vencido':'v-cobrar'}">(${moneyShort(c.pendiente)})</span>`;
+      }
+      // pago / abono (verde) en semana de pago
+      if((r.estado==='pagado'||r.estado==='abonado') && c.pagadoTotal>0.005 && c.wPago===wi){
+        chip += `<span class="v v-pago">−${moneyShort(c.pagadoTotal)}</span>`;
+      }
+      row += `<td>${chip}</td>`;
+    });
+    return row+'</tr>';
+  }).join('');
+
+  // footer totals — per week (facturado, pagado, por cobrar) + per month saldo (acumulado)
+  const facWk={}, pagWk={}, cobWk={};
+  state.rows.forEach((r,ri)=>{
+    const c=computed[ri];
+    if(c.facturada) facWk[c.wInv]=(facWk[c.wInv]||0)+r.monto;
+    if(c.pagadoTotal>0.005) pagWk[c.wPago]=(pagWk[c.wPago]||0)+c.pagadoTotal;
+    if((r.estado==='facturado'||r.estado==='abonado') && c.pendiente>0.005) cobWk[c.wDue]=(cobWk[c.wDue]||0)+c.pendiente;
+  });
+  // cumulative saldo per month = facturado acumulado − pagado acumulado (hasta fin de ese mes)
+  function saldoUpToMonth(month){
+    let fac=0,pag=0;
+    const maxIdx = Math.max(...WEEKS.filter(w=>w.month<=month).map(w=>w.idx));
+    state.rows.forEach((r,ri)=>{
+      const c=computed[ri];
+      if(c.facturada && c.wInv<=maxIdx) fac+=r.monto;
+      if(c.pagadoTotal>0.005 && c.wPago<=maxIdx) pag+=c.pagadoTotal;
+    });
+    return fac-pag;
+  }
+  function footRow(label, map, isCobrar){
+    let cells='';
+    cols.forEach(col=>{
+      if(col.type==='saldo'){ cells+=`<td class="saldo"></td>`; return; }
+      const v=map[col.w.idx];
+      cells += `<td>${v?(isCobrar?`<span style="color:var(--rojo)">(${moneyShort(v)})</span>`:moneyShort(v)):''}</td>`;
+    });
+    return `<td class="c-po">${label}</td><td class="c-fac"></td>${cells}`;
+  }
+  let saldoCells='';
+  cols.forEach(col=>{
+    if(col.type==='saldo'){ const s=saldoUpToMonth(col.month);
+      const cls = Math.abs(s)<0.005?'var(--verde)':'var(--orange)';
+      saldoCells += `<td class="saldo" style="color:${cls}">${money(s)}</td>`; }
+    else saldoCells += `<td></td>`;
+  });
+  const foot = `
+    <tr>${footRow('Facturado', facWk, false)}</tr>
+    <tr>${footRow('Pagado', pagWk, false)}</tr>
+    <tr>${footRow('Por cobrar (gestión)', cobWk, true)}</tr>
+    <tr class="r-saldo"><td class="c-po">Saldo CxC (fact.−pag.)</td><td class="c-fac"></td>${saldoCells}</tr>`;
+
+  document.getElementById('calTbl').innerHTML =
+    `<thead>${monthBand}${head}</thead><tbody>${bodyRows||''}</tbody><tfoot>${foot}</tfoot>`;
+}
+
+/* ---------- formatting ---------- */
+function money(n){ return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function moneyShort(n){ const a=Math.abs(n);
+  return '$'+a.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+function isoToday(){ const t=new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+
+/* ---------- render all ---------- */
+function renderAll(){ renderKPIs(); renderOrders(); renderCalendar(); }
+
+/* ---------- actions ---------- */
+document.getElementById('lockBtn').onclick = ()=>{ if(EDIT) lockEdit(); else openPw(); };
+document.getElementById('pwOk').onclick = submitPw;
+document.getElementById('pwCancel').onclick = closePw;
+document.getElementById('pwInput').onkeydown = e=>{ if(e.key==='Enter') submitPw(); };
+document.getElementById('pwModal').onclick = e=>{ if(e.target.id==='pwModal') closePw(); };
+
+document.getElementById('addBtn').onclick = ()=>{
+  if(!EDIT) return;
+  state.rows.unshift({po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0});
+  save(); renderAll();
+  document.querySelector('#ordersBody tr input')?.focus();
+};
+document.getElementById('expBtn').onclick = ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  dl(blob, `flujo-cxc-${isoToday()}.json`); toast('Exportado JSON');
+};
+document.getElementById('csvBtn').onclick = ()=>{
+  const head=['orden_compra','factura','fecha_factura','monto','estado','fecha_pago','abonado','vence_60d'];
+  const lines=[head.join(',')];
+  state.rows.forEach(r=>{ const c=computeRow(r);
+    lines.push([r.po,r.inv,r.fInv,r.monto,r.estado,r.fPago,r.abonado, c.due?isoOf(c.due):'']
+      .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')); });
+  dl(new Blob([lines.join('\n')],{type:'text/csv'}), `flujo-cxc-${isoToday()}.csv`); toast('Exportado CSV');
+};
+document.getElementById('impBtn').onclick = ()=>{ if(EDIT) document.getElementById('fileInput').click(); };
+document.getElementById('fileInput').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ const s=JSON.parse(rd.result);
+    if(s&&Array.isArray(s.rows)){ state=s; save(); renderAll(); toast('Importado'); }
+    else alert('Archivo inválido'); }catch(err){ alert('No se pudo leer el archivo'); } };
+  rd.readAsText(f); e.target.value='';
+};
+function isoOf(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dl(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
+let toastT;
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1800); }
+
+boot().then(authInit);
+</script>
+</body>
+</html>
