@@ -70,6 +70,21 @@ body.readonly .del-btn{display:none}
 .modal-card input:focus{border-color:var(--orange)}
 .modal-err{font-size:.74rem;color:var(--rojo);margin-bottom:.6rem;display:none}
 .modal-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.4rem}
+/* detalle de factura */
+table.cal tbody tr.cal-row{cursor:pointer}
+table.cal tbody tr.cal-row:hover td:not(.saldo){background:#F2F6FF}
+.det-info{display:grid;grid-template-columns:auto 1fr;gap:.3rem .8rem;font-size:.82rem;margin-bottom:1rem}
+.det-info .k{color:var(--muted)}
+.det-info .v{font-family:'DM Mono',monospace;text-align:right;font-weight:500}
+.det-lbl{font-size:.68rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:block;margin:.3rem 0 .35rem}
+.det-estados{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.4rem}
+.det-estados button{font-size:.74rem;font-weight:700;padding:.4rem .7rem;border-radius:100px;border:1px solid var(--border);background:var(--bg2);color:var(--muted)}
+.det-estados button.sel{box-shadow:0 0 0 2px rgba(224,90,0,.25)}
+.det-estados button.e-orden.sel{background:var(--gris-bg);color:var(--gris)}
+.det-estados button.e-facturado.sel{background:var(--azul-bg);color:var(--azul)}
+.det-estados button.e-abonado.sel{background:var(--amar-bg);color:var(--amar)}
+.det-estados button.e-pagado.sel{background:var(--verde-bg);color:var(--verde)}
+.det-ro{font-size:.76rem;color:var(--muted);margin:.4rem 0}
 
 .wrap{max-width:none;margin:0;padding:1.1rem 1.25rem}
 
@@ -140,7 +155,8 @@ table.cal th,table.cal td{border-right:1px solid var(--bg2);border-bottom:1px so
   padding:.3rem .45rem;text-align:right;font-family:'DM Mono',monospace}
 /* sticky label columns */
 table.cal .c-po{position:sticky;left:0;z-index:3;background:var(--white);text-align:left;
-  min-width:150px;max-width:150px;font-family:'DM Sans';font-weight:600;white-space:normal;line-height:1.15}
+  width:150px;min-width:150px;max-width:150px;font-family:'DM Sans';font-weight:600;
+  white-space:normal;line-height:1.15;overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere}
 table.cal .c-fac{position:sticky;left:150px;z-index:3;background:var(--white);text-align:left;
   min-width:72px;font-family:'DM Sans';color:var(--muted);font-size:.66rem}
 table.cal thead th{position:sticky;top:0;z-index:4;background:#fff}
@@ -274,6 +290,28 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
     <div class="modal-actions">
       <button class="btn ghost" id="pwCancel">Cancelar</button>
       <button class="btn primary" id="pwOk">Desbloquear</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="detModal">
+  <div class="modal-card" style="width:420px">
+    <h3 id="detTitle">Detalle</h3>
+    <div class="det-info" id="detInfo"></div>
+    <div id="detEdit">
+      <span class="det-lbl">Estado</span>
+      <div class="det-estados" id="detEstados"></div>
+      <div id="detPagoWrap" style="display:none">
+        <span class="det-lbl" id="detFechaLbl">Fecha de pago</span>
+        <input type="date" id="detFecha">
+        <span class="det-lbl" id="detAbonoLbl" style="display:none">Monto abonado</span>
+        <input type="number" id="detAbono" step="0.01" placeholder="0.00" style="display:none">
+      </div>
+    </div>
+    <div class="det-ro" id="detRo" style="display:none">🔒 Desbloquea la edición (botón de arriba) para cambiar el estado.</div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="detCancel">Cerrar</button>
+      <button class="btn primary" id="detSave">Guardar</button>
     </div>
   </div>
 </div>
@@ -679,7 +717,7 @@ function renderCalendar(){
     const c = computed[ri];
     const estVis = c.overdue?'vencido':r.estado;
     const payMonth = (r.estado==='pagado'||r.estado==='abonado') ? weekMonth(c.wPago) : -1;
-    let row = `<tr><td class="c-po" title="${esc(r.po)}">${esc(r.po||'—')}${r.inv?` · <span style="color:var(--muted)">${esc(r.inv)}</span>`:''}</td>`+
+    let row = `<tr class="cal-row" data-i="${ri}" onclick="openDetail(${ri})"><td class="c-po" title="${esc(r.po)}">${esc(r.po||'—')}${r.inv?` · <span style="color:var(--muted)">${esc(r.inv)}</span>`:''}</td>`+
               `<td class="c-fac"><span class="st st-${estVis}">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span></td>`;
     cols.forEach(col=>{
       if(col.type==='saldo'){
@@ -780,6 +818,59 @@ function switchTab(t){
   document.getElementById('tabCal').classList.toggle('active', !datos);
 }
 
+/* ---------- detalle de factura (calendario funcional) ---------- */
+let _detIdx = -1, _detEstado = 'orden';
+function openDetail(i){
+  const r = state.rows[i]; if(!r) return;
+  _detIdx = i; _detEstado = r.estado;
+  const c = computeRow(r);
+  const dueTxt = c.due ? c.due.toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  let dias='—';
+  if(c.due && c.pendiente>0.005){ const dd=Math.round((c.due-TODAY)/86400000); dias = dd>=0 ? dd+' días' : Math.abs(dd)+' días vencido'; }
+  document.getElementById('detTitle').textContent = (r.po||'—') + (r.inv ? ' · '+r.inv : '');
+  document.getElementById('detInfo').innerHTML =
+    `<span class="k">Fecha factura</span><span class="v">${r.fInv||'—'}</span>`+
+    `<span class="k">Monto</span><span class="v">${money(r.monto||0)}</span>`+
+    `<span class="k">Vence (60d)</span><span class="v">${dueTxt}</span>`+
+    `<span class="k">Saldo pendiente</span><span class="v" style="color:${c.pendiente>0.005?(c.overdue?'var(--rojoosc)':'var(--rojo)'):'var(--verde)'}">${money(c.pendiente)}</span>`+
+    `<span class="k">Días</span><span class="v">${dias}</span>`+
+    `<span class="k">Pagado</span><span class="v">${money(c.pagadoTotal)}</span>`;
+  document.getElementById('detEstados').innerHTML = ESTADOS.map(e=>
+    `<button type="button" class="e-${e} ${e===_detEstado?'sel':''}" onclick="detPick('${e}')">${ESTADO_LBL[e]}</button>`).join('');
+  document.getElementById('detFecha').value = r.fPago || '';
+  document.getElementById('detAbono').value = r.abonado || '';
+  _detSyncPagoFields();
+  document.getElementById('detEdit').style.display = EDIT?'':'none';
+  document.getElementById('detRo').style.display   = EDIT?'none':'';
+  document.getElementById('detSave').style.display = EDIT?'':'none';
+  document.getElementById('detModal').classList.add('show');
+}
+function detPick(e){
+  _detEstado = e;
+  document.querySelectorAll('#detEstados button').forEach(b=>b.classList.remove('sel'));
+  var el=document.querySelector('#detEstados .e-'+e); if(el) el.classList.add('sel');
+  var f=document.getElementById('detFecha');
+  if((e==='pagado'||e==='abonado') && !f.value) f.value = isoToday();
+  _detSyncPagoFields();
+}
+function _detSyncPagoFields(){
+  var pago = _detEstado==='pagado' || _detEstado==='abonado';
+  document.getElementById('detPagoWrap').style.display = pago?'':'none';
+  var ab = _detEstado==='abonado';
+  document.getElementById('detAbonoLbl').style.display = ab?'':'none';
+  document.getElementById('detAbono').style.display    = ab?'':'none';
+}
+function detSave(){
+  if(!EDIT) return;
+  var r = state.rows[_detIdx]; if(!r) return;
+  r.estado = _detEstado;
+  if(r.estado==='pagado'){ r.abonado = r.monto; r.fPago = document.getElementById('detFecha').value || isoToday(); }
+  else if(r.estado==='abonado'){ r.abonado = +document.getElementById('detAbono').value||0; r.fPago = document.getElementById('detFecha').value || isoToday(); }
+  else { r.fPago=''; r.abonado=0; }
+  save(); renderAll(); closeDetail(); toast('Estado actualizado');
+}
+function closeDetail(){ document.getElementById('detModal').classList.remove('show'); }
+
 /* ---------- render all ---------- */
 function renderAll(){ renderKPIs(); renderOrders(); renderCalendar(); }
 
@@ -789,6 +880,9 @@ document.getElementById('pwOk').onclick = submitPw;
 document.getElementById('pwCancel').onclick = closePw;
 document.getElementById('pwInput').onkeydown = e=>{ if(e.key==='Enter') submitPw(); };
 document.getElementById('pwModal').onclick = e=>{ if(e.target.id==='pwModal') closePw(); };
+document.getElementById('detCancel').onclick = closeDetail;
+document.getElementById('detSave').onclick = detSave;
+document.getElementById('detModal').onclick = e=>{ if(e.target.id==='detModal') closeDetail(); };
 
 document.getElementById('addBtn').onclick = ()=>{
   if(!EDIT) return;
