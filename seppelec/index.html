@@ -54,6 +54,22 @@ input,select{font-family:inherit}
 .sync.saving{color:var(--orange);background:#FBEEE4;border-color:rgba(224,90,0,.25)}
 .sync.err{color:var(--rojoosc);background:var(--rojoosc-bg);border-color:rgba(122,12,12,.25)}
 .sync.local{color:var(--amar);background:var(--amar-bg);border-color:rgba(154,106,0,.25)}
+#lockBtn.editing{background:var(--verde-bg);color:var(--verde);border-color:rgba(27,122,51,.3)}
+body.readonly .edit-only{display:none!important}
+body.readonly .del-btn{display:none}
+/* modal */
+.modal{position:fixed;inset:0;z-index:300;background:rgba(10,10,10,.45);display:none;
+  align-items:center;justify-content:center;padding:1rem}
+.modal.show{display:flex}
+.modal-card{background:var(--white);border-radius:18px;padding:1.6rem;width:340px;
+  box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.modal-card h3{font-size:1rem;margin-bottom:.3rem}
+.modal-card p{font-size:.78rem;color:var(--muted);margin-bottom:1rem}
+.modal-card input{width:100%;border:1px solid var(--border);border-radius:var(--r);
+  padding:.7rem .9rem;font-size:.95rem;outline:none;margin-bottom:.6rem}
+.modal-card input:focus{border-color:var(--orange)}
+.modal-err{font-size:.74rem;color:var(--rojo);margin-bottom:.6rem;display:none}
+.modal-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.4rem}
 
 .wrap{max-width:1500px;margin:0 auto;padding:1.25rem 1.5rem}
 
@@ -173,8 +189,9 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
   </div>
   <div class="topbar-actions">
     <span class="sync" id="sync" title="Estado de sincronización">●&nbsp;<span id="syncTxt">Conectando…</span></span>
-    <button class="btn" id="addBtn">＋ Orden / Factura</button>
-    <button class="btn ghost" id="impBtn">Importar</button>
+    <button class="btn" id="lockBtn" title="Modo edición">🔒 Solo lectura</button>
+    <button class="btn edit-only" id="addBtn">＋ Orden / Factura</button>
+    <button class="btn ghost edit-only" id="impBtn">Importar</button>
     <button class="btn ghost" id="expBtn">Exportar</button>
     <button class="btn ghost" id="csvBtn">CSV</button>
     <input type="file" id="fileInput" accept="application/json" hidden>
@@ -229,6 +246,19 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
     </div>
   </div>
 
+</div>
+
+<div class="modal" id="pwModal">
+  <div class="modal-card">
+    <h3 id="pwTitle">Desbloquear edición</h3>
+    <p id="pwHint">Ingresa la contraseña para editar. Los jefes pueden ver sin contraseña.</p>
+    <input type="password" id="pwInput" placeholder="Contraseña" autocomplete="current-password">
+    <div class="modal-err" id="pwErr"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="pwCancel">Cancelar</button>
+      <button class="btn primary" id="pwOk">Desbloquear</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -381,6 +411,68 @@ async function boot(){
   }catch(e){ setSync('err','Sin conexión'); }
 }
 
+/* ===================================================================
+   Acceso: los jefes VEN sin contraseña; editar requiere desbloquear.
+   Reutiliza los endpoints de Auth del backend (getAuthState /
+   verifyPassword / setPassword). Si no hay backend, edita libre.
+   =================================================================== */
+const AUTH_REMEMBER = 'bc_authed';
+let EDIT = !BACKEND;          // sin backend => edición libre (modo local)
+let HAS_PW = false;
+
+function applyEditMode(){
+  document.body.classList.toggle('readonly', !EDIT);
+  const b=document.getElementById('lockBtn');
+  if(EDIT){ b.classList.add('editing'); b.textContent='🔓 Editando'; }
+  else { b.classList.remove('editing'); b.textContent='🔒 Solo lectura'; }
+  renderAll();
+}
+async function authInit(){
+  if(!BACKEND){ applyEditMode(); return; }
+  try{
+    const r=await gasJsonp('getAuthState');
+    HAS_PW = !!(r && r.success && r.hasPassword);
+  }catch(e){ HAS_PW=false; }
+  // recordar desbloqueo previo en este dispositivo (el de ella)
+  try{ if(localStorage.getItem(AUTH_REMEMBER)==='1') EDIT=true; }catch(e){}
+  applyEditMode();
+}
+function openPw(){
+  const m=document.getElementById('pwModal');
+  document.getElementById('pwErr').style.display='none';
+  document.getElementById('pwInput').value='';
+  if(!HAS_PW){
+    document.getElementById('pwTitle').textContent='Crear contraseña de edición';
+    document.getElementById('pwHint').textContent='Aún no hay contraseña. Define una; los jefes seguirán viendo sin ella.';
+    document.getElementById('pwOk').textContent='Crear y editar';
+  } else {
+    document.getElementById('pwTitle').textContent='Desbloquear edición';
+    document.getElementById('pwHint').textContent='Ingresa la contraseña para editar. Los jefes pueden ver sin contraseña.';
+    document.getElementById('pwOk').textContent='Desbloquear';
+  }
+  m.classList.add('show');
+  setTimeout(()=>document.getElementById('pwInput').focus(),50);
+}
+function closePw(){ document.getElementById('pwModal').classList.remove('show'); }
+async function submitPw(){
+  const pw=document.getElementById('pwInput').value;
+  const err=document.getElementById('pwErr');
+  if(!pw){ err.textContent='Escribe la contraseña.'; err.style.display='block'; return; }
+  try{
+    let r;
+    if(!HAS_PW){ r=await gasPost('setPassword',{password:pw}); if(r&&r.success) HAS_PW=true; }
+    else { r=await gasPost('verifyPassword',{password:pw}); if(r) r.success = r.valid; }
+    if(r && r.success){
+      EDIT=true; try{ localStorage.setItem(AUTH_REMEMBER,'1'); }catch(e){}
+      closePw(); applyEditMode(); toast('Edición habilitada');
+    } else { err.textContent='Contraseña incorrecta.'; err.style.display='block'; }
+  }catch(e){ err.textContent='Error de conexión.'; err.style.display='block'; }
+}
+function lockEdit(){
+  EDIT=false; try{ localStorage.removeItem(AUTH_REMEMBER); }catch(e){}
+  applyEditMode(); toast('Bloqueado');
+}
+
 /* ---------- date helpers ---------- */
 function parseD(s){ if(!s) return null; const p=s.split('-'); if(p.length!==3) return null;
   const d=new Date(+p[0], +p[1]-1, +p[2]); return isNaN(d)?null:d; }
@@ -444,7 +536,7 @@ function renderKPIs(){
   const totalCxC = porCobrar + vencido;
   const disponible = linea - consumido;
   const K = [
-    {lbl:'Línea de crédito', val:money(linea), cls:'editable', id:'kLinea', sub:'clic para editar'},
+    {lbl:'Línea de crédito', val:money(linea), cls:EDIT?'editable':'', id:'kLinea', sub:EDIT?'clic para editar':''},
     {lbl:'Consumido (CxC vivo)', val:money(consumido), cls:'accent', sub:'facturado sin pagar'},
     {lbl:'Saldo disponible', val:money(disponible), cls: disponible<0?'rojo':'verde', sub:'línea − consumido'},
     {lbl:'Total por cobrar', val:money(totalCxC), cls:'', sub:'≤60d + vencido'},
@@ -460,7 +552,7 @@ function renderKPIs(){
       <div class="sub">${k.sub||''}</div>
     </div>`).join('');
   const kl = document.getElementById('kLinea');
-  if(kl) kl.onclick = ()=>{
+  if(kl && EDIT) kl.onclick = ()=>{
     const v=kl.querySelector('.val');
     v.innerHTML = `<input type="number" value="${linea}" step="0.01">`;
     const inp=v.querySelector('input'); inp.focus(); inp.select();
@@ -484,16 +576,17 @@ function renderOrders(){
       diasTxt = dd>=0 ? dd+'d' : Math.abs(dd)+'d venc.';
       diasColor = dd<0 ? 'var(--rojoosc)' : (dd<=15?'var(--rojo)':'var(--muted)');
     } else if(r.estado==='pagado'){ diasTxt='✓'; diasColor='var(--verde)'; }
+    const ro = EDIT ? '' : 'disabled';
     return `<tr data-i="${i}">
-      <td><input class="f-po" value="${esc(r.po)}" placeholder="N. orden"></td>
-      <td><input class="f-inv" value="${esc(r.inv)}" placeholder="N. factura"></td>
-      <td><input class="f-fInv" type="date" value="${r.fInv||''}"></td>
-      <td class="num"><input class="f-monto" type="number" step="0.01" value="${r.monto||''}"></td>
-      <td><select class="f-estado st-sel st-${estVis}">
+      <td><input class="f-po" value="${esc(r.po)}" placeholder="N. orden" ${ro}></td>
+      <td><input class="f-inv" value="${esc(r.inv)}" placeholder="N. factura" ${ro}></td>
+      <td><input class="f-fInv" type="date" value="${r.fInv||''}" ${ro}></td>
+      <td class="num"><input class="f-monto" type="number" step="0.01" value="${r.monto||''}" ${ro}></td>
+      <td><select class="f-estado st-sel st-${estVis}" ${ro}>
         ${ESTADOS.map(e=>`<option value="${e}" ${r.estado===e?'selected':''}>${ESTADO_LBL[e]}</option>`).join('')}
       </select></td>
-      <td><input class="f-fPago" type="date" value="${r.fPago||''}" ${r.estado==='orden'||r.estado==='facturado'?'disabled':''}></td>
-      <td class="num"><input class="f-abonado" type="number" step="0.01" value="${r.abonado||''}" ${r.estado==='abonado'?'':'disabled'} placeholder="${r.estado==='pagado'?'total':'0'}"></td>
+      <td><input class="f-fPago" type="date" value="${r.fPago||''}" ${!EDIT||r.estado==='orden'||r.estado==='facturado'?'disabled':''}></td>
+      <td class="num"><input class="f-abonado" type="number" step="0.01" value="${r.abonado||''}" ${EDIT&&r.estado==='abonado'?'':'disabled'} placeholder="${r.estado==='pagado'?'total':'0'}"></td>
       <td class="due">${dueTxt}</td>
       <td class="dias" style="color:${diasColor}">${diasTxt}</td>
       <td><button class="del-btn" title="Eliminar">✕</button></td>
@@ -637,7 +730,14 @@ function isoToday(){ const t=new Date(); return t.getFullYear()+'-'+String(t.get
 function renderAll(){ renderKPIs(); renderOrders(); renderCalendar(); }
 
 /* ---------- actions ---------- */
+document.getElementById('lockBtn').onclick = ()=>{ if(EDIT) lockEdit(); else openPw(); };
+document.getElementById('pwOk').onclick = submitPw;
+document.getElementById('pwCancel').onclick = closePw;
+document.getElementById('pwInput').onkeydown = e=>{ if(e.key==='Enter') submitPw(); };
+document.getElementById('pwModal').onclick = e=>{ if(e.target.id==='pwModal') closePw(); };
+
 document.getElementById('addBtn').onclick = ()=>{
+  if(!EDIT) return;
   state.rows.unshift({po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0});
   save(); renderAll();
   document.querySelector('#ordersBody tr input')?.focus();
@@ -654,7 +754,7 @@ document.getElementById('csvBtn').onclick = ()=>{
       .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')); });
   dl(new Blob([lines.join('\n')],{type:'text/csv'}), `flujo-cxc-${isoToday()}.csv`); toast('Exportado CSV');
 };
-document.getElementById('impBtn').onclick = ()=>document.getElementById('fileInput').click();
+document.getElementById('impBtn').onclick = ()=>{ if(EDIT) document.getElementById('fileInput').click(); };
 document.getElementById('fileInput').onchange = e=>{
   const f=e.target.files[0]; if(!f) return;
   const rd=new FileReader();
@@ -670,7 +770,7 @@ let toastT;
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1800); }
 
-boot();
+boot().then(authInit);
 </script>
 </body>
 </html>
