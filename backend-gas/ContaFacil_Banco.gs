@@ -1288,9 +1288,16 @@ function _bancoLoadCache(phone) {
 function _bancoDrillIntent(text) {
   var t = _bancoNorm(text || '');
   if (!t) return null;
+  // Variantes simplificadas del Excel para probar — match antes del
+  // genérico "excel" para que "excel simple" no caiga al default.
+  if (/\bexcel\s+(simple|simplificado|a)\b/.test(t)) {
+    return { type: 'excel_a' };
+  }
+  if (/\bexcel\s+(dashboard|tablero|b)\b/.test(t)) {
+    return { type: 'excel_b' };
+  }
   // Cualquier mensaje con la palabra "excel" o "xlsx" (independiente del
-  // verbo o frase) dispara el export. Ej: "excel", "mandame el excel",
-  // "necesito el excel", "el archivo excel por favor", "ver xlsx".
+  // verbo o frase) dispara el export completo (variante actual).
   if (/\b(excel|xlsx)\b/.test(t)) {
     return { type: 'excel' };
   }
@@ -1413,8 +1420,10 @@ function _bancoHandleDrill(intent, from, token, phoneId) {
   if (intent.type === 'cat')        msg = _bancoRenderDrillCat(cache, intent.cat);
   else if (intent.type === 'month') msg = _bancoRenderDrillMes(cache, intent.ym);
   else if (intent.type === 'cross') msg = _bancoRenderDrillCross(cache, intent.cat, intent.ym);
-  else if (intent.type === 'excel') { _bancoExportarExcel(cache, from, token, phoneId); return; }
-  else if (intent.type === 'pdf')   { _bancoExportarPDF(cache, from, token, phoneId); return; }
+  else if (intent.type === 'excel')   { _bancoExportarExcel(cache, from, token, phoneId, 'full'); return; }
+  else if (intent.type === 'excel_a') { _bancoExportarExcel(cache, from, token, phoneId, 'a');    return; }
+  else if (intent.type === 'excel_b') { _bancoExportarExcel(cache, from, token, phoneId, 'b');    return; }
+  else if (intent.type === 'pdf')     { _bancoExportarPDF(cache, from, token, phoneId);           return; }
   if (!msg) {
     _whatsappReply(from, '🤔 No encontré data para eso. Probá `ver mayo` o `ver comida`.', token, phoneId);
     return;
@@ -1552,20 +1561,31 @@ function _bancoRenderDrillCross(cache, catKey, ym) {
 //  por ~5s, después se borra. Nunca se comparte.
 // ════════════════════════════════════════════════════════════════════
 
-function _bancoExportarExcel(cache, from, token, phoneId) {
-  _whatsappReply(from, '📥 Generando tu Excel, dame un momento…', token, phoneId);
+// variant: 'full' (default — 20+ hojas), 'a' (simplificado 4 hojas),
+// 'b' (dashboard 3 hojas). Sirve para A/B testing en producción.
+function _bancoExportarExcel(cache, from, token, phoneId, variant) {
+  variant = variant || 'full';
+  var labelTexto = ({
+    full: 'Excel completo',
+    a:    'Excel simplificado (4 hojas)',
+    b:    'Excel dashboard (3 hojas)',
+  })[variant] || 'Excel';
+  _whatsappReply(from, '📥 Generando tu ' + labelTexto + ', dame un momento…', token, phoneId);
   var tempId = null;
   try {
-    var ss = SpreadsheetApp.create('analisis-' + Date.now());
+    var ss = SpreadsheetApp.create('analisis-' + variant + '-' + Date.now());
     tempId = ss.getId();
-    _bancoPoblarXlsx(ss, cache);
+    if      (variant === 'a') _bancoPoblarXlsxSimple(ss, cache);
+    else if (variant === 'b') _bancoPoblarXlsxDashboard(ss, cache);
+    else                      _bancoPoblarXlsx(ss, cache);
     var xlsxBlob = _bancoSheetToXlsxBlob(tempId);
-    var fname = 'analisis-bancario-' + Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd') + '.xlsx';
+    var suffix = (variant === 'a') ? '-simple' : (variant === 'b') ? '-dashboard' : '';
+    var fname = 'analisis-bancario' + suffix + '-' + Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd') + '.xlsx';
     xlsxBlob.setName(fname);
     var mediaId = _bancoUploadMediaWA(xlsxBlob, fname, token, phoneId);
-    _bancoSendDocumentWA(from, mediaId, fname, '📊 Tu análisis bancario completo', token, phoneId);
+    _bancoSendDocumentWA(from, mediaId, fname, '📊 Tu análisis bancario — ' + labelTexto, token, phoneId);
   } catch(err) {
-    Logger.log('Banco excel export error: ' + err.message + ' ' + (err.stack || ''));
+    Logger.log('Banco excel export error (' + variant + '): ' + err.message + ' ' + (err.stack || ''));
     _whatsappReply(from, '⚠️ No pude generar el Excel: ' + err.message, token, phoneId);
   } finally {
     if (tempId) {
@@ -1589,6 +1609,415 @@ function _bancoExportarPDF(cache, from, token, phoneId) {
     Logger.log('Banco PDF export error: ' + err.message + ' ' + (err.stack || ''));
     _whatsappReply(from, '⚠️ No pude generar el PDF: ' + err.message, token, phoneId);
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  VARIANTE A — Excel simplificado (4 hojas)
+//  Diagnóstico + Movimientos enriquecido + Cat × Mes + Dest × Mes
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoPoblarXlsxSimple(ss, cache) {
+  var agg = _bancoComputarAggsParaSimple(cache.movs);
+
+  // 1. Diagnóstico (reusa el helper existente)
+  var shD = ss.getActiveSheet();
+  shD.setName('Diagnóstico');
+  try {
+    _bancoPoblarDiagnostico(shD, cache, {
+      totalIn:   agg.totalIn,
+      totalOut:  agg.totalOut,
+      catTotals: agg.catTotals,
+      catMovs:   agg.catMovs,
+      mesMovs:   agg.mesMovs,
+      topCats:   agg.topCatsKeys,
+      meses:     agg.meses,
+    });
+  } catch(e) { Logger.log('Simple Diagnóstico skip: ' + e.message); }
+
+  // 2. Movimientos enriquecido (todas las transacciones con cols analíticas)
+  var shM = ss.insertSheet('Movimientos');
+  _bancoPoblarMovimientosEnriquecido(shM, cache.movs);
+
+  // 3. Cat × Mes (matriz con heatmap)
+  var shC = ss.insertSheet('Categorías × Mes');
+  _bancoPoblarMatrizCatMes(shC, agg);
+
+  // 4. Dest × Mes (matriz con heatmap, top 30)
+  var shTD = ss.insertSheet('Destinatarios × Mes');
+  _bancoPoblarMatrizDestMes(shTD, agg);
+
+  ss.setActiveSheet(shD);
+  SpreadsheetApp.flush();
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  VARIANTE B — Excel dashboard (3 hojas)
+//  Dashboard (todo apilado) + Movimientos enriquecido + Tabla Dinámica guía
+// ════════════════════════════════════════════════════════════════════
+
+function _bancoPoblarXlsxDashboard(ss, cache) {
+  var agg = _bancoComputarAggsParaSimple(cache.movs);
+
+  // 1. Dashboard: diagnóstico + matriz cat + matriz dest, todo apilado
+  var shD = ss.getActiveSheet();
+  shD.setName('Dashboard');
+  _bancoPoblarDashboardCompacto(shD, cache, agg);
+
+  // 2. Movimientos enriquecido
+  var shM = ss.insertSheet('Movimientos');
+  _bancoPoblarMovimientosEnriquecido(shM, cache.movs);
+
+  // 3. Tabla dinámica (instrucciones + range named para que el usuario
+  // arme su propio pivot desde Excel/LibreOffice).
+  var shP = ss.insertSheet('Tabla Dinámica');
+  _bancoPoblarTablaDinamicaGuia(shP, cache.movs.length);
+
+  ss.setActiveSheet(shD);
+  SpreadsheetApp.flush();
+}
+
+// Computa los aggregates necesarios para las variantes A y B en una
+// sola pasada — más eficiente que recorrer movs múltiples veces.
+function _bancoComputarAggsParaSimple(movs) {
+  var totalIn = 0, totalOut = 0;
+  var catTotals = {};
+  var catMovs = {};
+  var mesMovs = {};
+  var catByMes = {};      // cat → { ym → sum }
+  var destTotals = {};
+  var destByMes = {};     // dest → { ym → sum }
+  var mesesSet = {};
+
+  movs.forEach(function(m) {
+    var ym = Utilities.formatDate(m.fecha, 'America/Panama', 'yyyy-MM');
+    mesesSet[ym] = true;
+    if (!mesMovs[ym]) mesMovs[ym] = [];
+    mesMovs[ym].push(m);
+    if (m.monto >= 0) {
+      totalIn += m.monto;
+    } else {
+      var s = -m.monto;
+      totalOut += s;
+      catTotals[m.cat] = (catTotals[m.cat] || 0) + s;
+      if (!catMovs[m.cat]) catMovs[m.cat] = [];
+      catMovs[m.cat].push(m);
+      if (!catByMes[m.cat]) catByMes[m.cat] = {};
+      catByMes[m.cat][ym] = (catByMes[m.cat][ym] || 0) + s;
+      var dest = _bancoExtractDestinatario(m);
+      destTotals[dest] = (destTotals[dest] || 0) + s;
+      if (!destByMes[dest]) destByMes[dest] = {};
+      destByMes[dest][ym] = (destByMes[dest][ym] || 0) + s;
+    }
+  });
+
+  var meses = Object.keys(mesesSet).sort().slice(-12);
+  var topCatsKeys = Object.keys(catTotals)
+    .sort(function(a, b) { return catTotals[b] - catTotals[a]; })
+    .slice(0, 10);
+  var topDestKeys = Object.keys(destTotals)
+    .sort(function(a, b) { return destTotals[b] - destTotals[a]; })
+    .slice(0, 30);
+
+  return {
+    totalIn: totalIn, totalOut: totalOut,
+    catTotals: catTotals, catMovs: catMovs, catByMes: catByMes,
+    destTotals: destTotals, destByMes: destByMes,
+    mesMovs: mesMovs, meses: meses,
+    topCatsKeys: topCatsKeys, topDestKeys: topDestKeys,
+  };
+}
+
+// Una hoja con TODAS las transacciones + columnas analíticas. El user
+// usa autofilter de Excel para slicear (reemplaza los Detalle - X).
+function _bancoPoblarMovimientosEnriquecido(sh, movs) {
+  var headers = ['Fecha', 'Año', 'Mes', 'Día', 'Día semana',
+                 'Monto', '|Monto|', 'Tipo', 'Categoría',
+                 'Destinatario', 'Descripción', 'Saldo'];
+  var dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  var rows = movs.slice().sort(function(a, b) { return b.fecha - a.fecha; }).map(function(m) {
+    var d = m.fecha;
+    var dest = _bancoExtractDestinatario(m);
+    var tipo = m.monto >= 0 ? 'Ingreso' : 'Gasto';
+    return [
+      d,
+      d ? d.getFullYear() : '',
+      d ? _bancoMesLabelFull(Utilities.formatDate(d, 'America/Panama', 'yyyy-MM')) : '',
+      d ? d.getDate() : '',
+      d ? dias[d.getDay()] : '',
+      m.monto,
+      Math.abs(m.monto),
+      tipo,
+      _bancoCatLabel(m.cat),
+      dest,
+      m.descripcion,
+      m.saldo != null ? m.saldo : '',
+    ];
+  });
+  var all = [headers].concat(rows);
+  sh.getRange(1, 1, all.length, headers.length).setValues(all);
+
+  // Estilos
+  sh.getRange(1, 1, 1, headers.length)
+    .setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
+  sh.setFrozenRows(1);
+  // Montos como moneda
+  sh.getRange(2, 6, rows.length, 2).setNumberFormat('$#,##0.00');
+  sh.getRange(2, 12, rows.length, 1).setNumberFormat('$#,##0.00');
+  // Anchos
+  var widths = [90, 60, 90, 50, 80, 95, 95, 75, 150, 200, 320, 95];
+  widths.forEach(function(w, i) { sh.setColumnWidth(i + 1, w); });
+  // Autofilter
+  try {
+    if (sh.getFilter()) sh.getFilter().remove();
+    if (rows.length > 0) sh.getRange(1, 1, all.length, headers.length).createFilter();
+  } catch(e) { Logger.log('Movs filter skip: ' + e.message); }
+}
+
+// Matriz cat × mes con heatmap.
+function _bancoPoblarMatrizCatMes(sh, agg) {
+  var nMeses = agg.meses.length;
+  var headers = ['Categoría'];
+  agg.meses.forEach(function(ym) { headers.push(_bancoMesAbbrev(ym)); });
+  headers.push('Total');
+  headers.push('% del gasto');
+
+  var rows = [headers];
+  agg.topCatsKeys.forEach(function(c) {
+    var row = [_bancoCatLabel(c)];
+    var rowTotal = agg.catTotals[c];
+    agg.meses.forEach(function(ym) {
+      row.push((agg.catByMes[c] && agg.catByMes[c][ym]) || 0);
+    });
+    row.push(rowTotal);
+    var pct = agg.totalOut > 0 ? Math.round((rowTotal / agg.totalOut) * 100) : 0;
+    row.push(pct + '%');
+    rows.push(row);
+  });
+  // Totales por columna
+  var totalRow = ['TOTAL'];
+  agg.meses.forEach(function(ym) {
+    var s = 0;
+    agg.topCatsKeys.forEach(function(c) { s += (agg.catByMes[c] && agg.catByMes[c][ym]) || 0; });
+    totalRow.push(s);
+  });
+  totalRow.push(agg.totalOut);
+  totalRow.push('100%');
+  rows.push(totalRow);
+
+  sh.getRange(1, 1, rows.length, headers.length).setValues(rows);
+  sh.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
+  sh.getRange(rows.length, 1, 1, headers.length).setFontWeight('bold').setBackground('#F1F3F5');
+  // Moneda en cols de meses + total
+  sh.getRange(2, 2, rows.length - 1, nMeses + 1).setNumberFormat('$#,##0.00');
+  sh.setFrozenRows(1);
+  sh.setFrozenColumns(1);
+  sh.setColumnWidth(1, 200);
+  for (var i = 0; i < nMeses; i++) sh.setColumnWidth(2 + i, 90);
+  sh.setColumnWidth(2 + nMeses, 110);
+  sh.setColumnWidth(3 + nMeses, 90);
+  // Heatmap solo en las celdas de meses (no totales)
+  if (nMeses > 0 && rows.length > 2) {
+    try {
+      var hmRange = sh.getRange(2, 2, agg.topCatsKeys.length, nMeses);
+      var rule = SpreadsheetApp.newConditionalFormatRule()
+        .setGradientMinpointWithValue('#E8F5E9', SpreadsheetApp.InterpolationType.NUMBER, '0')
+        .setGradientMaxpoint('#EF5350')
+        .setRanges([hmRange]).build();
+      var existing = sh.getConditionalFormatRules();
+      existing.push(rule);
+      sh.setConditionalFormatRules(existing);
+    } catch(e) { Logger.log('Heatmap cat skip: ' + e.message); }
+  }
+}
+
+// Matriz destinatario × mes (top 30) con heatmap.
+function _bancoPoblarMatrizDestMes(sh, agg) {
+  var nMeses = agg.meses.length;
+  var headers = ['Destinatario / Merchant'];
+  agg.meses.forEach(function(ym) { headers.push(_bancoMesAbbrev(ym)); });
+  headers.push('Total');
+  headers.push('% del gasto');
+
+  var rows = [headers];
+  agg.topDestKeys.forEach(function(d) {
+    var row = [d];
+    var rowTotal = agg.destTotals[d];
+    agg.meses.forEach(function(ym) {
+      row.push((agg.destByMes[d] && agg.destByMes[d][ym]) || 0);
+    });
+    row.push(rowTotal);
+    var pct = agg.totalOut > 0 ? Math.round((rowTotal / agg.totalOut) * 100) : 0;
+    row.push(pct + '%');
+    rows.push(row);
+  });
+  // Otros (si hay > 30)
+  var totalDests = Object.keys(agg.destTotals).length;
+  if (totalDests > 30) {
+    var otros = Object.keys(agg.destTotals).slice(30);
+    var otrosRow = ['Otros (' + otros.length + ' más)'];
+    var otrosTotal = 0;
+    agg.meses.forEach(function(ym) {
+      var s = 0;
+      otros.forEach(function(d) { s += (agg.destByMes[d] && agg.destByMes[d][ym]) || 0; });
+      otrosRow.push(s);
+    });
+    otros.forEach(function(d) { otrosTotal += agg.destTotals[d]; });
+    otrosRow.push(otrosTotal);
+    var pctO = agg.totalOut > 0 ? Math.round((otrosTotal / agg.totalOut) * 100) : 0;
+    otrosRow.push(pctO + '%');
+    rows.push(otrosRow);
+  }
+
+  sh.getRange(1, 1, rows.length, headers.length).setValues(rows);
+  sh.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
+  sh.getRange(2, 2, rows.length - 1, nMeses + 1).setNumberFormat('$#,##0.00');
+  sh.setFrozenRows(1);
+  sh.setFrozenColumns(1);
+  sh.setColumnWidth(1, 240);
+  for (var i = 0; i < nMeses; i++) sh.setColumnWidth(2 + i, 90);
+  sh.setColumnWidth(2 + nMeses, 110);
+  sh.setColumnWidth(3 + nMeses, 90);
+  // Heatmap
+  if (nMeses > 0 && rows.length > 1) {
+    try {
+      var hmRange = sh.getRange(2, 2, rows.length - 1, nMeses);
+      var rule = SpreadsheetApp.newConditionalFormatRule()
+        .setGradientMinpointWithValue('#E8F5E9', SpreadsheetApp.InterpolationType.NUMBER, '0')
+        .setGradientMaxpoint('#EF5350')
+        .setRanges([hmRange]).build();
+      var existing = sh.getConditionalFormatRules();
+      existing.push(rule);
+      sh.setConditionalFormatRules(existing);
+    } catch(e) { Logger.log('Heatmap dest skip: ' + e.message); }
+  }
+}
+
+// Dashboard compacto (variante B): diagnóstico arriba, después las dos
+// matrices apiladas en la misma hoja. Mucho scroll pero todo a la vista.
+function _bancoPoblarDashboardCompacto(sh, cache, agg) {
+  // Sección 1: usar la lógica del diagnóstico (insights)
+  try {
+    _bancoPoblarDiagnostico(sh, cache, {
+      totalIn: agg.totalIn, totalOut: agg.totalOut,
+      catTotals: agg.catTotals, catMovs: agg.catMovs, mesMovs: agg.mesMovs,
+      topCats: agg.topCatsKeys, meses: agg.meses,
+    });
+  } catch(e) { Logger.log('Dashboard diagnóstico skip: ' + e.message); }
+
+  // Encontrar la próxima fila vacía después del diagnóstico
+  var nextRow = sh.getLastRow() + 3;
+
+  // Sección 2: matriz cat × mes (igual que en variante A pero acá embebida)
+  sh.getRange(nextRow, 1).setValue('📊 GASTO POR CATEGORÍA × MES').setFontWeight('bold').setFontSize(13).setBackground('#1A1A2E').setFontColor('#FFFFFF');
+  sh.getRange(nextRow, 1, 1, 4 + agg.meses.length).merge();
+  nextRow += 2;
+  var catHeaderRow = nextRow;
+  var catHeaders = ['Categoría'];
+  agg.meses.forEach(function(ym) { catHeaders.push(_bancoMesAbbrev(ym)); });
+  catHeaders.push('Total');
+  catHeaders.push('%');
+  sh.getRange(catHeaderRow, 1, 1, catHeaders.length).setValues([catHeaders])
+    .setFontWeight('bold').setBackground('#F1F3F5');
+  nextRow++;
+  var catRowsStart = nextRow;
+  agg.topCatsKeys.forEach(function(c) {
+    var row = [_bancoCatLabel(c)];
+    var rowTotal = agg.catTotals[c];
+    agg.meses.forEach(function(ym) {
+      row.push((agg.catByMes[c] && agg.catByMes[c][ym]) || 0);
+    });
+    row.push(rowTotal);
+    var pct = agg.totalOut > 0 ? Math.round((rowTotal / agg.totalOut) * 100) : 0;
+    row.push(pct + '%');
+    sh.getRange(nextRow, 1, 1, row.length).setValues([row]);
+    nextRow++;
+  });
+  // Heatmap cat
+  if (agg.meses.length > 0 && agg.topCatsKeys.length > 0) {
+    try {
+      var hmRange = sh.getRange(catRowsStart, 2, agg.topCatsKeys.length, agg.meses.length);
+      hmRange.setNumberFormat('$#,##0');
+      sh.getRange(catRowsStart, 2 + agg.meses.length, agg.topCatsKeys.length, 1).setNumberFormat('$#,##0').setFontWeight('bold');
+      var rule = SpreadsheetApp.newConditionalFormatRule()
+        .setGradientMinpointWithValue('#E8F5E9', SpreadsheetApp.InterpolationType.NUMBER, '0')
+        .setGradientMaxpoint('#EF5350')
+        .setRanges([hmRange]).build();
+      var existing = sh.getConditionalFormatRules();
+      existing.push(rule);
+      sh.setConditionalFormatRules(existing);
+    } catch(e) { Logger.log('Dashboard heatmap cat skip: ' + e.message); }
+  }
+
+  nextRow += 2;
+
+  // Sección 3: matriz dest × mes (top 15 para que el dashboard no quede demasiado largo)
+  sh.getRange(nextRow, 1).setValue('🎯 GASTO POR DESTINATARIO × MES (top 15)').setFontWeight('bold').setFontSize(13).setBackground('#1A1A2E').setFontColor('#FFFFFF');
+  sh.getRange(nextRow, 1, 1, 4 + agg.meses.length).merge();
+  nextRow += 2;
+  var destHeaders = ['Destinatario'];
+  agg.meses.forEach(function(ym) { destHeaders.push(_bancoMesAbbrev(ym)); });
+  destHeaders.push('Total');
+  destHeaders.push('%');
+  sh.getRange(nextRow, 1, 1, destHeaders.length).setValues([destHeaders])
+    .setFontWeight('bold').setBackground('#F1F3F5');
+  nextRow++;
+  var destRowsStart = nextRow;
+  var top15Dest = agg.topDestKeys.slice(0, 15);
+  top15Dest.forEach(function(d) {
+    var row = [d];
+    var rowTotal = agg.destTotals[d];
+    agg.meses.forEach(function(ym) {
+      row.push((agg.destByMes[d] && agg.destByMes[d][ym]) || 0);
+    });
+    row.push(rowTotal);
+    var pct = agg.totalOut > 0 ? Math.round((rowTotal / agg.totalOut) * 100) : 0;
+    row.push(pct + '%');
+    sh.getRange(nextRow, 1, 1, row.length).setValues([row]);
+    nextRow++;
+  });
+  // Heatmap dest
+  if (agg.meses.length > 0 && top15Dest.length > 0) {
+    try {
+      var hmRangeD = sh.getRange(destRowsStart, 2, top15Dest.length, agg.meses.length);
+      hmRangeD.setNumberFormat('$#,##0');
+      sh.getRange(destRowsStart, 2 + agg.meses.length, top15Dest.length, 1).setNumberFormat('$#,##0').setFontWeight('bold');
+      var ruleD = SpreadsheetApp.newConditionalFormatRule()
+        .setGradientMinpointWithValue('#E8F5E9', SpreadsheetApp.InterpolationType.NUMBER, '0')
+        .setGradientMaxpoint('#EF5350')
+        .setRanges([hmRangeD]).build();
+      var existing2 = sh.getConditionalFormatRules();
+      existing2.push(ruleD);
+      sh.setConditionalFormatRules(existing2);
+    } catch(e) { Logger.log('Dashboard heatmap dest skip: ' + e.message); }
+  }
+}
+
+// Hoja con instrucciones para que el usuario arme su propio pivot.
+function _bancoPoblarTablaDinamicaGuia(sh, nMovs) {
+  var rows = [
+    ['📊 TABLA DINÁMICA — guía rápida'],
+    [''],
+    ['Tu data está en la hoja *Movimientos*. ' + nMovs + ' filas, columnas analíticas listas.'],
+    [''],
+    ['Para crear tu propia pivot table:'],
+    ['1. Ir a la hoja Movimientos'],
+    ['2. Seleccionar todo (Ctrl+A o Cmd+A)'],
+    ['3. Menú: Insert → PivotTable (Excel) o Data → Pivot Table (Sheets)'],
+    ['4. Arrastrar columnas a Filas / Columnas / Valores'],
+    [''],
+    ['Sugerencias de pivots útiles:'],
+    [''],
+    ['• Filas: Categoría · Columnas: Mes · Valores: |Monto|  → matriz cat × mes'],
+    ['• Filas: Destinatario · Columnas: Mes · Valores: |Monto|  → matriz dest × mes'],
+    ['• Filas: Día semana · Columnas: Categoría · Valores: |Monto|  → patrón semanal'],
+    ['• Filas: Mes · Columnas: Tipo · Valores: Monto  → ingresos vs gastos por mes'],
+    [''],
+    ['Tip: si filtrás por "Tipo = Gasto" en Filtros, excluís ingresos automáticamente.'],
+  ];
+  sh.getRange(1, 1, rows.length, 1).setValues(rows);
+  sh.getRange(1, 1).setFontSize(16).setFontWeight('bold').setBackground('#1A1A2E').setFontColor('#FFFFFF');
+  sh.setColumnWidth(1, 650);
+  sh.setHiddenGridlines(true);
 }
 
 function _bancoPoblarXlsx(ss, cache) {
@@ -2632,26 +3061,35 @@ function _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId) {
     .map(function(c) { return { cat: c, sum: catTotals[c] }; })
     .sort(function(a, b) { return b.sum - a.sum; })
     .slice(0, 5);
-  // Meses más recientes — newest first. Cap a 3 porque WhatsApp
-  // interactive list cap total = 10 rows: 2 descargas + 5 top cats + 3 meses.
-  var meses = Object.keys(byMonth).sort().reverse().slice(0, 3);
+  // Cap WhatsApp list = 10 rows totales: 4 descargas + 5 cats + 1 mes.
+  var meses = Object.keys(byMonth).sort().reverse().slice(0, 1);
 
   var sections = [];
 
-  // Descargas PRIMERO — para que el usuario sepa que puede tener
-  // entregables visuales fácilmente accesibles sin scrollear.
+  // Descargas PRIMERO — visibles sin scrollear. 3 variantes de Excel
+  // para que el usuario compare cuál prefiere (A/B testing en uso real).
   sections.push({
     title: '📥 Descargas',
     rows: [
       {
         id:          'wa:bdrill:pdf',
         title:       '📑 Reporte PDF',
-        description: 'Ejecutivo, branded, mobile-friendly',
+        description: 'Ejecutivo, branded, mobile',
       },
       {
         id:          'wa:bdrill:excel',
         title:       '📊 Excel completo',
-        description: 'Con drill-downs por cat y mes',
+        description: 'Versión actual (20+ hojas)',
+      },
+      {
+        id:          'wa:bdrill:excel_a',
+        title:       '📊 Excel simplificado',
+        description: '4 hojas: diagnóstico + 2 matrices + movs',
+      },
+      {
+        id:          'wa:bdrill:excel_b',
+        title:       '📊 Excel dashboard',
+        description: '3 hojas: todo en dashboard + movs + pivot',
       },
     ],
   });
@@ -2702,10 +3140,12 @@ function _bancoHandleDrillBoton(parts, from, token, phoneId) {
   if (!parts || !parts.length) return;
   var tipo = parts[0];
   var intent;
-  if (tipo === 'cat')        intent = { type: 'cat',   cat: parts[1] };
-  else if (tipo === 'mes')   intent = { type: 'month', ym:  parts[1] };
-  else if (tipo === 'excel') intent = { type: 'excel' };
-  else if (tipo === 'pdf')   intent = { type: 'pdf' };
+  if (tipo === 'cat')          intent = { type: 'cat',     cat: parts[1] };
+  else if (tipo === 'mes')     intent = { type: 'month',   ym:  parts[1] };
+  else if (tipo === 'excel')   intent = { type: 'excel' };
+  else if (tipo === 'excel_a') intent = { type: 'excel_a' };
+  else if (tipo === 'excel_b') intent = { type: 'excel_b' };
+  else if (tipo === 'pdf')     intent = { type: 'pdf' };
   else { Logger.log('Drill boton tipo desconocido: ' + tipo); return; }
   _bancoHandleDrill(intent, from, token, phoneId);
 }
