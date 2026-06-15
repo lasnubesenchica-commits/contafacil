@@ -213,11 +213,13 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
   <div class="topbar-actions">
     <span class="sync" id="sync" title="Estado de sincronización">●&nbsp;<span id="syncTxt">Conectando…</span></span>
     <button class="btn" id="lockBtn" title="Modo edición">🔒 Solo lectura</button>
+    <button class="btn primary edit-only" id="uploadBtn" title="Sube PDFs de facturas u órdenes; la IA los lee y actualiza el sistema">⬆ Leer PDF (IA)</button>
     <button class="btn edit-only" id="addBtn">＋ Orden / Factura</button>
     <button class="btn ghost edit-only" id="impBtn">Importar</button>
     <button class="btn ghost" id="expBtn">Exportar</button>
     <button class="btn ghost" id="csvBtn">CSV</button>
     <input type="file" id="fileInput" accept="application/json" hidden>
+    <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple hidden>
   </div>
 </div>
 <div id="cfgBanner" style="display:none;background:#FFF6DB;border-bottom:1px solid #E6Cf7a;color:#7A5A00;
@@ -475,6 +477,7 @@ async function boot(){
 const AUTH_REMEMBER = 'bc_authed';
 let EDIT = !BACKEND;          // sin backend => edición libre (modo local)
 let HAS_PW = false;
+let _editPw = '';             // contraseña en memoria (autoriza la lectura por IA)
 
 function applyEditMode(){
   document.body.classList.toggle('readonly', !EDIT);
@@ -519,7 +522,7 @@ async function submitPw(){
     if(!HAS_PW){ r=await gasPost('setPassword',{password:pw}); if(r&&r.success) HAS_PW=true; }
     else { r=await gasPost('verifyPassword',{password:pw}); if(r) r.success = r.valid; }
     if(r && r.success){
-      EDIT=true; try{ localStorage.setItem(AUTH_REMEMBER,'1'); }catch(e){}
+      EDIT=true; _editPw=pw; try{ localStorage.setItem(AUTH_REMEMBER,'1'); }catch(e){}
       closePw(); applyEditMode(); toast('Edición habilitada');
     } else { err.textContent='Contraseña incorrecta.'; err.style.display='block'; }
   }catch(e){ err.textContent='Error de conexión.'; err.style.display='block'; }
@@ -652,7 +655,10 @@ function renderOrders(){
   // wire events
   body.querySelectorAll('tr').forEach(tr=>{
     const i = +tr.dataset.i; const r = state.rows[i]; if(!r) return;
-    const upd = (k,val)=>{ r[k]=val; save(); renderAll(); };
+    // Edición de campos de texto/número/fecha: NO re-renderiza la tabla
+    // (eso destruía el input y hacía perder el foco al escribir). Solo
+    // actualiza KPIs, calendario y las celdas derivadas de esta fila.
+    const upd = (k,val)=>{ r[k]=val; save(); renderKPIs(); renderCalendar(); refreshRowDerived(tr, r); };
     tr.querySelector('.f-po').onchange   = e=>upd('po', e.target.value);
     tr.querySelector('.f-inv').onchange  = e=>upd('inv', e.target.value);
     tr.querySelector('.f-fInv').onchange = e=>upd('fInv', e.target.value);
@@ -670,6 +676,24 @@ function renderOrders(){
       if(confirm('¿Eliminar este registro?')){ state.rows.splice(i,1); save(); renderAll(); }
     };
   });
+}
+
+// Actualiza las celdas derivadas (vence / días) de una fila sin
+// re-renderizar la tabla, para no perder el foco mientras se edita.
+function refreshRowDerived(tr, r){
+  const c = computeRow(r);
+  const dueCell = tr.querySelector('.due');
+  const diasCell = tr.querySelector('.dias');
+  if(dueCell) dueCell.textContent = c.due ? c.due.toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  if(diasCell){
+    let diasTxt='—', diasColor='var(--muted)';
+    if(c.due && c.pendiente>0.005){
+      const dd = Math.round((c.due - TODAY)/86400000);
+      diasTxt = dd>=0 ? dd+'d' : Math.abs(dd)+'d venc.';
+      diasColor = dd<0 ? 'var(--rojoosc)' : (dd<=15?'var(--rojo)':'var(--muted)');
+    } else if(r.estado==='pagado'){ diasTxt='✓'; diasColor='var(--verde)'; }
+    diasCell.textContent = diasTxt; diasCell.style.color = diasColor;
+  }
 }
 
 /* ---------- calendar matrix ---------- */
@@ -871,6 +895,76 @@ function detSave(){
 }
 function closeDetail(){ document.getElementById('detModal').classList.remove('show'); }
 
+/* ---------- subir PDF → IA lo lee → actualiza el sistema ---------- */
+function fileToB64(f){
+  return new Promise((resolve,reject)=>{
+    const rd=new FileReader();
+    rd.onload=()=>{ const s=String(rd.result); const i=s.indexOf(','); resolve(i>=0?s.slice(i+1):s); };
+    rd.onerror=reject; rd.readAsDataURL(f);
+  });
+}
+function _normFecha(f){
+  if(!f) return '';
+  f=String(f).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(f)) return f;
+  const m=f.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(m){ let y=m[3]; if(y.length===2) y='20'+y; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  return '';
+}
+function _poMatch(a,b){
+  const ta=String(a).split(/[\/,\-\s]+/).filter(Boolean);
+  const tb=String(b).split(/[\/,\-\s]+/).filter(Boolean);
+  return ta.some(x=>tb.includes(x));
+}
+// Inserta o actualiza una fila a partir del documento leído por la IA.
+function upsertDoc(doc){
+  const tipo = String(doc.tipo||'').toLowerCase();
+  const po = (doc.po==null?'':String(doc.po)).trim();
+  let factura = (doc.factura==null?'':String(doc.factura)).trim();
+  if(factura.toLowerCase()==='null') factura='';
+  const fecha = _normFecha(doc.fecha);
+  const monto = parseFloat(doc.monto)||0;
+  let row=null, action='nueva';
+  const isFactura = tipo==='factura' || !!factura;
+  if(isFactura){
+    row = factura ? state.rows.find(r=>r.inv && r.inv.toLowerCase()===factura.toLowerCase()) : null;
+    if(!row && po) row = state.rows.find(r=>!r.inv && r.po && _poMatch(r.po, po));
+    if(row){ action='actualizada'; }
+    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0}; state.rows.unshift(row); }
+    if(factura) row.inv=factura;
+    if(po) row.po=po;
+    if(fecha) row.fInv=fecha;
+    if(monto) row.monto=monto;
+    if(row.estado==='orden') row.estado='facturado';
+    return {tipo:'Factura', ref:(factura||po||'—'), action};
+  } else {
+    row = po ? state.rows.find(r=>!r.inv && r.po && _poMatch(r.po,po)) : null;
+    if(row){ action='actualizada'; }
+    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0}; state.rows.unshift(row); }
+    if(po) row.po=po;
+    if(monto) row.monto=monto;
+    return {tipo:'Orden', ref:(po||'—'), action};
+  }
+}
+async function uploadPdfs(files){
+  if(!files.length) return;
+  if(!BACKEND){ toast('La lectura por IA requiere el backend conectado'); return; }
+  let ok=0; const results=[];
+  setSync('saving','Leyendo PDF…');
+  for(const f of files){
+    try{
+      const b64 = await fileToB64(f);
+      const r = await gasPost('parsePdf', {base64:b64, password:_editPw});
+      if(r && r.error==='auth'){ setSync('ok','Sincronizado'); toast('Reingresa la contraseña para usar la IA'); openPw(); return; }
+      if(r && r.success && r.doc){ const res=upsertDoc(r.doc); results.push(`✓ ${f.name} → ${res.tipo} ${res.ref} (${res.action})`); ok++; }
+      else { results.push(`✗ ${f.name} → ${(r&&r.error)||'error'}`); }
+    }catch(e){ results.push(`✗ ${f.name} → ${e.message||'error'}`); }
+  }
+  if(ok){ save(); renderAll(); setSync('ok','Sincronizado'); }
+  else setSync('err','Error');
+  alert('Lectura de PDF con IA:\n\n'+results.join('\n'));
+}
+
 /* ---------- render all ---------- */
 function renderAll(){ renderKPIs(); renderOrders(); renderCalendar(); }
 
@@ -902,6 +996,8 @@ document.getElementById('csvBtn').onclick = ()=>{
       .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')); });
   dl(new Blob([lines.join('\n')],{type:'text/csv'}), `flujo-cxc-${isoToday()}.csv`); toast('Exportado CSV');
 };
+document.getElementById('uploadBtn').onclick = ()=>{ if(EDIT) document.getElementById('pdfInput').click(); };
+document.getElementById('pdfInput').onchange = e=>{ const fs=[...e.target.files]; e.target.value=''; uploadPdfs(fs); };
 document.getElementById('impBtn').onclick = ()=>{ if(EDIT) document.getElementById('fileInput').click(); };
 document.getElementById('fileInput').onchange = e=>{
   const f=e.target.files[0]; if(!f) return;

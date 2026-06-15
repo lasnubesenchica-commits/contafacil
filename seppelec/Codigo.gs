@@ -46,6 +46,7 @@ function doPost(e) {
     if (action === 'saveFlujoCxc')   return _saveFlujo(data);
     if (action === 'verifyPassword') return _json({ success: true, valid: _checkPw(data.password) });
     if (action === 'setPassword')    return _setPw(data);
+    if (action === 'parsePdf')       return _parsePdf(data);
     return _json({ success: false, error: 'accion desconocida: ' + action });
   } catch (err) {
     return _json({ success: false, error: String(err && err.message || err) });
@@ -168,4 +169,74 @@ function _setPw(data) {
   if (!data.password) return _json({ success: false, error: 'Falta la nueva contraseña' });
   props.setProperty(PW_KEY, _hash(data.password));
   return _json({ success: true });
+}
+
+// ── Lectura de PDF con IA (Claude) ──────────────────────────────
+// Reconoce si el PDF es FACTURA u ORDEN de compra y extrae los datos.
+// Requiere la Script Property ANTHROPIC_API_KEY. Opcional FLUJO_MODEL
+// (por defecto claude-opus-4-8).
+//
+//   Para activarlo: Apps Script → Configuración del proyecto →
+//   Propiedades de la secuencia de comandos → agregar
+//   ANTHROPIC_API_KEY = tu_api_key   (de console.anthropic.com)
+function _parsePdf(data) {
+  var props  = PropertiesService.getScriptProperties();
+  var apiKey = props.getProperty('ANTHROPIC_API_KEY');
+  if (!apiKey) {
+    return _json({ success: false, error: 'Falta ANTHROPIC_API_KEY en las Script Properties del proyecto.' });
+  }
+  // Protege la API key: si hay contraseña de edición, exígela.
+  if (_hasPw() && !_checkPw(data.password)) {
+    return _json({ success: false, error: 'auth' });
+  }
+  var b64 = String(data.base64 || '');
+  if (!b64) return _json({ success: false, error: 'No se recibió el PDF.' });
+
+  var model = props.getProperty('FLUJO_MODEL') || 'claude-opus-4-8';
+  var prompt =
+    'Eres un asistente contable en Panamá. Analiza este documento PDF y determina si es una FACTURA ' +
+    'emitida o una ORDEN DE COMPRA (pedido). Devuelve ÚNICAMENTE un objeto JSON válido, sin texto extra, ' +
+    'con esta forma:\n' +
+    '{"tipo":"factura"|"orden","po":"número(s) de orden de compra (string, varios separados por coma si aplica)",' +
+    '"factura":"número de factura (ej F26248) o null si es orden","fecha":"fecha del documento en formato YYYY-MM-DD",' +
+    '"monto": total del documento como número (incluyendo ITBMS), "moneda":"USD"}.\n' +
+    'Para una ORDEN usa la fecha del pedido. Para una FACTURA usa la fecha de la factura. ' +
+    'Si un campo no aparece, usa null. No inventes valores.';
+
+  var payload = {
+    model: model,
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+        { type: 'text', text: prompt }
+      ]
+    }]
+  };
+
+  try {
+    var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    var body = JSON.parse(res.getContentText());
+    if (code !== 200) {
+      return _json({ success: false, error: 'API ' + code + ': ' + ((body.error && body.error.message) || res.getContentText()) });
+    }
+    // Concatena los bloques de texto de la respuesta.
+    var txt = '';
+    (body.content || []).forEach(function (b) { if (b.type === 'text') txt += b.text; });
+    // Extrae el primer objeto JSON del texto.
+    var m = txt.match(/\{[\s\S]*\}/);
+    if (!m) return _json({ success: false, error: 'La IA no devolvió JSON. Respuesta: ' + txt.slice(0, 200) });
+    var parsed = JSON.parse(m[0]);
+    return _json({ success: true, doc: parsed });
+  } catch (err) {
+    return _json({ success: false, error: String(err && err.message || err) });
+  }
 }

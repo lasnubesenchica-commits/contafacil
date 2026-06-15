@@ -43,6 +43,23 @@ carpeta.
 > local** (sólo guarda en ese navegador, no se comparte). Aparece un
 > aviso en la barra superior cuando está en modo local.
 
+## Lectura de PDF con IA (opcional)
+
+El botón **⬆ Leer PDF (IA)** permite subir facturas u órdenes de compra
+en PDF; el sistema reconoce el tipo y actualiza la data automáticamente
+(crea la fila o actualiza la existente, emparejando por número de
+factura u orden).
+
+Para activarlo, en el proyecto de Apps Script:
+
+1. **Configuración del proyecto → Propiedades de la secuencia de comandos**.
+2. Agrega `ANTHROPIC_API_KEY` = tu API key de `console.anthropic.com`.
+3. (Opcional) `FLUJO_MODEL` para cambiar el modelo (por defecto
+   `claude-opus-4-8`).
+
+La lectura por IA queda protegida por la contraseña de edición, así sólo
+quien edita puede consumir la API key.
+
 ## Datos
 
 La pestaña `Flujo_CXC` de la hoja y la contraseña se crean solas. Cada
