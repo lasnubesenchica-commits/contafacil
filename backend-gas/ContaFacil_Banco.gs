@@ -1894,102 +1894,365 @@ function _bancoPoblarMatrizDestMes(sh, agg) {
 
 // Dashboard compacto (variante B): diagnóstico arriba, después las dos
 // matrices apiladas en la misma hoja. Mucho scroll pero todo a la vista.
+// Dashboard visual con cards + charts nativos + matrices.
+// Reemplaza el approach text-heavy anterior por algo más visual,
+// con insights distribuidos al lado de las gráficas, no en bloques largos.
 function _bancoPoblarDashboardCompacto(sh, cache, agg) {
-  // Sección 1: usar la lógica del diagnóstico (insights)
-  try {
-    _bancoPoblarDiagnostico(sh, cache, {
-      totalIn: agg.totalIn, totalOut: agg.totalOut,
-      catTotals: agg.catTotals, catMovs: agg.catMovs, mesMovs: agg.mesMovs,
-      topCats: agg.topCatsKeys, meses: agg.meses,
+  var fmt = function(n) {
+    if (!isFinite(n)) return '$0';
+    return '$' + Math.round(n).toLocaleString('en-US');
+  };
+  var fechaStr = function(d) {
+    return d ? Utilities.formatDate(d, 'America/Panama', "d MMM") : '—';
+  };
+
+  var ahorro = agg.totalIn > 0 ? Math.round(((agg.totalIn - agg.totalOut) / agg.totalIn) * 100) : 0;
+  var neto = agg.totalIn - agg.totalOut;
+
+  // Saldo + delta (mismo método que _bancoAnalizar)
+  var first = cache.movs[0], last = cache.movs[cache.movs.length - 1];
+  var saldoIni = null, saldoFin = null, deltaSaldo = null;
+  if (first && last && first.saldo != null && last.saldo != null) {
+    var bgStyle = !first.fecha || !last.fecha || first.fecha >= last.fecha;
+    var newest = bgStyle ? first : last;
+    var oldest = bgStyle ? last  : first;
+    if (newest.saldo != null && oldest.saldo != null) {
+      saldoFin   = newest.saldo;
+      saldoIni   = oldest.saldo - oldest.monto;
+      deltaSaldo = saldoFin - saldoIni;
+    }
+  }
+
+  var fechas = cache.movs.map(function(m) { return m.fecha; }).filter(Boolean).sort(function(a, b) { return a - b; });
+  var dias = fechas.length ? Math.max(1, Math.round((fechas[fechas.length-1] - fechas[0]) / 86400000) + 1) : 0;
+
+  var row = 1;
+  var COLS_VISIBLE = 12;
+
+  // ════════ HEADER (banner) ════════
+  sh.getRange(row, 1, 1, COLS_VISIBLE).merge()
+    .setValue('REPORTE BANCARIO · ANÁLISIS EJECUTIVO')
+    .setFontSize(22).setFontWeight('bold')
+    .setBackground('#1A1A2E').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sh.setRowHeight(row, 48);
+  row++;
+
+  // Período subtitle
+  var periodoTxt = fechaStr(fechas[0]) + ' – ' + fechaStr(fechas[fechas.length-1]) +
+                   ' · ' + cache.movs.length + ' movimientos · ' + dias + ' días';
+  sh.getRange(row, 1, 1, COLS_VISIBLE).merge()
+    .setValue(periodoTxt)
+    .setFontSize(11).setFontColor('#6b7280')
+    .setHorizontalAlignment('center');
+  sh.setRowHeight(row, 24);
+  row += 2;
+
+  // ════════ SALDO ════════
+  if (saldoFin != null) {
+    var saldoTxt = '💵 Saldo final: ' + fmt(saldoFin);
+    if (deltaSaldo != null) {
+      var arrow = deltaSaldo >= 0 ? '↗' : '↘';
+      var sign  = deltaSaldo >= 0 ? '+' : '−';
+      saldoTxt += '       ' + arrow + ' ' + sign + fmt(Math.abs(deltaSaldo)) + ' vs inicial (' + fmt(saldoIni) + ')';
+    }
+    sh.getRange(row, 1, 1, COLS_VISIBLE).merge()
+      .setValue(saldoTxt)
+      .setFontSize(15).setFontWeight('bold')
+      .setBackground('#fff7ed').setFontColor('#1A1A2E')
+      .setHorizontalAlignment('center');
+    sh.setRowHeight(row, 36);
+    row += 2;
+  }
+
+  // ════════ FLUJO (3 cards horizontales, 4 cols cada una) ════════
+  var ahCls = neto >= 0 ? { bg: '#d1fae5', fg: '#064e3b' } : { bg: '#fee2e2', fg: '#7f1d1d' };
+  var flujoCards = [
+    { label: 'INGRESOS', valor: fmt(agg.totalIn), nota: '', bg: '#d1fae5', fg: '#064e3b' },
+    { label: 'GASTOS',   valor: fmt(agg.totalOut), nota: '', bg: '#fee2e2', fg: '#7f1d1d' },
+    { label: (neto >= 0 ? 'AHORRO NETO' : 'DÉFICIT'), valor: fmt(Math.abs(neto)), nota: (ahorro >= 0 ? '+' : '') + ahorro + '% del ingreso', bg: ahCls.bg, fg: ahCls.fg },
+  ];
+  flujoCards.forEach(function(card, i) {
+    var startCol = 1 + i * 4;
+    sh.getRange(row, startCol, 1, 4).merge()
+      .setValue(card.label)
+      .setFontSize(10).setFontWeight('bold')
+      .setBackground(card.bg).setFontColor(card.fg)
+      .setHorizontalAlignment('center');
+    sh.getRange(row + 1, startCol, 1, 4).merge()
+      .setValue(card.valor)
+      .setFontSize(20).setFontWeight('bold')
+      .setBackground(card.bg).setFontColor(card.fg)
+      .setHorizontalAlignment('center');
+    if (card.nota) {
+      sh.getRange(row + 2, startCol, 1, 4).merge()
+        .setValue(card.nota)
+        .setFontSize(10).setFontStyle('italic')
+        .setBackground(card.bg).setFontColor(card.fg)
+        .setHorizontalAlignment('center');
+    }
+  });
+  sh.setRowHeight(row, 22);
+  sh.setRowHeight(row + 1, 38);
+  sh.setRowHeight(row + 2, 22);
+  row += 4;
+
+  // ════════ SEMÁFORO (2x2 cards de 6 cols cada una) ════════
+  var semaforo = _bancoPDFComputarSemaforo({
+    totalIn: agg.totalIn, totalOut: agg.totalOut, dias: dias,
+    deltaSaldo: deltaSaldo, saldoFin: saldoFin,
+    topCats: agg.topCatsKeys.slice(0, 8).map(function(c) { return { cat: c, sum: agg.catTotals[c] }; }),
+  }, ahorro);
+  var SEM_BG = { green: '#d1fae5', yellow: '#fef3c7', red: '#fee2e2' };
+  var SEM_FG = { green: '#064e3b', yellow: '#78350f', red: '#7f1d1d' };
+
+  for (var s = 0; s < semaforo.length; s += 2) {
+    [0, 1].forEach(function(j) {
+      var sem = semaforo[s + j];
+      if (!sem) return;
+      var startCol = 1 + j * 6;
+      var bg = SEM_BG[sem.color] || '#fff';
+      var fg = SEM_FG[sem.color] || '#1f2937';
+      sh.getRange(row, startCol, 1, 6).merge()
+        .setValue(sem.label.toUpperCase())
+        .setFontSize(10).setFontWeight('bold')
+        .setBackground(bg).setFontColor(fg)
+        .setHorizontalAlignment('center');
+      sh.getRange(row + 1, startCol, 1, 6).merge()
+        .setValue(sem.estado + '  ·  ' + sem.valor)
+        .setFontSize(14).setFontWeight('bold')
+        .setBackground(bg).setFontColor(fg)
+        .setHorizontalAlignment('center');
+      sh.getRange(row + 2, startCol, 1, 6).merge()
+        .setValue(sem.comentario)
+        .setFontSize(9).setFontStyle('italic')
+        .setBackground(bg).setFontColor(fg)
+        .setHorizontalAlignment('center').setWrap(true);
     });
-  } catch(e) { Logger.log('Dashboard diagnóstico skip: ' + e.message); }
+    sh.setRowHeight(row, 20);
+    sh.setRowHeight(row + 1, 32);
+    sh.setRowHeight(row + 2, 30);
+    row += 4;
+  }
 
-  // Encontrar la próxima fila vacía después del diagnóstico
-  var nextRow = sh.getLastRow() + 3;
+  // ════════ PIE/DONUT CHART (top cats) ════════
+  // Data en filas remotas (col Z+) para no contaminar visualmente.
+  var CHART_DATA_ROW = 300;
+  var pieData = [['Categoría', 'Monto']];
+  agg.topCatsKeys.slice(0, 7).forEach(function(c) {
+    pieData.push([_bancoCatPlain(c), agg.catTotals[c]]);
+  });
+  // Rollup "Otros" si hay más
+  if (agg.topCatsKeys.length > 7) {
+    var resto = agg.topCatsKeys.slice(7);
+    var sumResto = resto.reduce(function(s, c) { return s + agg.catTotals[c]; }, 0);
+    pieData.push(['Otros', sumResto]);
+  }
+  sh.getRange(CHART_DATA_ROW, 26, pieData.length, 2).setValues(pieData);
 
-  // Sección 2: matriz cat × mes (igual que en variante A pero acá embebida)
-  sh.getRange(nextRow, 1).setValue('📊 GASTO POR CATEGORÍA × MES').setFontWeight('bold').setFontSize(13).setBackground('#1A1A2E').setFontColor('#FFFFFF');
-  sh.getRange(nextRow, 1, 1, 4 + agg.meses.length).merge();
-  nextRow += 2;
-  var catHeaderRow = nextRow;
+  var pieChart = sh.newChart()
+    .setChartType(Charts.ChartType.PIE)
+    .addRange(sh.getRange(CHART_DATA_ROW, 26, pieData.length, 2))
+    .setPosition(row, 1, 0, 0)
+    .setOption('title', 'Top categorías de gasto')
+    .setOption('titleTextStyle', { fontSize: 14, bold: true })
+    .setOption('pieHole', 0.5)
+    .setOption('width', 580)
+    .setOption('height', 320)
+    .setOption('legend', { position: 'right', textStyle: { fontSize: 11 } })
+    .setOption('colors', ['#ea580c','#0891b2','#7c3aed','#059669','#dc2626','#f59e0b','#0284c7','#6b7280'])
+    .build();
+  sh.insertChart(pieChart);
+  row += 16;  // espacio para que el chart entre
+
+  // ════════ BAR CHART (tendencia mensual) ════════
+  var BAR_DATA_ROW = 320;
+  var barData = [['Mes', 'Gasto']];
+  agg.meses.forEach(function(ym) {
+    var sum = 0;
+    Object.keys(agg.catTotals).forEach(function(c) {
+      sum += (agg.catByMes[c] && agg.catByMes[c][ym]) || 0;
+    });
+    barData.push([_bancoMesAbbrev(ym), sum]);
+  });
+  sh.getRange(BAR_DATA_ROW, 26, barData.length, 2).setValues(barData);
+
+  var barChart = sh.newChart()
+    .setChartType(Charts.ChartType.COLUMN)
+    .addRange(sh.getRange(BAR_DATA_ROW, 26, barData.length, 2))
+    .setPosition(row, 1, 0, 0)
+    .setOption('title', 'Tendencia mensual')
+    .setOption('titleTextStyle', { fontSize: 14, bold: true })
+    .setOption('legend', { position: 'none' })
+    .setOption('colors', ['#fb923c'])
+    .setOption('width', 720)
+    .setOption('height', 320)
+    .setOption('vAxis', { format: '$#,##0' })
+    .build();
+  sh.insertChart(barChart);
+  row += 17;
+
+  // ════════ MATRIZ Cat × Mes ════════
+  sh.getRange(row, 1, 1, COLS_VISIBLE).merge()
+    .setValue('📊 GASTO POR CATEGORÍA × MES')
+    .setFontSize(13).setFontWeight('bold')
+    .setBackground('#1A1A2E').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center');
+  sh.setRowHeight(row, 28);
+  row += 2;
+
   var catHeaders = ['Categoría'];
   agg.meses.forEach(function(ym) { catHeaders.push(_bancoMesAbbrev(ym)); });
   catHeaders.push('Total');
   catHeaders.push('%');
-  sh.getRange(catHeaderRow, 1, 1, catHeaders.length).setValues([catHeaders])
+  sh.getRange(row, 1, 1, catHeaders.length).setValues([catHeaders])
     .setFontWeight('bold').setBackground('#F1F3F5');
-  nextRow++;
-  var catRowsStart = nextRow;
+  row++;
+  var catRowsStart = row;
   agg.topCatsKeys.forEach(function(c) {
-    var row = [_bancoCatLabel(c)];
+    var rowData = [_bancoCatLabel(c)];
     var rowTotal = agg.catTotals[c];
-    agg.meses.forEach(function(ym) {
-      row.push((agg.catByMes[c] && agg.catByMes[c][ym]) || 0);
-    });
-    row.push(rowTotal);
+    agg.meses.forEach(function(ym) { rowData.push((agg.catByMes[c] && agg.catByMes[c][ym]) || 0); });
+    rowData.push(rowTotal);
     var pct = agg.totalOut > 0 ? Math.round((rowTotal / agg.totalOut) * 100) : 0;
-    row.push(pct + '%');
-    sh.getRange(nextRow, 1, 1, row.length).setValues([row]);
-    nextRow++;
+    rowData.push(pct + '%');
+    sh.getRange(row, 1, 1, rowData.length).setValues([rowData]);
+    row++;
   });
-  // Heatmap cat
   if (agg.meses.length > 0 && agg.topCatsKeys.length > 0) {
+    sh.getRange(catRowsStart, 2, agg.topCatsKeys.length, agg.meses.length + 1).setNumberFormat('$#,##0');
+    sh.getRange(catRowsStart, 2 + agg.meses.length, agg.topCatsKeys.length, 1).setFontWeight('bold');
     try {
-      var hmRange = sh.getRange(catRowsStart, 2, agg.topCatsKeys.length, agg.meses.length);
-      hmRange.setNumberFormat('$#,##0');
-      sh.getRange(catRowsStart, 2 + agg.meses.length, agg.topCatsKeys.length, 1).setNumberFormat('$#,##0').setFontWeight('bold');
-      var rule = SpreadsheetApp.newConditionalFormatRule()
+      var hmCat = sh.getRange(catRowsStart, 2, agg.topCatsKeys.length, agg.meses.length);
+      var ruleC = SpreadsheetApp.newConditionalFormatRule()
         .setGradientMinpointWithValue('#E8F5E9', SpreadsheetApp.InterpolationType.NUMBER, '0')
         .setGradientMaxpoint('#EF5350')
-        .setRanges([hmRange]).build();
-      var existing = sh.getConditionalFormatRules();
-      existing.push(rule);
-      sh.setConditionalFormatRules(existing);
+        .setRanges([hmCat]).build();
+      var ex1 = sh.getConditionalFormatRules(); ex1.push(ruleC);
+      sh.setConditionalFormatRules(ex1);
     } catch(e) { Logger.log('Dashboard heatmap cat skip: ' + e.message); }
   }
+  row += 2;
 
-  nextRow += 2;
+  // ════════ MATRIZ Dest × Mes (top 15) ════════
+  sh.getRange(row, 1, 1, COLS_VISIBLE).merge()
+    .setValue('🎯 GASTO POR DESTINATARIO × MES (top 15)')
+    .setFontSize(13).setFontWeight('bold')
+    .setBackground('#1A1A2E').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center');
+  sh.setRowHeight(row, 28);
+  row += 2;
 
-  // Sección 3: matriz dest × mes (top 15 para que el dashboard no quede demasiado largo)
-  sh.getRange(nextRow, 1).setValue('🎯 GASTO POR DESTINATARIO × MES (top 15)').setFontWeight('bold').setFontSize(13).setBackground('#1A1A2E').setFontColor('#FFFFFF');
-  sh.getRange(nextRow, 1, 1, 4 + agg.meses.length).merge();
-  nextRow += 2;
   var destHeaders = ['Destinatario'];
   agg.meses.forEach(function(ym) { destHeaders.push(_bancoMesAbbrev(ym)); });
   destHeaders.push('Total');
   destHeaders.push('%');
-  sh.getRange(nextRow, 1, 1, destHeaders.length).setValues([destHeaders])
+  sh.getRange(row, 1, 1, destHeaders.length).setValues([destHeaders])
     .setFontWeight('bold').setBackground('#F1F3F5');
-  nextRow++;
-  var destRowsStart = nextRow;
+  row++;
+  var destRowsStart = row;
   var top15Dest = agg.topDestKeys.slice(0, 15);
   top15Dest.forEach(function(d) {
-    var row = [d];
+    var rowData = [d];
     var rowTotal = agg.destTotals[d];
-    agg.meses.forEach(function(ym) {
-      row.push((agg.destByMes[d] && agg.destByMes[d][ym]) || 0);
-    });
-    row.push(rowTotal);
+    agg.meses.forEach(function(ym) { rowData.push((agg.destByMes[d] && agg.destByMes[d][ym]) || 0); });
+    rowData.push(rowTotal);
     var pct = agg.totalOut > 0 ? Math.round((rowTotal / agg.totalOut) * 100) : 0;
-    row.push(pct + '%');
-    sh.getRange(nextRow, 1, 1, row.length).setValues([row]);
-    nextRow++;
+    rowData.push(pct + '%');
+    sh.getRange(row, 1, 1, rowData.length).setValues([rowData]);
+    row++;
   });
-  // Heatmap dest
   if (agg.meses.length > 0 && top15Dest.length > 0) {
+    sh.getRange(destRowsStart, 2, top15Dest.length, agg.meses.length + 1).setNumberFormat('$#,##0');
+    sh.getRange(destRowsStart, 2 + agg.meses.length, top15Dest.length, 1).setFontWeight('bold');
     try {
-      var hmRangeD = sh.getRange(destRowsStart, 2, top15Dest.length, agg.meses.length);
-      hmRangeD.setNumberFormat('$#,##0');
-      sh.getRange(destRowsStart, 2 + agg.meses.length, top15Dest.length, 1).setNumberFormat('$#,##0').setFontWeight('bold');
+      var hmDest = sh.getRange(destRowsStart, 2, top15Dest.length, agg.meses.length);
       var ruleD = SpreadsheetApp.newConditionalFormatRule()
         .setGradientMinpointWithValue('#E8F5E9', SpreadsheetApp.InterpolationType.NUMBER, '0')
         .setGradientMaxpoint('#EF5350')
-        .setRanges([hmRangeD]).build();
-      var existing2 = sh.getConditionalFormatRules();
-      existing2.push(ruleD);
-      sh.setConditionalFormatRules(existing2);
+        .setRanges([hmDest]).build();
+      var ex2 = sh.getConditionalFormatRules(); ex2.push(ruleD);
+      sh.setConditionalFormatRules(ex2);
     } catch(e) { Logger.log('Dashboard heatmap dest skip: ' + e.message); }
   }
+  row += 2;
+
+  // ════════ HALLAZGOS (concisos, 1 línea c/u) ════════
+  var hallazgos = _bancoDashboardHallazgosConcisos(cache.movs, agg, dias);
+  if (hallazgos.length) {
+    sh.getRange(row, 1, 1, COLS_VISIBLE).merge()
+      .setValue('💡 HALLAZGOS ACCIONABLES')
+      .setFontSize(13).setFontWeight('bold')
+      .setBackground('#1A1A2E').setFontColor('#FFFFFF')
+      .setHorizontalAlignment('center');
+    sh.setRowHeight(row, 28);
+    row++;
+    hallazgos.forEach(function(h) {
+      sh.getRange(row, 1, 1, COLS_VISIBLE).merge()
+        .setValue('• ' + h)
+        .setFontSize(11)
+        .setBackground('#fff7ed').setFontColor('#9a3412')
+        .setHorizontalAlignment('left').setVerticalAlignment('middle');
+      sh.setRowHeight(row, 24);
+      row++;
+    });
+    row++;
+  }
+
+  // ════════ Anchos de columna del dashboard ════════
+  // 12 cols a ancho moderado para que el layout funcione con cards de 4 y 6 cols
+  for (var c = 1; c <= COLS_VISIBLE; c++) {
+    sh.setColumnWidth(c, 95);
+  }
+  // Esconder columnas de la data oculta de los charts (col 26+)
+  try { sh.hideColumns(26, 5); } catch(e) { Logger.log('Hide cols skip: ' + e.message); }
+  sh.setHiddenGridlines(true);
+}
+
+// Genera 3-5 hallazgos concisos para el dashboard (1 línea c/u).
+function _bancoDashboardHallazgosConcisos(movs, agg, dias) {
+  var fmt = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  var out = [];
+
+  // Top cat de consumo (sin transferencias)
+  var CATS_NO = ['ach_salida', 'yappy_salida', 'pago_tarjeta', 'otro'];
+  var topConsumo = agg.topCatsKeys.filter(function(c) { return CATS_NO.indexOf(c) < 0; })[0];
+  if (topConsumo) {
+    var pct = agg.totalOut > 0 ? Math.round((agg.catTotals[topConsumo] / agg.totalOut) * 100) : 0;
+    out.push('Top categoría de consumo: ' + _bancoCatLabel(topConsumo) + ' · ' + fmt(agg.catTotals[topConsumo]) + ' (' + pct + '% del gasto)');
+  }
+
+  // Top destinatario
+  if (agg.topDestKeys.length) {
+    var topD = agg.topDestKeys[0];
+    var pctD = agg.totalOut > 0 ? Math.round((agg.destTotals[topD] / agg.totalOut) * 100) : 0;
+    out.push('Top destinatario: ' + topD + ' · ' + fmt(agg.destTotals[topD]) + ' (' + pctD + '%)');
+  }
+
+  // Gastos chicos
+  var chicos = movs.filter(function(m) { return m.monto < 0 && m.monto > -10; });
+  if (chicos.length >= 10) {
+    var sumChicos = chicos.reduce(function(s, m) { return s + Math.abs(m.monto); }, 0);
+    var anual = dias > 0 ? (sumChicos / dias) * 365 : 0;
+    out.push('Gastos chicos <$10: ' + chicos.length + ' compras = ' + fmt(sumChicos) + ' (proyección anual ' + fmt(anual) + ')');
+  }
+
+  // Form 90 deducibles
+  var form90 = ['salud','educacion','seguro','prestamo']
+    .filter(function(c) { return agg.catTotals[c]; });
+  if (form90.length) {
+    var sumF90 = form90.reduce(function(s, c) { return s + agg.catTotals[c]; }, 0);
+    out.push('Deducibles Form 90 detectados: ' + fmt(sumF90) + ' (' + form90.map(_bancoCatPlain).join(', ') + ')');
+  }
+
+  // Yappy (si hay)
+  var totalYappy = (agg.catTotals['yappy_salida'] || 0);
+  if (totalYappy >= 100) {
+    var pctY = agg.totalOut > 0 ? Math.round((totalYappy / agg.totalOut) * 100) : 0;
+    out.push('Yappys enviados: ' + fmt(totalYappy) + ' (' + pctY + '% del gasto)');
+  }
+
+  return out.slice(0, 5);
 }
 
 // Hoja con instrucciones para que el usuario arme su propio pivot.
