@@ -1671,7 +1671,7 @@ function _bancoPoblarXlsxDashboard(ss, cache) {
   //    El usuario las puede modificar (cambiar agrupaciones, filtros, etc.)
   //    desde la UI nativa de Sheets/Excel.
   var shP = ss.insertSheet('Tablas Dinámicas');
-  _bancoPoblarPivotsPreArmados(shP, shM, cache.movs.length);
+  _bancoPoblarPivotsPreArmados(shP, cache.movs, agg);
 
   ss.setActiveSheet(shD);
   SpreadsheetApp.flush();
@@ -2291,94 +2291,195 @@ function _bancoDashboardHallazgosConcisos(movs, agg, dias) {
   return out.slice(0, 5);
 }
 
-// Hoja con 3 pivot tables PRE-ARMADAS. El usuario las puede modificar
-// in-place desde la UI nativa de Sheets/Excel.
+// Hoja con 3 tablas analíticas pre-calculadas (snapshots con data real).
+// Las pivots nativas de Sheets no siempre se preservan al exportar a xlsx;
+// por eso renderear los valores directo asegura que el usuario VEA la data
+// al abrir el archivo, sin necesidad de refresh.
 //
-// Cols en Movimientos:
-//   1 Fecha · 2 Año · 3 Mes (texto) · 4 Día · 5 Día semana ·
-//   6 Monto · 7 |Monto| · 8 Tipo · 9 Categoría · 10 Destinatario ·
-//   11 Descripción · 12 Saldo
-function _bancoPoblarPivotsPreArmados(sh, movsSheet, nMovs) {
-  // Range fuente: todas las filas con data (incluye header)
-  var lastRow = Math.max(2, movsSheet.getLastRow());
-  var sourceRange = movsSheet.getRange(1, 1, lastRow, 12);
+// Cada tabla incluye:
+//   - Heading con tipo de análisis
+//   - Headers (filas/columnas/valores)
+//   - Data calculada
+//   - Heatmap sobre las celdas de valor
+//   - Total + % por fila
+//
+// Al pie: instrucciones de cómo crear pivots dinámicas desde Movimientos.
+function _bancoPoblarPivotsPreArmados(sh, movs, agg) {
+  var nMeses = agg.meses.length;
+  var fmtMoney = function(n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  var addHeatmap = function(range) {
+    try {
+      var rule = SpreadsheetApp.newConditionalFormatRule()
+        .setGradientMinpointWithValue('#E8F5E9', SpreadsheetApp.InterpolationType.NUMBER, '0')
+        .setGradientMaxpoint('#EF5350')
+        .setRanges([range]).build();
+      var ex = sh.getConditionalFormatRules();
+      ex.push(rule);
+      sh.setConditionalFormatRules(ex);
+    } catch(e) { Logger.log('Heatmap skip: ' + e.message); }
+  };
 
-  // Header explicativo arriba
-  var introRows = [
-    ['📊 TABLAS DINÁMICAS PRE-ARMADAS'],
-    [''],
-    ['Estas pivots están conectadas a la hoja "Movimientos" (' + nMovs + ' filas).'],
-    ['Podés modificarlas: agregar filtros, cambiar agrupaciones, etc. usando el panel'],
-    ['lateral derecho cuando hacés click adentro de una.'],
-    [''],
+  // ════════ HEADER + INTRO ════════
+  sh.getRange(1, 1, 1, 12).merge()
+    .setValue('📊 TABLAS DINÁMICAS')
+    .setFontSize(18).setFontWeight('bold')
+    .setBackground('#1A1A2E').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center');
+  sh.setRowHeight(1, 36);
+
+  sh.getRange(2, 1, 1, 12).merge()
+    .setValue('3 vistas analíticas pre-calculadas (' + movs.length + ' movs). Filtradas a *Gastos* (excluye ingresos).')
+    .setFontSize(10).setFontStyle('italic').setFontColor('#6b7280')
+    .setHorizontalAlignment('center');
+  var nextRow = 4;
+
+  // ════════ TABLA 1: Categoría × Mes ════════
+  sh.getRange(nextRow, 1, 1, 12).merge()
+    .setValue('1️⃣ GASTO POR CATEGORÍA × MES')
+    .setFontSize(13).setFontWeight('bold')
+    .setBackground('#fb923c').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center');
+  nextRow += 2;
+  // Headers
+  var t1Headers = ['Categoría'];
+  agg.meses.forEach(function(ym) { t1Headers.push(_bancoMesAbbrev(ym)); });
+  t1Headers.push('Total');
+  t1Headers.push('%');
+  sh.getRange(nextRow, 1, 1, t1Headers.length).setValues([t1Headers])
+    .setFontWeight('bold').setBackground('#F1F3F5');
+  nextRow++;
+  var t1Start = nextRow;
+  agg.topCatsKeys.forEach(function(c) {
+    var row = [_bancoCatLabel(c)];
+    var total = agg.catTotals[c];
+    agg.meses.forEach(function(ym) { row.push((agg.catByMes[c] && agg.catByMes[c][ym]) || 0); });
+    row.push(total);
+    var pct = agg.totalOut > 0 ? Math.round((total / agg.totalOut) * 100) : 0;
+    row.push(pct + '%');
+    sh.getRange(nextRow, 1, 1, row.length).setValues([row]);
+    nextRow++;
+  });
+  if (agg.topCatsKeys.length > 0 && nMeses > 0) {
+    sh.getRange(t1Start, 2, agg.topCatsKeys.length, nMeses + 1).setNumberFormat('$#,##0');
+    sh.getRange(t1Start, 2 + nMeses, agg.topCatsKeys.length, 1).setFontWeight('bold');
+    addHeatmap(sh.getRange(t1Start, 2, agg.topCatsKeys.length, nMeses));
+  }
+  nextRow += 2;
+
+  // ════════ TABLA 2: Destinatario × Mes (top 20) ════════
+  sh.getRange(nextRow, 1, 1, 12).merge()
+    .setValue('2️⃣ GASTO POR DESTINATARIO × MES (top 20)')
+    .setFontSize(13).setFontWeight('bold')
+    .setBackground('#0891b2').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center');
+  nextRow += 2;
+  var t2Headers = ['Destinatario'];
+  agg.meses.forEach(function(ym) { t2Headers.push(_bancoMesAbbrev(ym)); });
+  t2Headers.push('Total');
+  t2Headers.push('%');
+  sh.getRange(nextRow, 1, 1, t2Headers.length).setValues([t2Headers])
+    .setFontWeight('bold').setBackground('#F1F3F5');
+  nextRow++;
+  var t2Start = nextRow;
+  var top20 = agg.topDestKeys.slice(0, 20);
+  top20.forEach(function(d) {
+    var row = [d];
+    var total = agg.destTotals[d];
+    agg.meses.forEach(function(ym) { row.push((agg.destByMes[d] && agg.destByMes[d][ym]) || 0); });
+    row.push(total);
+    var pct = agg.totalOut > 0 ? Math.round((total / agg.totalOut) * 100) : 0;
+    row.push(pct + '%');
+    sh.getRange(nextRow, 1, 1, row.length).setValues([row]);
+    nextRow++;
+  });
+  if (top20.length > 0 && nMeses > 0) {
+    sh.getRange(t2Start, 2, top20.length, nMeses + 1).setNumberFormat('$#,##0');
+    sh.getRange(t2Start, 2 + nMeses, top20.length, 1).setFontWeight('bold');
+    addHeatmap(sh.getRange(t2Start, 2, top20.length, nMeses));
+  }
+  nextRow += 2;
+
+  // ════════ TABLA 3: Día semana × Categoría ════════
+  // Computamos el agregado día × cat aquí (no estaba en agg).
+  var dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+  var diaCatTotals = {};   // dia → { cat → sum }
+  var diaTotals = {};       // dia → sum
+  var diasJS = [1,2,3,4,5,6,0];  // mapping JS day index (Sun=0) → posición en `dias`
+  movs.forEach(function(m) {
+    if (m.monto >= 0 || !m.fecha) return;
+    var jsDay = m.fecha.getDay();
+    var dia = dias[diasJS.indexOf(jsDay)];
+    if (!dia) return;
+    var s = -m.monto;
+    if (!diaCatTotals[dia]) diaCatTotals[dia] = {};
+    diaCatTotals[dia][m.cat] = (diaCatTotals[dia][m.cat] || 0) + s;
+    diaTotals[dia] = (diaTotals[dia] || 0) + s;
+  });
+  // Top 6 cats que aparecen en al menos un día (suficiente para hacer el patrón)
+  var top6Cats = agg.topCatsKeys.slice(0, 6);
+
+  sh.getRange(nextRow, 1, 1, 12).merge()
+    .setValue('3️⃣ PATRÓN SEMANAL: DÍA × CATEGORÍA')
+    .setFontSize(13).setFontWeight('bold')
+    .setBackground('#7c3aed').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center');
+  nextRow += 2;
+  var t3Headers = ['Día'].concat(top6Cats.map(function(c) { return _bancoCatPlain(c); }));
+  t3Headers.push('Total día');
+  sh.getRange(nextRow, 1, 1, t3Headers.length).setValues([t3Headers])
+    .setFontWeight('bold').setBackground('#F1F3F5');
+  nextRow++;
+  var t3Start = nextRow;
+  dias.forEach(function(dia) {
+    var row = [dia];
+    top6Cats.forEach(function(c) {
+      row.push((diaCatTotals[dia] && diaCatTotals[dia][c]) || 0);
+    });
+    row.push(diaTotals[dia] || 0);
+    sh.getRange(nextRow, 1, 1, row.length).setValues([row]);
+    nextRow++;
+  });
+  sh.getRange(t3Start, 2, dias.length, top6Cats.length + 1).setNumberFormat('$#,##0');
+  sh.getRange(t3Start, 2 + top6Cats.length, dias.length, 1).setFontWeight('bold');
+  addHeatmap(sh.getRange(t3Start, 2, dias.length, top6Cats.length));
+  nextRow += 2;
+
+  // ════════ INSTRUCCIONES AL PIE ════════
+  sh.getRange(nextRow, 1, 1, 12).merge()
+    .setValue('💡 ¿CÓMO CONVERTIRLAS EN PIVOTS INTERACTIVAS?')
+    .setFontSize(12).setFontWeight('bold')
+    .setBackground('#1A1A2E').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center');
+  nextRow += 2;
+
+  var instrucciones = [
+    'Las 3 tablas de arriba son snapshots de tu data. Para explorarla dinámicamente:',
+    '',
+    '1. Andá a la hoja *Movimientos* (toda tu data con columnas analíticas)',
+    '2. Seleccioná todo: Ctrl+A (Windows/Linux) ó Cmd+A (Mac)',
+    '3. Menú: *Insertar → Tabla Dinámica* (Sheets) ó *Insert → PivotTable* (Excel)',
+    '4. Arrastrá columnas a los cuadrantes Filas / Columnas / Valores / Filtros',
+    '',
+    'Configuraciones útiles para arrancar:',
+    '• Filas: Categoría · Cols: Mes · Valores: SUM(|Monto|) · Filtro: Tipo=Gasto',
+    '• Filas: Destinatario · Cols: Mes · Valores: SUM(|Monto|) · Filtro: Tipo=Gasto',
+    '• Filas: Día semana · Cols: Categoría · Valores: SUM(|Monto|) · Filtro: Tipo=Gasto',
+    '• Filas: Mes · Cols: Tipo · Valores: SUM(Monto) → ingresos vs gastos por mes',
+    '',
+    'Tip: cambiá Valores → SUMARIZAR POR → COUNTA para ver *cuántas* transacciones (no $).',
+    'Tip: agregá un Slicer para filtrar interactivamente por categoría/mes/destinatario.',
   ];
-  sh.getRange(1, 1, introRows.length, 1).setValues(introRows);
-  sh.getRange(1, 1).setFontSize(15).setFontWeight('bold').setFontColor('#1A1A2E');
-  sh.getRange(3, 1, 3, 1).setFontSize(10).setFontColor('#6b7280');
-  var nextRow = introRows.length + 1;
-
-  // ────────── PIVOT 1: Categoría × Mes ──────────
-  sh.getRange(nextRow, 1).setValue('1️⃣ GASTO POR CATEGORÍA × MES')
-    .setFontSize(12).setFontWeight('bold')
-    .setBackground('#1A1A2E').setFontColor('#FFFFFF');
-  sh.getRange(nextRow, 1, 1, 8).merge();
-  nextRow += 2;
-  try {
-    var pivot1 = sh.getRange(nextRow, 1).createPivotTable(sourceRange);
-    var rg1 = pivot1.addRowGroup(9);  // Categoría
-    rg1.sortDescending().sortBy(pivot1.getPivotValues()[0], []);
-    pivot1.addColumnGroup(3);  // Mes
-    pivot1.addPivotValue(7, SpreadsheetApp.PivotTableSummarizeFunction.SUM);  // |Monto|
-    // Filtro: solo gastos
-    var fc = SpreadsheetApp.newFilterCriteria().whenTextEqualTo('Gasto').build();
-    pivot1.addFilter(8, fc);
-  } catch(e) { Logger.log('Pivot 1 skip: ' + e.message); }
-  nextRow += 18;  // espacio para que la pivot crezca (típicamente 10-15 cats × 1 col)
-
-  // ────────── PIVOT 2: Destinatario × Mes ──────────
-  sh.getRange(nextRow, 1).setValue('2️⃣ GASTO POR DESTINATARIO × MES')
-    .setFontSize(12).setFontWeight('bold')
-    .setBackground('#1A1A2E').setFontColor('#FFFFFF');
-  sh.getRange(nextRow, 1, 1, 8).merge();
-  nextRow += 2;
-  try {
-    var pivot2 = sh.getRange(nextRow, 1).createPivotTable(sourceRange);
-    var rg2 = pivot2.addRowGroup(10);  // Destinatario
-    rg2.sortDescending().sortBy(pivot2.getPivotValues()[0], []);
-    pivot2.addColumnGroup(3);  // Mes
-    pivot2.addPivotValue(7, SpreadsheetApp.PivotTableSummarizeFunction.SUM);
-    var fc2 = SpreadsheetApp.newFilterCriteria().whenTextEqualTo('Gasto').build();
-    pivot2.addFilter(8, fc2);
-  } catch(e) { Logger.log('Pivot 2 skip: ' + e.message); }
-  nextRow += 35;  // más espacio (puede haber muchos destinatarios)
-
-  // ────────── PIVOT 3: Día de semana × Categoría ──────────
-  sh.getRange(nextRow, 1).setValue('3️⃣ PATRÓN SEMANAL: DÍA × CATEGORÍA')
-    .setFontSize(12).setFontWeight('bold')
-    .setBackground('#1A1A2E').setFontColor('#FFFFFF');
-  sh.getRange(nextRow, 1, 1, 8).merge();
-  nextRow += 2;
-  try {
-    var pivot3 = sh.getRange(nextRow, 1).createPivotTable(sourceRange);
-    pivot3.addRowGroup(5);   // Día semana
-    pivot3.addColumnGroup(9);  // Categoría
-    pivot3.addPivotValue(7, SpreadsheetApp.PivotTableSummarizeFunction.SUM);
-    var fc3 = SpreadsheetApp.newFilterCriteria().whenTextEqualTo('Gasto').build();
-    pivot3.addFilter(8, fc3);
-  } catch(e) { Logger.log('Pivot 3 skip: ' + e.message); }
-  nextRow += 12;
-
-  // ────────── Tip al pie ──────────
-  sh.getRange(nextRow + 1, 1).setValue(
-    '💡 Tip: click adentro de cualquier pivot → panel lateral derecho ' +
-    'para editar filas/columnas/valores/filtros. Podés agregar más pivots ' +
-    'desde Movimientos vía Insertar → Tabla Dinámica.'
-  ).setFontSize(10).setFontStyle('italic').setFontColor('#6b7280').setWrap(true);
-  sh.getRange(nextRow + 1, 1, 1, 8).merge();
+  instrucciones.forEach(function(line) {
+    sh.getRange(nextRow, 1, 1, 12).merge()
+      .setValue(line).setFontSize(10).setFontColor('#374151')
+      .setHorizontalAlignment('left').setWrap(true);
+    sh.setRowHeight(nextRow, 20);
+    nextRow++;
+  });
 
   // Anchos
   sh.setColumnWidth(1, 220);
-  for (var i = 2; i <= 14; i++) sh.setColumnWidth(i, 95);
+  for (var i = 2; i <= 14; i++) sh.setColumnWidth(i, 90);
   sh.setHiddenGridlines(true);
 }
 
