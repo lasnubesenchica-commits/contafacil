@@ -280,10 +280,11 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
    - El estado lo controla la usuaria (Regla 5).
    =================================================================== */
 
-/* ⚠️ Reemplazar con el deployment /exec del Apps Script de SEPPELEC.
-   (Lo entrega el provisioner deploy.html al crear el cliente.)        */
-const GAS_URL = 'REEMPLAZAR_CON_URL_EXEC_DE_SEPPELEC';
-const BACKEND = /^https:\/\/script\.google\.com\/macros\//.test(GAS_URL);
+/* GAS_URL: el deployment /exec del Apps Script de SEPPELEC.
+   El provisioner (deploy.html) inyecta aquí la URL real al crear el
+   cliente. Mientras diga PENDIENTE, el tablero corre en modo local.   */
+const GAS_URL = 'https://script.google.com/macros/s/PENDIENTE_SEPPELEC/exec';
+const BACKEND = /script\.google\.com\/macros\//.test(GAS_URL) && !/PENDIENTE/.test(GAS_URL);
 
 const LS_KEY = 'flujo_cxc_seppelec_v1';
 const PLAZO_DIAS = 60;

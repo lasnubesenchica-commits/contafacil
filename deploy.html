@@ -1708,6 +1708,11 @@ async function createAdminFolder(clientId, webAppUrl) {
       );
 
       var newPath = item.path.replace(new RegExp('^' + TEMPLATE + '/'), clientId + '/');
+      // Idempotencia: no sobrescribir archivos ya creados a mano para este
+      // cliente (p. ej. un dashboard CxC propio en index.html). Si el archivo
+      // ya existe en el repo, se respeta y no se clona el del template.
+      var existing = await githubGetFile(newPath).catch(function () { return null; });
+      if (existing && existing.sha) continue;
       await githubPutFile(newPath, content, 'provisioner: admin ' + clientId, null);
     }
   }
