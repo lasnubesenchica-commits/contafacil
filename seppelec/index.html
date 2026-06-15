@@ -280,9 +280,11 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
    - El estado lo controla la usuaria (Regla 5).
    =================================================================== */
 
-/* GAS_URL: el deployment /exec del Apps Script de SEPPELEC.
-   El provisioner (deploy.html) inyecta aquí la URL real al crear el
-   cliente. Mientras diga PENDIENTE, el tablero corre en modo local.   */
+/* GAS_URL: pega aquí la URL /exec de la app web de Apps Script que
+   creaste con seppelec/Codigo.gs (ver instrucciones en ese archivo o
+   en seppelec/README.md). Sistema STANDALONE — no depende de nada más.
+   Mientras diga PENDIENTE, el tablero corre en modo local (sólo este
+   navegador, sin compartir).                                          */
 const GAS_URL = 'https://script.google.com/macros/s/PENDIENTE_SEPPELEC/exec';
 const BACKEND = /script\.google\.com\/macros\//.test(GAS_URL) && !/PENDIENTE/.test(GAS_URL);
 

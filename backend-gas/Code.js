@@ -305,7 +305,6 @@ function doPost(e) {
     }
     // ── CONFIGURACIÓN OPERACIONES ──────────────────────────────
     if (action === 'guardarConfig') return _handleGuardarConfig(data);
-    if (action === 'saveFlujoCxc') return _handleSaveFlujoCxc(data);
     if (action === 'inicializarSistema') return _handleInicializarSistema(data, '');
     if (action === 'installSyncTrigger') return _handleInstallUnifiedSyncTrigger(data, '');
     if (action === 'healthCheck')        return _handleHealthCheck(data, '');
@@ -565,8 +564,6 @@ function doGet(e) {
     // ── PLANILLA ────────────────────────────────────────────────
     if (action === 'getEmpleados')       return _handleGetEmpleados(params, callback);
     if (action === 'getPlanillaPreview') return _handleGetPlanillaPreview(params, callback);
-    // ── FLUJO CXC (cuentas por cobrar) ──────────────────────────
-    if (action === 'getFlujoCxc') return _handleGetFlujoCxc(params, callback);
 
     // ── JSONP: uploadVoucher ─────────────────────────────────────
     if (action === 'uploadVoucher') {
