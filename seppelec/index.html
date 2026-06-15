@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flujo CxC — Control de Cuentas por Cobrar</title>
+<title>Seppelec — Flujo CxC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -48,6 +48,12 @@ input,select{font-family:inherit}
 .btn.primary{background:var(--orange);color:#fff;border-color:var(--orange)}
 .btn.primary:hover{background:var(--orange2);color:#fff}
 .btn.ghost{background:transparent}
+.sync{display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;color:var(--muted);
+  background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:.35rem .7rem;white-space:nowrap}
+.sync.ok{color:var(--verde);background:var(--verde-bg);border-color:rgba(27,122,51,.25)}
+.sync.saving{color:var(--orange);background:#FBEEE4;border-color:rgba(224,90,0,.25)}
+.sync.err{color:var(--rojoosc);background:var(--rojoosc-bg);border-color:rgba(122,12,12,.25)}
+.sync.local{color:var(--amar);background:var(--amar-bg);border-color:rgba(154,106,0,.25)}
 
 .wrap{max-width:1500px;margin:0 auto;padding:1.25rem 1.5rem}
 
@@ -162,18 +168,20 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
 <body>
 
 <div class="topbar">
-  <div class="brand">FLUJO<span>CXC</span>
-    <small id="negocio">Industrias Lácteas — Cuentas por Cobrar</small>
+  <div class="brand">SEPPELEC<span> · CxC</span>
+    <small id="negocio">Cuentas por cobrar y flujo de caja</small>
   </div>
   <div class="topbar-actions">
+    <span class="sync" id="sync" title="Estado de sincronización">●&nbsp;<span id="syncTxt">Conectando…</span></span>
     <button class="btn" id="addBtn">＋ Orden / Factura</button>
     <button class="btn ghost" id="impBtn">Importar</button>
     <button class="btn ghost" id="expBtn">Exportar</button>
     <button class="btn ghost" id="csvBtn">CSV</button>
-    <button class="btn ghost" id="resetBtn" title="Restaurar datos de ejemplo">↺</button>
     <input type="file" id="fileInput" accept="application/json" hidden>
   </div>
 </div>
+<div id="cfgBanner" style="display:none;background:#FFF6DB;border-bottom:1px solid #E6Cf7a;color:#7A5A00;
+  font-size:.78rem;padding:.5rem 1.5rem">⚠️ Backend no configurado — trabajando en modo local. Define <code>GAS_URL</code> con el deployment de Seppelec para compartir con tus jefes.</div>
 
 <div class="wrap">
 
@@ -227,8 +235,10 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
 
 <script>
 /* ===================================================================
-   FLUJO CXC — Control de cuentas por cobrar y flujo de caja
-   Self-contained. Persistencia en localStorage. Sin backend.
+   SEPPELEC · FLUJO CXC — Control de cuentas por cobrar y flujo de caja
+   Datos compartidos vía backend Google Apps Script (pestaña Flujo_CXC).
+   localStorage se usa sólo como caché offline. Así la usuaria edita y
+   sus jefes ven lo mismo abriendo el enlace.
    Lógica:
    - Vencimiento = Fecha de factura + 60 días (Reglas 1 y 2).
    - El monto facturado se ubica en la semana de emisión (azul).
@@ -240,7 +250,12 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
    - El estado lo controla la usuaria (Regla 5).
    =================================================================== */
 
-const LS_KEY = 'flujo_cxc_v1';
+/* ⚠️ Reemplazar con el deployment /exec del Apps Script de SEPPELEC.
+   (Lo entrega el provisioner deploy.html al crear el cliente.)        */
+const GAS_URL = 'REEMPLAZAR_CON_URL_EXEC_DE_SEPPELEC';
+const BACKEND = /^https:\/\/script\.google\.com\/macros\//.test(GAS_URL);
+
+const LS_KEY = 'flujo_cxc_seppelec_v1';
 const PLAZO_DIAS = 60;
 const YEAR = 2026;
 const LINEA_DEFAULT = 70000;
@@ -286,16 +301,85 @@ const ESTADOS = ['orden','facturado','abonado','pagado'];
 const ESTADO_LBL = {orden:'Orden', facturado:'Facturado', abonado:'Abonado', pagado:'Pagado'};
 
 /* ---------- state ---------- */
-let state = load();
+let state = loadCache();          // arranca desde caché para pintar rápido
 
-function load(){
+function loadCache(){
   try{
     const raw = localStorage.getItem(LS_KEY);
     if(raw){ const s = JSON.parse(raw); if(s && Array.isArray(s.rows)) return s; }
   }catch(e){}
   return JSON.parse(JSON.stringify(SEED));
 }
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+/* ---------- backend comms (Google Apps Script) ---------- */
+function gasJsonp(action, params){
+  return new Promise((resolve,reject)=>{
+    const cb='_fx_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    let qs='?action='+encodeURIComponent(action)+'&callback='+cb;
+    if(params) Object.keys(params).forEach(k=>qs+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k]));
+    const s=document.createElement('script');
+    const done=ok=>{ delete window[cb]; if(s.parentNode) s.parentNode.removeChild(s); };
+    window[cb]=r=>{ done(); resolve(r); };
+    s.onerror=()=>{ done(); reject(new Error('red')); };
+    s.src=GAS_URL+qs; document.body.appendChild(s);
+    setTimeout(()=>{ if(window[cb]){ done(); reject(new Error('timeout')); } }, 30000);
+  });
+}
+function gasPost(action, body){
+  return fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(Object.assign({action},body||{}))}).then(r=>r.json());
+}
+
+/* ---------- sync indicator ---------- */
+function setSync(cls, txt){
+  const el=document.getElementById('sync'); const t=document.getElementById('syncTxt');
+  if(!el) return; el.className='sync '+cls; if(t) t.textContent=txt;
+}
+
+/* ---------- persistence: cache + debounced backend save ---------- */
+let _saveTimer=null, _saving=false, _pending=false;
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+  if(!BACKEND) return;
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(pushSave, 700);          // agrupa ediciones rápidas
+}
+async function pushSave(){
+  if(!BACKEND) return;
+  if(_saving){ _pending=true; return; }
+  _saving=true; setSync('saving','Guardando…');
+  try{
+    const r=await gasPost('saveFlujoCxc',{rows:state.rows, linea:state.linea});
+    if(r && r.success){ setSync('ok','Sincronizado'); }
+    else { setSync('err','Error al guardar'); }
+  }catch(e){ setSync('err','Sin conexión'); }
+  _saving=false;
+  if(_pending){ _pending=false; pushSave(); }
+}
+
+/* ---------- boot: pull from backend, fall back to cache ---------- */
+async function boot(){
+  renderAll();                                   // pinta desde caché
+  if(!BACKEND){
+    document.getElementById('cfgBanner').style.display='block';
+    setSync('local','Modo local');
+    return;
+  }
+  setSync('saving','Conectando…');
+  try{
+    const r=await gasJsonp('getFlujoCxc');
+    if(r && r.success && Array.isArray(r.rows)){
+      if(r.rows.length){                         // hay datos en el servidor
+        state={ linea:(r.linea!=null?r.linea:LINEA_DEFAULT), rows:r.rows };
+        try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+        renderAll(); setSync('ok','Sincronizado');
+      } else {                                   // servidor vacío → sembrar una vez
+        state=JSON.parse(JSON.stringify(SEED));
+        renderAll(); await pushSave();
+      }
+    } else { setSync('err','Error al cargar'); }
+  }catch(e){ setSync('err','Sin conexión'); }
+}
 
 /* ---------- date helpers ---------- */
 function parseD(s){ if(!s) return null; const p=s.split('-'); if(p.length!==3) return null;
@@ -579,11 +663,6 @@ document.getElementById('fileInput').onchange = e=>{
     else alert('Archivo inválido'); }catch(err){ alert('No se pudo leer el archivo'); } };
   rd.readAsText(f); e.target.value='';
 };
-document.getElementById('resetBtn').onclick = ()=>{
-  if(confirm('¿Restaurar los datos de ejemplo? Se perderán los cambios locales.')){
-    state=JSON.parse(JSON.stringify(SEED)); save(); renderAll(); toast('Datos restaurados');
-  }
-};
 function isoOf(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function dl(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
@@ -591,7 +670,7 @@ let toastT;
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1800); }
 
-renderAll();
+boot();
 </script>
 </body>
 </html>
