@@ -232,12 +232,12 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
 
   <!-- TABS -->
   <div class="tabnav">
-    <button id="tabDatos" class="active" onclick="switchTab('datos')">📋 Órdenes y facturas</button>
-    <button id="tabCal" onclick="switchTab('cal')">🗓️ Calendario semanal</button>
+    <button id="tabCal" class="active" onclick="switchTab('cal')">🗓️ Calendario semanal</button>
+    <button id="tabDatos" onclick="switchTab('datos')">📋 Órdenes y facturas</button>
   </div>
 
   <!-- TAB: ORDERS TABLE -->
-  <div class="tabpanel" id="panel-datos">
+  <div class="tabpanel" id="panel-datos" style="display:none">
   <div class="section">
     <div class="section-head">
       <div>
@@ -259,16 +259,13 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
   </div><!-- /panel-datos -->
 
   <!-- TAB: CALENDAR -->
-  <div class="tabpanel" id="panel-cal" style="display:none">
+  <div class="tabpanel" id="panel-cal">
   <div class="section">
     <div class="section-head">
       <div>
         <h2>Calendario semanal · <span id="calYear"></span> · Semana 1 a 52</h2>
         <span class="hint">El monto facturado aparece la semana de emisión (azul). La gestión de cobro se muestra en la semana del vencimiento a 60 días (rojo) sin afectar el saldo hasta registrar el pago. La columna SALDO de cada mes muestra el saldo de cada factura al cierre.</span>
       </div>
-    </div>
-    <div class="cal-scroll">
-      <table class="cal" id="calTbl"></table>
     </div>
     <div class="legend">
       <b>Leyenda:</b>
@@ -277,6 +274,9 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
       <span class="lg"><span class="sw" style="background:var(--rojoosc-bg);border:1px solid var(--rojoosc)"></span>Outstanding &gt; 60 días</span>
       <span class="lg"><span class="sw" style="background:var(--verde-bg);border:1px solid var(--verde)"></span>Pagado</span>
       <span class="lg"><span class="sw" style="background:var(--gris-bg);border:1px solid var(--gris)"></span>Orden sin facturar</span>
+    </div>
+    <div class="cal-scroll">
+      <table class="cal" id="calTbl"></table>
     </div>
   </div>
   </div><!-- /panel-cal -->
