@@ -126,6 +126,8 @@ table.orders th{
   position:sticky;top:0;background:var(--white);white-space:nowrap}
 table.orders td{padding:.35rem .6rem;border-bottom:1px solid var(--bg2);vertical-align:middle}
 table.orders tr:hover td{background:#FAFAFB}
+table.orders tr.dup td:first-child{box-shadow:inset 3px 0 0 var(--amar)}
+table.orders tr.dup{background:#FFFBF0}
 table.orders input,table.orders select{
   width:100%;border:1px solid transparent;background:transparent;border-radius:6px;
   padding:.3rem .4rem;font-size:.8rem;color:var(--text)}
@@ -215,6 +217,7 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
     <button class="btn" id="lockBtn" title="Modo edición">🔒 Solo lectura</button>
     <button class="btn primary edit-only" id="uploadBtn" title="Sube PDFs de facturas u órdenes; la IA los lee y actualiza el sistema">⬆ Leer PDF (IA)</button>
     <button class="btn edit-only" id="addBtn">＋ Orden / Factura</button>
+    <button class="btn edit-only" id="dedupBtn" title="Combina y elimina filas duplicadas" style="display:none;background:var(--amar-bg);color:var(--amar);border-color:rgba(154,106,0,.3)"></button>
     <button class="btn ghost edit-only" id="impBtn">Importar</button>
     <button class="btn ghost" id="expBtn">Exportar</button>
     <button class="btn ghost" id="csvBtn">CSV</button>
@@ -625,9 +628,11 @@ function renderKPIs(){
 function renderOrders(){
   const body = document.getElementById('ordersBody');
   if(!state.rows.length){ body.innerHTML = `<tr><td colspan="10" class="empty">Sin registros. Usa “＋ Orden / Factura”.</td></tr>`; return; }
+  const dupSet = dupIndexSet();
   body.innerHTML = state.rows.map((r,i)=>{
     const c = computeRow(r);
     const estVis = c.overdue ? 'vencido' : r.estado;
+    const dupCls = dupSet.has(i) ? ' class="dup"' : '';
     const dueTxt = c.due ? c.due.toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'}) : '—';
     let diasTxt='—', diasColor='var(--muted)';
     if(c.due && c.pendiente>0.005){
@@ -636,7 +641,7 @@ function renderOrders(){
       diasColor = dd<0 ? 'var(--rojoosc)' : (dd<=15?'var(--rojo)':'var(--muted)');
     } else if(r.estado==='pagado'){ diasTxt='✓'; diasColor='var(--verde)'; }
     const ro = EDIT ? '' : 'disabled';
-    return `<tr data-i="${i}">
+    return `<tr data-i="${i}"${dupCls}${dupSet.has(i)?' title="Posible duplicado"':''}>
       <td><input class="f-po" value="${esc(r.po)}" placeholder="N. orden" ${ro}></td>
       <td><input class="f-inv" value="${esc(r.inv)}" placeholder="N. factura" ${ro}></td>
       <td><input class="f-fInv" type="date" value="${r.fInv||''}" ${ro}></td>
@@ -965,8 +970,61 @@ async function uploadPdfs(files){
   alert('Lectura de PDF con IA:\n\n'+results.join('\n'));
 }
 
+/* ---------- dedup de facturas / órdenes ---------- */
+// Una factura puede cubrir varias órdenes (no es duplicado) y una orden
+// puede repetirse con montos distintos (tampoco). Por eso la clave es:
+//   factura → N° factura + orden ; orden sin factura → orden + monto.
+function dedupKey(r){
+  const po  = (r.po||'').trim().toUpperCase().replace(/\s+/g,'');
+  const inv = (r.inv||'').trim().toUpperCase();
+  if(inv) return 'F|'+inv+'|'+po;
+  if(po)  return 'O|'+po+'|'+(+r.monto||0);
+  return '';
+}
+function dedupGroups(){
+  const map={};
+  state.rows.forEach((r,i)=>{ const k=dedupKey(r); if(!k) return; (map[k]=map[k]||[]).push(i); });
+  return Object.values(map).filter(g=>g.length>1);
+}
+function dupIndexSet(){ const s=new Set(); dedupGroups().forEach(g=>g.forEach(i=>s.add(i))); return s; }
+function countDups(){ return dedupGroups().reduce((s,g)=>s+g.length-1,0); }
+const _RANK={orden:0,facturado:1,abonado:2,pagado:3};
+function mergeDuplicates(){
+  const groups=dedupGroups();
+  const n=countDups();
+  if(!n){ toast('No hay duplicados'); return; }
+  if(!confirm(`Se encontraron ${n} fila(s) duplicada(s). ¿Combinar y eliminar las repetidas?\n\nSe conserva la más avanzada (Pagado > Abonado > Facturado > Orden) y se completan sus datos faltantes.`)) return;
+  const remove=new Set();
+  groups.forEach(g=>{
+    let best=g[0];
+    g.forEach(i=>{ const a=state.rows[i], b=state.rows[best];
+      const ra=_RANK[a.estado]||0, rb=_RANK[b.estado]||0;
+      const fa=(a.inv?1:0)+(a.fPago?1:0), fb=(b.inv?1:0)+(b.fPago?1:0);
+      if(ra>rb || (ra===rb && fa>fb)) best=i;
+    });
+    const keep=state.rows[best];
+    g.forEach(i=>{ if(i===best) return; const o=state.rows[i];
+      if(!keep.inv && o.inv) keep.inv=o.inv;
+      if(!keep.fInv && o.fInv) keep.fInv=o.fInv;
+      if(!keep.fPago && o.fPago) keep.fPago=o.fPago;
+      if(!(+keep.abonado) && +o.abonado) keep.abonado=+o.abonado;
+      if(!(+keep.monto) && +o.monto) keep.monto=+o.monto;
+      if(!keep.po && o.po) keep.po=o.po;
+      remove.add(i);
+    });
+  });
+  state.rows = state.rows.filter((_,i)=>!remove.has(i));
+  save(); renderAll(); toast(`Se eliminaron ${n} duplicado(s)`);
+}
+function updateDedupBtn(){
+  const b=document.getElementById('dedupBtn'); if(!b) return;
+  const n=EDIT?countDups():0;
+  if(n>0){ b.style.display=''; b.textContent='🧹 Duplicados ('+n+')'; }
+  else b.style.display='none';
+}
+
 /* ---------- render all ---------- */
-function renderAll(){ renderKPIs(); renderOrders(); renderCalendar(); }
+function renderAll(){ renderKPIs(); renderOrders(); renderCalendar(); updateDedupBtn(); }
 
 /* ---------- actions ---------- */
 document.getElementById('lockBtn').onclick = ()=>{ if(EDIT) lockEdit(); else openPw(); };
@@ -996,6 +1054,7 @@ document.getElementById('csvBtn').onclick = ()=>{
       .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')); });
   dl(new Blob([lines.join('\n')],{type:'text/csv'}), `flujo-cxc-${isoToday()}.csv`); toast('Exportado CSV');
 };
+document.getElementById('dedupBtn').onclick = ()=>{ if(EDIT) mergeDuplicates(); };
 document.getElementById('uploadBtn').onclick = ()=>{ if(EDIT) document.getElementById('pdfInput').click(); };
 document.getElementById('pdfInput').onchange = e=>{ const fs=[...e.target.files]; e.target.value=''; uploadPdfs(fs); };
 document.getElementById('impBtn').onclick = ()=>{ if(EDIT) document.getElementById('fileInput').click(); };
