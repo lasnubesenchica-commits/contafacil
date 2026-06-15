@@ -71,7 +71,14 @@ body.readonly .del-btn{display:none}
 .modal-err{font-size:.74rem;color:var(--rojo);margin-bottom:.6rem;display:none}
 .modal-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.4rem}
 
-.wrap{max-width:1500px;margin:0 auto;padding:1.25rem 1.5rem}
+.wrap{max-width:none;margin:0;padding:1.1rem 1.25rem}
+
+/* ── TABS ── */
+.tabnav{display:flex;gap:.4rem;margin:0 0 1.1rem;border-bottom:1px solid var(--border)}
+.tabnav button{font-size:.85rem;font-weight:600;color:var(--muted);padding:.6rem 1.1rem;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;border-radius:8px 8px 0 0}
+.tabnav button:hover{color:var(--text);background:var(--bg2)}
+.tabnav button.active{color:var(--orange);border-bottom-color:var(--orange)}
 
 /* ── KPI CARDS ── */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;margin-bottom:1.25rem}
@@ -205,7 +212,14 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
   <!-- KPIs -->
   <div class="kpis" id="kpis"></div>
 
-  <!-- ORDERS TABLE -->
+  <!-- TABS -->
+  <div class="tabnav">
+    <button id="tabDatos" class="active" onclick="switchTab('datos')">📋 Órdenes y facturas</button>
+    <button id="tabCal" onclick="switchTab('cal')">🗓️ Calendario semanal</button>
+  </div>
+
+  <!-- TAB: ORDERS TABLE -->
+  <div class="tabpanel" id="panel-datos">
   <div class="section">
     <div class="section-head">
       <div>
@@ -224,13 +238,15 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
       </table>
     </div>
   </div>
+  </div><!-- /panel-datos -->
 
-  <!-- CALENDAR -->
+  <!-- TAB: CALENDAR -->
+  <div class="tabpanel" id="panel-cal" style="display:none">
   <div class="section">
     <div class="section-head">
       <div>
         <h2>Calendario semanal · <span id="calYear"></span> · Semana 1 a 52</h2>
-        <span class="hint">El monto facturado aparece la semana de emisión (azul). La gestión de cobro se muestra en la semana del vencimiento a 60 días (rojo) sin afectar el saldo hasta registrar el pago.</span>
+        <span class="hint">El monto facturado aparece la semana de emisión (azul). La gestión de cobro se muestra en la semana del vencimiento a 60 días (rojo) sin afectar el saldo hasta registrar el pago. La columna SALDO de cada mes muestra el saldo de cada factura al cierre.</span>
       </div>
     </div>
     <div class="cal-scroll">
@@ -245,6 +261,7 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
       <span class="lg"><span class="sw" style="background:var(--gris-bg);border:1px solid var(--gris)"></span>Orden sin facturar</span>
     </div>
   </div>
+  </div><!-- /panel-cal -->
 
 </div>
 
@@ -647,15 +664,42 @@ function renderCalendar(){
   });
   head+='</tr>';
 
+  // month-end info for the SALDO columns
+  const monthInfo = {};
+  MONTHS_PRESENT.forEach(m=>{
+    const wk = WEEKS.filter(w=>w.month===m);
+    const last = wk[wk.length-1];
+    monthInfo[m] = { maxIdx:last.idx, end:last.end };
+  });
+  const weekMonth = idx => (idx>0 && WEEKS[idx-1]) ? WEEKS[idx-1].month : -1;
+
   // body rows
   const computed = state.rows.map(computeRow);
   let bodyRows = state.rows.map((r,ri)=>{
     const c = computed[ri];
     const estVis = c.overdue?'vencido':r.estado;
+    const payMonth = (r.estado==='pagado'||r.estado==='abonado') ? weekMonth(c.wPago) : -1;
     let row = `<tr><td class="c-po" title="${esc(r.po)}">${esc(r.po||'—')}${r.inv?` · <span style="color:var(--muted)">${esc(r.inv)}</span>`:''}</td>`+
               `<td class="c-fac"><span class="st st-${estVis}">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span></td>`;
     cols.forEach(col=>{
-      if(col.type==='saldo'){ row += `<td class="saldo"></td>`; return; }
+      if(col.type==='saldo'){
+        // saldo de ESTA factura al cierre del mes = monto − pagado hasta el mes.
+        // Verde el mes en que se salda; rojo / rojo oscuro mientras está pendiente.
+        const mi = monthInfo[col.month];
+        let cell='';
+        if(c.facturada && c.wInv<=mi.maxIdx){
+          const paidBy = ((r.estado==='pagado'||r.estado==='abonado') && c.wPago>0 && c.wPago<=mi.maxIdx) ? c.pagadoTotal : 0;
+          const saldo = r.monto - paidBy;
+          if(saldo<=0.005){
+            if(col.month===payMonth) cell = `<span class="v v-pago">✓ ${moneyShort(r.monto)}</span>`;
+          } else {
+            const overdueAsOf = c.due && c.due < mi.end;
+            cell = `<span class="v ${overdueAsOf?'v-vencido':'v-cobrar'}">${moneyShort(saldo)}</span>`;
+          }
+        }
+        row += `<td class="saldo">${cell}</td>`;
+        return;
+      }
       const wi = col.w.idx;
       let chip='';
       // facturado (azul) en semana de emisión
@@ -726,6 +770,15 @@ function moneyShort(n){ const a=Math.abs(n);
   return '$'+a.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 function isoToday(){ const t=new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+
+/* ---------- tabs ---------- */
+function switchTab(t){
+  const datos = t==='datos';
+  document.getElementById('panel-datos').style.display = datos?'':'none';
+  document.getElementById('panel-cal').style.display   = datos?'none':'';
+  document.getElementById('tabDatos').classList.toggle('active', datos);
+  document.getElementById('tabCal').classList.toggle('active', !datos);
+}
 
 /* ---------- render all ---------- */
 function renderAll(){ renderKPIs(); renderOrders(); renderCalendar(); }
