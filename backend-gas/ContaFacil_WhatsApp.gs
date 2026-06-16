@@ -703,7 +703,7 @@ function _whatsappClasificarYExtraer(b64, mime) {
   for (var i = 0; i < content.length; i++) {
     if (content[i].type === 'text') { text = content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(text);
 }
 
 // ────────────────────────────────────────────────────────────────────

@@ -869,7 +869,7 @@ function _parsearFacturaCeyco(archivo) {
   for (var i = 0; i < content.length; i++) {
     if (content[i].type === 'text') { text = content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(text);
 }
 
 
@@ -1007,7 +1007,7 @@ function _parsearFacturaCosto(archivo) {
     if (content[i].type === 'text') { text = content[i].text; break; }
   }
 
-  var parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+  var parsed = _extractJsonObj(text);
 
   // ── Post-proceso A: detectar shipping/handling no extraído ───
   //
@@ -1422,7 +1422,7 @@ function _parsearNotaCredito(archivo) {
   for (var i = 0; i < content.length; i++) {
     if (content[i].type === 'text') { text = content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(text);
 }
 
 

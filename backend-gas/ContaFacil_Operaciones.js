@@ -489,7 +489,7 @@ function _handleAnalizarFacturaEjemplo(data) {
     for (var i = 0; i < content.length; i++) {
       if (content[i].type === 'text') { text = content[i].text; break; }
     }
-    var parsed  = JSON.parse(text.replace(/```json|```/g, '').trim());
+    var parsed  = _extractJsonObj(text);
     parsed.success = true;
     return ContentService.createTextOutput(JSON.stringify(parsed)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
@@ -1009,7 +1009,7 @@ function _claudeParsePdfFactura(pdfB64, mimeType, tipo, cfg, provBase) {
   for (var i = 0; i < content.length; i++) {
     if (content[i].type === 'text') { text = content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(text);
 }
 
 // ═══════════════════════════════════════════════════════════════
