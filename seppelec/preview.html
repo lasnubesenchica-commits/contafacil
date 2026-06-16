@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seppelec — Prototipos de calendario CxC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --orange:#E05A00; --orange2:#CC5200;
+  --bg:#F5F5F7; --bg2:#EBEBED; --bg3:#E0E0E3;
+  --border:rgba(0,0,0,0.09);
+  --text:#0A0A0A; --muted:#6C6C70; --chrome:#AEAEB2; --white:#FFFFFF;
+  --azul:#1565C0; --azul-bg:#E3F2FD;
+  --verde:#1B7A33; --verde-bg:#E3F6E8;
+  --rojo:#D32F2F; --rojo-bg:#FDE7E7;
+  --rojoosc:#7A0C0C; --rojoosc-bg:#F6D6D6;
+  --gris:#6C6C70; --gris-bg:#ECECEE;
+  --amar:#9A6A00; --amar-bg:#FFF6DB;
+  --r:8px; --r2:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:4rem}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+
+.topbar{position:sticky;top:0;z-index:50;background:rgba(245,245,247,.94);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;
+  padding:.7rem 1.25rem;gap:1rem;flex-wrap:wrap}
+.brand{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.06em;line-height:1}
+.brand span{color:var(--orange)}
+.brand small{display:block;font-family:'DM Sans';font-size:.62rem;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted)}
+.seg{display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:.2rem}
+.seg button{font-size:.82rem;font-weight:600;color:var(--muted);padding:.45rem 1rem;border-radius:100px;transition:all .15s}
+.seg button.active{background:var(--white);color:var(--orange);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.win{display:inline-flex;align-items:center;gap:.4rem}
+.win .lbl{font-size:.74rem;color:var(--muted);font-family:'DM Mono',monospace}
+.chip{font-size:.74rem;font-weight:600;border:1px solid var(--border);background:var(--white);border-radius:100px;
+  padding:.35rem .8rem;color:var(--text);transition:all .15s}
+.chip:hover{border-color:var(--orange);color:var(--orange)}
+
+.note{background:#FFF6DB;border-bottom:1px solid #E6CF7A;color:#7A5A00;font-size:.78rem;padding:.5rem 1.25rem}
+.wrap{padding:1rem 1.25rem}
+
+.legend{display:flex;flex-wrap:wrap;gap:.4rem .9rem;font-size:.7rem;color:var(--muted);align-items:center;margin:.2rem 0 1rem}
+.legend b{color:var(--text)}
+.lg{display:inline-flex;align-items:center;gap:.35rem}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+/* arrows */
+.scroller{position:relative}
+.edge{position:absolute;top:0;bottom:0;width:42px;z-index:20;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:none;color:var(--orange);font-size:1.6rem;transition:background .15s}
+.edge:hover{background:rgba(224,90,0,.06)}
+.edge.l{left:0;background:linear-gradient(90deg,rgba(245,245,247,.95),rgba(245,245,247,0))}
+.edge.r{right:0;background:linear-gradient(270deg,rgba(245,245,247,.95),rgba(245,245,247,0))}
+.edge[disabled]{opacity:.25;cursor:default;background:none}
+
+/* ───────── Concepto 1: bloques de mes (grid semanal) ───────── */
+.cal-scroll{overflow:auto;max-height:74vh;border:1px solid var(--border);border-radius:var(--r2);background:var(--white)}
+table.cal{border-collapse:separate;border-spacing:0;font-size:.7rem;white-space:nowrap}
+table.cal th,table.cal td{border-right:1px solid var(--bg2);border-bottom:1px solid var(--bg2);
+  padding:.3rem .45rem;text-align:right;font-family:'DM Mono',monospace}
+table.cal .c-po{position:sticky;left:0;z-index:3;background:var(--white);text-align:left;width:160px;min-width:160px;
+  max-width:160px;font-family:'DM Sans';font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.cal .c-fac{position:sticky;left:160px;z-index:3;background:var(--white);text-align:left;min-width:70px;
+  font-family:'DM Sans';font-size:.66rem;color:var(--muted)}
+table.cal thead th{position:sticky;top:0;z-index:4;background:#fff}
+table.cal thead .c-po,table.cal thead .c-fac{z-index:6}
+table.cal thead th.wk{min-width:60px;font-size:.6rem;color:var(--muted);font-weight:600;line-height:1.2}
+table.cal thead th.wk .d{font-weight:400;color:var(--chrome);font-size:.58rem}
+table.cal th.saldo,table.cal td.saldo{background:#FBF4EF;border-left:2px solid var(--orange);min-width:80px;font-weight:600}
+table.cal thead th.saldo{color:var(--orange);font-size:.58rem}
+table.cal tbody tr{height:30px}
+table.cal tbody tr.cal-row{cursor:pointer}
+table.cal tbody tr.cal-row:hover td:not(.saldo){background:#F2F6FF}
+/* month band + alternating block tint */
+table.cal thead tr.mb th{font-family:'DM Sans';font-weight:700;font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;
+  text-align:center;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;padding:.35rem}
+table.cal thead tr.mb th.blkA{background:#EEF3FB}
+table.cal thead tr.mb th.blkB{background:#F3EEF8}
+table.cal td.blkA,table.cal th.wk.blkA{background:rgba(21,101,192,.035)}
+table.cal td.blkB,table.cal th.wk.blkB{background:rgba(123,31,162,.035)}
+table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
+.v{display:inline-block;padding:.12rem .35rem;border-radius:5px;font-weight:500}
+.v-fact{background:var(--azul-bg);color:var(--azul)}
+.v-cobrar{background:var(--rojo-bg);color:var(--rojo);font-weight:600}
+.v-vencido{background:var(--rojoosc-bg);color:var(--rojoosc);font-weight:700}
+.v-pago{background:var(--verde-bg);color:var(--verde);font-weight:600}
+table.cal tfoot td{font-family:'DM Mono',monospace;font-weight:600;background:#fff;border-top:2px solid var(--border);
+  position:sticky;bottom:0;z-index:2}
+table.cal tfoot td.c-po{z-index:4;font-family:'DM Sans';text-transform:uppercase;font-size:.62rem;color:var(--muted)}
+table.cal tfoot tr.r-saldo td{background:#FBF4EF;color:var(--orange)}
+.st{display:inline-block;font-size:.64rem;font-weight:700;padding:.15rem .45rem;border-radius:100px;white-space:nowrap}
+.st-orden{background:var(--gris-bg);color:var(--gris)} .st-facturado{background:var(--azul-bg);color:var(--azul)}
+.st-abonado{background:var(--amar-bg);color:var(--amar)} .st-pagado{background:var(--verde-bg);color:var(--verde)}
+.st-vencido{background:var(--rojoosc-bg);color:var(--rojoosc)}
+
+/* ───────── Concepto 3: línea de tiempo (aging) ───────── */
+.tl{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.tl-head{display:flex;align-items:stretch;border-bottom:1px solid var(--border);background:var(--bg)}
+.tl-lblcol{width:280px;min-width:280px;flex:0 0 280px;display:flex;align-items:center;padding:.5rem .8rem;
+  font-size:.64rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.tl-axis{position:relative;flex:1;height:34px}
+.tl-axis .mb{position:absolute;top:0;bottom:0;border-left:1px solid var(--border);font-size:.64rem;font-weight:700;
+  text-transform:uppercase;color:var(--muted);padding:.4rem .4rem;display:flex;align-items:center}
+.tl-axis .mb.alt{background:rgba(0,0,0,.025)}
+.tl-body{max-height:68vh;overflow-y:auto}
+.tl-row{display:flex;align-items:stretch;border-bottom:1px solid var(--bg2);height:38px}
+.tl-row:hover{background:#FAFAFB;cursor:pointer}
+.tl-lbl{width:280px;min-width:280px;flex:0 0 280px;display:flex;align-items:center;gap:.5rem;padding:.2rem .8rem;overflow:hidden}
+.tl-lbl .po{font-weight:600;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.tl-lbl .mo{font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted);white-space:nowrap}
+.tl-track{position:relative;flex:1;margin:0 .3rem}
+.tl-track .grid{position:absolute;top:0;bottom:0;border-left:1px solid var(--bg2)}
+.tl-track .grid.alt{background:rgba(0,0,0,.022)}
+.tl-bar{position:absolute;top:50%;transform:translateY(-50%);height:13px;border-radius:7px;display:flex;align-items:center}
+.bar-fact{background:var(--azul-bg);border:1px solid rgba(21,101,192,.45)}
+.bar-vencido{background:var(--rojoosc-bg);border:1px solid rgba(122,12,12,.5)}
+.bar-pago{background:var(--verde-bg);border:1px solid rgba(27,122,51,.5)}
+.tl-mk{position:absolute;top:50%;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;z-index:3;border:2px solid #fff}
+.mk-due{background:var(--rojo);color:#fff} .mk-vencido{background:var(--rojoosc);color:#fff}
+.mk-pago{background:var(--verde);color:#fff} .mk-emis{background:var(--azul);color:#fff;width:11px;height:11px}
+.tl-pill{position:absolute;top:50%;transform:translateY(-50%);background:var(--gris-bg);color:var(--gris);
+  font-size:.64rem;font-weight:600;padding:.1rem .45rem;border-radius:100px;white-space:nowrap}
+.tl-now{position:absolute;top:0;bottom:0;width:2px;background:var(--orange);z-index:4}
+.tl-now::after{content:'HOY';position:absolute;top:-2px;left:3px;font-size:.55rem;font-weight:700;color:var(--orange)}
+.tl-off{position:absolute;top:50%;transform:translateY(-50%);font-size:.7rem;color:var(--chrome)}
+.tl-cash{display:flex;align-items:stretch;border-top:2px solid var(--border);background:#FBF4EF}
+.tl-cash .tl-lbl{font-size:.64rem;font-weight:700;text-transform:uppercase;color:var(--orange)}
+.tl-cash .seg-m{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-left:1px solid rgba(224,90,0,.2)}
+.tl-cash .seg-m .n{font-family:'DM Mono',monospace;font-size:.72rem;font-weight:600;color:var(--orange)}
+.tl-cash .seg-m .k{font-size:.56rem;color:var(--muted)}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:300;background:rgba(10,10,10,.45);display:none;align-items:center;justify-content:center;padding:1rem}
+.modal.show{display:flex}
+.modal-card{background:#fff;border-radius:18px;padding:1.5rem;width:380px;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.modal-card h3{font-size:1rem;margin-bottom:.8rem;word-break:break-word}
+.det-info{display:grid;grid-template-columns:auto 1fr;gap:.3rem .8rem;font-size:.82rem}
+.det-info .k{color:var(--muted)} .det-info .v2{font-family:'DM Mono',monospace;text-align:right;font-weight:500}
+.modal-card .x{margin-top:1.2rem;text-align:right}
+.btn{font-size:.8rem;font-weight:600;border:1px solid var(--border);background:#fff;border-radius:100px;padding:.5rem 1rem}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">SEPPELEC<span> · CxC</span><small>Prototipos de calendario — elige el que prefieras</small></div>
+  <div class="seg" id="seg">
+    <button data-v="blocks" class="active">🗓️ Bloques de mes</button>
+    <button data-v="timeline">📊 Línea de tiempo</button>
+  </div>
+  <div class="win">
+    <button class="chip" id="winReset">Hoy · 60 días</button>
+    <span class="lbl" id="winLbl"></span>
+  </div>
+</div>
+<div class="note">Vista de demostración para decidir el diseño. Solo lectura, con tus datos locales (o los del Excel). Las flechas <b>‹ ›</b> en los extremos cargan ±3 meses.</div>
+
+<div class="wrap">
+  <div class="legend">
+    <b>Leyenda:</b>
+    <span class="lg"><span class="sw" style="background:var(--azul-bg);border:1px solid var(--azul)"></span>Facturado</span>
+    <span class="lg"><span class="sw" style="background:var(--rojo-bg);border:1px solid var(--rojo)"></span>Por cobrar ≤60d</span>
+    <span class="lg"><span class="sw" style="background:var(--rojoosc-bg);border:1px solid var(--rojoosc)"></span>Outstanding &gt;60d</span>
+    <span class="lg"><span class="sw" style="background:var(--verde-bg);border:1px solid var(--verde)"></span>Pagado</span>
+    <span class="lg"><span class="sw" style="background:var(--gris-bg);border:1px solid var(--gris)"></span>Orden sin facturar</span>
+  </div>
+
+  <!-- Concepto 1 -->
+  <div id="view-blocks" class="scroller">
+    <button class="edge l" id="blkL" title="Cargar 3 meses antes">‹</button>
+    <button class="edge r" id="blkR" title="Cargar 3 meses después">›</button>
+    <div class="cal-scroll"><table class="cal" id="calTbl"></table></div>
+  </div>
+
+  <!-- Concepto 3 -->
+  <div id="view-timeline" class="scroller hide">
+    <button class="edge l" id="tlL" title="Cargar 3 meses antes">‹</button>
+    <button class="edge r" id="tlR" title="Cargar 3 meses después">›</button>
+    <div class="tl" id="tlBox"></div>
+  </div>
+</div>
+
+<div class="modal" id="detModal">
+  <div class="modal-card">
+    <h3 id="detTitle">Detalle</h3>
+    <div class="det-info" id="detInfo"></div>
+    <div class="x"><button class="btn" id="detClose">Cerrar</button></div>
+  </div>
+</div>
+
+<script>
+/* ============ datos + helpers (compartidos) ============ */
+const YEAR=2026, PLAZO=60, LS_KEY='flujo_cxc_seppelec_v1';
+const MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES_L=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const ESTADO_LBL={orden:'Orden',facturado:'Facturado',abonado:'Abonado',pagado:'Pagado'};
+const SEED={rows:[
+  {po:'4200001507-4200001866',inv:'F26069',fInv:'2026-02-23',monto:25003.47,estado:'pagado',fPago:'2026-05-11',abonado:25003.47},
+  {po:'4200001885-4200001862',inv:'F26092',fInv:'2026-03-12',monto:4786.22,estado:'pagado',fPago:'2026-05-11',abonado:4786.22},
+  {po:'4200001894/4200001909/4200001974/4200002085/4200002183',inv:'F26155',fInv:'2026-04-07',monto:54626.78,estado:'pagado',fPago:'2026-05-18',abonado:54626.78},
+  {po:'4200002008',inv:'F26225',fInv:'2026-05-14',monto:28179.52,estado:'facturado',fPago:'',abonado:0},
+  {po:'4200002297',inv:'F26247',fInv:'2026-05-25',monto:11297.40,estado:'facturado',fPago:'',abonado:0},
+  {po:'4200002238',inv:'F26247',fInv:'2026-05-25',monto:1285.80,estado:'facturado',fPago:'',abonado:0},
+  {po:'4200002304',inv:'F26247',fInv:'2026-05-25',monto:2407.60,estado:'facturado',fPago:'',abonado:0},
+  {po:'4200002014',inv:'F26248',fInv:'2026-05-26',monto:24528.66,estado:'facturado',fPago:'',abonado:0},
+  {po:'4200002051',inv:'',fInv:'',monto:2301.02,estado:'orden',fPago:'',abonado:0},
+  {po:'4200002051',inv:'',fInv:'',monto:5155.54,estado:'orden',fPago:'',abonado:0},
+  {po:'4200001981',inv:'',fInv:'',monto:7491.07,estado:'orden',fPago:'',abonado:0},
+  {po:'4200002286',inv:'',fInv:'',monto:6696.30,estado:'orden',fPago:'',abonado:0},
+  {po:'4200001983',inv:'',fInv:'',monto:9607.69,estado:'orden',fPago:'',abonado:0},
+  {po:'4200002053',inv:'',fInv:'',monto:15456.56,estado:'orden',fPago:'',abonado:0},
+  {po:'4200001955',inv:'',fInv:'',monto:24014.58,estado:'orden',fPago:'',abonado:0},
+  {po:'4200002056',inv:'',fInv:'',monto:10239.40,estado:'orden',fPago:'',abonado:0},
+  {po:'4200002071',inv:'',fInv:'',monto:13004.15,estado:'orden',fPago:'',abonado:0},
+  {po:'4200001864',inv:'',fInv:'',monto:8958.00,estado:'orden',fPago:'',abonado:0},
+  {po:'4200002055',inv:'',fInv:'',monto:14564.31,estado:'orden',fPago:'',abonado:0},
+  {po:'4200002052',inv:'',fInv:'',monto:28325.64,estado:'orden',fPago:'',abonado:0},
+  {po:'4200002382',inv:'',fInv:'',monto:17548.75,estado:'orden',fPago:'',abonado:0}
+]};
+let state;
+try{ const raw=localStorage.getItem(LS_KEY); const s=raw&&JSON.parse(raw); state=(s&&Array.isArray(s.rows)&&s.rows.length)?s:JSON.parse(JSON.stringify(SEED)); }
+catch(e){ state=JSON.parse(JSON.stringify(SEED)); }
+
+function parseD(s){ if(!s) return null; const p=String(s).split('-'); if(p.length!==3) return null; const d=new Date(+p[0],+p[1]-1,+p[2]); return isNaN(d)?null:d; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function todayD(){ const t=new Date(); return new Date(t.getFullYear(),t.getMonth(),t.getDate()); }
+const TODAY=todayD();
+function monthOrd(d){ return d?((d.getFullYear()-YEAR)*12+d.getMonth()):null; }
+function money(n){ return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function moneyShort(n){ return '$'+Math.abs(n).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function moneyK(n){ const a=Math.abs(n); return a>=1000?'$'+(a/1000).toFixed(1)+'k':'$'+a.toFixed(0); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+/* weeks (igual que producción: agrupación por jueves, saldo por mes calendario) */
+function buildWeeks(){ let d=new Date(YEAR,0,1); d=addDays(d,-(((d.getDay()+6)%7))); const w=[];
+  for(let i=0;i<52;i++){ const s=addDays(d,i*7); w.push({idx:i+1,start:s,end:addDays(s,7),month:addDays(s,3).getMonth()}); } return w; }
+const WEEKS=buildWeeks();
+function weekOf(d){ if(!d) return -1; for(const w of WEEKS){ if(d>=w.start&&d<w.end) return w.idx; } return d<WEEKS[0].start?1:52; }
+function computeRow(r){ const fInv=parseD(r.fInv); const due=fInv?addDays(fInv,PLAZO):null; const fPago=parseD(r.fPago);
+  const abonado=+r.abonado||0; const pagadoTotal=r.estado==='pagado'?r.monto:(r.estado==='abonado'?abonado:0);
+  const pendiente=Math.max(0,(r.monto||0)-pagadoTotal); const overdue=due?(due<TODAY&&pendiente>0.005):false;
+  const facturada=(r.estado==='facturado'||r.estado==='abonado'||r.estado==='pagado')&&!!fInv;
+  return {fInv,due,fPago,abonado,pagadoTotal,pendiente,overdue,facturada,invMo:monthOrd(fInv),payMo:monthOrd(fPago),
+    wInv:weekOf(fInv),wDue:weekOf(due),wPago:weekOf(fPago)}; }
+
+/* ============ ventana compartida (meses a..b) ============ */
+function defWin(){ const a=Math.max(0,TODAY.getMonth()-1); const end=addDays(TODAY,60); const b=Math.min(11,(end.getFullYear()-YEAR)*12+end.getMonth()); return {a,b:Math.max(b,a+1)}; }
+let WIN=defWin();
+function clampWin(){ WIN.a=Math.max(0,Math.min(WIN.a,11)); WIN.b=Math.max(WIN.a,Math.min(WIN.b,11)); }
+function winLabel(){ return MESES_L[WIN.a]+' – '+MESES_L[WIN.b]+' '+YEAR; }
+function renderWinLbl(){ document.getElementById('winLbl').textContent=winLabel(); }
+
+/* ============ CONCEPTO 1 — bloques de mes ============ */
+function renderBlocks(){
+  const months=[]; for(let m=WIN.a;m<=WIN.b;m++) months.push(m);
+  const cols=[];
+  WEEKS.forEach(w=>{ if(w.month<WIN.a||w.month>WIN.b) return;
+    cols.push({type:'wk',w});
+    const last=!WEEKS.some(x=>x.month===w.month&&x.idx>w.idx);
+    if(last) cols.push({type:'saldo',month:w.month}); });
+  const blk=m=>(m%2===0?'blkA':'blkB');
+  const nowWk=weekOf(TODAY);
+  // month band
+  let groups=[]; cols.forEach(c=>{ const m=c.type==='wk'?c.w.month:c.month; const l=groups[groups.length-1];
+    if(l&&l.m===m) l.span++; else groups.push({m,span:1}); });
+  let band='<tr class="mb"><th class="c-po">Mes →</th><th class="c-fac"></th>';
+  groups.forEach(g=> band+=`<th colspan="${g.span}" class="${blk(g.m)}">${MESES_L[g.m]}</th>`); band+='</tr>';
+  let head='<tr><th class="c-po">Orden / Factura</th><th class="c-fac">Estado</th>';
+  cols.forEach(c=>{ if(c.type==='wk') head+=`<th class="wk ${blk(c.w.month)} ${c.w.idx===nowWk?'now':''}">S${c.w.idx}<div class="d">${('0'+c.w.start.getDate()).slice(-2)}/${('0'+(c.w.start.getMonth()+1)).slice(-2)}</div></th>`;
+    else head+=`<th class="saldo">SALDO<br>${MESES[c.month]}</th>`; }); head+='</tr>';
+
+  const computed=state.rows.map(computeRow);
+  const body=state.rows.map((r,ri)=>{ const c=computed[ri]; const estVis=c.overdue?'vencido':r.estado;
+    const payMonth=(r.estado==='pagado'||r.estado==='abonado')?c.payMo:null;
+    let row=`<tr class="cal-row" onclick="openDetail(${ri})"><td class="c-po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${esc(r.po||'—')}${r.inv?` · <span style="color:var(--muted)">${esc(r.inv)}</span>`:''}</td>`+
+      `<td class="c-fac"><span class="st st-${estVis}">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span></td>`;
+    cols.forEach(col=>{
+      if(col.type==='saldo'){ let cell='';
+        const facBy=c.facturada&&c.invMo!=null&&c.invMo<=col.month;
+        if(facBy){ const paid=((r.estado==='pagado'||r.estado==='abonado')&&c.payMo!=null&&c.payMo<=col.month)?c.pagadoTotal:0;
+          const s=r.monto-paid;
+          if(s<=0.005){ if(payMonth===col.month) cell=`<span class="v v-pago">✓ ${moneyShort(r.monto)}</span>`; }
+          else{ const od=c.due&&c.due<new Date(YEAR,col.month+1,1); cell=`<span class="v ${od?'v-vencido':'v-cobrar'}">${moneyShort(s)}</span>`; } }
+        row+=`<td class="saldo">${cell}</td>`; return; }
+      const wi=col.w.idx; const cls=blk(col.w.month)+(wi===nowWk?' now':''); let chip='';
+      if(c.facturada&&c.wInv===wi) chip+=`<span class="v v-fact">${moneyShort(r.monto)}</span>`;
+      if((r.estado==='facturado'||r.estado==='abonado')&&c.pendiente>0.005&&c.wDue===wi) chip+=`<span class="v ${c.overdue?'v-vencido':'v-cobrar'}">(${moneyShort(c.pendiente)})</span>`;
+      if((r.estado==='pagado'||r.estado==='abonado')&&c.pagadoTotal>0.005&&c.wPago===wi) chip+=`<span class="v v-pago">−${moneyShort(c.pagadoTotal)}</span>`;
+      row+=`<td class="${cls}">${chip}</td>`;
+    });
+    return row+'</tr>';
+  }).join('');
+
+  function saldoUpTo(m){ let f=0,p=0; computed.forEach((c,ri)=>{ if(c.facturada&&c.invMo!=null&&c.invMo<=m) f+=state.rows[ri].monto; if(c.pagadoTotal>0.005&&c.payMo!=null&&c.payMo<=m) p+=c.pagadoTotal; }); return f-p; }
+  let saldoCells=''; cols.forEach(col=>{ if(col.type==='saldo'){ const s=saldoUpTo(col.month); saldoCells+=`<td class="saldo" style="color:${Math.abs(s)<0.005?'var(--verde)':'var(--orange)'}">${money(s)}</td>`; } else saldoCells+=`<td class="${blk(col.w.month)}"></td>`; });
+  const foot=`<tr class="r-saldo"><td class="c-po">Saldo CxC (fact.−pag.)</td><td class="c-fac"></td>${saldoCells}</tr>`;
+  document.getElementById('calTbl').innerHTML=`<thead>${band}${head}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
+  document.getElementById('blkL').disabled=WIN.a<=0; document.getElementById('blkR').disabled=WIN.b>=11;
+}
+
+/* ============ CONCEPTO 3 — línea de tiempo (aging) ============ */
+function renderTimeline(){
+  const winStart=new Date(YEAR,WIN.a,1), winEnd=new Date(YEAR,WIN.b+1,1);
+  const span=winEnd-winStart;
+  const pct=d=>{ if(!d) return null; return Math.max(0,Math.min(100,((d-winStart)/span)*100)); };
+  const inWin=d=>d&&d>=winStart&&d<winEnd;
+  // axis months
+  let axis=''; for(let m=WIN.a;m<=WIN.b;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100; const w=(1/(WIN.b-WIN.a+1))*100;
+    axis+=`<div class="mb ${(m-WIN.a)%2?'alt':''}" style="left:${x}%;width:${w}%">${MESES_L[m]}</div>`; }
+  const nowX=pct(TODAY);
+
+  const computed=state.rows.map(computeRow);
+  // ordena: facturadas primero (por vencimiento), órdenes al final
+  const order=state.rows.map((r,i)=>i).sort((a,b)=>{ const ca=computed[a],cb=computed[b];
+    const fa=ca.facturada?0:1, fb=cb.facturada?0:1; if(fa!==fb) return fa-fb;
+    const da=ca.due?ca.due.getTime():9e15, db=cb.due?cb.due.getTime():9e15; return da-db; });
+
+  let rows=order.map(ri=>{ const r=state.rows[ri], c=computed[ri];
+    let track='';
+    for(let m=WIN.a;m<=WIN.b;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100; const w=(1/(WIN.b-WIN.a+1))*100;
+      track+=`<div class="grid ${(m-WIN.a)%2?'alt':''}" style="left:${x}%;width:${w}%"></div>`; }
+    if(c.facturada){
+      const x0=pct(c.fInv), xd=pct(c.due);
+      const emisIn=inWin(c.fInv), dueIn=inWin(c.due);
+      if(r.estado==='pagado'){ const xp=pct(c.fPago);
+        const lo=Math.min(x0,xp), hi=Math.max(x0,xp);
+        track+=`<div class="tl-bar bar-pago" style="left:${lo}%;width:${Math.max(hi-lo,1.5)}%"></div>`;
+        if(inWin(c.fPago)) track+=`<div class="tl-mk mk-pago" style="left:${xp}%">✓</div>`;
+        if(emisIn) track+=`<div class="tl-mk mk-emis" style="left:${x0}%"></div>`;
+      } else {
+        const lo=Math.min(x0,xd), hi=Math.max(x0,xd);
+        track+=`<div class="tl-bar ${c.overdue?'bar-vencido':'bar-fact'}" style="left:${lo}%;width:${Math.max(hi-lo,1.5)}%"></div>`;
+        if(emisIn) track+=`<div class="tl-mk mk-emis" style="left:${x0}%"></div>`;
+        if(dueIn) track+=`<div class="tl-mk ${c.overdue?'mk-vencido':'mk-due'}" style="left:${xd}%" title="Vence ${c.due.toLocaleDateString('es-PA')}">${c.overdue?'!':'◆'}</div>`;
+        else if(c.due&&c.due>=winEnd) track+=`<div class="tl-off" style="right:2px">vence ${MESES[c.due.getMonth()]} ▸</div>`;
+      }
+    } else {
+      track+=`<div class="tl-pill" style="left:6px">orden · sin facturar</div>`;
+    }
+    const estVis=c.overdue?'vencido':r.estado;
+    return `<div class="tl-row" onclick="openDetail(${ri})">
+      <div class="tl-lbl"><span class="st st-${estVis}">${c.overdue?'Venc':ESTADO_LBL[r.estado].slice(0,4)}</span>
+        <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${esc(r.inv||r.po||'—')}</span>
+        <span class="mo">${moneyK(r.monto)}</span></div>
+      <div class="tl-track">${track}${nowX!=null?`<div class="tl-now" style="left:${nowX}%"></div>`:''}</div></div>`;
+  }).join('');
+
+  // franja de caja: saldo por mes
+  function saldoUpTo(m){ let f=0,p=0; computed.forEach((c,ri)=>{ if(c.facturada&&c.invMo!=null&&c.invMo<=m) f+=state.rows[ri].monto; if(c.pagadoTotal>0.005&&c.payMo!=null&&c.payMo<=m) p+=c.pagadoTotal; }); return f-p; }
+  let cash=''; for(let m=WIN.a;m<=WIN.b;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100; const w=(1/(WIN.b-WIN.a+1))*100; const s=saldoUpTo(m);
+    cash+=`<div class="seg-m" style="left:${x}%;width:${w}%"><span class="n">${moneyK(s)}</span><span class="k">saldo ${MESES[m]}</span></div>`; }
+
+  document.getElementById('tlBox').innerHTML=
+    `<div class="tl-head"><div class="tl-lblcol">Factura / Orden · Monto</div><div class="tl-axis">${axis}${nowX!=null?`<div class="tl-now" style="left:${nowX}%"></div>`:''}</div></div>
+     <div class="tl-body">${rows}</div>
+     <div class="tl-cash"><div class="tl-lbl">Flujo de caja</div><div class="tl-track" style="position:relative;height:42px">${cash}</div></div>`;
+  document.getElementById('tlL').disabled=WIN.a<=0; document.getElementById('tlR').disabled=WIN.b>=11;
+}
+
+/* ============ modal detalle ============ */
+function openDetail(ri){ const r=state.rows[ri]; if(!r) return; const c=computeRow(r);
+  const dueTxt=c.due?c.due.toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'}):'—';
+  let dias='—'; if(c.due&&c.pendiente>0.005){ const dd=Math.round((c.due-TODAY)/86400000); dias=dd>=0?dd+' días':Math.abs(dd)+' días vencido'; }
+  document.getElementById('detTitle').textContent=(r.po||'—')+(r.inv?' · '+r.inv:'');
+  document.getElementById('detInfo').innerHTML=
+    `<span class="k">Orden de compra</span><span class="v2" style="text-align:left;font-size:.74rem">${esc(r.po||'—')}</span>`+
+    `<span class="k">Factura</span><span class="v2">${esc(r.inv||'—')}</span>`+
+    `<span class="k">Fecha factura</span><span class="v2">${r.fInv||'—'}</span>`+
+    `<span class="k">Monto</span><span class="v2">${money(r.monto||0)}</span>`+
+    `<span class="k">Vence (60d)</span><span class="v2">${dueTxt}</span>`+
+    `<span class="k">Días</span><span class="v2">${dias}</span>`+
+    `<span class="k">Estado</span><span class="v2">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span>`+
+    `<span class="k">Pagado</span><span class="v2">${money(c.pagadoTotal)}</span>`;
+  document.getElementById('detModal').classList.add('show');
+}
+document.getElementById('detClose').onclick=()=>document.getElementById('detModal').classList.remove('show');
+document.getElementById('detModal').onclick=e=>{ if(e.target.id==='detModal') e.currentTarget.classList.remove('show'); };
+
+/* ============ controles ============ */
+let VIEW='blocks';
+function renderAll(){ clampWin(); renderWinLbl(); if(VIEW==='blocks') renderBlocks(); else renderTimeline(); }
+document.getElementById('seg').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; VIEW=b.dataset.v;
+  [...document.querySelectorAll('#seg button')].forEach(x=>x.classList.toggle('active',x===b));
+  document.getElementById('view-blocks').classList.toggle('hide',VIEW!=='blocks');
+  document.getElementById('view-timeline').classList.toggle('hide',VIEW!=='timeline');
+  renderAll(); };
+document.getElementById('winReset').onclick=()=>{ WIN=defWin(); renderAll(); };
+document.getElementById('blkL').onclick=()=>{ WIN.a-=3; renderAll(); };
+document.getElementById('blkR').onclick=()=>{ WIN.b+=3; renderAll(); };
+document.getElementById('tlL').onclick=()=>{ WIN.a-=3; renderAll(); };
+document.getElementById('tlR').onclick=()=>{ WIN.b+=3; renderAll(); };
+
+renderAll();
+</script>
+</body>
+</html>
