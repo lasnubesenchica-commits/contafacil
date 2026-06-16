@@ -204,6 +204,99 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
   font-size:.8rem;padding:.6rem 1.1rem;border-radius:100px;opacity:0;transition:opacity .25s;z-index:200;pointer-events:none}
 .toast.show{opacity:1}
 @media(max-width:640px){.wrap{padding:1rem .75rem}.brand{font-size:1.25rem}}
+
+/* ── board controls: view toggle + sliding window ── */
+.board-ctrl{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:.2rem}
+.seg button{font-size:.78rem;font-weight:600;color:var(--muted);padding:.4rem .9rem;border-radius:100px;transition:all .15s}
+.seg button.active{background:var(--white);color:var(--orange);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.chip{font-size:.74rem;font-weight:600;border:1px solid var(--border);background:var(--white);border-radius:100px;
+  padding:.4rem .8rem;color:var(--text);transition:all .15s}
+.chip:hover{border-color:var(--orange);color:var(--orange)}
+.win-lbl{font-size:.74rem;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
+
+/* ── flanking month rails (ventana deslizante) ── */
+.scroller{display:flex;align-items:stretch;gap:0}
+.board-mid{flex:1;min-width:0}
+.board-mid > .cal-scroll{border-radius:0}
+.edge{flex:0 0 50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;
+  cursor:pointer;border:1px solid var(--border);background:linear-gradient(180deg,#FCF3EC,#F7E9DD);
+  color:var(--orange2);transition:background .15s,box-shadow .15s;padding:.5rem 0}
+.edge:hover{background:linear-gradient(180deg,#FBEADC,#F4DCC8);box-shadow:inset 0 0 0 1px rgba(224,90,0,.3)}
+.edge .ar{width:30px;height:30px;border-radius:50%;background:var(--white);border:1px solid rgba(224,90,0,.35);
+  display:flex;align-items:center;justify-content:center;font-size:1.3rem;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.edge .cap{writing-mode:vertical-rl;text-orientation:mixed;font-size:.58rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--orange2);opacity:.85}
+.edge.l{border-radius:var(--r2) 0 0 var(--r2);border-right:2px solid rgba(224,90,0,.28)}
+.edge.r{border-radius:0 var(--r2) var(--r2) 0;border-left:2px solid rgba(224,90,0,.28)}
+.edge.l .cap{transform:rotate(180deg)}
+.edge[disabled]{opacity:.3;cursor:default;background:var(--bg2);box-shadow:none}
+.edge[disabled] .ar{border-color:var(--border);box-shadow:none;color:var(--chrome)}
+
+/* ── month-block tint + current week (bloques de mes) ── */
+table.cal thead tr.mb th.blkA{background:#EEF3FB}
+table.cal thead tr.mb th.blkB{background:#F3EEF8}
+table.cal td.blkA,table.cal th.wk.blkA{background:rgba(21,101,192,.035)}
+table.cal td.blkB,table.cal th.wk.blkB{background:rgba(123,31,162,.035)}
+table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
+
+/* ── línea de tiempo (aging) ── */
+.tl{background:var(--white);border:1px solid var(--border);overflow:hidden}
+.tl-head{display:flex;align-items:stretch;border-bottom:1px solid var(--border);background:var(--bg)}
+.tl-lblcol{width:260px;min-width:260px;flex:0 0 260px;display:flex;align-items:center;padding:.5rem .8rem;
+  font-size:.62rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.tl-axis{position:relative;flex:1;height:32px}
+.tl-axis .mb{position:absolute;top:0;bottom:0;border-left:1px solid var(--border);font-size:.62rem;font-weight:700;
+  text-transform:uppercase;color:var(--muted);padding:.4rem;display:flex;align-items:center}
+.tl-axis .mb.alt{background:rgba(0,0,0,.025)}
+.tl-body{max-height:64vh;overflow-y:auto}
+.tl-row{display:flex;align-items:stretch;border-bottom:1px solid var(--bg2);height:38px;cursor:pointer}
+.tl-row:hover{background:#FAFAFB}
+.tl-lbl{width:260px;min-width:260px;flex:0 0 260px;display:flex;align-items:center;gap:.5rem;padding:.2rem .8rem;overflow:hidden}
+.tl-lbl .po{font-weight:600;font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.tl-lbl .mo{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);white-space:nowrap}
+.tl-track{position:relative;flex:1;margin:0 .3rem}
+.tl-track .grid{position:absolute;top:0;bottom:0;border-left:1px solid var(--bg2)}
+.tl-track .grid.alt{background:rgba(0,0,0,.022)}
+.tl-bar{position:absolute;top:50%;transform:translateY(-50%);height:13px;border-radius:7px}
+.bar-fact{background:var(--azul-bg);border:1px solid rgba(21,101,192,.45)}
+.bar-vencido{background:var(--rojoosc-bg);border:1px solid rgba(122,12,12,.5)}
+.bar-pago{background:var(--verde-bg);border:1px solid rgba(27,122,51,.5)}
+.tl-mk{position:absolute;top:50%;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;z-index:3;border:2px solid #fff}
+.mk-due{background:var(--rojo);color:#fff} .mk-vencido{background:var(--rojoosc);color:#fff}
+.mk-pago{background:var(--verde);color:#fff} .mk-emis{background:var(--azul);color:#fff;width:11px;height:11px}
+.tl-pill{position:absolute;top:50%;transform:translateY(-50%);background:var(--gris-bg);color:var(--gris);
+  font-size:.62rem;font-weight:600;padding:.1rem .45rem;border-radius:100px;white-space:nowrap}
+.tl-now{position:absolute;top:0;bottom:0;width:2px;background:var(--orange);z-index:4}
+.tl-now::after{content:'HOY';position:absolute;top:-2px;left:3px;font-size:.55rem;font-weight:700;color:var(--orange)}
+.tl-off{position:absolute;top:50%;transform:translateY(-50%);font-size:.68rem;color:var(--chrome)}
+.tl-cash{display:flex;align-items:stretch;border-top:2px solid var(--border);background:#FBF4EF}
+.tl-cash .tl-lbl{font-size:.62rem;font-weight:700;text-transform:uppercase;color:var(--orange)}
+.tl-cash .seg-m{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-left:1px solid rgba(224,90,0,.2)}
+.tl-cash .seg-m .n{font-family:'DM Mono',monospace;font-size:.72rem;font-weight:600;color:var(--orange)}
+.tl-cash .seg-m .k{font-size:.55rem;color:var(--muted)}
+
+/* ── timeline help panel ── */
+.tl-help{background:#fff;border:1px solid var(--border);border-radius:var(--r2);margin:.8rem 1.1rem 0;overflow:hidden}
+.tl-help-hd{display:flex;align-items:center;gap:.55rem;padding:.6rem .9rem;cursor:pointer;font-weight:700;font-size:.82rem;user-select:none}
+.tl-help-hd .i{width:20px;height:20px;border-radius:50%;background:var(--azul-bg);color:var(--azul);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700}
+.tl-help-hd .chev{margin-left:auto;color:var(--muted);transition:transform .2s;font-size:.8rem}
+.tl-help.collapsed .tl-help-hd .chev{transform:rotate(-90deg)}
+.tl-help.collapsed .tl-help-body{display:none}
+.tl-help-body{padding:0 1rem 1rem}
+.tl-help-body p{font-size:.76rem;color:var(--muted);margin:.2rem 0}
+.help-demo{position:relative;border:1px dashed rgba(0,0,0,.16);border-radius:10px;background:#FAFAFB;padding:2.6rem 9% 2.8rem;margin:.7rem 0 1rem}
+.help-demo .track{position:relative;height:14px}
+.help-cal{position:absolute;font-size:.62rem;color:var(--muted);white-space:nowrap;transform:translateX(-50%);text-align:center;line-height:1.25}
+.help-cal b{display:block;color:var(--text);font-size:.64rem;font-weight:700}
+.help-cal.top{bottom:100%;margin-bottom:11px} .help-cal.bot{top:100%;margin-top:11px}
+.help-cal::after{content:'';position:absolute;left:50%;width:1px;background:rgba(0,0,0,.22)}
+.help-cal.top::after{top:100%;height:9px} .help-cal.bot::after{bottom:100%;height:9px}
+.help-grid{display:grid;grid-template-columns:28px 1fr;gap:.5rem .7rem;font-size:.74rem;align-items:center}
+.help-grid .ic{display:flex;align-items:center;justify-content:center;position:relative;height:18px}
+.help-grid b{color:var(--text)}
 </style>
 </head>
 <body>
@@ -266,8 +359,16 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
   <div class="section">
     <div class="section-head">
       <div>
-        <h2>Calendario semanal · <span id="calYear"></span> · Semana 1 a 52</h2>
-        <span class="hint">El monto facturado aparece la semana de emisión (azul). La gestión de cobro se muestra en la semana del vencimiento a 60 días (rojo) sin afectar el saldo hasta registrar el pago. La columna SALDO de cada mes muestra el saldo de cada factura al cierre.</span>
+        <h2 id="boardTitle">Calendario semanal · <span id="calYear"></span></h2>
+        <span class="hint" id="boardHint">El monto facturado aparece la semana de emisión (azul). La gestión de cobro se muestra en la semana del vencimiento a 60 días (rojo) sin afectar el saldo hasta registrar el pago. La columna SALDO de cada mes muestra el saldo de cada factura al cierre.</span>
+      </div>
+      <div class="board-ctrl">
+        <div class="seg" id="viewSeg">
+          <button data-v="blocks" class="active">🗓️ Bloques de mes</button>
+          <button data-v="timeline">📊 Línea de tiempo</button>
+        </div>
+        <button class="chip" id="winReset" title="Volver a la semana actual: mes anterior + 60 días">Hoy · 60 días</button>
+        <span class="win-lbl" id="winLbl"></span>
       </div>
     </div>
     <div class="legend">
@@ -278,8 +379,50 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
       <span class="lg"><span class="sw" style="background:var(--verde-bg);border:1px solid var(--verde)"></span>Pagado</span>
       <span class="lg"><span class="sw" style="background:var(--gris-bg);border:1px solid var(--gris)"></span>Orden sin facturar</span>
     </div>
-    <div class="cal-scroll">
-      <table class="cal" id="calTbl"></table>
+
+    <!-- ayuda de la línea de tiempo (solo en esa vista) -->
+    <div class="tl-help collapsed" id="tlHelp" style="display:none">
+      <div class="tl-help-hd" id="tlHelpHd"><span class="i">i</span>¿Cómo leer esta vista? <span class="chev">▾</span></div>
+      <div class="tl-help-body">
+        <p>Cada fila es <b>una factura u orden</b>. Su barra avanza en el tiempo (eje de arriba): de cuándo se facturó a cuándo vence. Lee así un ejemplo facturado:</p>
+        <div class="help-demo">
+          <div class="track">
+            <div class="help-cal top" style="left:9%"><b>Emisión</b>se facturó</div>
+            <div class="help-cal top" style="left:74%"><b>Vence (60 días)</b>fecha límite de pago</div>
+            <div class="help-cal bot" style="left:41%">HOY</div>
+            <div class="tl-mk mk-emis" style="left:9%"></div>
+            <div class="tl-bar bar-fact" style="left:9%;width:65%"></div>
+            <div class="tl-mk mk-due" style="left:74%">◆</div>
+            <div class="tl-now" style="left:41%"></div>
+          </div>
+        </div>
+        <div class="help-grid">
+          <div class="ic"><span class="tl-mk mk-emis" style="position:relative;transform:none"></span></div>
+          <div><b>Punto azul</b> — día en que se emitió la factura (empieza el crédito).</div>
+          <div class="ic"><span class="tl-bar bar-fact" style="position:relative;transform:none;width:24px"></span></div>
+          <div><b>Barra azul</b> — los 60 días de plazo para pagar. Aún dentro de término.</div>
+          <div class="ic"><span class="tl-mk mk-due" style="position:relative;transform:none">◆</span></div>
+          <div><b>Rombo rojo</b> — fecha de vencimiento (cuándo deben pagar).</div>
+          <div class="ic"><span class="tl-mk mk-vencido" style="position:relative;transform:none">!</span></div>
+          <div><b>Barra/marca roja oscura</b> — ya <b>venció</b> y sigue sin pagarse. Urgente.</div>
+          <div class="ic"><span class="tl-mk mk-pago" style="position:relative;transform:none">✓</span></div>
+          <div><b>Check verde</b> — se pagó. La barra es verde y termina en la fecha del pago.</div>
+          <div class="ic"><span class="tl-pill" style="position:relative;transform:none;font-size:.55rem;padding:.05rem .3rem">orden</span></div>
+          <div><b>Píldora gris</b> — orden recibida que <b>aún no se factura</b>.</div>
+          <div class="ic"><span style="display:inline-block;width:2px;height:16px;background:var(--orange)"></span></div>
+          <div><b>Línea naranja “HOY”</b> — la fecha de hoy, cruza todas las filas.</div>
+        </div>
+        <p style="margin-top:.9rem"><b>Orden de las filas:</b> por urgencia — lo que vence primero arriba; las órdenes sin facturar, al final. Haz clic en una fila para ver o editar su detalle.</p>
+      </div>
+    </div>
+
+    <div class="scroller">
+      <button class="edge l" id="navL" title="Mes anterior"><span class="ar">‹</span><span class="cap">Mes anterior</span></button>
+      <div class="board-mid">
+        <div class="cal-scroll" id="calWrap"><table class="cal" id="calTbl"></table></div>
+        <div class="tl" id="tlBox" style="display:none"></div>
+      </div>
+      <button class="edge r" id="navR" title="Mes siguiente"><span class="ar">›</span><span class="cap">Mes siguiente</span></button>
     </div>
   </div>
   </div><!-- /panel-cal -->
@@ -543,6 +686,24 @@ function fmtD(d){ return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth(
 function todayD(){ const t=new Date(); return new Date(t.getFullYear(),t.getMonth(),t.getDate()); }
 const TODAY = todayD();
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES_L = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function moneyK(n){ const a=Math.abs(n); return a>=1000?'$'+(a/1000).toFixed(1)+'k':'$'+a.toFixed(0); }
+
+/* ---------- view + sliding window ----------
+   Los 12 meses están "cargados"; la ventana es de ancho fijo (mes anterior
+   + 60 días) y se desliza 1 mes por clic en las flechas. Reset vuelve a hoy. */
+let VIEW = 'blocks';
+function defWinStart(){ return Math.max(0, TODAY.getMonth()-1); }
+function winWidth(){ const end=addDays(TODAY,PLAZO_DIAS);
+  const b=Math.min(11,(end.getFullYear()-YEAR)*12+end.getMonth());
+  return Math.max(2, b - defWinStart() + 1); }                // p.ej. May→Ago = 4 meses
+const WIN_W = winWidth();
+let winA = defWinStart();                                     // primer mes visible
+function winMax(){ return Math.max(0, 11 - WIN_W + 1); }
+function clampWinA(){ winA = Math.max(0, Math.min(winA, winMax())); }
+function winB(){ return Math.min(11, winA + WIN_W - 1); }
+function slideWin(n){ winA += n; clampWinA(); renderBoard(); }
+function resetWin(){ winA = defWinStart(); clampWinA(); renderBoard(); }
 
 /* ---------- build 52-week calendar (Monday based, ISO month by Thursday) ---------- */
 function buildWeeks(){
@@ -707,9 +868,13 @@ function refreshRowDerived(tr, r){
 /* ---------- calendar matrix ---------- */
 function renderCalendar(){
   document.getElementById('calYear').textContent = YEAR;
-  // column model: weeks, with a SALDO column appended after the last week of each present month
+  const A=winA, B=winB();
+  const blk = m => (m%2===0?'blkA':'blkB');
+  const nowWk = weekOf(TODAY);
+  // column model: only weeks within the window, SALDO after the last week of each in-window month
   const cols=[];
   WEEKS.forEach(w=>{
+    if(w.month<A || w.month>B) return;
     cols.push({type:'wk', w});
     const lastOfMonth = !WEEKS.some(x=>x.month===w.month && x.idx>w.idx);
     if(lastOfMonth) cols.push({type:'saldo', month:w.month});
@@ -724,12 +889,12 @@ function renderCalendar(){
     const last = bandGroups[bandGroups.length-1];
     if(last && last.m===m) last.span++; else bandGroups.push({m, span:1});
   });
-  bandGroups.forEach(g=> monthBand += `<th colspan="${g.span}">${MESES[g.m]}</th>`);
+  bandGroups.forEach(g=> monthBand += `<th colspan="${g.span}" class="${blk(g.m)}">${MESES_L[g.m]}</th>`);
   monthBand+='</tr>';
 
   let head='<tr><th class="c-po">Orden / Factura</th><th class="c-fac">Estado</th>';
   cols.forEach(c=>{
-    if(c.type==='wk') head += `<th class="wk">S${c.w.idx}<div class="d">${fmtD(c.w.start)}</div></th>`;
+    if(c.type==='wk') head += `<th class="wk ${blk(c.w.month)} ${c.w.idx===nowWk?'now':''}">S${c.w.idx}<div class="d">${fmtD(c.w.start)}</div></th>`;
     else head += `<th class="saldo">SALDO<br>${MESES[c.month]}</th>`;
   });
   head+='</tr>';
@@ -778,7 +943,7 @@ function renderCalendar(){
       if((r.estado==='pagado'||r.estado==='abonado') && c.pagadoTotal>0.005 && c.wPago===wi){
         chip += `<span class="v v-pago">−${moneyShort(c.pagadoTotal)}</span>`;
       }
-      row += `<td>${chip}</td>`;
+      row += `<td class="${blk(col.w.month)} ${wi===nowWk?'now':''}">${chip}</td>`;
     });
     return row+'</tr>';
   }).join('');
@@ -806,7 +971,7 @@ function renderCalendar(){
     cols.forEach(col=>{
       if(col.type==='saldo'){ cells+=`<td class="saldo"></td>`; return; }
       const v=map[col.w.idx];
-      cells += `<td>${v?(isCobrar?`<span style="color:var(--rojo)">(${moneyShort(v)})</span>`:moneyShort(v)):''}</td>`;
+      cells += `<td class="${blk(col.w.month)}">${v?(isCobrar?`<span style="color:var(--rojo)">(${moneyShort(v)})</span>`:moneyShort(v)):''}</td>`;
     });
     return `<td class="c-po">${label}</td><td class="c-fac"></td>${cells}`;
   }
@@ -815,7 +980,7 @@ function renderCalendar(){
     if(col.type==='saldo'){ const s=saldoUpToMonth(col.month);
       const cls = Math.abs(s)<0.005?'var(--verde)':'var(--orange)';
       saldoCells += `<td class="saldo" style="color:${cls}">${money(s)}</td>`; }
-    else saldoCells += `<td></td>`;
+    else saldoCells += `<td class="${blk(col.w.month)}"></td>`;
   });
   const foot = `
     <tr>${footRow('Facturado', facWk, false)}</tr>
@@ -825,6 +990,85 @@ function renderCalendar(){
 
   document.getElementById('calTbl').innerHTML =
     `<thead>${monthBand}${head}</thead><tbody>${bodyRows||''}</tbody><tfoot>${foot}</tfoot>`;
+}
+
+/* ---------- línea de tiempo (aging) ---------- */
+function renderTimeline(){
+  const A=winA, B=winB();
+  const winStart=new Date(YEAR,A,1), winEnd=new Date(YEAR,B+1,1), span=winEnd-winStart;
+  const pct=d=>{ if(!d) return null; return Math.max(0,Math.min(100,((d-winStart)/span)*100)); };
+  const inWin=d=>d&&d>=winStart&&d<winEnd;
+  const colW=(1/(B-A+1))*100;
+  let axis=''; for(let m=A;m<=B;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100;
+    axis+=`<div class="mb ${(m-A)%2?'alt':''}" style="left:${x}%;width:${colW}%">${MESES_L[m]}</div>`; }
+  const nowX=pct(TODAY);
+
+  const computed=state.rows.map(computeRow);
+  // orden: facturadas primero (por vencimiento), órdenes al final
+  const order=state.rows.map((r,i)=>i).sort((a,b)=>{ const ca=computed[a],cb=computed[b];
+    const fa=ca.facturada?0:1, fb=cb.facturada?0:1; if(fa!==fb) return fa-fb;
+    const da=ca.due?ca.due.getTime():9e15, db=cb.due?cb.due.getTime():9e15; return da-db; });
+
+  const fmt=d=>d?d.toLocaleDateString('es-PA',{day:'2-digit',month:'short'}):'—';
+  let rows=order.map(ri=>{ const r=state.rows[ri], c=computed[ri];
+    let track='';
+    for(let m=A;m<=B;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100;
+      track+=`<div class="grid ${(m-A)%2?'alt':''}" style="left:${x}%;width:${colW}%"></div>`; }
+    if(c.facturada){
+      const x0=pct(c.fInv), xd=pct(c.due); const emisIn=inWin(c.fInv), dueIn=inWin(c.due);
+      if(r.estado==='pagado'){ const xp=pct(c.fPago); const lo=Math.min(x0,xp), hi=Math.max(x0,xp);
+        track+=`<div class="tl-bar bar-pago" style="left:${lo}%;width:${Math.max(hi-lo,1.5)}%"></div>`;
+        if(inWin(c.fPago)) track+=`<div class="tl-mk mk-pago" style="left:${xp}%">✓</div>`;
+        if(emisIn) track+=`<div class="tl-mk mk-emis" style="left:${x0}%"></div>`;
+      } else { const lo=Math.min(x0,xd), hi=Math.max(x0,xd);
+        track+=`<div class="tl-bar ${c.overdue?'bar-vencido':'bar-fact'}" style="left:${lo}%;width:${Math.max(hi-lo,1.5)}%"></div>`;
+        if(emisIn) track+=`<div class="tl-mk mk-emis" style="left:${x0}%"></div>`;
+        if(dueIn) track+=`<div class="tl-mk ${c.overdue?'mk-vencido':'mk-due'}" style="left:${xd}%">${c.overdue?'!':'◆'}</div>`;
+        else if(c.due&&c.due>=winEnd) track+=`<div class="tl-off" style="right:2px">vence ${MESES[c.due.getMonth()]} ▸</div>`;
+        else if(c.due&&c.due<winStart) track+=`<div class="tl-off" style="left:2px">◂ venció ${MESES[c.due.getMonth()]}</div>`;
+      }
+    } else { track+=`<div class="tl-pill" style="left:6px">orden · sin facturar</div>`; }
+    const estVis=c.overdue?'vencido':r.estado;
+    let tip;
+    if(!c.facturada){ tip=`Orden ${r.po||''} · ${money(r.monto)} · aún sin facturar`; }
+    else if(r.estado==='pagado'){ tip=`Factura ${r.inv} · ${money(r.monto)} · facturada ${fmt(c.fInv)}, pagada ${fmt(c.fPago)} ✓`; }
+    else { const dd=Math.round((c.due-TODAY)/86400000);
+      tip=`Factura ${r.inv} · ${money(c.pendiente)} por cobrar · facturada ${fmt(c.fInv)} · `+
+        (c.overdue?`venció ${fmt(c.due)} (hace ${Math.abs(dd)} días) — ¡cobrar ya!`:`vence ${fmt(c.due)} (en ${dd} días)`); }
+    return `<div class="tl-row" onclick="openDetail(${ri})" title="${esc(tip)}">
+      <div class="tl-lbl"><span class="st st-${estVis}">${c.overdue?'Venc':ESTADO_LBL[r.estado].slice(0,4)}</span>
+        <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${esc(r.inv||r.po||'—')}</span>
+        <span class="mo">${moneyK(r.monto)}</span></div>
+      <div class="tl-track">${track}${nowX!=null?`<div class="tl-now" style="left:${nowX}%"></div>`:''}</div></div>`;
+  }).join('');
+
+  function saldoUpTo(m){ let f=0,p=0; computed.forEach((c,ri)=>{ if(c.facturada&&c.invMo!=null&&c.invMo<=m) f+=state.rows[ri].monto; if(c.pagadoTotal>0.005&&c.payMo!=null&&c.payMo<=m) p+=c.pagadoTotal; }); return f-p; }
+  let cash=''; for(let m=A;m<=B;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100; const s=saldoUpTo(m);
+    cash+=`<div class="seg-m" style="left:${x}%;width:${colW}%"><span class="n">${moneyK(s)}</span><span class="k">saldo ${MESES[m]}</span></div>`; }
+
+  document.getElementById('tlBox').innerHTML =
+    `<div class="tl-head"><div class="tl-lblcol">Factura / Orden · Monto</div><div class="tl-axis">${axis}${nowX!=null?`<div class="tl-now" style="left:${nowX}%"></div>`:''}</div></div>
+     <div class="tl-body">${rows||'<div class="empty">Sin registros.</div>'}</div>
+     <div class="tl-cash"><div class="tl-lbl">Flujo de caja</div><div class="tl-track" style="position:relative;height:42px">${cash}</div></div>`;
+}
+
+/* ---------- board dispatcher (toggle + ventana) ---------- */
+function renderBoard(){
+  clampWinA();
+  const blocks = VIEW==='blocks';
+  document.getElementById('calWrap').style.display = blocks?'':'none';
+  document.getElementById('tlBox').style.display   = blocks?'none':'';
+  document.getElementById('tlHelp').style.display   = blocks?'none':'';
+  document.getElementById('boardTitle').innerHTML = blocks
+    ? `Calendario semanal · <span id="calYear">${YEAR}</span>`
+    : `Línea de tiempo de cobros · <span id="calYear">${YEAR}</span>`;
+  document.getElementById('boardHint').textContent = blocks
+    ? 'Facturado en la semana de emisión (azul); gestión de cobro en la semana de vencimiento a 60 días (rojo). La columna SALDO muestra el saldo de cada factura al cierre de mes.'
+    : 'Cada fila es una factura u orden: la barra va de la emisión al vencimiento (60 días). Ordenadas por urgencia. Abre “¿Cómo leer esta vista?” para la guía.';
+  document.getElementById('winLbl').textContent = MESES_L[winA]+' – '+MESES_L[winB()]+' '+YEAR;
+  document.getElementById('navL').disabled = winA<=0;
+  document.getElementById('navR').disabled = winA>=winMax();
+  if(blocks) renderCalendar(); else renderTimeline();
 }
 
 /* ---------- formatting ---------- */
@@ -1020,7 +1264,7 @@ function updateDedupBtn(){
 }
 
 /* ---------- render all ---------- */
-function renderAll(){ renderKPIs(); renderOrders(); renderCalendar(); updateDedupBtn(); }
+function renderAll(){ renderKPIs(); renderOrders(); renderBoard(); updateDedupBtn(); }
 
 /* ---------- actions ---------- */
 document.getElementById('lockBtn').onclick = ()=>{ if(EDIT) lockEdit(); else openPw(); };
@@ -1031,6 +1275,17 @@ document.getElementById('pwModal').onclick = e=>{ if(e.target.id==='pwModal') cl
 document.getElementById('detCancel').onclick = closeDetail;
 document.getElementById('detSave').onclick = detSave;
 document.getElementById('detModal').onclick = e=>{ if(e.target.id==='detModal') closeDetail(); };
+
+/* view toggle + ventana deslizante */
+document.getElementById('viewSeg').onclick = e=>{ const b=e.target.closest('button'); if(!b) return;
+  VIEW=b.dataset.v;
+  [...document.querySelectorAll('#viewSeg button')].forEach(x=>x.classList.toggle('active',x===b));
+  renderBoard();
+};
+document.getElementById('navL').onclick = ()=>slideWin(-1);
+document.getElementById('navR').onclick = ()=>slideWin(1);
+document.getElementById('winReset').onclick = resetWin;
+document.getElementById('tlHelpHd').onclick = ()=>document.getElementById('tlHelp').classList.toggle('collapsed');
 
 document.getElementById('addBtn').onclick = ()=>{
   if(!EDIT) return;
