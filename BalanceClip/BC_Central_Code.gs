@@ -47,6 +47,18 @@ var BC_MODEL_CLASIFICAR = 'claude-haiku-4-5-20251001';   // barato, rápido
 var BC_MODEL_PARSEAR    = 'claude-sonnet-4-6';    // preciso
 
 // ═══════════════════════════════════════════════════════════════
+//  _extractJsonObj — parser robusto de JSON desde respuestas Claude
+//  Strip ```json fences, luego recorta del primer { al último }
+//  para tolerar texto explicativo después del objeto (común en
+//  Sonnet 4.6, que es más verboso que su predecesor).
+// ═══════════════════════════════════════════════════════════════
+function _extractJsonObj(text) {
+  var t = String(text || '').replace(/```json|```/g, '').trim();
+  var s = t.indexOf('{'), e = t.lastIndexOf('}');
+  return JSON.parse(s >= 0 && e > s ? t.substring(s, e + 1) : t);
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  WEB APP ENTRY POINT
 // ═══════════════════════════════════════════════════════════════
 
@@ -325,7 +337,7 @@ function _parsearFacturaCeyco(base64, mime) {
   };
 
   var text   = _claudeFetchConRetry(payload, _getApiKey(), 3);
-  var parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+  var parsed = _extractJsonObj(text);
   return parsed;
 }
 
@@ -399,7 +411,7 @@ function _parsearFacturaCosto(base64, mime, nombreArchivo) {
   };
 
   var text   = _claudeFetchConRetry(payload, _getApiKey(), 3);
-  var parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+  var parsed = _extractJsonObj(text);
   return parsed;
 }
 

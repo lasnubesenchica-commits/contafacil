@@ -327,7 +327,7 @@ function _claudeParsePdfFacturaProveedor(pdfB64, proveedor) {
   for (var i = 0; i < (respData.content || []).length; i++) {
     if (respData.content[i].type === 'text') { text = respData.content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(text);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -448,7 +448,7 @@ function _handleAnalizarFacturaEjemplo(data) {
     for (var i = 0; i < (respData.content || []).length; i++) {
       if (respData.content[i].type === 'text') { text = respData.content[i].text; break; }
     }
-    var parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    var parsed = _extractJsonObj(text);
 
     // Construir keywords sugeridas: RUC (sin guiones), nombre corto, las de Claude
     var kwSet = {};

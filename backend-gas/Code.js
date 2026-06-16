@@ -495,6 +495,18 @@ function _updateOrden(data) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  _extractJsonObj — parser robusto de JSON desde respuestas Claude
+//  Strip ```json fences, luego recorta del primer { al último }
+//  para tolerar texto explicativo después del objeto (común en
+//  Sonnet 4.6, que es más verboso que su predecesor).
+// ═══════════════════════════════════════════════════════════════
+function _extractJsonObj(text) {
+  var t = String(text || '').replace(/```json|```/g, '').trim();
+  var s = t.indexOf('{'), e = t.lastIndexOf('}');
+  return JSON.parse(s >= 0 && e > s ? t.substring(s, e + 1) : t);
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  doGet
 // ═══════════════════════════════════════════════════════════════
 
@@ -910,7 +922,7 @@ function _callClaudeVision(base64, mimeType) {
   for (var i = 0; i < content.length; i++) {
     if (content[i].type === 'text') { text = content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(text);
 }
 
 function detectarTipoPersona(ruc) {
@@ -2749,7 +2761,7 @@ function _handleParseFacturaEgreso(data) {
       if (content[i].type === 'text') { text = content[i].text; break; }
     }
 
-    var parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    var parsed = _extractJsonObj(text);
 
     // Validate categoria_gasto is a known value
     var catGasto = parsed.categoria_gasto || null;
@@ -2886,7 +2898,7 @@ function _handleParseComprobanteIngreso(data) {
       if (content[i].type === 'text') { text = content[i].text; break; }
     }
 
-    var parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    var parsed = _extractJsonObj(text);
 
     return ContentService
       .createTextOutput(JSON.stringify({
