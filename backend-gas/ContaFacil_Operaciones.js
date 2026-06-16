@@ -991,7 +991,7 @@ function _claudeParsePdfFactura(pdfB64, mimeType, tipo, cfg, provBase) {
 
   var prompt = tipo === 'emitida' ? promptEmitida : promptProveedor;
   var payload = {
-    model:      'claude-sonnet-4-20250514',
+    model:      'claude-sonnet-4-6',
     max_tokens: 1000,
     messages:   [{ role: 'user', content: [
       { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } },

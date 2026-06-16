@@ -870,7 +870,7 @@ function _callClaudeVision(base64, mimeType) {
   if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada en Script Properties');
 
   var payload = {
-    model:      'claude-sonnet-4-20250514',
+    model:      'claude-sonnet-4-6',
     max_tokens: 400,
     messages: [{
       role: 'user',
@@ -2723,7 +2723,7 @@ function _handleParseFacturaEgreso(data) {
       '12. Montos como números, no strings. null solo si el campo realmente no existe.';
 
     var payload = {
-      model:      'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-6',
       max_tokens: 1000,
       messages: [{
         role:    'user',
@@ -2860,7 +2860,7 @@ function _handleParseComprobanteIngreso(data) {
       'Si el comprobante no da pistas claras, default a "ventas_servicios".';
 
     var payload = {
-      model:      'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-6',
       max_tokens: 1000,
       messages: [{
         role:    'user',

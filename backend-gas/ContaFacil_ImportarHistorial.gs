@@ -858,7 +858,7 @@ function _parsearFacturaCeyco(archivo) {
     '5. Montos como números. null si el campo no es visible.';
 
   var payload = {
-    model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+    model: 'claude-sonnet-4-6', max_tokens: 2000,
     messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }]
   };
 
@@ -995,7 +995,7 @@ function _parsearFacturaCosto(archivo) {
     '6. Montos como números. null solo si realmente no es visible.';
 
   var payload = {
-    model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+    model: 'claude-sonnet-4-6', max_tokens: 2000,
     messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }]
   };
 
@@ -1412,7 +1412,7 @@ function _parsearNotaCredito(archivo) {
     '5. Montos como números. null si no visible.';
 
   var payload = {
-    model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+    model: 'claude-sonnet-4-6', max_tokens: 2000,
     messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }]
   };
 

@@ -299,7 +299,7 @@ function _claudeParsePdfFacturaProveedor(pdfB64, proveedor) {
     extraPrompt;
 
   var payload = {
-    model:      'claude-sonnet-4-20250514',
+    model:      'claude-sonnet-4-6',
     max_tokens: 1500,
     messages: [{
       role: 'user',
@@ -423,7 +423,7 @@ function _handleAnalizarFacturaEjemplo(data) {
       'Si un campo no es visible usa null. Montos como números.';
 
     var payload = {
-      model:      'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-6',
       max_tokens: 800,
       messages: [{
         role:    'user',
