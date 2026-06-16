@@ -218,6 +218,13 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
 .win-lbl{font-size:.74rem;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
 table.cal tbody tr.cal-row.grp{cursor:default}
 .tl-row.grp{cursor:default}
+/* enlaces a PDF (códigos clickeables) */
+.doclink{color:var(--azul);text-decoration:none;border-bottom:1px dotted var(--azul)}
+.doclink:hover{color:var(--orange);border-bottom-color:var(--orange)}
+.cellwrap{display:flex;align-items:center;gap:.25rem}
+.cellwrap input{flex:1;min-width:0}
+.doclink-ic{flex:0 0 auto;text-decoration:none;font-size:.85rem;opacity:.7;line-height:1}
+.doclink-ic:hover{opacity:1}
 
 /* ── flanking month rails (ventana deslizante) ── */
 .scroller{display:flex;align-items:stretch;gap:0}
@@ -812,8 +819,8 @@ function renderOrders(){
     } else if(r.estado==='pagado'){ diasTxt='✓'; diasColor='var(--verde)'; }
     const ro = EDIT ? '' : 'disabled';
     return `<tr data-i="${i}"${dupCls}${dupSet.has(i)?' title="Posible duplicado"':''}>
-      <td><input class="f-po" value="${esc(r.po)}" placeholder="N. orden" ${ro}></td>
-      <td><input class="f-inv" value="${esc(r.inv)}" placeholder="N. factura" ${ro}></td>
+      <td><div class="cellwrap"><input class="f-po" value="${esc(r.po)}" placeholder="N. orden" ${ro}>${r.poUrl?`<a class="doclink-ic" href="${esc(r.poUrl)}" target="_blank" rel="noopener" title="Ver PDF de la orden">🔗</a>`:''}</div></td>
+      <td><div class="cellwrap"><input class="f-inv" value="${esc(r.inv)}" placeholder="N. factura" ${ro}>${r.invUrl?`<a class="doclink-ic" href="${esc(r.invUrl)}" target="_blank" rel="noopener" title="Ver PDF de la factura">🔗</a>`:''}</div></td>
       <td><input class="f-fInv" type="date" value="${r.fInv||''}" ${ro}></td>
       <td class="num"><input class="f-monto" type="number" step="0.01" value="${r.monto||''}" ${ro}></td>
       <td><select class="f-estado st-sel st-${estVis}" ${ro}>
@@ -883,16 +890,21 @@ function displayRows(){
     const inv=(r.inv||'').trim();
     if(!inv){ out.push({...r,_members:[i]}); return; }
     const k=inv.toLowerCase(); const c=computeRow(r);
-    if(!byInv[k]){ byInv[k]={poSet:[],inv,fInv:'',monto:0,fPago:'',_pag:0,_members:[]}; out.push(byInv[k]); }
+    if(!byInv[k]){ byInv[k]={poSet:[],inv,fInv:'',monto:0,fPago:'',_pag:0,_members:[],_invUrl:'',_poUrl:''}; out.push(byInv[k]); }
     const g=byInv[k];
     (r.po||'').split(/[\/,\-\s]+/).filter(Boolean).forEach(t=>{ if(!g.poSet.includes(t)) g.poSet.push(t); });
     if(r.fInv && (!g.fInv || r.fInv<g.fInv)) g.fInv=r.fInv;      // emisión más temprana
     if(r.fPago && r.fPago>g.fPago) g.fPago=r.fPago;              // pago más reciente
+    if(r.invUrl && !g._invUrl) g._invUrl=r.invUrl;
+    if(r.poUrl && !g._poUrl) g._poUrl=r.poUrl;
     g.monto += (+r.monto||0); g._pag += c.pagadoTotal; g._members.push(i);
   });
   out.forEach(g=>{
     if(!g.poSet) return;                                        // fila suelta (orden)
     g.po = g.poSet.join(' / '); delete g.poSet;
+    g.invUrl = g._invUrl;                                       // link a la factura del grupo
+    g.poUrl  = g._members.length===1 ? g._poUrl : '';           // PO solo enlaza si es una sola orden
+    delete g._invUrl; delete g._poUrl;
     if(g._pag>=g.monto-0.005 && g.monto>0){ g.estado='pagado'; g.abonado=g.monto; }
     else if(g._pag>0.005){ g.estado='abonado'; g.abonado=g._pag; }
     else { g.estado='facturado'; g.abonado=0; }
@@ -945,7 +957,7 @@ function renderCalendar(){
     const click = single ? `onclick="openDetail(${r._members[0]})"` : '';
     const grpTag = single ? '' : ` · <span style="color:var(--muted)">${r._members.length} órdenes</span>`;
     const poTip = esc(r.po)+(r.inv?' · '+esc(r.inv):'')+(single?'':` (${r._members.length} órdenes — desagrupa para editar)`);
-    let row = `<tr class="cal-row${single?'':' grp'}" ${click} title="${poTip}"><td class="c-po">${esc(r.po||'—')}${r.inv?` · <span style="color:var(--muted)">${esc(r.inv)}</span>`:''}${grpTag}</td>`+
+    let row = `<tr class="cal-row${single?'':' grp'}" ${click} title="${poTip}"><td class="c-po">${poLink(r.po,r.poUrl)}${r.inv?` · <span style="color:var(--muted)">${invLink(r.inv,r.invUrl)}</span>`:''}${grpTag}</td>`+
               `<td class="c-fac"><span class="st st-${estVis}">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span></td>`;
     cols.forEach(col=>{
       if(col.type==='saldo'){
@@ -1081,7 +1093,7 @@ function renderTimeline(){
     const click = single ? `onclick="openDetail(${r._members[0]})"` : '';
     return `<div class="tl-row${single?'':' grp'}" ${click} title="${esc(tip)}">
       <div class="tl-lbl"><span class="st st-${estVis}">${c.overdue?'Venc':ESTADO_LBL[r.estado].slice(0,4)}</span>
-        <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${esc(r.inv||r.po||'—')}${single?'':`<span style="color:var(--muted);font-weight:400"> ·${r._members.length}</span>`}</span>
+        <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${r.inv?invLink(r.inv,r.invUrl):poLink(r.po,r.poUrl)}${single?'':`<span style="color:var(--muted);font-weight:400"> ·${r._members.length}</span>`}</span>
         <span class="mo">${moneyK(r.monto)}</span></div>
       <div class="tl-track">${track}${nowX!=null?`<div class="tl-now" style="left:${nowX}%"></div>`:''}</div></div>`;
   }).join('');
@@ -1120,6 +1132,9 @@ function money(n){ return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{m
 function moneyShort(n){ const a=Math.abs(n);
   return '$'+a.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+/* códigos como enlaces al PDF en Drive (si la fila tiene url) */
+function poLink(po,url){ const t=esc(po||'—'); return url?`<a class="doclink" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver PDF de la orden de compra">${t}</a>`:t; }
+function invLink(inv,url){ const t=esc(inv||'—'); return url?`<a class="doclink" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver PDF de la factura">${t}</a>`:t; }
 function isoToday(){ const t=new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
 
 /* ---------- tabs ---------- */
@@ -1142,6 +1157,8 @@ function openDetail(i){
   if(c.due && c.pendiente>0.005){ const dd=Math.round((c.due-TODAY)/86400000); dias = dd>=0 ? dd+' días' : Math.abs(dd)+' días vencido'; }
   document.getElementById('detTitle').textContent = (r.po||'—') + (r.inv ? ' · '+r.inv : '');
   document.getElementById('detInfo').innerHTML =
+    (r.po?`<span class="k">Orden${r.poUrl?' 🔗':''}</span><span class="v">${poLink(r.po,r.poUrl)}</span>`:'')+
+    (r.inv?`<span class="k">Factura${r.invUrl?' 🔗':''}</span><span class="v">${invLink(r.inv,r.invUrl)}</span>`:'')+
     `<span class="k">Fecha factura</span><span class="v">${r.fInv||'—'}</span>`+
     `<span class="k">Monto</span><span class="v">${money(r.monto||0)}</span>`+
     `<span class="k">Vence (60d)</span><span class="v">${dueTxt}</span>`+
@@ -1206,46 +1223,49 @@ function _poMatch(a,b){
   return ta.some(x=>tb.includes(x));
 }
 // Inserta o actualiza una fila a partir del documento leído por la IA.
-function upsertDoc(doc){
+function upsertDoc(doc, fileUrl){
   const tipo = String(doc.tipo||'').toLowerCase();
   const po = (doc.po==null?'':String(doc.po)).trim();
   let factura = (doc.factura==null?'':String(doc.factura)).trim();
   if(factura.toLowerCase()==='null') factura='';
   const fecha = _normFecha(doc.fecha);
   const monto = parseFloat(doc.monto)||0;
+  const url = fileUrl||'';
   const isFactura = tipo==='factura' || !!factura;
   if(isFactura){
     // 1. ¿ya existe esa factura? actualiza TODAS sus filas (una factura puede
     //    cubrir varias órdenes, cada una en su propia fila con su monto).
     let existing = factura ? state.rows.filter(r=>r.inv && r.inv.toLowerCase()===factura.toLowerCase()) : [];
     if(existing.length){
-      existing.forEach(r=>{ if(fecha) r.fInv=fecha; if(r.estado==='orden') r.estado='facturado'; });
+      existing.forEach(r=>{ if(fecha) r.fInv=fecha; if(url) r.invUrl=url; if(r.estado==='orden') r.estado='facturado'; });
       if(existing.length===1){ if(po) existing[0].po=po; if(monto) existing[0].monto=monto; }
       return {tipo:'Factura', ref:(factura||po||'—'), action: existing.length>1?`actualizada · ${existing.length} órdenes`:'actualizada'};
     }
     // 2. vincula TODAS las órdenes sin factura cuyo PO coincida con la factura.
     let matches = po ? state.rows.filter(r=>!r.inv && r.po && _poMatch(r.po, po)) : [];
     if(matches.length){
-      matches.forEach(r=>{ if(factura) r.inv=factura; if(fecha) r.fInv=fecha; if(r.estado==='orden') r.estado='facturado'; });
+      matches.forEach(r=>{ if(factura) r.inv=factura; if(fecha) r.fInv=fecha; if(url) r.invUrl=url; if(r.estado==='orden') r.estado='facturado'; });
       // factura de una sola orden → su total es el de la factura; si cubre varias,
       // se conserva el monto de cada orden (su suma = total de la factura).
       if(matches.length===1 && monto) matches[0].monto=monto;
       return {tipo:'Factura', ref:(factura||po||'—'), action: matches.length>1?`vinculó ${matches.length} órdenes`:'actualizada'};
     }
     // 3. ninguna orden previa → fila nueva ya facturada.
-    const row={po:'',inv:'',fInv:'',monto:0,estado:'facturado',fPago:'',abonado:0}; state.rows.unshift(row);
+    const row={po:'',inv:'',fInv:'',monto:0,estado:'facturado',fPago:'',abonado:0,poUrl:'',invUrl:''}; state.rows.unshift(row);
     if(factura) row.inv=factura;
     if(po) row.po=po;
     if(fecha) row.fInv=fecha;
     if(monto) row.monto=monto;
+    if(url) row.invUrl=url;
     return {tipo:'Factura', ref:(factura||po||'—'), action:'nueva'};
   } else {
     let row = po ? state.rows.find(r=>!r.inv && r.po && _poMatch(r.po,po)) : null;
     let action='nueva';
     if(row){ action='actualizada'; }
-    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0}; state.rows.unshift(row); }
+    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0,poUrl:'',invUrl:''}; state.rows.unshift(row); }
     if(po) row.po=po;
     if(monto) row.monto=monto;
+    if(url) row.poUrl=url;
     return {tipo:'Orden', ref:(po||'—'), action};
   }
 }
@@ -1259,7 +1279,7 @@ async function uploadPdfs(files){
       const b64 = await fileToB64(f);
       const r = await gasPost('parsePdf', {base64:b64, password:_editPw});
       if(r && r.error==='auth'){ setSync('ok','Sincronizado'); toast('Reingresa la contraseña para usar la IA'); openPw(); return; }
-      if(r && r.success && r.doc){ const res=upsertDoc(r.doc); results.push(`✓ ${f.name} → ${res.tipo} ${res.ref} (${res.action})`); ok++; }
+      if(r && r.success && r.doc){ const res=upsertDoc(r.doc, r.fileUrl||''); results.push(`✓ ${f.name} → ${res.tipo} ${res.ref} (${res.action})`); ok++; }
       else { results.push(`✗ ${f.name} → ${(r&&r.error)||'error'}`); }
     }catch(e){ results.push(`✗ ${f.name} → ${e.message||'error'}`); }
   }

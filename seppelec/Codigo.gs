@@ -23,7 +23,8 @@ var LINEA_KEY       = 'FLUJO_LINEA';
 var PW_KEY          = 'FLUJO_PW_HASH';
 var DEFAULT_LINEA   = 70000;
 var HEADER = ['orden_compra', 'factura', 'fecha_factura', 'monto',
-              'estado', 'fecha_pago', 'abonado', 'actualizado'];
+              'estado', 'fecha_pago', 'abonado', 'actualizado',
+              'orden_url', 'factura_url'];
 
 // ── Router ──────────────────────────────────────────────────────
 function doGet(e) {
@@ -78,6 +79,11 @@ function _sheet() {
     sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('@'); // fecha_factura como texto
     sh.getRange(2, 6, sh.getMaxRows() - 1, 1).setNumberFormat('@'); // fecha_pago como texto
   }
+  // migración: asegura que el encabezado tenga todas las columnas (incl. urls nuevas)
+  var hdr = sh.getRange(1, 1, 1, HEADER.length).getValues()[0];
+  var need = false;
+  for (var i = 0; i < HEADER.length; i++) { if (String(hdr[i] || '') !== HEADER[i]) { need = true; break; } }
+  if (need) sh.getRange(1, 1, 1, HEADER.length).setValues([HEADER]).setFontWeight('bold');
   return sh;
 }
 function _dateStr(v) {
@@ -104,7 +110,8 @@ function _getFlujo(callback) {
       rows.push({
         po: String(r[0] || ''), inv: String(r[1] || ''), fInv: _dateStr(r[2]),
         monto: parseFloat(r[3]) || 0, estado: String(r[4] || 'orden'),
-        fPago: _dateStr(r[5]), abonado: parseFloat(r[6]) || 0
+        fPago: _dateStr(r[5]), abonado: parseFloat(r[6]) || 0,
+        poUrl: String(r[8] || ''), invUrl: String(r[9] || '')
       });
     }
   }
@@ -128,7 +135,8 @@ function _saveFlujo(data) {
       var out = rows.map(function (r) {
         return [String(r.po || ''), String(r.inv || ''), _dateStr(r.fInv),
                 parseFloat(r.monto) || 0, String(r.estado || 'orden'),
-                _dateStr(r.fPago), parseFloat(r.abonado) || 0, now];
+                _dateStr(r.fPago), parseFloat(r.abonado) || 0, now,
+                String(r.poUrl || ''), String(r.invUrl || '')];
       });
       sh.getRange(2, 1, out.length, HEADER.length).setValues(out);
     }
@@ -235,8 +243,31 @@ function _parsePdf(data) {
     var m = txt.match(/\{[\s\S]*\}/);
     if (!m) return _json({ success: false, error: 'La IA no devolvió JSON. Respuesta: ' + txt.slice(0, 200) });
     var parsed = JSON.parse(m[0]);
-    return _json({ success: true, doc: parsed });
+    var fileUrl = _saveDocFile(b64, parsed);   // guarda el PDF en Drive (si hay carpeta)
+    return _json({ success: true, doc: parsed, fileUrl: fileUrl });
   } catch (err) {
     return _json({ success: false, error: String(err && err.message || err) });
+  }
+}
+
+// Guarda el PDF en la carpeta de Drive indicada por la propiedad FLUJO_FOLDER_ID
+// y devuelve un enlace de solo lectura ("cualquiera con el enlace"). Si no hay
+// carpeta configurada o falla, devuelve '' (la lectura del PDF no se interrumpe).
+function _saveDocFile(b64, parsed) {
+  try {
+    var folderId = PropertiesService.getScriptProperties().getProperty('FLUJO_FOLDER_ID');
+    if (!folderId) return '';
+    var folder = DriveApp.getFolderById(folderId);
+    var tipo = String((parsed && parsed.tipo) || 'doc').toLowerCase();
+    var fac  = parsed && parsed.factura && String(parsed.factura).toLowerCase() !== 'null' ? parsed.factura : '';
+    var ref  = String(fac || (parsed && parsed.po) || 'doc').replace(/[\\\/:*?"<>|]+/g, '_').replace(/\s+/g, '').slice(0, 40);
+    var fecha = (parsed && parsed.fecha) ? String(parsed.fecha) : Utilities.formatDate(new Date(), 'GMT-5', 'yyyy-MM-dd');
+    var name = tipo + '_' + ref + '_' + fecha + '.pdf';
+    var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'application/pdf', name);
+    var file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return file.getUrl();
+  } catch (e) {
+    return '';
   }
 }

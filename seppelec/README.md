@@ -56,6 +56,13 @@ Para activarlo, en el proyecto de Apps Script:
 2. Agrega `ANTHROPIC_API_KEY` = tu API key de `console.anthropic.com`.
 3. (Opcional) `FLUJO_MODEL` para cambiar el modelo (por defecto
    `claude-opus-4-8`).
+4. (Opcional) `FLUJO_FOLDER_ID` = ID de una carpeta de Google Drive. Si la
+   defines, cada PDF leído se **guarda en esa carpeta** y su código (N° de
+   orden y/o de factura) se vuelve un **enlace clickeable** al documento en
+   las vistas. El archivo se comparte como *“cualquiera con el enlace puede
+   ver”*. Sin esta propiedad la lectura por IA funciona igual, pero sin
+   enlaces. La primera vez que se use Drive, Apps Script pedirá
+   **reautorizar** el permiso (Drive) y habrá que volver a implementar.
 
 La lectura por IA queda protegida por la contraseña de edición, así sólo
 quien edita puede consumir la API key.
@@ -64,5 +71,7 @@ quien edita puede consumir la API key.
 
 La pestaña `Flujo_CXC` de la hoja y la contraseña se crean solas. Cada
 fila: `orden_compra | factura | fecha_factura | monto | estado |
-fecha_pago | abonado | actualizado`. La línea de crédito se guarda en las
-Script Properties del proyecto.
+fecha_pago | abonado | actualizado | orden_url | factura_url`. Las dos
+últimas columnas (enlaces a los PDF en Drive) se agregan solas al
+encabezado existente. La línea de crédito se guarda en las Script
+Properties del proyecto.
