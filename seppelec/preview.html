@@ -48,14 +48,23 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .lg{display:inline-flex;align-items:center;gap:.35rem}
 .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
 
-/* arrows */
-.scroller{position:relative}
-.edge{position:absolute;top:0;bottom:0;width:42px;z-index:20;display:flex;align-items:center;justify-content:center;
-  cursor:pointer;border:none;color:var(--orange);font-size:1.6rem;transition:background .15s}
-.edge:hover{background:rgba(224,90,0,.06)}
-.edge.l{left:0;background:linear-gradient(90deg,rgba(245,245,247,.95),rgba(245,245,247,0))}
-.edge.r{right:0;background:linear-gradient(270deg,rgba(245,245,247,.95),rgba(245,245,247,0))}
-.edge[disabled]{opacity:.25;cursor:default;background:none}
+/* flanking month rails (cargar más meses) */
+.scroller{display:flex;align-items:stretch;gap:0}
+.edge{flex:0 0 54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;
+  cursor:pointer;border:1px solid var(--border);background:linear-gradient(180deg,#FCF3EC,#F7E9DD);
+  color:var(--orange2);transition:background .15s,box-shadow .15s;padding:.5rem 0;align-self:stretch}
+.edge:hover{background:linear-gradient(180deg,#FBEADC,#F4DCC8);box-shadow:inset 0 0 0 1px rgba(224,90,0,.3)}
+.edge .ar{width:32px;height:32px;border-radius:50%;background:var(--white);border:1px solid rgba(224,90,0,.35);
+  display:flex;align-items:center;justify-content:center;font-size:1.35rem;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.edge .cap{writing-mode:vertical-rl;text-orientation:mixed;font-size:.6rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--orange2);opacity:.85}
+.edge.l{border-radius:var(--r2) 0 0 var(--r2);border-right:2px solid rgba(224,90,0,.28)}
+.edge.r{border-radius:0 var(--r2) var(--r2) 0;border-left:2px solid rgba(224,90,0,.28)}
+.edge.l .cap{transform:rotate(180deg)}
+.edge[disabled]{opacity:.3;cursor:default;background:var(--bg2);box-shadow:none}
+.edge[disabled] .ar{border-color:var(--border);box-shadow:none;color:var(--chrome)}
+/* the middle (calendar) sits flush against the rails */
+.scroller > .cal-scroll,.scroller > .tl{flex:1;min-width:0;border-radius:0!important}
 
 /* ───────── Concepto 1: bloques de mes (grid semanal) ───────── */
 .cal-scroll{overflow:auto;max-height:74vh;border:1px solid var(--border);border-radius:var(--r2);background:var(--white)}
@@ -98,6 +107,24 @@ table.cal tfoot tr.r-saldo td{background:#FBF4EF;color:var(--orange)}
 .st-vencido{background:var(--rojoosc-bg);color:var(--rojoosc)}
 
 /* ───────── Concepto 3: línea de tiempo (aging) ───────── */
+.tl-help{background:#fff;border:1px solid var(--border);border-radius:var(--r2);margin-bottom:.9rem;overflow:hidden}
+.tl-help-hd{display:flex;align-items:center;gap:.55rem;padding:.65rem .9rem;cursor:pointer;font-weight:700;font-size:.84rem;user-select:none}
+.tl-help-hd .i{width:20px;height:20px;border-radius:50%;background:var(--azul-bg);color:var(--azul);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700}
+.tl-help-hd .chev{margin-left:auto;color:var(--muted);transition:transform .2s;font-size:.8rem}
+.tl-help.collapsed .tl-help-hd .chev{transform:rotate(-90deg)}
+.tl-help.collapsed .tl-help-body{display:none}
+.tl-help-body{padding:0 1rem 1.1rem}
+.tl-help-body p{font-size:.78rem;color:var(--muted);margin:.2rem 0 .2rem}
+.help-demo{position:relative;border:1px dashed rgba(0,0,0,.16);border-radius:10px;background:#FAFAFB;padding:2.6rem 9% 2.8rem;margin:.7rem 0 1.1rem}
+.help-demo .track{position:relative;height:14px}
+.help-cal{position:absolute;font-size:.62rem;color:var(--muted);white-space:nowrap;transform:translateX(-50%);text-align:center;line-height:1.25}
+.help-cal b{display:block;color:var(--text);font-size:.64rem;font-weight:700}
+.help-cal.top{bottom:100%;margin-bottom:11px} .help-cal.bot{top:100%;margin-top:11px}
+.help-cal::after{content:'';position:absolute;left:50%;width:1px;background:rgba(0,0,0,.22)}
+.help-cal.top::after{top:100%;height:9px} .help-cal.bot::after{bottom:100%;height:9px}
+.help-grid{display:grid;grid-template-columns:28px 1fr;gap:.5rem .7rem;font-size:.76rem;align-items:center}
+.help-grid .ic{display:flex;align-items:center;justify-content:center;position:relative;height:18px}
+.help-grid b{color:var(--text)}
 .tl{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
 .tl-head{display:flex;align-items:stretch;border-bottom:1px solid var(--border);background:var(--bg)}
 .tl-lblcol{width:280px;min-width:280px;flex:0 0 280px;display:flex;align-items:center;padding:.5rem .8rem;
@@ -174,16 +201,52 @@ table.cal tfoot tr.r-saldo td{background:#FBF4EF;color:var(--orange)}
 
   <!-- Concepto 1 -->
   <div id="view-blocks" class="scroller">
-    <button class="edge l" id="blkL" title="Cargar 3 meses antes">‹</button>
-    <button class="edge r" id="blkR" title="Cargar 3 meses después">›</button>
+    <button class="edge l" id="blkL" title="Cargar 3 meses antes"><span class="ar">‹</span><span class="cap">Meses anteriores</span></button>
     <div class="cal-scroll"><table class="cal" id="calTbl"></table></div>
+    <button class="edge r" id="blkR" title="Cargar 3 meses después"><span class="ar">›</span><span class="cap">Meses siguientes</span></button>
   </div>
 
   <!-- Concepto 3 -->
-  <div id="view-timeline" class="scroller hide">
-    <button class="edge l" id="tlL" title="Cargar 3 meses antes">‹</button>
-    <button class="edge r" id="tlR" title="Cargar 3 meses después">›</button>
-    <div class="tl" id="tlBox"></div>
+  <div id="view-timeline" class="hide">
+    <div class="tl-help" id="tlHelp">
+      <div class="tl-help-hd" id="tlHelpHd"><span class="i">i</span>¿Cómo leer esta vista? <span class="chev">▾</span></div>
+      <div class="tl-help-body">
+        <p>Cada fila es <b>una factura u orden</b>. Su barra avanza en el tiempo (eje de arriba): de cuándo se facturó a cuándo se vence. Lee así un ejemplo facturado:</p>
+        <div class="help-demo">
+          <div class="track">
+            <div class="help-cal top" style="left:9%"><b>Emisión</b>se facturó</div>
+            <div class="help-cal top" style="left:74%"><b>Vence (60 días)</b>fecha límite de pago</div>
+            <div class="help-cal bot" style="left:41%">HOY</div>
+            <div class="tl-mk mk-emis" style="left:9%"></div>
+            <div class="tl-bar bar-fact" style="left:9%;width:65%"></div>
+            <div class="tl-mk mk-due" style="left:74%">◆</div>
+            <div class="tl-now" style="left:41%"></div>
+          </div>
+        </div>
+        <div class="help-grid">
+          <div class="ic"><span class="tl-mk mk-emis" style="position:relative;transform:none"></span></div>
+          <div><b>Punto azul</b> — día en que se emitió la factura (empieza el crédito).</div>
+          <div class="ic"><span class="tl-bar bar-fact" style="position:relative;transform:none;width:24px"></span></div>
+          <div><b>Barra azul</b> — los 60 días de plazo para pagar. Aún dentro de término.</div>
+          <div class="ic"><span class="tl-mk mk-due" style="position:relative;transform:none">◆</span></div>
+          <div><b>Rombo rojo</b> — fecha de vencimiento (cuándo deben pagar).</div>
+          <div class="ic"><span class="tl-mk mk-vencido" style="position:relative;transform:none">!</span></div>
+          <div><b>Barra/marca roja oscura</b> — ya <b>venció</b> y sigue sin pagarse. Urgente.</div>
+          <div class="ic"><span class="tl-mk mk-pago" style="position:relative;transform:none">✓</span></div>
+          <div><b>Check verde</b> — se pagó. La barra es verde y termina en la fecha del pago.</div>
+          <div class="ic"><span class="tl-pill" style="position:relative;transform:none;font-size:.55rem;padding:.05rem .3rem">orden</span></div>
+          <div><b>Píldora gris</b> — orden recibida que <b>aún no se factura</b> (sin fecha todavía).</div>
+          <div class="ic"><span style="display:inline-block;width:2px;height:16px;background:var(--orange)"></span></div>
+          <div><b>Línea naranja “HOY”</b> — la fecha de hoy, cruza todas las filas.</div>
+        </div>
+        <p style="margin-top:.9rem"><b>Orden de las filas:</b> se ordenan por urgencia — lo que vence primero aparece arriba; las órdenes sin facturar, al final. Pasa el cursor por cualquier fila para ver su resumen, o haz clic para el detalle completo.</p>
+      </div>
+    </div>
+    <div class="scroller">
+      <button class="edge l" id="tlL" title="Cargar 3 meses antes"><span class="ar">‹</span><span class="cap">Meses anteriores</span></button>
+      <div class="tl" id="tlBox"></div>
+      <button class="edge r" id="tlR" title="Cargar 3 meses después"><span class="ar">›</span><span class="cap">Meses siguientes</span></button>
+    </div>
   </div>
 </div>
 
@@ -345,7 +408,14 @@ function renderTimeline(){
       track+=`<div class="tl-pill" style="left:6px">orden · sin facturar</div>`;
     }
     const estVis=c.overdue?'vencido':r.estado;
-    return `<div class="tl-row" onclick="openDetail(${ri})">
+    const fmt=d=>d?d.toLocaleDateString('es-PA',{day:'2-digit',month:'short'}):'—';
+    let rowTip;
+    if(!c.facturada){ rowTip=`Orden ${r.po||''} · ${money(r.monto)} · aún sin facturar`; }
+    else if(r.estado==='pagado'){ rowTip=`Factura ${r.inv} · ${money(r.monto)} · facturada ${fmt(c.fInv)}, pagada ${fmt(c.fPago)} ✓`; }
+    else { const dd=Math.round((c.due-TODAY)/86400000);
+      rowTip=`Factura ${r.inv} · ${money(r.pendiente!=null?c.pendiente:r.monto)} por cobrar · facturada ${fmt(c.fInv)} · `+
+        (c.overdue?`venció ${fmt(c.due)} (hace ${Math.abs(dd)} días) — ¡cobrar ya!`:`vence ${fmt(c.due)} (en ${dd} días)`); }
+    return `<div class="tl-row" onclick="openDetail(${ri})" title="${esc(rowTip)}">
       <div class="tl-lbl"><span class="st st-${estVis}">${c.overdue?'Venc':ESTADO_LBL[r.estado].slice(0,4)}</span>
         <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${esc(r.inv||r.po||'—')}</span>
         <span class="mo">${moneyK(r.monto)}</span></div>
@@ -396,6 +466,7 @@ document.getElementById('blkL').onclick=()=>{ WIN.a-=3; renderAll(); };
 document.getElementById('blkR').onclick=()=>{ WIN.b+=3; renderAll(); };
 document.getElementById('tlL').onclick=()=>{ WIN.a-=3; renderAll(); };
 document.getElementById('tlR').onclick=()=>{ WIN.b+=3; renderAll(); };
+document.getElementById('tlHelpHd').onclick=()=>document.getElementById('tlHelp').classList.toggle('collapsed');
 
 renderAll();
 </script>
