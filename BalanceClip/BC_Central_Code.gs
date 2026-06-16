@@ -44,7 +44,7 @@ var CLIENTES = {
 
 // ── MODELOS CLAUDE ────────────────────────────────────────────
 var BC_MODEL_CLASIFICAR = 'claude-haiku-4-5-20251001';   // barato, rápido
-var BC_MODEL_PARSEAR    = 'claude-sonnet-4-20250514';    // preciso
+var BC_MODEL_PARSEAR    = 'claude-sonnet-4-6';    // preciso
 
 // ═══════════════════════════════════════════════════════════════
 //  WEB APP ENTRY POINT

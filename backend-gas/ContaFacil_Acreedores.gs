@@ -934,7 +934,7 @@ function _claudeParsearFacturaAcreedor(pdfB64, acreedor) {
     'Si un campo no está visible usar null. Montos como números.';
 
   var payload = {
-    model:      'claude-sonnet-4-20250514',
+    model:      'claude-sonnet-4-6',
     max_tokens: 600,
     messages: [{ role: 'user', content: [
       { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } },

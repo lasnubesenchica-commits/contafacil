@@ -2123,7 +2123,7 @@ function egAnalyze() {
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1000,
       messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: buildPromptFactura() }] }]
     })
@@ -2515,7 +2515,7 @@ function inAnalyze() {
   fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: [inContentBlock, { type: 'text', text: buildPromptIngreso() }] }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: [inContentBlock, { type: 'text', text: buildPromptIngreso() }] }] })
   })
   .then(function(r) { if (!r.ok) return r.json().then(function(e) { throw new Error(e.error ? e.error.message : 'Error ' + r.status); }); return r.json(); })
   .then(function(data) {

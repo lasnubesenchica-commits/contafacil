@@ -682,7 +682,7 @@ function _whatsappClasificarYExtraer(b64, mime) {
     'Si no estás seguro de la categoría, usá "otros_deducibles" como default.';
 
   var payload = {
-    model:      'claude-sonnet-4-20250514',
+    model:      'claude-sonnet-4-6',
     max_tokens: 1000,
     messages: [{ role: 'user', content: [ contentBlock, { type: 'text', text: prompt } ] }],
   };
