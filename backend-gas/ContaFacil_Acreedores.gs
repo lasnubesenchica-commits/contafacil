@@ -953,7 +953,7 @@ function _claudeParsearFacturaAcreedor(pdfB64, acreedor) {
   for (var i = 0; i < content.length; i++) {
     if (content[i].type === 'text') { text = content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(text);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1005,7 +1005,7 @@ function _claudeParsearFacturaLibre(pdfB64, fileName, mediaType) {
   for (var i = 0; i < content.length; i++) {
     if (content[i].type === 'text') { text = content[i].text; break; }
   }
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(text);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1844,7 +1844,7 @@ function _handleAnalizarFacturaAcreedor(data) {
     for (var i = 0; i < content.length; i++) {
       if (content[i].type === 'text') { text = content[i].text; break; }
     }
-    var parsed  = JSON.parse(text.replace(/```json|```/g, '').trim());
+    var parsed  = _extractJsonObj(text);
     parsed.success = true;
     return ContentService.createTextOutput(JSON.stringify(parsed)).setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
@@ -2073,7 +2073,7 @@ function _claudeParsearTextoFactura(text, fileName) {
     throw new Error('Claude XML error ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
   var out = '', content = JSON.parse(resp.getContentText()).content || [];
   for (var i = 0; i < content.length; i++) { if (content[i].type === 'text') { out = content[i].text; break; } }
-  return JSON.parse(out.replace(/```json|```/g, '').trim());
+  return _extractJsonObj(out);
 }
 
 function _handleCategorizarEmailsGmail(data) {
