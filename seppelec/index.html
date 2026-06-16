@@ -213,7 +213,11 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
 .chip{font-size:.74rem;font-weight:600;border:1px solid var(--border);background:var(--white);border-radius:100px;
   padding:.4rem .8rem;color:var(--text);transition:all .15s}
 .chip:hover{border-color:var(--orange);color:var(--orange)}
+.chip.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+.chip.on:hover{color:#fff}
 .win-lbl{font-size:.74rem;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
+table.cal tbody tr.cal-row.grp{cursor:default}
+.tl-row.grp{cursor:default}
 
 /* ── flanking month rails (ventana deslizante) ── */
 .scroller{display:flex;align-items:stretch;gap:0}
@@ -367,6 +371,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
           <button data-v="blocks" class="active">🗓️ Bloques de mes</button>
           <button data-v="timeline">📊 Línea de tiempo</button>
         </div>
+        <button class="chip" id="groupBtn" title="Agrupar las filas que comparten la misma factura">🔗 Agrupar por factura</button>
         <button class="chip" id="winReset" title="Volver a la semana actual: mes anterior + 60 días">Hoy · 60 días</button>
         <span class="win-lbl" id="winLbl"></span>
       </div>
@@ -693,6 +698,7 @@ function moneyK(n){ const a=Math.abs(n); return a>=1000?'$'+(a/1000).toFixed(1)+
    Los 12 meses están "cargados"; la ventana es de ancho fijo (mes anterior
    + 60 días) y se desliza 1 mes por clic en las flechas. Reset vuelve a hoy. */
 let VIEW = 'blocks';
+let GROUP = false;        // agrupar filas por factura en las vistas (opción visual)
 function defWinStart(){ return Math.max(0, TODAY.getMonth()-1); }
 function winWidth(){ const end=addDays(TODAY,PLAZO_DIAS);
   const b=Math.min(11,(end.getFullYear()-YEAR)*12+end.getMonth());
@@ -866,6 +872,35 @@ function refreshRowDerived(tr, r){
 }
 
 /* ---------- calendar matrix ---------- */
+/* Filas a mostrar: directas, o agrupadas por factura (opción visual).
+   Cada fila lleva _members = índices originales en state.rows. Las órdenes
+   sin factura nunca se agrupan. Los totales/saldos del footer siguen
+   calculándose sobre state.rows, así que agrupar no altera los números. */
+function displayRows(){
+  if(!GROUP) return state.rows.map((r,i)=>({...r,_members:[i]}));
+  const out=[], byInv={};
+  state.rows.forEach((r,i)=>{
+    const inv=(r.inv||'').trim();
+    if(!inv){ out.push({...r,_members:[i]}); return; }
+    const k=inv.toLowerCase(); const c=computeRow(r);
+    if(!byInv[k]){ byInv[k]={poSet:[],inv,fInv:'',monto:0,fPago:'',_pag:0,_members:[]}; out.push(byInv[k]); }
+    const g=byInv[k];
+    (r.po||'').split(/[\/,\-\s]+/).filter(Boolean).forEach(t=>{ if(!g.poSet.includes(t)) g.poSet.push(t); });
+    if(r.fInv && (!g.fInv || r.fInv<g.fInv)) g.fInv=r.fInv;      // emisión más temprana
+    if(r.fPago && r.fPago>g.fPago) g.fPago=r.fPago;              // pago más reciente
+    g.monto += (+r.monto||0); g._pag += c.pagadoTotal; g._members.push(i);
+  });
+  out.forEach(g=>{
+    if(!g.poSet) return;                                        // fila suelta (orden)
+    g.po = g.poSet.join(' / '); delete g.poSet;
+    if(g._pag>=g.monto-0.005 && g.monto>0){ g.estado='pagado'; g.abonado=g.monto; }
+    else if(g._pag>0.005){ g.estado='abonado'; g.abonado=g._pag; }
+    else { g.estado='facturado'; g.abonado=0; }
+    delete g._pag;
+  });
+  return out;
+}
+
 function renderCalendar(){
   document.getElementById('calYear').textContent = YEAR;
   const A=winA, B=winB();
@@ -900,13 +935,17 @@ function renderCalendar(){
   head+='</tr>';
 
   // body rows
-  const computed = state.rows.map(computeRow);
-  let bodyRows = state.rows.map((r,ri)=>{
-    const c = computed[ri];
+  const computed = state.rows.map(computeRow);   // para totales/saldos del footer
+  let bodyRows = displayRows().map((r)=>{
+    const c = computeRow(r);
     const estVis = c.overdue?'vencido':r.estado;
     // mes (calendario) en que cae el pago — usado para la marca verde
     const payMonth = (r.estado==='pagado'||r.estado==='abonado') ? c.payMo : null;
-    let row = `<tr class="cal-row" data-i="${ri}" onclick="openDetail(${ri})"><td class="c-po" title="${esc(r.po)}">${esc(r.po||'—')}${r.inv?` · <span style="color:var(--muted)">${esc(r.inv)}</span>`:''}</td>`+
+    const single = r._members.length===1;
+    const click = single ? `onclick="openDetail(${r._members[0]})"` : '';
+    const grpTag = single ? '' : ` · <span style="color:var(--muted)">${r._members.length} órdenes</span>`;
+    const poTip = esc(r.po)+(r.inv?' · '+esc(r.inv):'')+(single?'':` (${r._members.length} órdenes — desagrupa para editar)`);
+    let row = `<tr class="cal-row${single?'':' grp'}" ${click} title="${poTip}"><td class="c-po">${esc(r.po||'—')}${r.inv?` · <span style="color:var(--muted)">${esc(r.inv)}</span>`:''}${grpTag}</td>`+
               `<td class="c-fac"><span class="st st-${estVis}">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span></td>`;
     cols.forEach(col=>{
       if(col.type==='saldo'){
@@ -1003,14 +1042,15 @@ function renderTimeline(){
     axis+=`<div class="mb ${(m-A)%2?'alt':''}" style="left:${x}%;width:${colW}%">${MESES_L[m]}</div>`; }
   const nowX=pct(TODAY);
 
-  const computed=state.rows.map(computeRow);
+  const computed=state.rows.map(computeRow);   // para el flujo de caja (footer)
+  const drows=displayRows(), dc=drows.map(computeRow);
   // orden: facturadas primero (por vencimiento), órdenes al final
-  const order=state.rows.map((r,i)=>i).sort((a,b)=>{ const ca=computed[a],cb=computed[b];
+  const order=drows.map((r,i)=>i).sort((a,b)=>{ const ca=dc[a],cb=dc[b];
     const fa=ca.facturada?0:1, fb=cb.facturada?0:1; if(fa!==fb) return fa-fb;
     const da=ca.due?ca.due.getTime():9e15, db=cb.due?cb.due.getTime():9e15; return da-db; });
 
   const fmt=d=>d?d.toLocaleDateString('es-PA',{day:'2-digit',month:'short'}):'—';
-  let rows=order.map(ri=>{ const r=state.rows[ri], c=computed[ri];
+  let rows=order.map(ri=>{ const r=drows[ri], c=dc[ri];
     let track='';
     for(let m=A;m<=B;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100;
       track+=`<div class="grid ${(m-A)%2?'alt':''}" style="left:${x}%;width:${colW}%"></div>`; }
@@ -1029,15 +1069,19 @@ function renderTimeline(){
       }
     } else { track+=`<div class="tl-pill" style="left:6px">orden · sin facturar</div>`; }
     const estVis=c.overdue?'vencido':r.estado;
+    const single=r._members.length===1;
+    const nOrd = single?'':` · ${r._members.length} órdenes`;
     let tip;
     if(!c.facturada){ tip=`Orden ${r.po||''} · ${money(r.monto)} · aún sin facturar`; }
-    else if(r.estado==='pagado'){ tip=`Factura ${r.inv} · ${money(r.monto)} · facturada ${fmt(c.fInv)}, pagada ${fmt(c.fPago)} ✓`; }
+    else if(r.estado==='pagado'){ tip=`Factura ${r.inv}${nOrd} · ${money(r.monto)} · facturada ${fmt(c.fInv)}, pagada ${fmt(c.fPago)} ✓`; }
     else { const dd=Math.round((c.due-TODAY)/86400000);
-      tip=`Factura ${r.inv} · ${money(c.pendiente)} por cobrar · facturada ${fmt(c.fInv)} · `+
+      tip=`Factura ${r.inv}${nOrd} · ${money(c.pendiente)} por cobrar · facturada ${fmt(c.fInv)} · `+
         (c.overdue?`venció ${fmt(c.due)} (hace ${Math.abs(dd)} días) — ¡cobrar ya!`:`vence ${fmt(c.due)} (en ${dd} días)`); }
-    return `<div class="tl-row" onclick="openDetail(${ri})" title="${esc(tip)}">
+    if(!single) tip+=` · PO: ${r.po} (desagrupa para editar)`;
+    const click = single ? `onclick="openDetail(${r._members[0]})"` : '';
+    return `<div class="tl-row${single?'':' grp'}" ${click} title="${esc(tip)}">
       <div class="tl-lbl"><span class="st st-${estVis}">${c.overdue?'Venc':ESTADO_LBL[r.estado].slice(0,4)}</span>
-        <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${esc(r.inv||r.po||'—')}</span>
+        <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${esc(r.inv||r.po||'—')}${single?'':`<span style="color:var(--muted);font-weight:400"> ·${r._members.length}</span>`}</span>
         <span class="mo">${moneyK(r.monto)}</span></div>
       <div class="tl-track">${track}${nowX!=null?`<div class="tl-now" style="left:${nowX}%"></div>`:''}</div></div>`;
   }).join('');
@@ -1169,21 +1213,35 @@ function upsertDoc(doc){
   if(factura.toLowerCase()==='null') factura='';
   const fecha = _normFecha(doc.fecha);
   const monto = parseFloat(doc.monto)||0;
-  let row=null, action='nueva';
   const isFactura = tipo==='factura' || !!factura;
   if(isFactura){
-    row = factura ? state.rows.find(r=>r.inv && r.inv.toLowerCase()===factura.toLowerCase()) : null;
-    if(!row && po) row = state.rows.find(r=>!r.inv && r.po && _poMatch(r.po, po));
-    if(row){ action='actualizada'; }
-    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0}; state.rows.unshift(row); }
+    // 1. ¿ya existe esa factura? actualiza TODAS sus filas (una factura puede
+    //    cubrir varias órdenes, cada una en su propia fila con su monto).
+    let existing = factura ? state.rows.filter(r=>r.inv && r.inv.toLowerCase()===factura.toLowerCase()) : [];
+    if(existing.length){
+      existing.forEach(r=>{ if(fecha) r.fInv=fecha; if(r.estado==='orden') r.estado='facturado'; });
+      if(existing.length===1){ if(po) existing[0].po=po; if(monto) existing[0].monto=monto; }
+      return {tipo:'Factura', ref:(factura||po||'—'), action: existing.length>1?`actualizada · ${existing.length} órdenes`:'actualizada'};
+    }
+    // 2. vincula TODAS las órdenes sin factura cuyo PO coincida con la factura.
+    let matches = po ? state.rows.filter(r=>!r.inv && r.po && _poMatch(r.po, po)) : [];
+    if(matches.length){
+      matches.forEach(r=>{ if(factura) r.inv=factura; if(fecha) r.fInv=fecha; if(r.estado==='orden') r.estado='facturado'; });
+      // factura de una sola orden → su total es el de la factura; si cubre varias,
+      // se conserva el monto de cada orden (su suma = total de la factura).
+      if(matches.length===1 && monto) matches[0].monto=monto;
+      return {tipo:'Factura', ref:(factura||po||'—'), action: matches.length>1?`vinculó ${matches.length} órdenes`:'actualizada'};
+    }
+    // 3. ninguna orden previa → fila nueva ya facturada.
+    const row={po:'',inv:'',fInv:'',monto:0,estado:'facturado',fPago:'',abonado:0}; state.rows.unshift(row);
     if(factura) row.inv=factura;
     if(po) row.po=po;
     if(fecha) row.fInv=fecha;
     if(monto) row.monto=monto;
-    if(row.estado==='orden') row.estado='facturado';
-    return {tipo:'Factura', ref:(factura||po||'—'), action};
+    return {tipo:'Factura', ref:(factura||po||'—'), action:'nueva'};
   } else {
-    row = po ? state.rows.find(r=>!r.inv && r.po && _poMatch(r.po,po)) : null;
+    let row = po ? state.rows.find(r=>!r.inv && r.po && _poMatch(r.po,po)) : null;
+    let action='nueva';
     if(row){ action='actualizada'; }
     else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0}; state.rows.unshift(row); }
     if(po) row.po=po;
@@ -1285,6 +1343,10 @@ document.getElementById('viewSeg').onclick = e=>{ const b=e.target.closest('butt
 document.getElementById('navL').onclick = ()=>slideWin(-1);
 document.getElementById('navR').onclick = ()=>slideWin(1);
 document.getElementById('winReset').onclick = resetWin;
+document.getElementById('groupBtn').onclick = ()=>{ GROUP=!GROUP;
+  document.getElementById('groupBtn').classList.toggle('on', GROUP);
+  renderBoard();
+};
 document.getElementById('tlHelpHd').onclick = ()=>document.getElementById('tlHelp').classList.toggle('collapsed');
 
 document.getElementById('addBtn').onclick = ()=>{
