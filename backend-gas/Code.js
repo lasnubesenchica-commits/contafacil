@@ -529,6 +529,7 @@ function doGet(e) {
     if (action === 'actualizarCategoria')        return _handleActualizarCategoria(params, callback);
     if (action === 'actualizarCategoriaEgreso')  return _handleActualizarCategoria({ tipo:'egreso', id: params.id, categoria: params.categoria }, callback);
     if (action === 'reclasificarEgreso')   return _handleReclasificarEgreso(params, callback);
+    if (action === 'actualizarEgreso')     return _handleActualizarEgreso(params, callback);
     if (action === 'getCatalogoGastos')    return _handleGetCatalogoGastos(params, callback);
     if (action === 'sincronizarEmails')        return _handleSincronizar(params, callback);
     if (action === 'getComprasVentas')         return _handleGetComprasVentas(params, callback);
@@ -3471,6 +3472,163 @@ function _handleReclasificarEgreso(params, callback) {
   } catch(err) {
     result.error = err.message;
     Logger.log('Error _handleReclasificarEgreso: ' + err.message);
+  }
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleActualizarEgreso
+//  Edita un egreso de Registro General (no vinculado a ST ni CV).
+//  Permite actualizar todos los campos editables: fecha, proveedor,
+//  RUC/DV, num factura, subtotal/ITBMS/total, categoría, alcance,
+//  descripción y notas. Reusa la lógica de auto-personal para
+//  categorías no deducibles. Persiste la preferencia del proveedor
+//  para el learning loop del bot de WhatsApp.
+//
+//  Params: id_egreso (req), fecha, proveedor, ruc_prov, dv_prov,
+//          num_fac, subtotal, itbms, total, tipo, alcance,
+//          descripcion, notas.
+//  Cualquier campo omitido (undefined/null/'') se deja como está.
+// ═══════════════════════════════════════════════════════════════
+function _handleActualizarEgreso(params, callback) {
+  var result = { success: false, error: null };
+  try {
+    var idEgreso = String(params.id_egreso || '').trim();
+    if (!idEgreso) throw new Error('id_egreso requerido');
+
+    var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_EGRESOS);
+    if (!sheet) throw new Error('Hoja Egresos no encontrada');
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 2) throw new Error('Hoja Egresos vacía');
+
+    var data  = sheet.getRange(3, 1, lastRow - 2, EGRESOS_NCOLS).getValues();
+    var found = false;
+
+    for (var i = 0; i < data.length; i++) {
+      if (String(data[i][COL_E.ID - 1] || '').trim() !== idEgreso) continue;
+
+      var idST = String(data[i][COL_E.ID_ST_ITEM - 1] || '').trim();
+      var idCV = String(data[i][COL_E.ID_ITEM_CV - 1] || '').trim();
+      if (idST || idCV) {
+        throw new Error('Solo se pueden editar egresos de Registro General (sin vínculo a ST o CV).');
+      }
+
+      var rowNum   = i + 3;
+      var hadNuevo = false;
+      var tipoAnt  = String(data[i][COL_E.TIPO_EGRESO - 1] || '');
+      var stamp    = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+
+      // Helper: aplica un setValue solo si el param vino con valor.
+      var apply = function(colIdx, val) {
+        if (val === undefined || val === null || String(val) === '') return;
+        sheet.getRange(rowNum, colIdx).setValue(val);
+        hadNuevo = true;
+      };
+
+      apply(COL_E.FECHA_GASTO, params.fecha);
+      apply(COL_E.PROVEEDOR,   params.proveedor);
+      apply(COL_E.RUC_PROV,    params.ruc_prov);
+      apply(COL_E.DV_PROV,     params.dv_prov);
+      apply(COL_E.NFACTURA,    params.num_fac);
+      apply(COL_E.DESCRIPCION, params.descripcion);
+
+      // Numéricos: 0 es válido, '' no.
+      if (params.subtotal !== undefined && params.subtotal !== null && String(params.subtotal) !== '') {
+        sheet.getRange(rowNum, COL_E.SUBTOTAL).setValue(parseFloat(params.subtotal) || 0);
+        hadNuevo = true;
+      }
+      if (params.itbms !== undefined && params.itbms !== null && String(params.itbms) !== '') {
+        sheet.getRange(rowNum, COL_E.ITBMS).setValue(parseFloat(params.itbms) || 0);
+        hadNuevo = true;
+      }
+      if (params.total !== undefined && params.total !== null && String(params.total) !== '') {
+        sheet.getRange(rowNum, COL_E.TOTAL).setValue(parseFloat(params.total) || 0);
+        hadNuevo = true;
+      }
+
+      // Si la fecha cambió, recalcular mes/año fiscal para que los
+      // reportes y dashboards agrupen por la nueva fecha.
+      if (params.fecha) {
+        var d = new Date(params.fecha + 'T00:00:00');
+        if (!isNaN(d.getTime())) {
+          sheet.getRange(rowNum, COL_E.MES).setValue(d.getMonth() + 1);
+          sheet.getRange(rowNum, COL_E.ANIO).setValue(d.getFullYear());
+        }
+      }
+
+      // Categoría: validar contra catálogo y aplicar auto-personal.
+      var tipoNuevo = String(params.tipo || '').trim();
+      var alcanceParam = String(params.alcance || '').toLowerCase();
+      if (tipoNuevo) {
+        var valido = false;
+        for (var c = 0; c < CATEGORIAS_GASTO_DGI.length; c++) {
+          if (CATEGORIAS_GASTO_DGI[c].valor === tipoNuevo) { valido = true; break; }
+        }
+        if (!valido) throw new Error('Categoría no válida: ' + tipoNuevo);
+        sheet.getRange(rowNum, COL_E.TIPO_EGRESO).setValue(tipoNuevo);
+        sheet.getRange(rowNum, COL_E.CATEGORIA).setValue(tipoNuevo);
+        // Si el usuario no especificó alcance pero la categoría es no-deducible,
+        // forzar personal para que quede excluida de reportes fiscales.
+        if (!alcanceParam && typeof _esCategoriaNoDeducible === 'function' && _esCategoriaNoDeducible(tipoNuevo)) {
+          sheet.getRange(rowNum, COL_E.ALCANCE).setValue('personal');
+          alcanceParam = 'personal';
+        }
+        hadNuevo = true;
+      }
+      if (alcanceParam === 'negocio' || alcanceParam === 'personal') {
+        sheet.getRange(rowNum, COL_E.ALCANCE).setValue(alcanceParam);
+        hadNuevo = true;
+      }
+
+      // Notas: el frontend manda las notas completas (no append). Si
+      // hubo reclasificación, dejar también una traza al final para
+      // tener historial mínimo de la edición.
+      var notasParam = params.notas;
+      var notaEdit   = 'Editado | ' + stamp;
+      if (tipoNuevo && tipoNuevo !== tipoAnt) {
+        notaEdit = 'Editado: ' + tipoAnt + ' → ' + tipoNuevo + ' | ' + stamp;
+      }
+      if (notasParam !== undefined && notasParam !== null) {
+        var notasFinal = String(notasParam || '').trim();
+        notasFinal = notasFinal ? notasFinal + ' | ' + notaEdit : notaEdit;
+        sheet.getRange(rowNum, COL_E.NOTAS).setValue(notasFinal);
+      } else if (hadNuevo) {
+        var notasActual = String(sheet.getRange(rowNum, COL_E.NOTAS).getValue() || '');
+        sheet.getRange(rowNum, COL_E.NOTAS).setValue(
+          notasActual ? notasActual + ' | ' + notaEdit : notaEdit
+        );
+      }
+
+      // Persistir preferencia de categoría del proveedor (learning loop).
+      if (tipoNuevo) {
+        try {
+          var provNombre = String(params.proveedor || data[i][COL_E.PROVEEDOR - 1] || '').trim();
+          var provRuc    = String(params.ruc_prov  || data[i][COL_E.RUC_PROV  - 1] || '').trim();
+          if ((provNombre || provRuc) && typeof _handleGuardarPreferencia === 'function') {
+            _handleGuardarPreferencia({ nombre: provNombre, ruc: provRuc, categoria: tipoNuevo });
+          }
+        } catch (prefErr) {
+          Logger.log('Pref persistence (actualizarEgreso) error: ' + prefErr.message);
+        }
+      }
+
+      result.success    = true;
+      result.id_egreso  = idEgreso;
+      result.tipo_nuevo = tipoNuevo || tipoAnt;
+      found = true;
+      Logger.log('✅ Egreso actualizado: ' + idEgreso);
+      break;
+    }
+
+    if (!found) throw new Error('Egreso no encontrado: ' + idEgreso);
+
+  } catch(err) {
+    result.error = err.message;
+    Logger.log('Error _handleActualizarEgreso: ' + err.message);
   }
   var json = JSON.stringify(result);
   if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);

@@ -3322,7 +3322,8 @@ const REGD = (() => {
         <div class="reg-d-row-amt egr">-${fmtCompactDollar(total)}</div>
         <div class="reg-d-row-actions">
           ${docBtn}
-          <button class="ic-btn del" onclick="REGD.borrar('${id}','egreso')" title="Eliminar">🗑</button>
+          <button class="ic-btn edit" onclick="REGD.editarEgreso('${id}')" title="Editar">✏️</button>
+          <button class="ic-btn del"  onclick="REGD.borrar('${id}','egreso')" title="Eliminar">🗑</button>
         </div>
       </div>
     </div>`;
@@ -3382,6 +3383,12 @@ const REGD = (() => {
     REG.openEditarIngreso(it);
   }
 
+  function editarEgreso(id) {
+    const it = egr.find(e => e.id_egreso === id);
+    if (!it) { toast('Registro no encontrado', 'err'); return; }
+    REG.openEditarEgreso(it);
+  }
+
   function verFactura(ev, id, kind) {
     if (ev) ev.preventDefault();
     const it = (kind === 'egr')
@@ -3402,12 +3409,16 @@ const REGD = (() => {
     const idx = ing.findIndex(i => i.id_trans === updated.id_trans);
     if (idx >= 0) ing[idx] = Object.assign({}, ing[idx], updated);
   }
+  function updateEgresoLocal(updated) {
+    const idx = egr.findIndex(e => e.id_egreso === updated.id_egreso);
+    if (idx >= 0) egr[idx] = Object.assign({}, egr[idx], updated);
+  }
   // Invalidar para forzar refresh la próxima vez (tras un nuevo registro)
   function invalidate() { _loaded = false; }
 
   return {
     onEnter, refresh, setEstado, setAlcance, setPeriodo, setSearch, clearFilters, fabToggle, fabClose, setTipo, toggleAccord,
-    borrar, editarIngreso, verFactura, updateIngresoLocal, invalidate,
+    borrar, editarIngreso, editarEgreso, verFactura, updateIngresoLocal, updateEgresoLocal, invalidate,
     _wClick,
   };
 })();
@@ -3882,8 +3893,9 @@ const REG = (() => {
   }
 
   // ── Abrir modales ─────────────────────────────────────
-  function openEgreso() {
-    buildEgrCatOpts(); // poblar select desde CATEGORIAS_GASTO_DGI
+  let _egrEditId = null;  // null = crear, set = editar
+
+  function _resetEgrForm() {
     ['regEgrNfac','regEgrDesc','regEgrTotal','regEgrProv','regEgrRuc','regEgrDv','regEgrNotas']
       .forEach(id => document.getElementById(id).value = '');
     document.getElementById('regEgrCat').value          = 'otros_deducibles';
@@ -3897,11 +3909,52 @@ const REG = (() => {
     _egrFileB64 = null; _egrFileMime = null;
     _eAlcanceMismatch = false;
     setAlcance('negocio', true);
+  }
+
+  function _setEgrTitulo(esEdit) {
+    const hdr  = document.querySelector('#mRegEgreso .sheet-title');
+    const btn  = document.getElementById('regEgrSubmit');
+    const btnN = document.getElementById('regEgrSubmitNew');
+    if (hdr) hdr.textContent = esEdit ? '✏️ Editar gasto' : '📤 Registrar gasto';
+    if (btn) btn.textContent = esEdit ? '💾 Actualizar gasto' : '💾 Guardar y cerrar';
+    if (btnN) btnN.style.display = esEdit ? 'none' : '';
+  }
+
+  function openEgreso() {
+    _egrEditId = null;
+    buildEgrCatOpts(); // poblar select desde CATEGORIAS_GASTO_DGI
+    _resetEgrForm();
+    _setEgrTitulo(false);
     // Reset visual: modo IA empty + loading panel reseteado
     if (typeof _setEgrMode === 'function') _setEgrMode('ai');
     const sp = document.getElementById('regEgrLoadingSpinner'); if (sp) sp.style.display = '';
     const lp = document.getElementById('regEgrLoadingPhase');   if (lp) { lp.style.color = ''; lp.textContent = '📤 Subiendo factura…'; }
     const lb = document.getElementById('regEgrLoadingBar');     if (lb) lb.style.width = '10%';
+    openModal('mRegEgreso');
+  }
+
+  function openEditarEgreso(item) {
+    _egrEditId = item.id_egreso;
+    buildEgrCatOpts();
+    _resetEgrForm();
+    document.getElementById('regEgrCat').value      = item.tipo_egreso || item.categoria || 'otros_deducibles';
+    document.getElementById('regEgrDesc').value     = item.descripcion || '';
+    document.getElementById('regEgrFecha').value    = String(item.fecha_egreso || '').slice(0,10);
+    document.getElementById('regEgrNfac').value     = item.num_factura || '';
+    document.getElementById('regEgrTotal').value    = item.total      || '';
+    document.getElementById('regEgrSubtotal').value = item.subtotal   || '';
+    document.getElementById('regEgrItbmsVal').value = item.itbms      || '';
+    const itbmsChk = Number(item.itbms || 0) > 0;
+    document.getElementById('regEgrItbms').checked  = itbmsChk;
+    document.getElementById('regEgrDesglose').style.display = itbmsChk ? '' : 'none';
+    document.getElementById('regEgrItbmsTag').style.display = itbmsChk ? '' : 'none';
+    document.getElementById('regEgrProv').value     = item.proveedor  || '';
+    document.getElementById('regEgrRuc').value      = item.ruc_prov   || '';
+    document.getElementById('regEgrDv').value       = item.dv_prov    || '';
+    document.getElementById('regEgrNotas').value    = item.notas      || '';
+    setAlcance(item.alcance === 'personal' ? 'personal' : 'negocio', true);
+    _setEgrTitulo(true);
+    if (typeof _setEgrMode === 'function') _setEgrMode('manual');
     openModal('mRegEgreso');
   }
 
@@ -4043,7 +4096,7 @@ const REG = (() => {
     const _mimeForUpload = _egrFileMime;
     try {
       const _catEfectiva = _getEgrCatEfectivo();
-      const r = await jsonpGet('registrarEgresoOperativo', {
+      const _payload = {
         fecha,
         tipo:        _catEfectiva,
         categoria:   _catEfectiva,
@@ -4057,12 +4110,38 @@ const REG = (() => {
         descripcion: document.getElementById('regEgrDesc').value.trim(),
         notas:       document.getElementById('regEgrNotas').value.trim(),
         alcance:     document.getElementById('regEgrAlcance').value || 'negocio',
-      });
+      };
+      if (_egrEditId) {
+        const rEdit = await jsonpGet('actualizarEgreso', Object.assign({ id_egreso: _egrEditId }, _payload));
+        if (!rEdit.success) throw new Error(rEdit.error || 'Error al guardar');
+        if (typeof REGD !== 'undefined' && REGD.updateEgresoLocal) {
+          REGD.updateEgresoLocal({
+            id_egreso:    _egrEditId,
+            fecha_egreso: _payload.fecha,
+            tipo_egreso:  _payload.tipo,
+            categoria:    _payload.categoria,
+            proveedor:    _payload.proveedor,
+            ruc_prov:     _payload.ruc_prov,
+            dv_prov:      _payload.dv_prov,
+            num_factura:  _payload.num_fac,
+            subtotal:     parseFloat(_payload.subtotal) || 0,
+            itbms:        parseFloat(_payload.itbms)    || 0,
+            total:        _payload.total,
+            descripcion:  _payload.descripcion,
+            notas:        _payload.notas,
+            alcance:      _payload.alcance,
+          });
+          if (REGD.refresh) REGD.refresh();
+        }
+        toast('Gasto actualizado ✓', 'ok');
+        closeModal('mRegEgreso');
+        [btn, btn2].forEach(b => { if (b) { b.disabled = false; if (b._origText) b.textContent = b._origText; }});
+        return;
+      }
+      const r = await jsonpGet('registrarEgresoOperativo', _payload);
       if (!r.success) throw new Error(r.error || 'Error al guardar');
       toast('Egreso registrado ✓', 'ok');
-      // Cerrar o resetear según andNew
       if (andNew) {
-        // Reabrir el modal en estado empty (limpio para nueva captura)
         openEgreso();
       } else {
         closeModal('mRegEgreso');
@@ -4183,7 +4262,7 @@ const REG = (() => {
     }
   }
 
-  return { openEgreso, openIngreso, openEditarIngreso, onEgrFile, onIngFile,
+  return { openEgreso, openEditarEgreso, openIngreso, openEditarIngreso, onEgrFile, onIngFile,
            submitEgreso, submitIngreso,
            recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts, setAlcance,
            setEgrMode: _setEgrMode,
