@@ -978,7 +978,6 @@ function whatsappTestConfig() {
 // web app desde el link del cuerpo del mensaje.
 var WA_CAT_SECTIONS = [
   { title: 'Gastos', rows: [
-    { key: 'atencion_promocion_clientes', title: 'Atención y Promoción',     desc: 'G3 · clientes, publicidad' },
     { key: 'transporte',                  title: 'Transporte',               desc: 'G5 · combustible, taxi' },
     { key: 'impuestos',                   title: 'Impuestos',                desc: 'G11' },
     { key: 'gastos_oficina',              title: 'Gastos de Oficina',       desc: 'G13' },
@@ -986,6 +985,7 @@ var WA_CAT_SECTIONS = [
     { key: 'servicios_basicos',           title: 'Electricidad/Agua/Tel.',   desc: 'G21' },
     { key: 'seguros',                     title: 'Seguros',                  desc: 'G22' },
     { key: 'gastos_medicos',              title: 'Gastos Médicos',           desc: 'DP-1 · médicos/farmacia' },
+    { key: 'gastos_escolares',            title: 'Gastos Escolares',         desc: 'DP-2 · matrícula/mensualidad' },
     { key: 'otros_gastos',                title: 'Otros Gastos',             desc: 'G23 · catch-all' },
   ]},
   { title: 'Compras (Costo de venta)', rows: [
