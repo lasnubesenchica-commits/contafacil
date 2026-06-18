@@ -3907,7 +3907,12 @@ const REG = (() => {
     const actions = document.getElementById('regEgrEditActions');
     const verFact = document.getElementById('regEgrVerFacturaBtn');
     if (hdr) hdr.textContent = esEdit ? '✏️ Editar gasto' : '📤 Registrar gasto';
-    if (btn) btn.textContent = esEdit ? '💾 Actualizar gasto' : '💾 Guardar y cerrar';
+    if (btn) {
+      btn.textContent = esEdit ? '💾 Actualizar gasto' : '💾 Guardar y cerrar';
+      // En edit el submit ocupa toda la fila del grid del footer (sin
+      // SubmitNew al lado, quedaba squished a la mitad del ancho).
+      btn.style.gridColumn = esEdit ? '1 / -1' : '';
+    }
     if (btnN) btnN.style.display = esEdit ? 'none' : '';
     // Panel de acciones (Ver factura · Eliminar) solo en modo edición.
     if (actions) actions.style.display = esEdit ? 'flex' : 'none';
@@ -4035,7 +4040,10 @@ const REG = (() => {
     const actions = document.getElementById('regIngEditActions');
     const verFact = document.getElementById('regIngVerFacturaBtn');
     if (hdr) hdr.textContent = esEdit ? '✏️ Editar ingreso' : '💰 Registrar ingreso';
-    if (btn) btn.textContent = esEdit ? 'Actualizar ingreso' : 'Guardar ingreso';
+    if (btn) {
+      btn.textContent = esEdit ? 'Actualizar ingreso' : 'Guardar ingreso';
+      btn.style.gridColumn = esEdit ? '1 / -1' : '';
+    }
     if (actions) actions.style.display = esEdit ? 'flex' : 'none';
     if (verFact) {
       const hasUrl = !!(esEdit && _ingEditItem && _ingEditItem.drive_url);
@@ -4941,11 +4949,11 @@ const PEND = (() => {
       <button class="sheet-submit" id="regEgrSubmitNew" onclick="REG.submitEgreso({andNew:true})"
               style="background:var(--orange);margin:.4rem 0 0">💾 Guardar y subir otra</button>
       <!-- Acciones visibles solo en modo edición (toggled por _setEgrTitulo) -->
-      <div id="regEgrEditActions" style="display:none;gap:8px;margin-top:.5rem">
+      <div id="regEgrEditActions" style="display:none;gap:8px;margin-top:.5rem;grid-column:1 / -1">
         <button id="regEgrVerFacturaBtn" type="button" onclick="REG.editEgrVerFactura()"
-                style="flex:1;padding:.7rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">🧾 Ver factura</button>
+                style="flex:1;padding:.5rem .7rem;background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:.74rem;font-weight:500;cursor:pointer">🧾 Ver factura</button>
         <button type="button" onclick="REG.editEgrBorrar()"
-                style="flex:1;padding:.7rem;background:#FFF5F5;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">🗑 Eliminar</button>
+                style="flex:1;padding:.5rem .7rem;background:var(--surface);color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.74rem;font-weight:500;cursor:pointer">🗑 Eliminar</button>
       </div>
       <button class="sheet-footer-cancel" onclick="closeModal('mRegEgreso')">Cancelar</button>
     </div>
@@ -5067,11 +5075,11 @@ const PEND = (() => {
     <div class="sheet-footer">
       <button class="sheet-submit" id="regIngSubmit" onclick="REG.submitIngreso()"
               style="background:var(--green);margin:0">Guardar ingreso</button>
-      <div id="regIngEditActions" style="display:none;gap:8px;margin-top:.5rem">
+      <div id="regIngEditActions" style="display:none;gap:8px;margin-top:.5rem;grid-column:1 / -1">
         <button id="regIngVerFacturaBtn" type="button" onclick="REG.editIngVerFactura()"
-                style="flex:1;padding:.7rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">🧾 Ver factura</button>
+                style="flex:1;padding:.5rem .7rem;background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:.74rem;font-weight:500;cursor:pointer">🧾 Ver factura</button>
         <button type="button" onclick="REG.editIngBorrar()"
-                style="flex:1;padding:.7rem;background:#FFF5F5;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">🗑 Eliminar</button>
+                style="flex:1;padding:.5rem .7rem;background:var(--surface);color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.74rem;font-weight:500;cursor:pointer">🗑 Eliminar</button>
       </div>
       <button class="sheet-footer-cancel" onclick="closeModal('mRegIngreso')">Cancelar</button>
     </div>
