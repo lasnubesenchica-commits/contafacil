@@ -89,6 +89,20 @@ function ejecutarSincronizacionUnificada() {
       Logger.log('  ⏭ Registro General: sin email destino — saltado');
     }
 
+    // ── Flujo 3: Transferencias bancarias (BG por ahora) ──
+    // Los emails de notificación de BG llegan sin adjunto, así que el
+    // pipeline normal de Acreedores los ignora. Este branch los detecta
+    // por sender + parsea body + registra como egreso si el beneficiario
+    // está conocido, o pone interactivo de clasificación si es nuevo.
+    if (typeof _sincronizarTransferenciasBG === 'function') {
+      try {
+        var statsTr = _sincronizarTransferenciasBG();
+        Logger.log('  ✓ Transferencias BG: ' + JSON.stringify(statsTr));
+      } catch (errTr) {
+        Logger.log('  ✗ Transferencias BG error: ' + errTr.message);
+      }
+    }
+
   } catch (err) {
     Logger.log('ejecutarSincronizacionUnificada ERROR: ' + err.message);
   } finally {
