@@ -804,6 +804,11 @@
 // ═══════════════════════════════════════════════════════════
 var GITHUB_REPO   = 'lasnubesenchica-commits/contafacil';
 var GITHUB_BRANCH = 'main';
+// URL del whatsapp-router (admin API JSONP — usado por el botón
+// "Auto-activar" del checklist final p/ registrar al cliente nuevo
+// en CLIENTS_MAP_JSON sin que el admin tenga que pegar el comando
+// activar manualmente en WhatsApp).
+var ROUTER_URL    = 'https://script.google.com/macros/s/AKfycbzzgc0zIe4cQ52jZciIMy6IYfiHNeQsgql5Mz_tPIabSLk4CVMfg8cImlukumGr906orw/exec';
 
 // ═══════════════════════════════════════════════════════════
 //  PERSISTENCIA LOCAL — localStorage
@@ -1490,6 +1495,10 @@ async function fetchGasFiles() {
     { name: 'ContaFacil_ImportarHistorial', file: 'ContaFacil_ImportarHistorial.gs', type: 'SERVER_JS' },
     { name: 'ContaFacil_Inventario',        file: 'ContaFacil_Inventario.gs',        type: 'SERVER_JS' },
     { name: 'ContaFacil_Planilla',          file: 'ContaFacil_Planilla.gs',          type: 'SERVER_JS' },
+    { name: 'ContaFacil_Auth',              file: 'ContaFacil_Auth.gs',              type: 'SERVER_JS' },
+    { name: 'ContaFacil_Banco',             file: 'ContaFacil_Banco.gs',             type: 'SERVER_JS' },
+    { name: 'ContaFacil_WhatsApp',          file: 'ContaFacil_WhatsApp.gs',          type: 'SERVER_JS' },
+    { name: 'ContaFacil_Reportes',          file: 'ContaFacil_Reportes.gs',          type: 'SERVER_JS' },
     { name: 'AutoSync',                     file: 'AutoSync.gs',                     type: 'SERVER_JS' },
   ];
 
@@ -2045,7 +2054,7 @@ function buildOutputs() {
     },
     {
       title: '📲 Activar al cliente en el WhatsApp Router',
-      desc: 'Pega este comando en WhatsApp (chat con el bot de BalanceClip) <strong>desde tu número admin</strong>. El router va a:<br>① agregar el cliente al <code>CLIENTS_MAP_JSON</code> · ② vincular su email a su WhatsApp (necesario p/ análisis bancario por email) · ③ enviarle la bienvenida automáticamente · ④ habilitarlo para mandar facturas.' +
+      desc: '<strong>Opción A (recomendada):</strong> tocá <em>⚡ Auto-activar</em> y el provisioner registra al cliente en el router via admin API (CLIENTS_MAP_JSON + email→phone).<br><br><strong>Opción B (fallback):</strong> si Auto-activar falla, copiá el comando y pegalo en WhatsApp (chat con el bot, <strong>desde tu número admin</strong>). El router va a:<br>① agregar el cliente al <code>CLIENTS_MAP_JSON</code> · ② vincular su email a su WhatsApp (necesario p/ análisis bancario por email) · ③ enviarle la bienvenida automáticamente · ④ habilitarlo para mandar facturas.' +
         (s.webAppUrl && s.waNum
           ? '<br><br><div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--orange2);user-select:all;word-break:break-all">activar ' + normalizarTelefonoPanama(s.waNum) + ' ' + s.webAppUrl + (s.adminEmail ? ' ' + s.adminEmail : '') + '</div>' +
             (String(s.waNum).replace(/\D/g, '').length === 8 ? '<div style="margin-top:6px;font-size:11px;color:var(--muted)">⚡ Se le agregó <code>507</code> al inicio porque el cliente cargó el celular sin código de país.</div>' : '') +
@@ -2080,7 +2089,8 @@ function buildOutputs() {
           ? '<button id="btnEnviarOnboarding" onclick="enviarOnboardingEmail()" style="margin-top:10px;padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">📧 Enviar onboarding email</button>'
           : '') +
         (item.hasActivarWhatsappBtn
-          ? '<button onclick="copiarComandoActivar()" style="margin-top:10px;padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">📋 Copiar comando "activar"</button>'
+          ? '<button id="btnAutoActivar" onclick="autoActivarRouter()" style="margin-top:10px;padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;margin-right:6px">⚡ Auto-activar en el router</button>' +
+            '<button onclick="copiarComandoActivar()" style="margin-top:10px;padding:8px 16px;background:var(--surface);color:var(--text);border:1px solid var(--border2);border-radius:6px;cursor:pointer;font-size:12px;font-weight:600" title="Fallback manual — pega el comando en WhatsApp si Auto-activar falla">📋 Copiar comando (fallback)</button>'
           : '') +
       '</div>';
     checklist.appendChild(div);
@@ -2101,12 +2111,100 @@ function normalizarTelefonoPanama(raw) {
 
 function copiarComandoActivar() {
   var phone = normalizarTelefonoPanama(STATE.waNum);
-  var cmd   = 'activar ' + phone + ' ' + STATE.webAppUrl;
+  // Incluir adminEmail si el cliente lo registró — habilita análisis
+  // bancario por email (analisis@balanceclip.net → WhatsApp del cliente).
+  var cmd   = 'activar ' + phone + ' ' + STATE.webAppUrl + (STATE.adminEmail ? ' ' + STATE.adminEmail : '');
   navigator.clipboard.writeText(cmd).then(function() {
     alert('Comando copiado.\n\nPegalo en tu chat con el bot de BalanceClip (desde tu número admin) y envía. El router activa al cliente automáticamente.');
   }, function() {
     prompt('Copia este comando y mandálo al bot de BalanceClip:', cmd);
   });
+}
+
+// JSONP helper p/ llamadas al router admin API (evita CORS).
+var _depJsonpSeq = 0;
+function routerJsonpGet(params, timeoutMs) {
+  return new Promise(function(resolve, reject) {
+    var cbName = '_bc_dep_cb_' + (++_depJsonpSeq) + '_' + Date.now();
+    var qs = Object.keys(params).map(function(k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+    var url = ROUTER_URL + '?' + qs + '&callback=' + cbName;
+    var s = document.createElement('script');
+    var done = false;
+    var cleanup = function() {
+      try { delete window[cbName]; } catch(e) { window[cbName] = undefined; }
+      if (s.parentNode) s.parentNode.removeChild(s);
+    };
+    window[cbName] = function(data) { done = true; cleanup(); resolve(data); };
+    s.onerror = function() { if (done) return; cleanup(); reject(new Error('jsonp network error')); };
+    setTimeout(function() { if (done) return; cleanup(); reject(new Error('jsonp timeout')); }, timeoutMs || 15000);
+    s.src = url;
+    document.head.appendChild(s);
+  });
+}
+
+// Auto-activa el cliente nuevo en el router via admin API: registra el
+// phone en CLIENTS_MAP_JSON y opcionalmente el email→phone (si tiene
+// adminEmail). Reemplaza el paso manual de pegar el comando "activar"
+// en WhatsApp. Requiere ADMIN_TOKEN del router (lo guarda en localStorage
+// para próximos provisionings).
+async function autoActivarRouter() {
+  if (!STATE.webAppUrl || !STATE.waNum) {
+    alert('Faltan datos del cliente (webAppUrl, waNum). Completá el provisioning primero.');
+    return;
+  }
+  var phone = normalizarTelefonoPanama(STATE.waNum);
+  if (!phone || phone.length < 10) {
+    alert('Phone inválido: ' + STATE.waNum + '. Debe incluir código país (Panamá = 507).');
+    return;
+  }
+  // Obtener ADMIN_TOKEN del router (mismo storage que admin/*.html).
+  var token = localStorage.getItem('bc_admin_token') || '';
+  if (!token) {
+    token = prompt('ADMIN_TOKEN del router (lo configuraste como Script Property en el whatsapp-router). Se guarda en este navegador para próximos provisionings.');
+    if (!token) return;
+    localStorage.setItem('bc_admin_token', token.trim());
+  }
+  var btn = document.getElementById('btnAutoActivar');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Activando...'; }
+  try {
+    // 1. Registrar phone → webAppUrl en CLIENTS_MAP_JSON
+    var r1 = await routerJsonpGet({
+      action:     'setClientMap',
+      adminToken: token,
+      phone:      phone,
+      url:        STATE.webAppUrl,
+    });
+    if (!r1 || !r1.ok) {
+      if (r1 && r1.error === 'auth') {
+        localStorage.removeItem('bc_admin_token');
+        throw new Error('ADMIN_TOKEN inválido. Volvé a intentar con el token correcto.');
+      }
+      throw new Error('setClientMap: ' + ((r1 && r1.error) || 'error desconocido'));
+    }
+    // 2. Si tiene adminEmail, registrar email → phone (p/ análisis por email).
+    var emailMsg = '';
+    if (STATE.adminEmail) {
+      var r2 = await routerJsonpGet({
+        action:     'setEmailMapping',
+        adminToken: token,
+        email:      STATE.adminEmail,
+        phone:      phone,
+      });
+      if (r2 && r2.ok) {
+        emailMsg = '\n📧 ' + STATE.adminEmail + ' → +' + phone + ' (análisis por email habilitado)';
+      } else {
+        emailMsg = '\n⚠️ Email no vinculado: ' + ((r2 && r2.error) || 'error');
+      }
+    }
+    if (btn) { btn.textContent = '✅ Cliente activado en el router'; btn.style.background = 'var(--green)'; }
+    alert('✅ Cliente activado en el router\n\n📱 +' + phone + ' → ' + STATE.webAppUrl + emailMsg +
+          '\n\nLa primera vez que el cliente le escriba al bot, va a recibir la bienvenida automáticamente.');
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ Auto-activar en el router'; }
+    alert('Error: ' + e.message + '\n\nSi falla, podés usar el comando manual (botón de copiar) como fallback.');
+  }
 }
 
 async function reintentarConfig() {
@@ -2166,6 +2264,25 @@ async function inicializarSistemaRemoto() {
       }
       if (data.authResetToken) {
         alert('Sistema inicializado.\n\nGuarda este AUTH_RESET_TOKEN en lugar seguro (necesario para reset de password de admin):\n\n' + data.authResetToken);
+      }
+      // Auto-instalar el sync trigger inmediatamente después de la
+      // inicialización. Antes era un paso manual aparte (botón en Step 4)
+      // y era fácil olvidarse — sin esto, el email sync nunca corre y
+      // las facturas reenviadas no se procesan automáticamente. Si el
+      // trigger ya existe (re-init de un cliente existente), el backend
+      // hace upsert, no duplica.
+      try {
+        var triggerResp = await fetch(STATE.webAppUrl + '?action=installSyncTrigger');
+        var triggerData = await triggerResp.json();
+        if (triggerData.success) {
+          console.log('✓ Sync trigger instalado automáticamente');
+          var btnTrig = document.getElementById('btnTrigger_unified');
+          if (btnTrig) { btnTrig.textContent = '✅ Trigger activo (cada 15 min)'; btnTrig.style.background = 'var(--green)'; btnTrig.disabled = true; }
+        } else {
+          console.warn('⚠️ Sync trigger NO se pudo instalar automáticamente: ' + (triggerData.error || triggerData.message));
+        }
+      } catch (trigErr) {
+        console.warn('⚠️ Sync trigger NO se pudo instalar automáticamente: ' + trigErr.message);
       }
     } else {
       if (btn) { btn.disabled = false; btn.textContent = '⚙ Inicializar hojas y triggers →'; }
