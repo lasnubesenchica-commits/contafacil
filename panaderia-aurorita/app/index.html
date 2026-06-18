@@ -3937,10 +3937,12 @@ const REG = (() => {
     _egrEditId = item.id_egreso;
     buildEgrCatOpts();
     _resetEgrForm();
-    document.getElementById('regEgrCat').value      = item.tipo_egreso || item.categoria || 'otros_deducibles';
+    const _rawCat  = item.tipo_egreso || item.categoria || 'otros_gastos';
+    const _catNorm = LEGACY_GASTO_MAP[_rawCat] || _rawCat;
+    _setEgrCatMob(_catNorm);
     document.getElementById('regEgrDesc').value     = item.descripcion || '';
     document.getElementById('regEgrFecha').value    = String(item.fecha_egreso || '').slice(0,10);
-    document.getElementById('regEgrNfac').value     = item.num_factura || '';
+    document.getElementById('regEgrNfac').value     = item.num_fac_ref || item.num_factura || '';
     document.getElementById('regEgrTotal').value    = item.total      || '';
     document.getElementById('regEgrSubtotal').value = item.subtotal   || '';
     document.getElementById('regEgrItbmsVal').value = item.itbms      || '';
