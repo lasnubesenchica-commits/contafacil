@@ -72,10 +72,10 @@ var TRANSF_CAT_OPTIONS = [
   { key: 'manutencion',             title: '💸 Manutención',         desc: 'no deducible' },
   { key: 'gastos_alimentacion',     title: '🍽️ Alimentación',        desc: 'no deducible' },
   { key: 'gastos_medicos',          title: '🏥 Gastos Médicos',      desc: 'DP-1 · ISR persona natural' },
+  { key: 'gastos_escolares',        title: '📖 Gastos Escolares',    desc: 'DP-2 · matrícula/mensualidad' },
   { key: 'salarios_remuneraciones', title: '👤 Salarios',             desc: 'G1' },
   { key: 'honorarios_servicios',    title: '💼 Honorarios prof.',     desc: 'G12' },
   { key: 'alquileres',              title: '🏠 Alquiler',             desc: 'G4' },
-  { key: 'transporte',              title: '⛽ Transporte',            desc: 'G5' },
   { key: 'otros_gastos',            title: '📋 Otros Gastos',         desc: 'catch-all' },
   { key: '__skip__',                title: '❌ Ignorar',               desc: 'no registrar' },
 ];
