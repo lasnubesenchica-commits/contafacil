@@ -271,8 +271,35 @@ const ROUTER_URL = 'https://script.google.com/macros/s/AKfycbzzgc0zIe4cQ52jZciIM
 
 let _items   = [];   // [{ phone, url, emails:[], groupSize }]
 let _editUrl = null; // grupo URL siendo editado
+let _clientNameByUrl = {};  // url completa → nombre del cliente (cargado de /clients.json)
 
 function getToken() { return localStorage.getItem('bc_admin_token') || ''; }
+
+// Resolver el nombre de cliente para una URL. Match por deploymentId:
+// el URL canónico es .../macros/s/<deploymentId>/exec, así que cualquier
+// URL con el mismo deploymentId apunta al mismo cliente.
+function clientNameForUrl(url) {
+  if (_clientNameByUrl[url]) return _clientNameByUrl[url];
+  const m = String(url || '').match(/\/macros\/s\/([^/]+)\/exec/);
+  if (m && _clientNameByUrl[m[1]]) return _clientNameByUrl[m[1]];
+  return '';
+}
+
+// Carga clients.json desde el mismo origen (GitHub Pages lo sirve raw)
+// y arma un índice por deploymentId → nombre. Si falla, los grupos
+// caen al fallback (URL solo, como antes).
+async function loadClientNames() {
+  try {
+    const r = await fetch('/clients.json', { cache:'no-cache' });
+    if (!r.ok) return;
+    const data = await r.json();
+    (data.clientes || []).forEach(c => {
+      if (c.deploymentId && c.nombre) _clientNameByUrl[c.deploymentId] = c.nombre;
+    });
+  } catch(e) {
+    console.warn('No se pudo cargar /clients.json:', e.message);
+  }
+}
 
 let _jsonpSeq = 0;
 function jsonpGet(params, timeoutMs) {
@@ -348,6 +375,7 @@ function render() {
   if (q) {
     groups = groups.filter(g =>
       g.url.toLowerCase().indexOf(q) >= 0 ||
+      (clientNameForUrl(g.url) || '').toLowerCase().indexOf(q) >= 0 ||
       g.phones.some(p => p.phone.indexOf(q) >= 0 || (p.emails || []).some(e => e.toLowerCase().indexOf(q) >= 0))
     );
   }
@@ -362,9 +390,13 @@ function render() {
   container.innerHTML = groups.map(g => {
     const multi = g.phones.length > 1 ? '<span class="badge-multi">' + g.phones.length + ' phones</span>' : '';
     const urlShort = g.url.length > 80 ? (g.url.substring(0, 60) + '…' + g.url.substring(g.url.length - 16)) : g.url;
+    const nombre   = clientNameForUrl(g.url);
+    const titulo   = nombre
+      ? '<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">' + escHtml(nombre) + '</div>'
+      : '';
     return '<div class="group">' +
       '<div class="group-hdr">' +
-        '<div class="group-url">' +
+        '<div class="group-url">' + titulo +
           '<a href="' + escAttr(g.url) + '" target="_blank">' + escHtml(urlShort) + '</a>' + multi +
         '</div>' +
         '<div class="group-actions">' +
@@ -402,13 +434,21 @@ function openAddModal() {
   document.getElementById('inpUrl').value = '';
   document.getElementById('inpPhone').value = '';
   document.getElementById('phoneHint').textContent = '';
-  // Poblar select de clientes existentes
+  // Poblar select de clientes existentes — orden alfabético por nombre,
+  // con URL truncada como sub-label.
   const byUrl = {};
   _items.forEach(r => { byUrl[r.url] = (byUrl[r.url] || 0) + 1; });
   const sel = document.getElementById('inpExistingUrl');
-  sel.innerHTML = Object.keys(byUrl).sort().map(u => {
-    const short = u.length > 70 ? (u.substring(0, 50) + '…' + u.substring(u.length - 12)) : u;
-    return '<option value="' + escAttr(u) + '">' + escHtml(short) + ' (' + byUrl[u] + ' phone)</option>';
+  const entries = Object.keys(byUrl).map(u => ({
+    url:    u,
+    nombre: clientNameForUrl(u) || '(sin nombre)',
+    count:  byUrl[u],
+  }));
+  entries.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  sel.innerHTML = entries.map(e => {
+    const short = e.url.length > 60 ? (e.url.substring(0, 40) + '…' + e.url.substring(e.url.length - 12)) : e.url;
+    return '<option value="' + escAttr(e.url) + '">' +
+      escHtml(e.nombre) + ' — ' + escHtml(short) + ' (' + e.count + ' phone)</option>';
   }).join('');
   onModeChange();
   document.getElementById('modalAdd').classList.add('active');
@@ -465,7 +505,8 @@ async function deletePhone(phone) {
 function openEditUrlModal(url) {
   _editUrl = url;
   const phones = _items.filter(r => r.url === url).map(r => '+' + r.phone).join(' · ');
-  document.getElementById('editUrlPhones').textContent = phones;
+  const nombre = clientNameForUrl(url);
+  document.getElementById('editUrlPhones').textContent = (nombre ? nombre + ' · ' : '') + phones;
   document.getElementById('inpEditUrl').value = url;
   document.getElementById('modalEditUrl').classList.add('active');
   setTimeout(() => document.getElementById('inpEditUrl').focus(), 80);
@@ -499,7 +540,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeAddModal(); closeEditUrlModal(); }
 });
 
-loadAll();
+// Cargar nombres primero (mejor UX) y después la data del router.
+// Si falla /clients.json, loadAll igual corre con URLs solo (degrada bien).
+loadClientNames().finally(loadAll);
 </script>
 </body>
 </html>
