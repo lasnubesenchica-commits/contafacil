@@ -187,19 +187,6 @@ async function deployCliente(scriptApi, cliente, repoRoot, otpConfig) {
   let deploymentId    = cliente.deploymentId;
   let deploymentFixed = false;
 
-  // Para el router: NO actualizamos el deployment porque Google reset
-  // los webapp settings (access policy) cuando se hace update via API.
-  // El código nuevo queda en HEAD + version creada; cuando el router
-  // necesite servir la nueva versión, hay que hacer "Edit deployment →
-  // New version → Deploy" manualmente desde la UI.
-  if (cliente.isRouter) {
-    console.log(`  ⏭  Saltando deployments.update (router: webapp settings se preservan así)`);
-    console.log(`  ℹ  Para promover version ${versionNumber} en producción:`);
-    console.log(`     Deploy → Manage deployments → Edit → Version: New version → Deploy`);
-    console.log(`✓ ${cliente.nombre} deployado correctamente (solo HEAD + version).`);
-    return { deploymentId, deploymentFixed };
-  }
-
   if (!deploymentId || !(await deploymentExists(scriptApi, cliente.scriptId, deploymentId))) {
     console.warn(`  ⚠ deploymentId ${deploymentId || '(none)'} no válido — buscando deployment activo`);
     deploymentId = await findWebAppDeploymentId(scriptApi, cliente.scriptId);
