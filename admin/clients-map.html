@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BalanceClip — Clientes activos (CLIENTS_MAP)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F8F9FA; --surface:#FFFFFF; --surface2:#F1F3F5;
+    --border:#DEE2E6; --border2:#CED4DA;
+    --orange:#D04E00; --orange2:#E8620A;
+    --green:#2E7D32; --blue:#1565C0; --red:#C62828; --purple:#6A1B9A;
+    --text:#1A1A2E; --muted:#6C757D;
+    --mono:'DM Mono',monospace; --sans:'Sora',sans-serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; padding:0 0 80px; }
+
+  .topbar {
+    position:sticky; top:0; z-index:50;
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:14px 20px; display:flex; align-items:center; gap:12px;
+  }
+  .topbar-back {
+    background:none; border:none; cursor:pointer; font-size:22px;
+    color:var(--muted); padding:0 4px; text-decoration:none;
+  }
+  .topbar-title { font-size:14px; letter-spacing:.5px; font-weight:600; }
+  .topbar-sub   { font-size:11px; color:var(--muted); margin-top:2px; }
+  .topbar-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .btn {
+    border:1px solid var(--border2); background:var(--surface); color:var(--text);
+    padding:8px 14px; border-radius:6px; font-family:var(--sans); font-size:12px;
+    font-weight:600; cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;
+  }
+  .btn:hover { border-color:var(--orange); color:var(--orange); }
+  .btn-primary { background:var(--orange); color:#fff; border-color:var(--orange); }
+  .btn-primary:hover { background:var(--orange2); color:#fff; }
+  .btn-ghost { background:transparent; border-color:var(--border); }
+  .btn-sm { padding:6px 10px; font-size:11px; }
+  .btn-danger { color:var(--red); border-color:var(--red); }
+  .btn-danger:hover { background:var(--red); color:#fff; }
+
+  .container { max-width:1080px; margin:0 auto; padding:24px 20px 0; }
+
+  .hero { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px 22px; margin-bottom:18px; }
+  .hero-title { font-size:18px; font-weight:700; margin-bottom:4px; }
+  .hero-desc { font-size:12px; color:var(--muted); line-height:1.5; }
+  .hero-stats { display:flex; gap:18px; margin-top:14px; flex-wrap:wrap; }
+  .stat {
+    flex:1; min-width:140px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:10px 14px;
+  }
+  .stat-n { font-family:var(--mono); font-size:20px; font-weight:600; color:var(--orange); }
+  .stat-l { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .auth-banner {
+    background:#FFF8E1; border:1px solid #F4D58D; color:#7A5300;
+    border-radius:8px; padding:10px 14px; font-size:12px;
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    margin-bottom:14px;
+  }
+  .auth-banner.ok   { background:#E8F5E9; border-color:#A5D6A7; color:#1B5E20; }
+  .auth-banner.warn { background:#FFEBEE; border-color:#EF9A9A; color:#B71C1C; }
+  .auth-banner button { background:var(--surface); border:1px solid var(--border2); color:var(--text); padding:5px 10px; border-radius:5px; cursor:pointer; font-size:11px; font-weight:600; }
+
+  .controls { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .search-wrap { flex:1; min-width:200px; }
+  .search-wrap input {
+    width:100%; border:1px solid var(--border2); background:var(--surface);
+    border-radius:8px; padding:9px 12px; font-family:var(--sans); font-size:13px;
+  }
+  .filter-sel {
+    background:var(--surface); border:1px solid var(--border2); border-radius:8px;
+    padding:9px 12px; font-family:var(--sans); font-size:13px;
+  }
+
+  /* Card por grupo de URL (cliente con uno o más phones). */
+  .group {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:16px 18px; margin-bottom:12px;
+  }
+  .group-hdr { display:flex; align-items:flex-start; gap:12px; margin-bottom:10px; }
+  .group-url {
+    flex:1; min-width:0; font-family:var(--mono); font-size:11px; color:var(--muted);
+    word-break:break-all; line-height:1.4; padding-top:2px;
+  }
+  .group-url a { color:var(--blue); text-decoration:none; }
+  .group-url a:hover { text-decoration:underline; }
+  .group-actions { display:flex; gap:6px; flex-shrink:0; }
+  .badge-multi {
+    display:inline-flex; align-items:center; gap:4px;
+    background:#F3E5F5; color:var(--purple);
+    padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700;
+    margin-left:6px;
+  }
+  .phones {
+    display:flex; gap:8px; flex-wrap:wrap; padding-top:10px;
+    border-top:1px solid var(--border);
+  }
+  .phone-chip {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:8px 12px; display:flex; flex-direction:column;
+    gap:4px; min-width:180px; flex:1;
+  }
+  .phone-chip-top { display:flex; align-items:center; gap:6px; }
+  .phone-chip-num { font-family:var(--mono); font-size:13px; font-weight:600; }
+  .phone-chip-mail { font-size:10px; color:var(--muted); }
+  .phone-chip-mail .e { display:block; }
+  .phone-chip-actions { display:flex; gap:4px; margin-top:4px; }
+  .ic-btn {
+    background:transparent; border:1px solid var(--border); border-radius:5px;
+    padding:3px 7px; font-size:11px; cursor:pointer; color:var(--muted);
+  }
+  .ic-btn:hover { border-color:var(--orange); color:var(--orange); }
+  .ic-btn.danger:hover { border-color:var(--red); color:var(--red); }
+
+  .empty { padding:32px 20px; text-align:center; color:var(--muted); font-size:13px; background:var(--surface); border:1px solid var(--border); border-radius:12px; }
+  .loading { padding:40px 20px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* Modal */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none;
+    align-items:center; justify-content:center; z-index:200; padding:20px;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal {
+    background:var(--surface); border-radius:12px; padding:24px;
+    max-width:480px; width:100%; box-shadow:0 8px 32px rgba(0,0,0,.2);
+    max-height:90vh; overflow-y:auto;
+  }
+  .modal h2 { font-size:17px; margin-bottom:6px; }
+  .modal-desc { font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:16px; }
+  .modal label { display:block; font-size:11px; color:var(--muted); margin:10px 0 4px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+  .modal input, .modal select {
+    width:100%; padding:9px 12px; border:1px solid var(--border2); background:var(--surface);
+    border-radius:6px; font-family:var(--sans); font-size:13px;
+  }
+  .modal-hint { font-size:11px; color:var(--muted); margin-top:4px; }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
+
+  .toast {
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--text); color:#fff; padding:11px 18px; border-radius:8px;
+    font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.25);
+    opacity:0; transition:opacity .2s; pointer-events:none; z-index:300;
+  }
+  .toast.ok   { background:var(--green); }
+  .toast.err  { background:var(--red); }
+  .toast.show { opacity:1; }
+
+  @media(max-width:600px) {
+    .hero-stats { flex-direction:column; }
+    .phone-chip { min-width:0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html" class="topbar-back">←</a>
+  <div>
+    <div class="topbar-title">Clientes activos · CLIENTS_MAP</div>
+    <div class="topbar-sub">Phones autorizados a usar el bot, agrupados por deployment</div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-sm" onclick="loadAll()">↻ Refrescar</button>
+    <button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Agregar phone</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <div class="hero-title">📱 Clientes registrados en el router</div>
+    <div class="hero-desc">
+      Cada entrada del <code>CLIENTS_MAP_JSON</code> mapea un <strong>phone → deployment GAS</strong>.
+      Phones que comparten URL son el mismo cliente con múltiples números (ej. dueño + asistente).
+      Los emails listados en cada chip son los que devuelven análisis bancario a ese phone (cross-ref
+      con <code>email_*</code> properties).
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-n" id="statPhones">—</div><div class="stat-l">Phones totales</div></div>
+      <div class="stat"><div class="stat-n" id="statClients">—</div><div class="stat-l">Clientes únicos (URLs)</div></div>
+      <div class="stat"><div class="stat-n" id="statMulti">—</div><div class="stat-l">Con más de 1 phone</div></div>
+    </div>
+  </div>
+
+  <div class="auth-banner" id="authBanner">
+    <span>⏳ Verificando acceso…</span>
+  </div>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <input type="search" id="qInput" placeholder="Buscar phone, URL o email…" oninput="render()">
+    </div>
+    <select class="filter-sel" id="filterSel" onchange="render()">
+      <option value="all">Todos</option>
+      <option value="multi">Solo con múltiples phones</option>
+      <option value="single">Solo con 1 phone</option>
+    </select>
+  </div>
+
+  <div id="groups">
+    <div class="loading">⏳ Cargando…</div>
+  </div>
+
+</div>
+
+<!-- Add/Edit modal -->
+<div class="modal-overlay" id="modalAdd">
+  <div class="modal">
+    <h2 id="modalTitle">Agregar phone</h2>
+    <div class="modal-desc" id="modalDesc">
+      Agrega un phone autorizado a usar el bot. Si lo mapeas a una URL que ya tiene phones,
+      todos comparten la misma cuenta de cliente.
+    </div>
+    <label>Modo</label>
+    <select id="inpMode" onchange="onModeChange()">
+      <option value="new">🆕 Nuevo cliente (URL nueva)</option>
+      <option value="existing">🔗 Agregar phone a cliente existente</option>
+    </select>
+
+    <div id="newClientFields">
+      <label>URL del deployment GAS</label>
+      <input type="text" id="inpUrl" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+    </div>
+
+    <div id="existingClientFields" style="display:none">
+      <label>Cliente existente</label>
+      <select id="inpExistingUrl"></select>
+    </div>
+
+    <label>Celular (con código país, sin +)</label>
+    <input type="text" id="inpPhone" placeholder="50760909384" autocomplete="off">
+    <div class="modal-hint" id="phoneHint"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeAddModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="saveClient()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit URL modal (para mover un cliente a otro deployment) -->
+<div class="modal-overlay" id="modalEditUrl">
+  <div class="modal">
+    <h2>Cambiar URL del cliente</h2>
+    <div class="modal-desc">
+      Esto cambia la URL para TODOS los phones agrupados bajo esta URL.
+      Útil después de un re-deploy del cliente.
+    </div>
+    <label>Phones afectados</label>
+    <div id="editUrlPhones" style="background:var(--surface2); border-radius:6px; padding:8px 12px; font-size:12px; margin-bottom:8px"></div>
+    <label>Nueva URL</label>
+    <input type="text" id="inpEditUrl" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeEditUrlModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="saveEditUrl()">Actualizar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const ROUTER_URL = 'https://script.google.com/macros/s/AKfycbzzgc0zIe4cQ52jZciIMy6IYfiHNeQsgql5Mz_tPIabSLk4CVMfg8cImlukumGr906orw/exec';
+
+let _items   = [];   // [{ phone, url, emails:[], groupSize }]
+let _editUrl = null; // grupo URL siendo editado
+
+function getToken() { return localStorage.getItem('bc_admin_token') || ''; }
+
+let _jsonpSeq = 0;
+function jsonpGet(params, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_bc_cb_' + (++_jsonpSeq) + '_' + Date.now();
+    const qs = Object.keys(params).map(k => encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+    const url = ROUTER_URL + '?' + qs + '&callback=' + cbName;
+    const s = document.createElement('script');
+    let done = false;
+    const cleanup = () => { delete window[cbName]; if (s.parentNode) s.parentNode.removeChild(s); };
+    window[cbName] = (data) => { done = true; cleanup(); resolve(data); };
+    s.onerror = () => { if (done) return; cleanup(); reject(new Error('jsonp network error')); };
+    setTimeout(() => { if (done) return; cleanup(); reject(new Error('jsonp timeout')); }, timeoutMs || 15000);
+    s.src = url;
+    document.head.appendChild(s);
+  });
+}
+
+function toast(msg, kind) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (kind || '');
+  setTimeout(() => { t.className = 'toast'; }, 2400);
+}
+
+async function loadAll() {
+  const t = getToken();
+  const banner = document.getElementById('authBanner');
+  if (!t) {
+    banner.className = 'auth-banner warn';
+    banner.innerHTML = '<span>🔒 Falta el <code>ADMIN_TOKEN</code>. Configurálo en el hub admin primero.</span><a class="btn btn-sm" href="index.html">Volver al hub →</a>';
+    document.getElementById('groups').innerHTML = '<div class="empty">Sin auth.</div>';
+    return;
+  }
+  banner.className = 'auth-banner';
+  banner.innerHTML = '<span>⏳ Cargando clientes…</span>';
+  try {
+    const data = await jsonpGet({ action:'listClientMap', adminToken:t });
+    if (!data || !data.ok) throw new Error((data && data.error) || 'error desconocido');
+    _items = data.items || [];
+    document.getElementById('statPhones').textContent  = _items.length;
+    document.getElementById('statClients').textContent = data.groups || 0;
+    document.getElementById('statMulti').textContent   = _items.filter(r => r.groupSize > 1).reduce((acc,r) => {
+      // contar solo 1 vez por grupo URL
+      if (!acc._seen) acc._seen = new Set();
+      if (acc._seen.has(r.url)) return acc;
+      acc._seen.add(r.url);
+      acc.n = (acc.n || 0) + 1;
+      return acc;
+    }, {}).n || 0;
+    banner.className = 'auth-banner ok';
+    banner.innerHTML = '<span>✅ ' + _items.length + ' phone(s) en ' + (data.groups || 0) + ' cliente(s).</span><button onclick="loadAll()">Refrescar</button>';
+    render();
+  } catch (e) {
+    banner.className = 'auth-banner warn';
+    banner.innerHTML = '<span>⚠️ ' + e.message + '</span><a class="btn btn-sm" href="index.html">Re-auth →</a>';
+    document.getElementById('groups').innerHTML = '<div class="empty">Error cargando datos.</div>';
+  }
+}
+
+function render() {
+  const q      = document.getElementById('qInput').value.toLowerCase().trim();
+  const filter = document.getElementById('filterSel').value;
+
+  // Agrupar por URL
+  const byUrl = {};
+  _items.forEach(r => {
+    if (!byUrl[r.url]) byUrl[r.url] = [];
+    byUrl[r.url].push(r);
+  });
+  let groups = Object.keys(byUrl).map(url => ({ url, phones: byUrl[url] }));
+
+  if (q) {
+    groups = groups.filter(g =>
+      g.url.toLowerCase().indexOf(q) >= 0 ||
+      g.phones.some(p => p.phone.indexOf(q) >= 0 || (p.emails || []).some(e => e.toLowerCase().indexOf(q) >= 0))
+    );
+  }
+  if (filter === 'multi')  groups = groups.filter(g => g.phones.length > 1);
+  if (filter === 'single') groups = groups.filter(g => g.phones.length === 1);
+
+  const container = document.getElementById('groups');
+  if (!groups.length) {
+    container.innerHTML = '<div class="empty">Sin resultados.</div>';
+    return;
+  }
+  container.innerHTML = groups.map(g => {
+    const multi = g.phones.length > 1 ? '<span class="badge-multi">' + g.phones.length + ' phones</span>' : '';
+    const urlShort = g.url.length > 80 ? (g.url.substring(0, 60) + '…' + g.url.substring(g.url.length - 16)) : g.url;
+    return '<div class="group">' +
+      '<div class="group-hdr">' +
+        '<div class="group-url">' +
+          '<a href="' + escAttr(g.url) + '" target="_blank">' + escHtml(urlShort) + '</a>' + multi +
+        '</div>' +
+        '<div class="group-actions">' +
+          '<button class="btn btn-sm" onclick="openEditUrlModal(' + JSON.stringify(g.url).replace(/"/g,'&quot;') + ')">✏️ URL</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="phones">' +
+        g.phones.map(p => phoneChip(p)).join('') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function phoneChip(p) {
+  const emailList = (p.emails || []).length
+    ? '<div class="phone-chip-mail">' + p.emails.map(e => '<span class="e">📧 ' + escHtml(e) + '</span>').join('') + '</div>'
+    : '<div class="phone-chip-mail" style="color:#bbb">📧 (sin email asociado)</div>';
+  return '<div class="phone-chip">' +
+    '<div class="phone-chip-top"><span class="phone-chip-num">+' + escHtml(p.phone) + '</span></div>' +
+    emailList +
+    '<div class="phone-chip-actions">' +
+      '<button class="ic-btn danger" onclick="deletePhone(\'' + escAttr(p.phone) + '\')" title="Quitar este phone">🗑 Quitar</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function escAttr(s) { return String(s||'').replace(/'/g, '%27').replace(/"/g, '&quot;'); }
+
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = 'Agregar phone';
+  document.getElementById('inpMode').value = 'new';
+  document.getElementById('inpUrl').value = '';
+  document.getElementById('inpPhone').value = '';
+  document.getElementById('phoneHint').textContent = '';
+  // Poblar select de clientes existentes
+  const byUrl = {};
+  _items.forEach(r => { byUrl[r.url] = (byUrl[r.url] || 0) + 1; });
+  const sel = document.getElementById('inpExistingUrl');
+  sel.innerHTML = Object.keys(byUrl).sort().map(u => {
+    const short = u.length > 70 ? (u.substring(0, 50) + '…' + u.substring(u.length - 12)) : u;
+    return '<option value="' + escAttr(u) + '">' + escHtml(short) + ' (' + byUrl[u] + ' phone)</option>';
+  }).join('');
+  onModeChange();
+  document.getElementById('modalAdd').classList.add('active');
+  setTimeout(() => document.getElementById('inpPhone').focus(), 80);
+}
+
+function closeAddModal() { document.getElementById('modalAdd').classList.remove('active'); }
+
+function onModeChange() {
+  const mode = document.getElementById('inpMode').value;
+  document.getElementById('newClientFields').style.display      = mode === 'new'      ? '' : 'none';
+  document.getElementById('existingClientFields').style.display = mode === 'existing' ? '' : 'none';
+}
+
+async function saveClient() {
+  const mode = document.getElementById('inpMode').value;
+  let phone  = document.getElementById('inpPhone').value.replace(/\D/g, '');
+  const url  = mode === 'new'
+    ? document.getElementById('inpUrl').value.trim()
+    : document.getElementById('inpExistingUrl').value;
+  const hint = document.getElementById('phoneHint');
+  hint.textContent = '';
+  if (phone.length === 8) {
+    phone = '507' + phone;
+    hint.textContent = '⚡ Le agregué 507 al inicio.';
+  }
+  if (phone.length < 10) { hint.textContent = '⚠️ Phone debe incluir código país.'; return; }
+  if (!url || url.indexOf('script.google.com') < 0) { hint.textContent = '⚠️ URL del deployment GAS inválida.'; return; }
+  const t = getToken();
+  try {
+    const data = await jsonpGet({ action:'setClientMap', adminToken:t, phone:phone, url:url });
+    if (!data || !data.ok) throw new Error((data && data.error) || 'error guardando');
+    toast(data.replaced ? 'Phone re-apuntado ✓' : 'Phone agregado ✓', 'ok');
+    closeAddModal();
+    await loadAll();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+async function deletePhone(phone) {
+  if (!confirm('Quitar +' + phone + ' del CLIENTS_MAP?\n\nEl número va a quedar como visitante (cae a modo demo).')) return;
+  const t = getToken();
+  try {
+    const data = await jsonpGet({ action:'deleteClientMap', adminToken:t, phone:phone });
+    if (!data || !data.ok) throw new Error((data && data.error) || 'error borrando');
+    toast('Phone quitado ✓', 'ok');
+    await loadAll();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+function openEditUrlModal(url) {
+  _editUrl = url;
+  const phones = _items.filter(r => r.url === url).map(r => '+' + r.phone).join(' · ');
+  document.getElementById('editUrlPhones').textContent = phones;
+  document.getElementById('inpEditUrl').value = url;
+  document.getElementById('modalEditUrl').classList.add('active');
+  setTimeout(() => document.getElementById('inpEditUrl').focus(), 80);
+}
+function closeEditUrlModal() {
+  document.getElementById('modalEditUrl').classList.remove('active');
+  _editUrl = null;
+}
+async function saveEditUrl() {
+  const newUrl = document.getElementById('inpEditUrl').value.trim();
+  if (!newUrl || newUrl.indexOf('script.google.com') < 0) { toast('URL inválida', 'err'); return; }
+  if (newUrl === _editUrl) { closeEditUrlModal(); return; }
+  if (!confirm('Mover todos los phones de este cliente a la nueva URL?\n\n' +
+               'De:\n' + _editUrl + '\n\nA:\n' + newUrl)) return;
+  const t = getToken();
+  const phones = _items.filter(r => r.url === _editUrl).map(r => r.phone);
+  try {
+    for (let i = 0; i < phones.length; i++) {
+      const r = await jsonpGet({ action:'setClientMap', adminToken:t, phone:phones[i], url:newUrl });
+      if (!r || !r.ok) throw new Error((r && r.error) || 'error en ' + phones[i]);
+    }
+    toast(phones.length + ' phone(s) movido(s) ✓', 'ok');
+    closeEditUrlModal();
+    await loadAll();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeAddModal(); closeEditUrlModal(); }
+});
+
+loadAll();
+</script>
+</body>
+</html>
