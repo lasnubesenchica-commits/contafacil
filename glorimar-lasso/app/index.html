@@ -3934,8 +3934,16 @@ const REG = (() => {
     _egrEditId = item.id_egreso;
     buildEgrCatOpts();
     _resetEgrForm();
-    const _rawCat  = item.tipo_egreso || item.categoria || 'otros_gastos';
-    const _catNorm = LEGACY_GASTO_MAP[_rawCat] || _rawCat;
+    const _rawCat = String(item.tipo_egreso || item.categoria || '').trim();
+    let _catNorm  = LEGACY_GASTO_MAP[_rawCat] || _rawCat || 'otros_gastos';
+    if (typeof CATEGORIAS_GASTO_DGI !== 'undefined' && !_PERSONAL_SUBCATS_MOB.has(_catNorm)) {
+      const lower   = _catNorm.toLowerCase();
+      const byValor = CATEGORIAS_GASTO_DGI.find(c => c.valor.toLowerCase() === lower);
+      if (!byValor) {
+        const byLabel = CATEGORIAS_GASTO_DGI.find(c => c.label.toLowerCase() === lower);
+        _catNorm = byLabel ? byLabel.valor : 'otros_gastos';
+      }
+    }
     _setEgrCatMob(_catNorm);
     document.getElementById('regEgrDesc').value     = item.descripcion || '';
     document.getElementById('regEgrFecha').value    = String(item.fecha_egreso || '').slice(0,10);

@@ -3938,11 +3938,23 @@ const REG = (() => {
     _egrEditId = item.id_egreso;
     buildEgrCatOpts();
     _resetEgrForm();
-    // Categoría: resolver legacy (otros_deducibles → otros_gastos, etc) y
-    // delegar a _setEgrCatMob para que maneje subcats personales (que
-    // viven en un sub-select aparte) y categorías del catálogo principal.
-    const _rawCat = item.tipo_egreso || item.categoria || 'otros_gastos';
-    const _catNorm = LEGACY_GASTO_MAP[_rawCat] || _rawCat;
+    // Categoría: resolución robusta — el sheet puede tener:
+    //   • Una key del catálogo DGI actual (ideal)
+    //   • Una key legacy (otros_deducibles, nomina, etc.) → LEGACY_GASTO_MAP la mapea
+    //   • Un label en vez de key ("Otros Gastos") → match por label
+    //   • Una key sólo del bot WhatsApp (gastos_alimentacion, etc.) no en
+    //     el catálogo del mobile → fallback a otros_gastos para que el
+    //     dropdown no quede vacío (el usuario puede reclasificar a mano).
+    const _rawCat = String(item.tipo_egreso || item.categoria || '').trim();
+    let _catNorm  = LEGACY_GASTO_MAP[_rawCat] || _rawCat || 'otros_gastos';
+    if (typeof CATEGORIAS_GASTO_DGI !== 'undefined' && !_PERSONAL_SUBCATS_MOB.has(_catNorm)) {
+      const lower   = _catNorm.toLowerCase();
+      const byValor = CATEGORIAS_GASTO_DGI.find(c => c.valor.toLowerCase() === lower);
+      if (!byValor) {
+        const byLabel = CATEGORIAS_GASTO_DGI.find(c => c.label.toLowerCase() === lower);
+        _catNorm = byLabel ? byLabel.valor : 'otros_gastos';
+      }
+    }
     _setEgrCatMob(_catNorm);
     document.getElementById('regEgrDesc').value     = item.descripcion || '';
     document.getElementById('regEgrFecha').value    = String(item.fecha_egreso || '').slice(0,10);
