@@ -702,6 +702,10 @@ function _whatsappClasificarYExtraer(b64, mime) {
     '  telecomunicaciones (L71), gastos_oficina (L69), publicidad_mercadeo (L68),\n' +
     '  honorarios_profesionales (L60), seguros (L63-66), mantenimiento_reparacion (L67),\n' +
     '  compras_locales (L28 Costo), compras_importadas (L29 Costo), otros_deducibles (L77 default).\n\n' +
+    'DEDUCIBLES PERSONA NATURAL (DP — Deducibles del ISR de persona natural, NO del Form 90 corporativo). Usá SOLO si la factura es claramente personal/familiar del dueño (NO de la empresa):\n' +
+    '  gastos_medicos (DP-1, recetas/farmacia/clínica/hospital/dentista para uso personal),\n' +
+    '  gastos_escolares (DP-2, matrícula/mensualidad escolar/universitaria),\n' +
+    '  intereses_hipotecarios (DP-3, intereses préstamo hipotecario casa).\n\n' +
     'NO DEDUCIBLES (Art. 697 Código Fiscal — gastos personales que NO entran al Form 90/91 pero el cliente quiere trackear). Usá estas SOLO si el proveedor/concepto es claramente personal/familiar (NO para gastos del negocio):\n' +
     '  gastos_alimentacion (supermercado, comida, restaurantes para uso personal),\n' +
     '  gastos_vestimenta (ropa, calzado personal/familiar),\n' +
@@ -981,8 +985,8 @@ var WA_CAT_SECTIONS = [
     { key: 'mantenimiento',               title: 'Mantenimiento',            desc: 'G20' },
     { key: 'servicios_basicos',           title: 'Electricidad/Agua/Tel.',   desc: 'G21' },
     { key: 'seguros',                     title: 'Seguros',                  desc: 'G22' },
+    { key: 'gastos_medicos',              title: 'Gastos Médicos',           desc: 'DP-1 · médicos/farmacia' },
     { key: 'otros_gastos',                title: 'Otros Gastos',             desc: 'G23 · catch-all' },
-    { key: 'gastos_fuente_extranjera',    title: 'Gastos Fuente Extranjera', desc: 'G24' },
   ]},
   { title: 'Compras (Costo de venta)', rows: [
     { key: 'compras_locales',             title: 'Compras - Locales',        desc: 'C1' },
