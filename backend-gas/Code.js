@@ -1292,6 +1292,10 @@ function inicializarSistema() {
   // Hojas del feature Transferencias bancarias (idempotente: skip si existen).
   if (typeof _initBeneficiariosSheet === 'function')           _initBeneficiariosSheet();
   if (typeof _initTransferenciasPendientesSheet === 'function') _initTransferenciasPendientesSheet();
+  // Trigger del digest diario WhatsApp (idempotente). El handler chequea
+  // el flag WA_TEMPLATE_DIGEST_ENABLED en cada corrida — si está OFF,
+  // exit early con 0 costo. Activación = flippear flag, sin redeploy.
+  if (typeof installDigestTrigger === 'function')              installDigestTrigger();
   migrarEgresosDV();
   migrarEgresosST();
   installTrigger();

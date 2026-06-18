@@ -103,6 +103,16 @@ function ejecutarSincronizacionUnificada() {
       }
     }
 
+    // ── Tap-to-engage template (ventana 24h cerrada) ──
+    // Si quedaron transferencias en queue sin notificar (ventana cerrada)
+    // y pasó el debounce, manda template HSM. No-op si el feature flag
+    // WA_TEMPLATE_TAP_TO_ENGAGE_ENABLED está OFF (default hasta que Meta
+    // apruebe la plantilla).
+    if (typeof _tapToEngageCheckAndSend === 'function') {
+      try { _tapToEngageCheckAndSend(); }
+      catch (errTap) { Logger.log('  ✗ tap-to-engage error: ' + errTap.message); }
+    }
+
   } catch (err) {
     Logger.log('ejecutarSincronizacionUnificada ERROR: ' + err.message);
   } finally {
