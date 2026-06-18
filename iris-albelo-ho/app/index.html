@@ -3938,10 +3938,16 @@ const REG = (() => {
     _egrEditId = item.id_egreso;
     buildEgrCatOpts();
     _resetEgrForm();
-    document.getElementById('regEgrCat').value      = item.tipo_egreso || item.categoria || 'otros_deducibles';
+    // Categoría: resolver legacy (otros_deducibles → otros_gastos, etc) y
+    // delegar a _setEgrCatMob para que maneje subcats personales (que
+    // viven en un sub-select aparte) y categorías del catálogo principal.
+    const _rawCat = item.tipo_egreso || item.categoria || 'otros_gastos';
+    const _catNorm = LEGACY_GASTO_MAP[_rawCat] || _rawCat;
+    _setEgrCatMob(_catNorm);
     document.getElementById('regEgrDesc').value     = item.descripcion || '';
     document.getElementById('regEgrFecha').value    = String(item.fecha_egreso || '').slice(0,10);
-    document.getElementById('regEgrNfac').value     = item.num_factura || '';
+    // El backend de egresos devuelve num_fac_ref (no num_factura como ingresos)
+    document.getElementById('regEgrNfac').value     = item.num_fac_ref || item.num_factura || '';
     document.getElementById('regEgrTotal').value    = item.total      || '';
     document.getElementById('regEgrSubtotal').value = item.subtotal   || '';
     document.getElementById('regEgrItbmsVal').value = item.itbms      || '';
@@ -3955,7 +3961,6 @@ const REG = (() => {
     document.getElementById('regEgrNotas').value    = item.notas      || '';
     setAlcance(item.alcance === 'personal' ? 'personal' : 'negocio', true);
     _setEgrTitulo(true);
-    // En modo edit ir directo al form manual (no IA — ya hay datos).
     if (typeof _setEgrMode === 'function') _setEgrMode('manual');
     openModal('mRegEgreso');
   }
