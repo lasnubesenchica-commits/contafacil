@@ -64,7 +64,14 @@ function doGet(e) {
   var challenge = params['hub.challenge']    || params.hub_challenge;
 
   // Admin API (JSONP): leer conversaciones del bot desde el sheet de logs.
-  if (params.action && (params.action === 'getConversations' || params.action === 'getConversation')) {
+  // Las actions admin se ruteran a _routerHandleAdminQuery; el dispatcher
+  // interno valida ADMIN_TOKEN y resuelve cada action específica.
+  var ADMIN_ACTIONS = {
+    getConversations: 1, getConversation: 1,
+    listEmailMappings: 1, setEmailMapping: 1, deleteEmailMapping: 1,
+    listClientMap: 1, setClientMap: 1, deleteClientMap: 1,
+  };
+  if (params.action && ADMIN_ACTIONS[params.action]) {
     return _routerHandleAdminQuery(params);
   }
 
