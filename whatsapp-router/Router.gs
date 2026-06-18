@@ -187,6 +187,18 @@ function _routerForwardMensaje(msg, metadata) {
       _routerHandleActivarCommand(from, adminBody, token, phoneId);
       return;
     }
+    if (/^vincular[-_ ]email\s+/i.test(adminBody)) {
+      _routerHandleVincularEmailCommand(from, adminBody, token, phoneId);
+      return;
+    }
+    if (/^desvincular[-_ ]email\s+/i.test(adminBody)) {
+      _routerHandleDesvincularEmailCommand(from, adminBody, token, phoneId);
+      return;
+    }
+    if (/^listar[-_ ]emails$/i.test(adminBody) || /^emails$/i.test(adminBody)) {
+      _routerHandleListarEmailsCommand(from, token, phoneId);
+      return;
+    }
   }
 
   // ── 4. Routing normal: cliente conocido o desconocido.
@@ -1210,36 +1222,41 @@ function _routerFinalizarSignup(from, data, token, phoneId) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-//  Comando admin: activar <phone> <deploymentUrl>
+//  Comando admin: activar <phone> <deploymentUrl> [email]
 //  Solo aceptamos si from === SIGNUP_ADMIN_PHONE (chequeado por el caller).
-//  Agrega la entrada al CLIENTS_MAP_JSON y le manda welcome al cliente.
+//  Agrega la entrada al CLIENTS_MAP_JSON, opcionalmente registra el
+//  mapping email→phone (para que el watcher de analisis@balanceclip.net
+//  pueda devolver análisis al WhatsApp del cliente), y le manda welcome.
 // ────────────────────────────────────────────────────────────────────
 function _routerHandleActivarCommand(from, text, token, phoneId) {
   // Acepta la URL envuelta en <...> o [...] (WhatsApp/iOS auto-formatean
-  // los links así). Los chars de la URL excluyen los wrappers.
-  var m = String(text || '').match(/^activar\s+(\d{8,})\s+[<\[]?(https?:\/\/[^\s<>\]]+)[>\]]?\s*$/i);
+  // los links así). El 3er arg (email) es opcional.
+  var m = String(text || '').match(
+    /^activar\s+(\d{8,})\s+[<\[]?(https?:\/\/[^\s<>\]]+)[>\]]?(?:\s+([^\s@]+@[^\s@]+\.[^\s@]+))?\s*$/i
+  );
   if (!m) {
     _routerSendText(from,
       '⚠️ Formato del comando:\n' +
-      '`activar <phone_sin_+> <deployment_url>`\n\n' +
-      'Ejemplo:\n' +
-      '`activar 50769812266 https://script.google.com/macros/s/.../exec`',
+      '`activar <phone_sin_+> <deployment_url> [email]`\n\n' +
+      'Ejemplos:\n' +
+      '`activar 50769812266 https://script.google.com/macros/s/.../exec`\n' +
+      '`activar 50769812266 https://script.google.com/macros/s/.../exec admin@empresa.com`\n\n' +
+      '_El email es opcional pero recomendado — habilita que xlsx enviados a analisis@balanceclip.net desde ese email se devuelvan al WhatsApp del cliente._',
       token, phoneId);
     return;
   }
   var newPhone = m[1];
   var url      = m[2];
+  var email    = m[3] ? m[3].toLowerCase().trim() : '';
 
   // Validación de longitud — el número debe incluir código de país.
-  // Meta entrega el `from` con código de país (ej Panamá: 507XXXXXXXX),
-  // así que si lo guardamos sin código nunca va a hacer match.
   if (newPhone.length < 10) {
     var suggested = newPhone.length === 8 ? ('507' + newPhone) : null;
     _routerSendText(from,
       '⚠️ *Número incompleto*\n\n' +
       'El número *' + newPhone + '* no incluye código de país. Meta entrega los mensajes con el código país adelante (Panamá = 507), así que el routing no va a funcionar.\n\n' +
       (suggested
-        ? '👉 Prueba con:\n`activar ' + suggested + ' ' + url + '`'
+        ? '👉 Prueba con:\n`activar ' + suggested + ' ' + url + (email ? ' ' + email : '') + '`'
         : 'Mándalo con el código de país adelante (sin el "+").'),
       token, phoneId);
     return;
@@ -1256,6 +1273,13 @@ function _routerHandleActivarCommand(from, text, token, phoneId) {
 
   // Limpiar el flag de "ya saludado" para que el welcome vaya completo
   props.deleteProperty('welcomed_' + newPhone);
+
+  // Opcional: registrar email → phone para el watcher de analisis@.
+  var emailLine = '';
+  if (email) {
+    props.setProperty('email_' + email, newPhone);
+    emailLine = '\n📧 ' + email + ' → ' + newPhone + ' _(linkeado p/ análisis por email)_';
+  }
 
   // Enviar welcome al cliente
   _routerEnviarBienvenida(newPhone, token, phoneId);
@@ -1277,9 +1301,141 @@ function _routerHandleActivarCommand(from, text, token, phoneId) {
   _routerSendText(from,
     '✅ *Cliente activado*\n\n' +
     '📱 +' + newPhone + (yaExistia ? ' _(actualizado en el map)_' : ' _(nuevo en el map)_') + '\n' +
-    '🔗 ' + url + '\n\n' +
+    '🔗 ' + url + emailLine + '\n\n' +
     'Le envié la bienvenida — ya puede empezar a mandar facturas.',
     token, phoneId);
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Comandos admin para mappings email↔phone (post-onboarding).
+//
+//  vincular-email <email> <phone>  → setea Property email_<email>=phone
+//  desvincular-email <email>       → borra Property email_<email>
+//  listar-emails                   → lista todas las entradas email_*
+//
+//  Soporta separador con guion, underscore o espacio (vincular-email,
+//  vincular_email, "vincular email"). Solo aceptamos desde admin phone.
+// ────────────────────────────────────────────────────────────────────
+function _routerHandleVincularEmailCommand(from, text, token, phoneId) {
+  var m = String(text || '').match(
+    /^vincular[-_ ]email\s+([^\s@]+@[^\s@]+\.[^\s@]+)\s+(\d{8,})\s*$/i
+  );
+  if (!m) {
+    _routerSendText(from,
+      '⚠️ Formato del comando:\n' +
+      '`vincular-email <email> <phone_sin_+>`\n\n' +
+      'Ejemplo:\n' +
+      '`vincular-email iris@empresa.com 50760909384`\n\n' +
+      '_Habilita que el watcher de analisis@balanceclip.net devuelva el análisis al WhatsApp del cliente cuando reciba xlsx desde ese email._',
+      token, phoneId);
+    return;
+  }
+  var email = m[1].toLowerCase().trim();
+  var phone = m[2];
+
+  if (phone.length < 10) {
+    var suggested = phone.length === 8 ? ('507' + phone) : null;
+    _routerSendText(from,
+      '⚠️ *Número incompleto*\n\n' +
+      'El número *' + phone + '* no incluye código de país.\n\n' +
+      (suggested ? '👉 Prueba con:\n`vincular-email ' + email + ' ' + suggested + '`' : ''),
+      token, phoneId);
+    return;
+  }
+
+  var props    = PropertiesService.getScriptProperties();
+  var prevPhone = props.getProperty('email_' + email);
+  props.setProperty('email_' + email, phone);
+
+  // Bandera informativa: avisar si el phone NO está en CLIENTS_MAP_JSON
+  // (mapping huérfano — útil para tracking pre-activación, pero el bot
+  //  no podrá saludarlo como cliente registrado).
+  var clientsMap;
+  try { clientsMap = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch(e) { clientsMap = {}; }
+  var huerfanoLine = clientsMap[phone] ? '' :
+    '\n\n⚠️ _Nota: ' + phone + ' no está en CLIENTS_MAP_JSON. El mapping email→phone queda registrado pero el bot lo tratará como visitante hasta que lo actives con `activar`._';
+
+  _routerSendText(from,
+    '✅ *Email vinculado*\n\n' +
+    '📧 ' + email + '\n' +
+    '📱 +' + phone +
+    (prevPhone && prevPhone !== phone ? '\n\n_(reemplaza el mapping previo a +' + prevPhone + ')_' : '') +
+    huerfanoLine,
+    token, phoneId);
+}
+
+function _routerHandleDesvincularEmailCommand(from, text, token, phoneId) {
+  var m = String(text || '').match(/^desvincular[-_ ]email\s+([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if (!m) {
+    _routerSendText(from,
+      '⚠️ Formato del comando:\n' +
+      '`desvincular-email <email>`\n\n' +
+      'Ejemplo:\n' +
+      '`desvincular-email iris@empresa.com`',
+      token, phoneId);
+    return;
+  }
+  var email = m[1].toLowerCase().trim();
+  var props = PropertiesService.getScriptProperties();
+  var prev  = props.getProperty('email_' + email);
+  if (!prev) {
+    _routerSendText(from, '⚠️ No había mapping para *' + email + '*. Nada que borrar.', token, phoneId);
+    return;
+  }
+  props.deleteProperty('email_' + email);
+  _routerSendText(from,
+    '🗑 *Mapping borrado*\n\n' +
+    '📧 ' + email + ' _(estaba apuntando a +' + prev + ')_',
+    token, phoneId);
+}
+
+function _routerHandleListarEmailsCommand(from, token, phoneId) {
+  var rows = _routerListEmailMappings();
+  if (!rows.length) {
+    _routerSendText(from, '📭 No hay mappings email→phone registrados.', token, phoneId);
+    return;
+  }
+  // WhatsApp limita el texto a ~4096 chars. Cada fila ~70 chars promedio
+  // → ~58 entradas seguras por mensaje. Si excede, partir en chunks.
+  var clientsMap;
+  try { clientsMap = JSON.parse(PropertiesService.getScriptProperties().getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch(e) { clientsMap = {}; }
+  var lines = rows.map(function(r) {
+    var flag = clientsMap[r.phone] ? '✅' : '⚠️';
+    return flag + ' ' + r.email + ' → +' + r.phone;
+  });
+  var header = '📋 *Mappings email→phone* (' + rows.length + ')\n' +
+               '_✅ phone está en CLIENTS_MAP · ⚠️ huérfano (no activado)_\n\n';
+  // Chunking simple
+  var chunks = [];
+  var current = header;
+  for (var i = 0; i < lines.length; i++) {
+    if ((current + lines[i] + '\n').length > 3800) {
+      chunks.push(current);
+      current = '';
+    }
+    current += lines[i] + '\n';
+  }
+  if (current) chunks.push(current);
+  for (var j = 0; j < chunks.length; j++) {
+    _routerSendText(from, chunks[j], token, phoneId);
+  }
+}
+
+// Helper: enumera todas las Script Properties con prefijo `email_`.
+// Devuelve [{ email, phone }] ordenado alfabéticamente por email.
+function _routerListEmailMappings() {
+  var props = PropertiesService.getScriptProperties().getProperties();
+  var out = [];
+  for (var key in props) {
+    if (key.indexOf('email_') !== 0) continue;
+    var email = key.substring(6);
+    if (!email || email.indexOf('@') < 0) continue;
+    out.push({ email: email, phone: String(props[key] || '') });
+  }
+  out.sort(function(a, b) { return a.email < b.email ? -1 : (a.email > b.email ? 1 : 0); });
+  return out;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -1512,12 +1668,67 @@ function _routerHandleAdminQuery(params) {
   if (!expected) return _resp({ ok: false, error: 'ADMIN_TOKEN no configurado en el router' });
   if (String(params.adminToken || '') !== expected) return _resp({ ok: false, error: 'auth' });
   try {
-    if (params.action === 'getConversations') return _resp(_routerAdminListConversations(params));
-    if (params.action === 'getConversation')  return _resp(_routerAdminGetConversation(String(params.phone || '')));
+    if (params.action === 'getConversations')  return _resp(_routerAdminListConversations(params));
+    if (params.action === 'getConversation')   return _resp(_routerAdminGetConversation(String(params.phone || '')));
+    if (params.action === 'listEmailMappings') return _resp(_routerAdminListEmailMappings());
+    if (params.action === 'setEmailMapping')   return _resp(_routerAdminSetEmailMapping(params));
+    if (params.action === 'deleteEmailMapping')return _resp(_routerAdminDeleteEmailMapping(params));
+    if (params.action === 'listClientMap')     return _resp(_routerAdminListClientMap());
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
   }
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Admin API — gestión de mappings email↔phone y CLIENTS_MAP_JSON
+//  ──────────────────────────────────────────────────────────────────
+//  Usado por admin/mappings.html. Auth ya validada por _routerHandleAdminQuery.
+//  Las mutaciones (set/delete) vienen vía GET por consistencia con el
+//  resto del admin API (JSONP). El ADMIN_TOKEN actúa como bearer.
+// ────────────────────────────────────────────────────────────────────
+
+function _routerAdminListEmailMappings() {
+  var rows       = _routerListEmailMappings();
+  var clientsMap;
+  try { clientsMap = JSON.parse(PropertiesService.getScriptProperties().getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch(e) { clientsMap = {}; }
+  // Anotar cada row con isClient (phone presente en CLIENTS_MAP_JSON).
+  var enriched = rows.map(function(r) {
+    return { email: r.email, phone: r.phone, isClient: !!clientsMap[r.phone] };
+  });
+  return { ok: true, items: enriched, total: enriched.length };
+}
+
+function _routerAdminSetEmailMapping(params) {
+  var email = String(params.email || '').toLowerCase().trim();
+  var phone = String(params.phone || '').trim();
+  if (!email || email.indexOf('@') < 0) return { ok: false, error: 'email inválido' };
+  if (!/^\d{8,15}$/.test(phone))         return { ok: false, error: 'phone debe ser solo dígitos (8-15, sin +)' };
+  var props = PropertiesService.getScriptProperties();
+  var prev  = props.getProperty('email_' + email);
+  props.setProperty('email_' + email, phone);
+  return { ok: true, email: email, phone: phone, replaced: prev || null };
+}
+
+function _routerAdminDeleteEmailMapping(params) {
+  var email = String(params.email || '').toLowerCase().trim();
+  if (!email) return { ok: false, error: 'email requerido' };
+  var props = PropertiesService.getScriptProperties();
+  var prev  = props.getProperty('email_' + email);
+  if (!prev) return { ok: false, error: 'no existía mapping para ' + email };
+  props.deleteProperty('email_' + email);
+  return { ok: true, email: email, deleted: prev };
+}
+
+function _routerAdminListClientMap() {
+  var clientsMap;
+  try { clientsMap = JSON.parse(PropertiesService.getScriptProperties().getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch(e) { clientsMap = {}; }
+  var rows = Object.keys(clientsMap).sort().map(function(phone) {
+    return { phone: phone, url: clientsMap[phone] };
+  });
+  return { ok: true, items: rows, total: rows.length };
 }
 
 function _routerAdminListConversations(params) {

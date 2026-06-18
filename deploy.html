@@ -2045,10 +2045,11 @@ function buildOutputs() {
     },
     {
       title: '📲 Activar al cliente en el WhatsApp Router',
-      desc: 'Pega este comando en WhatsApp (chat con el bot de BalanceClip) <strong>desde tu número admin</strong>. El router va a:<br>① agregar el cliente al <code>CLIENTS_MAP_JSON</code> · ② enviarle la bienvenida automáticamente · ③ habilitarlo para mandar facturas.' +
+      desc: 'Pega este comando en WhatsApp (chat con el bot de BalanceClip) <strong>desde tu número admin</strong>. El router va a:<br>① agregar el cliente al <code>CLIENTS_MAP_JSON</code> · ② vincular su email a su WhatsApp (necesario p/ análisis bancario por email) · ③ enviarle la bienvenida automáticamente · ④ habilitarlo para mandar facturas.' +
         (s.webAppUrl && s.waNum
-          ? '<br><br><div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--orange2);user-select:all;word-break:break-all">activar ' + normalizarTelefonoPanama(s.waNum) + ' ' + s.webAppUrl + '</div>' +
-            (String(s.waNum).replace(/\D/g, '').length === 8 ? '<div style="margin-top:6px;font-size:11px;color:var(--muted)">⚡ Se le agregó <code>507</code> al inicio porque el cliente cargó el celular sin código de país.</div>' : '')
+          ? '<br><br><div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--orange2);user-select:all;word-break:break-all">activar ' + normalizarTelefonoPanama(s.waNum) + ' ' + s.webAppUrl + (s.adminEmail ? ' ' + s.adminEmail : '') + '</div>' +
+            (String(s.waNum).replace(/\D/g, '').length === 8 ? '<div style="margin-top:6px;font-size:11px;color:var(--muted)">⚡ Se le agregó <code>507</code> al inicio porque el cliente cargó el celular sin código de país.</div>' : '') +
+            (!s.adminEmail ? '<div style="margin-top:6px;font-size:11px;color:var(--muted)">⚠️ Sin email admin — el cliente tendrá que linkear su email manualmente para usar análisis bancario por email.</div>' : '')
           : '<br><br><em>Faltan datos para generar el comando — verifica que el cliente tenga WhatsApp y que el Web App esté deployado.</em>'),
       hasActivarWhatsappBtn: !!(s.webAppUrl && s.waNum),
     },

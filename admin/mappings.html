@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BalanceClip — Mappings email↔celular</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F8F9FA; --surface:#FFFFFF; --surface2:#F1F3F5;
+    --border:#DEE2E6; --border2:#CED4DA;
+    --orange:#D04E00; --orange2:#E8620A;
+    --green:#2E7D32; --blue:#1565C0; --red:#C62828;
+    --text:#1A1A2E; --muted:#6C757D;
+    --mono:'DM Mono',monospace; --sans:'Sora',sans-serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; padding:0 0 80px; }
+
+  .topbar {
+    position:sticky; top:0; z-index:50;
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:14px 20px; display:flex; align-items:center; gap:12px;
+  }
+  .topbar-back {
+    background:none; border:none; cursor:pointer; font-size:22px;
+    color:var(--muted); padding:0 4px; text-decoration:none;
+  }
+  .topbar-title { font-size:14px; letter-spacing:.5px; font-weight:600; }
+  .topbar-sub   { font-size:11px; color:var(--muted); margin-top:2px; }
+  .topbar-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .btn {
+    border:1px solid var(--border2); background:var(--surface); color:var(--text);
+    padding:8px 14px; border-radius:6px; font-family:var(--sans); font-size:12px;
+    font-weight:600; cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;
+  }
+  .btn:hover { border-color:var(--orange); color:var(--orange); }
+  .btn-primary { background:var(--orange); color:#fff; border-color:var(--orange); }
+  .btn-primary:hover { background:var(--orange2); color:#fff; }
+  .btn-ghost { background:transparent; border-color:var(--border); }
+  .btn-sm { padding:6px 10px; font-size:11px; }
+  .btn-danger { color:var(--red); border-color:var(--red); }
+  .btn-danger:hover { background:var(--red); color:#fff; }
+
+  .container { max-width:980px; margin:0 auto; padding:24px 20px 0; }
+
+  .hero { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px 22px; margin-bottom:18px; }
+  .hero-title { font-size:18px; font-weight:700; margin-bottom:4px; }
+  .hero-desc { font-size:12px; color:var(--muted); line-height:1.5; }
+  .hero-stats { display:flex; gap:18px; margin-top:14px; flex-wrap:wrap; }
+  .stat {
+    flex:1; min-width:140px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:10px 14px;
+  }
+  .stat-n { font-family:var(--mono); font-size:20px; font-weight:600; color:var(--orange); }
+  .stat-l { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .auth-banner {
+    background:#FFF8E1; border:1px solid #F4D58D; color:#7A5300;
+    border-radius:8px; padding:10px 14px; font-size:12px;
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    margin-bottom:14px;
+  }
+  .auth-banner.ok   { background:#E8F5E9; border-color:#A5D6A7; color:#1B5E20; }
+  .auth-banner.warn { background:#FFEBEE; border-color:#EF9A9A; color:#B71C1C; }
+  .auth-banner button { background:var(--surface); border:1px solid var(--border2); color:var(--text); padding:5px 10px; border-radius:5px; cursor:pointer; font-size:11px; font-weight:600; }
+
+  .controls { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .search-wrap { flex:1; min-width:200px; }
+  .search-wrap input {
+    width:100%; border:1px solid var(--border2); background:var(--surface);
+    border-radius:8px; padding:9px 12px; font-family:var(--sans); font-size:13px;
+  }
+  .filter-sel {
+    background:var(--surface); border:1px solid var(--border2); border-radius:8px;
+    padding:9px 12px; font-family:var(--sans); font-size:13px;
+  }
+
+  .table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:10px 14px; background:var(--surface2); font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border); }
+  td { padding:11px 14px; border-bottom:1px solid var(--border); }
+  tr:last-child td { border-bottom:0; }
+  tr:hover td { background:var(--surface2); }
+
+  .pill { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:600; }
+  .pill-ok   { background:#E8F5E9; color:#1B5E20; }
+  .pill-warn { background:#FFF8E1; color:#8A6A00; }
+
+  .mono { font-family:var(--mono); font-size:12px; }
+  .row-actions { display:flex; gap:6px; justify-content:flex-end; }
+
+  .empty { padding:32px 20px; text-align:center; color:var(--muted); font-size:13px; }
+  .loading { padding:40px 20px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* Modal */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none;
+    align-items:center; justify-content:center; z-index:200; padding:20px;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal {
+    background:var(--surface); border-radius:12px; padding:24px;
+    max-width:440px; width:100%; box-shadow:0 8px 32px rgba(0,0,0,.2);
+  }
+  .modal h2 { font-size:17px; margin-bottom:6px; }
+  .modal-desc { font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:16px; }
+  .modal label { display:block; font-size:11px; color:var(--muted); margin:10px 0 4px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+  .modal input {
+    width:100%; padding:9px 12px; border:1px solid var(--border2); background:var(--surface);
+    border-radius:6px; font-family:var(--sans); font-size:13px;
+  }
+  .modal-hint { font-size:11px; color:var(--muted); margin-top:4px; }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
+
+  .toast {
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--text); color:#fff; padding:11px 18px; border-radius:8px;
+    font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.25);
+    opacity:0; transition:opacity .2s; pointer-events:none; z-index:300;
+  }
+  .toast.ok   { background:var(--green); }
+  .toast.err  { background:var(--red); }
+  .toast.show { opacity:1; }
+
+  @media(max-width:600px) {
+    .hero-stats { flex-direction:column; }
+    table { font-size:12px; }
+    th, td { padding:8px 10px; }
+    .row-actions { flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html" class="topbar-back">←</a>
+  <div>
+    <div class="topbar-title">Mappings email↔celular</div>
+    <div class="topbar-sub">Vincular emails al WhatsApp del cliente</div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-sm" onclick="loadAll()">↻ Refrescar</button>
+    <button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Agregar mapping</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <div class="hero-title">📧 → 📱 Mappings de análisis bancario por email</div>
+    <div class="hero-desc">
+      Cuando un cliente reenvía su xlsx de Banco General a <code>analisis@balanceclip.net</code>,
+      el watcher usa estos mappings para devolver el análisis al WhatsApp correcto. Sin un mapping,
+      el email queda sin entregar. El comando <code>activar</code> del provisioner ahora setea el
+      mapping automáticamente si el cliente registró un email admin.
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-n" id="statTotal">—</div><div class="stat-l">Mappings totales</div></div>
+      <div class="stat"><div class="stat-n" id="statClient">—</div><div class="stat-l">Vinculados a cliente activo</div></div>
+      <div class="stat"><div class="stat-n" id="statOrphan">—</div><div class="stat-l">Huérfanos (phone no activado)</div></div>
+    </div>
+  </div>
+
+  <div class="auth-banner" id="authBanner">
+    <span>⏳ Verificando acceso…</span>
+  </div>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <input type="search" id="qInput" placeholder="Buscar email o phone…" oninput="render()">
+    </div>
+    <select class="filter-sel" id="filterSel" onchange="render()">
+      <option value="all">Todos</option>
+      <option value="client">Solo vinculados a cliente</option>
+      <option value="orphan">Solo huérfanos</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Celular</th>
+          <th>Estado</th>
+          <th style="text-align:right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="4" class="loading">⏳ Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Add/Edit modal -->
+<div class="modal-overlay" id="modalAdd">
+  <div class="modal">
+    <h2 id="modalTitle">Agregar mapping</h2>
+    <div class="modal-desc">
+      Vincula un email al WhatsApp del cliente. El email debe ser desde el que el cliente
+      reenviará su xlsx a <code>analisis@balanceclip.net</code>. El phone debe incluir código
+      de país (Panamá = 507).
+    </div>
+    <label>Email</label>
+    <input type="email" id="inpEmail" placeholder="cliente@empresa.com" autocomplete="off">
+    <label>Celular (con código país, sin +)</label>
+    <input type="text" id="inpPhone" placeholder="50760909384" autocomplete="off">
+    <div class="modal-hint" id="phoneHint"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeAddModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="saveMapping()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const ROUTER_URL = 'https://script.google.com/macros/s/AKfycbzzgc0zIe4cQ52jZciIMy6IYfiHNeQsgql5Mz_tPIabSLk4CVMfg8cImlukumGr906orw/exec';
+
+let _items   = [];   // [{ email, phone, isClient }]
+let _editing = null; // null = add, email-string = edit
+
+function getToken() { return localStorage.getItem('bc_admin_token') || ''; }
+
+// JSONP helper — el router responde JSONP para evitar CORS desde Pages.
+let _jsonpSeq = 0;
+function jsonpGet(params, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_bc_cb_' + (++_jsonpSeq) + '_' + Date.now();
+    const qs = Object.keys(params).map(k => encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+    const url = ROUTER_URL + '?' + qs + '&callback=' + cbName;
+    const s = document.createElement('script');
+    let done = false;
+    const cleanup = () => {
+      delete window[cbName];
+      if (s.parentNode) s.parentNode.removeChild(s);
+    };
+    window[cbName] = (data) => { done = true; cleanup(); resolve(data); };
+    s.onerror = () => { if (done) return; cleanup(); reject(new Error('jsonp network error')); };
+    setTimeout(() => { if (done) return; cleanup(); reject(new Error('jsonp timeout')); }, timeoutMs || 15000);
+    s.src = url;
+    document.head.appendChild(s);
+  });
+}
+
+function toast(msg, kind) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (kind || '');
+  setTimeout(() => { t.className = 'toast'; }, 2400);
+}
+
+async function loadAll() {
+  const t = getToken();
+  const banner = document.getElementById('authBanner');
+  if (!t) {
+    banner.className = 'auth-banner warn';
+    banner.innerHTML = '<span>🔒 Falta el <code>ADMIN_TOKEN</code>. Configurálo en el hub admin primero.</span><a class="btn btn-sm" href="index.html">Volver al hub →</a>';
+    document.getElementById('rows').innerHTML = '<tr><td colspan="4" class="empty">Sin auth.</td></tr>';
+    return;
+  }
+  banner.className = 'auth-banner';
+  banner.innerHTML = '<span>⏳ Cargando mappings…</span>';
+  try {
+    const data = await jsonpGet({ action:'listEmailMappings', adminToken:t });
+    if (!data || !data.ok) throw new Error((data && data.error) || 'error desconocido');
+    _items = data.items || [];
+    const orphans = _items.filter(r => !r.isClient).length;
+    const linked  = _items.length - orphans;
+    document.getElementById('statTotal').textContent  = _items.length;
+    document.getElementById('statClient').textContent = linked;
+    document.getElementById('statOrphan').textContent = orphans;
+    banner.className = 'auth-banner ok';
+    banner.innerHTML = '<span>✅ ' + _items.length + ' mapping(s) cargados.</span><button onclick="loadAll()">Refrescar</button>';
+    render();
+  } catch (e) {
+    banner.className = 'auth-banner warn';
+    banner.innerHTML = '<span>⚠️ ' + e.message + '</span><a class="btn btn-sm" href="index.html">Re-auth →</a>';
+    document.getElementById('rows').innerHTML = '<tr><td colspan="4" class="empty">Error cargando datos.</td></tr>';
+  }
+}
+
+function render() {
+  const q      = document.getElementById('qInput').value.toLowerCase().trim();
+  const filter = document.getElementById('filterSel').value;
+  let rows = _items.slice();
+  if (q) rows = rows.filter(r => r.email.toLowerCase().indexOf(q) >= 0 || r.phone.indexOf(q) >= 0);
+  if (filter === 'client') rows = rows.filter(r => r.isClient);
+  if (filter === 'orphan') rows = rows.filter(r => !r.isClient);
+
+  const tbody = document.getElementById('rows');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">Sin resultados.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const pill = r.isClient
+      ? '<span class="pill pill-ok">✅ Cliente</span>'
+      : '<span class="pill pill-warn">⚠️ Huérfano</span>';
+    return '<tr>' +
+      '<td>' + escHtml(r.email) + '</td>' +
+      '<td class="mono">+' + escHtml(r.phone) + '</td>' +
+      '<td>' + pill + '</td>' +
+      '<td><div class="row-actions">' +
+        '<button class="btn btn-sm" onclick="openEditModal(\'' + escAttr(r.email) + '\',\'' + escAttr(r.phone) + '\')">✏️ Editar</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="deleteMapping(\'' + escAttr(r.email) + '\')">🗑 Borrar</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function escAttr(s) { return String(s||'').replace(/'/g, '%27').replace(/"/g, '&quot;'); }
+
+function openAddModal() {
+  _editing = null;
+  document.getElementById('modalTitle').textContent = 'Agregar mapping';
+  document.getElementById('inpEmail').value = '';
+  document.getElementById('inpPhone').value = '';
+  document.getElementById('phoneHint').textContent = '';
+  document.getElementById('inpEmail').disabled = false;
+  document.getElementById('modalAdd').classList.add('active');
+  setTimeout(() => document.getElementById('inpEmail').focus(), 80);
+}
+
+function openEditModal(email, phone) {
+  _editing = email;
+  document.getElementById('modalTitle').textContent = 'Editar mapping';
+  document.getElementById('inpEmail').value = email;
+  document.getElementById('inpEmail').disabled = true;  // el email es la key
+  document.getElementById('inpPhone').value = phone;
+  document.getElementById('phoneHint').textContent = '';
+  document.getElementById('modalAdd').classList.add('active');
+  setTimeout(() => document.getElementById('inpPhone').focus(), 80);
+}
+
+function closeAddModal() {
+  document.getElementById('modalAdd').classList.remove('active');
+  _editing = null;
+}
+
+async function saveMapping() {
+  const email = document.getElementById('inpEmail').value.trim().toLowerCase();
+  let phone   = document.getElementById('inpPhone').value.replace(/\D/g, '');
+  const hint  = document.getElementById('phoneHint');
+  hint.textContent = '';
+  if (!email || email.indexOf('@') < 0) { hint.textContent = '⚠️ Email inválido.'; return; }
+  if (phone.length === 8) {
+    // Asistencia: 8 dígitos en Panamá → prepend 507.
+    phone = '507' + phone;
+    hint.textContent = '⚡ Le agregué 507 al inicio (código país Panamá).';
+  }
+  if (phone.length < 10) { hint.textContent = '⚠️ Phone muy corto — debe incluir código país.'; return; }
+  const t = getToken();
+  try {
+    const data = await jsonpGet({ action:'setEmailMapping', adminToken:t, email:email, phone:phone });
+    if (!data || !data.ok) throw new Error((data && data.error) || 'error guardando');
+    toast(_editing ? 'Mapping actualizado ✓' : 'Mapping creado ✓', 'ok');
+    closeAddModal();
+    await loadAll();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+async function deleteMapping(email) {
+  if (!confirm('Borrar el mapping de ' + email + '?\n\nEl email ya no devolverá análisis bancario al WhatsApp asociado.')) return;
+  const t = getToken();
+  try {
+    const data = await jsonpGet({ action:'deleteEmailMapping', adminToken:t, email:email });
+    if (!data || !data.ok) throw new Error((data && data.error) || 'error borrando');
+    toast('Borrado ✓', 'ok');
+    await loadAll();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeAddModal();
+});
+
+loadAll();
+</script>
+</body>
+</html>
