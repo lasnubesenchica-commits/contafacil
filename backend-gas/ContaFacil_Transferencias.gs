@@ -520,14 +520,17 @@ function _transfCategoriaLabel(key) {
 // pendientes acumuladas se notifican automáticamente.
 function _transfDrainQueue(phone, token, phoneId) {
   if (!phone || !token || !phoneId) return;
-  var pendientes = _transfPendientesPorPhone(phone, 3);
-  if (!pendientes.length) return;
-  Logger.log('📤 Drenando queue de transferencias: ' + pendientes.length + ' para ' + phone);
-  // Header brief antes de la lista (solo si hay más de 1)
-  if (pendientes.length > 1) {
-    _whatsappReply(phone,
-      '📋 *Tienes ' + pendientes.length + ' transferencia(s) pendientes de categorizar.* Te las voy mandando una por una.',
-      token, phoneId);
+  var BATCH_SIZE = 10;
+  var all = _transfPendientesPorPhone(phone, 999);
+  if (!all.length) return;
+  var pendientes = all.slice(0, BATCH_SIZE);
+  Logger.log('📤 Drenando queue de transferencias: ' + pendientes.length + '/' + all.length + ' para ' + phone);
+  // Header brief antes de la lista (solo si hay más de 1).
+  if (all.length > 1) {
+    var hdr = all.length > BATCH_SIZE
+      ? '📋 *Tienes ' + all.length + ' transferencias pendientes.* Te mando las primeras ' + BATCH_SIZE + ' ahora...'
+      : '📋 *Tienes ' + all.length + ' transferencia(s) pendientes de categorizar.* Te las voy mandando una por una.';
+    _whatsappReply(phone, hdr, token, phoneId);
     Utilities.sleep(700);
   }
   var stamp = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm:ss');
@@ -541,6 +544,15 @@ function _transfDrainQueue(phone, token, phoneId) {
       error_msg: ok ? '' : 'send falló en drain',
     });
     if (i < pendientes.length - 1) Utilities.sleep(500);  // throttle
+  }
+  // Si quedan más después del batch, avisar al cliente para que sepa
+  // que tiene que escribir otra vez para drenarlas. Sin esto, el
+  // cliente puede pensar que ya están todas.
+  if (all.length > BATCH_SIZE) {
+    Utilities.sleep(500);
+    _whatsappReply(phone,
+      '_(' + (all.length - BATCH_SIZE) + ' transferencia(s) más en cola — escribime cualquier mensaje y te las mando)_',
+      token, phoneId);
   }
 }
 
