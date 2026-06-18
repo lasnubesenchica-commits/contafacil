@@ -147,11 +147,24 @@ function _routerForwardMensaje(msg, metadata) {
 
   // Logging inbound — siempre primero para tener trazabilidad completa.
   _routerLogInbound(msg, from);
+  // Track last-inbound timestamp por phone — usado por:
+  // 1. _routerCheckVentana24hAdmin (warning antes que cierre la ventana
+  //    de 24h del admin).
+  // 2. Notificaciones admin (debounce por cliente).
+  _routerUpdateLastInbound(from);
 
   var props   = PropertiesService.getScriptProperties();
   var token   = props.getProperty('META_WHATSAPP_TOKEN');
   var phoneId = props.getProperty('META_PHONE_ID') || (metadata.phone_number_id || '');
   var adminPhone = props.getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
+
+  // Notificar al admin sobre la interacción del cliente — debounced para
+  // no spamear. NO notifica si: from === admin, flag OFF, o pasó menos
+  // del debounce desde la última notif para este phone.
+  if (from !== adminPhone) {
+    try { _routerNotificarAdminInteraccion(msg, from, adminPhone, token, phoneId); }
+    catch (notifErr) { Logger.log('Admin notif ERROR: ' + notifErr.message); }
+  }
 
   // ── 1. Interactivos del flujo de SIGNUP / ANÁLISIS PROSPECT
   //      (funcionan también para números todavía no en el mapa).
@@ -2566,4 +2579,145 @@ function _routerMaskPhone(p) {
   if (s.length < 6) return '***';
   // últimos 3 dígitos visibles, resto enmascarado: "507***123"
   return s.substring(0, 3) + '***' + s.substring(s.length - 3);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  ADMIN INTERACTION FEED — notificación al admin sobre interacciones
+//  de clientes/visitantes con el bot.
+//
+//  Feature flags (Script Properties):
+//    ADMIN_NOTIFY_INTERACCIONES         true|false  (default false)
+//    ADMIN_NOTIFY_DEBOUNCE_NEW_MIN      default 5
+//    ADMIN_NOTIFY_DEBOUNCE_EXISTING_MIN default 30
+//
+//  Debounce: max 1 notif por phone cada N min (configurable). Burst de
+//  10 mensajes en 5 min = 1 notif, no 10. Periodo más corto para NEW
+//  (los primeros mensajes son críticos para signup) y más largo para
+//  EXISTING (flujo de uso normal — facturas, etc).
+// ════════════════════════════════════════════════════════════════════
+
+function _routerUpdateLastInbound(phone) {
+  if (!phone) return;
+  try {
+    PropertiesService.getScriptProperties().setProperty('lastInbound_' + phone, String(Date.now()));
+  } catch (e) { /* silent */ }
+}
+
+function _routerNotificarAdminInteraccion(msg, from, adminPhone, token, phoneId) {
+  if (!from || !adminPhone || !token || !phoneId) return;
+  var props = PropertiesService.getScriptProperties();
+  if (String(props.getProperty('ADMIN_NOTIFY_INTERACCIONES') || '').toLowerCase() !== 'true') return;
+
+  // Determinar si es cliente existente o nuevo (lookup en CLIENTS_MAP_JSON)
+  var clientsMap;
+  try { clientsMap = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch (e) { clientsMap = {}; }
+  var isExisting = !!clientsMap[from];
+
+  // Debounce diferenciado por tipo de cliente
+  var debounceMin = isExisting
+    ? (parseInt(props.getProperty('ADMIN_NOTIFY_DEBOUNCE_EXISTING_MIN'), 10) || 30)
+    : (parseInt(props.getProperty('ADMIN_NOTIFY_DEBOUNCE_NEW_MIN'), 10)      || 5);
+  var debounceMs = debounceMin * 60 * 1000;
+  var lastKey    = 'adminNotif_' + from;
+  var last       = parseInt(props.getProperty(lastKey), 10) || 0;
+  if (Date.now() - last < debounceMs) return;
+  props.setProperty(lastKey, String(Date.now()));
+
+  var label = isExisting ? '✅ *Cliente activo*' : '🆕 *Nuevo / Visitante*';
+  var interactionDesc = _routerDescribirInteraccion(msg);
+  var notif = label + '\n' +
+              '📱 +' + from + '\n' +
+              interactionDesc;
+  // _routerSendText es try/catch internamente — no tira si falla.
+  _routerSendText(adminPhone, notif, token, phoneId);
+}
+
+function _routerDescribirInteraccion(msg) {
+  var tipo = msg.type || 'unknown';
+  if (tipo === 'text') {
+    var body = (msg.text && msg.text.body) || '';
+    return '💬 _' + body.substring(0, 200) + (body.length > 200 ? '…' : '') + '_';
+  }
+  if (tipo === 'image')    return '🖼 Imagen (probable factura/comprobante)';
+  if (tipo === 'document') {
+    var f = (msg.document && msg.document.filename) || '';
+    return '📎 Documento: ' + (f || 'sin nombre');
+  }
+  if (tipo === 'audio')    return '🎤 Audio';
+  if (tipo === 'video')    return '🎥 Video';
+  if (tipo === 'interactive') {
+    var ia = msg.interactive || {};
+    var t  = (ia.list_reply   && ia.list_reply.title)   ||
+             (ia.button_reply && ia.button_reply.title) || '?';
+    var id = (ia.list_reply   && ia.list_reply.id)      ||
+             (ia.button_reply && ia.button_reply.id)    || '';
+    return '🔘 Tocó: "' + t + '" _(' + id + ')_';
+  }
+  if (tipo === 'sticker')  return '💟 Sticker';
+  if (tipo === 'location') return '📍 Ubicación';
+  return '❓ Tipo: ' + tipo;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  WARNING DE VENTANA 24h DEL ADMIN
+//  Cron horario. Si el admin no escribe hace 20-23h, mandamos warning
+//  para que reactive (mensaje free-form, gratis, mientras la ventana
+//  sigue abierta). Si la deja cerrar, próximas notifs requieren
+//  template HSM (con costo).
+// ════════════════════════════════════════════════════════════════════
+
+function _routerCheckVentana24hAdmin() {
+  var props      = PropertiesService.getScriptProperties();
+  var adminPhone = props.getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
+  var token      = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId    = props.getProperty('META_PHONE_ID');
+  if (!token || !phoneId) {
+    Logger.log('ventana24h check: META creds faltan');
+    return;
+  }
+  var lastInbound = parseInt(props.getProperty('lastInbound_' + adminPhone), 10) || 0;
+  if (!lastInbound) {
+    Logger.log('ventana24h check: admin nunca mandó inbound — nada que warningar');
+    return;
+  }
+  var hoursSince = (Date.now() - lastInbound) / (1000 * 60 * 60);
+  // Sweet spot: entre 20h y 23h (4-1h antes de cierre).
+  if (hoursSince < 20 || hoursSince >= 23.5) {
+    Logger.log('ventana24h check: hoursSince=' + hoursSince.toFixed(1) + 'h — fuera del rango de warning');
+    return;
+  }
+  // Debounce — no mandar más de 1 warning por ventana. Si ya warneé
+  // después del último inbound, skip.
+  var lastWarning = parseInt(props.getProperty('lastWarning24h_' + adminPhone), 10) || 0;
+  if (lastWarning > lastInbound) {
+    Logger.log('ventana24h check: ya se mandó warning después del último inbound, skip');
+    return;
+  }
+  var remaining = (24 - hoursSince).toFixed(1);
+  _routerSendText(adminPhone,
+    '⏰ *Tu ventana de 24h cierra en ~' + remaining + 'h*\n\n' +
+    'Si querés seguir recibiendo notificaciones de clientes sin usar templates pagos, mandá cualquier mensaje (un "ok" basta) para reactivar la ventana.\n\n' +
+    '_Después de la ventana cerrada, las notifs requieren plantilla aprobada por Meta — costo ~$0.016 c/u._',
+    token, phoneId);
+  props.setProperty('lastWarning24h_' + adminPhone, String(Date.now()));
+  Logger.log('ventana24h check: warning enviado al admin (' + remaining + 'h restantes)');
+}
+
+// Setup helper — correr una vez desde el editor para instalar el cron.
+// Idempotente: borra triggers viejos antes de crear.
+function routerInstallAdminTriggers() {
+  var existing = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < existing.length; i++) {
+    if (existing[i].getHandlerFunction() === '_routerCheckVentana24hAdmin') {
+      ScriptApp.deleteTrigger(existing[i]);
+    }
+  }
+  ScriptApp.newTrigger('_routerCheckVentana24hAdmin')
+    .timeBased()
+    .everyHours(1)
+    .create();
+  Logger.log('✅ Trigger _routerCheckVentana24hAdmin instalado (cada 1h)');
+  Logger.log('ℹ Para activar notificaciones de interacciones, setear Script Property:');
+  Logger.log('   ADMIN_NOTIFY_INTERACCIONES = true');
 }
