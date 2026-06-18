@@ -160,6 +160,15 @@ function _whatsappProcesarMensaje(msg, metadata) {
     return;
   }
 
+  // ── Tracking de last-inbound (para detectar ventana 24h abierta) ──
+  // Usado por _waIsWindowOpen en el módulo Digest. Cualquier inbound
+  // del cliente abre la ventana customer-service de Meta, lo que nos
+  // permite mandarle mensajes free-form sin gastar templates.
+  if (typeof _waUpdateLastInbound === 'function') {
+    try { _waUpdateLastInbound(from); }
+    catch (e) { /* silent — no romper flujo principal */ }
+  }
+
   // ── Drain de transferencias bancarias pendientes ──
   // Cualquier inbound del cliente abre la ventana de 24h de WhatsApp.
   // Si hay notificaciones de transferencia BG que llegaron mientras la
@@ -1125,6 +1134,12 @@ function _whatsappOnInteractive(msg, from, token, phoneId) {
   if (parts[0] === 'tr') {
     if (parts[1] === 'cat' && typeof _transfHandleClasificacion === 'function') {
       _transfHandleClasificacion(parts[2] || '', parts[3] || '', from, token, phoneId);
+    } else if (parts[1] === 'queue' && parts[2] === 'open' && typeof _tapToEngageHandleRevisar === 'function') {
+      // Botón "📋 Revisar pendientes" del template tap-to-engage
+      _tapToEngageHandleRevisar(from, token, phoneId);
+    } else if (parts[1] === 'digest' && parts[2] === 'detail' && typeof _digestHandleVerDetalle === 'function') {
+      // Botón "📊 Ver detalle" del template digest diario
+      _digestHandleVerDetalle(from, token, phoneId);
     } else {
       Logger.log('Acción tr: desconocida: ' + id);
     }
