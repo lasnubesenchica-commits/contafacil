@@ -658,6 +658,8 @@ select.f-inp { appearance:none; }
   background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
   padding:.55rem .65rem;
 }
+.reg-d-row.clickable{ cursor:pointer; transition:background-color .12s, transform .08s; }
+.reg-d-row.clickable:active{ background:var(--bg2,#F1F3F5); transform:scale(.99); }
 .reg-d-row-main{ min-width:0; }
 .reg-d-row-title{ font-size:.78rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .reg-d-row-meta{ font-size:.65rem;color:var(--muted);margin-top:.15rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap; }
@@ -3297,13 +3299,6 @@ const REGD = (() => {
     const est   = String(e.estado||'').toLowerCase();
     const alc   = e.alcance || 'negocio';
     const id    = esc(e.id_egreso || '');
-    const url   = e.drive_url || '';
-    const fdat  = e.factura_data || '';
-    const docBtn = url
-      ? (fdat
-         ? `<button class="ic-btn" onclick="REGD.verFactura(event,'${id}','egr')" title="Ver factura electrónica">🧾</button>`
-         : `<button class="ic-btn" onclick="window.open('${esc(url).replace(/'/g,'%27')}','_blank')" title="Ver comprobante">📄</button>`)
-      : '';
     const estBadge = est === 'pendiente'
       ? '<span class="reg-d-badge-est pend">⏳ Pend.</span>'
       : est === 'registrado'
@@ -3312,7 +3307,7 @@ const REGD = (() => {
     const alcBadge = alc === 'personal'
       ? '<span class="reg-d-badge-alc pers">🚫 No Ded.</span>'
       : '<span class="reg-d-badge-alc neg">✅ Ded.</span>';
-    return `<div class="reg-d-row">
+    return `<div class="reg-d-row clickable" onclick="REGD.editarEgreso('${id}')">
       <div class="reg-d-row-main">
         <div class="reg-d-row-title">${esc(prov)}</div>
         <div class="reg-d-row-meta">
@@ -3327,11 +3322,6 @@ const REGD = (() => {
       </div>
       <div>
         <div class="reg-d-row-amt egr">-${fmtCompactDollar(total)}</div>
-        <div class="reg-d-row-actions">
-          ${docBtn}
-          <button class="ic-btn edit" onclick="REGD.editarEgreso('${id}')" title="Editar">✏️</button>
-          <button class="ic-btn del"  onclick="REGD.borrar('${id}','egreso')" title="Eliminar">🗑</button>
-        </div>
       </div>
     </div>`;
   }
@@ -3341,14 +3331,7 @@ const REGD = (() => {
     const cat   = _catLabel(i.categoria_ingreso || i.tipo_ingreso || '');
     const total = parseFloat(i.total) || 0;
     const id    = esc(i.id_trans || '');
-    const url   = i.drive_url || '';
-    const fdat  = i.factura_data || '';
-    const docBtn = url
-      ? (fdat
-         ? `<button class="ic-btn" onclick="REGD.verFactura(event,'${id}','ing')" title="Ver factura electrónica">🧾</button>`
-         : `<button class="ic-btn" onclick="window.open('${esc(url).replace(/'/g,'%27')}','_blank')" title="Ver comprobante">📄</button>`)
-      : '';
-    return `<div class="reg-d-row">
+    return `<div class="reg-d-row clickable" onclick="REGD.editarIngreso('${id}')">
       <div class="reg-d-row-main">
         <div class="reg-d-row-title">${esc(cli)}</div>
         <div class="reg-d-row-meta">
@@ -3360,11 +3343,6 @@ const REGD = (() => {
       </div>
       <div>
         <div class="reg-d-row-amt ing">+${fmtCompactDollar(total)}</div>
-        <div class="reg-d-row-actions">
-          ${docBtn}
-          <button class="ic-btn edit" onclick="REGD.editarIngreso('${id}')" title="Editar">✏️</button>
-          <button class="ic-btn del"  onclick="REGD.borrar('${id}','ingreso')" title="Eliminar">🗑</button>
-        </div>
       </div>
     </div>`;
   }
@@ -3900,7 +3878,8 @@ const REG = (() => {
   }
 
   // ── Abrir modales ─────────────────────────────────────
-  let _egrEditId = null;  // null = crear, set = editar
+  let _egrEditId   = null;  // null = crear, set = editar
+  let _egrEditItem = null;  // ref al item editado — usado por las acciones del modal (Ver factura, Eliminar)
 
   function _resetEgrForm() {
     ['regEgrNfac','regEgrDesc','regEgrTotal','regEgrProv','regEgrRuc','regEgrDv','regEgrNotas']
@@ -3922,13 +3901,21 @@ const REG = (() => {
     const hdr  = document.querySelector('#mRegEgreso .sheet-title');
     const btn  = document.getElementById('regEgrSubmit');
     const btnN = document.getElementById('regEgrSubmitNew');
+    const actions = document.getElementById('regEgrEditActions');
+    const verFact = document.getElementById('regEgrVerFacturaBtn');
     if (hdr) hdr.textContent = esEdit ? '✏️ Editar gasto' : '📤 Registrar gasto';
     if (btn) btn.textContent = esEdit ? '💾 Actualizar gasto' : '💾 Guardar y cerrar';
     if (btnN) btnN.style.display = esEdit ? 'none' : '';
+    if (actions) actions.style.display = esEdit ? 'flex' : 'none';
+    if (verFact) {
+      const hasUrl = !!(esEdit && _egrEditItem && _egrEditItem.drive_url);
+      verFact.style.display = hasUrl ? '' : 'none';
+    }
   }
 
   function openEgreso() {
-    _egrEditId = null;
+    _egrEditId   = null;
+    _egrEditItem = null;
     buildEgrCatOpts(); // poblar select desde CATEGORIAS_GASTO_DGI
     _resetEgrForm();
     _setEgrTitulo(false);
@@ -3941,7 +3928,8 @@ const REG = (() => {
   }
 
   function openEditarEgreso(item) {
-    _egrEditId = item.id_egreso;
+    _egrEditId   = item.id_egreso;
+    _egrEditItem = item;
     buildEgrCatOpts();
     _resetEgrForm();
     const _rawCat = String(item.tipo_egreso || item.categoria || '').trim();
@@ -3975,7 +3963,8 @@ const REG = (() => {
     openModal('mRegEgreso');
   }
 
-  let _ingEditId = null;  // null = crear, set = editar
+  let _ingEditId   = null;  // null = crear, set = editar
+  let _ingEditItem = null;  // ref al item editado — usado por las acciones del modal (Ver factura, Eliminar)
 
   function _resetIngForm() {
     ['regIngNfac','regIngDesc','regIngTotal','regIngNombre','regIngRuc','regIngDv','regIngNotas']
@@ -3995,7 +3984,8 @@ const REG = (() => {
   }
 
   function openIngreso() {
-    _ingEditId = null;
+    _ingEditId   = null;
+    _ingEditItem = null;
     _resetIngForm();
     _setIngTitulo(false);
     _loadClientesIng();
@@ -4003,7 +3993,8 @@ const REG = (() => {
   }
 
   function openEditarIngreso(item) {
-    _ingEditId = item.id_trans;
+    _ingEditId   = item.id_trans;
+    _ingEditItem = item;
     _resetIngForm();
     // Resolver categoría legacy a key nueva si aplica
     const _rawCatI = item.categoria_ingreso || item.tipo_ingreso || 'ventas_servicios';
@@ -4028,8 +4019,15 @@ const REG = (() => {
   function _setIngTitulo(esEdit) {
     const hdr = document.querySelector('#mRegIngreso .sheet-title');
     const btn = document.getElementById('regIngSubmit');
+    const actions = document.getElementById('regIngEditActions');
+    const verFact = document.getElementById('regIngVerFacturaBtn');
     if (hdr) hdr.textContent = esEdit ? '✏️ Editar ingreso' : '💰 Registrar ingreso';
     if (btn) btn.textContent = esEdit ? 'Actualizar ingreso' : 'Guardar ingreso';
+    if (actions) actions.style.display = esEdit ? 'flex' : 'none';
+    if (verFact) {
+      const hasUrl = !!(esEdit && _ingEditItem && _ingEditItem.drive_url);
+      verFact.style.display = hasUrl ? '' : 'none';
+    }
   }
 
   // ── Clientes guardados (derivados de getIngresos — cubre todo el histórico) ──
@@ -4279,7 +4277,29 @@ const REG = (() => {
     }
   }
 
+  function editEgrVerFactura() {
+    if (!_egrEditId || typeof REGD === 'undefined' || !REGD.verFactura) return;
+    REGD.verFactura(null, _egrEditId, 'egr');
+  }
+  function editEgrBorrar() {
+    if (!_egrEditId || typeof REGD === 'undefined' || !REGD.borrar) return;
+    const id = _egrEditId;
+    closeModal('mRegEgreso');
+    REGD.borrar(id, 'egreso');
+  }
+  function editIngVerFactura() {
+    if (!_ingEditId || typeof REGD === 'undefined' || !REGD.verFactura) return;
+    REGD.verFactura(null, _ingEditId, 'ing');
+  }
+  function editIngBorrar() {
+    if (!_ingEditId || typeof REGD === 'undefined' || !REGD.borrar) return;
+    const id = _ingEditId;
+    closeModal('mRegIngreso');
+    REGD.borrar(id, 'ingreso');
+  }
+
   return { openEgreso, openEditarEgreso, openIngreso, openEditarIngreso, onEgrFile, onIngFile,
+           editEgrVerFactura, editEgrBorrar, editIngVerFactura, editIngBorrar,
            submitEgreso, submitIngreso,
            recalcEgr, recalcIng, inferTipoEgr, inferItbmsIng, buildEgrCatOpts, setAlcance,
            setEgrMode: _setEgrMode,
@@ -4898,6 +4918,12 @@ const PEND = (() => {
               style="background:#6A1B9A;margin:0">💾 Guardar y cerrar</button>
       <button class="sheet-submit" id="regEgrSubmitNew" onclick="REG.submitEgreso({andNew:true})"
               style="background:var(--orange);margin:.4rem 0 0">💾 Guardar y subir otra</button>
+      <div id="regEgrEditActions" style="display:none;gap:8px;margin-top:.5rem">
+        <button id="regEgrVerFacturaBtn" type="button" onclick="REG.editEgrVerFactura()"
+                style="flex:1;padding:.7rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">🧾 Ver factura</button>
+        <button type="button" onclick="REG.editEgrBorrar()"
+                style="flex:1;padding:.7rem;background:#FFF5F5;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">🗑 Eliminar</button>
+      </div>
       <button class="sheet-footer-cancel" onclick="closeModal('mRegEgreso')">Cancelar</button>
     </div>
   </div>
@@ -5018,6 +5044,12 @@ const PEND = (() => {
     <div class="sheet-footer">
       <button class="sheet-submit" id="regIngSubmit" onclick="REG.submitIngreso()"
               style="background:var(--green);margin:0">Guardar ingreso</button>
+      <div id="regIngEditActions" style="display:none;gap:8px;margin-top:.5rem">
+        <button id="regIngVerFacturaBtn" type="button" onclick="REG.editIngVerFactura()"
+                style="flex:1;padding:.7rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">🧾 Ver factura</button>
+        <button type="button" onclick="REG.editIngBorrar()"
+                style="flex:1;padding:.7rem;background:#FFF5F5;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">🗑 Eliminar</button>
+      </div>
       <button class="sheet-footer-cancel" onclick="closeModal('mRegIngreso')">Cancelar</button>
     </div>
   </div>
