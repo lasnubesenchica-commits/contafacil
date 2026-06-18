@@ -2098,6 +2098,14 @@ const CATEGORIAS_GASTO_DGI = [
   { valor: 'intereses_hipotecarios',          label: 'Intereses hipotecarios',          linea: 'DP-3', seccion: 'personal', emoji: '🏡' },
   { valor: 'intereses_prestamos_educativos',  label: 'Intereses préstamos educativos',  linea: 'DP-4', seccion: 'personal', emoji: '🎓' },
   { valor: 'gastos_escolares_discapacitados', label: 'Gastos escolares discapacitados', linea: 'DP-5', seccion: 'personal', emoji: '♿' },
+  // NO DEDUCIBLES (Art. 697 — gastos personales de subsistencia, no entran al Form 90/91).
+  // Tracking personal del cliente; auto-marcan alcance=personal en backend.
+  { valor: 'gastos_alimentacion',     label: 'Gastos de Alimentación',    linea: 'ND',  seccion: 'no_deducible', emoji: '🍽️' },
+  { valor: 'gastos_vestimenta',       label: 'Gastos de Vestimenta',      linea: 'ND',  seccion: 'no_deducible', emoji: '👕' },
+  { valor: 'pension_alimenticia',     label: 'Pensión Alimenticia',       linea: 'ND',  seccion: 'no_deducible', emoji: '👨‍👩‍👧' },
+  { valor: 'manutencion',             label: 'Manutención',               linea: 'ND',  seccion: 'no_deducible', emoji: '💸' },
+  { valor: 'viajes_recreativos',      label: 'Viajes Recreativos',        linea: 'ND',  seccion: 'no_deducible', emoji: '✈️' },
+  { valor: 'fiestas_entretenimiento', label: 'Fiestas y Entretenimiento', linea: 'ND',  seccion: 'no_deducible', emoji: '🎉' },
 ];
 // Mapping legacy → nueva key (datos viejos en hoja siguen funcionando)
 const LEGACY_GASTO_MAP = {
