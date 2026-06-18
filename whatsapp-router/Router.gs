@@ -199,6 +199,18 @@ function _routerForwardMensaje(msg, metadata) {
       _routerHandleListarEmailsCommand(from, token, phoneId);
       return;
     }
+    if (/^desactivar\s+/i.test(adminBody)) {
+      _routerHandleDesactivarCommand(from, adminBody, token, phoneId);
+      return;
+    }
+    if (/^duplicar[-_ ]cliente\s+/i.test(adminBody)) {
+      _routerHandleDuplicarClienteCommand(from, adminBody, token, phoneId);
+      return;
+    }
+    if (/^listar[-_ ]clientes$/i.test(adminBody) || /^clientes$/i.test(adminBody)) {
+      _routerHandleListarClientesCommand(from, token, phoneId);
+      return;
+    }
   }
 
   // ── 4. Routing normal: cliente conocido o desconocido.
@@ -1439,6 +1451,135 @@ function _routerListEmailMappings() {
 }
 
 // ────────────────────────────────────────────────────────────────────
+//  Comandos admin para CLIENTS_MAP_JSON (post-onboarding / multi-phone).
+//
+//  desactivar <phone>                    → borrar entrada del map
+//  duplicar-cliente <phone-base> <phone-nuevo>
+//                                        → agrega <phone-nuevo> apuntando
+//                                          a la MISMA URL del <phone-base>.
+//                                          Útil p/ permitir que un 2do
+//                                          número (asistente, esposa, etc.)
+//                                          mande facturas a la cuenta del
+//                                          cliente principal.
+//  listar-clientes / clientes            → lista phone→URL
+// ────────────────────────────────────────────────────────────────────
+function _routerHandleDesactivarCommand(from, text, token, phoneId) {
+  var m = String(text || '').match(/^desactivar\s+(\d{8,})\s*$/i);
+  if (!m) {
+    _routerSendText(from,
+      '⚠️ Formato del comando:\n' +
+      '`desactivar <phone_sin_+>`\n\n' +
+      'Ejemplo:\n' +
+      '`desactivar 50760909384`\n\n' +
+      '_Borra el mapping phone→URL del CLIENTS_MAP_JSON. El número queda como visitante._',
+      token, phoneId);
+    return;
+  }
+  var phone = m[1];
+  var props = PropertiesService.getScriptProperties();
+  var map;
+  try { map = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); } catch(e) { map = {}; }
+  if (!map[phone]) {
+    _routerSendText(from, '⚠️ El número *' + phone + '* no estaba en CLIENTS_MAP_JSON. Nada que borrar.', token, phoneId);
+    return;
+  }
+  var prevUrl = map[phone];
+  delete map[phone];
+  props.setProperty('CLIENTS_MAP_JSON', JSON.stringify(map));
+  _routerSendText(from,
+    '🗑 *Cliente desactivado*\n\n' +
+    '📱 +' + phone + '\n' +
+    '🔗 _(antes apuntaba a)_ ' + prevUrl + '\n\n' +
+    '_Cualquier mensaje desde este número ahora cae al flujo de visitante/demo._',
+    token, phoneId);
+}
+
+function _routerHandleDuplicarClienteCommand(from, text, token, phoneId) {
+  var m = String(text || '').match(/^duplicar[-_ ]cliente\s+(\d{8,})\s+(\d{8,})\s*$/i);
+  if (!m) {
+    _routerSendText(from,
+      '⚠️ Formato del comando:\n' +
+      '`duplicar-cliente <phone-base> <phone-nuevo>`\n\n' +
+      'Ejemplo:\n' +
+      '`duplicar-cliente 50760909384 50769876543`\n\n' +
+      '_Hace que el <phone-nuevo> apunte a la MISMA URL que el <phone-base>. Útil p/ que un 2do número del mismo cliente (asistente, esposa) pueda mandar facturas a la cuenta principal._',
+      token, phoneId);
+    return;
+  }
+  var phoneBase  = m[1];
+  var phoneNuevo = m[2];
+  if (phoneBase === phoneNuevo) {
+    _routerSendText(from, '⚠️ Los dos phones son iguales. Tienen que ser distintos.', token, phoneId);
+    return;
+  }
+  var props = PropertiesService.getScriptProperties();
+  var map;
+  try { map = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); } catch(e) { map = {}; }
+  var baseUrl = map[phoneBase];
+  if (!baseUrl) {
+    _routerSendText(from,
+      '⚠️ *Phone base no encontrado*\n\n' +
+      'El número *' + phoneBase + '* no está en CLIENTS_MAP_JSON. Primero activalo con `activar`.',
+      token, phoneId);
+    return;
+  }
+  var yaExistia = !!map[phoneNuevo];
+  var urlPrevia = map[phoneNuevo] || '';
+  map[phoneNuevo] = baseUrl;
+  props.setProperty('CLIENTS_MAP_JSON', JSON.stringify(map));
+  props.deleteProperty('welcomed_' + phoneNuevo);
+  _routerSendText(from,
+    '✅ *Cliente duplicado*\n\n' +
+    '📱 +' + phoneNuevo + (yaExistia ? ' _(re-apuntado)_' : ' _(nuevo)_') + '\n' +
+    '🔗 → ' + baseUrl + '\n' +
+    (yaExistia && urlPrevia !== baseUrl ? '_(antes apuntaba a otra URL: ' + urlPrevia + ')_\n' : '') +
+    '\n_Ambos teléfonos (+' + phoneBase + ' y +' + phoneNuevo + ') ahora caen en la misma hoja del cliente._',
+    token, phoneId);
+}
+
+function _routerHandleListarClientesCommand(from, token, phoneId) {
+  var props = PropertiesService.getScriptProperties();
+  var map;
+  try { map = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); } catch(e) { map = {}; }
+  var phones = Object.keys(map).sort();
+  if (!phones.length) {
+    _routerSendText(from, '📭 CLIENTS_MAP_JSON está vacío.', token, phoneId);
+    return;
+  }
+  // Agrupar por URL: phones que comparten URL son el mismo cliente con
+  // múltiples números (admin + asistente, etc.). Más legible en el chat.
+  var byUrl = {};
+  phones.forEach(function(p) {
+    var u = map[p];
+    if (!byUrl[u]) byUrl[u] = [];
+    byUrl[u].push(p);
+  });
+  var urls = Object.keys(byUrl).sort();
+  var lines = ['📋 *Clientes activos* (' + phones.length + ' phone(s), ' + urls.length + ' deployment(s))\n'];
+  urls.forEach(function(u, i) {
+    var ps = byUrl[u];
+    lines.push((i + 1) + '. ' + ps.map(function(p) { return '+' + p; }).join(' · '));
+    // URL truncada para no inflar el mensaje
+    var short = u.length > 80 ? (u.substring(0, 60) + '…' + u.substring(u.length - 16)) : u;
+    lines.push('   ' + short);
+  });
+  // Chunking (WhatsApp limita texto a ~4096)
+  var chunks = [];
+  var current = '';
+  for (var i = 0; i < lines.length; i++) {
+    if ((current + lines[i] + '\n').length > 3800) {
+      chunks.push(current);
+      current = '';
+    }
+    current += lines[i] + '\n';
+  }
+  if (current) chunks.push(current);
+  for (var j = 0; j < chunks.length; j++) {
+    _routerSendText(from, chunks[j], token, phoneId);
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
 //  Validación de formato de RUC panameño.
 //  Acepta combinaciones razonables:
 //   • 2470636-1-814806            (jurídica)
@@ -1674,6 +1815,8 @@ function _routerHandleAdminQuery(params) {
     if (params.action === 'setEmailMapping')   return _resp(_routerAdminSetEmailMapping(params));
     if (params.action === 'deleteEmailMapping')return _resp(_routerAdminDeleteEmailMapping(params));
     if (params.action === 'listClientMap')     return _resp(_routerAdminListClientMap());
+    if (params.action === 'setClientMap')      return _resp(_routerAdminSetClientMap(params));
+    if (params.action === 'deleteClientMap')   return _resp(_routerAdminDeleteClientMap(params));
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
@@ -1725,10 +1868,58 @@ function _routerAdminListClientMap() {
   var clientsMap;
   try { clientsMap = JSON.parse(PropertiesService.getScriptProperties().getProperty('CLIENTS_MAP_JSON') || '{}'); }
   catch(e) { clientsMap = {}; }
+  // Cross-reference emails que apuntan a cada phone (para mostrar en UI
+  // cuáles emails se devuelven a este WhatsApp si llegan a analisis@).
+  var emailsByPhone = {};
+  var emailRows = _routerListEmailMappings();
+  for (var i = 0; i < emailRows.length; i++) {
+    var p = emailRows[i].phone;
+    if (!emailsByPhone[p]) emailsByPhone[p] = [];
+    emailsByPhone[p].push(emailRows[i].email);
+  }
+  // Agrupar phones por URL (mismo deployment = mismo cliente, varios phones).
   var rows = Object.keys(clientsMap).sort().map(function(phone) {
-    return { phone: phone, url: clientsMap[phone] };
+    return {
+      phone:  phone,
+      url:    clientsMap[phone],
+      emails: emailsByPhone[phone] || [],
+    };
   });
-  return { ok: true, items: rows, total: rows.length };
+  // Calcular tamaño de cada grupo de URL p/ que el UI muestre "1 de N phones".
+  var countByUrl = {};
+  rows.forEach(function(r) { countByUrl[r.url] = (countByUrl[r.url] || 0) + 1; });
+  rows.forEach(function(r) { r.groupSize = countByUrl[r.url]; });
+  return { ok: true, items: rows, total: rows.length, groups: Object.keys(countByUrl).length };
+}
+
+function _routerAdminSetClientMap(params) {
+  var phone = String(params.phone || '').trim();
+  var url   = String(params.url   || '').trim();
+  if (!/^\d{8,15}$/.test(phone)) return { ok: false, error: 'phone debe ser solo dígitos (8-15, sin +)' };
+  if (!/^https?:\/\/script\.google\.com\//.test(url)) return { ok: false, error: 'url inválida (debe ser un Apps Script web app)' };
+  var props = PropertiesService.getScriptProperties();
+  var map;
+  try { map = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); } catch(e) { map = {}; }
+  var prev = map[phone] || null;
+  map[phone] = url;
+  props.setProperty('CLIENTS_MAP_JSON', JSON.stringify(map));
+  // Si es un phone nuevo, limpiar el flag de "ya saludado" para que
+  // reciba el welcome del cliente la próxima vez que escriba.
+  if (!prev) props.deleteProperty('welcomed_' + phone);
+  return { ok: true, phone: phone, url: url, replaced: prev };
+}
+
+function _routerAdminDeleteClientMap(params) {
+  var phone = String(params.phone || '').trim();
+  if (!phone) return { ok: false, error: 'phone requerido' };
+  var props = PropertiesService.getScriptProperties();
+  var map;
+  try { map = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); } catch(e) { map = {}; }
+  if (!map[phone]) return { ok: false, error: 'no existía entrada para ' + phone };
+  var prev = map[phone];
+  delete map[phone];
+  props.setProperty('CLIENTS_MAP_JSON', JSON.stringify(map));
+  return { ok: true, phone: phone, deleted: prev };
 }
 
 function _routerAdminListConversations(params) {
