@@ -1289,6 +1289,9 @@ function inicializarSistema() {
   initProveedoresSheet();
   initSTSheets();
   initAcreedoresSheets();
+  // Hojas del feature Transferencias bancarias (idempotente: skip si existen).
+  if (typeof _initBeneficiariosSheet === 'function')           _initBeneficiariosSheet();
+  if (typeof _initTransferenciasPendientesSheet === 'function') _initTransferenciasPendientesSheet();
   migrarEgresosDV();
   migrarEgresosST();
   installTrigger();

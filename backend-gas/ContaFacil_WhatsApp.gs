@@ -160,6 +160,28 @@ function _whatsappProcesarMensaje(msg, metadata) {
     return;
   }
 
+  // ── Drain de transferencias bancarias pendientes ──
+  // Cualquier inbound del cliente abre la ventana de 24h de WhatsApp.
+  // Si hay notificaciones de transferencia BG que llegaron mientras la
+  // ventana estaba cerrada y no se pudieron enviar, las despachamos
+  // ahora (max 3 por inbound para no saturar). El drain no bloquea —
+  // si falla, se reintenta en el próximo inbound.
+  //
+  // No drenar en respuestas interactivas tr:cat — eso causaría loop
+  // (el handler responde al cliente, queda en queue, vuelve a enviar...).
+  if (typeof _transfDrainQueue === 'function') {
+    var skipDrain = false;
+    if (tipo === 'interactive') {
+      var _inter = msg.interactive || {};
+      var _id = (_inter.list_reply && _inter.list_reply.id) || (_inter.button_reply && _inter.button_reply.id) || '';
+      if (String(_id).indexOf('tr:') === 0) skipDrain = true;
+    }
+    if (!skipDrain) {
+      try { _transfDrainQueue(from, token, phoneId); }
+      catch(drainErr) { Logger.log('drainQueue ERROR: ' + drainErr.message); }
+    }
+  }
+
   // ── Respuesta interactiva (botón o ítem de lista) ──
   // El usuario tapeó "✅ Aprobar" / "📝 Cambiar categoría" o eligió
   // una categoría del list message.
@@ -1096,8 +1118,18 @@ function _whatsappOnInteractive(msg, from, token, phoneId) {
   }
   Logger.log('Interactive id=' + id + ' from=' + from);
 
-  // Formato: "wa:<accion>:<pendId>[:<key>]"
+  // Formato: "wa:<accion>:<pendId>[:<key>]" (facturas)
+  //         "tr:cat:<pendId>:<categoryKey>" (transferencias bancarias)
   var parts = String(id || '').split(':');
+  // Branch para respuestas del flujo de transferencias bancarias (BG)
+  if (parts[0] === 'tr') {
+    if (parts[1] === 'cat' && typeof _transfHandleClasificacion === 'function') {
+      _transfHandleClasificacion(parts[2] || '', parts[3] || '', from, token, phoneId);
+    } else {
+      Logger.log('Acción tr: desconocida: ' + id);
+    }
+    return;
+  }
   if (parts[0] !== 'wa') {
     Logger.log('ID no es de WhatsApp callback: ' + id);
     return;
