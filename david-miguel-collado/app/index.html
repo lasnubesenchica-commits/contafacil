@@ -3345,8 +3345,9 @@ const REGD = (() => {
   }
 
   // ── Acciones ────────────────────────────────────────────────
-  async function borrar(id, kind) {
-    if (!confirm('⚠️ ELIMINAR PERMANENTEMENTE\n\nEsto borra la fila del Sheets y no se puede deshacer.\n\n¿Confirmar?')) return;
+  async function borrar(id, kind, opts) {
+    opts = opts || {};
+    if (!opts.skipConfirm && !confirm('⚠️ ELIMINAR PERMANENTEMENTE\n\nEsto borra la fila del Sheets y no se puede deshacer.\n\n¿Confirmar?')) return;
     try {
       const r = await jsonpGet('eliminarRegistro', { tipo: kind, id });
       if (!r.success) throw new Error(r.error || 'Error desconocido');
@@ -3378,12 +3379,24 @@ const REGD = (() => {
       : ing.find(i => i.id_trans  === id);
     if (!it) return;
     const url = it.drive_url || '';
-    if (!it.factura_data) { if (url) window.open(url, '_blank'); return; }
+    if (!it.factura_data) {
+      if (url) window.open(url, '_blank');
+      else toast('No hay factura adjunta', 'err');
+      return;
+    }
     let data;
     try { data = JSON.parse(it.factura_data); }
-    catch(_) { if (url) window.open(url, '_blank'); return; }
+    catch(_) {
+      if (url) { window.open(url, '_blank'); toast('⚠️ Visor XML no disponible, abriendo PDF', 'err'); }
+      else toast('⚠️ Factura corrupta y sin PDF backup', 'err');
+      return;
+    }
     data._driveUrl = url;
-    XMLV.open(data);
+    try { XMLV.open(data); }
+    catch(e) {
+      if (url) { window.open(url, '_blank'); toast('⚠️ Visor falló (' + e.message + '), abriendo PDF', 'err'); }
+      else toast('⚠️ Visor falló: ' + e.message, 'err');
+    }
   }
 
   // Actualizar registro local tras una edición exitosa (lo llama REG.submitIngreso)
@@ -3934,15 +3947,25 @@ const REG = (() => {
     _resetEgrForm();
     const _rawCat = String(item.tipo_egreso || item.categoria || '').trim();
     let _catNorm  = LEGACY_GASTO_MAP[_rawCat] || _rawCat || 'otros_gastos';
+    let _catFellBack = false;
     if (typeof CATEGORIAS_GASTO_DGI !== 'undefined' && !_PERSONAL_SUBCATS_MOB.has(_catNorm)) {
       const lower   = _catNorm.toLowerCase();
       const byValor = CATEGORIAS_GASTO_DGI.find(c => c.valor.toLowerCase() === lower);
       if (!byValor) {
         const byLabel = CATEGORIAS_GASTO_DGI.find(c => c.label.toLowerCase() === lower);
-        _catNorm = byLabel ? byLabel.valor : 'otros_gastos';
+        if (byLabel) {
+          _catNorm = byLabel.valor;
+        } else {
+          _catNorm = 'otros_gastos';
+          _catFellBack = true;
+          console.warn('Categoría no reconocida en catálogo mobile: "' + _rawCat + '" → fallback a otros_gastos');
+        }
       }
     }
     _setEgrCatMob(_catNorm);
+    if (_catFellBack) {
+      setTimeout(() => toast('⚠️ Categoría original "' + _rawCat + '" no en catálogo — se cambió a Otros Gastos. Reclasificá si querés.', 'err'), 250);
+    }
     document.getElementById('regEgrDesc').value     = item.descripcion || '';
     document.getElementById('regEgrFecha').value    = String(item.fecha_egreso || '').slice(0,10);
     document.getElementById('regEgrNfac').value     = item.num_fac_ref || item.num_factura || '';
@@ -4106,6 +4129,11 @@ const REG = (() => {
     const fecha  = document.getElementById('regEgrFecha').value;
     if (!total) { toast('Ingresa el total', 'err'); return; }
     if (!fecha) { toast('Ingresa la fecha', 'err'); return; }
+    const _fEgrD = new Date(fecha + 'T12:00:00');
+    const _fEgrLim = new Date(); _fEgrLim.setDate(_fEgrLim.getDate() + 7);
+    if (!isNaN(_fEgrD.getTime()) && _fEgrD > _fEgrLim) {
+      toast('Fecha no puede ser tan en el futuro (' + fecha + ')', 'err'); return;
+    }
     const btn  = document.getElementById('regEgrSubmit');
     const btn2 = document.getElementById('regEgrSubmitNew');
     [btn, btn2].forEach(b => { if (b) { b._origText = b.textContent; b.disabled = true; b.textContent = 'Guardando…'; }});
@@ -4193,6 +4221,11 @@ const REG = (() => {
     if (!total)     { toast('Ingresa el total', 'err');               return; }
     if (!fecha)     { toast('Ingresa la fecha', 'err');               return; }
     if (!nombre)    { toast('Ingresa el nombre del cliente', 'err');  return; }
+    const _fIngD = new Date(fecha + 'T12:00:00');
+    const _fIngLim = new Date(); _fIngLim.setDate(_fIngLim.getDate() + 7);
+    if (!isNaN(_fIngD.getTime()) && _fIngD > _fIngLim) {
+      toast('Fecha no puede ser tan en el futuro (' + fecha + ')', 'err'); return;
+    }
     const btn = document.getElementById('regIngSubmit');
     const isEdit = !!_ingEditId;
     btn.disabled = true; btn.textContent = isEdit ? 'Actualizando…' : 'Guardando…';
@@ -4287,8 +4320,12 @@ const REG = (() => {
   function editEgrBorrar() {
     if (!_egrEditId || typeof REGD === 'undefined' || !REGD.borrar) return;
     const id = _egrEditId;
+    const monto = _egrEditItem && _egrEditItem.total ? '$' + parseFloat(_egrEditItem.total).toFixed(2) : '?';
+    const fecha = _egrEditItem && _egrEditItem.fecha_egreso ? String(_egrEditItem.fecha_egreso).slice(0,10) : '?';
+    const prov  = _egrEditItem && _egrEditItem.proveedor ? _egrEditItem.proveedor : 'sin proveedor';
+    if (!confirm('¿Eliminar este gasto?\n\n💸 ' + monto + '\n📅 ' + fecha + '\n🏢 ' + prov + '\n\nNo se puede deshacer.')) return;
     closeModal('mRegEgreso');
-    REGD.borrar(id, 'egreso');
+    REGD.borrar(id, 'egreso', { skipConfirm: true });
   }
   function editIngVerFactura() {
     if (!_ingEditId || typeof REGD === 'undefined' || !REGD.verFactura) return;
@@ -4297,8 +4334,12 @@ const REG = (() => {
   function editIngBorrar() {
     if (!_ingEditId || typeof REGD === 'undefined' || !REGD.borrar) return;
     const id = _ingEditId;
+    const monto = _ingEditItem && _ingEditItem.total ? '$' + parseFloat(_ingEditItem.total).toFixed(2) : '?';
+    const fecha = _ingEditItem && _ingEditItem.fecha_ingreso ? String(_ingEditItem.fecha_ingreso).slice(0,10) : '?';
+    const cli   = _ingEditItem && _ingEditItem.nombre_cliente ? _ingEditItem.nombre_cliente : 'sin cliente';
+    if (!confirm('¿Eliminar este ingreso?\n\n💰 ' + monto + '\n📅 ' + fecha + '\n👤 ' + cli + '\n\nNo se puede deshacer.')) return;
     closeModal('mRegIngreso');
-    REGD.borrar(id, 'ingreso');
+    REGD.borrar(id, 'ingreso', { skipConfirm: true });
   }
 
   return { openEgreso, openEditarEgreso, openIngreso, openEditarIngreso, onEgrFile, onIngFile,
