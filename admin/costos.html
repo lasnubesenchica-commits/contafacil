@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/balanceclip.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#D04E00">
+<title>BalanceClip — Costos AsesorGastos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F8F9FA; --surface:#FFFFFF; --surface2:#F1F3F5;
+    --border:#DEE2E6; --border2:#CED4DA;
+    --orange:#D04E00; --orange2:#E8620A;
+    --green:#2E7D32; --blue:#1565C0; --yellow:#E65100; --red:#C62828;
+    --text:#1A1A2E; --muted:#6C757D;
+    --mono:'DM Mono',monospace; --sans:'Sora',sans-serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; padding:0 0 80px; }
+  .header {
+    border-bottom:1px solid var(--border); padding:20px 40px;
+    display:flex; align-items:center; gap:16px;
+    position:sticky; top:0; background:rgba(248,249,250,0.97);
+    backdrop-filter:blur(8px); z-index:100;
+  }
+  .header-logo { font-family:var(--mono); font-size:13px; color:var(--orange); letter-spacing:3px; font-weight:500; }
+  .header-sep { color:var(--border2); }
+  .header-title { font-size:13px; color:var(--muted); letter-spacing:1px; }
+  .header-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .btn {
+    border:1px solid var(--border2); background:var(--surface); color:var(--text);
+    padding:8px 14px; border-radius:6px; font-family:var(--sans); font-size:12px;
+    font-weight:600; cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;
+  }
+  .btn:hover { border-color:var(--orange); color:var(--orange); }
+  .btn-ghost { background:transparent; border-color:var(--border); }
+  .btn-sm { padding:6px 10px; font-size:11px; }
+  .container { max-width:1100px; margin:0 auto; padding:32px 40px 0; }
+
+  .hero { margin-bottom:24px; }
+  .hero h1 { font-size:28px; font-weight:700; margin-bottom:6px; }
+  .hero p { font-size:13px; color:var(--muted); }
+
+  .summary { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:28px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px 18px; }
+  .stat-num { font-size:26px; font-weight:700; line-height:1; margin-bottom:4px; font-family:var(--mono); }
+  .stat-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+  .stat-card.cost   .stat-num { color:var(--orange); }
+  .stat-card.queries .stat-num { color:var(--blue); }
+  .stat-card.tokens .stat-num { color:var(--green); }
+
+  .section-label {
+    font-size:11px; text-transform:uppercase; letter-spacing:2px;
+    color:var(--muted); font-weight:600; margin:28px 0 12px;
+  }
+
+  .client-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px; margin-bottom:12px;
+  }
+  .client-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+  .client-name { font-size:16px; font-weight:700; }
+  .client-slug {
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    background:var(--surface2); padding:3px 8px; border-radius:4px;
+  }
+  .client-cost {
+    margin-left:auto; font-family:var(--mono); font-size:18px; font-weight:700; color:var(--orange);
+  }
+  .client-cost small { font-size:11px; color:var(--muted); font-weight:500; margin-left:6px; }
+  .client-meta {
+    display:flex; gap:18px; font-size:12px; color:var(--muted); margin-bottom:10px; flex-wrap:wrap;
+  }
+  .client-meta strong { color:var(--text); font-family:var(--mono); }
+
+  .months-table {
+    width:100%; border-collapse:collapse; font-size:12px; margin-top:8px;
+  }
+  .months-table th {
+    text-align:left; padding:6px 10px; background:var(--surface2);
+    color:var(--muted); font-weight:600; font-size:11px;
+    text-transform:uppercase; letter-spacing:0.5px;
+    border-bottom:1px solid var(--border);
+  }
+  .months-table th.r, .months-table td.r { text-align:right; font-family:var(--mono); }
+  .months-table td {
+    padding:6px 10px; border-bottom:1px solid var(--border);
+  }
+  .months-table tr:last-child td { border-bottom:none; }
+
+  .status-pill {
+    display:inline-block; padding:2px 8px; border-radius:99px;
+    font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;
+  }
+  .pill-ok    { background:#E8F5E9; color:var(--green); }
+  .pill-empty { background:var(--surface2); color:var(--muted); }
+  .pill-fail  { background:#FFEBEE; color:var(--red); }
+
+  .empty-state {
+    text-align:center; padding:40px; color:var(--muted); font-size:13px;
+    background:var(--surface); border:1px dashed var(--border); border-radius:10px;
+  }
+  .pricing-note {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:14px 18px; margin-bottom:24px;
+    font-size:12px; color:var(--muted); line-height:1.6;
+  }
+  .pricing-note code { font-family:var(--mono); background:#fff; padding:2px 6px; border-radius:3px; color:var(--text); }
+
+  @media (max-width:600px) {
+    .header { padding:16px; }
+    .container { padding:20px 16px 0; }
+    .summary { grid-template-columns:repeat(2, 1fr); }
+    .client-cost { margin-left:0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-logo">BALANCECLIP</span>
+  <span class="header-sep">/</span>
+  <span class="header-title">Costos AsesorGastos</span>
+  <div class="header-actions">
+    <a class="btn btn-ghost btn-sm" href="./">← Admin Hub</a>
+    <button class="btn btn-ghost btn-sm" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>Costos AsesorGastos</h1>
+    <p>Consumo de Claude Sonnet 4.6 por cada consulta al bot que pregunta sobre gastos/ingresos registrados, agregado por cliente y mes.</p>
+  </div>
+
+  <div class="pricing-note">
+    💡 Pricing Sonnet 4.6 cacheado en backend: <code>$3 / 1M tokens input · $15 / 1M tokens output</code>.
+    Cada query típica consume entre <strong>2 000 y 25 000 tokens</strong> según cuántos tool roundtrips
+    haga Claude. Costo promedio observado por query: <strong id="globalAvg">—</strong>.
+  </div>
+
+  <div class="summary">
+    <div class="stat-card cost"><div class="stat-num" id="statCost">—</div><div class="stat-label">Costo total (lifetime)</div></div>
+    <div class="stat-card queries"><div class="stat-num" id="statQueries">—</div><div class="stat-label">Queries totales</div></div>
+    <div class="stat-card tokens"><div class="stat-num" id="statTokens">—</div><div class="stat-label">Tokens totales</div></div>
+    <div class="stat-card"><div class="stat-num" id="statClients">—</div><div class="stat-label">Clientes con uso</div></div>
+  </div>
+
+  <div class="section-label">Clientes</div>
+  <div id="clientsList">
+    <div class="empty-state">⏳ Cargando lista de clientes…</div>
+  </div>
+
+</div>
+
+<script>
+const REPO        = 'lasnubesenchica-commits/contafacil';
+const BRANCH      = 'main';
+const CLIENTS_URL = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/clients.json';
+
+let CLIENTS = [];
+let COSTS   = {};  // slug → response JSON
+
+async function loadAll() {
+  document.getElementById('clientsList').innerHTML = '<div class="empty-state">⏳ Cargando lista de clientes…</div>';
+  try {
+    const res = await fetch(CLIENTS_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' al leer clients.json');
+    const data = await res.json();
+    CLIENTS = data.clientes || [];
+    COSTS = {};
+    render();
+    await Promise.all(CLIENTS.map(c => loadCost(c)));
+    render();
+    renderSummary();
+  } catch (e) {
+    document.getElementById('clientsList').innerHTML =
+      '<div class="empty-state" style="color:var(--red)">❌ Error: ' + e.message + '</div>';
+  }
+}
+
+async function loadCost(client) {
+  try {
+    COSTS[client.id] = await jsonpGet(webAppUrl(client), { action: 'getAsesorCosto' });
+  } catch (e) {
+    COSTS[client.id] = { ok: false, error: e.message };
+  }
+}
+
+function webAppUrl(client) {
+  return 'https://script.google.com/macros/s/' + client.deploymentId + '/exec';
+}
+
+let _jsonpSeq = 0;
+function jsonpGet(url, params, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_bc_cost_' + (++_jsonpSeq) + '_' + Date.now();
+    const qs = Object.keys(params).map(k => encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+    const fullUrl = url + '?' + qs + '&callback=' + cbName;
+    const s = document.createElement('script');
+    let done = false;
+    const cleanup = () => {
+      delete window[cbName];
+      if (s.parentNode) s.parentNode.removeChild(s);
+    };
+    window[cbName] = (data) => { done = true; cleanup(); resolve(data); };
+    s.onerror = () => { if (done) return; cleanup(); reject(new Error('jsonp network error')); };
+    setTimeout(() => { if (done) return; cleanup(); reject(new Error('jsonp timeout')); }, timeoutMs || 20000);
+    s.src = fullUrl;
+    document.head.appendChild(s);
+  });
+}
+
+function fmtUsd(n)       { return '$' + (n || 0).toFixed(4); }
+function fmtUsdShort(n)  { return '$' + (n || 0).toFixed(2); }
+function fmtTokens(n)    {
+  n = n || 0;
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return String(n);
+}
+function fmtInt(n)       { return (n || 0).toLocaleString(); }
+
+function clientCard(client) {
+  const data = COSTS[client.id];
+  if (!data) {
+    return `
+      <div class="client-card">
+        <div class="client-head">
+          <span class="client-name">${client.nombre}</span>
+          <span class="client-slug">${client.id}</span>
+          <span class="status-pill pill-empty">⏳ cargando…</span>
+        </div>
+      </div>`;
+  }
+  if (!data.ok) {
+    return `
+      <div class="client-card">
+        <div class="client-head">
+          <span class="client-name">${client.nombre}</span>
+          <span class="client-slug">${client.id}</span>
+          <span class="status-pill pill-fail">⚠️ unreachable</span>
+        </div>
+        <div class="client-meta">Error: ${escapeHtml(data.error || 'desconocido')}</div>
+      </div>`;
+  }
+  const lt = data.lifetime || { queries:0, cost_usd:0, in_tokens:0, out_tokens:0, tool_calls:0 };
+  const meses = data.meses || [];
+  const avg = lt.queries > 0 ? (lt.cost_usd / lt.queries) : 0;
+  const totalTokens = (lt.in_tokens || 0) + (lt.out_tokens || 0);
+  const pillClass = lt.queries > 0 ? 'pill-ok' : 'pill-empty';
+  const pillText  = lt.queries > 0 ? `${lt.queries} queries` : 'sin uso aún';
+  const mesesRows = meses.slice().reverse().map(m => `
+    <tr>
+      <td>${m.periodo}</td>
+      <td class="r">${m.queries}</td>
+      <td class="r">${m.tool_calls}</td>
+      <td class="r">${fmtTokens(m.in_tokens)}</td>
+      <td class="r">${fmtTokens(m.out_tokens)}</td>
+      <td class="r"><strong>${fmtUsd(m.cost_usd)}</strong></td>
+    </tr>`).join('');
+  const tableHtml = meses.length ? `
+    <table class="months-table">
+      <thead>
+        <tr>
+          <th>Período</th><th class="r">Queries</th><th class="r">Tool calls</th>
+          <th class="r">In tokens</th><th class="r">Out tokens</th><th class="r">Costo</th>
+        </tr>
+      </thead>
+      <tbody>${mesesRows}</tbody>
+    </table>` : '';
+  return `
+    <div class="client-card">
+      <div class="client-head">
+        <span class="client-name">${client.nombre}</span>
+        <span class="client-slug">${client.id}</span>
+        <span class="status-pill ${pillClass}">${pillText}</span>
+        <span class="client-cost">${fmtUsdShort(lt.cost_usd)}<small>lifetime</small></span>
+      </div>
+      <div class="client-meta">
+        <span>Queries: <strong>${fmtInt(lt.queries)}</strong></span>
+        <span>Tool calls: <strong>${fmtInt(lt.tool_calls)}</strong></span>
+        <span>Tokens: <strong>${fmtTokens(totalTokens)}</strong></span>
+        <span>Promedio: <strong>${fmtUsd(avg)}/query</strong></span>
+      </div>
+      ${tableHtml}
+    </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function render() {
+  if (!CLIENTS.length) {
+    document.getElementById('clientsList').innerHTML = '<div class="empty-state">No hay clientes en <code>clients.json</code>.</div>';
+    return;
+  }
+  // Ordenar: con uso primero (por costo desc), después sin uso
+  const sorted = CLIENTS.slice().sort((a, b) => {
+    const ca = (COSTS[a.id] && COSTS[a.id].ok ? (COSTS[a.id].lifetime.cost_usd || 0) : -1);
+    const cb = (COSTS[b.id] && COSTS[b.id].ok ? (COSTS[b.id].lifetime.cost_usd || 0) : -1);
+    return cb - ca;
+  });
+  document.getElementById('clientsList').innerHTML = sorted.map(clientCard).join('');
+}
+
+function renderSummary() {
+  let totalCost = 0, totalQueries = 0, totalTokens = 0, clientsWithUse = 0;
+  CLIENTS.forEach(c => {
+    const d = COSTS[c.id];
+    if (!d || !d.ok) return;
+    const lt = d.lifetime;
+    if (!lt) return;
+    totalCost    += (lt.cost_usd || 0);
+    totalQueries += (lt.queries || 0);
+    totalTokens  += (lt.in_tokens || 0) + (lt.out_tokens || 0);
+    if (lt.queries > 0) clientsWithUse++;
+  });
+  document.getElementById('statCost').textContent    = fmtUsdShort(totalCost);
+  document.getElementById('statQueries').textContent = fmtInt(totalQueries);
+  document.getElementById('statTokens').textContent  = fmtTokens(totalTokens);
+  document.getElementById('statClients').textContent = clientsWithUse + ' / ' + CLIENTS.length;
+  document.getElementById('globalAvg').textContent =
+    totalQueries > 0 ? fmtUsd(totalCost / totalQueries) : '—';
+}
+
+loadAll();
+</script>
+
+</body>
+</html>

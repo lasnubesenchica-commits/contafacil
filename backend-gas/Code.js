@@ -725,6 +725,9 @@ function doGet(e) {
     // ── AUTH (estado público) ───────────────────────────────────
     if (action === 'getAuthState')                    return _handleGetAuthState(params, callback);
 
+    // ── Tracking de costo del AsesorGastos (panel /admin) ──────
+    if (action === 'getAsesorCosto')                  return _handleGetAsesorCosto(params, callback);
+
     // ── Default: health check ───────────────────────────────────
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'OK', ts: new Date().toISOString() }))
