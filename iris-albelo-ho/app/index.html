@@ -3380,6 +3380,19 @@ const REGD = (() => {
     REG.openEditarEgreso(it);
   }
 
+  // Top N categorías de gasto por frecuencia de uso histórico.
+  // Usado por REG.buildEgrCatOpts para poner las más usadas arriba.
+  // Sin storage extra — derivado del egr ya cargado en memoria.
+  function getTopCategoriasGasto(n) {
+    if (!egr || !egr.length) return [];
+    const counts = {};
+    egr.forEach(e => {
+      const k = String(e.tipo_egreso || e.categoria || '').trim();
+      if (k) counts[k] = (counts[k] || 0) + 1;
+    });
+    return Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, n || 5);
+  }
+
   function verFactura(ev, id, kind) {
     if (ev) ev.preventDefault();
     const it = (kind === 'egr')
@@ -3421,7 +3434,7 @@ const REGD = (() => {
 
   return {
     onEnter, refresh, setEstado, setAlcance, setPeriodo, setSearch, clearFilters, fabToggle, fabClose, setTipo, toggleAccord,
-    borrar, editarIngreso, editarEgreso, verFactura, updateIngresoLocal, updateEgresoLocal, invalidate,
+    borrar, editarIngreso, editarEgreso, verFactura, updateIngresoLocal, updateEgresoLocal, invalidate, getTopCategoriasGasto,
     _wClick,
   };
 })();
@@ -3647,9 +3660,32 @@ const REG = (() => {
     if (!sel || !CATEGORIAS_GASTO_DGI) return;
     // Exclude personal sub-categories from main dropdown (they appear in sub-select)
     const main = CATEGORIAS_GASTO_DGI.filter(c => !_PERSONAL_SUBCATS_MOB.has(c.valor));
-    sel.innerHTML = main.map(c =>
-      `<option value="${c.valor}">${c.emoji} ${c.label}</option>`
-    ).join('');
+
+    // Top categorías más usadas por el cliente (derivadas del egr en
+    // memoria). Solo incluye las que están en el catálogo actual del
+    // mobile — categorías legacy o no en el dropdown se skipean.
+    const topKeys = (typeof REGD !== 'undefined' && REGD.getTopCategoriasGasto)
+      ? REGD.getTopCategoriasGasto(5).filter(k => main.find(c => c.valor === k))
+      : [];
+
+    let html = '';
+    if (topKeys.length) {
+      html += '<optgroup label="⭐ Más usadas">';
+      topKeys.forEach(key => {
+        const c = main.find(c => c.valor === key);
+        if (c) html += `<option value="${c.valor}">${c.emoji} ${c.label}</option>`;
+      });
+      html += '</optgroup>';
+      html += '<optgroup label="Todas las categorías">';
+      main.filter(c => topKeys.indexOf(c.valor) < 0).forEach(c => {
+        html += `<option value="${c.valor}">${c.emoji} ${c.label}</option>`;
+      });
+      html += '</optgroup>';
+    } else {
+      // Sin historial (primer uso) → lista plana en orden DGI.
+      html = main.map(c => `<option value="${c.valor}">${c.emoji} ${c.label}</option>`).join('');
+    }
+    sel.innerHTML = html;
     sel.value = 'otros_deducibles';
     document.getElementById('regEgrCatSub').style.display = 'none';
   }
