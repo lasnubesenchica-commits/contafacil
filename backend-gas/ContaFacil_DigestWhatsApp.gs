@@ -567,10 +567,66 @@ function _waDesactivarTemplates() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  SETUP DE UN CLICK
-//  Setea lang='es' (el código que Meta usa para "Spanish (SPA)"),
-//  corre los 2 tests, y si pasan activa los templates. Una sola corrida.
+//  DIAGNÓSTICO META — lista las plantillas REALMENTE disponibles para
+//  el WABA de este phone. Resuelve los misterios de "template not found"
+//  cuando la UI de Meta dice una cosa pero la API espera otra.
 // ════════════════════════════════════════════════════════════════════
+
+function _waListarPlantillasMeta() {
+  var props   = PropertiesService.getScriptProperties();
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID');
+  if (!token || !phoneId) {
+    Logger.log('❌ Faltan META_WHATSAPP_TOKEN / META_PHONE_ID');
+    return;
+  }
+  // Paso 1: obtener WABA_ID del phone.
+  var phoneInfo;
+  try {
+    var r1 = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '?fields=whatsapp_business_account_id,verified_name,display_phone_number', {
+      headers: { 'Authorization': 'Bearer ' + token },
+      muteHttpExceptions: true,
+    });
+    phoneInfo = JSON.parse(r1.getContentText());
+  } catch (e) { Logger.log('❌ Error obteniendo info del phone: ' + e.message); return; }
+  if (phoneInfo.error) { Logger.log('❌ Meta error: ' + phoneInfo.error.message); return; }
+  var wabaId = phoneInfo.whatsapp_business_account_id;
+  Logger.log('Phone configurado:');
+  Logger.log('  display_phone_number: ' + phoneInfo.display_phone_number);
+  Logger.log('  verified_name:        ' + phoneInfo.verified_name);
+  Logger.log('  WABA ID:              ' + wabaId);
+  Logger.log('');
+  // Paso 2: listar plantillas del WABA.
+  var r2;
+  try {
+    r2 = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + wabaId + '/message_templates?fields=name,language,status,category&limit=100', {
+      headers: { 'Authorization': 'Bearer ' + token },
+      muteHttpExceptions: true,
+    });
+  } catch (e) { Logger.log('❌ Error listando plantillas: ' + e.message); return; }
+  var data = JSON.parse(r2.getContentText());
+  if (data.error) { Logger.log('❌ Meta error: ' + data.error.message); return; }
+  var templates = data.data || [];
+  if (!templates.length) {
+    Logger.log('⚠️ No hay plantillas en este WABA.');
+    Logger.log('   Si en la UI de Meta ves plantillas, probablemente fueron creadas en OTRO');
+    Logger.log('   WABA. El METAPHONE_ID acá apunta a WABA ' + wabaId + '. Verificá en');
+    Logger.log('   business.facebook.com → WhatsApp Manager → cambiar al WABA correcto.');
+    return;
+  }
+  Logger.log('📋 Plantillas disponibles en este WABA (' + templates.length + '):');
+  Logger.log('');
+  templates.forEach(function(t) {
+    Logger.log('  • name="' + t.name + '" | language="' + t.language + '" | status=' + t.status + ' | category=' + t.category);
+  });
+  Logger.log('');
+  Logger.log('👉 Copiá los valores EXACTOS de name + language (incluyendo guiones/underscores).');
+  Logger.log('   Después corré:');
+  Logger.log('     PropertiesService.getScriptProperties().setProperty("WA_TEMPLATE_DIGEST_NAME","<name_digest>");');
+  Logger.log('     PropertiesService.getScriptProperties().setProperty("WA_TEMPLATE_TAP_TO_ENGAGE_NAME","<name_tap>");');
+  Logger.log('     PropertiesService.getScriptProperties().setProperty("WA_TEMPLATE_LANG","<language>");');
+  Logger.log('   Y vuelvé a correr _waSetupCompleto.');
+}
 
 function _waSetupCompleto() {
   Logger.log('═══ SETUP TEMPLATES WHATSAPP ═══');
