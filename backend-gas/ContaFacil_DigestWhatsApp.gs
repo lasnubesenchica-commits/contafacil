@@ -567,6 +567,51 @@ function _waDesactivarTemplates() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+//  SETUP DE UN CLICK
+//  Setea lang='es' (el código que Meta usa para "Spanish (SPA)"),
+//  corre los 2 tests, y si pasan activa los templates. Una sola corrida.
+// ════════════════════════════════════════════════════════════════════
+
+function _waSetupCompleto() {
+  Logger.log('═══ SETUP TEMPLATES WHATSAPP ═══');
+  Logger.log('');
+  // 1. Setear lang
+  PropertiesService.getScriptProperties().setProperty('WA_TEMPLATE_LANG', 'es');
+  Logger.log('Paso 1/4: WA_TEMPLATE_LANG = es ✓');
+  Logger.log('');
+  // 2. Test digest
+  Logger.log('Paso 2/4: Probando template digest...');
+  var r1 = _waTestPlantilla('digest');
+  if (!r1.success) {
+    Logger.log('');
+    Logger.log('❌ FALLÓ. Si el error dice "does not exist in es" probá:');
+    Logger.log('   PropertiesService.getScriptProperties().setProperty("WA_TEMPLATE_LANG","es_MX");');
+    Logger.log('   Y corré _waSetupCompleto de nuevo.');
+    return;
+  }
+  Logger.log('Paso 2/4 OK ✓');
+  Logger.log('');
+  // 3. Test tap
+  Logger.log('Paso 3/4: Probando template tap-to-engage...');
+  var r2 = _waTestPlantilla('tap');
+  if (!r2.success) {
+    Logger.log('❌ Digest funcionó pero tap-to-engage falló.');
+    Logger.log('   El name puede diferir. Probá:');
+    Logger.log('   PropertiesService.getScriptProperties().setProperty("WA_TEMPLATE_TAP_TO_ENGAGE_NAME","<nombre_exacto_de_Meta>");');
+    return;
+  }
+  Logger.log('Paso 3/4 OK ✓');
+  Logger.log('');
+  // 4. Activar
+  Logger.log('Paso 4/4: Activando templates en producción...');
+  _waActivarTemplates();
+  Logger.log('');
+  Logger.log('🎉 LISTO. Los 2 templates están activos.');
+  Logger.log('   Revisá WhatsApp — deberías tener 2 mensajes de prueba.');
+  Logger.log('   El digest real corre hoy a las ' + DIGEST_DEFAULT_HOUR + ':00 PA si hay actividad.');
+}
+
+// ════════════════════════════════════════════════════════════════════
 //  SETTERS PROGRAMÁTICOS — para cuando el cliente pasó el límite de
 //  50 Script Properties y la UI está read-only.
 // ════════════════════════════════════════════════════════════════════
