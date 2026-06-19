@@ -573,59 +573,60 @@ function _waDesactivarTemplates() {
 // ════════════════════════════════════════════════════════════════════
 
 function _waListarPlantillasMeta() {
+  // Esta función tiene problemas de permisos en algunos tokens — usá
+  // _waProbarTodosLosLangs() que prueba directo enviando.
+  _waProbarTodosLosLangs();
+}
+
+// Prueba enviar el template con cada lang code común de español.
+// El que devuelva success es el correcto. Setea el lang automáticamente
+// si encuentra uno. NO activa templates — solo descubre el lang.
+function _waProbarTodosLosLangs() {
   var props   = PropertiesService.getScriptProperties();
   var token   = props.getProperty('META_WHATSAPP_TOKEN');
   var phoneId = props.getProperty('META_PHONE_ID');
-  if (!token || !phoneId) {
-    Logger.log('❌ Faltan META_WHATSAPP_TOKEN / META_PHONE_ID');
+  var phone   = String(CONFIG.WA_NUM || '').replace(/\D/g, '');
+  if (phone.length === 8) phone = '507' + phone;
+  if (!token || !phoneId || !phone) {
+    Logger.log('❌ Faltan META_WHATSAPP_TOKEN / META_PHONE_ID / CONFIG.WA_NUM');
     return;
   }
-  // Paso 1: obtener WABA_ID del phone.
-  var phoneInfo;
-  try {
-    var r1 = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '?fields=whatsapp_business_account_id,verified_name,display_phone_number', {
-      headers: { 'Authorization': 'Bearer ' + token },
-      muteHttpExceptions: true,
-    });
-    phoneInfo = JSON.parse(r1.getContentText());
-  } catch (e) { Logger.log('❌ Error obteniendo info del phone: ' + e.message); return; }
-  if (phoneInfo.error) { Logger.log('❌ Meta error: ' + phoneInfo.error.message); return; }
-  var wabaId = phoneInfo.whatsapp_business_account_id;
-  Logger.log('Phone configurado:');
-  Logger.log('  display_phone_number: ' + phoneInfo.display_phone_number);
-  Logger.log('  verified_name:        ' + phoneInfo.verified_name);
-  Logger.log('  WABA ID:              ' + wabaId);
+  var nameDigest = props.getProperty('WA_TEMPLATE_DIGEST_NAME') || 'resumen_diario_balanceclip';
+  var langs = ['es', 'es_LA', 'es_419', 'es_MX', 'es_AR', 'es_CO', 'es_ES'];
+  Logger.log('Probando "' + nameDigest + '" con cada lang code...');
   Logger.log('');
-  // Paso 2: listar plantillas del WABA.
-  var r2;
-  try {
-    r2 = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + wabaId + '/message_templates?fields=name,language,status,category&limit=100', {
-      headers: { 'Authorization': 'Bearer ' + token },
-      muteHttpExceptions: true,
-    });
-  } catch (e) { Logger.log('❌ Error listando plantillas: ' + e.message); return; }
-  var data = JSON.parse(r2.getContentText());
-  if (data.error) { Logger.log('❌ Meta error: ' + data.error.message); return; }
-  var templates = data.data || [];
-  if (!templates.length) {
-    Logger.log('⚠️ No hay plantillas en este WABA.');
-    Logger.log('   Si en la UI de Meta ves plantillas, probablemente fueron creadas en OTRO');
-    Logger.log('   WABA. El METAPHONE_ID acá apunta a WABA ' + wabaId + '. Verificá en');
-    Logger.log('   business.facebook.com → WhatsApp Manager → cambiar al WABA correcto.');
-    return;
+  var langOk = null;
+  for (var i = 0; i < langs.length; i++) {
+    var lang = langs[i];
+    var r = _waSendTemplate(phone, nameDigest, lang,
+      ['Test', '0 items', '0.00', 'Test'], 'tr:digest:detail', token, phoneId);
+    if (r.success) {
+      Logger.log('  ' + lang + ' ✅ OK');
+      langOk = lang;
+      break;
+    }
+    // Parse error para mostrar solo el detalle (no el JSON completo)
+    var errDetail = '';
+    try {
+      var errObj = JSON.parse(r.error || '{}');
+      errDetail = (errObj.error && errObj.error.error_data && errObj.error.error_data.details) || (errObj.error && errObj.error.message) || r.error;
+    } catch (e) { errDetail = r.error || '?'; }
+    Logger.log('  ' + lang + ' ❌ ' + errDetail);
   }
-  Logger.log('📋 Plantillas disponibles en este WABA (' + templates.length + '):');
   Logger.log('');
-  templates.forEach(function(t) {
-    Logger.log('  • name="' + t.name + '" | language="' + t.language + '" | status=' + t.status + ' | category=' + t.category);
-  });
-  Logger.log('');
-  Logger.log('👉 Copiá los valores EXACTOS de name + language (incluyendo guiones/underscores).');
-  Logger.log('   Después corré:');
-  Logger.log('     PropertiesService.getScriptProperties().setProperty("WA_TEMPLATE_DIGEST_NAME","<name_digest>");');
-  Logger.log('     PropertiesService.getScriptProperties().setProperty("WA_TEMPLATE_TAP_TO_ENGAGE_NAME","<name_tap>");');
-  Logger.log('     PropertiesService.getScriptProperties().setProperty("WA_TEMPLATE_LANG","<language>");');
-  Logger.log('   Y vuelvé a correr _waSetupCompleto.');
+  if (langOk) {
+    props.setProperty('WA_TEMPLATE_LANG', langOk);
+    Logger.log('🎉 ENCONTRADO. Setié WA_TEMPLATE_LANG = ' + langOk);
+    Logger.log('   Ahora corré _waSetupCompleto para activar todo.');
+  } else {
+    Logger.log('❌ Ningún lang code funcionó. Posibles causas:');
+    Logger.log('   1. El name "' + nameDigest + '" tiene typo o está en OTRO WABA');
+    Logger.log('   2. META_PHONE_ID = ' + phoneId + ' apunta a un WABA distinto del que tiene las plantillas');
+    Logger.log('   3. La plantilla está PENDING (no APPROVED) — chequear status en Meta UI');
+    Logger.log('');
+    Logger.log('   Comparar con admin/ContaFacil principal: deberían tener el mismo META_PHONE_ID');
+    Logger.log('   si todos los clientes usan el mismo número de BalanceClip.');
+  }
 }
 
 function _waSetupCompleto() {
