@@ -23,6 +23,10 @@ var AG_MAX_ROWS_OUT  = 30;       // rows max devueltos por buscar (evita prompt 
 var AG_ASESOR_MODEL  = 'claude-sonnet-4-6';
 var AG_MAX_TOKENS    = 2000;
 
+// Pricing Sonnet 4.6 (cached: 2026-06). $3/1M input, $15/1M output.
+var AG_PRICE_IN_PER_TOKEN  = 3.0  / 1e6;
+var AG_PRICE_OUT_PER_TOKEN = 15.0 / 1e6;
+
 // ─── Stop words y abreviaturas a remover del fuzzy match ────────────
 var AG_STOPWORDS = {
   'sa': 1, 'sas': 1, 'srl': 1, 'sl': 1, 'ltd': 1, 'ltda': 1, 'corp': 1,
@@ -534,6 +538,8 @@ function _agConsultarConTools(question) {
   var messages = [{ role: 'user', content: question }];
   var tools = _agToolDefs();
   var lastText = '';
+  var totalIn = 0, totalOut = 0, totalToolCalls = 0;
+  var startMs = Date.now();
 
   for (var iter = 0; iter < AG_MAX_TOOL_ITER; iter++) {
     var payload = {
@@ -560,6 +566,12 @@ function _agConsultarConTools(question) {
     var content = data.content || [];
     var stopReason = data.stop_reason || '';
 
+    // Acumular usage de tokens para tracking de costo
+    if (data.usage) {
+      totalIn  += data.usage.input_tokens  || 0;
+      totalOut += data.usage.output_tokens || 0;
+    }
+
     // Extraer text para usar como fallback si el loop se acaba
     content.forEach(function(b) { if (b.type === 'text' && b.text) lastText += b.text; });
 
@@ -568,8 +580,10 @@ function _agConsultarConTools(question) {
     if (stopReason !== 'tool_use' || !toolUses.length) {
       var textOut = '';
       content.forEach(function(b) { if (b.type === 'text') textOut += b.text; });
+      _agRegistrarCosto(totalIn, totalOut, totalToolCalls, Date.now() - startMs, question);
       return textOut.trim() || lastText.trim() || '(sin respuesta)';
     }
+    totalToolCalls += toolUses.length;
 
     // Persistir el turn assistant (con sus tool_use) en messages
     messages.push({ role: 'assistant', content: content });
@@ -588,7 +602,78 @@ function _agConsultarConTools(question) {
 
   // Si llegamos acá es porque agotamos el loop sin end_turn
   Logger.log('AsesorGastos: loop agotado (' + AG_MAX_TOOL_ITER + ' iter)');
+  _agRegistrarCosto(totalIn, totalOut, totalToolCalls, Date.now() - startMs, question);
   return lastText.trim() || 'No pude terminar de procesar la consulta (timeout interno). Probá reformular la pregunta.';
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  TRACKING DE COSTO
+//  ──────────────────────────────────────────────────────────────────
+//  Acumula tokens + costo USD por mes (clave AG_USAGE_YYYY-MM) y
+//  lifetime (clave AG_USAGE_LIFETIME). Locking para evitar lost
+//  updates si dos consultas corren en paralelo. Pricing Sonnet 4.6
+//  cacheado arriba — recalcular si Anthropic cambia tarifas.
+// ════════════════════════════════════════════════════════════════════
+
+function _agRegistrarCosto(inTokens, outTokens, toolCalls, durMs, question) {
+  var costUsd = inTokens * AG_PRICE_IN_PER_TOKEN + outTokens * AG_PRICE_OUT_PER_TOKEN;
+  Logger.log('AsesorGastos cost: in=' + inTokens + 't out=' + outTokens + 't ' +
+    'tools=' + toolCalls + ' dur=' + durMs + 'ms cost=$' + costUsd.toFixed(4) +
+    ' q="' + String(question || '').substring(0, 60) + '"');
+
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(2000);
+    var props = PropertiesService.getScriptProperties();
+    var ym = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM');
+    _agMergeUsage(props, 'AG_USAGE_' + ym,      inTokens, outTokens, costUsd, toolCalls);
+    _agMergeUsage(props, 'AG_USAGE_LIFETIME',   inTokens, outTokens, costUsd, toolCalls);
+  } catch(e) {
+    Logger.log('AG cost tracking error: ' + e.message);
+  } finally {
+    try { lock.releaseLock(); } catch(_) {}
+  }
+}
+
+function _agMergeUsage(props, key, inTok, outTok, costUsd, toolCalls) {
+  var raw = props.getProperty(key);
+  var d = raw ? JSON.parse(raw) : { queries: 0, in_tokens: 0, out_tokens: 0, cost_usd: 0, tool_calls: 0 };
+  d.queries++;
+  d.in_tokens   += inTok;
+  d.out_tokens  += outTok;
+  d.cost_usd    = +(d.cost_usd + costUsd).toFixed(6);
+  d.tool_calls  += toolCalls;
+  props.setProperty(key, JSON.stringify(d));
+}
+
+// Reporte legible — corré desde el editor del GAS de cualquier cliente.
+function _agMostrarCosto() {
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  var keys = Object.keys(all).filter(function(k) { return k.indexOf('AG_USAGE_') === 0; }).sort();
+  Logger.log('═══ COSTO ASESOR GASTOS — ' + (CONFIG && CONFIG.NEGOCIO || '?') + ' ═══');
+  if (!keys.length) { Logger.log('(sin uso registrado todavía)'); return; }
+  keys.forEach(function(k) {
+    var d = JSON.parse(all[k]);
+    var avg = d.queries > 0 ? (d.cost_usd / d.queries) : 0;
+    Logger.log(k + ': ' +
+      d.queries + ' queries, ' +
+      d.tool_calls + ' tool calls, ' +
+      'in=' + d.in_tokens.toLocaleString() + 't ' +
+      'out=' + d.out_tokens.toLocaleString() + 't, ' +
+      'total=$' + d.cost_usd.toFixed(4) + ', ' +
+      'avg=$' + avg.toFixed(4) + '/query');
+  });
+}
+
+// Borra el tracking — usar con cuidado, no recupera data histórica.
+function _agResetCosto() {
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  var dropped = 0;
+  Object.keys(all).filter(function(k) { return k.indexOf('AG_USAGE_') === 0; })
+    .forEach(function(k) { props.deleteProperty(k); dropped++; });
+  Logger.log('AsesorGastos: reseteadas ' + dropped + ' claves de uso.');
 }
 
 // ════════════════════════════════════════════════════════════════════
