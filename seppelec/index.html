@@ -1433,7 +1433,9 @@ function _sheetXml(rows, colW){
       const span=(cell.m&&cell.m>1)?cell.m:1, ref=_xlCol(col)+rn, s=cell.s||0;
       const hasV = cell.v!=='' && cell.v!=null;
       if(span>1) merges.push(ref+':'+_xlCol(col+span-1)+rn);
-      if(cell.t==='n' && hasV) cells+=`<c r="${ref}" s="${s}"><v>${cell.v}</v></c>`;
+      if(cell.link){ const u=String(cell.link).replace(/"/g,'""'), tx=String(cell.v==null?'Ver':cell.v).replace(/"/g,'""');
+        cells+=`<c r="${ref}" s="${s}" t="str"><f>HYPERLINK(&quot;${_xe(u)}&quot;,&quot;${_xe(tx)}&quot;)</f><v>${_xe(String(cell.v||'Ver'))}</v></c>`; }
+      else if(cell.t==='n' && hasV) cells+=`<c r="${ref}" s="${s}"><v>${cell.v}</v></c>`;
       else if(hasV)           cells+=`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${_xe(cell.v)}</t></is></c>`;
       else if(s)              cells+=`<c r="${ref}" s="${s}"/>`;
       col+=span;
@@ -1444,30 +1446,39 @@ function _sheetXml(rows, colW){
   const mXml = merges.length ? `<mergeCells count="${merges.length}">`+merges.map(m=>`<mergeCell ref="${m}"/>`).join('')+'</mergeCells>' : '';
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${colsXml}<sheetData>${body}</sheetData>${mXml}</worksheet>`;
 }
+function _estiloEstado(r,c){ if(c.overdue) return 14; return ({facturado:12,pagado:15,abonado:16,orden:17})[r.estado]||17; }
 function _calMatrix(){
   const cols=[]; WEEKS.forEach(w=>{ cols.push({type:'wk',w});
     const last=!WEEKS.some(x=>x.month===w.month && x.idx>w.idx); if(last) cols.push({type:'saldo',month:w.month}); });
   const computed=state.rows.map(computeRow), rows=[];
-  // banda de mes (celdas combinadas)
+  const total=2+cols.length;
+  // título + leyenda (como el dashboard)
+  rows.push([{v:'SEPPELEC · Flujo de Caja — Cuentas por Cobrar',t:'s',s:9,m:total}]);
+  rows.push([{v:'Calendario semanal '+YEAR+'  ·  generado '+isoToday(),t:'s',s:10,m:total}]);
+  rows.push([{v:'Leyenda:',t:'s',s:1},
+    {v:'Facturado (emitida)',t:'s',s:12,m:6},{v:'Por cobrar ≤60d',t:'s',s:13,m:6},
+    {v:'Outstanding >60d',t:'s',s:14,m:6},{v:'Pagado',t:'s',s:15,m:5},{v:'Orden sin facturar',t:'s',s:17,m:6}]);
+  rows.push([]);   // espaciador
+  // banda de mes (celdas combinadas, tinte alterno)
   const band=[{v:'Mes',t:'s',s:1},{v:'',t:'s',s:1}]; let groups=[];
   cols.forEach(c=>{ const m=c.type==='wk'?c.w.month:c.month; const l=groups[groups.length-1]; if(l&&l.m===m) l.span++; else groups.push({m,span:1}); });
-  groups.forEach(g=> band.push({v:MESES_L[g.m],t:'s',s:4,m:g.span})); rows.push(band);
+  groups.forEach(g=> band.push({v:MESES_L[g.m],t:'s',s:(g.m%2?11:4),m:g.span})); rows.push(band);
   // encabezado de columnas
   const hd=[{v:'Orden / Factura',t:'s',s:8},{v:'Estado',t:'s',s:8}];
-  cols.forEach(c=> hd.push(c.type==='wk'?{v:'S'+c.w.idx+' '+fmtD(c.w.start),t:'s',s:8}:{v:'SALDO '+MESES[c.month],t:'s',s:8})); rows.push(hd);
+  cols.forEach(c=> hd.push(c.type==='wk'?{v:'S'+c.w.idx+'  '+fmtD(c.w.start),t:'s',s:8}:{v:'SALDO '+MESES[c.month],t:'s',s:8})); rows.push(hd);
   // cuerpo
   state.rows.forEach((r,ri)=>{ const c=computed[ri];
-    const row=[{v:(r.po||'')+(r.inv?' · '+r.inv:''),t:'s',s:7},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:7}];
+    const row=[{v:(r.po||'')+(r.inv?' · '+r.inv:''),t:'s',s:7},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:_estiloEstado(r,c)}];
     cols.forEach(col=>{
       if(col.type==='saldo'){ const facBy=c.facturada&&c.invMo!=null&&c.invMo<=col.month;
         if(facBy){ const paid=((r.estado==='pagado'||r.estado==='abonado')&&c.payMo!=null&&c.payMo<=col.month)?c.pagadoTotal:0; const s=r.monto-paid;
           row.push(s<=0.005?{v:'',t:'s',s:5}:{v:+s.toFixed(2),t:'n',s:5}); }
         else row.push({v:'',t:'s',s:5}); return; }
-      const wi=col.w.idx, parts=[];
-      if(c.facturada&&c.wInv===wi) parts.push(moneyShort(r.monto));
-      if((r.estado==='facturado'||r.estado==='abonado')&&c.pendiente>0.005&&c.wDue===wi) parts.push('('+moneyShort(c.pendiente)+')');
-      if((r.estado==='pagado'||r.estado==='abonado')&&c.pagadoTotal>0.005&&c.wPago===wi) parts.push('-'+moneyShort(c.pagadoTotal));
-      row.push({v:parts.join(' '),t:'s',s:7});
+      const wi=col.w.idx, parts=[]; let st=7;
+      if(c.facturada&&c.wInv===wi){ parts.push(moneyShort(r.monto)); st=12; }
+      if((r.estado==='facturado'||r.estado==='abonado')&&c.pendiente>0.005&&c.wDue===wi){ parts.push('('+moneyShort(c.pendiente)+')'); if(st===7) st=c.overdue?14:13; }
+      if((r.estado==='pagado'||r.estado==='abonado')&&c.pagadoTotal>0.005&&c.wPago===wi){ parts.push('-'+moneyShort(c.pagadoTotal)); if(st===7) st=15; }
+      row.push({v:parts.join(' '),t:'s',s:st});
     });
     rows.push(row);
   });
@@ -1484,47 +1495,79 @@ function _calMatrix(){
   rows.push(foot('Facturado',facWk)); rows.push(foot('Pagado',pagWk)); rows.push(foot('Por cobrar (gestión)',cobWk));
   const sr=[{v:'Saldo CxC (fact.−pag.)',t:'s',s:3},{v:'',t:'s',s:3}];
   cols.forEach(col=> sr.push(col.type==='saldo'?{v:+saldoUpTo(col.month).toFixed(2),t:'n',s:6}:{v:'',t:'s',s:7})); rows.push(sr);
-  return {rows, colW:[{w:26},{w:11}]};
+  const colW=[{w:28},{w:13}]; cols.forEach(c=> colW.push(c.type==='saldo'?{w:13}:{w:13})); // ancho suficiente para montos
+  return {rows, colW};
 }
 function _ordMatrix(){
-  const hd=['Orden de compra','Factura','Fecha factura','Monto','Estado','Fecha pago','Abonado','Saldo pendiente','Vence (60d)','Días','PDF orden','PDF factura'];
-  const rows=[ hd.map(h=>({v:h,t:'s',s:1})) ];
+  const heads=['Orden de compra','Factura','Fecha factura','Monto','Estado','Fecha pago','Abonado','Saldo pendiente','Vence (60d)','Días','PDF orden','PDF factura'];
+  const rows=[];
+  rows.push([{v:'SEPPELEC · Órdenes y Facturas',t:'s',s:9,m:heads.length}]);
+  rows.push([{v:'Generado '+isoToday(),t:'s',s:10,m:heads.length}]);
+  rows.push([]);
+  rows.push(heads.map(h=>({v:h,t:'s',s:8})));
   state.rows.forEach(r=>{ const c=computeRow(r); let dias='';
     if(c.due&&c.pendiente>0.005){ const dd=Math.round((c.due-TODAY)/86400000); dias=dd>=0?dd+'d':Math.abs(dd)+'d venc.'; }
     else if(r.estado==='pagado') dias='✓';
     rows.push([
       {v:r.po||'',t:'s',s:7},{v:r.inv||'',t:'s',s:7},{v:r.fInv||'',t:'s',s:7},
-      {v:+r.monto||0,t:'n',s:2},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:7},
+      {v:+r.monto||0,t:'n',s:2},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:_estiloEstado(r,c)},
       {v:r.fPago||'',t:'s',s:7},{v:+r.abonado||0,t:'n',s:2},{v:+c.pendiente.toFixed(2),t:'n',s:2},
       {v:c.due?isoOf(c.due):'',t:'s',s:7},{v:dias,t:'s',s:7},
-      {v:r.poUrl||'',t:'s',s:7},{v:r.invUrl||'',t:'s',s:7}
+      r.poUrl?{v:'Ver orden',link:r.poUrl,s:18}:{v:'',t:'s',s:7},
+      r.invUrl?{v:'Ver factura',link:r.invUrl,s:18}:{v:'',t:'s',s:7}
     ]);
   });
-  return {rows, colW:[{w:20},{w:12},{w:13},{w:13},{w:12},{w:13},{w:12},{w:14},{w:13},{w:10},{w:32},{w:32}]};
+  return {rows, colW:[{w:20},{w:12},{w:13},{w:14},{w:12},{w:13},{w:13},{w:15},{w:13},{w:11},{w:16},{w:16}]};
 }
 function exportExcel(){
   const cal=_calMatrix(), ord=_ordMatrix();
+  const _f=(rgb)=>`<font><color rgb="${rgb}"/><sz val="11"/><name val="Calibri"/></font>`;
+  const _fb=(rgb)=>`<font><b/><color rgb="${rgb}"/><sz val="11"/><name val="Calibri"/></font>`;
+  const _fill=(rgb)=>`<fill><patternFill patternType="solid"><fgColor rgb="${rgb}"/><bgColor indexed="64"/></patternFill></fill>`;
   const STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
     '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
     '<numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;$&quot;#,##0.00"/></numFmts>'+
-    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'+
-    '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'+
-    '<fill><patternFill patternType="solid"><fgColor rgb="FFFBF4EF"/><bgColor indexed="64"/></patternFill></fill>'+
-    '<fill><patternFill patternType="solid"><fgColor rgb="FFEEF3FB"/><bgColor indexed="64"/></patternFill></fill></fills>'+
+    '<fonts count="11">'+
+      '<font><sz val="11"/><name val="Calibri"/></font>'+            // 0 normal
+      '<font><b/><sz val="11"/><name val="Calibri"/></font>'+        // 1 bold
+      '<font><b/><sz val="16"/><color rgb="FFE05A00"/><name val="Calibri"/></font>'+  // 2 título
+      '<font><b/><sz val="10"/><color rgb="FF6C6C70"/><name val="Calibri"/></font>'+  // 3 subtítulo
+      _f('FF1565C0')+   // 4 azul
+      _fb('FFD32F2F')+  // 5 rojo
+      _fb('FF7A0C0C')+  // 6 rojo oscuro
+      _fb('FF1B7A33')+  // 7 verde
+      _f('FF6C6C70')+   // 8 gris
+      _fb('FF9A6A00')+  // 9 ámbar
+      '<font><u/><color rgb="FF1565C0"/><sz val="11"/><name val="Calibri"/></font>'+ // 10 enlace
+    '</fonts>'+
+    '<fills count="12"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'+
+      _fill('FFFBF4EF')+_fill('FFEEF3FB')+_fill('FFF3EEF8')+_fill('FFE3F2FD')+_fill('FFFDE7E7')+
+      _fill('FFF6D6D6')+_fill('FFE3F6E8')+_fill('FFECECEE')+_fill('FFF5F5F7')+_fill('FFFFF6DB')+
+    '</fills>'+
     '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'+
     '<border><left style="thin"><color rgb="FFDDDDDD"/></left><right style="thin"><color rgb="FFDDDDDD"/></right>'+
     '<top style="thin"><color rgb="FFDDDDDD"/></top><bottom style="thin"><color rgb="FFDDDDDD"/></bottom><diagonal/></border></borders>'+
     '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
-    '<cellXfs count="9">'+
-    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
-    '<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>'+
-    '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>'+
-    '<xf numFmtId="164" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>'+
-    '<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" wrapText="1"/></xf>'+
-    '<xf numFmtId="164" fontId="0" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>'+
-    '<xf numFmtId="164" fontId="1" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>'+
-    '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center"/></xf>'+
-    '<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center"/></xf>'+
+    '<cellXfs count="19">'+
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+                                                              // 0
+    '<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>'+                                // 1 etiqueta bold
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>'+                      // 2 money
+    '<xf numFmtId="164" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>'+        // 3 money bold
+    '<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" wrapText="1"/></xf>'+ // 4 banda A
+    '<xf numFmtId="164" fontId="0" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>'+        // 5 saldo
+    '<xf numFmtId="164" fontId="1" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>'+ // 6 saldo bold
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center"/></xf>'+          // 7 centro
+    '<xf numFmtId="0" fontId="1" fillId="10" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" wrapText="1"/></xf>'+ // 8 encabezado col
+    '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left"/></xf>'+             // 9 título
+    '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment horizontal="left"/></xf>'+             // 10 subtítulo
+    '<xf numFmtId="0" fontId="1" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" wrapText="1"/></xf>'+ // 11 banda B
+    '<xf numFmtId="0" fontId="4" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center"/></xf>'+ // 12 facturado
+    '<xf numFmtId="0" fontId="5" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center"/></xf>'+ // 13 por cobrar
+    '<xf numFmtId="0" fontId="6" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center"/></xf>'+ // 14 vencido
+    '<xf numFmtId="0" fontId="7" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center"/></xf>'+ // 15 pagado
+    '<xf numFmtId="0" fontId="9" fillId="11" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center"/></xf>'+ // 16 abonado
+    '<xf numFmtId="0" fontId="8" fillId="9" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center"/></xf>'+  // 17 orden
+    '<xf numFmtId="0" fontId="10" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="left"/></xf>'+ // 18 enlace
     '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
   const CT='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
