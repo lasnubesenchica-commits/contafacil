@@ -565,3 +565,93 @@ function _waDesactivarTemplates() {
   props.setProperty('WA_TEMPLATE_TAP_TO_ENGAGE_ENABLED', 'false');
   Logger.log('🔇 Templates desactivados. El sistema sigue trackeando todo pero no envía.');
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  SETTERS PROGRAMÁTICOS — para cuando el cliente pasó el límite de
+//  50 Script Properties y la UI está read-only.
+// ════════════════════════════════════════════════════════════════════
+
+function _waSetLang(lang) {
+  // lang ejemplos: 'es', 'es_LA', 'es_MX', 'es_AR'. Default si vacío: 'es'.
+  var v = String(lang || 'es').trim();
+  PropertiesService.getScriptProperties().setProperty('WA_TEMPLATE_LANG', v);
+  Logger.log('✅ WA_TEMPLATE_LANG = ' + v);
+}
+
+function _waSetTemplateNames(digestName, tapName) {
+  var props = PropertiesService.getScriptProperties();
+  if (digestName) { props.setProperty('WA_TEMPLATE_DIGEST_NAME', String(digestName).trim());
+                    Logger.log('✅ WA_TEMPLATE_DIGEST_NAME = ' + digestName); }
+  if (tapName)    { props.setProperty('WA_TEMPLATE_TAP_TO_ENGAGE_NAME', String(tapName).trim());
+                    Logger.log('✅ WA_TEMPLATE_TAP_TO_ENGAGE_NAME = ' + tapName); }
+}
+
+// Diagnóstico — imprime todos los WA_TEMPLATE_* + lastInbound del admin
+// para confirmar estado actual.
+function _waMostrarConfig() {
+  var props = PropertiesService.getScriptProperties();
+  var keys = ['WA_TEMPLATE_DIGEST_ENABLED', 'WA_TEMPLATE_TAP_TO_ENGAGE_ENABLED',
+              'WA_TEMPLATE_DIGEST_NAME', 'WA_TEMPLATE_TAP_TO_ENGAGE_NAME',
+              'WA_TEMPLATE_LANG'];
+  Logger.log('── Config WA Templates ──');
+  keys.forEach(function(k) {
+    var v = props.getProperty(k);
+    Logger.log('  ' + k + ' = ' + (v == null ? '(unset, usando default)' : v));
+  });
+  Logger.log('');
+  Logger.log('Defaults activos (si unset arriba):');
+  var flags = _digestFlagsActivos();
+  Logger.log('  digest:  ' + flags.digestName + ' (' + flags.lang + ')');
+  Logger.log('  tap:     ' + flags.tapName    + ' (' + flags.lang + ')');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  CLEANUP — wa_pendhash_* viejos
+//
+//  Los hashes de facturas aprobadas se acumulan indefinidamente
+//  (sirven para detectar duplicados — útil pero crece sin tope).
+//  Apps Script tiene 500 properties max por project; con 50+ ya está
+//  el UI bloqueado. Esta función borra hashes con timestamp > N días
+//  (default 90).
+//
+//  Trade-off: después del cutoff, una factura ya aprobada PODRÍA
+//  re-procesarse si llega de nuevo (raro — los emails no se duplican
+//  típicamente). 90 días es conservador.
+// ════════════════════════════════════════════════════════════════════
+
+function _waLimpiarPendhashViejos(diasMin) {
+  var dias = parseInt(diasMin, 10) || 90;
+  var cutoffMs = Date.now() - (dias * 24 * 60 * 60 * 1000);
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  var hashKeys = [];   // wa_pendhash_<pendId>
+  var metaKeys = [];   // wa_pendmeta_<hash>
+  for (var k in all) {
+    if (k.indexOf('wa_pendhash_') === 0) hashKeys.push(k);
+    else if (k.indexOf('wa_pendmeta_') === 0) metaKeys.push(k);
+  }
+  Logger.log('Encontrados: ' + hashKeys.length + ' wa_pendhash_*, ' + metaKeys.length + ' wa_pendmeta_*');
+  var borradosHash = 0, borradosMeta = 0;
+  // Borrar por timestamp en wa_pendmeta_*
+  metaKeys.forEach(function(metaKey) {
+    try {
+      var meta = JSON.parse(all[metaKey] || '{}');
+      var ts = Date.parse(meta.ts);
+      if (!ts || ts < cutoffMs) {
+        props.deleteProperty(metaKey);
+        borradosMeta++;
+        if (meta.pendId) {
+          props.deleteProperty('wa_pendhash_' + meta.pendId);
+          borradosHash++;
+        }
+      }
+    } catch(e) {
+      // meta corrupto → borrar igual (no nos sirve)
+      props.deleteProperty(metaKey);
+      borradosMeta++;
+    }
+  });
+  Logger.log('✅ Limpieza: ' + borradosMeta + ' wa_pendmeta_* + ' + borradosHash +
+             ' wa_pendhash_* borrados (timestamp < ' + dias + ' días).');
+  Logger.log('   Total properties restantes: ' + Object.keys(props.getProperties()).length);
+}
