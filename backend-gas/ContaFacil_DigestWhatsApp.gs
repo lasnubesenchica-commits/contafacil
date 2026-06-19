@@ -488,3 +488,80 @@ function installDigestTrigger() {
     .create();
   Logger.log('✅ Trigger digest instalado — diario a las ' + DIGEST_DEFAULT_HOUR + ':00 ' + (Session.getScriptTimeZone() || 'project tz'));
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  HELPERS DE ACTIVACIÓN — usar desde el editor de Apps Script de cada
+//  cliente cuando las plantillas estén aprobadas en Meta.
+//
+//  Flujo recomendado:
+//    1. _waTestPlantillaDigest()    → manda un test del digest al
+//                                      WhatsApp del cliente
+//    2. _waTestPlantillaTap()       → manda un test del tap-to-engage
+//    3. Si los 2 llegan OK → _waActivarTemplates() flippea los flags
+// ════════════════════════════════════════════════════════════════════
+
+function _waTestPlantillaDigest() {
+  return _waTestPlantilla('digest');
+}
+
+function _waTestPlantillaTap() {
+  return _waTestPlantilla('tap');
+}
+
+function _waTestPlantilla(kind) {
+  var flags = _digestFlagsActivos();
+  var props = PropertiesService.getScriptProperties();
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID');
+  var phone   = String(CONFIG.WA_NUM || '').replace(/\D/g, '');
+  if (phone.length === 8) phone = '507' + phone;
+  if (!token || !phoneId || !phone) {
+    Logger.log('❌ Faltan META_WHATSAPP_TOKEN / META_PHONE_ID / CONFIG.WA_NUM');
+    return { ok: false, error: 'config incompleta' };
+  }
+  var name, bodyParams, btnPayload;
+  if (kind === 'digest') {
+    name        = flags.digestName;
+    bodyParams  = ['Test', '2 facturas + 1 transferencia', '345.67', 'Todo al día ✅'];
+    btnPayload  = 'tr:digest:detail';
+  } else {
+    name        = flags.tapName;
+    bodyParams  = ['Test', '2', '300.00'];
+    btnPayload  = 'tr:queue:open';
+  }
+  Logger.log('Enviando test del template "' + name + '" (' + flags.lang + ') a +' + phone);
+  var r = _waSendTemplate(phone, name, flags.lang, bodyParams, btnPayload, token, phoneId);
+  if (r.success) {
+    Logger.log('✅ Test enviado OK — revisá el WhatsApp del cliente');
+  } else {
+    Logger.log('❌ Test FALLÓ: ' + (r.error || 'error desconocido') + ' (status=' + (r.statusCode || '?') + ')');
+    Logger.log('   Si el error menciona "template not found", la name o lang no matchea lo aprobado en Meta.');
+    Logger.log('   Setear estos Script Properties con los valores exactos de Meta:');
+    Logger.log('     WA_TEMPLATE_DIGEST_NAME        (actual default: ' + flags.digestName + ')');
+    Logger.log('     WA_TEMPLATE_TAP_TO_ENGAGE_NAME (actual default: ' + flags.tapName + ')');
+    Logger.log('     WA_TEMPLATE_LANG               (actual default: ' + flags.lang + ', probar tambien "es")');
+  }
+  return r;
+}
+
+// Activación: setea los 2 flags a true para que el sistema empiece a
+// enviar templates en producción. Llamado una vez por cliente después
+// que los tests pasen.
+function _waActivarTemplates() {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('WA_TEMPLATE_DIGEST_ENABLED', 'true');
+  props.setProperty('WA_TEMPLATE_TAP_TO_ENGAGE_ENABLED', 'true');
+  Logger.log('✅ Templates activados:');
+  Logger.log('   WA_TEMPLATE_DIGEST_ENABLED = true');
+  Logger.log('   WA_TEMPLATE_TAP_TO_ENGAGE_ENABLED = true');
+  Logger.log('');
+  Logger.log('Próximo digest: hoy a las ' + DIGEST_DEFAULT_HOUR + ':00 PA (si hubo actividad).');
+  Logger.log('Tap-to-engage: en el próximo AutoSync que detecte transferencias pendientes con ventana 24h cerrada.');
+}
+
+function _waDesactivarTemplates() {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('WA_TEMPLATE_DIGEST_ENABLED', 'false');
+  props.setProperty('WA_TEMPLATE_TAP_TO_ENGAGE_ENABLED', 'false');
+  Logger.log('🔇 Templates desactivados. El sistema sigue trackeando todo pero no envía.');
+}
