@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- BalanceClip favicon: 📎 paperclip sobre el naranja brand (#D04E00). -->
+  <!-- SVG funciona en todos los browsers modernos. Emoji se renderiza con la -->
+  <!-- font de sistema (Apple Color Emoji en macOS/iOS, Segoe UI Emoji en Windows, -->
+  <!-- Noto Color Emoji en Android/Linux). -->
+  <rect width="64" height="64" rx="14" fill="#D04E00"/>
+  <text x="32" y="48" font-size="40" text-anchor="middle"
+        font-family="-apple-system, 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif">📎</text>
+</svg>
