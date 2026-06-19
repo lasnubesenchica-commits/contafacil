@@ -242,6 +242,16 @@ function _whatsappProcesarMensaje(msg, metadata) {
     // Asesor primero porque el drill intent matchea palabras de cat dentro
     // de oraciones más largas ("gasto en comida" → matchearía drill por
     // "comida" — pero el usuario está preguntando, no pidiendo drill).
+    //
+    // Orden:
+    //   a. AsesorGastos — preguntas sobre los gastos/ingresos REGISTRADOS
+    //      del cliente (lookup en hojas Egresos/Ingresos). Funciona siempre.
+    //   b. AsesorBanco — preguntas sobre el estado de cuenta bancario
+    //      cacheado (último xlsx que mandó). Solo cuando hay cache.
+    if (typeof _asesorGastosEsPregunta === 'function' && _asesorGastosEsPregunta(body)) {
+      var attGastos = _asesorGastosHandle(body, from, token, phoneId);
+      if (attGastos) return;
+    }
     if (_bancoEsPreguntaAsesor(body)) {
       var attended = _bancoHandleAsesor(body, from, token, phoneId);
       if (attended) return;
