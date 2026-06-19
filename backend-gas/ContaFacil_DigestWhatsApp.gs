@@ -632,9 +632,10 @@ function _waProbarTodosLosLangs() {
 function _waSetupCompleto() {
   Logger.log('═══ SETUP TEMPLATES WHATSAPP ═══');
   Logger.log('');
-  // 1. Setear lang
-  PropertiesService.getScriptProperties().setProperty('WA_TEMPLATE_LANG', 'es');
-  Logger.log('Paso 1/4: WA_TEMPLATE_LANG = es ✓');
+  // 1. Usar el lang ya seteado (por _waProbarTodosLosLangs o manual).
+  // Si no está seteado, default 'es'.
+  var lang = PropertiesService.getScriptProperties().getProperty('WA_TEMPLATE_LANG') || 'es';
+  Logger.log('Paso 1/4: WA_TEMPLATE_LANG = ' + lang + ' ✓');
   Logger.log('');
   // 2. Test digest
   Logger.log('Paso 2/4: Probando template digest...');
