@@ -1,0 +1,15 @@
+{
+  "name": "BalanceClip",
+  "short_name": "BalanceClip",
+  "description": "Conecta cada factura con su venta — con cumplimiento DGI automático.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#D04E00",
+  "icons": [
+    { "src": "/icon-192.png",        "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png",        "sizes": "512x512", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "/balanceclip.svg",      "sizes": "any",     "type": "image/svg+xml" }
+  ]
+}
