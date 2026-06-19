@@ -37,25 +37,113 @@ var AG_STOPWORDS = {
 // ════════════════════════════════════════════════════════════════════
 //  DETECCIÓN — ¿es esto una pregunta sobre gastos/ingresos registrados?
 // ════════════════════════════════════════════════════════════════════
+//
+// Estrategia:
+//   1) Phrases panameñas comunes de lookup ("cuanto llevo", "cuanto va",
+//      "cuanto he", "cuando pagué", etc.) → match siempre.
+//   2) Mención DIRECTA de una categoría DGI (escolares, medicos,
+//      alimentacion, vestimenta, salarios, alquileres, transporte,
+//      seguros, donaciones, mantenimiento, etc.) → match siempre.
+//      La lista se infiere de CATEGORIAS_GASTO_DGI cuando está
+//      disponible, con fallback a un set estático.
+//   3) Conceptos de proveedor común ("mi luz", "mi internet", "farmacia
+//      Arrocha", etc.) → match.
+//   4) Verbos de petición ("muestrame", "listame") + cosa registrable.
+//
+// Se busca falso-negativo bajo. Falso-positivos los limita el hecho de
+// que el handler que sigue es Claude con tool use — si no encuentra
+// data devuelve "no encontré" y el usuario reintenta.
+
+var AG_CATEGORY_STEMS_CACHE = null;
+
+function _agCategoryStems() {
+  if (AG_CATEGORY_STEMS_CACHE) return AG_CATEGORY_STEMS_CACHE;
+  var stems = {
+    // Fallback estático (se usa si CATEGORIAS_GASTO_DGI no está
+    // disponible o como complemento). Stems normalizados (sin acentos,
+    // singular y plural).
+    salario: 1, salarios: 1, remuneracion: 1, remuneraciones: 1,
+    prestacion: 1, prestaciones: 1, laboral: 1, laborales: 1,
+    alquiler: 1, alquileres: 1, renta: 1,
+    transporte: 1, gasolina: 1, combustible: 1, peaje: 1, gas: 1,
+    banco: 1, bancario: 1, bancarios: 1,
+    financiero: 1, financieros: 1, interes: 1, intereses: 1,
+    depreciacion: 1, amortizacion: 1, impuesto: 1, impuestos: 1,
+    honorario: 1, honorarios: 1, profesional: 1, profesionales: 1,
+    oficina: 1, papeleria: 1,
+    factoring: 1, especie: 1, especies: 1,
+    donacion: 1, donaciones: 1, mantenimiento: 1, reparacion: 1, reparaciones: 1,
+    electricidad: 1, luz: 1, agua: 1, telefono: 1, celular: 1, internet: 1, cable: 1,
+    seguro: 1, seguros: 1, hospitalizacion: 1, vida: 1,
+    medico: 1, medicos: 1, medica: 1, medicas: 1, doctor: 1, clinica: 1, hospital: 1,
+    salud: 1, farmacia: 1, farmacias: 1, medicamento: 1, medicamentos: 1,
+    escolar: 1, escolares: 1, colegio: 1, escuela: 1, universidad: 1, educativo: 1, educativos: 1, educacion: 1,
+    hipotecario: 1, hipotecarios: 1, hipoteca: 1,
+    discapacitado: 1, discapacitados: 1,
+    alimentacion: 1, alimento: 1, alimentos: 1, comida: 1, supermercado: 1, restaurante: 1,
+    vestimenta: 1, ropa: 1, vestido: 1,
+    pension: 1, alimenticia: 1, manutencion: 1,
+    viaje: 1, viajes: 1, recreativo: 1, recreativos: 1, hotel: 1, hoteles: 1, vuelo: 1, vuelos: 1,
+    fiesta: 1, fiestas: 1, entretenimiento: 1,
+    compra: 1, compras: 1, factura: 1, facturas: 1, gasto: 1, gastos: 1, pago: 1, pagos: 1,
+    deducible: 1, deducibles: 1, deduccion: 1,
+  };
+  // Enriquecer con stems extraídos de CATEGORIAS_GASTO_DGI si el módulo
+  // está cargado (mismo GAS project).
+  try {
+    if (typeof CATEGORIAS_GASTO_DGI !== 'undefined' && Array.isArray(CATEGORIAS_GASTO_DGI)) {
+      CATEGORIAS_GASTO_DGI.forEach(function(c) {
+        // valor: 'gastos_escolares' → ['gastos', 'escolares']
+        String(c.valor || '').split('_').forEach(function(tok) {
+          if (tok && tok.length >= 3) stems[_agNorm(tok)] = 1;
+        });
+        // label: 'Gastos escolares' → tokens normalizados
+        _agTokens(c.label || '').forEach(function(tok) {
+          if (tok && tok.length >= 3) stems[tok] = 1;
+        });
+      });
+    }
+  } catch(_) { /* silent — fallback estático ya está */ }
+  AG_CATEGORY_STEMS_CACHE = stems;
+  return stems;
+}
+
+function _agMencionaCategoria(normalized) {
+  var stems = _agCategoryStems();
+  var tokens = normalized.split(/\s+/);
+  for (var i = 0; i < tokens.length; i++) {
+    if (stems[tokens[i]]) return true;
+  }
+  return false;
+}
 
 function _asesorGastosEsPregunta(text) {
   var t = _agNorm(text);
   if (!t || t.length < 4) return false;
 
-  // Señales fuertes: vocabulario de lookup sobre registros personales
-  if (/\b(ultim[ao]|reciente)\s+(pago|factura|gasto|registro|compra|visita|cobro|recibo)\b/.test(t)) return true;
-  if (/\bcuant(o|a)s?\s+(veces|pagos|facturas|gastos|recibos|operaciones|registros|cobros|cargos|compras)\b/.test(t)) return true;
-  if (/\b(cuando|cuándo)\b.*\b(ultim|pagu|registr|fui|fue|compr|visit|hice)/.test(t)) return true;
-  if (/\bcuanto\s+(he|llevo)\s+(gast|pagad|invert|registrad)/.test(t)) return true;
-  if (/\bcuanto\s+(gast|pagu|invert|registr)\w*\s+(en|a|con|este|el|del|por)\b/.test(t)) return true;
+  // 1) Señales fuertes — phrases panameñas de lookup directo.
+  //    Algunas no requieren mención de categoría porque la pregunta YA
+  //    deja claro que es sobre los registros (cuanto llevo, cuanto he, etc).
+  if (/\bcuant[oa]\s+(llevo|va|tengo|he|llevamos|vamos|tenemos)\b/.test(t)) return true;
+  if (/\bcuant(o|a)s?\s+(veces|pagos|facturas|gastos|recibos|operaciones|registros|cobros|cargos|compras|ingresos|ventas)\b/.test(t)) return true;
+  if (/\b(ultim[ao]|reciente)\s+(pago|factura|gasto|registro|compra|visita|cobro|recibo|ingreso|venta)\b/.test(t)) return true;
+  if (/\b(cuando|cuándo)\b.*\b(ultim|pagu|registr|fui|fue|compr|visit|hice|cobr)/.test(t)) return true;
+  if (/\bcuanto\s+(he|llevo)\s+(gast|pagad|invert|registrad|cobrad|ingresad)/.test(t)) return true;
+  if (/\bcuanto\s+(gast|pagu|invert|registr|cobr|ingres)\w*\s+(en|a|con|este|el|del|por)\b/.test(t)) return true;
+  if (/\b(historial|listado|listame|mostr|enseñ|busca|dame|damelo|dame el)\b.*\b(pago|gasto|factura|registro|compra|operacion|ingreso|venta)/.test(t)) return true;
+  if (/\b(he|llevo|tengo)\s+(pagado|gastado|invertido|registrado|cobrado|ingresado)\b/.test(t)) return true;
+  if (/\b(pagué|pague|gasté|gaste|registré|registre|cobré|cobre)\b/.test(t)) return true;
   if (/\b(mi|mis)\s+(seguro|gimnasio|luz|electricidad|internet|cable|alquiler|hipoteca|carro|auto|telefono|celular|colegio|escuela|farmacia|medicament|gas|agua|servicio)\w*/.test(t)) return true;
-  if (/\b(historial|listado|listame|listame|mostr|enseñ|busca)\b.*\b(pago|gasto|factura|registro|compra|operacion)/.test(t)) return true;
-  if (/\b(he pagado|he gastado|llevo gastado|pagué|gasté|pague|gaste)\b/.test(t)) return true;
 
-  // Señales medianas: pregunta con "?" + mención de palabras de proveedor/concepto
-  if (/\?/.test(t)) {
-    if (/\b(seguro|gimnasio|farmacia|supermercado|colegio|escuela|doctor|medico|clinica|hospital|restaurante|tienda|estacion|hotel|aerolinea|copa)\b/.test(t)) return true;
-    if (/\b(luz|electricidad|internet|cable|telefono|celular|gas|agua|alquiler|hipoteca|servicio)\b/.test(t)) return true;
+  // 2) Mención de categoría DGI (escolares, medicos, alimentacion, etc.)
+  //    + verbo o pregunta. Sin esto, palabras como "seguro" en
+  //    "no estoy seguro" matchearían falsamente.
+  if (_agMencionaCategoria(t)) {
+    // Hay categoría → basta con que la oración parezca pregunta o pedido.
+    if (/\?/.test(t)) return true;
+    if (/^(que|cuanto|cuanta|cuantas|cuantos|cuando|como|donde|cual|cuales|hay|tengo|tenia|tenemos)\b/.test(t)) return true;
+    if (/\b(muestra|muéstrame|muestrame|enseña|enseñame|listame|dame|busca|buscar|encuentra|necesito|quiero|quisiera)\b/.test(t)) return true;
+    if (/\b(gaste|gasté|pague|pagué|llevo|he|tengo|cobre|cobré|registre|registré)\b/.test(t)) return true;
   }
 
   return false;
