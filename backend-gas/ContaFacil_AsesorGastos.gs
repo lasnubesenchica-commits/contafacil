@@ -666,6 +666,46 @@ function _agMostrarCosto() {
   });
 }
 
+// ════════════════════════════════════════════════════════════════════
+//  ENDPOINT PÚBLICO — lee el tracking acumulado para el panel /admin
+// ════════════════════════════════════════════════════════════════════
+
+function _handleGetAsesorCosto(params, callback) {
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  var meses = [];
+  var lifetime = null;
+  Object.keys(all).filter(function(k) { return k.indexOf('AG_USAGE_') === 0; }).sort()
+    .forEach(function(k) {
+      var d;
+      try { d = JSON.parse(all[k]); } catch(_) { return; }
+      var entry = {
+        periodo:    k.replace('AG_USAGE_', ''),
+        queries:    d.queries     || 0,
+        tool_calls: d.tool_calls  || 0,
+        in_tokens:  d.in_tokens   || 0,
+        out_tokens: d.out_tokens  || 0,
+        cost_usd:   +(d.cost_usd  || 0).toFixed(6),
+      };
+      if (entry.periodo === 'LIFETIME') lifetime = entry;
+      else                              meses.push(entry);
+    });
+  var result = {
+    ok:           true,
+    negocio:      String(CONFIG.NEGOCIO || ''),
+    lifetime:     lifetime || { queries:0, tool_calls:0, in_tokens:0, out_tokens:0, cost_usd:0 },
+    meses:        meses,
+    pricing: {
+      model:    AG_ASESOR_MODEL,
+      in_per_mtok:  3.0,
+      out_per_mtok: 15.0,
+    },
+  };
+  var json = JSON.stringify(result);
+  if (callback) return ContentService.createTextOutput(callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
 // Borra el tracking — usar con cuidado, no recupera data histórica.
 function _agResetCosto() {
   var props = PropertiesService.getScriptProperties();
