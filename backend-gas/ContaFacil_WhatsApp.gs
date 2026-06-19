@@ -246,9 +246,16 @@ function _whatsappProcesarMensaje(msg, metadata) {
     // Orden:
     //   a. AsesorGastos — preguntas sobre los gastos/ingresos REGISTRADOS
     //      del cliente (lookup en hojas Egresos/Ingresos). Funciona siempre.
+    //      Incluye CONTINUACIÓN de conversación: si el usuario tiene
+    //      sesión activa (cache TTL 10min) y el mensaje parece una
+    //      respuesta corta ("si", "y mayo?", "muestrame mas"), va al
+    //      mismo handler con el contexto previo.
     //   b. AsesorBanco — preguntas sobre el estado de cuenta bancario
     //      cacheado (último xlsx que mandó). Solo cuando hay cache.
-    if (typeof _asesorGastosEsPregunta === 'function' && _asesorGastosEsPregunta(body)) {
+    var esNuevaPreguntaGastos = (typeof _asesorGastosEsPregunta === 'function') && _asesorGastosEsPregunta(body);
+    var sesionActivaGastos    = (typeof _agSesionActiva === 'function') && _agSesionActiva(from);
+    var esContinuacionGastos  = (typeof _agEsContinuacion === 'function') && _agEsContinuacion(body);
+    if (esNuevaPreguntaGastos || (sesionActivaGastos && esContinuacionGastos)) {
       var attGastos = _asesorGastosHandle(body, from, token, phoneId);
       if (attGastos) return;
     }
