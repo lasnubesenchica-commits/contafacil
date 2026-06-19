@@ -156,12 +156,17 @@ function _asesorGastosEsPregunta(text) {
 function _asesorGastosHandle(question, from, token, phoneId) {
   _whatsappReply(from, '🔎 Revisando tus registros…', token, phoneId);
   try {
-    var respuesta = _agConsultarConTools(question);
-    if (!respuesta) {
+    // Cargar conversación previa si existe (TTL 10 min). Si hay, el
+    // nuevo mensaje es una continuación; si no, arranca thread nuevo.
+    var prior = _agSesionLoad(from) || [];
+    var resultado = _agConsultarConTools(question, prior);
+    if (!resultado || !resultado.texto) {
       _whatsappReply(from, '🤔 No pude armar una respuesta. ¿Podés reformular la pregunta?', token, phoneId);
       return true;
     }
-    _whatsappReply(from, _agRender(respuesta), token, phoneId);
+    _whatsappReply(from, _agRender(resultado.texto), token, phoneId);
+    // Persistir el thread actualizado para la próxima vuelta
+    _agSesionSave(from, resultado.messages);
   } catch(err) {
     Logger.log('AsesorGastos error: ' + err.message + '\n' + (err.stack || ''));
     _whatsappReply(from, '⚠️ No pude procesar la consulta: ' + err.message, token, phoneId);
@@ -596,7 +601,7 @@ function _agEjecutarTool(name, input) {
 //  CLAUDE TOOL LOOP
 // ════════════════════════════════════════════════════════════════════
 
-function _agConsultarConTools(question) {
+function _agConsultarConTools(question, priorMessages) {
   var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
 
@@ -607,7 +612,11 @@ function _agConsultarConTools(question) {
     'Sos el asistente de BalanceClip respondiendo preguntas sobre los GASTOS E INGRESOS REGISTRADOS de ' + negocio + ' vía WhatsApp.\n\n' +
     'Hoy es ' + hoy + ' (zona Panamá).\n\n' +
     'Tenés tools para consultar la data real. Usalas siempre — nunca inventes números.\n\n' +
-    'ESTRATEGIA:\n' +
+    'CONVERSACIÓN:\n' +
+    '• Si el usuario manda una respuesta corta tipo "si", "si por favor", "dale", "ok", "y de mayo?", "muestrame mas", etc, es una CONTINUACIÓN de la conversación. Mirá el historial para entender qué quería ver y respondé directamente con esos datos. NO le pidas que reformule.\n' +
+    '• Si ofrecés mostrar más detalle ("¿querés ver…?"), prepárate para que la próxima respuesta sea afirmativa — ya en este mismo turno podés decidir si dar el detalle de una vez sin preguntar (preferible) o esperar confirmación.\n' +
+    '• Idealmente, dale al usuario una respuesta completa al primer intento. Solo preguntá si la opción es genuinamente ambigua (ej: "¿te refieres a Arrocha sucursal Costa del Este o todas?").\n\n' +
+    'ESTRATEGIA DE TOOLS:\n' +
     '1. Para preguntas sobre un proveedor específico ("¿cuándo pagué Arrocha?"), primero llamá listar_proveedores con el patrón → ver cómo está escrito en la data → después buscar/agregar con el nombre real encontrado (o usá el patrón fuzzy directo, que también funciona).\n' +
     '2. Si la primera búsqueda devuelve 0 resultados, intentá ampliar: patrón más corto, sin acentos, palabra clave del medio. La data en Panamá viene escrita con muchas variaciones ("Arrocha" vs "FCIAS ARROCHA" vs "Farmacia Arrocha SA").\n' +
     '3. Para "cuándo fue la última vez" → buscar_operaciones con proveedor + limit 1.\n' +
@@ -623,7 +632,9 @@ function _agConsultarConTools(question) {
     '• Si encontraste data: devolvé respuesta directa. Si no: decílo claro ("No encontré registros de X").\n' +
     '• No agregues caveats legales/fiscales — esto es lookup de datos, no consejo.\n';
 
-  var messages = [{ role: 'user', content: question }];
+  // Construir messages: si hay thread previo, lo continuamos; sino arranca limpio.
+  var messages = (priorMessages && priorMessages.length) ? priorMessages.slice() : [];
+  messages.push({ role: 'user', content: question });
   var tools = _agToolDefs();
   var lastText = '';
   var totalIn = 0, totalOut = 0, totalToolCalls = 0;
@@ -668,8 +679,9 @@ function _agConsultarConTools(question) {
     if (stopReason !== 'tool_use' || !toolUses.length) {
       var textOut = '';
       content.forEach(function(b) { if (b.type === 'text') textOut += b.text; });
+      messages.push({ role: 'assistant', content: content });   // persistir respuesta final en el thread
       _agRegistrarCosto(totalIn, totalOut, totalToolCalls, Date.now() - startMs, question);
-      return textOut.trim() || lastText.trim() || '(sin respuesta)';
+      return { texto: (textOut.trim() || lastText.trim() || '(sin respuesta)'), messages: messages };
     }
     totalToolCalls += toolUses.length;
 
@@ -691,7 +703,7 @@ function _agConsultarConTools(question) {
   // Si llegamos acá es porque agotamos el loop sin end_turn
   Logger.log('AsesorGastos: loop agotado (' + AG_MAX_TOOL_ITER + ' iter)');
   _agRegistrarCosto(totalIn, totalOut, totalToolCalls, Date.now() - startMs, question);
-  return lastText.trim() || 'No pude terminar de procesar la consulta (timeout interno). Probá reformular la pregunta.';
+  return { texto: (lastText.trim() || 'No pude terminar de procesar la consulta (timeout interno). Probá reformular la pregunta.'), messages: messages };
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -811,8 +823,8 @@ function _agResetCosto() {
 function _agTestPregunta(q) {
   if (!q) q = '¿Cuándo fue la última vez que tuve un gasto?';
   Logger.log('Pregunta: ' + q);
-  var resp = _agConsultarConTools(q);
-  Logger.log('Respuesta:\n' + resp);
+  var resp = _agConsultarConTools(q, []);
+  Logger.log('Respuesta:\n' + (resp && resp.texto));
 }
 
 function _agTestDeteccion() {
@@ -830,4 +842,75 @@ function _agTestDeteccion() {
   ejemplos.forEach(function(e) {
     Logger.log((_asesorGastosEsPregunta(e) ? '✓' : '✗') + '  ' + e);
   });
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  MEMORIA DE CONVERSACIÓN
+//  ──────────────────────────────────────────────────────────────────
+//  CacheService por phone con TTL 10 min. Guarda el messages array
+//  completo del thread Claude (incluyendo tool_use y tool_result) para
+//  que mensajes cortos tipo "si", "y de mayo?", "muestrame mas" sean
+//  continuaciones naturales en vez de queries aislados.
+//
+//  Cap defensivo: si el thread serializado > 90KB (límite Cache 100KB
+//  por entry), no guardamos — la próxima vuelta empieza fresh. Esto
+//  evita errores en conversaciones muy largas y limita el costo
+//  acumulado de re-enviar contexto.
+// ════════════════════════════════════════════════════════════════════
+
+var AG_SESION_TTL_SEC = 10 * 60;     // 10 min
+var AG_SESION_MAX_BYTES = 90 * 1024; // 90KB
+var AG_SESION_KEY_PREFIX = 'AGS_';
+
+function _agSesionKey(from) {
+  return AG_SESION_KEY_PREFIX + String(from || '').replace(/\D/g, '');
+}
+
+function _agSesionSave(from, messages) {
+  if (!from || !messages || !messages.length) return;
+  try {
+    var json = JSON.stringify(messages);
+    if (json.length > AG_SESION_MAX_BYTES) {
+      Logger.log('AG sesión too big (' + json.length + 'B) — skip save, next msg starts fresh');
+      _agSesionClear(from);
+      return;
+    }
+    CacheService.getScriptCache().put(_agSesionKey(from), json, AG_SESION_TTL_SEC);
+  } catch(e) {
+    Logger.log('AG sesión save error: ' + e.message);
+  }
+}
+
+function _agSesionLoad(from) {
+  if (!from) return null;
+  try {
+    var raw = CacheService.getScriptCache().get(_agSesionKey(from));
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) {
+    Logger.log('AG sesión load error: ' + e.message);
+    return null;
+  }
+}
+
+function _agSesionClear(from) {
+  if (!from) return;
+  try { CacheService.getScriptCache().remove(_agSesionKey(from)); }
+  catch(_) {}
+}
+
+function _agSesionActiva(from) {
+  return _agSesionLoad(from) !== null;
+}
+
+// Heurística: es un buen candidato a continuación? Texto corto,
+// no es un comando claro, no es un intent de mandar media.
+// Llamado desde WhatsApp.gs solo cuando ya hay sesión activa.
+function _agEsContinuacion(text) {
+  var t = String(text || '').trim();
+  if (!t) return false;
+  if (t.length > 250) return false;                                     // mensaje largo = probablemente nuevo tema
+  if (/^\s*(menu|menú|hola|ayuda|help|test|cancelar|salir|adios|adiós|chao)\s*$/i.test(t)) return false;
+  if (/\b(factura|foto|pdf|recibo|imagen|comprobante)\b/i.test(t)) return false;  // quiere mandar media
+  return true;
 }
