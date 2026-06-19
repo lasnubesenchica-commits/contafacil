@@ -327,8 +327,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
     <button class="btn edit-only" id="addBtn">＋ Orden / Factura</button>
     <button class="btn edit-only" id="dedupBtn" title="Combina y elimina filas duplicadas" style="display:none;background:var(--amar-bg);color:var(--amar);border-color:rgba(154,106,0,.3)"></button>
     <button class="btn ghost edit-only" id="impBtn">Importar</button>
-    <button class="btn ghost" id="expBtn">Exportar</button>
-    <button class="btn ghost" id="csvBtn">CSV</button>
+    <button class="btn ghost" id="expBtn" title="Descarga un Excel con dos pestañas: Calendario y Órdenes/Facturas">⬇ Exportar Excel</button>
     <input type="file" id="fileInput" accept="application/json" hidden>
     <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple hidden>
   </div>
@@ -1379,18 +1378,7 @@ document.getElementById('addBtn').onclick = ()=>{
   save(); renderAll();
   document.querySelector('#ordersBody tr input')?.focus();
 };
-document.getElementById('expBtn').onclick = ()=>{
-  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
-  dl(blob, `flujo-cxc-${isoToday()}.json`); toast('Exportado JSON');
-};
-document.getElementById('csvBtn').onclick = ()=>{
-  const head=['orden_compra','factura','fecha_factura','monto','estado','fecha_pago','abonado','vence_60d'];
-  const lines=[head.join(',')];
-  state.rows.forEach(r=>{ const c=computeRow(r);
-    lines.push([r.po,r.inv,r.fInv,r.monto,r.estado,r.fPago,r.abonado, c.due?isoOf(c.due):'']
-      .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')); });
-  dl(new Blob([lines.join('\n')],{type:'text/csv'}), `flujo-cxc-${isoToday()}.csv`); toast('Exportado CSV');
-};
+document.getElementById('expBtn').onclick = ()=>{ try{ exportExcel(); toast('Excel exportado'); }catch(e){ alert('No se pudo exportar: '+(e.message||e)); } };
 document.getElementById('dedupBtn').onclick = ()=>{ if(EDIT) mergeDuplicates(); };
 document.getElementById('uploadBtn').onclick = ()=>{ if(EDIT) document.getElementById('pdfInput').click(); };
 document.getElementById('pdfInput').onchange = e=>{ const fs=[...e.target.files]; e.target.value=''; uploadPdfs(fs); };
@@ -1404,6 +1392,171 @@ document.getElementById('fileInput').onchange = e=>{
   rd.readAsText(f); e.target.value='';
 };
 function isoOf(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+/* ===================================================================
+   Export a Excel (.xlsx) nativo — sin librerías. Dos pestañas:
+   "Calendario" (la matriz semanal del dashboard, año completo) y
+   "Órdenes y Facturas" (los datos crudos). Genera el OOXML y lo
+   empaqueta en un ZIP (método store) en el navegador.
+   =================================================================== */
+function _xe(s){ return String(s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+function _xlCol(n){ let s=''; n++; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; }
+function _u8(str){ return new TextEncoder().encode(str); }
+let _crcT;
+function _crc32(u8){ if(!_crcT){ _crcT=[]; for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); _crcT[n]=c>>>0; } }
+  let crc=0xFFFFFFFF; for(let i=0;i<u8.length;i++) crc=(crc>>>8)^_crcT[(crc^u8[i])&0xFF]; return (crc^0xFFFFFFFF)>>>0; }
+function _zipStore(files){
+  const enc=files.map(f=>({name:_u8(f.name), data:f.bytes}));
+  let offset=0; const parts=[], central=[];
+  enc.forEach(f=>{ const crc=_crc32(f.data), nlen=f.name.length, dlen=f.data.length;
+    const lh=new Uint8Array(30+nlen), dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true); dv.setUint16(4,20,true); dv.setUint32(14,crc,true);
+    dv.setUint32(18,dlen,true); dv.setUint32(22,dlen,true); dv.setUint16(26,nlen,true); lh.set(f.name,30);
+    parts.push(lh, f.data);
+    const ch=new Uint8Array(46+nlen), cv=new DataView(ch.buffer);
+    cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true);
+    cv.setUint32(16,crc,true); cv.setUint32(20,dlen,true); cv.setUint32(24,dlen,true);
+    cv.setUint16(28,nlen,true); cv.setUint32(42,offset,true); ch.set(f.name,46);
+    central.push(ch); offset += lh.length + dlen;
+  });
+  const cdSize=central.reduce((s,c)=>s+c.length,0), cdOffset=offset;
+  const eocd=new Uint8Array(22), ev=new DataView(eocd.buffer);
+  ev.setUint32(0,0x06054b50,true); ev.setUint16(8,enc.length,true); ev.setUint16(10,enc.length,true);
+  ev.setUint32(12,cdSize,true); ev.setUint32(16,cdOffset,true);
+  const all=[...parts,...central,eocd]; const total=all.reduce((s,a)=>s+a.length,0);
+  const out=new Uint8Array(total); let p=0; all.forEach(a=>{ out.set(a,p); p+=a.length; }); return out;
+}
+function _sheetXml(rows, colW){
+  const merges=[]; let body='';
+  rows.forEach((row,ri)=>{ const rn=ri+1; let cells='', col=0;
+    row.forEach(cell=>{ if(!cell){ col++; return; }
+      const span=(cell.m&&cell.m>1)?cell.m:1, ref=_xlCol(col)+rn, s=cell.s||0;
+      const hasV = cell.v!=='' && cell.v!=null;
+      if(span>1) merges.push(ref+':'+_xlCol(col+span-1)+rn);
+      if(cell.t==='n' && hasV) cells+=`<c r="${ref}" s="${s}"><v>${cell.v}</v></c>`;
+      else if(hasV)           cells+=`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${_xe(cell.v)}</t></is></c>`;
+      else if(s)              cells+=`<c r="${ref}" s="${s}"/>`;
+      col+=span;
+    });
+    body+=`<row r="${rn}">${cells}</row>`;
+  });
+  const colsXml = (colW&&colW.length) ? '<cols>'+colW.map((c,i)=>`<col min="${i+1}" max="${i+1}" width="${c.w}" customWidth="1"/>`).join('')+'</cols>' : '';
+  const mXml = merges.length ? `<mergeCells count="${merges.length}">`+merges.map(m=>`<mergeCell ref="${m}"/>`).join('')+'</mergeCells>' : '';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${colsXml}<sheetData>${body}</sheetData>${mXml}</worksheet>`;
+}
+function _calMatrix(){
+  const cols=[]; WEEKS.forEach(w=>{ cols.push({type:'wk',w});
+    const last=!WEEKS.some(x=>x.month===w.month && x.idx>w.idx); if(last) cols.push({type:'saldo',month:w.month}); });
+  const computed=state.rows.map(computeRow), rows=[];
+  // banda de mes (celdas combinadas)
+  const band=[{v:'Mes',t:'s',s:1},{v:'',t:'s',s:1}]; let groups=[];
+  cols.forEach(c=>{ const m=c.type==='wk'?c.w.month:c.month; const l=groups[groups.length-1]; if(l&&l.m===m) l.span++; else groups.push({m,span:1}); });
+  groups.forEach(g=> band.push({v:MESES_L[g.m],t:'s',s:4,m:g.span})); rows.push(band);
+  // encabezado de columnas
+  const hd=[{v:'Orden / Factura',t:'s',s:8},{v:'Estado',t:'s',s:8}];
+  cols.forEach(c=> hd.push(c.type==='wk'?{v:'S'+c.w.idx+' '+fmtD(c.w.start),t:'s',s:8}:{v:'SALDO '+MESES[c.month],t:'s',s:8})); rows.push(hd);
+  // cuerpo
+  state.rows.forEach((r,ri)=>{ const c=computed[ri];
+    const row=[{v:(r.po||'')+(r.inv?' · '+r.inv:''),t:'s',s:7},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:7}];
+    cols.forEach(col=>{
+      if(col.type==='saldo'){ const facBy=c.facturada&&c.invMo!=null&&c.invMo<=col.month;
+        if(facBy){ const paid=((r.estado==='pagado'||r.estado==='abonado')&&c.payMo!=null&&c.payMo<=col.month)?c.pagadoTotal:0; const s=r.monto-paid;
+          row.push(s<=0.005?{v:'',t:'s',s:5}:{v:+s.toFixed(2),t:'n',s:5}); }
+        else row.push({v:'',t:'s',s:5}); return; }
+      const wi=col.w.idx, parts=[];
+      if(c.facturada&&c.wInv===wi) parts.push(moneyShort(r.monto));
+      if((r.estado==='facturado'||r.estado==='abonado')&&c.pendiente>0.005&&c.wDue===wi) parts.push('('+moneyShort(c.pendiente)+')');
+      if((r.estado==='pagado'||r.estado==='abonado')&&c.pagadoTotal>0.005&&c.wPago===wi) parts.push('-'+moneyShort(c.pagadoTotal));
+      row.push({v:parts.join(' '),t:'s',s:7});
+    });
+    rows.push(row);
+  });
+  // pie: Facturado / Pagado / Por cobrar (por semana) + Saldo (por mes)
+  const facWk={},pagWk={},cobWk={};
+  state.rows.forEach((r,ri)=>{ const c=computed[ri];
+    if(c.facturada) facWk[c.wInv]=(facWk[c.wInv]||0)+r.monto;
+    if(c.pagadoTotal>0.005) pagWk[c.wPago]=(pagWk[c.wPago]||0)+c.pagadoTotal;
+    if((r.estado==='facturado'||r.estado==='abonado')&&c.pendiente>0.005) cobWk[c.wDue]=(cobWk[c.wDue]||0)+c.pendiente; });
+  function saldoUpTo(month){ let f=0,p=0; state.rows.forEach((r,ri)=>{ const c=computed[ri];
+    if(c.facturada&&c.invMo!=null&&c.invMo<=month) f+=r.monto; if(c.pagadoTotal>0.005&&c.payMo!=null&&c.payMo<=month) p+=c.pagadoTotal; }); return f-p; }
+  function foot(label,map){ const row=[{v:label,t:'s',s:3},{v:'',t:'s',s:3}];
+    cols.forEach(col=>{ if(col.type==='saldo'){ row.push({v:'',t:'s',s:6}); return; } const val=map[col.w.idx]; row.push(val?{v:+val.toFixed(2),t:'n',s:2}:{v:'',t:'s',s:7}); }); return row; }
+  rows.push(foot('Facturado',facWk)); rows.push(foot('Pagado',pagWk)); rows.push(foot('Por cobrar (gestión)',cobWk));
+  const sr=[{v:'Saldo CxC (fact.−pag.)',t:'s',s:3},{v:'',t:'s',s:3}];
+  cols.forEach(col=> sr.push(col.type==='saldo'?{v:+saldoUpTo(col.month).toFixed(2),t:'n',s:6}:{v:'',t:'s',s:7})); rows.push(sr);
+  return {rows, colW:[{w:26},{w:11}]};
+}
+function _ordMatrix(){
+  const hd=['Orden de compra','Factura','Fecha factura','Monto','Estado','Fecha pago','Abonado','Saldo pendiente','Vence (60d)','Días','PDF orden','PDF factura'];
+  const rows=[ hd.map(h=>({v:h,t:'s',s:1})) ];
+  state.rows.forEach(r=>{ const c=computeRow(r); let dias='';
+    if(c.due&&c.pendiente>0.005){ const dd=Math.round((c.due-TODAY)/86400000); dias=dd>=0?dd+'d':Math.abs(dd)+'d venc.'; }
+    else if(r.estado==='pagado') dias='✓';
+    rows.push([
+      {v:r.po||'',t:'s',s:7},{v:r.inv||'',t:'s',s:7},{v:r.fInv||'',t:'s',s:7},
+      {v:+r.monto||0,t:'n',s:2},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:7},
+      {v:r.fPago||'',t:'s',s:7},{v:+r.abonado||0,t:'n',s:2},{v:+c.pendiente.toFixed(2),t:'n',s:2},
+      {v:c.due?isoOf(c.due):'',t:'s',s:7},{v:dias,t:'s',s:7},
+      {v:r.poUrl||'',t:'s',s:7},{v:r.invUrl||'',t:'s',s:7}
+    ]);
+  });
+  return {rows, colW:[{w:20},{w:12},{w:13},{w:13},{w:12},{w:13},{w:12},{w:14},{w:13},{w:10},{w:32},{w:32}]};
+}
+function exportExcel(){
+  const cal=_calMatrix(), ord=_ordMatrix();
+  const STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;$&quot;#,##0.00"/></numFmts>'+
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'+
+    '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'+
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFFBF4EF"/><bgColor indexed="64"/></patternFill></fill>'+
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFEEF3FB"/><bgColor indexed="64"/></patternFill></fill></fills>'+
+    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'+
+    '<border><left style="thin"><color rgb="FFDDDDDD"/></left><right style="thin"><color rgb="FFDDDDDD"/></right>'+
+    '<top style="thin"><color rgb="FFDDDDDD"/></top><bottom style="thin"><color rgb="FFDDDDDD"/></bottom><diagonal/></border></borders>'+
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+    '<cellXfs count="9">'+
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+    '<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>'+
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>'+
+    '<xf numFmtId="164" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>'+
+    '<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" wrapText="1"/></xf>'+
+    '<xf numFmtId="164" fontId="0" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>'+
+    '<xf numFmtId="164" fontId="1" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>'+
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center"/></xf>'+
+    '<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center"/></xf>'+
+    '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  const CT='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+    '<Default Extension="xml" ContentType="application/xml"/>'+
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+    '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+  const RELS='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  const WB='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
+    '<sheets><sheet name="Calendario" sheetId="1" r:id="rId1"/><sheet name="Órdenes y Facturas" sheetId="2" r:id="rId2"/></sheets></workbook>';
+  const WBR='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'+
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'+
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+  const files=[
+    {name:'[Content_Types].xml', bytes:_u8(CT)},
+    {name:'_rels/.rels', bytes:_u8(RELS)},
+    {name:'xl/workbook.xml', bytes:_u8(WB)},
+    {name:'xl/_rels/workbook.xml.rels', bytes:_u8(WBR)},
+    {name:'xl/styles.xml', bytes:_u8(STYLES)},
+    {name:'xl/worksheets/sheet1.xml', bytes:_u8(_sheetXml(cal.rows,cal.colW))},
+    {name:'xl/worksheets/sheet2.xml', bytes:_u8(_sheetXml(ord.rows,ord.colW))}
+  ];
+  dl(new Blob([_zipStore(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `flujo-cxc-${isoToday()}.xlsx`);
+}
+
 function dl(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
 let toastT;
