@@ -199,6 +199,24 @@ function _whatsappProcesarMensaje(msg, metadata) {
     return;
   }
 
+  // ── Quick-reply button de una PLANTILLA (HSM) ──
+  // Cuando el cliente tapea un botón de un template (digest, tap-to-engage)
+  // Meta envía type=button con button.payload (developer-set). Despachamos
+  // por payload, igual que el branch tr: en _whatsappOnInteractive.
+  if (tipo === 'button') {
+    var btn = msg.button || {};
+    var payload = String(btn.payload || '');
+    Logger.log('Button payload=' + payload + ' text=' + (btn.text || ''));
+    if (payload === 'tr:queue:open' && typeof _tapToEngageHandleRevisar === 'function') {
+      _tapToEngageHandleRevisar(from, token, phoneId);
+    } else if (payload === 'tr:digest:detail' && typeof _digestHandleVerDetalle === 'function') {
+      _digestHandleVerDetalle(from, token, phoneId);
+    } else {
+      Logger.log('Button payload sin handler: ' + payload);
+    }
+    return;
+  }
+
   // ── Mensaje de texto: chequear primero si está en modo "categoría
   //    libre" (acaba de tapear "✏ Otra…"); si no, responder con
   //    instrucciones simples.
