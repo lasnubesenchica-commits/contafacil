@@ -245,7 +245,7 @@ table.orders .num input{font-family:'DM Mono',monospace;text-align:right}
 select.st-sel{border-radius:100px;font-weight:700;font-size:.7rem;padding:.25rem .5rem;border:1px solid var(--border)}
 
 /* ── CALENDAR MATRIX ── */
-.cal-scroll{overflow:auto;max-height:74vh}
+.cal-scroll{overflow-x:auto;overflow-y:hidden}
 table.cal{border-collapse:separate;border-spacing:0;font-size:.7rem;white-space:nowrap}
 table.cal th,table.cal td{border-right:1px solid var(--bg2);border-bottom:1px solid var(--bg2);
   padding:.3rem .45rem;text-align:right;font-family:'DM Mono',monospace}
@@ -354,7 +354,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
 .tl-axis .mb{position:absolute;top:0;bottom:0;border-left:1px solid var(--border);font-size:.62rem;font-weight:700;
   text-transform:uppercase;color:var(--muted);padding:.4rem;display:flex;align-items:center}
 .tl-axis .mb.alt{background:rgba(0,0,0,.025)}
-.tl-body{max-height:64vh;overflow-y:auto}
+.tl-body{overflow:visible}
 .tl-row{display:flex;align-items:stretch;border-bottom:1px solid var(--bg2);height:38px;cursor:pointer}
 .tl-row:hover{background:#FAFAFB}
 .tl-lbl{width:260px;min-width:260px;flex:0 0 260px;display:flex;align-items:center;gap:.5rem;padding:.2rem .8rem;overflow:hidden}
@@ -520,10 +520,12 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
           <div><b>Check verde</b> — se pagó. La barra es verde y termina en la fecha del pago.</div>
           <div class="ic"><span class="tl-pill" style="position:relative;transform:none;font-size:.55rem;padding:.05rem .3rem">orden</span></div>
           <div><b>Píldora gris</b> — orden recibida que <b>aún no se factura</b>.</div>
+          <div class="ic"><span class="tl-bar bar-ext" style="position:relative;transform:none;width:24px"></span></div>
+          <div><b>Barra morada · etiqueta <span class="badge-ext">EXT</span></b> — factura de la <b>Línea Extraordinaria</b> (50% al facturar + 50% a 60 días). Las de la <b>Línea Regular</b> van en azul.</div>
           <div class="ic"><span style="display:inline-block;width:2px;height:16px;background:var(--orange)"></span></div>
           <div><b>Línea naranja “HOY”</b> — la fecha de hoy, cruza todas las filas.</div>
         </div>
-        <p style="margin-top:.9rem"><b>Orden de las filas:</b> por urgencia — lo que vence primero arriba; las órdenes sin facturar, al final. Haz clic en una fila para ver o editar su detalle.</p>
+        <p style="margin-top:.9rem"><b>Dos líneas de crédito:</b> <b style="color:var(--orange)">Regular</b> (azul) y <b style="color:var(--morado)">Extraordinaria</b> (morada, etiqueta EXT). Usa el filtro <b>Todas / Regular / Extraordinaria</b> para aislar una. <b>Orden de las filas:</b> por urgencia — lo que vence primero arriba; las órdenes sin facturar, al final. Haz clic en una fila para ver o editar su detalle.</p>
       </div>
     </div>
 
