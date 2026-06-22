@@ -181,9 +181,10 @@ table.cal tbody tr.ext-row td.c-po{box-shadow:inset 4px 0 0 var(--morado)}
 .mk-emisx{background:var(--morado)!important}
 /* filtro por línea */
 .seg button.ext.active{color:var(--morado)}
-/* resumen por línea (debajo del calendario y arriba junto a las tarjetas) */
-#lineSummary{padding:1rem 1.1rem 0}
-#lineSummaryTop{margin:0 0 1.25rem}
+/* desglose por línea en el pie del calendario */
+table.cal tfoot tr.sub-reg td,table.cal tfoot tr.sub-ext td{font-weight:400;font-size:.66rem;border-top:1px solid var(--bg2);background:#FCFCFD}
+table.cal tfoot tr.sub-reg td.c-po{color:var(--orange);padding-left:1.4rem}
+table.cal tfoot tr.sub-ext td.c-po{color:var(--morado);padding-left:1.4rem}
 .lsum{width:100%;max-width:620px;border-collapse:separate;border-spacing:0;font-size:.82rem;
   border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
 .lsum caption{text-align:left;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
@@ -410,8 +411,9 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
     <button class="btn" id="lockBtn" title="Modo edición">🔒 Solo lectura</button>
     <button class="btn primary edit-only" id="uploadBtn" title="Sube el PDF de una orden de compra o una factura; la IA lo lee y tú confirmas">⬆ Subir OC / Factura (PDF)</button>
     <button class="btn edit-only" id="dedupBtn" title="Combina y elimina filas duplicadas" style="display:none;background:var(--amar-bg);color:var(--amar);border-color:rgba(154,106,0,.3)"></button>
+    <button class="btn ghost" id="sumBtn" title="Ver el resumen por línea de crédito">📊 Resumen por línea</button>
     <button class="btn ghost edit-only" id="impBtn">Importar</button>
-    <button class="btn ghost" id="expBtn" title="Descarga un Excel con dos pestañas: Calendario y Órdenes/Facturas">⬇ Exportar Excel</button>
+    <button class="btn ghost" id="expBtn" title="Descarga un Excel con tres pestañas: Calendario, Órdenes/Facturas y Resumen">⬇ Exportar Excel</button>
     <input type="file" id="fileInput" accept="application/json" hidden>
     <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple hidden>
   </div>
@@ -423,7 +425,6 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
 
   <!-- KPIs -->
   <div class="lines" id="lines"></div>
-  <div id="lineSummaryTop"></div>
 
   <!-- TABS -->
   <div class="tabnav">
@@ -529,7 +530,6 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
       </div>
       <button class="edge r" id="navR" title="Mes siguiente"><span class="ar">›</span><span class="cap">Mes siguiente</span></button>
     </div>
-    <div id="lineSummary"></div>
   </div>
   </div><!-- /panel-cal -->
 
@@ -572,6 +572,14 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
       <button class="btn ghost" id="detCancel">Cerrar</button>
       <button class="btn primary" id="detSave">Guardar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="summaryModal">
+  <div class="modal-card" style="width:560px">
+    <h3 style="margin-bottom:.8rem">Resumen por línea de crédito</h3>
+    <div id="summaryBody"></div>
+    <div class="modal-actions"><button class="btn primary" id="sumClose">Cerrar</button></div>
   </div>
 </div>
 
@@ -1124,13 +1132,16 @@ function renderCalendar(){
   }).join('');
 
   // footer totals — per week (facturado, pagado, por cobrar) + per month saldo (acumulado)
-  const facWk={}, pagWk={}, cobWk={};
-  vis.forEach((r,ri)=>{
-    const c=computed[ri];
-    if(c.facturada) facWk[c.wInv]=(facWk[c.wInv]||0)+r.monto;
-    if(c.pagadoTotal>0.005) pagWk[c.wPago]=(pagWk[c.wPago]||0)+c.pagadoTotal;
-    if((r.estado==='facturado'||r.estado==='abonado') && c.pendiente>0.005) cobWk[c.wDue]=(cobWk[c.wDue]||0)+c.pendiente;
-  });
+  function _maps(arr){ const fac={},pag={},cob={};
+    arr.forEach(r=>{ const c=computeRow(r);
+      if(c.facturada) fac[c.wInv]=(fac[c.wInv]||0)+r.monto;
+      if(c.pagadoTotal>0.005) pag[c.wPago]=(pag[c.wPago]||0)+c.pagadoTotal;
+      if((r.estado==='facturado'||r.estado==='abonado') && c.pendiente>0.005) cob[c.wDue]=(cob[c.wDue]||0)+c.pendiente;
+    }); return {fac,pag,cob}; }
+  const mAll=_maps(vis), facWk=mAll.fac, pagWk=mAll.pag, cobWk=mAll.cob;
+  const segByLinea = LINEFILTER==='all';   // mostrar desglose por línea solo en "Todas"
+  const mReg=segByLinea?_maps(vis.filter(r=>_lineaOf(r)==='regular')):null;
+  const mExt=segByLinea?_maps(vis.filter(r=>_lineaOf(r)==='extra')):null;
   // Saldo acumulado a fin de mes (calendario) = facturado − pagado hasta ese mes.
   function saldoUpToMonth(month){
     let fac=0,pag=0;
@@ -1141,14 +1152,22 @@ function renderCalendar(){
     });
     return fac-pag;
   }
-  function footRow(label, map, isCobrar){
+  function footRow(label, map, isCobrar, cls){
     let cells='';
     cols.forEach(col=>{
       if(col.type==='saldo'){ cells+=`<td class="saldo"></td>`; return; }
       const v=map[col.w.idx];
       cells += `<td class="${blk(col.w.month)}">${v?(isCobrar?`<span style="color:var(--rojo)">(${moneyShort(v)})</span>`:moneyShort(v)):''}</td>`;
     });
-    return `<td class="c-po">${label}</td><td class="c-fac"></td>${cells}`;
+    return `<tr class="${cls||''}"><td class="c-po">${label}</td><td class="c-fac"></td>${cells}</tr>`;
+  }
+  function metricRows(label, key, isCobrar){
+    let out = footRow(label, mAll[key], isCobrar);
+    if(segByLinea){
+      out += footRow('• Regular', mReg[key], isCobrar, 'sub-reg');
+      out += footRow('• Extraordinaria', mExt[key], isCobrar, 'sub-ext');
+    }
+    return out;
   }
   let saldoCells='';
   cols.forEach(col=>{
@@ -1157,11 +1176,11 @@ function renderCalendar(){
       saldoCells += `<td class="saldo" style="color:${cls}">${money(s)}</td>`; }
     else saldoCells += `<td class="${blk(col.w.month)}"></td>`;
   });
-  const foot = `
-    <tr>${footRow('Facturado', facWk, false)}</tr>
-    <tr>${footRow('Pagado', pagWk, false)}</tr>
-    <tr>${footRow('Por cobrar (gestión)', cobWk, true)}</tr>
-    <tr class="r-saldo"><td class="c-po">Saldo CxC (fact.−pag.)</td><td class="c-fac"></td>${saldoCells}</tr>`;
+  const foot =
+    metricRows('Facturado', 'fac', false)+
+    metricRows('Pagado / cobrado', 'pag', false)+
+    footRow('Por cobrar (gestión)', cobWk, true)+
+    `<tr class="r-saldo"><td class="c-po">Saldo CxC (fact.−pag.)</td><td class="c-fac"></td>${saldoCells}</tr>`;
 
   document.getElementById('calTbl').innerHTML =
     `<thead>${monthBand}${head}</thead><tbody>${bodyRows||''}</tbody><tfoot>${foot}</tfoot>`;
@@ -1260,12 +1279,12 @@ function renderLineSummary(){
   const row=(cls,lbl,a)=>`<tr class="${cls}"><th class="lz"><span class="dotc"></span>${lbl}</th>`+
     `<td class="fac">${money(a.facturado)}</td><td class="${a.pagado>0.005?'cob':'cob0'}">${money(a.pagado)}</td><td class="pc">${money(a.consumido)}</td></tr>`;
   const html =
-    `<table class="lsum"><caption>Resumen por línea de crédito</caption>`+
+    `<table class="lsum">`+
     `<thead><tr><th class="lz">Línea</th><th>Facturado</th><th>Cobrado</th><th>Por cobrar</th></tr></thead><tbody>`+
     row('reg','Regular',reg)+row('ext','Extraordinaria',ext)+
     `<tr class="tot"><th class="lz">Total</th><td>${money(reg.facturado+ext.facturado)}</td><td>${money(reg.pagado+ext.pagado)}</td><td>${money(reg.consumido+ext.consumido)}</td></tr>`+
     `</tbody></table>`;
-  ['lineSummaryTop','lineSummary'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; });
+  const el=document.getElementById('summaryBody'); if(el) el.innerHTML=html;
 }
 
 /* ---------- formatting ---------- */
@@ -1698,6 +1717,9 @@ document.getElementById('cdConfirm').onclick = ()=>{
 document.getElementById('cdCancel').onclick = ()=>{ _docQueue.shift(); _nextDoc(); };
 document.getElementById('confirmDocModal').onclick = e=>{ if(e.target.id==='confirmDocModal'){ _docQueue.shift(); _nextDoc(); } };
 document.getElementById('expBtn').onclick = ()=>{ try{ exportExcel(); toast('Excel exportado'); }catch(e){ alert('No se pudo exportar: '+(e.message||e)); } };
+document.getElementById('sumBtn').onclick = ()=>{ renderLineSummary(); document.getElementById('summaryModal').classList.add('show'); };
+document.getElementById('sumClose').onclick = ()=>document.getElementById('summaryModal').classList.remove('show');
+document.getElementById('summaryModal').onclick = e=>{ if(e.target.id==='summaryModal') e.currentTarget.classList.remove('show'); };
 document.getElementById('dedupBtn').onclick = ()=>{ if(EDIT) mergeDuplicates(); };
 document.getElementById('uploadBtn').onclick = ()=>{ if(EDIT) document.getElementById('pdfInput').click(); };
 document.getElementById('pdfInput').onchange = e=>{ const fs=[...e.target.files]; e.target.value=''; uploadPdfs(fs); };
