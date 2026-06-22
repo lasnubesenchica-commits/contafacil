@@ -24,7 +24,7 @@ var PW_KEY          = 'FLUJO_PW_HASH';
 var DEFAULT_LINEA   = 70000;
 var HEADER = ['orden_compra', 'factura', 'fecha_factura', 'monto',
               'estado', 'fecha_pago', 'abonado', 'actualizado',
-              'orden_url', 'factura_url', 'linea'];
+              'orden_url', 'factura_url', 'linea', 'pago_url'];
 var LINEA_EXTRA_KEY = 'FLUJO_LINEA_EXTRA';
 
 // ── Router ──────────────────────────────────────────────────────
@@ -117,7 +117,8 @@ function _getFlujo(callback) {
         monto: parseFloat(r[3]) || 0, estado: String(r[4] || 'orden'),
         fPago: _dateStr(r[5]), abonado: parseFloat(r[6]) || 0,
         poUrl: String(r[8] || ''), invUrl: String(r[9] || ''),
-        linea: String(r[10] || 'regular') === 'extra' ? 'extra' : 'regular'
+        linea: String(r[10] || 'regular') === 'extra' ? 'extra' : 'regular',
+        pagoUrl: String(r[11] || '')
       });
     }
   }
@@ -146,7 +147,8 @@ function _saveFlujo(data) {
                 parseFloat(r.monto) || 0, String(r.estado || 'orden'),
                 _dateStr(r.fPago), parseFloat(r.abonado) || 0, now,
                 String(r.poUrl || ''), String(r.invUrl || ''),
-                String(r.linea === 'extra' ? 'extra' : 'regular')];
+                String(r.linea === 'extra' ? 'extra' : 'regular'),
+                String(r.pagoUrl || '')];
       });
       sh.getRange(2, 1, out.length, HEADER.length).setValues(out);
     }
@@ -213,11 +215,14 @@ function _parsePdf(data) {
   var model = props.getProperty('FLUJO_MODEL') || 'claude-opus-4-8';
   var prompt =
     'Eres un asistente contable en Panamá. Analiza este documento PDF y determina si es una FACTURA ' +
-    'emitida o una ORDEN DE COMPRA (pedido). Devuelve ÚNICAMENTE un objeto JSON válido, sin texto extra, ' +
-    'con esta forma:\n' +
-    '{"tipo":"factura"|"orden","po":"número(s) de orden de compra (string, varios separados por coma si aplica)",' +
-    '"factura":"número de factura (ej F26248) o null si es orden","fecha":"fecha del documento en formato YYYY-MM-DD",' +
+    'emitida, una ORDEN DE COMPRA (pedido), o una CONSTANCIA DE PAGO (aviso/comprobante de transferencia ' +
+    'bancaria, recepción de cobro, "AVISO DE RECEPCIÓN DE TRANSFERENCIA"). Devuelve ÚNICAMENTE un objeto ' +
+    'JSON válido, sin texto extra, con esta forma:\n' +
+    '{"tipo":"factura"|"orden"|"pago","po":"número(s) de orden de compra (string, varios separados por coma si aplica)",' +
+    '"factura":"número de factura (ej F26248, normalizado sin puntos: F.26155 -> F26155) o null","fecha":"fecha del documento en formato YYYY-MM-DD",' +
     '"monto": total del documento como número (incluyendo ITBMS), "moneda":"USD"}.\n' +
+    'Si es CONSTANCIA DE PAGO usa tipo "pago", pon en "factura" la factura que se está pagando (suele venir ' +
+    'en el detalle, ej. "PAGO SEPPELEC FACTURA F.26155"), en "monto" el importe transferido y en "fecha" la del aviso/transferencia.\n' +
     'El número de orden de compra (po) es la referencia del PEDIDO DEL CLIENTE. En las facturas de ' +
     'Seppelec aparece etiquetado como "Nº documento externo" (también puede figurar como "pedido", ' +
     '"orden de compra", "PO" o "Nº de pedido cliente"); suele ser un número de ~10 dígitos que empieza ' +
