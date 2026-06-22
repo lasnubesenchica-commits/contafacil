@@ -53,13 +53,17 @@ input,select{font-family:inherit}
 .btn.primary{background:var(--orange);color:#fff;border-color:var(--orange)}
 .btn.primary:hover{background:var(--orange2);color:#fff}
 .btn.ghost{background:transparent}
-.sync{display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;color:var(--muted);
-  background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:.35rem .7rem;white-space:nowrap}
-.sync.ok{color:var(--verde);background:var(--verde-bg);border-color:rgba(27,122,51,.25)}
-.sync.saving{color:var(--orange);background:#FBEEE4;border-color:rgba(224,90,0,.25)}
-.sync.err{color:var(--rojoosc);background:var(--rojoosc-bg);border-color:rgba(122,12,12,.25)}
-.sync.local{color:var(--amar);background:var(--amar-bg);border-color:rgba(154,106,0,.25)}
-#lockBtn.editing{background:var(--verde-bg);color:var(--verde);border-color:rgba(27,122,51,.3)}
+/* estado sutil debajo del subtítulo */
+.brand-status{display:flex;align-items:center;gap:.55rem;margin-top:.4rem;flex-wrap:wrap}
+.bchip{font-family:'DM Sans',sans-serif;font-size:.64rem;font-weight:600;letter-spacing:.02em;color:var(--muted);
+  background:none;border:none;padding:0;display:inline-flex;align-items:center;gap:.25rem;white-space:nowrap;line-height:1}
+button.bchip{cursor:pointer;transition:color .15s}
+button.bchip:hover{color:var(--text)}
+.bsep{color:var(--chrome);font-size:.6rem}
+.sync{color:var(--muted)}
+.sync.ok{color:var(--verde)} .sync.saving{color:var(--orange)} .sync.err{color:var(--rojoosc)} .sync.local{color:var(--amar)}
+#lockBtn.editing{color:var(--verde)}
+.bchip.dedup,.bchip.dedup:hover{color:var(--amar)}
 body.readonly .edit-only{display:none!important}
 body.readonly .del-btn{display:none}
 /* modal */
@@ -405,12 +409,15 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
 <div class="topbar">
   <div class="brand">SEPPELEC<span> · CxC</span>
     <small id="negocio">Cuentas por cobrar y flujo de caja</small>
+    <div class="brand-status">
+      <span class="bchip sync" id="sync" title="Estado de sincronización">●&nbsp;<span id="syncTxt">Conectando…</span></span>
+      <span class="bsep">·</span>
+      <button class="bchip" id="lockBtn" title="Cambiar modo de edición">🔒 Solo lectura</button>
+      <button class="bchip dedup edit-only" id="dedupBtn" title="Combina y elimina filas duplicadas" style="display:none"></button>
+    </div>
   </div>
   <div class="topbar-actions">
-    <span class="sync" id="sync" title="Estado de sincronización">●&nbsp;<span id="syncTxt">Conectando…</span></span>
-    <button class="btn" id="lockBtn" title="Modo edición">🔒 Solo lectura</button>
     <button class="btn primary edit-only" id="uploadBtn" title="Sube el PDF de una orden de compra o una factura; la IA lo lee y tú confirmas">⬆ Subir OC / Factura (PDF)</button>
-    <button class="btn edit-only" id="dedupBtn" title="Combina y elimina filas duplicadas" style="display:none;background:var(--amar-bg);color:var(--amar);border-color:rgba(154,106,0,.3)"></button>
     <button class="btn ghost" id="sumBtn" title="Ver el resumen por línea de crédito">📊 Resumen por línea</button>
     <button class="btn ghost" id="expBtn" title="Descarga un Excel con tres pestañas: Calendario, Órdenes/Facturas y Resumen">⬇ Exportar Excel</button>
     <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple hidden>
