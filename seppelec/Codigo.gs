@@ -208,6 +208,13 @@ function _parsePdf(data) {
     '{"tipo":"factura"|"orden","po":"número(s) de orden de compra (string, varios separados por coma si aplica)",' +
     '"factura":"número de factura (ej F26248) o null si es orden","fecha":"fecha del documento en formato YYYY-MM-DD",' +
     '"monto": total del documento como número (incluyendo ITBMS), "moneda":"USD"}.\n' +
+    'El número de orden de compra (po) es la referencia del PEDIDO DEL CLIENTE. En las facturas de ' +
+    'Seppelec aparece etiquetado como "Nº documento externo" (también puede figurar como "pedido", ' +
+    '"orden de compra", "PO" o "Nº de pedido cliente"); suele ser un número de ~10 dígitos que empieza ' +
+    'en 42. NO uses el "Nº cliente" (ej. CLI/00127) ni el nº de albarán como po.\n' +
+    'Los importes pueden venir en formato europeo (1.234,56 = mil doscientos treinta y cuatro con 56): ' +
+    'devuélvelos siempre como número con punto decimal (1234.56), sin separador de miles ni símbolo.\n' +
+    'La fecha puede venir como texto (ej. "22 de junio de 2026"): conviértela a YYYY-MM-DD. ' +
     'Para una ORDEN usa la fecha del pedido. Para una FACTURA usa la fecha de la factura. ' +
     'Si un campo no aparece, usa null. No inventes valores.';
 
