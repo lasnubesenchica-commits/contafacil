@@ -60,7 +60,7 @@ input,select{font-family:inherit}
 button.bchip{cursor:pointer;transition:color .15s}
 button.bchip:hover{color:var(--text)}
 .bsep{color:var(--chrome);font-size:.6rem}
-.sync{color:var(--muted)}
+.sync{color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.64rem;font-weight:600}
 .sync.ok{color:var(--verde)} .sync.saving{color:var(--orange)} .sync.err{color:var(--rojoosc)} .sync.local{color:var(--amar)}
 #lockBtn.editing{color:var(--verde)}
 .bchip.dedup,.bchip.dedup:hover{color:var(--amar)}
@@ -712,7 +712,7 @@ function gasPost(action, body){
 /* ---------- sync indicator ---------- */
 function setSync(cls, txt){
   const el=document.getElementById('sync'); const t=document.getElementById('syncTxt');
-  if(!el) return; el.className='sync '+cls; if(t) t.textContent=txt;
+  if(!el) return; el.className='bchip sync '+cls; if(t) t.textContent=txt;
 }
 
 /* ---------- persistence: cache + debounced backend save ---------- */
