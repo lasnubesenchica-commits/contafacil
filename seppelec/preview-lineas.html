@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seppelec CxC — Propuesta: 2 líneas de crédito</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --orange:#E05A00; --orange2:#CC5200;
+  --bg:#F5F5F7; --bg2:#EBEBED; --border:rgba(0,0,0,0.09);
+  --text:#0A0A0A; --muted:#6C6C70; --chrome:#AEAEB2; --white:#FFFFFF;
+  --azul:#1565C0; --azul-bg:#E3F2FD;
+  --verde:#1B7A33; --verde-bg:#E3F6E8;
+  --rojo:#D32F2F; --rojo-bg:#FDE7E7;
+  --rojoosc:#7A0C0C; --rojoosc-bg:#F6D6D6;
+  --gris:#6C6C70; --gris-bg:#ECECEE;
+  --amar:#9A6A00; --amar-bg:#FFF6DB;
+  --morado:#7B1FA2; --morado-bg:#F4E7FA; --morado2:#5E1580;
+  --r:10px; --r2:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);padding-bottom:4rem}
+.topbar{position:sticky;top:0;z-index:50;background:rgba(245,245,247,.94);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);padding:.7rem 1.4rem}
+.brand{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.06em;line-height:1}
+.brand span{color:var(--orange)}
+.brand small{display:block;font-family:'DM Sans';font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.note{background:#FFF6DB;border-bottom:1px solid #E6CF7A;color:#7A5A00;font-size:.78rem;padding:.55rem 1.4rem}
+.wrap{padding:1.4rem;max-width:1180px;margin:0 auto}
+h2.sec{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:1.6rem .2rem .8rem}
+h2.sec:first-child{margin-top:.4rem}
+
+/* ---- tarjetas de línea ---- */
+.lines{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem}
+@media(max-width:840px){.lines{grid-template-columns:1fr}}
+.lcard{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.lcard .hd{display:flex;align-items:center;gap:.6rem;padding:.9rem 1.1rem;border-bottom:1px solid var(--border)}
+.lcard.reg .hd{background:linear-gradient(90deg,#FCF3EC,#fff)}
+.lcard.ext .hd{background:linear-gradient(90deg,var(--morado-bg),#fff)}
+.lcard .dot{width:12px;height:12px;border-radius:4px}
+.lcard.reg .dot{background:var(--orange)} .lcard.ext .dot{background:var(--morado)}
+.lcard .hd .t{font-family:'Bebas Neue';font-size:1.25rem;letter-spacing:.04em;line-height:1}
+.lcard .hd .tag{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  padding:.2rem .5rem;border-radius:100px;margin-left:auto}
+.lcard.reg .tag{background:var(--orange);color:#fff}
+.lcard.ext .tag{background:var(--morado);color:#fff}
+.lcard .terms{font-size:.7rem;color:var(--muted);padding:.5rem 1.1rem 0}
+.lcard .body{padding:1rem 1.1rem}
+.hero{margin-bottom:.9rem}
+.hero .lbl{font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hero .val{font-family:'DM Mono',monospace;font-size:2rem;font-weight:500;letter-spacing:-.02em;line-height:1.1;margin-top:.15rem}
+.verde{color:var(--verde)} .rojo{color:var(--rojo)} .rojoosc{color:var(--rojoosc)} .mor{color:var(--morado)} .orn{color:var(--orange)}
+/* barra de uso */
+.bar{height:14px;border-radius:8px;background:var(--bg2);overflow:hidden;display:flex;margin:.5rem 0 .3rem}
+.bar i{display:block;height:100%}
+.bar .fill-reg{background:var(--orange)}
+.bar .seg-ab{background:var(--verde)} .bar .seg-60{background:var(--amar)} .bar .seg-venc{background:var(--rojoosc)}
+.barcap{display:flex;justify-content:space-between;font-size:.64rem;color:var(--muted)}
+.minis{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:.9rem}
+.mini{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .7rem}
+.mini .l{font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.mini .v{font-family:'DM Mono',monospace;font-size:1.05rem;font-weight:500;margin-top:.15rem}
+.mini .s{font-size:.6rem;color:var(--chrome)}
+.legend5050{display:flex;gap:.8rem;flex-wrap:wrap;font-size:.64rem;color:var(--muted);margin-top:.5rem}
+.legend5050 i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:.25rem;vertical-align:-1px}
+
+/* ---- mini tabla / calendario distintivo ---- */
+.demo{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+table.mini-tbl{width:100%;border-collapse:collapse;font-size:.8rem}
+table.mini-tbl th{text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  padding:.6rem .8rem;border-bottom:1px solid var(--border);font-weight:700}
+table.mini-tbl td{padding:.55rem .8rem;border-bottom:1px solid var(--bg2);font-family:'DM Mono',monospace;font-size:.78rem}
+table.mini-tbl td.po{font-family:'DM Sans';font-weight:600}
+tr.ext-row{box-shadow:inset 4px 0 0 var(--morado);background:rgba(123,31,162,.03)}
+.badge-ext{display:inline-block;font-family:'DM Sans';font-size:.58rem;font-weight:800;letter-spacing:.04em;
+  color:var(--morado);background:var(--morado-bg);border:1px solid rgba(123,31,162,.3);padding:.05rem .35rem;border-radius:5px;margin-left:.4rem}
+.st{display:inline-block;font-size:.64rem;font-weight:700;padding:.12rem .45rem;border-radius:100px;font-family:'DM Sans'}
+.st-fact{background:var(--azul-bg);color:var(--azul)} .st-ab{background:var(--amar-bg);color:var(--amar)}
+.st-pag{background:var(--verde-bg);color:var(--verde)} .st-cob{background:var(--rojo-bg);color:var(--rojo)}
+.chip{display:inline-block;padding:.1rem .4rem;border-radius:6px;font-size:.72rem;font-weight:600}
+.c-fact{background:var(--azul-bg);color:var(--azul)} .c-cob{background:var(--rojo-bg);color:var(--rojo)}
+.c-pag{background:var(--verde-bg);color:var(--verde)}
+
+/* ---- timeline mini ---- */
+.tl-mini{padding:.4rem 0}
+.tl-r{display:flex;align-items:center;gap:.6rem;padding:.45rem .8rem;border-bottom:1px solid var(--bg2)}
+.tl-r.ext-row{box-shadow:inset 4px 0 0 var(--morado)}
+.tl-r .lbl{width:230px;flex:0 0 230px;font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.35rem}
+.tl-r .track{position:relative;flex:1;height:16px}
+.tl-bar{position:absolute;top:50%;transform:translateY(-50%);height:12px;border-radius:6px}
+.b-fact{background:var(--azul-bg);border:1px solid rgba(21,101,192,.4)}
+.b-ext{background:var(--morado-bg);border:1px solid rgba(123,31,162,.45)}
+.mk{position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;border:2px solid #fff;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:#fff}
+.mk-ab{background:var(--verde)} .mk-due{background:var(--rojo)} .mk-emis{background:var(--azul);width:10px;height:10px} .mk-emisx{background:var(--morado);width:10px;height:10px}
+
+/* ---- modal mockup ---- */
+.modal-demo{max-width:460px;background:var(--white);border:1px solid var(--border);border-radius:18px;padding:1.4rem;box-shadow:0 16px 50px rgba(0,0,0,.12)}
+.modal-demo h3{font-size:1rem;margin-bottom:.2rem}
+.modal-demo .sub{font-size:.76rem;color:var(--muted);margin-bottom:.9rem}
+.seg{display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:.2rem;margin:.2rem 0 .4rem}
+.seg button{font-size:.78rem;font-weight:600;color:var(--muted);padding:.4rem 1rem;border-radius:100px;border:none;background:none;cursor:pointer}
+.seg button.active{background:var(--white);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg button.r.active{color:var(--orange)} .seg button.x.active{color:var(--morado)}
+.lbl-mini{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:.5rem 0 .3rem}
+.cd-info{display:grid;grid-template-columns:auto 1fr;gap:.3rem .8rem;font-size:.82rem;margin:.3rem 0 .2rem}
+.cd-info .k{color:var(--muted)} .cd-info .v{font-family:'DM Mono',monospace;font-weight:600;text-align:right}
+.cd-check{font-size:.78rem;padding:.45rem .6rem;border-radius:8px;margin:.4rem 0;font-weight:600}
+.ok{background:var(--verde-bg);color:var(--verde)} .info-x{background:var(--morado-bg);color:var(--morado2)}
+.acts{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.8rem}
+.btn{font-size:.82rem;font-weight:600;border:1px solid var(--border);background:#fff;border-radius:100px;padding:.5rem 1.1rem;cursor:pointer}
+.btn.blue{background:var(--azul);color:#fff;border-color:var(--azul)}
+.btn.mor{background:var(--morado);color:#fff;border-color:var(--morado)}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;align-items:start}
+@media(max-width:840px){.cols2{grid-template-columns:1fr}}
+.callout{font-size:.74rem;color:var(--muted);background:var(--white);border:1px dashed var(--border);border-radius:var(--r);padding:.7rem .9rem;line-height:1.5}
+.callout b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">SEPPELEC<span> · CXC</span><small>Propuesta visual · 2 líneas de crédito (Regular + Extraordinaria)</small></div>
+</div>
+<div class="note">Maqueta para analizar el diseño — no toca la app. Datos de ejemplo. Extraordinaria: <b>sin tope</b>, <b>50% abonado al facturar</b> + 50% a 60 días, distinción por <b>color morado + etiqueta EXT</b>.</div>
+
+<div class="wrap">
+
+  <h2 class="sec">1 · Panel propuesto — una tarjeta por línea</h2>
+  <div class="lines">
+
+    <!-- REGULAR -->
+    <div class="lcard reg">
+      <div class="hd"><span class="dot"></span><span class="t">Línea Regular</span><span class="tag">Tope $70,000</span></div>
+      <div class="terms">Crédito a 60 días · descuenta del cupo de $70,000</div>
+      <div class="body">
+        <div class="hero">
+          <div class="lbl">Saldo disponible</div>
+          <div class="val verde">$41,820.00</div>
+        </div>
+        <div class="bar"><i class="fill-reg" style="width:40%"></i></div>
+        <div class="barcap"><span>Consumido $28,180</span><span>Cupo $70,000</span></div>
+        <div class="minis">
+          <div class="mini"><div class="l">Por cobrar ≤60d</div><div class="v rojo">$28,180</div><div class="s">dentro de plazo</div></div>
+          <div class="mini"><div class="l">Outstanding &gt;60d</div><div class="v rojoosc">$0</div><div class="s">vencido</div></div>
+          <div class="mini"><div class="l">Pagado acumulado</div><div class="v verde">$79,629</div><div class="s">cobrado</div></div>
+          <div class="mini"><div class="l">Órdenes sin facturar</div><div class="v">$184,210</div><div class="s">pipeline</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXTRAORDINARIA -->
+    <div class="lcard ext">
+      <div class="hd"><span class="dot"></span><span class="t">Línea Extraordinaria</span><span class="tag">Sin tope</span></div>
+      <div class="terms">50% abonado al facturar · 50% restante a 60 días · separada del cupo regular</div>
+      <div class="body">
+        <div class="hero">
+          <div class="lbl">Por cobrar (50% a 60 días)</div>
+          <div class="val mor">$14,000.00</div>
+        </div>
+        <div class="bar">
+          <i class="seg-ab" style="width:50%"></i><i class="seg-60" style="width:50%"></i>
+        </div>
+        <div class="legend5050">
+          <span><i style="background:var(--verde)"></i>Abonado 50% $14,000</span>
+          <span><i style="background:var(--amar)"></i>Por cobrar 60d $14,000</span>
+          <span><i style="background:var(--rojoosc)"></i>Vencido $0</span>
+        </div>
+        <div class="minis">
+          <div class="mini"><div class="l">Facturado total</div><div class="v">$28,000</div><div class="s">2 facturas EXT</div></div>
+          <div class="mini"><div class="l">Abonado (50%)</div><div class="v verde">$14,000</div><div class="s">auto al facturar</div></div>
+          <div class="mini"><div class="l">Por cobrar 60d</div><div class="v mor">$14,000</div><div class="s">50% restante</div></div>
+          <div class="mini"><div class="l">Vencido</div><div class="v rojoosc">$0</div><div class="s">gestión urgente</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:1rem">
+    <b>Lectura rápida:</b> la <b style="color:var(--orange)">Regular</b> se mide contra su cupo de $70k (barra de uso → cuánto queda).
+    La <b style="color:var(--morado)">Extraordinaria</b> no tiene cupo: su barra muestra el <b>split 50/50</b> (verde = ya abonado, ámbar = por cobrar a 60d, rojo = vencido).
+    Arriba podríamos sumar una fila “Total por cobrar (ambas): <b>$42,180</b>” si lo quieres de un vistazo.
+  </div>
+
+  <h2 class="sec">2 · Distintivo en la tabla y el calendario</h2>
+  <div class="cols2">
+    <div class="demo">
+      <table class="mini-tbl">
+        <thead><tr><th>Orden / Factura</th><th>Estado</th><th style="text-align:right">Monto</th></tr></thead>
+        <tbody>
+          <tr><td class="po">4200002008 · F26225</td><td><span class="st st-fact">Facturado</span></td><td style="text-align:right">$28,180</td></tr>
+          <tr><td class="po">4200001507 · F26069</td><td><span class="st st-pag">Pagado</span></td><td style="text-align:right">$25,003</td></tr>
+          <tr class="ext-row"><td class="po">4200002500 · F26300 <span class="badge-ext">EXT</span></td><td><span class="st st-ab">Abonado 50%</span></td><td style="text-align:right">$20,000</td></tr>
+          <tr class="ext-row"><td class="po">4200002600 · F26310 <span class="badge-ext">EXT</span></td><td><span class="st st-ab">Abonado 50%</span></td><td style="text-align:right">$8,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="demo tl-mini">
+      <div class="tl-r"><div class="lbl">F26225 · $28k</div><div class="track">
+        <span class="mk mk-emis" style="left:6%"></span><span class="tl-bar b-fact" style="left:6%;width:62%"></span><span class="mk mk-due" style="left:68%">◆</span></div></div>
+      <div class="tl-r ext-row"><div class="lbl">F26300 <span class="badge-ext">EXT</span> · $20k</div><div class="track">
+        <span class="mk mk-emisx" style="left:6%"></span><span class="tl-bar b-ext" style="left:6%;width:62%"></span>
+        <span class="mk mk-ab" style="left:6%" title="50% abonado">✓</span><span class="mk mk-due" style="left:68%">◆</span></div></div>
+      <div class="tl-r ext-row"><div class="lbl">F26310 <span class="badge-ext">EXT</span> · $8k</div><div class="track">
+        <span class="mk mk-emisx" style="left:18%"></span><span class="tl-bar b-ext" style="left:18%;width:60%"></span>
+        <span class="mk mk-ab" style="left:18%">✓</span><span class="mk mk-due" style="left:78%">◆</span></div></div>
+      <div style="font-size:.66rem;color:var(--muted);padding:.5rem .8rem">Filas <b style="color:var(--morado)">EXT</b>: borde y barra morados + etiqueta. El ✓ verde al inicio = 50% abonado automático; ◆ rojo = 50% restante a 60 días.</div>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:1rem">Además agregaríamos un <b>filtro</b> arriba del calendario: <b>[ Todas · Regular · Extraordinaria ]</b> para aislar una línea cuando se quiera.</div>
+
+  <h2 class="sec">3 · Al subir el PDF — elegir la línea</h2>
+  <div class="modal-demo">
+    <h3>Factura detectada</h3>
+    <div class="sub">F26300.pdf</div>
+    <div class="lbl-mini">Asignar a línea de crédito</div>
+    <div class="seg"><button class="r">Regular</button><button class="x active">Extraordinaria</button></div>
+    <div class="cd-info">
+      <span class="k">N° de factura</span><span class="v">F26300</span>
+      <span class="k">N° de orden</span><span class="v">4200002500</span>
+      <span class="k">Monto de la factura</span><span class="v">$20,000.00</span>
+      <span class="k">Vence (60d)</span><span class="v">2026-08-21</span>
+    </div>
+    <div class="cd-check info-x">Extraordinaria · se registrará <b>$10,000 (50%) como abonado</b> hoy y <b>$10,000 (50%) por cobrar</b> a 60 días.</div>
+    <div class="cd-check ok">✓ Vincula la OC 4200002500 · el monto coincide.</div>
+    <div class="acts"><button class="btn">Cancelar</button><button class="btn mor">Vincular (Extraordinaria)</button></div>
+  </div>
+  <div class="callout" style="margin-top:1rem">El selector <b>Regular / Extraordinaria</b> aparece tanto para facturas como para órdenes. Si eliges <b>Regular</b>, el botón vuelve a azul y se comporta como hoy.</div>
+
+</div>
+</body>
+</html>
