@@ -1313,7 +1313,7 @@ function detSave(){
   r.estado = _detEstado;
   if(r.estado==='pagado'){ r.abonado = r.monto; r.fPago = document.getElementById('detFecha').value || isoToday(); }
   else if(r.estado==='abonado'){ r.abonado = +document.getElementById('detAbono').value||0; r.fPago = document.getElementById('detFecha').value || isoToday(); }
-  else { r.fPago=''; r.abonado=0; }
+  else { r.fPago=''; r.abonado=0; r.pagoUrl=''; }   // volver a "no pagado" limpia pago, abono y constancia
   _applyLinea(r, _detLinea);   // asigna línea y aplica/revierte el 50% automático (extraordinaria)
   save(); renderAll(); closeDetail(); toast('Guardado');
 }
