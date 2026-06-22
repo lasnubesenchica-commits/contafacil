@@ -19,6 +19,7 @@
   /* status palette */
   --azul:#1565C0; --azul-bg:#E3F2FD;
   --verde:#1B7A33; --verde-bg:#E3F6E8;          /* pagado */
+  --morado:#7B1FA2; --morado-bg:#F4E7FA; --morado2:#5E1580;  /* línea extraordinaria */
   --rojo:#D32F2F; --rojo-bg:#FDE7E7;            /* por cobrar (dentro de 60d) */
   --rojoosc:#7A0C0C; --rojoosc-bg:#F6D6D6;      /* outstanding > 60d (vencido) */
   --gris:#6C6C70; --gris-bg:#ECECEE;            /* orden de compra sin facturar */
@@ -79,6 +80,9 @@ body.readonly .del-btn{display:none}
 .btn.green:hover{background:#155f28;color:#fff}
 .btn.blue{background:var(--azul);color:#fff;border-color:var(--azul)}
 .btn.blue:hover{background:#0d4ea0;color:#fff}
+.btn.mor{background:var(--morado);color:#fff;border-color:var(--morado)}
+.btn.mor:hover{background:var(--morado2);color:#fff}
+.cd-check.info-x{background:var(--morado-bg);color:var(--morado2)}
 /* preview de documento (confirmar OC / Factura) */
 .cd-info{display:grid;grid-template-columns:auto 1fr;gap:.35rem .8rem;font-size:.84rem;margin-bottom:.7rem}
 .cd-info .k{color:var(--muted)} .cd-info .v{font-family:'DM Mono',monospace;font-weight:600;text-align:right;word-break:break-word}
@@ -132,6 +136,51 @@ table.cal tbody tr.cal-row:hover td:not(.saldo){background:#F2F6FF}
 .kpi.editable{cursor:pointer}
 .kpi.editable input{font-family:'DM Mono',monospace;font-size:1.2rem;width:100%;border:1px dashed var(--orange);
   border-radius:6px;padding:.1rem .3rem;background:#fff}
+
+/* ── tarjetas por línea de crédito ── */
+.lines{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+@media(max-width:860px){.lines{grid-template-columns:1fr}}
+.lcard{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.lcard .hd{display:flex;align-items:center;gap:.55rem;padding:.8rem 1rem;border-bottom:1px solid var(--border)}
+.lcard.reg .hd{background:linear-gradient(90deg,#FCF3EC,#fff)}
+.lcard.ext .hd{background:linear-gradient(90deg,var(--morado-bg),#fff)}
+.lcard .dot{width:11px;height:11px;border-radius:4px}
+.lcard.reg .dot{background:var(--orange)} .lcard.ext .dot{background:var(--morado)}
+.lcard .t{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.04em;line-height:1}
+.ltope{margin-left:auto;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  padding:.25rem .55rem;border-radius:100px;color:#fff;cursor:default;border:none}
+.lcard.reg .ltope{background:var(--orange)} .lcard.ext .ltope{background:var(--morado)}
+body:not(.readonly) .ltope{cursor:pointer}
+body:not(.readonly) .ltope:hover{filter:brightness(1.08)}
+.ltope input{width:90px;font-family:'DM Mono',monospace;font-size:.78rem;border:none;border-radius:5px;padding:.1rem .3rem;text-align:right}
+.lcard .terms{font-size:.68rem;color:var(--muted);padding:.45rem 1rem 0}
+.lcard .body{padding:.85rem 1rem}
+.lhero .lbl{font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lhero .val{font-family:'DM Mono',monospace;font-size:1.7rem;font-weight:500;letter-spacing:-.02em;line-height:1.1;margin-top:.1rem}
+.bar{height:13px;border-radius:7px;background:var(--bg2);overflow:hidden;display:flex;margin:.5rem 0 .25rem}
+.bar i{display:block;height:100%}
+.bar .fill-reg{background:var(--orange)} .bar .fill-ext{background:var(--morado)}
+.bar .seg-ab{background:var(--verde)} .bar .seg-60{background:var(--amar)} .bar .seg-venc{background:var(--rojoosc)}
+.barcap{display:flex;justify-content:space-between;font-size:.62rem;color:var(--muted)}
+.lminis{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.85rem}
+.lmini{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.5rem .65rem}
+.lmini .l{font-size:.58rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.lmini .v{font-family:'DM Mono',monospace;font-size:1rem;font-weight:500;margin-top:.1rem}
+.lmini .s{font-size:.58rem;color:var(--chrome)}
+.orn{color:var(--orange)} .mor{color:var(--morado)}
+.lcard .verde{color:var(--verde)} .lcard .rojo{color:var(--rojo)} .lcard .rojoosc{color:var(--rojoosc)}
+.split-lg{display:flex;gap:.7rem;flex-wrap:wrap;font-size:.6rem;color:var(--muted);margin-top:.45rem}
+.split-lg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:.2rem;vertical-align:-1px}
+
+/* ── distintivo de línea extraordinaria ── */
+.badge-ext{display:inline-block;font-size:.56rem;font-weight:800;letter-spacing:.03em;color:var(--morado);
+  background:var(--morado-bg);border:1px solid rgba(123,31,162,.3);padding:.02rem .3rem;border-radius:5px;margin-left:.35rem;vertical-align:1px}
+table.cal tbody tr.ext-row td.c-po{box-shadow:inset 4px 0 0 var(--morado)}
+.tl-row.ext-row .tl-lbl{box-shadow:inset 4px 0 0 var(--morado)}
+.bar-ext{background:var(--morado-bg);border:1px solid rgba(123,31,162,.45)}
+.mk-emisx{background:var(--morado)!important}
+/* filtro por línea */
+.seg button.ext.active{color:var(--morado)}
 
 /* ── SECTION ── */
 .section{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);
@@ -357,7 +406,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
 <div class="wrap">
 
   <!-- KPIs -->
-  <div class="kpis" id="kpis"></div>
+  <div class="lines" id="lines"></div>
 
   <!-- TABS -->
   <div class="tabnav">
@@ -399,6 +448,11 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
         <div class="seg" id="viewSeg">
           <button data-v="blocks" class="active">🗓️ Bloques de mes</button>
           <button data-v="timeline">📊 Línea de tiempo</button>
+        </div>
+        <div class="seg" id="lineSeg" title="Filtrar por línea de crédito">
+          <button data-l="all" class="active">Todas</button>
+          <button data-l="regular" class="reg">Regular</button>
+          <button data-l="extra" class="ext">Extraordinaria</button>
         </div>
         <button class="chip" id="groupBtn" title="Agrupar las filas que comparten la misma factura">🔗 Agrupar por factura</button>
         <button class="chip" id="winReset" title="Volver a la semana actual: mes anterior + 60 días">Hoy · 60 días</button>
@@ -481,6 +535,11 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
     <h3 id="detTitle">Detalle</h3>
     <div class="det-info" id="detInfo"></div>
     <div id="detEdit">
+      <span class="det-lbl">Línea de crédito</span>
+      <div class="seg" id="detLineSeg" style="margin-bottom:.5rem">
+        <button data-l="regular" class="r">Regular</button>
+        <button data-l="extra" class="ext">Extraordinaria</button>
+      </div>
       <span class="det-lbl">Estado</span>
       <div class="det-estados" id="detEstados"></div>
       <div id="detPagoWrap" style="display:none">
@@ -502,6 +561,11 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
   <div class="modal-card wide" style="width:480px">
     <h3 id="cdTitle">Documento detectado</h3>
     <p id="cdSub"></p>
+    <span class="det-lbl">Asignar a línea de crédito</span>
+    <div class="seg" id="cdLineSeg" style="margin-bottom:.7rem">
+      <button data-l="regular" class="r active">Regular</button>
+      <button data-l="extra" class="ext">Extraordinaria</button>
+    </div>
     <div class="cd-info" id="cdInfo"></div>
     <div id="cdLink"></div>
     <div id="cdLink2"></div>
@@ -546,6 +610,7 @@ const LINEA_DEFAULT = 70000;
 /* ---------- seed data (extraído del Excel del cliente) ---------- */
 const SEED = {
   linea: LINEA_DEFAULT,
+  lineaExtra: LINEA_DEFAULT,
   rows: [
     {po:'4200001507-4200001866', inv:'F26069', fInv:'2026-02-23', monto:25003.47, estado:'pagado',  fPago:'2026-05-11', abonado:25003.47},
     {po:'4200001885-4200001862', inv:'F26092', fInv:'2026-03-12', monto:4786.22,  estado:'pagado',  fPago:'2026-05-11', abonado:4786.22},
@@ -632,7 +697,7 @@ async function pushSave(){
   if(_saving){ _pending=true; return; }
   _saving=true; setSync('saving','Guardando…');
   try{
-    const r=await gasPost('saveFlujoCxc',{rows:state.rows, linea:state.linea});
+    const r=await gasPost('saveFlujoCxc',{rows:state.rows, linea:state.linea, lineaExtra:state.lineaExtra});
     if(r && r.success){ setSync('ok','Sincronizado'); }
     else { setSync('err','Error al guardar'); }
   }catch(e){ setSync('err','Sin conexión'); }
@@ -653,7 +718,7 @@ async function boot(){
     const r=await gasJsonp('getFlujoCxc');
     if(r && r.success && Array.isArray(r.rows)){
       if(r.rows.length){                         // hay datos en el servidor
-        state={ linea:(r.linea!=null?r.linea:LINEA_DEFAULT), rows:r.rows };
+        state={ linea:(r.linea!=null?r.linea:LINEA_DEFAULT), lineaExtra:(r.lineaExtra!=null?r.lineaExtra:LINEA_DEFAULT), rows:r.rows };
         try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
         renderAll(); setSync('ok','Sincronizado');
       } else {                                   // servidor vacío → sembrar una vez
@@ -795,47 +860,47 @@ function computeRow(r){
            wInv: weekOf(fInv), wDue: weekOf(due), wPago: weekOf(fPago) };
 }
 
-/* ---------- KPIs ---------- */
+/* ---------- KPIs: una tarjeta por línea de crédito ---------- */
+function _lineAgg(fn){ const a={facturado:0,pagado:0,porCobrar:0,vencido:0,consumido:0,ordenes:0,abonos:0};
+  state.rows.forEach(r=>{ if(!fn(r)) return; const c=computeRow(r);
+    if(c.facturada) a.facturado+=r.monto;
+    a.pagado+=c.pagadoTotal;
+    if(c.facturada && c.pendiente>0.005){ a.consumido+=c.pendiente; if(c.overdue) a.vencido+=c.pendiente; else a.porCobrar+=c.pendiente; }
+    if(r.estado==='orden') a.ordenes+=(r.monto||0);
+    if(_lineaOf(r)==='extra' && c.facturada) a.abonos+=c.pagadoTotal;
+  }); return a; }
+function _mini(l,v,cls,s){ return `<div class="lmini"><div class="l">${l}</div><div class="v ${cls||''}">${money(v)}</div><div class="s">${s||''}</div></div>`; }
 function renderKPIs(){
-  let facturado=0, pagado=0, porCobrar=0, vencido=0, consumido=0, ordenes=0;
-  state.rows.forEach(r=>{
-    const c = computeRow(r);
-    if(c.facturada){ facturado += r.monto; }
-    pagado += c.pagadoTotal;
-    if(c.facturada && c.pendiente>0.005){
-      consumido += c.pendiente;
-      if(c.overdue) vencido += c.pendiente; else porCobrar += c.pendiente;
-    }
-    if(r.estado==='orden') ordenes += (r.monto||0);
-  });
-  const linea = +state.linea || LINEA_DEFAULT;
-  const totalCxC = porCobrar + vencido;
-  const disponible = linea - consumido;
-  const K = [
-    {lbl:'Línea de crédito', val:money(linea), cls:EDIT?'editable':'', id:'kLinea', sub:EDIT?'clic para editar':''},
-    {lbl:'Consumido (CxC vivo)', val:money(consumido), cls:'accent', sub:'facturado sin pagar'},
-    {lbl:'Saldo disponible', val:money(disponible), cls: disponible<0?'rojo':'verde', sub:'línea − consumido'},
-    {lbl:'Total por cobrar', val:money(totalCxC), cls:'', sub:'≤60d + vencido'},
-    {lbl:'Por vencer ≤ 60d', val:money(porCobrar), cls:'rojo', sub:'dentro de plazo'},
-    {lbl:'Outstanding >60d', val:money(vencido), cls:'rojoosc', sub:'gestión urgente'},
-    {lbl:'Pagado acumulado', val:money(pagado), cls:'verde', sub:'cobrado'},
-    {lbl:'Órdenes sin facturar', val:money(ordenes), cls:'', sub:'pipeline'}
-  ];
-  document.getElementById('kpis').innerHTML = K.map(k=>`
-    <div class="kpi ${k.cls}" ${k.id?`id="${k.id}"`:''}>
-      <div class="lbl">${k.lbl}</div>
-      <div class="val">${k.val}</div>
-      <div class="sub">${k.sub||''}</div>
-    </div>`).join('');
-  const kl = document.getElementById('kLinea');
-  if(kl && EDIT) kl.onclick = ()=>{
-    const v=kl.querySelector('.val');
-    v.innerHTML = `<input type="number" value="${linea}" step="0.01">`;
-    const inp=v.querySelector('input'); inp.focus(); inp.select();
-    const commit=()=>{ state.linea = +inp.value||LINEA_DEFAULT; save(); renderKPIs(); };
-    inp.onblur=commit; inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); };
-    kl.onclick=null;
-  };
+  const reg=_lineAgg(r=>_lineaOf(r)==='regular'), ext=_lineAgg(r=>_lineaOf(r)==='extra');
+  const topeR=+state.linea||LINEA_DEFAULT, topeE=+state.lineaExtra||LINEA_DEFAULT;
+  const dispR=topeR-reg.consumido, dispE=topeE-ext.consumido;
+  const pct=(c,t)=>Math.max(0,Math.min(100, t>0?c/t*100:0));
+  const regCard=`<div class="lcard reg">
+    <div class="hd"><span class="dot"></span><span class="t">Línea Regular</span><button class="ltope" id="topeReg">Tope ${money(topeR)}</button></div>
+    <div class="terms">Crédito a 60 días · descuenta del cupo</div>
+    <div class="body">
+      <div class="lhero"><div class="lbl">Saldo disponible</div><div class="val ${dispR<0?'rojo':'verde'}">${money(dispR)}</div></div>
+      <div class="bar"><i class="fill-reg" style="width:${pct(reg.consumido,topeR)}%"></i></div>
+      <div class="barcap"><span>Consumido ${money(reg.consumido)}</span><span>Cupo ${money(topeR)}</span></div>
+      <div class="lminis">${_mini('Por cobrar ≤60d',reg.porCobrar,'rojo','dentro de plazo')}${_mini('Outstanding &gt;60d',reg.vencido,'rojoosc','vencido')}${_mini('Pagado acumulado',reg.pagado,'verde','cobrado')}${_mini('Órdenes sin facturar',reg.ordenes,'','pipeline')}</div>
+    </div></div>`;
+  const extCard=`<div class="lcard ext">
+    <div class="hd"><span class="dot"></span><span class="t">Línea Extraordinaria</span><button class="ltope" id="topeExt">Tope ${money(topeE)}</button></div>
+    <div class="terms">50% abonado al facturar · 50% a 60 días · separada del cupo regular</div>
+    <div class="body">
+      <div class="lhero"><div class="lbl">Saldo disponible</div><div class="val ${dispE<0?'rojo':'mor'}">${money(dispE)}</div></div>
+      <div class="bar"><i class="fill-ext" style="width:${pct(ext.consumido,topeE)}%"></i></div>
+      <div class="barcap"><span>Consumido ${money(ext.consumido)}</span><span>Cupo ${money(topeE)}</span></div>
+      <div class="lminis">${_mini('Abonado (50%)',ext.abonos,'verde','auto al facturar')}${_mini('Por cobrar ≤60d',ext.porCobrar,'mor','50% restante')}${_mini('Outstanding &gt;60d',ext.vencido,'rojoosc','vencido')}${_mini('Órdenes sin facturar',ext.ordenes,'','pipeline')}</div>
+    </div></div>`;
+  document.getElementById('lines').innerHTML = regCard+extCard;
+  if(EDIT){ _wireTope('topeReg','linea',topeR); _wireTope('topeExt','lineaExtra',topeE); }
+}
+function _wireTope(id,key,cur){ const el=document.getElementById(id); if(!el) return;
+  el.onclick=()=>{ el.innerHTML=`<input type="number" value="${cur}" step="100">`;
+    const inp=el.querySelector('input'); inp.focus(); inp.select();
+    const commit=()=>{ state[key]=+inp.value||LINEA_DEFAULT; save(); renderKPIs(); };
+    inp.onblur=commit; inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); }; el.onclick=null; };
 }
 
 /* ---------- orders table ---------- */
@@ -921,13 +986,14 @@ function refreshRowDerived(tr, r){
    sin factura nunca se agrupan. Los totales/saldos del footer siguen
    calculándose sobre state.rows, así que agrupar no altera los números. */
 function displayRows(){
-  if(!GROUP) return state.rows.map((r,i)=>({...r,_members:[i]}));
+  const base = state.rows.map((r,i)=>({r,i})).filter(o=> LINEFILTER==='all' || _lineaOf(o.r)===LINEFILTER);
+  if(!GROUP) return base.map(o=>({...o.r,_members:[o.i]}));
   const out=[], byInv={};
-  state.rows.forEach((r,i)=>{
+  base.forEach(({r,i})=>{
     const inv=(r.inv||'').trim();
     if(!inv){ out.push({...r,_members:[i]}); return; }
     const k=inv.toLowerCase(); const c=computeRow(r);
-    if(!byInv[k]){ byInv[k]={poSet:[],inv,fInv:'',monto:0,fPago:'',_pag:0,_members:[],_invUrl:'',_poUrl:''}; out.push(byInv[k]); }
+    if(!byInv[k]){ byInv[k]={poSet:[],inv,fInv:'',monto:0,fPago:'',_pag:0,_members:[],_invUrl:'',_poUrl:'',linea:_lineaOf(r)}; out.push(byInv[k]); }
     const g=byInv[k];
     (r.po||'').split(/[\/,\-\s]+/).filter(Boolean).forEach(t=>{ if(!g.poSet.includes(t)) g.poSet.push(t); });
     if(r.fInv && (!g.fInv || r.fInv<g.fInv)) g.fInv=r.fInv;      // emisión más temprana
@@ -984,17 +1050,20 @@ function renderCalendar(){
   head+='</tr>';
 
   // body rows
-  const computed = state.rows.map(computeRow);   // para totales/saldos del footer
+  const vis = _visRows();
+  const computed = vis.map(computeRow);          // para totales/saldos del footer (respeta filtro de línea)
   let bodyRows = displayRows().map((r)=>{
     const c = computeRow(r);
     const estVis = c.overdue?'vencido':r.estado;
     // mes (calendario) en que cae el pago — usado para la marca verde
     const payMonth = (r.estado==='pagado'||r.estado==='abonado') ? c.payMo : null;
     const single = r._members.length===1;
+    const isExt = _lineaOf(r)==='extra';
     const click = single ? `onclick="openDetail(${r._members[0]})"` : '';
     const grpTag = single ? '' : ` · <span style="color:var(--muted)">${r._members.length} órdenes</span>`;
-    const poTip = esc(r.po)+(r.inv?' · '+esc(r.inv):'')+(single?'':` (${r._members.length} órdenes — desagrupa para editar)`);
-    let row = `<tr class="cal-row${single?'':' grp'}" ${click} title="${poTip}"><td class="c-po">${poLink(r.po,r.poUrl)}${r.inv?` · <span style="color:var(--muted)">${invLink(r.inv,r.invUrl)}</span>`:''}${grpTag}</td>`+
+    const extTag = isExt ? `<span class="badge-ext">EXT</span>` : '';
+    const poTip = esc(r.po)+(r.inv?' · '+esc(r.inv):'')+(isExt?' · Extraordinaria':'')+(single?'':` (${r._members.length} órdenes — desagrupa para editar)`);
+    let row = `<tr class="cal-row${single?'':' grp'}${isExt?' ext-row':''}" ${click} title="${poTip}"><td class="c-po">${poLink(r.po,r.poUrl)}${r.inv?` · <span style="color:var(--muted)">${invLink(r.inv,r.invUrl)}</span>`:''}${extTag}${grpTag}</td>`+
               `<td class="c-fac"><span class="st st-${estVis}">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span></td>`;
     cols.forEach(col=>{
       if(col.type==='saldo'){
@@ -1038,7 +1107,7 @@ function renderCalendar(){
 
   // footer totals — per week (facturado, pagado, por cobrar) + per month saldo (acumulado)
   const facWk={}, pagWk={}, cobWk={};
-  state.rows.forEach((r,ri)=>{
+  vis.forEach((r,ri)=>{
     const c=computed[ri];
     if(c.facturada) facWk[c.wInv]=(facWk[c.wInv]||0)+r.monto;
     if(c.pagadoTotal>0.005) pagWk[c.wPago]=(pagWk[c.wPago]||0)+c.pagadoTotal;
@@ -1047,7 +1116,7 @@ function renderCalendar(){
   // Saldo acumulado a fin de mes (calendario) = facturado − pagado hasta ese mes.
   function saldoUpToMonth(month){
     let fac=0,pag=0;
-    state.rows.forEach((r,ri)=>{
+    vis.forEach((r,ri)=>{
       const c=computed[ri];
       if(c.facturada && c.invMo!=null && c.invMo<=month) fac+=r.monto;
       if(c.pagadoTotal>0.005 && c.payMo!=null && c.payMo<=month) pag+=c.pagadoTotal;
@@ -1091,7 +1160,7 @@ function renderTimeline(){
     axis+=`<div class="mb ${(m-A)%2?'alt':''}" style="left:${x}%;width:${colW}%">${MESES_L[m]}</div>`; }
   const nowX=pct(TODAY);
 
-  const computed=state.rows.map(computeRow);   // para el flujo de caja (footer)
+  const vis=_visRows(); const computed=vis.map(computeRow);   // para el flujo de caja (respeta filtro)
   const drows=displayRows(), dc=drows.map(computeRow);
   // orden: facturadas primero (por vencimiento), órdenes al final
   const order=drows.map((r,i)=>i).sort((a,b)=>{ const ca=dc[a],cb=dc[b];
@@ -1099,19 +1168,21 @@ function renderTimeline(){
     const da=ca.due?ca.due.getTime():9e15, db=cb.due?cb.due.getTime():9e15; return da-db; });
 
   const fmt=d=>d?d.toLocaleDateString('es-PA',{day:'2-digit',month:'short'}):'—';
-  let rows=order.map(ri=>{ const r=drows[ri], c=dc[ri];
+  let rows=order.map(ri=>{ const r=drows[ri], c=dc[ri]; const isExt=_lineaOf(r)==='extra';
     let track='';
     for(let m=A;m<=B;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100;
       track+=`<div class="grid ${(m-A)%2?'alt':''}" style="left:${x}%;width:${colW}%"></div>`; }
     if(c.facturada){
       const x0=pct(c.fInv), xd=pct(c.due); const emisIn=inWin(c.fInv), dueIn=inWin(c.due);
+      const emisMk = isExt?'mk-emisx':'mk-emis';
       if(r.estado==='pagado'){ const xp=pct(c.fPago); const lo=Math.min(x0,xp), hi=Math.max(x0,xp);
         track+=`<div class="tl-bar bar-pago" style="left:${lo}%;width:${Math.max(hi-lo,1.5)}%"></div>`;
         if(inWin(c.fPago)) track+=`<div class="tl-mk mk-pago" style="left:${xp}%">✓</div>`;
-        if(emisIn) track+=`<div class="tl-mk mk-emis" style="left:${x0}%"></div>`;
+        if(emisIn) track+=`<div class="tl-mk ${emisMk}" style="left:${x0}%"></div>`;
       } else { const lo=Math.min(x0,xd), hi=Math.max(x0,xd);
-        track+=`<div class="tl-bar ${c.overdue?'bar-vencido':'bar-fact'}" style="left:${lo}%;width:${Math.max(hi-lo,1.5)}%"></div>`;
-        if(emisIn) track+=`<div class="tl-mk mk-emis" style="left:${x0}%"></div>`;
+        track+=`<div class="tl-bar ${c.overdue?'bar-vencido':(isExt?'bar-ext':'bar-fact')}" style="left:${lo}%;width:${Math.max(hi-lo,1.5)}%"></div>`;
+        if(emisIn) track+=`<div class="tl-mk ${emisMk}" style="left:${x0}%"></div>`;
+        if(r.estado==='abonado' && c.fPago && inWin(c.fPago)) track+=`<div class="tl-mk mk-pago" style="left:${pct(c.fPago)}%" title="${isExt?'50% abonado':'abono'}">✓</div>`;
         if(dueIn) track+=`<div class="tl-mk ${c.overdue?'mk-vencido':'mk-due'}" style="left:${xd}%">${c.overdue?'!':'◆'}</div>`;
         else if(c.due&&c.due>=winEnd) track+=`<div class="tl-off" style="right:2px">vence ${MESES[c.due.getMonth()]} ▸</div>`;
         else if(c.due&&c.due<winStart) track+=`<div class="tl-off" style="left:2px">◂ venció ${MESES[c.due.getMonth()]}</div>`;
@@ -1126,16 +1197,17 @@ function renderTimeline(){
     else { const dd=Math.round((c.due-TODAY)/86400000);
       tip=`Factura ${r.inv}${nOrd} · ${money(c.pendiente)} por cobrar · facturada ${fmt(c.fInv)} · `+
         (c.overdue?`venció ${fmt(c.due)} (hace ${Math.abs(dd)} días) — ¡cobrar ya!`:`vence ${fmt(c.due)} (en ${dd} días)`); }
+    if(isExt) tip+=` · Extraordinaria (50% al facturar + 50% a 60d)`;
     if(!single) tip+=` · PO: ${r.po} (desagrupa para editar)`;
     const click = single ? `onclick="openDetail(${r._members[0]})"` : '';
-    return `<div class="tl-row${single?'':' grp'}" ${click} title="${esc(tip)}">
+    return `<div class="tl-row${single?'':' grp'}${isExt?' ext-row':''}" ${click} title="${esc(tip)}">
       <div class="tl-lbl"><span class="st st-${estVis}">${c.overdue?'Venc':ESTADO_LBL[r.estado].slice(0,4)}</span>
-        <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${r.inv?invLink(r.inv,r.invUrl):poLink(r.po,r.poUrl)}${single?'':`<span style="color:var(--muted);font-weight:400"> ·${r._members.length}</span>`}</span>
+        <span class="po" title="${esc(r.po)}${r.inv?' · '+esc(r.inv):''}">${r.inv?invLink(r.inv,r.invUrl):poLink(r.po,r.poUrl)}${isExt?'<span class="badge-ext">EXT</span>':''}${single?'':`<span style="color:var(--muted);font-weight:400"> ·${r._members.length}</span>`}</span>
         <span class="mo">${moneyK(r.monto)}</span></div>
       <div class="tl-track">${track}${nowX!=null?`<div class="tl-now" style="left:${nowX}%"></div>`:''}</div></div>`;
   }).join('');
 
-  function saldoUpTo(m){ let f=0,p=0; computed.forEach((c,ri)=>{ if(c.facturada&&c.invMo!=null&&c.invMo<=m) f+=state.rows[ri].monto; if(c.pagadoTotal>0.005&&c.payMo!=null&&c.payMo<=m) p+=c.pagadoTotal; }); return f-p; }
+  function saldoUpTo(m){ let f=0,p=0; computed.forEach((c,ri)=>{ if(c.facturada&&c.invMo!=null&&c.invMo<=m) f+=vis[ri].monto; if(c.pagadoTotal>0.005&&c.payMo!=null&&c.payMo<=m) p+=c.pagadoTotal; }); return f-p; }
   let cash=''; for(let m=A;m<=B;m++){ const x=((new Date(YEAR,m,1)-winStart)/span)*100; const s=saldoUpTo(m);
     cash+=`<div class="seg-m" style="left:${x}%;width:${colW}%"><span class="n">${moneyK(s)}</span><span class="k">saldo ${MESES[m]}</span></div>`; }
 
@@ -1184,24 +1256,31 @@ function switchTab(t){
 }
 
 /* ---------- detalle de factura (calendario funcional) ---------- */
-let _detIdx = -1, _detEstado = 'orden';
+let _detIdx = -1, _detEstado = 'orden', _detLinea = 'regular';
 function openDetail(i){
   const r = state.rows[i]; if(!r) return;
-  _detIdx = i; _detEstado = r.estado;
+  _detIdx = i; _detEstado = r.estado; _detLinea = _lineaOf(r);
   const c = computeRow(r);
+  const esExtra = _detLinea==='extra';
   const dueTxt = c.due ? c.due.toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'}) : '—';
   let dias='—';
   if(c.due && c.pendiente>0.005){ const dd=Math.round((c.due-TODAY)/86400000); dias = dd>=0 ? dd+' días' : Math.abs(dd)+' días vencido'; }
-  document.getElementById('detTitle').textContent = (r.po||'—') + (r.inv ? ' · '+r.inv : '');
+  document.getElementById('detTitle').innerHTML = esc(r.po||'—') + (r.inv ? ' · '+esc(r.inv) : '') + (esExtra?' <span class="badge-ext">EXT</span>':'');
   document.getElementById('detInfo').innerHTML =
+    `<span class="k">Línea</span><span class="v" style="color:${esExtra?'var(--morado)':'var(--orange)'}">${esExtra?'Extraordinaria':'Regular'}</span>`+
     (r.po?`<span class="k">Orden${r.poUrl?' 🔗':''}</span><span class="v">${poLink(r.po,r.poUrl)}</span>`:'')+
     (r.inv?`<span class="k">Factura${r.invUrl?' 🔗':''}</span><span class="v">${invLink(r.inv,r.invUrl)}</span>`:'')+
     `<span class="k">Fecha factura</span><span class="v">${r.fInv||'—'}</span>`+
     `<span class="k">Monto</span><span class="v">${money(r.monto||0)}</span>`+
+    (esExtra && c.facturada?`<span class="k">Abonado (50%)</span><span class="v" style="color:var(--verde)">${money(c.pagadoTotal)}</span>`:'')+
     `<span class="k">Vence (60d)</span><span class="v">${dueTxt}</span>`+
     `<span class="k">Saldo pendiente</span><span class="v" style="color:${c.pendiente>0.005?(c.overdue?'var(--rojoosc)':'var(--rojo)'):'var(--verde)'}">${money(c.pendiente)}</span>`+
     `<span class="k">Días</span><span class="v">${dias}</span>`+
     `<span class="k">Pagado</span><span class="v">${money(c.pagadoTotal)}</span>`;
+  document.querySelectorAll('#detLineSeg button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.l===_detLinea);
+    b.onclick=()=>{ _detLinea=b.dataset.l; document.querySelectorAll('#detLineSeg button').forEach(x=>x.classList.toggle('active',x===b)); };
+  });
   document.getElementById('detEstados').innerHTML = ESTADOS.map(e=>
     `<button type="button" class="e-${e} ${e===_detEstado?'sel':''}" onclick="detPick('${e}')">${ESTADO_LBL[e]}</button>`).join('');
   document.getElementById('detFecha').value = r.fPago || '';
@@ -1234,7 +1313,8 @@ function detSave(){
   if(r.estado==='pagado'){ r.abonado = r.monto; r.fPago = document.getElementById('detFecha').value || isoToday(); }
   else if(r.estado==='abonado'){ r.abonado = +document.getElementById('detAbono').value||0; r.fPago = document.getElementById('detFecha').value || isoToday(); }
   else { r.fPago=''; r.abonado=0; }
-  save(); renderAll(); closeDetail(); toast('Estado actualizado');
+  _applyLinea(r, _detLinea);   // asigna línea y aplica/revierte el 50% automático (extraordinaria)
+  save(); renderAll(); closeDetail(); toast('Guardado');
 }
 function closeDetail(){ document.getElementById('detModal').classList.remove('show'); }
 
@@ -1259,8 +1339,28 @@ function _poMatch(a,b){
   const tb=String(b).split(/[\/,\-\s]+/).filter(Boolean);
   return ta.some(x=>tb.includes(x));
 }
+/* ---------- líneas de crédito ---------- */
+function _lineaOf(r){ return r && r.linea==='extra' ? 'extra' : 'regular'; }
+let LINEFILTER='all';
+function _visRows(){ return LINEFILTER==='all' ? state.rows : state.rows.filter(r=>_lineaOf(r)===LINEFILTER); }
+// Asigna una fila a una línea. En la extraordinaria el 50% se abona automático
+// al facturar (estado abonado, abono = 50%, fecha = la de la factura); el otro
+// 50% queda por cobrar a 60 días. Al volver a Regular se revierte ese abono auto.
+function _applyLinea(r, linea){
+  r.linea = (linea==='extra') ? 'extra' : 'regular';
+  const facturada = (r.estado==='facturado'||r.estado==='abonado'||r.estado==='pagado') && !!r.fInv;
+  const mitad = +( (r.monto||0)*0.5 ).toFixed(2);
+  if(r.linea==='extra'){
+    if(facturada && r.estado==='facturado'){ r.estado='abonado'; r.abonado=mitad; r.fPago=r.fInv; }
+  } else {
+    // revierte el abono automático (firma: abonado≈50% y fPago===fInv)
+    if(r.estado==='abonado' && r.fPago && r.fPago===r.fInv && Math.abs((+r.abonado||0)-mitad)<0.5){
+      r.estado='facturado'; r.abonado=0; r.fPago='';
+    }
+  }
+}
 // Inserta o actualiza una fila a partir del documento leído por la IA.
-function upsertDoc(doc, fileUrl){
+function upsertDoc(doc, fileUrl, linea){
   const tipo = String(doc.tipo||'').toLowerCase();
   const po = (doc.po==null?'':String(doc.po)).trim();
   let factura = (doc.factura==null?'':String(doc.factura)).trim();
@@ -1268,6 +1368,7 @@ function upsertDoc(doc, fileUrl){
   const fecha = _normFecha(doc.fecha);
   const monto = parseFloat(doc.monto)||0;
   const url = fileUrl||'';
+  const ln = linea==='extra' ? 'extra' : 'regular';
   const isFactura = tipo==='factura' || !!factura;
   if(isFactura){
     // 1. ¿ya existe esa factura? actualiza TODAS sus filas (una factura puede
@@ -1276,6 +1377,7 @@ function upsertDoc(doc, fileUrl){
     if(existing.length){
       existing.forEach(r=>{ if(fecha) r.fInv=fecha; if(url) r.invUrl=url; if(r.estado==='orden') r.estado='facturado'; });
       if(existing.length===1){ if(po) existing[0].po=po; if(monto) existing[0].monto=monto; }
+      existing.forEach(r=>_applyLinea(r,ln));
       return {tipo:'Factura', ref:(factura||po||'—'), action: existing.length>1?`actualizada · ${existing.length} órdenes`:'actualizada'};
     }
     // 2. vincula TODAS las órdenes sin factura cuyo PO coincida con la factura.
@@ -1285,24 +1387,27 @@ function upsertDoc(doc, fileUrl){
       // factura de una sola orden → su total es el de la factura; si cubre varias,
       // se conserva el monto de cada orden (su suma = total de la factura).
       if(matches.length===1 && monto) matches[0].monto=monto;
+      matches.forEach(r=>_applyLinea(r,ln));
       return {tipo:'Factura', ref:(factura||po||'—'), action: matches.length>1?`vinculó ${matches.length} órdenes`:'actualizada'};
     }
     // 3. ninguna orden previa → fila nueva ya facturada.
-    const row={po:'',inv:'',fInv:'',monto:0,estado:'facturado',fPago:'',abonado:0,poUrl:'',invUrl:''}; state.rows.unshift(row);
+    const row={po:'',inv:'',fInv:'',monto:0,estado:'facturado',fPago:'',abonado:0,poUrl:'',invUrl:'',linea:ln}; state.rows.unshift(row);
     if(factura) row.inv=factura;
     if(po) row.po=po;
     if(fecha) row.fInv=fecha;
     if(monto) row.monto=monto;
     if(url) row.invUrl=url;
+    _applyLinea(row,ln);
     return {tipo:'Factura', ref:(factura||po||'—'), action:'nueva'};
   } else {
     let row = po ? state.rows.find(r=>!r.inv && r.po && _poMatch(r.po,po)) : null;
     let action='nueva';
     if(row){ action='actualizada'; }
-    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0,poUrl:'',invUrl:''}; state.rows.unshift(row); }
+    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0,poUrl:'',invUrl:'',linea:ln}; state.rows.unshift(row); }
     if(po) row.po=po;
     if(monto) row.monto=monto;
     if(url) row.poUrl=url;
+    row.linea=ln;
     return {tipo:'Orden', ref:(po||'—'), action};
   }
 }
@@ -1408,10 +1513,21 @@ function showConfirmDoc(item){
       v += `<div class="cd-sec"><div class="cd-check cd-ok">✓ Se agregará como una <b>nueva orden de compra</b>.</div></div>`;
     }
   }
+  const ln = item._linea==='extra' ? 'extra' : 'regular';
+  if(ln==='extra' && p.isFactura){
+    const mitad=money(p.monto*0.5);
+    v = `<div class="cd-sec"><div class="cd-check info-x">⚡ Extraordinaria · se registrará <b>${mitad} (50%) como abonado</b> hoy y <b>${mitad} (50%) por cobrar</b> a 60 días.</div></div>` + v;
+  }
   document.getElementById('cdVinc').innerHTML = v;
 
+  // selector de línea
+  document.querySelectorAll('#cdLineSeg button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.l===ln);
+    b.onclick=()=>{ item._linea=b.dataset.l; showConfirmDoc(item); };
+  });
   const btn=document.getElementById('cdConfirm');
-  if(p.isFactura){ btn.textContent='Vincular'; btn.className='btn blue'; }
+  if(ln==='extra'){ btn.textContent = p.isFactura?'Vincular (Extra)':'Agregar (Extra)'; btn.className='btn mor'; }
+  else if(p.isFactura){ btn.textContent='Vincular'; btn.className='btn blue'; }
   else { btn.textContent='Agregar'; btn.className='btn green'; }
   document.getElementById('confirmDocModal').classList.add('show');
 }
@@ -1488,6 +1604,11 @@ document.getElementById('viewSeg').onclick = e=>{ const b=e.target.closest('butt
   [...document.querySelectorAll('#viewSeg button')].forEach(x=>x.classList.toggle('active',x===b));
   renderBoard();
 };
+document.getElementById('lineSeg').onclick = e=>{ const b=e.target.closest('button'); if(!b) return;
+  LINEFILTER=b.dataset.l;
+  [...document.querySelectorAll('#lineSeg button')].forEach(x=>x.classList.toggle('active',x===b));
+  renderBoard();
+};
 document.getElementById('navL').onclick = ()=>slideWin(-1);
 document.getElementById('navR').onclick = ()=>slideWin(1);
 document.getElementById('winReset').onclick = resetWin;
@@ -1499,7 +1620,7 @@ document.getElementById('tlHelpHd').onclick = ()=>document.getElementById('tlHel
 
 document.getElementById('cdConfirm').onclick = ()=>{
   const item=_docQueue.shift();
-  if(item){ const res=upsertDoc(item.doc, item.fileUrl); save(); renderAll(); toast(`${res.tipo} ${res.ref} · ${res.action}`); }
+  if(item){ const res=upsertDoc(item.doc, item.fileUrl, item._linea||'regular'); save(); renderAll(); toast(`${res.tipo} ${res.ref} · ${res.action}`); }
   _nextDoc();
 };
 document.getElementById('cdCancel').onclick = ()=>{ _docQueue.shift(); _nextDoc(); };

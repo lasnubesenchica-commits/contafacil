@@ -24,7 +24,8 @@ var PW_KEY          = 'FLUJO_PW_HASH';
 var DEFAULT_LINEA   = 70000;
 var HEADER = ['orden_compra', 'factura', 'fecha_factura', 'monto',
               'estado', 'fecha_pago', 'abonado', 'actualizado',
-              'orden_url', 'factura_url'];
+              'orden_url', 'factura_url', 'linea'];
+var LINEA_EXTRA_KEY = 'FLUJO_LINEA_EXTRA';
 
 // ── Router ──────────────────────────────────────────────────────
 function doGet(e) {
@@ -96,6 +97,10 @@ function _linea() {
   var n = parseFloat(PropertiesService.getScriptProperties().getProperty(LINEA_KEY));
   return isNaN(n) ? DEFAULT_LINEA : n;
 }
+function _lineaExtra() {
+  var n = parseFloat(PropertiesService.getScriptProperties().getProperty(LINEA_EXTRA_KEY));
+  return isNaN(n) ? DEFAULT_LINEA : n;
+}
 
 // ── GET datos ───────────────────────────────────────────────────
 function _getFlujo(callback) {
@@ -111,11 +116,12 @@ function _getFlujo(callback) {
         po: String(r[0] || ''), inv: String(r[1] || ''), fInv: _dateStr(r[2]),
         monto: parseFloat(r[3]) || 0, estado: String(r[4] || 'orden'),
         fPago: _dateStr(r[5]), abonado: parseFloat(r[6]) || 0,
-        poUrl: String(r[8] || ''), invUrl: String(r[9] || '')
+        poUrl: String(r[8] || ''), invUrl: String(r[9] || ''),
+        linea: String(r[10] || 'regular') === 'extra' ? 'extra' : 'regular'
       });
     }
   }
-  return _jsonp({ success: true, rows: rows, linea: _linea() }, callback);
+  return _jsonp({ success: true, rows: rows, linea: _linea(), lineaExtra: _lineaExtra() }, callback);
 }
 
 // ── POST guardar (reemplaza el documento completo) ──────────────
@@ -127,6 +133,9 @@ function _saveFlujo(data) {
     if (data && data.linea != null && !isNaN(parseFloat(data.linea))) {
       PropertiesService.getScriptProperties().setProperty(LINEA_KEY, String(parseFloat(data.linea)));
     }
+    if (data && data.lineaExtra != null && !isNaN(parseFloat(data.lineaExtra))) {
+      PropertiesService.getScriptProperties().setProperty(LINEA_EXTRA_KEY, String(parseFloat(data.lineaExtra)));
+    }
     var sh = _sheet();
     var last = sh.getLastRow();
     if (last > 1) sh.getRange(2, 1, last - 1, HEADER.length).clearContent();
@@ -136,7 +145,8 @@ function _saveFlujo(data) {
         return [String(r.po || ''), String(r.inv || ''), _dateStr(r.fInv),
                 parseFloat(r.monto) || 0, String(r.estado || 'orden'),
                 _dateStr(r.fPago), parseFloat(r.abonado) || 0, now,
-                String(r.poUrl || ''), String(r.invUrl || '')];
+                String(r.poUrl || ''), String(r.invUrl || ''),
+                String(r.linea === 'extra' ? 'extra' : 'regular')];
       });
       sh.getRange(2, 1, out.length, HEADER.length).setValues(out);
     }
