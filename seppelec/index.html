@@ -279,7 +279,7 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
 @media(max-width:640px){.wrap{padding:1rem .75rem}.brand{font-size:1.25rem}}
 
 /* ── board controls: view toggle + sliding window ── */
-.board-ctrl{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.board-ctrl{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;flex:1 1 100%}
 .seg{display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:.2rem}
 .seg button{font-size:.78rem;font-weight:600;color:var(--muted);padding:.4rem .9rem;border-radius:100px;transition:all .15s}
 .seg button.active{background:var(--white);color:var(--orange);box-shadow:0 1px 3px rgba(0,0,0,.1)}
@@ -561,7 +561,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
   <div class="modal-card wide" style="width:480px">
     <h3 id="cdTitle">Documento detectado</h3>
     <p id="cdSub"></p>
-    <span class="det-lbl">Asignar a línea de crédito</span>
+    <span class="det-lbl" id="cdLineLbl">Asignar a línea de crédito</span>
     <div class="seg" id="cdLineSeg" style="margin-bottom:.7rem">
       <button data-l="regular" class="r active">Regular</button>
       <button data-l="extra" class="ext">Extraordinaria</button>
@@ -891,7 +891,7 @@ function renderKPIs(){
       <div class="lhero"><div class="lbl">Saldo disponible</div><div class="val ${dispE<0?'rojo':'mor'}">${money(dispE)}</div></div>
       <div class="bar"><i class="fill-ext" style="width:${pct(ext.consumido,topeE)}%"></i></div>
       <div class="barcap"><span>Consumido ${money(ext.consumido)}</span><span>Cupo ${money(topeE)}</span></div>
-      <div class="lminis">${_mini('Abonado (50%)',ext.abonos,'verde','auto al facturar')}${_mini('Por cobrar ≤60d',ext.porCobrar,'mor','50% restante')}${_mini('Outstanding &gt;60d',ext.vencido,'rojoosc','vencido')}${_mini('Órdenes sin facturar',ext.ordenes,'','pipeline')}</div>
+      <div class="lminis">${_mini('Abonado / pagado',ext.abonos,'verde','registrado')}${_mini('Por cobrar ≤60d',ext.porCobrar,'mor','dentro de plazo')}${_mini('Outstanding &gt;60d',ext.vencido,'rojoosc','vencido')}${_mini('Órdenes sin facturar',ext.ordenes,'','pipeline')}</div>
     </div></div>`;
   document.getElementById('lines').innerHTML = regCard+extCard;
   if(EDIT){ _wireTope('topeReg','linea',topeR); _wireTope('topeExt','lineaExtra',topeE); }
@@ -1270,6 +1270,7 @@ function openDetail(i){
     `<span class="k">Línea</span><span class="v" style="color:${esExtra?'var(--morado)':'var(--orange)'}">${esExtra?'Extraordinaria':'Regular'}</span>`+
     (r.po?`<span class="k">Orden${r.poUrl?' 🔗':''}</span><span class="v">${poLink(r.po,r.poUrl)}</span>`:'')+
     (r.inv?`<span class="k">Factura${r.invUrl?' 🔗':''}</span><span class="v">${invLink(r.inv,r.invUrl)}</span>`:'')+
+    (r.pagoUrl?`<span class="k">Constancia</span><span class="v"><a class="doclink" href="${esc(r.pagoUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver pago 🔗</a></span>`:'')+
     `<span class="k">Fecha factura</span><span class="v">${r.fInv||'—'}</span>`+
     `<span class="k">Monto</span><span class="v">${money(r.monto||0)}</span>`+
     (esExtra && c.facturada?`<span class="k">Abonado (50%)</span><span class="v" style="color:var(--verde)">${money(c.pagadoTotal)}</span>`:'')+
@@ -1343,22 +1344,11 @@ function _poMatch(a,b){
 function _lineaOf(r){ return r && r.linea==='extra' ? 'extra' : 'regular'; }
 let LINEFILTER='all';
 function _visRows(){ return LINEFILTER==='all' ? state.rows : state.rows.filter(r=>_lineaOf(r)===LINEFILTER); }
-// Asigna una fila a una línea. En la extraordinaria el 50% se abona automático
-// al facturar (estado abonado, abono = 50%, fecha = la de la factura); el otro
-// 50% queda por cobrar a 60 días. Al volver a Regular se revierte ese abono auto.
-function _applyLinea(r, linea){
-  r.linea = (linea==='extra') ? 'extra' : 'regular';
-  const facturada = (r.estado==='facturado'||r.estado==='abonado'||r.estado==='pagado') && !!r.fInv;
-  const mitad = +( (r.monto||0)*0.5 ).toFixed(2);
-  if(r.linea==='extra'){
-    if(facturada && r.estado==='facturado'){ r.estado='abonado'; r.abonado=mitad; r.fPago=r.fInv; }
-  } else {
-    // revierte el abono automático (firma: abonado≈50% y fPago===fInv)
-    if(r.estado==='abonado' && r.fPago && r.fPago===r.fInv && Math.abs((+r.abonado||0)-mitad)<0.5){
-      r.estado='facturado'; r.abonado=0; r.fPago='';
-    }
-  }
-}
+function _invNorm(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+// Asigna una fila a una línea. El pago (incl. el 50% de la extraordinaria) se
+// registra con constancia o manualmente, así que NO se marca nada automático:
+// toda factura entra como "No pagado" (facturado).
+function _applyLinea(r, linea){ r.linea = (linea==='extra') ? 'extra' : 'regular'; }
 // Inserta o actualiza una fila a partir del documento leído por la IA.
 function upsertDoc(doc, fileUrl, linea){
   const tipo = String(doc.tipo||'').toLowerCase();
@@ -1440,12 +1430,21 @@ function _nextDoc(){
    factura, si el monto cuadra con la suma de las OC y si los números coinciden. */
 function _previewDoc(doc){
   const tipo=String(doc.tipo||'').toLowerCase();
+  const isPago = tipo==='pago'||tipo==='constancia'||tipo==='comprobante'||tipo==='transferencia';
   const po=(doc.po==null?'':String(doc.po)).trim();
   let factura=(doc.factura==null?'':String(doc.factura)).trim(); if(factura.toLowerCase()==='null') factura='';
   const fecha=_normFecha(doc.fecha);
   const monto=parseFloat(doc.monto)||0;
   const tokens = po?po.split(/[\/,\-\s]+/).filter(Boolean):[];
-  const o={isFactura: tipo==='factura'||!!factura, tipo, po, factura, fecha, monto, tokens};
+  const o={isPago, isFactura: !isPago && (tipo==='factura'||!!factura), tipo, po, factura, fecha, monto, tokens};
+  if(isPago){
+    o.matches = factura ? state.rows.filter(r=>r.inv && _invNorm(r.inv)===_invNorm(factura))
+              : (po ? state.rows.filter(r=>r.inv && r.po && _poMatch(r.po,po)) : []);
+    o.sumMonto = o.matches.reduce((s,r)=>s+(+r.monto||0),0);
+    o.sumPend  = o.matches.reduce((s,r)=>s+computeRow(r).pendiente,0);
+    o.cubreTotal = o.matches.length>0 && monto >= o.sumPend - Math.max(0.5, o.sumPend*0.01);
+    return o;
+  }
   if(o.isFactura){
     o.existing = factura ? state.rows.filter(r=>r.inv && r.inv.toLowerCase()===factura.toLowerCase()) : [];
     o.matches  = (!o.existing.length && po) ? state.rows.filter(r=>!r.inv && r.po && _poMatch(r.po,po)) : [];
@@ -1464,11 +1463,16 @@ function _cdLinkHtml(url,label){ return url?`<a href="${esc(url)}" target="_blan
 function showConfirmDoc(item){
   const p=_previewDoc(item.doc), money=window.money||(n=>'$'+(+n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
   const n=_docQueue.length, pos = n>1?` (1 de ${n})`:'';
-  document.getElementById('cdTitle').textContent = (p.isFactura?'Factura detectada':'Orden de compra detectada')+pos;
+  const titulo = p.isPago?'Constancia de pago detectada':(p.isFactura?'Factura detectada':'Orden de compra detectada');
+  document.getElementById('cdTitle').textContent = titulo+pos;
   document.getElementById('cdSub').textContent = item.fileName||'';
   const due = p.fecha ? addDays(parseD(p.fecha),PLAZO_DIAS) : null;
   let info='';
-  if(p.isFactura){
+  if(p.isPago){
+    info += `<span class="k">Pago de factura</span><span class="v">${esc(p.factura||p.po||'—')}</span>`;
+    info += `<span class="k">Monto del pago</span><span class="v">${money(p.monto)}</span>`;
+    info += `<span class="k">Fecha del pago</span><span class="v">${p.fecha||'—'}</span>`;
+  } else if(p.isFactura){
     info += `<span class="k">N° de factura</span><span class="v">${esc(p.factura||'—')}</span>`;
     info += `<span class="k">N° de orden (en factura)</span><span class="v">${esc(p.po||'—')}</span>`;
     info += `<span class="k">Monto de la factura</span><span class="v">${money(p.monto)}</span>`;
@@ -1480,11 +1484,22 @@ function showConfirmDoc(item){
     if(p.fecha) info += `<span class="k">Fecha</span><span class="v">${p.fecha}</span>`;
   }
   document.getElementById('cdInfo').innerHTML = info;
-  document.getElementById('cdLink').innerHTML  = _cdLinkHtml(item.fileUrl, 'Ver PDF');
+  document.getElementById('cdLink').innerHTML  = _cdLinkHtml(item.fileUrl, p.isPago?'Ver constancia':'Ver PDF');
   document.getElementById('cdLink2').innerHTML = '';
 
   let v='';
-  if(p.isFactura){
+  if(p.isPago){
+    v += `<div class="cd-sec"><div class="cd-h">Aplicar pago a</div>`;
+    if(p.matches.length){
+      p.matches.forEach(r=>{ const c=computeRow(r); v += `<div class="cd-oc"><span class="po">${esc(r.inv||r.po)}${_lineaOf(r)==='extra'?' · EXT':''}</span><span class="mo">pend. ${money(c.pendiente)}</span></div>`; });
+      if(p.matches.length>1) v += `<div class="cd-tot"><span>Saldo pendiente (${p.matches.length})</span><span class="mo">${money(p.sumPend)}</span></div>`;
+      if(p.cubreTotal) v += `<div class="cd-check cd-ok">✓ El pago (${money(p.monto)}) cubre el saldo pendiente — se marcará <b>Pagado</b>.</div>`;
+      else v += `<div class="cd-check cd-warn">⚠ Pago parcial: ${money(p.monto)} de ${money(p.sumPend)} pendientes — se registrará como <b>abono</b>.</div>`;
+    } else {
+      v += `<div class="cd-check cd-warn">⚠ No se encontró la factura <b>${esc(p.factura||p.po||'—')}</b> en el sistema. Sube primero la factura.</div>`;
+    }
+    v += `</div>`;
+  } else if(p.isFactura){
     v += `<div class="cd-sec"><div class="cd-h">Vinculación con órdenes de compra</div>`;
     if(p.existing.length){
       v += `<div class="cd-check cd-ok">✓ Esta factura ya está registrada (${p.existing.length} fila${p.existing.length>1?'s':''}). Se actualizarán sus datos${item.fileUrl?' y el enlace al PDF':''}.</div>`;
@@ -1515,21 +1530,43 @@ function showConfirmDoc(item){
   }
   const ln = item._linea==='extra' ? 'extra' : 'regular';
   if(ln==='extra' && p.isFactura){
-    const mitad=money(p.monto*0.5);
-    v = `<div class="cd-sec"><div class="cd-check info-x">⚡ Extraordinaria · se registrará <b>${mitad} (50%) como abonado</b> hoy y <b>${mitad} (50%) por cobrar</b> a 60 días.</div></div>` + v;
+    v = `<div class="cd-sec"><div class="cd-check info-x">⚡ Extraordinaria · términos: 50% al facturar + 50% a 60 días. La factura entra como <b>No pagado</b>; registra los pagos con su constancia o manualmente.</div></div>` + v;
   }
   document.getElementById('cdVinc').innerHTML = v;
 
-  // selector de línea
+  // selector de línea (no aplica a una constancia de pago)
+  const showLine = !p.isPago;
+  document.getElementById('cdLineLbl').style.display = showLine?'':'none';
+  document.getElementById('cdLineSeg').style.display = showLine?'':'none';
   document.querySelectorAll('#cdLineSeg button').forEach(b=>{
     b.classList.toggle('active', b.dataset.l===ln);
     b.onclick=()=>{ item._linea=b.dataset.l; showConfirmDoc(item); };
   });
   const btn=document.getElementById('cdConfirm');
-  if(ln==='extra'){ btn.textContent = p.isFactura?'Vincular (Extra)':'Agregar (Extra)'; btn.className='btn mor'; }
-  else if(p.isFactura){ btn.textContent='Vincular'; btn.className='btn blue'; }
-  else { btn.textContent='Agregar'; btn.className='btn green'; }
+  if(p.isPago){ btn.textContent='Registrar pago'; btn.className='btn green'; btn.disabled=!p.matches.length; }
+  else { btn.disabled=false;
+    if(ln==='extra'){ btn.textContent = p.isFactura?'Vincular (Extra)':'Agregar (Extra)'; btn.className='btn mor'; }
+    else if(p.isFactura){ btn.textContent='Vincular'; btn.className='btn blue'; }
+    else { btn.textContent='Agregar'; btn.className='btn green'; }
+  }
   document.getElementById('confirmDocModal').classList.add('show');
+}
+function applyPago(doc, fileUrl){
+  let factura=(doc.factura==null?'':String(doc.factura)).trim(); if(factura.toLowerCase()==='null') factura='';
+  const po=(doc.po==null?'':String(doc.po)).trim();
+  const monto=parseFloat(doc.monto)||0, fecha=_normFecha(doc.fecha);
+  let rows = factura ? state.rows.filter(r=>r.inv && _invNorm(r.inv)===_invNorm(factura))
+           : (po ? state.rows.filter(r=>r.inv && r.po && _poMatch(r.po,po)) : []);
+  if(!rows.length) return {tipo:'Pago', ref:(factura||po||'—'), action:'sin factura en el sistema'};
+  const sumPend = rows.reduce((s,r)=>s+computeRow(r).pendiente,0);
+  const full = monto >= sumPend - Math.max(0.5, sumPend*0.01);
+  rows.forEach(r=>{ if(fecha) r.fPago=fecha; if(fileUrl) r.pagoUrl=fileUrl;
+    if(full){ r.estado='pagado'; r.abonado=r.monto; }
+    else { const c=computeRow(r); const yaPag = r.estado==='pagado'?(+r.monto||0):(+r.abonado||0);
+      const share = sumPend>0 ? monto*(c.pendiente/sumPend) : 0;
+      r.estado='abonado'; r.abonado = Math.min(+r.monto||0, +(yaPag+share).toFixed(2)); }
+  });
+  return {tipo:'Pago', ref:(factura||po||'—'), action: full?`pagada · ${rows.length} fila(s)`:`abono · ${rows.length} fila(s)`};
 }
 
 /* ---------- dedup de facturas / órdenes ---------- */
@@ -1620,7 +1657,10 @@ document.getElementById('tlHelpHd').onclick = ()=>document.getElementById('tlHel
 
 document.getElementById('cdConfirm').onclick = ()=>{
   const item=_docQueue.shift();
-  if(item){ const res=upsertDoc(item.doc, item.fileUrl, item._linea||'regular'); save(); renderAll(); toast(`${res.tipo} ${res.ref} · ${res.action}`); }
+  if(item){ const t=String(item.doc.tipo||'').toLowerCase();
+    const esPago = t==='pago'||t==='constancia'||t==='comprobante'||t==='transferencia';
+    const res = esPago ? applyPago(item.doc, item.fileUrl) : upsertDoc(item.doc, item.fileUrl, item._linea||'regular');
+    save(); renderAll(); toast(`${res.tipo} ${res.ref} · ${res.action}`); }
   _nextDoc();
 };
 document.getElementById('cdCancel').onclick = ()=>{ _docQueue.shift(); _nextDoc(); };
