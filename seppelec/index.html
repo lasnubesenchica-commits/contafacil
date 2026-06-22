@@ -181,6 +181,21 @@ table.cal tbody tr.ext-row td.c-po{box-shadow:inset 4px 0 0 var(--morado)}
 .mk-emisx{background:var(--morado)!important}
 /* filtro por línea */
 .seg button.ext.active{color:var(--morado)}
+/* resumen por línea (debajo del calendario) */
+#lineSummary{padding:1rem 1.1rem 0}
+.lsum{width:100%;max-width:620px;border-collapse:separate;border-spacing:0;font-size:.82rem;
+  border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.lsum caption{text-align:left;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);padding:0 0 .5rem 2px;caption-side:top}
+.lsum th,.lsum td{padding:.55rem .8rem;text-align:right;border-bottom:1px solid var(--bg2)}
+.lsum thead th{font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+.lsum th.lz{text-align:left;font-weight:700;font-family:'DM Sans'}
+.lsum td{font-family:'DM Mono',monospace;font-weight:500}
+.lsum .dotc{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:.45rem;vertical-align:0}
+.lsum tr.reg .dotc{background:var(--orange)} .lsum tr.ext .dotc{background:var(--morado)}
+.lsum tr.tot th,.lsum tr.tot td{background:#FBF4EF;font-weight:700;border-bottom:none}
+.lsum tr.tot td{font-family:'DM Mono',monospace}
+.lsum td.fac{color:var(--azul)} .lsum td.cob{color:var(--verde)} .lsum td.cob0{color:var(--muted)} .lsum td.pc{color:var(--rojo)}
 
 /* ── SECTION ── */
 .section{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);
@@ -512,6 +527,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
       </div>
       <button class="edge r" id="navR" title="Mes siguiente"><span class="ar">›</span><span class="cap">Mes siguiente</span></button>
     </div>
+    <div id="lineSummary"></div>
   </div>
   </div><!-- /panel-cal -->
 
@@ -1234,6 +1250,20 @@ function renderBoard(){
   document.getElementById('navL').disabled = winA<=0;
   document.getElementById('navR').disabled = winA>=winMax();
   if(blocks) renderCalendar(); else renderTimeline();
+  renderLineSummary();
+}
+/* Resumen por línea de crédito (siempre muestra ambas, segregado). */
+function renderLineSummary(){
+  const el=document.getElementById('lineSummary'); if(!el) return;
+  const reg=_lineAgg(r=>_lineaOf(r)==='regular'), ext=_lineAgg(r=>_lineaOf(r)==='extra');
+  const row=(cls,lbl,a)=>`<tr class="${cls}"><th class="lz"><span class="dotc"></span>${lbl}</th>`+
+    `<td class="fac">${money(a.facturado)}</td><td class="${a.pagado>0.005?'cob':'cob0'}">${money(a.pagado)}</td><td class="pc">${money(a.consumido)}</td></tr>`;
+  el.innerHTML =
+    `<table class="lsum"><caption>Resumen por línea de crédito</caption>`+
+    `<thead><tr><th class="lz">Línea</th><th>Facturado</th><th>Cobrado</th><th>Por cobrar</th></tr></thead><tbody>`+
+    row('reg','Regular',reg)+row('ext','Extraordinaria',ext)+
+    `<tr class="tot"><th class="lz">Total</th><td>${money(reg.facturado+ext.facturado)}</td><td>${money(reg.pagado+ext.pagado)}</td><td>${money(reg.consumido+ext.consumido)}</td></tr>`+
+    `</tbody></table>`;
 }
 
 /* ---------- formatting ---------- */
