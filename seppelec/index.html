@@ -74,6 +74,26 @@ body.readonly .del-btn{display:none}
 .modal-card input:focus{border-color:var(--orange)}
 .modal-err{font-size:.74rem;color:var(--rojo);margin-bottom:.6rem;display:none}
 .modal-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.4rem}
+.modal-card.wide{max-height:88vh;overflow:auto}
+.btn.green{background:var(--verde);color:#fff;border-color:var(--verde)}
+.btn.green:hover{background:#155f28;color:#fff}
+.btn.blue{background:var(--azul);color:#fff;border-color:var(--azul)}
+.btn.blue:hover{background:#0d4ea0;color:#fff}
+/* preview de documento (confirmar OC / Factura) */
+.cd-info{display:grid;grid-template-columns:auto 1fr;gap:.35rem .8rem;font-size:.84rem;margin-bottom:.7rem}
+.cd-info .k{color:var(--muted)} .cd-info .v{font-family:'DM Mono',monospace;font-weight:600;text-align:right;word-break:break-word}
+#cdLink a,#cdLink2 a{font-size:.78rem;color:var(--azul);text-decoration:none}
+#cdLink a:hover,#cdLink2 a:hover{text-decoration:underline}
+.cd-sec{border-top:1px solid var(--border);margin-top:.7rem;padding-top:.7rem}
+.cd-h{font-size:.66rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+.cd-oc{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;padding:.32rem .55rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.35rem;background:var(--bg)}
+.cd-oc .po{font-weight:600} .cd-oc .mo{font-family:'DM Mono',monospace}
+.cd-tot{display:flex;justify-content:space-between;font-size:.84rem;font-weight:700;padding:.25rem .55rem;margin-top:.2rem}
+.cd-tot .mo{font-family:'DM Mono',monospace}
+.cd-check{display:flex;align-items:flex-start;gap:.45rem;font-size:.8rem;padding:.45rem .6rem;border-radius:8px;margin:.4rem 0;font-weight:600;line-height:1.3}
+.cd-ok{background:var(--verde-bg);color:var(--verde)}
+.cd-warn{background:#FFF6DB;color:#7A5A00}
+.cd-bad{background:var(--rojoosc-bg);color:var(--rojoosc)}
 /* detalle de factura */
 table.cal tbody tr.cal-row{cursor:pointer}
 table.cal tbody tr.cal-row:hover td:not(.saldo){background:#F2F6FF}
@@ -323,8 +343,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
   <div class="topbar-actions">
     <span class="sync" id="sync" title="Estado de sincronización">●&nbsp;<span id="syncTxt">Conectando…</span></span>
     <button class="btn" id="lockBtn" title="Modo edición">🔒 Solo lectura</button>
-    <button class="btn primary edit-only" id="uploadBtn" title="Sube PDFs de facturas u órdenes; la IA los lee y actualiza el sistema">⬆ Leer PDF (IA)</button>
-    <button class="btn edit-only" id="addBtn">＋ Orden / Factura</button>
+    <button class="btn primary edit-only" id="uploadBtn" title="Sube el PDF de una orden de compra o una factura; la IA lo lee y tú confirmas">⬆ Subir OC / Factura (PDF)</button>
     <button class="btn edit-only" id="dedupBtn" title="Combina y elimina filas duplicadas" style="display:none;background:var(--amar-bg);color:var(--amar);border-color:rgba(154,106,0,.3)"></button>
     <button class="btn ghost edit-only" id="impBtn">Importar</button>
     <button class="btn ghost" id="expBtn" title="Descarga un Excel con dos pestañas: Calendario y Órdenes/Facturas">⬇ Exportar Excel</button>
@@ -475,6 +494,21 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
     <div class="modal-actions">
       <button class="btn ghost" id="detCancel">Cerrar</button>
       <button class="btn primary" id="detSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="confirmDocModal">
+  <div class="modal-card wide" style="width:480px">
+    <h3 id="cdTitle">Documento detectado</h3>
+    <p id="cdSub"></p>
+    <div class="cd-info" id="cdInfo"></div>
+    <div id="cdLink"></div>
+    <div id="cdLink2"></div>
+    <div id="cdVinc"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cdCancel">Cancelar</button>
+      <button class="btn primary" id="cdConfirm">Confirmar</button>
     </div>
   </div>
 </div>
@@ -807,7 +841,7 @@ function renderKPIs(){
 /* ---------- orders table ---------- */
 function renderOrders(){
   const body = document.getElementById('ordersBody');
-  if(!state.rows.length){ body.innerHTML = `<tr><td colspan="10" class="empty">Sin registros. Usa “＋ Orden / Factura”.</td></tr>`; return; }
+  if(!state.rows.length){ body.innerHTML = `<tr><td colspan="10" class="empty">Sin registros. Usa “⬆ Subir OC / Factura (PDF)” para agregar.</td></tr>`; return; }
   const dupSet = dupIndexSet();
   body.innerHTML = state.rows.map((r,i)=>{
     const c = computeRow(r);
@@ -1272,23 +1306,114 @@ function upsertDoc(doc, fileUrl){
     return {tipo:'Orden', ref:(po||'—'), action};
   }
 }
+/* Lee los PDFs y, en vez de aplicarlos directo, los pone en cola para que
+   el usuario confirme cada uno en el modal de preview (Agregar / Vincular). */
+let _docQueue=[];
 async function uploadPdfs(files){
   if(!files.length) return;
   if(!BACKEND){ toast('La lectura por IA requiere el backend conectado'); return; }
-  let ok=0; const results=[];
   setSync('saving','Leyendo PDF…');
+  const items=[];
   for(const f of files){
     try{
       const b64 = await fileToB64(f);
       const r = await gasPost('parsePdf', {base64:b64, password:_editPw});
       if(r && r.error==='auth'){ setSync('ok','Sincronizado'); toast('Reingresa la contraseña para usar la IA'); openPw(); return; }
-      if(r && r.success && r.doc){ const res=upsertDoc(r.doc, r.fileUrl||''); results.push(`✓ ${f.name} → ${res.tipo} ${res.ref} (${res.action})`); ok++; }
-      else { results.push(`✗ ${f.name} → ${(r&&r.error)||'error'}`); }
-    }catch(e){ results.push(`✗ ${f.name} → ${e.message||'error'}`); }
+      if(r && r.success && r.doc) items.push({doc:r.doc, fileUrl:r.fileUrl||'', fileName:f.name});
+      else toast('No se pudo leer '+f.name+': '+((r&&r.error)||'error'));
+    }catch(e){ toast('Error leyendo '+f.name); }
   }
-  if(ok){ save(); renderAll(); setSync('ok','Sincronizado'); }
-  else setSync('err','Error');
-  alert('Lectura de PDF con IA:\n\n'+results.join('\n'));
+  setSync('ok','Sincronizado');
+  if(items.length){ _docQueue=items; _nextDoc(); }
+}
+function _nextDoc(){
+  if(!_docQueue.length){ document.getElementById('confirmDocModal').classList.remove('show'); return; }
+  showConfirmDoc(_docQueue[0]);
+}
+
+/* Calcula (sin aplicar) qué haría el documento: a qué OC se vincularía una
+   factura, si el monto cuadra con la suma de las OC y si los números coinciden. */
+function _previewDoc(doc){
+  const tipo=String(doc.tipo||'').toLowerCase();
+  const po=(doc.po==null?'':String(doc.po)).trim();
+  let factura=(doc.factura==null?'':String(doc.factura)).trim(); if(factura.toLowerCase()==='null') factura='';
+  const fecha=_normFecha(doc.fecha);
+  const monto=parseFloat(doc.monto)||0;
+  const tokens = po?po.split(/[\/,\-\s]+/).filter(Boolean):[];
+  const o={isFactura: tipo==='factura'||!!factura, tipo, po, factura, fecha, monto, tokens};
+  if(o.isFactura){
+    o.existing = factura ? state.rows.filter(r=>r.inv && r.inv.toLowerCase()===factura.toLowerCase()) : [];
+    o.matches  = (!o.existing.length && po) ? state.rows.filter(r=>!r.inv && r.po && _poMatch(r.po,po)) : [];
+    o.sum = o.matches.reduce((s,r)=>s+(+r.monto||0),0);
+    const mtok=new Set(); o.matches.forEach(r=>String(r.po).split(/[\/,\-\s]+/).filter(Boolean).forEach(t=>mtok.add(t)));
+    o.matchedTokens=[...mtok];
+    o.montoOk = o.matches.length>0 && Math.abs(o.sum-monto)<0.5;
+    o.poOk    = o.matches.length>0 && o.tokens.length>0 && o.tokens.every(t=>mtok.has(t));
+    o.willCreateNew = !o.existing.length && !o.matches.length;
+  } else {
+    o.ordMatch = po ? state.rows.find(r=>!r.inv && r.po && _poMatch(r.po,po)) : null;
+  }
+  return o;
+}
+function _cdLinkHtml(url,label){ return url?`<a href="${esc(url)}" target="_blank" rel="noopener">📎 ${label}</a>`:''; }
+function showConfirmDoc(item){
+  const p=_previewDoc(item.doc), money=window.money||(n=>'$'+(+n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  const n=_docQueue.length, pos = n>1?` (1 de ${n})`:'';
+  document.getElementById('cdTitle').textContent = (p.isFactura?'Factura detectada':'Orden de compra detectada')+pos;
+  document.getElementById('cdSub').textContent = item.fileName||'';
+  const due = p.fecha ? addDays(parseD(p.fecha),PLAZO_DIAS) : null;
+  let info='';
+  if(p.isFactura){
+    info += `<span class="k">N° de factura</span><span class="v">${esc(p.factura||'—')}</span>`;
+    info += `<span class="k">N° de orden (en factura)</span><span class="v">${esc(p.po||'—')}</span>`;
+    info += `<span class="k">Monto de la factura</span><span class="v">${money(p.monto)}</span>`;
+    info += `<span class="k">Fecha</span><span class="v">${p.fecha||'—'}</span>`;
+    info += `<span class="k">Vence (60d)</span><span class="v">${due?isoOf(due):'—'}</span>`;
+  } else {
+    info += `<span class="k">N° de orden</span><span class="v">${esc(p.po||'—')}</span>`;
+    info += `<span class="k">Monto</span><span class="v">${money(p.monto)}</span>`;
+    if(p.fecha) info += `<span class="k">Fecha</span><span class="v">${p.fecha}</span>`;
+  }
+  document.getElementById('cdInfo').innerHTML = info;
+  document.getElementById('cdLink').innerHTML  = _cdLinkHtml(item.fileUrl, 'Ver PDF');
+  document.getElementById('cdLink2').innerHTML = '';
+
+  let v='';
+  if(p.isFactura){
+    v += `<div class="cd-sec"><div class="cd-h">Vinculación con órdenes de compra</div>`;
+    if(p.existing.length){
+      v += `<div class="cd-check cd-ok">✓ Esta factura ya está registrada (${p.existing.length} fila${p.existing.length>1?'s':''}). Se actualizarán sus datos${item.fileUrl?' y el enlace al PDF':''}.</div>`;
+    } else if(p.matches.length){
+      p.matches.forEach(r=> v += `<div class="cd-oc"><span class="po">OC ${esc(r.po)}</span><span class="mo">${money(+r.monto||0)}</span></div>`);
+      if(p.matches.length>1) v += `<div class="cd-tot"><span>Suma de ${p.matches.length} OC</span><span class="mo">${money(p.sum)}</span></div>`;
+      // chequeo de monto
+      if(p.matches.length===1){
+        if(p.montoOk) v += `<div class="cd-check cd-ok">✓ El monto coincide con la OC (${money(p.monto)}).</div>`;
+        else v += `<div class="cd-check cd-warn">⚠ La OC registraba ${money(p.matches[0].monto||0)}; la factura indica ${money(p.monto)}. Se usará el de la factura.</div>`;
+      } else {
+        if(p.montoOk) v += `<div class="cd-check cd-ok">✓ El total de la factura coincide con la suma de las OC (${money(p.monto)}).</div>`;
+        else v += `<div class="cd-check cd-warn">⚠ El total de la factura (${money(p.monto)}) no coincide con la suma de las OC (${money(p.sum)}). Diferencia ${money(Math.abs(p.monto-p.sum))}.</div>`;
+      }
+      // chequeo de número de OC
+      if(p.poOk) v += `<div class="cd-check cd-ok">✓ El N° de OC de la factura coincide con el de la(s) orden(es) en el sistema.</div>`;
+      else v += `<div class="cd-check cd-warn">⚠ La factura menciona OC <b>${esc(p.tokens.join(', ')||'—')}</b>; en el sistema se vinculará a OC <b>${esc(p.matchedTokens.join(', ')||'—')}</b>. Verifica que sea correcto.</div>`;
+    } else {
+      v += `<div class="cd-check cd-warn">⚠ No se encontró ninguna OC con el número <b>${esc(p.po||'—')}</b>. Al confirmar se creará como <b>factura nueva sin vincular</b>.</div>`;
+    }
+    v += `</div>`;
+  } else {
+    if(p.ordMatch){
+      v += `<div class="cd-sec"><div class="cd-check cd-warn">⚠ Ya existe una orden con el N° <b>${esc(p.po)}</b> (${money(p.ordMatch.monto||0)}). Al confirmar se <b>actualizará</b> esa orden con este monto.</div></div>`;
+    } else {
+      v += `<div class="cd-sec"><div class="cd-check cd-ok">✓ Se agregará como una <b>nueva orden de compra</b>.</div></div>`;
+    }
+  }
+  document.getElementById('cdVinc').innerHTML = v;
+
+  const btn=document.getElementById('cdConfirm');
+  if(p.isFactura){ btn.textContent='Vincular'; btn.className='btn blue'; }
+  else { btn.textContent='Agregar'; btn.className='btn green'; }
+  document.getElementById('confirmDocModal').classList.add('show');
 }
 
 /* ---------- dedup de facturas / órdenes ---------- */
@@ -1372,12 +1497,13 @@ document.getElementById('groupBtn').onclick = ()=>{ GROUP=!GROUP;
 };
 document.getElementById('tlHelpHd').onclick = ()=>document.getElementById('tlHelp').classList.toggle('collapsed');
 
-document.getElementById('addBtn').onclick = ()=>{
-  if(!EDIT) return;
-  state.rows.unshift({po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0});
-  save(); renderAll();
-  document.querySelector('#ordersBody tr input')?.focus();
+document.getElementById('cdConfirm').onclick = ()=>{
+  const item=_docQueue.shift();
+  if(item){ const res=upsertDoc(item.doc, item.fileUrl); save(); renderAll(); toast(`${res.tipo} ${res.ref} · ${res.action}`); }
+  _nextDoc();
 };
+document.getElementById('cdCancel').onclick = ()=>{ _docQueue.shift(); _nextDoc(); };
+document.getElementById('confirmDocModal').onclick = e=>{ if(e.target.id==='confirmDocModal'){ _docQueue.shift(); _nextDoc(); } };
 document.getElementById('expBtn').onclick = ()=>{ try{ exportExcel(); toast('Excel exportado'); }catch(e){ alert('No se pudo exportar: '+(e.message||e)); } };
 document.getElementById('dedupBtn').onclick = ()=>{ if(EDIT) mergeDuplicates(); };
 document.getElementById('uploadBtn').onclick = ()=>{ if(EDIT) document.getElementById('pdfInput').click(); };
