@@ -181,8 +181,9 @@ table.cal tbody tr.ext-row td.c-po{box-shadow:inset 4px 0 0 var(--morado)}
 .mk-emisx{background:var(--morado)!important}
 /* filtro por línea */
 .seg button.ext.active{color:var(--morado)}
-/* resumen por línea (debajo del calendario) */
+/* resumen por línea (debajo del calendario y arriba junto a las tarjetas) */
 #lineSummary{padding:1rem 1.1rem 0}
+#lineSummaryTop{margin:0 0 1.25rem}
 .lsum{width:100%;max-width:620px;border-collapse:separate;border-spacing:0;font-size:.82rem;
   border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
 .lsum caption{text-align:left;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
@@ -422,6 +423,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
 
   <!-- KPIs -->
   <div class="lines" id="lines"></div>
+  <div id="lineSummaryTop"></div>
 
   <!-- TABS -->
   <div class="tabnav">
@@ -1254,16 +1256,16 @@ function renderBoard(){
 }
 /* Resumen por línea de crédito (siempre muestra ambas, segregado). */
 function renderLineSummary(){
-  const el=document.getElementById('lineSummary'); if(!el) return;
   const reg=_lineAgg(r=>_lineaOf(r)==='regular'), ext=_lineAgg(r=>_lineaOf(r)==='extra');
   const row=(cls,lbl,a)=>`<tr class="${cls}"><th class="lz"><span class="dotc"></span>${lbl}</th>`+
     `<td class="fac">${money(a.facturado)}</td><td class="${a.pagado>0.005?'cob':'cob0'}">${money(a.pagado)}</td><td class="pc">${money(a.consumido)}</td></tr>`;
-  el.innerHTML =
+  const html =
     `<table class="lsum"><caption>Resumen por línea de crédito</caption>`+
     `<thead><tr><th class="lz">Línea</th><th>Facturado</th><th>Cobrado</th><th>Por cobrar</th></tr></thead><tbody>`+
     row('reg','Regular',reg)+row('ext','Extraordinaria',ext)+
     `<tr class="tot"><th class="lz">Total</th><td>${money(reg.facturado+ext.facturado)}</td><td>${money(reg.pagado+ext.pagado)}</td><td>${money(reg.consumido+ext.consumido)}</td></tr>`+
     `</tbody></table>`;
+  ['lineSummaryTop','lineSummary'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; });
 }
 
 /* ---------- formatting ---------- */
@@ -1785,7 +1787,7 @@ function _calMatrix(){
   cols.forEach(c=> hd.push(c.type==='wk'?{v:'S'+c.w.idx+'  '+fmtD(c.w.start),t:'s',s:8}:{v:'SALDO '+MESES[c.month],t:'s',s:8})); rows.push(hd);
   // cuerpo
   state.rows.forEach((r,ri)=>{ const c=computed[ri];
-    const row=[{v:(r.po||'')+(r.inv?' · '+r.inv:''),t:'s',s:7},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:_estiloEstado(r,c)}];
+    const row=[{v:(r.po||'')+(r.inv?' · '+r.inv:'')+(_lineaOf(r)==='extra'?' · EXT':''),t:'s',s:7},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:_estiloEstado(r,c)}];
     cols.forEach(col=>{
       if(col.type==='saldo'){ const facBy=c.facturada&&c.invMo!=null&&c.invMo<=col.month;
         if(facBy){ const paid=((r.estado==='pagado'||r.estado==='abonado')&&c.payMo!=null&&c.payMo<=col.month)?c.pagadoTotal:0; const s=r.monto-paid;
@@ -1816,7 +1818,7 @@ function _calMatrix(){
   return {rows, colW};
 }
 function _ordMatrix(){
-  const heads=['Orden de compra','Factura','Fecha factura','Monto','Estado','Fecha pago','Abonado','Saldo pendiente','Vence (60d)','Días','PDF orden','PDF factura'];
+  const heads=['Orden de compra','Factura','Línea','Fecha factura','Monto','Estado','Fecha pago','Abonado','Saldo pendiente','Vence (60d)','Días','PDF orden','PDF factura','Constancia pago'];
   const rows=[];
   rows.push([{v:'SEPPELEC · Órdenes y Facturas',t:'s',s:9,m:heads.length}]);
   rows.push([{v:'Generado '+isoToday(),t:'s',s:10,m:heads.length}]);
@@ -1826,18 +1828,35 @@ function _ordMatrix(){
     if(c.due&&c.pendiente>0.005){ const dd=Math.round((c.due-TODAY)/86400000); dias=dd>=0?dd+'d':Math.abs(dd)+'d venc.'; }
     else if(r.estado==='pagado') dias='✓';
     rows.push([
-      {v:r.po||'',t:'s',s:7},{v:r.inv||'',t:'s',s:7},{v:r.fInv||'',t:'s',s:7},
+      {v:r.po||'',t:'s',s:7},{v:r.inv||'',t:'s',s:7},
+      {v:_lineaOf(r)==='extra'?'Extraordinaria':'Regular',t:'s',s:7},
+      {v:r.fInv||'',t:'s',s:7},
       {v:+r.monto||0,t:'n',s:2},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:_estiloEstado(r,c)},
       {v:r.fPago||'',t:'s',s:7},{v:+r.abonado||0,t:'n',s:2},{v:+c.pendiente.toFixed(2),t:'n',s:2},
       {v:c.due?isoOf(c.due):'',t:'s',s:7},{v:dias,t:'s',s:7},
       r.poUrl?{v:'Ver orden',link:r.poUrl,s:18}:{v:'',t:'s',s:7},
-      r.invUrl?{v:'Ver factura',link:r.invUrl,s:18}:{v:'',t:'s',s:7}
+      r.invUrl?{v:'Ver factura',link:r.invUrl,s:18}:{v:'',t:'s',s:7},
+      r.pagoUrl?{v:'Ver pago',link:r.pagoUrl,s:18}:{v:'',t:'s',s:7}
     ]);
   });
-  return {rows, colW:[{w:20},{w:12},{w:13},{w:14},{w:12},{w:13},{w:13},{w:15},{w:13},{w:11},{w:16},{w:16}]};
+  return {rows, colW:[{w:20},{w:12},{w:14},{w:13},{w:14},{w:12},{w:13},{w:13},{w:15},{w:13},{w:11},{w:14},{w:14},{w:15}]};
+}
+function _resumenMatrix(){
+  const reg=_lineAgg(r=>_lineaOf(r)==='regular'), ext=_lineAgg(r=>_lineaOf(r)==='extra');
+  const topeR=+state.linea||LINEA_DEFAULT, topeE=+state.lineaExtra||LINEA_DEFAULT;
+  const rows=[];
+  rows.push([{v:'SEPPELEC · Resumen por línea de crédito',t:'s',s:9,m:5}]);
+  rows.push([{v:'Generado '+isoToday(),t:'s',s:10,m:5}]);
+  rows.push([]);
+  rows.push([{v:'Línea',t:'s',s:8},{v:'Tope',t:'s',s:8},{v:'Facturado',t:'s',s:8},{v:'Cobrado',t:'s',s:8},{v:'Por cobrar',t:'s',s:8}]);
+  const line=(lbl,a,tope,sl)=>[{v:lbl,t:'s',s:sl},{v:tope,t:'n',s:2},{v:+a.facturado.toFixed(2),t:'n',s:2},{v:+a.pagado.toFixed(2),t:'n',s:2},{v:+a.consumido.toFixed(2),t:'n',s:2}];
+  rows.push(line('Regular',reg,topeR,1));
+  rows.push(line('Extraordinaria',ext,topeE,1));
+  rows.push([{v:'Total',t:'s',s:3},{v:topeR+topeE,t:'n',s:3},{v:+(reg.facturado+ext.facturado).toFixed(2),t:'n',s:3},{v:+(reg.pagado+ext.pagado).toFixed(2),t:'n',s:3},{v:+(reg.consumido+ext.consumido).toFixed(2),t:'n',s:3}]);
+  return {rows, colW:[{w:18},{w:14},{w:15},{w:15},{w:15}]};
 }
 function exportExcel(){
-  const cal=_calMatrix(), ord=_ordMatrix();
+  const cal=_calMatrix(), ord=_ordMatrix(), res=_resumenMatrix();
   const _f=(rgb)=>`<font><color rgb="${rgb}"/><sz val="11"/><name val="Calibri"/></font>`;
   const _fb=(rgb)=>`<font><b/><color rgb="${rgb}"/><sz val="11"/><name val="Calibri"/></font>`;
   const _fill=(rgb)=>`<fill><patternFill patternType="solid"><fgColor rgb="${rgb}"/><bgColor indexed="64"/></patternFill></fill>`;
@@ -1893,18 +1912,20 @@ function exportExcel(){
     '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
     '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
     '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+    '<Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
     '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
   const RELS='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
   const WB='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
-    '<sheets><sheet name="Calendario" sheetId="1" r:id="rId1"/><sheet name="Órdenes y Facturas" sheetId="2" r:id="rId2"/></sheets></workbook>';
+    '<sheets><sheet name="Calendario" sheetId="1" r:id="rId1"/><sheet name="Órdenes y Facturas" sheetId="2" r:id="rId2"/><sheet name="Resumen por línea" sheetId="3" r:id="rId3"/></sheets></workbook>';
   const WBR='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'+
     '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'+
-    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>'+
+    '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
   const files=[
     {name:'[Content_Types].xml', bytes:_u8(CT)},
     {name:'_rels/.rels', bytes:_u8(RELS)},
@@ -1912,7 +1933,8 @@ function exportExcel(){
     {name:'xl/_rels/workbook.xml.rels', bytes:_u8(WBR)},
     {name:'xl/styles.xml', bytes:_u8(STYLES)},
     {name:'xl/worksheets/sheet1.xml', bytes:_u8(_sheetXml(cal.rows,cal.colW))},
-    {name:'xl/worksheets/sheet2.xml', bytes:_u8(_sheetXml(ord.rows,ord.colW))}
+    {name:'xl/worksheets/sheet2.xml', bytes:_u8(_sheetXml(ord.rows,ord.colW))},
+    {name:'xl/worksheets/sheet3.xml', bytes:_u8(_sheetXml(res.rows,res.colW))}
   ];
   dl(new Blob([_zipStore(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `flujo-cxc-${isoToday()}.xlsx`);
 }
