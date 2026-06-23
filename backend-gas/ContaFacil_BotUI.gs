@@ -45,12 +45,9 @@ function botSendList(to, body, listButtonText, sections, token, phoneId) {
 }
 
 // Footer estándar para respuestas que pueden ofrecer navegación al menú.
-// Devuelve string vacío si el menú principal aún no está implementado
-// (no queremos enviar al usuario a un comando que no existe).
+// Disponible desde Fase 1 (el menú principal existe).
 function botFooterMenu() {
-  // Por ahora vacío. Cuando exista el menú principal (Fase 1),
-  // devolver: '\n\n_💡 Escribe *menu* para ver todas las opciones._'
-  return '';
+  return '\n\n_💡 Escribe *menu* en cualquier momento para ver todas las opciones._';
 }
 
 // Adjunta el footer estándar de menú al final de un texto, solo si

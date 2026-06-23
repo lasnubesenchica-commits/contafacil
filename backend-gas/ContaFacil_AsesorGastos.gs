@@ -175,8 +175,15 @@ function _asesorGastosHandle(question, from, token, phoneId) {
 }
 
 function _agRender(text) {
-  var t = String(text || '').substring(0, 3900);
-  return t.substring(0, 4000);
+  // Agregar footer del menú si está disponible (Fase 1+) sin exceder
+  // el límite de 4000 chars de WhatsApp. Si el cuerpo de la respuesta
+  // es muy largo, mejor sacrificar el footer que truncar contenido.
+  var body = String(text || '');
+  var footer = (typeof botFooterMenu === 'function') ? botFooterMenu() : '';
+  if (footer && (body.length + footer.length) <= 3990) {
+    return (body + footer).substring(0, 4000);
+  }
+  return body.substring(0, 4000);
 }
 
 // ════════════════════════════════════════════════════════════════════
