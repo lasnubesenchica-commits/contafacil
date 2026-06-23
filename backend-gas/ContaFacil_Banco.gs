@@ -1412,7 +1412,7 @@ function _bancoHandleDrill(intent, from, token, phoneId) {
   if (!cache) {
     _whatsappReply(from,
       '⏳ No tengo un análisis reciente tuyo cacheado (expiró la hora).\n\n' +
-      'Mandame el xlsx del banco otra vez y después podés pedir drill-downs.',
+      'Envíame el xlsx del banco otra vez y después puedes pedir drill-downs.',
       token, phoneId);
     return;
   }

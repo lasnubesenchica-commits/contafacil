@@ -551,7 +551,7 @@ function _transfDrainQueue(phone, token, phoneId) {
   if (all.length > BATCH_SIZE) {
     Utilities.sleep(500);
     _whatsappReply(phone,
-      '_(' + (all.length - BATCH_SIZE) + ' transferencia(s) más en cola — escribime cualquier mensaje y te las mando)_',
+      '_(' + (all.length - BATCH_SIZE) + ' transferencia(s) más en cola — envía cualquier mensaje y te las mando)_',
       token, phoneId);
   }
 }
