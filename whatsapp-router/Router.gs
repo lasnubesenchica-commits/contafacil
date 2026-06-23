@@ -541,21 +541,20 @@ function _routerReplyDesconocido(to, token, phoneId) {
         interactive: {
           type: 'button',
           body: { text:
-            '👋 ¡Hola! Soy *BalanceClip* — asistente fiscal automatizado para profesionales y negocios en Panamá. 🇵🇦\n\n' +
-            'Llevo tus finanzas por WhatsApp, sin entrar a una app:\n\n' +
-            '📸 *Registro tus facturas y gastos*\n' +
-            'Envíame foto/PDF o reenvía emails → una IA los lee, categoriza según DGI y los deja listos para aprobar.\n\n' +
-            '📊 *Analizo tu cuenta de Banco General*\n' +
-            'Subes el .xlsx → te devuelvo análisis al instante, reporte PDF ejecutivo, Excel con matriz destinatario × mes y asesor IA.\n\n' +
-            'Reportes ITBMS mensual e informe anual DGI listos para presentar.\n\n' +
-            '¿Qué te interesa probar?\n\n' +
-            '_Al usar el servicio aceptas nuestros términos y política de privacidad._\n' +
-            'https://balanceclip.net/privacidad/'
+            '👋 Hola, soy *BalanceClip* — tu asistente financiero por WhatsApp.\n\n' +
+            'Empecemos por algo *gratis*: analizo tu cuenta de Banco General.\n\n' +
+            '📊 Envíame el archivo *XLSX* que descargas desde Banca en Línea (Estado de cuenta → Exportar Excel) y en 30 segundos te devuelvo:\n' +
+            '• Saldo, flujo y top categorías\n' +
+            '• Suscripciones recurrentes detectadas\n' +
+            '• Excel con drill-downs por mes y categoría\n' +
+            '• Asesor IA — pregúntame _"¿cuánto gasté en comida?"_\n\n' +
+            'BalanceClip también lleva tu contabilidad completa (facturas, ITBMS, reportes DGI). Toca un botón para conocer más.\n\n' +
+            '_Al usar el servicio aceptas nuestros términos y política de privacidad: https://balanceclip.net/privacidad/_'
           },
           action: {
             buttons: [
-              { type: 'reply', reply: { id: 'signup:facturas', title: '📸 Registrar Gastos' } },
-              { type: 'reply', reply: { id: 'signup:analisis', title: '📊 Analizar Cuenta' } },
+              { type: 'reply', reply: { id: 'signup:analisis', title: '📊 Analizar mi banco' } },
+              { type: 'reply', reply: { id: 'signup:info',     title: 'ℹ️ ¿Qué más haces?' } },
             ],
           },
         },
@@ -566,24 +565,53 @@ function _routerReplyDesconocido(to, token, phoneId) {
 }
 
 function _routerEnviarInfoMarketing(to, token, phoneId) {
-  var props = PropertiesService.getScriptProperties();
-  var email = props.getProperty('CONTACT_EMAIL')    || 'ventas@balanceclip.net';
-  var web   = props.getProperty('CONTACT_WEBSITE')  || 'https://balanceclip.net';
-  var waNum = props.getProperty('CONTACT_WHATSAPP') || '+507 6018-8276';
-  var body =
-    'ℹ️ *Más sobre BalanceClip*\n\n' +
-    'Somos un asistente fiscal automatizado para profesionales y negocios en Panamá.\n\n' +
-    '*Cómo te ayudamos*\n' +
-    '• 📸 Envías facturas por WhatsApp — IA las lee y categoriza DGI\n' +
-    '• 📧 Configuras tus emails de proveedores para reenviar facturas automáticamente\n' +
-    '• 📊 Reportes ITBMS mensual e informe anual DGI listos para presentar\n' +
-    '• 🔐 Panel web personal con tu data privada y segura\n\n' +
-    '*Contacto comercial*\n' +
-    '📧 ' + email + '\n' +
-    '🌐 ' + web + '\n' +
-    '💬 WhatsApp: ' + waNum + '\n\n' +
-    'Si quieres *probar gratis 7 días*, escríbeme *demo* y arrancamos el registro. 🎁';
-  _routerSendText(to, body, token, phoneId);
+  if (!token || !phoneId) return;
+  // Mensaje 1 — descripción de funciones (texto largo, no cabe en botón).
+  var tour =
+    'ℹ️ *Qué hace BalanceClip*\n\n' +
+    'Soy un asistente financiero por WhatsApp para profesionales, asalariados y negocios en Panamá.\n\n' +
+    '📸 *Registrar facturas y gastos*\n' +
+    'Me envías foto, PDF o reenvías emails. Una IA extrae monto, fecha, proveedor, RUC y categoría DGI. Apruebas con un tap.\n\n' +
+    '📊 *Analizar tu cuenta bancaria* (gratis, sin registro)\n' +
+    'Subes el XLSX de Banco General y te devuelvo análisis, categorías, suscripciones y asesor IA.\n\n' +
+    '💳 *Auto-registro de transferencias*\n' +
+    'Las alertas de transferencias de tu banco se vuelven gastos automáticamente, categorizados.\n\n' +
+    '🧾 *Reportes fiscales DGI*\n' +
+    'ITBMS mensual y declaración anual listos para presentar.\n\n' +
+    '💬 *Asesor IA con todos tus gastos registrados*\n' +
+    'Pregúntame _"¿cuándo pagué luz?"_, _"¿cuánto llevo en farmacias este mes?"_, _"¿cuántos pagos he hecho al colegio?"_';
+  _routerSendText(to, tour, token, phoneId);
+  Utilities.sleep(400);
+
+  // Mensaje 2 — planes y CTA (con botones).
+  var ctaBody =
+    '*¿Qué plan te queda mejor?*\n\n' +
+    '• *BalanceClip Pro* — para consultores, asalariados y profesionales que necesitan reportes DGI completos. Desde $149/mes.\n\n' +
+    '• *BalanceClip Trade* — para comercio (compras y ventas, inventario). Desde $19/mes.\n\n' +
+    '🎁 Ambos con 7 días gratis, sin tarjeta.';
+  try {
+    UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: ctaBody },
+          action: {
+            buttons: [
+              { type: 'reply', reply: { id: 'signup:start',    title: '🎁 Probar 7 días' } },
+              { type: 'reply', reply: { id: 'signup:analisis', title: '📊 Probar análisis' } },
+            ],
+          },
+        },
+      }),
+      muteHttpExceptions: true,
+    });
+  } catch(err) { Logger.log('InfoMarketing CTA ERROR: ' + err.message); }
 }
 
 // Sub-card del welcome de prospecto: detalla el flujo de facturas + CTAs.
@@ -2560,6 +2588,19 @@ function _routerHandleVisitorInline(msg, from, token, phoneId) {
     }
     if (tipo === 'text') {
       var body = (msg.text && msg.text.body) || '';
+      var bodyLower = body.trim().toLowerCase();
+      // Trigger del tour — visitor en demo puede pedir conocer más en
+      // cualquier momento. Llama al mismo handler que el botón
+      // "ℹ️ ¿Qué más haces?" del welcome.
+      if (/^(info|tour|que (mas|más) haces|ayuda|help|menu|menú|que puedes hacer)\??$/i.test(bodyLower)) {
+        _routerEnviarInfoMarketing(from, token, phoneId);
+        return;
+      }
+      // Trigger para iniciar signup desde la sesión demo.
+      if (/^(probar|demo|registrar|registrarme|signup|sign up|prueba|empezar)$/i.test(bodyLower)) {
+        _routerIniciarSignup(from, token, phoneId);
+        return;
+      }
       // Asesor IA (pregunta natural) ó drill por texto ("ver comida",
       // "excel", "pdf"). Ambos viven en ContaFacil_Banco.gs.
       if (_bancoEsPreguntaAsesor && _bancoEsPreguntaAsesor(body)) {
@@ -2569,8 +2610,9 @@ function _routerHandleVisitorInline(msg, from, token, phoneId) {
       if (drill) { _bancoHandleDrill(drill, from, token, phoneId); return; }
       // Texto no reconocido durante sesión: respuesta simple
       _routerSendText(from,
-        '🤔 No entendí. Probá comandos como _"ver comida"_, _"excel"_, _"pdf"_, ' +
-        'o pregúntame algo como _"¿cuánto gasté en mayo?"_',
+        '🤔 No entendí. Prueba comandos como _"ver comida"_, _"excel"_, _"pdf"_, ' +
+        'o pregúntame algo como _"¿cuánto gasté en mayo?"_\n\n' +
+        'También puedes escribirme *info* para ver todo lo que hago, o *probar* para registrarte.',
         token, phoneId);
       return;
     }
@@ -2589,7 +2631,7 @@ function _routerHandleVisitorInline(msg, from, token, phoneId) {
   } catch(err) {
     Logger.log('Visitor inline ERROR: ' + err.message + ' ' + (err.stack || ''));
     _routerSendText(from,
-      '⚠️ Hubo un error procesando tu archivo. Intentá nuevamente o escríbeme *ayuda*.',
+      '⚠️ Hubo un error procesando tu archivo. Intenta nuevamente o escríbeme *ayuda*.',
       token, phoneId);
   }
 }
