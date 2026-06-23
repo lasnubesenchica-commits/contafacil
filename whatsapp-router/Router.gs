@@ -338,19 +338,29 @@ function _routerForwardMensaje(msg, metadata) {
       return;
     }
 
-    // Saludos y solicitudes de menú/ayuda → forward al client GAS.
-    // El client GAS tiene su propio welcome con botones y un menú
-    // principal con todas las opciones (ContaFacil_MenuPrincipal.gs).
-    // El router NO debe interceptar estos triggers para clientes
-    // registrados — si lo hace, el menú nuevo del cliente nunca se
-    // muestra.
-    //
-    // Texto no-trigger: igual cae al forward para que los drill-downs
-    // por texto del módulo banco ("ver mayo", "excel") y cualquier
-    // comando del cliente lleguen.
+    var triggers = ['hola','help','ayuda','menu','menú','instrucciones','info','start','inicio'];
+    var pidióAyuda = triggers.indexOf(bodyText) !== -1;
+    var primera   = !_routerYaSaludado(from);
+    if (primera || pidióAyuda) {
+      _routerEnviarBienvenida(from, token, phoneId);
+      _routerMarcarSaludado(from);
+      return;
+    }
+    // Texto no-trigger: en lugar de responder con "no entendí" desde el
+    // router, dejamos caer al forward al client GAS. Esto habilita los
+    // drill-downs por texto del módulo banco ("ver mayo", "excel") y
+    // cualquier comando futuro del cliente. Si el client GAS tampoco
+    // sabe qué hacer con el texto, manda su propio welcome de fallback.
   }
 
   // ── Media (image/document) e interactivos → forward al cliente GAS ──
+  // Si es la PRIMERA vez del cliente, mandamos la bienvenida primero,
+  // y después el cliente GAS procesa el archivo y responde con sus botones.
+  if (!_routerYaSaludado(from)) {
+    _routerEnviarBienvenida(from, token, phoneId);
+    _routerMarcarSaludado(from);
+  }
+
   Logger.log('Forward from=' + from + ' → ' + clientUrl);
 
   var payload = {
