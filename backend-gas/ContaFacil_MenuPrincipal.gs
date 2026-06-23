@@ -41,6 +41,10 @@ function _menuEsTriggerMenu(text) {
 
 // ════════════════════════════════════════════════════════════════════
 //  WELCOME (Nivel 0)
+//  ──────────────────────────────────────────────────────────────────
+//  El welcome ES el menú principal — un solo mensaje con saludo + las
+//  opciones a un tap. Evita el paso intermedio "tap para ver opciones
+//  → tap de nuevo para abrir menú".
 // ════════════════════════════════════════════════════════════════════
 
 function _menuSendWelcome(from, token, phoneId) {
@@ -48,21 +52,9 @@ function _menuSendWelcome(from, token, phoneId) {
   var saludoNeg = negocio ? (' de ' + negocio) : '';
   var body =
     '👋 Hola. Soy el asistente' + saludoNeg + ' de BalanceClip.\n\n' +
-    'Puedo ayudarte a:\n' +
-    '• Consultar tus gastos e ingresos\n' +
-    '• Registrar facturas (foto o PDF)\n' +
-    '• Analizar tu cuenta bancaria\n' +
-    '• Generar reportes\n\n' +
-    'Toca un botón para empezar, o escribe directamente lo que necesites.';
-  _whatsappReplyBotones(from,
-    body,
-    'BalanceClip',
-    [
-      { id: 'menu:open',           title: '📋 Ver opciones' },
-      { id: 'menu:banco-analizar', title: '🏦 Analizar banco' },
-    ],
-    token, phoneId
-  );
+    'Puedo ayudarte a consultar gastos, registrar facturas, analizar tu banco y generar reportes.\n\n' +
+    'Toca el botón para ver todas las opciones, o escríbeme directamente lo que necesites.';
+  _menuSendListaConBody(from, body, token, phoneId);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -70,6 +62,16 @@ function _menuSendWelcome(from, token, phoneId) {
 // ════════════════════════════════════════════════════════════════════
 
 function _menuSendPrincipal(from, token, phoneId) {
+  var body =
+    '📋 *Menú principal*\n\n' +
+    'Selecciona qué quieres hacer.\n' +
+    'También puedes escribirme una pregunta directa.';
+  _menuSendListaConBody(from, body, token, phoneId);
+}
+
+// Helper interno: envía el list message con un body custom (welcome
+// o menú a secas). Las secciones y el botón de apertura son los mismos.
+function _menuSendListaConBody(from, body, token, phoneId) {
   var sections = [
     {
       title: '📊 Mis registros',
@@ -100,12 +102,7 @@ function _menuSendPrincipal(from, token, phoneId) {
       ],
     },
   ];
-  _whatsappReplyLista(from,
-    '📋 *Menú principal*\n\nSelecciona qué quieres hacer.\nTambién puedes escribirme una pregunta directa.',
-    'Abrir menú',
-    sections,
-    token, phoneId
-  );
+  _whatsappReplyLista(from, body, 'Abrir menú', sections, token, phoneId);
 }
 
 // ════════════════════════════════════════════════════════════════════
