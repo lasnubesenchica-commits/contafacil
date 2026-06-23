@@ -130,6 +130,91 @@ function _bancoProcesarMovimientos(blob, filename, from, token, phoneId) {
   // límite de 1024 chars del body interactivo.
   try { _bancoEnviarMenuDrill(movs, categorias, from, token, phoneId); }
   catch(err) { Logger.log('Banco menu drill error: ' + err.message); }
+
+  // En modo DEMO (visitor en el router): después del análisis y el menú,
+  // mandar un mensaje de descubrimiento sutil mostrando que BalanceClip
+  // hace más cosas además de analizar bancos. Aprovecha hallazgos
+  // específicos del análisis para que se sienta personalizado.
+  try {
+    if (_bancoEsDemo()) _bancoEnviarUpsellVisitor(analisis, from, token, phoneId);
+  } catch(err) { Logger.log('Banco upsell visitor error: ' + err.message); }
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Upsell sutil al visitor — solo se ejecuta en modo DEMO (router).
+//  Personaliza el mensaje basado en lo que encontró en el análisis:
+//  deducibles Form 90, suscripciones, top merchant. Termina con un
+//  llamado a acción doble: probar 7 días o ver qué más hace BalanceClip.
+// ────────────────────────────────────────────────────────────────────
+function _bancoEnviarUpsellVisitor(analisis, from, token, phoneId) {
+  // Pausa breve para que el menú drill llegue antes que el upsell.
+  Utilities.sleep(600);
+
+  var lineas = ['💡 *El análisis bancario es solo el comienzo*', ''];
+
+  // Hallazgos relevantes en orden de impacto.
+  var findings = [];
+  if (analisis.form90 && analisis.form90.length) {
+    analisis.form90.slice(0, 2).forEach(function(f) {
+      findings.push('• *$' + f.sum.toFixed(2) + '* en ' + f.label + ' (deducibles Form 90 DGI)');
+    });
+  }
+  if (analisis.suscripciones && analisis.suscripciones.length) {
+    var n = analisis.suscripciones.length;
+    var totalSub = analisis.suscripciones.reduce(function(s, x) { return s + x.avg; }, 0);
+    findings.push('• ' + n + ' suscripción' + (n > 1 ? 'es' : '') + ' recurrente' + (n > 1 ? 's' : '') +
+                  ' (~$' + totalSub.toFixed(2) + '/mes)');
+  }
+  if (!findings.length && analisis.topMerchant && analisis.topMerchant.name) {
+    findings.push('• Tu mayor gasto se fue a *' + analisis.topMerchant.name + '*');
+  }
+  if (findings.length) {
+    lineas.push('En tu cuenta detecté:');
+    findings.forEach(function(f) { lineas.push(f); });
+    lineas.push('');
+  }
+
+  lineas.push('Como cliente BalanceClip automatizamos esto y más:');
+  lineas.push('📸 Registras facturas con foto/PDF — categorización DGI');
+  lineas.push('🧾 Tus deducibles personales se suman para el Form 90');
+  lineas.push('💳 Transferencias bancarias se vuelven gastos automáticamente');
+  lineas.push('💬 Asesor IA con TODOS tus gastos, no solo lo del banco');
+  lineas.push('📊 Reportes ITBMS y declaración anual listos');
+  lineas.push('');
+  lineas.push('🎁 Pruébalo 7 días gratis, sin tarjeta.');
+
+  var body = lineas.join('\n');
+  // _whatsappReply existe en el router (alias hacia _routerSendText) y en
+  // el per-client. En per-client esta función no se llama (no es demo).
+  _whatsappReply(from, body, token, phoneId);
+  Utilities.sleep(400);
+
+  // Botones de CTA en mensaje separado para mantener el upsell por debajo
+  // del límite de 1024 chars del body interactivo.
+  var ctaBody = '¿Cómo te ayudo a empezar?';
+  try {
+    UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: from,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: ctaBody },
+          action: {
+            buttons: [
+              { type: 'reply', reply: { id: 'signup:start', title: '🎁 Probar 7 días' } },
+              { type: 'reply', reply: { id: 'signup:info',  title: 'ℹ️ Ver todo lo que haces' } },
+            ],
+          },
+        },
+      }),
+      muteHttpExceptions: true,
+    });
+  } catch(err) { Logger.log('Banco upsell btn ERROR: ' + err.message); }
 }
 
 // ────────────────────────────────────────────────────────────────────
