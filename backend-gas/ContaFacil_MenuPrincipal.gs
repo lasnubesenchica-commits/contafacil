@@ -49,9 +49,14 @@ function _menuEsTriggerMenu(text) {
 
 function _menuSendWelcome(from, token, phoneId) {
   var negocio = String(CONFIG.NEGOCIO || '').trim();
-  var saludoNeg = negocio ? (' de ' + negocio) : '';
+  // Primer nombre del cliente. Asumimos que CONFIG.NEGOCIO empieza con
+  // el nombre del titular (ej: "Joslyn López", "Iris Albelo"). Si en
+  // algún cliente NEGOCIO es una razón social pura, queda igual sin
+  // romper — solo el saludo se vuelve menos personal.
+  var primerNombre = negocio.split(/\s+/)[0] || '';
+  var saludo = primerNombre ? ('Hola ' + primerNombre + ', ') : 'Hola. ';
   var body =
-    '👋 Hola. Soy el asistente' + saludoNeg + ' de BalanceClip.\n\n' +
+    '👋 ' + saludo + 'soy tu asistente financiero BalanceClip.\n\n' +
     'Puedo ayudarte a consultar gastos, registrar facturas, analizar tu banco y generar reportes.\n\n' +
     'Toca el botón para ver todas las opciones, o escríbeme directamente lo que necesites.';
   _menuSendListaConBody(from, body, token, phoneId);
