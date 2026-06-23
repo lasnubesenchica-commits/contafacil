@@ -70,7 +70,7 @@ body.readonly .del-btn{display:none}
 .modal{position:fixed;inset:0;z-index:300;background:rgba(10,10,10,.45);display:none;
   align-items:center;justify-content:center;padding:1rem}
 .modal.show{display:flex}
-.modal-card{background:var(--white);border-radius:18px;padding:1.6rem;width:340px;
+.modal-card{background:var(--white);border-radius:18px;padding:1.6rem;width:340px;max-width:calc(100vw - 1.5rem);
   box-shadow:0 20px 60px rgba(0,0,0,.18)}
 .modal-card h3{font-size:1rem;margin-bottom:.3rem}
 .modal-card p{font-size:.78rem;color:var(--muted);margin-bottom:1rem}
@@ -298,6 +298,46 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
   font-size:.8rem;padding:.6rem 1.1rem;border-radius:100px;opacity:0;transition:opacity .25s;z-index:200;pointer-events:none}
 .toast.show{opacity:1}
 @media(max-width:640px){.wrap{padding:1rem .75rem}.brand{font-size:1.25rem}}
+
+/* ── vista móvil en tarjetas ── */
+#mobileBoard{display:none}
+.m-sech{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:1rem .15rem .45rem}
+.mcard{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:.7rem .8rem;margin-bottom:.55rem;overflow:hidden;cursor:pointer}
+.mcard.ext{box-shadow:inset 4px 0 0 var(--morado)}
+.mc-r1{display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem}
+.mc-code{font-weight:700;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.mc-code .po{color:var(--muted);font-weight:500;font-size:.74rem}
+.mc-r2{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
+.mc-monto{font-family:'DM Mono',monospace;font-size:1.12rem;font-weight:600}
+.mc-due{font-size:.7rem;color:var(--muted);text-align:right}
+.mc-due b{font-weight:700} .mc-due .rojo{color:var(--rojo)} .mc-due .rojoosc{color:var(--rojoosc)} .mc-due .verde{color:var(--verde)}
+.m-tl{position:relative;height:16px;margin-top:.5rem}
+.m-tl .track{position:absolute;left:7px;right:7px;top:50%;transform:translateY(-50%);height:6px;border-radius:4px;background:var(--bg2)}
+.m-tl .fill{position:absolute;top:50%;transform:translateY(-50%);height:6px;border-radius:4px;left:7px;right:7px}
+.m-tl .f-fact{background:var(--azul-bg);border:1px solid rgba(21,101,192,.4)}
+.m-tl .f-ext{background:var(--morado-bg);border:1px solid rgba(123,31,162,.4)}
+.m-tl .f-venc{background:var(--rojoosc-bg);border:1px solid rgba(122,12,12,.4)}
+.m-tl .f-pago{background:var(--verde-bg);border:1px solid rgba(27,122,51,.4)}
+.m-mk{position:absolute;top:50%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:.5rem;font-weight:700;color:#fff}
+.m-mk.emis{width:9px;height:9px;background:var(--azul)} .m-mk.emisx{width:9px;height:9px;background:var(--morado)}
+.m-mk.due{background:var(--rojo)} .m-mk.venc{background:var(--rojoosc)} .m-mk.pago{background:var(--verde)}
+.m-tl .hoy{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--orange)}
+.mc-pill{display:inline-block;font-size:.62rem;font-weight:600;color:var(--gris);background:var(--gris-bg);border-radius:100px;padding:.12rem .5rem;margin-top:.45rem}
+
+@media(max-width:720px){
+  /* en móvil: ocultar la grilla/timeline de escritorio y sus controles, mostrar tarjetas */
+  .scroller,#viewSeg,#groupBtn,#winReset,.win-lbl,.legend,#tlHelp{display:none!important}
+  #mobileBoard{display:block}
+  .board-ctrl{gap:.4rem}
+  #lineSeg{width:100%;justify-content:space-between}
+  #lineSeg button{flex:1}
+  .section{border:none;background:transparent;box-shadow:none}
+  .section-head{padding:.2rem 0 .6rem;border:none}
+  .section-head h2{font-size:.9rem} .section-head .hint{display:none}
+  .topbar-actions{width:100%}
+  .topbar-actions .btn{flex:1;font-size:.74rem;padding:.5rem .4rem;white-space:nowrap}
+  .tabs{font-size:.85rem}
+}
 
 /* ── board controls: view toggle + sliding window ── */
 .board-ctrl{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;flex:1 1 100%}
@@ -537,6 +577,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
       </div>
       <button class="edge r" id="navR" title="Mes siguiente"><span class="ar">›</span><span class="cap">Mes siguiente</span></button>
     </div>
+    <div id="mobileBoard"></div>
   </div>
   </div><!-- /panel-cal -->
 
@@ -576,6 +617,7 @@ table.cal td.now,table.cal th.now{box-shadow:inset 0 0 0 2px rgba(224,90,0,.35)}
     </div>
     <div class="det-ro" id="detRo" style="display:none">🔒 Desbloquea la edición (botón de arriba) para cambiar el estado.</div>
     <div class="modal-actions">
+      <button class="btn ghost edit-only" id="detDelete" title="Eliminar este registro" style="margin-right:auto;color:var(--rojo)">🗑 Eliminar</button>
       <button class="btn ghost" id="detCancel">Cerrar</button>
       <button class="btn primary" id="detSave">Guardar</button>
     </div>
@@ -1279,6 +1321,43 @@ function renderBoard(){
   document.getElementById('navR').disabled = winA>=winMax();
   if(blocks) renderCalendar(); else renderTimeline();
   renderLineSummary();
+  renderMobile();
+}
+/* ---------- vista móvil en tarjetas ---------- */
+function renderMobile(){
+  const el=document.getElementById('mobileBoard'); if(!el) return;
+  const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const fday=d=>d?(('0'+d.getDate()).slice(-2)+'-'+MES[d.getMonth()]):'—';
+  const rows=_visRows().map(r=>({r,i:state.rows.indexOf(r),c:computeRow(r)}));
+  rows.sort((a,b)=>{ const ra=a.r.estado==='orden'?2:(a.c.pendiente<=0.005?1:0), rb=b.r.estado==='orden'?2:(b.c.pendiente<=0.005?1:0);
+    if(ra!==rb)return ra-rb; const da=a.c.due?a.c.due.getTime():9e15, db=b.c.due?b.c.due.getTime():9e15; return da-db; });
+  function bar(r,c){ const ext=_lineaOf(r)==='extra';
+    if(!c.facturada) return `<span class="mc-pill">orden · sin facturar</span>`;
+    if(r.estado==='pagado') return `<div class="m-tl"><div class="track"></div><div class="fill f-pago"></div>`+
+      `<span class="m-mk ${ext?'emisx':'emis'}" style="left:7px"></span><span class="m-mk pago" style="right:0">✓</span></div>`;
+    const total=c.due-c.fInv; let hoyF=total>0?(TODAY-c.fInv)/total:0; hoyF=Math.max(0,Math.min(1,hoyF));
+    return `<div class="m-tl"><div class="track"></div><div class="fill ${c.overdue?'f-venc':(ext?'f-ext':'f-fact')}"></div>`+
+      `<span class="m-mk ${ext?'emisx':'emis'}" style="left:7px"></span>`+
+      `<span class="m-mk ${c.overdue?'venc':'due'}" style="right:0">${c.overdue?'!':'◆'}</span>`+
+      `<div class="hoy" style="left:calc(7px + (100% - 14px) * ${hoyF})"></div></div>`;
+  }
+  let html='', lastSec='';
+  rows.forEach(({r,i,c})=>{
+    const sec = r.estado==='orden'?'Órdenes sin facturar':((c.pendiente<=0.005&&c.facturada)?'Pagadas':'Por cobrar');
+    if(sec!==lastSec){ html+=`<div class="m-sech">${sec}</div>`; lastSec=sec; }
+    const est=c.overdue?'vencido':r.estado, ext=_lineaOf(r)==='extra';
+    let dueTxt;
+    if(r.estado==='orden') dueTxt='—';
+    else if(c.pendiente<=0.005) dueTxt=`<span class="verde">✓ pagada ${fday(c.fPago)}</span>`;
+    else { const dd=Math.round((c.due-TODAY)/86400000);
+      dueTxt = c.overdue?`<span class="rojoosc">venció ${fday(c.due)} · <b>${Math.abs(dd)}d</b></span>`:`vence ${fday(c.due)} · <b class="${dd<=15?'rojo':''}">${dd}d</b>`; }
+    html+=`<div class="mcard ${ext?'ext':''}" onclick="openDetail(${i})">
+      <div class="mc-r1"><span class="mc-code">${esc(r.inv||'—')} <span class="po">${esc(r.po)}</span></span>`+
+      `${ext?'<span class="badge-ext">EXT</span>':''}<span class="st st-${est}">${c.overdue?'Vencido':ESTADO_LBL[r.estado]}</span></div>`+
+      `<div class="mc-r2"><span class="mc-monto">${money(r.monto)}</span><span class="mc-due">${dueTxt}</span></div>`+
+      bar(r,c)+`</div>`;
+  });
+  el.innerHTML = html || '<div class="m-sech">Sin registros</div>';
 }
 /* Resumen por línea de crédito (siempre muestra ambas, segregado). */
 function renderLineSummary(){
@@ -1691,6 +1770,11 @@ document.getElementById('pwInput').onkeydown = e=>{ if(e.key==='Enter') submitPw
 document.getElementById('pwModal').onclick = e=>{ if(e.target.id==='pwModal') closePw(); };
 document.getElementById('detCancel').onclick = closeDetail;
 document.getElementById('detSave').onclick = detSave;
+document.getElementById('detDelete').onclick = ()=>{
+  if(!EDIT || _detIdx<0) return; const r=state.rows[_detIdx]; if(!r) return;
+  if(!confirm(`¿Eliminar este registro?\n\n${(r.inv||r.po||'—')} · ${money(r.monto||0)}\n\nEsta acción no se puede deshacer.`)) return;
+  state.rows.splice(_detIdx,1); save(); renderAll(); closeDetail(); toast('Registro eliminado');
+};
 document.getElementById('detModal').onclick = e=>{ if(e.target.id==='detModal') closeDetail(); };
 
 /* view toggle + ventana deslizante */
