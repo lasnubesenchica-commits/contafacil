@@ -369,29 +369,18 @@ function _routerForwardMensaje(msg, metadata) {
       return;
     }
 
-    var triggers = ['hola','help','ayuda','menu','menú','instrucciones','info','start','inicio'];
-    var pidióAyuda = triggers.indexOf(bodyText) !== -1;
-    var primera   = !_routerYaSaludado(from);
-    if (primera || pidióAyuda) {
-      _routerEnviarBienvenida(from, token, phoneId);
-      _routerMarcarSaludado(from);
-      return;
-    }
-    // Texto no-trigger: en lugar de responder con "no entendí" desde el
-    // router, dejamos caer al forward al client GAS. Esto habilita los
-    // drill-downs por texto del módulo banco ("ver mayo", "excel") y
-    // cualquier comando futuro del cliente. Si el client GAS tampoco
-    // sabe qué hacer con el texto, manda su propio welcome de fallback.
+    // Saludos / "menu" / "ayuda" / "instrucciones" → NO interceptamos.
+    // Desde Fase 1 el client GAS tiene su propio welcome con botones
+    // y su menú principal (ContaFacil_MenuPrincipal.gs). Si el router
+    // interceptara aquí, ese menú nunca se vería.
+    //
+    // El welcome inicial del router (`_routerEnviarBienvenida`) solo
+    // se envía cuando el admin activa al cliente con el comando
+    // `activar` — ese único envío informa de comandos de router como
+    // `configurar email`. Después de eso, todo lo gestiona el client.
   }
 
   // ── Media (image/document) e interactivos → forward al cliente GAS ──
-  // Si es la PRIMERA vez del cliente, mandamos la bienvenida primero,
-  // y después el cliente GAS procesa el archivo y responde con sus botones.
-  if (!_routerYaSaludado(from)) {
-    _routerEnviarBienvenida(from, token, phoneId);
-    _routerMarcarSaludado(from);
-  }
-
   Logger.log('Forward from=' + from + ' → ' + clientUrl);
 
   var payload = {
@@ -482,7 +471,7 @@ function _routerEnviarBienvenida(to, token, phoneId) {
     'Drill por texto: *ver comida*, *ver mayo*, *excel*.\n\n' +
     '━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
     '📋 *Comandos útiles*\n' +
-    '• *ayuda* — ver estas instrucciones\n' +
+    '• *menu* — abrir el menú principal con todas las opciones\n' +
     '• *configurar email* — reenvío automático de facturas desde tu Gmail/Outlook a *facturas@balanceclip.net*\n\n' +
     '¿Listo? Envíame una factura o un .xlsx 📤';
   _routerSendText(to, body, token, phoneId);

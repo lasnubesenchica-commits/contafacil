@@ -248,31 +248,39 @@ function _whatsappProcesarMensaje(msg, metadata) {
       _whatsappOnCategoriaTexto(body, pendIdEnCurso, from, token, phoneId);
       return;
     }
-    // Drill-down sobre el último análisis bancario cacheado.
-    //   "ver comida"  → drill por cat
-    //   "ver mayo"    → drill por mes
-    //   "ver 2026-05" → drill por mes (formato explícito)
-    //   "comida mayo" → drill cruzado
-    //   "excel"       → bajar XLSX con la data analizada
-    // Orden de prioridad:
-    //   1. Si suena claramente a pregunta abierta ("¿cuánto debería…?") →
-    //      asesor (con cache); si no hay cache, cae al welcome.
-    //   2. Si matchea un comando de drill ("ver comida", "mayo", "excel") →
-    //      drill-down.
-    //   3. Si no, welcome estándar.
-    // Asesor primero porque el drill intent matchea palabras de cat dentro
-    // de oraciones más largas ("gasto en comida" → matchearía drill por
-    // "comida" — pero el usuario está preguntando, no pidiendo drill).
-    //
-    // Orden:
-    //   a. AsesorGastos — preguntas sobre los gastos/ingresos REGISTRADOS
-    //      del cliente (lookup en hojas Egresos/Ingresos). Funciona siempre.
-    //      Incluye CONTINUACIÓN de conversación: si el usuario tiene
-    //      sesión activa (cache TTL 10min) y el mensaje parece una
-    //      respuesta corta ("si", "y mayo?", "muestrame mas"), va al
-    //      mismo handler con el contexto previo.
-    //   b. AsesorBanco — preguntas sobre el estado de cuenta bancario
-    //      cacheado (último xlsx que mandó). Solo cuando hay cache.
+    // Orden de evaluación del texto:
+    //   1. Trigger explícito de menú ("menu", "opciones", "ayuda") →
+    //      lista del menú principal.
+    //   2. Saludo / primer contacto ("hola", "buenas") → welcome con
+    //      botones de entrada al menú.
+    //   3. Intent activo del menú (cliente acaba de tocar "Buscar" u
+    //      otro flujo que espera input) → enrutar al AsesorGastos.
+    //   4. Pregunta de AsesorGastos (consultas sobre gastos/ingresos
+    //      registrados) o continuación de sesión activa.
+    //   5. Pregunta de AsesorBanco (estado de cuenta cacheado).
+    //   6. Drill comandos cortos sobre el banco.
+    //   7. Default → welcome con botones (mismo del paso 2).
+
+    if (typeof _menuEsTriggerMenu === 'function' && _menuEsTriggerMenu(body)) {
+      _menuSendPrincipal(from, token, phoneId);
+      return;
+    }
+    if (typeof _menuEsTriggerWelcome === 'function' && _menuEsTriggerWelcome(body)) {
+      _menuSendWelcome(from, token, phoneId);
+      return;
+    }
+
+    var intentActivo = (typeof _menuLoadIntent === 'function') ? _menuLoadIntent(from) : null;
+    if (intentActivo && intentActivo.kind === 'buscar') {
+      // El cliente tocó "Buscar gasto/ingreso" del menú. Su próximo
+      // mensaje es la consulta. Lo enviamos al AsesorGastos sí o sí
+      // (sin depender de que el detector matchee), y limpiamos el
+      // intent para no quedar atrapados.
+      _menuClearIntent(from);
+      _asesorGastosHandle(body, from, token, phoneId);
+      return;
+    }
+
     var esNuevaPreguntaGastos = (typeof _asesorGastosEsPregunta === 'function') && _asesorGastosEsPregunta(body);
     var sesionActivaGastos    = (typeof _agSesionActiva === 'function') && _agSesionActiva(from);
     var esContinuacionGastos  = (typeof _agEsContinuacion === 'function') && _agEsContinuacion(body);
@@ -289,19 +297,16 @@ function _whatsappProcesarMensaje(msg, metadata) {
       _bancoHandleDrill(drill, from, token, phoneId);
       return;
     }
-    _whatsappReply(from,
-      '¡Hola! 👋 Soy el asistente de BalanceClip.\n\n' +
-      'Hago 2 cosas, usa la que necesites:\n\n' +
-      '📸 *Registrar una factura*\n' +
-      'Envíame una foto o PDF de tu factura/recibo. Le extraigo monto + categoría DGI ' +
-      'y la dejo pendiente en la app para que la apruebes:\n' +
-      _whatsappFrontendUrl() + '\n\n' +
-      '📊 *Analizar tu estado de cuenta bancario*\n' +
-      'Envíame el .xlsx de tu cuenta de Banco General. Te doy:\n' +
-      '• Saldo, flujo, top categorías y destinatarios\n' +
-      '• Excel con diagnóstico y drill-downs\n' +
-      '• Asesor IA: pregúntame "¿cuánto gasté en comida?"',
-      token, phoneId);
+    // Default — mismo welcome que recibe "hola". El cliente siempre
+    // tiene un botón a un tap de distancia para ver el menú completo.
+    if (typeof _menuSendWelcome === 'function') {
+      _menuSendWelcome(from, token, phoneId);
+    } else {
+      _whatsappReply(from,
+        '👋 Hola. Soy el asistente de BalanceClip.\n\n' +
+        'Escribe *menu* para ver todas las opciones, o envía una foto/PDF de una factura.',
+        token, phoneId);
+    }
     return;
   }
 
@@ -1189,7 +1194,14 @@ function _whatsappOnInteractive(msg, from, token, phoneId) {
 
   // Formato: "wa:<accion>:<pendId>[:<key>]" (facturas)
   //         "tr:cat:<pendId>:<categoryKey>" (transferencias bancarias)
+  //         "menu:<accion>"                 (menú principal del cliente)
   var parts = String(id || '').split(':');
+  // Branch del menú principal — taps de cualquier opción del list o
+  // de los botones del welcome.
+  if (parts[0] === 'menu' && typeof _menuHandleTap === 'function') {
+    _menuHandleTap(id, from, token, phoneId);
+    return;
+  }
   // Branch para respuestas del flujo de transferencias bancarias (BG)
   if (parts[0] === 'tr') {
     if (parts[1] === 'cat' && typeof _transfHandleClasificacion === 'function') {
