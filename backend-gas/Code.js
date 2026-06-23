@@ -1581,73 +1581,73 @@ function _buildOnboardingEmailHtml(p) {
             'En tu Gmail (<strong>' + forwarderEmail + '</strong>) vas a agregar <strong>' + sharedInbox + '</strong> como dirección de reenvío. Solo se hace <strong>una vez</strong>.' +
           '</p>' +
 
-          stepCard('A', 'Copiá esta dirección',
+          stepCard('A', 'Copia esta dirección',
             '<div style="background:' + surface2 + ';padding:10px 14px;border-radius:6px;font-family:Consolas,Monaco,monospace;font-size:14px;color:' + textDk + ';margin-top:6px;display:inline-block">' + sharedInbox + '</div>'
           ) +
 
-          stepCard('B', 'Abrí la configuración de Gmail',
+          stepCard('B', 'Abre la configuración de Gmail',
             '<a href="' + fwdSettingsUrl + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:9px 16px;background:' + textDk + ';color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin:6px 0 8px;font-family:Arial,sans-serif">Abrir Gmail → Reenvío y POP/IMAP ↗</a>' +
-            '<br>Una vez ahí: <strong>"Agregar dirección de reenvío"</strong> → pegá <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Siguiente</strong>.'
+            '<br>Una vez ahí: <strong>"Agregar dirección de reenvío"</strong> → pega <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Siguiente</strong>.'
           ) +
 
-          stepCard('C', 'Avisanos por WhatsApp para aprobar el código',
-            'Gmail va a mandar un correo con código de verificación a <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code>. Avisanos por WhatsApp y aprobamos el código del lado nuestro (generalmente en menos de 1 hora).' +
+          stepCard('C', 'Avísanos por WhatsApp para aprobar el código',
+            'Gmail va a enviar un correo con código de verificación a <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code>. Avísanos por WhatsApp y aprobamos el código del lado nuestro (generalmente en menos de 1 hora).' +
             '<br><a href="' + waLink + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:9px 16px;background:#25D366;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-top:8px;font-family:Arial,sans-serif">💬 Avisar por WhatsApp ↗</a>'
           ) +
 
           // ── PASO 2: Filtros por proveedor ──
           sectionHeader('🔍', 'Paso 2 — Crear filtro por proveedor') +
           '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
-            'Desde cualquier correo real de un proveedor, le decís a Gmail: <em>"reenviá a ' + sharedInbox + ' los correos de este remitente que tengan adjunto"</em>. Repetís por cada proveedor.' +
+            'Desde cualquier correo real de un proveedor, le dices a Gmail: <em>"reenvía a ' + sharedInbox + ' los correos de este remitente que tengan adjunto"</em>. Repites por cada proveedor.' +
           '</p>' +
 
-          stepCard('1', 'Abrí un correo del proveedor',
-            'Andá a Gmail y abrí cualquier factura recibida (por ejemplo, una factura de un proveedor habitual).'
+          stepCard('1', 'Abre un correo del proveedor',
+            'Ve a Gmail y abre cualquier factura recibida (por ejemplo, una factura de un proveedor habitual).'
           ) +
 
           stepCard('2', 'Menú "⋮" arriba a la derecha del correo',
             'Click en <strong>⋮ → Filtrar mensajes de este tipo</strong>. Gmail pre-llena el remitente automáticamente.'
           ) +
 
-          stepCard('3', 'Marcá "Tiene adjunto" → Crear filtro',
-            'En la siguiente pantalla, marcá <strong>Reenviar a:</strong> y elegí <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Crear filtro</strong>.'
+          stepCard('3', 'Marca "Tiene adjunto" → Crear filtro',
+            'En la siguiente pantalla, marca <strong>Reenviar a:</strong> y elige <code style="background:' + surface2 + ';padding:2px 6px;border-radius:3px;font-size:12px">' + sharedInbox + '</code> → <strong>Crear filtro</strong>.'
           ) +
 
           '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 0;background:#FFF8E6;border-left:3px solid #E65100;border-radius:6px"><tr><td style="padding:12px 14px;font-size:13px;color:' + textDk + ';line-height:1.55;font-family:Arial,sans-serif">' +
-            '🔁 <strong>Repetí los 3 pasos por cada proveedor</strong> que quieras capturar. El filtro queda guardado en Gmail y aplica a todos los correos futuros — no necesitás hacerlo de nuevo.' +
+            '🔁 <strong>Repite los 3 pasos por cada proveedor</strong> que quieras capturar. El filtro queda guardado en Gmail y aplica a todos los correos futuros — no necesitas hacerlo de nuevo.' +
           '</td></tr></table>' +
 
           // ── ALTERNATIVA: Captura manual con foto ──
-          sectionHeader('📸', 'Alternativa rápida: subí una foto desde tu celular') +
+          sectionHeader('📸', 'Alternativa rápida: sube una foto desde tu celular') +
           '<p style="margin:0 0 16px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
-            '¿Tenés una factura física en papel, o un PDF que recibiste por WhatsApp? No hace falta que la reenvíes por mail — la podés subir directo desde el dashboard:' +
+            '¿Tienes una factura física en papel, o un PDF que recibiste por WhatsApp? No hace falta que la reenvíes por mail — puedes subirla directo desde el dashboard:' +
           '</p>' +
 
-          stepCard('1', 'Abrí tu dashboard',
-            'Entrá desde tu celular o computadora a <a href="' + dashboardSafe + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + '">' + dashboardSafe + '</a>'
+          stepCard('1', 'Abre tu dashboard',
+            'Entra desde tu celular o computadora a <a href="' + dashboardSafe + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + '">' + dashboardSafe + '</a>'
           ) +
 
           stepCard('2', 'Click en "+ Registrar gasto"',
-            'En el módulo Registro General, vas a ver un botón <strong>"+ Registrar gasto"</strong>. Hacé click ahí.'
+            'En el módulo Registro General, vas a ver un botón <strong>"+ Registrar gasto"</strong>. Haz click ahí.'
           ) +
 
-          stepCard('3', 'Tomá una foto o subí el PDF',
-            'Desde el celular, podés <strong>tomar la foto en el momento</strong> con la cámara. Desde la PC, arrastrá el archivo o seleccionalo. Funciona con <strong>JPG, PNG o PDF</strong>.'
+          stepCard('3', 'Toma una foto o sube el PDF',
+            'Desde el celular, puedes <strong>tomar la foto en el momento</strong> con la cámara. Desde la PC, arrastra el archivo o selecciónalo. Funciona con <strong>JPG, PNG o PDF</strong>.'
           ) +
 
           stepCard('4', 'La IA llena los datos automáticamente',
-            'En unos segundos la IA extrae proveedor, RUC, número de factura, fecha, subtotal, ITBMS y total. Vos solo confirmás los datos y categoría → guardar.'
+            'En unos segundos la IA extrae proveedor, RUC, número de factura, fecha, subtotal, ITBMS y total. Tú solo confirmas los datos y categoría → guardar.'
           ) +
 
           '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 0;background:#E3F2FD;border-left:3px solid ' + blue + ';border-radius:6px"><tr><td style="padding:12px 14px;font-size:13px;color:' + textDk + ';line-height:1.55;font-family:Arial,sans-serif">' +
-            '💡 <strong>Tip</strong>: el reenvío por Gmail (Pasos 1 y 2) es ideal para facturas <em>recurrentes</em> — proveedores que te facturan todos los meses. La foto manual es ideal para gastos <em>únicos</em> o facturas en papel que no recibís por email.' +
+            '💡 <strong>Tip</strong>: el reenvío por Gmail (Pasos 1 y 2) es ideal para facturas <em>recurrentes</em> — proveedores que te facturan todos los meses. La foto manual es ideal para gastos <em>únicos</em> o facturas en papel que no recibes por email.' +
           '</td></tr></table>' +
 
           // ── TOKEN DE RECUPERACIÓN ──
           (authResetToken ? (
             sectionHeader('🔑', 'Token de recuperación') +
             '<p style="margin:0 0 12px;font-size:14px;color:' + textDk + ';line-height:1.55">' +
-              'Guardá este token en lugar seguro (gestor de passwords, papel, etc). Lo necesitás <strong>solo si olvidás tu password</strong> de admin:' +
+              'Guarda este token en lugar seguro (gestor de passwords, papel, etc). Lo necesitas <strong>solo si olvidas tu password</strong> de admin:' +
             '</p>' +
             '<div style="background:' + surface2 + ';border:1px dashed ' + border + ';padding:14px 16px;border-radius:8px;font-family:Consolas,Monaco,monospace;font-size:12px;color:' + textDk + ';word-break:break-all;text-align:center">' + authResetToken + '</div>'
           ) : '') +
@@ -1655,9 +1655,9 @@ function _buildOnboardingEmailHtml(p) {
           // ── ¿QUÉ SIGUE? ──
           sectionHeader('🚀', '¿Qué sigue?') +
           '<ol style="margin:0;padding-left:20px;font-size:14px;color:' + textDk + ';line-height:1.7">' +
-            '<li>Hacé los Pasos 1 y 2 arriba (toma ~5 minutos por proveedor)</li>' +
-            '<li>Esperá la primera factura — el sistema la captura en hasta 15 min</li>' +
-            '<li>Aprobá la factura desde tu dashboard en <strong>Registro General → Pendientes</strong></li>' +
+            '<li>Haz los Pasos 1 y 2 arriba (toma ~5 minutos por proveedor)</li>' +
+            '<li>Espera la primera factura — el sistema la captura en hasta 15 min</li>' +
+            '<li>Aprueba la factura desde tu dashboard en <strong>Registro General → Pendientes</strong></li>' +
             '<li>Al final del mes / año, los reportes ITBMS y Informe Anual se generan automáticamente</li>' +
           '</ol>' +
 
@@ -1668,7 +1668,7 @@ function _buildOnboardingEmailHtml(p) {
           '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
             '<td style="font-size:12px;color:' + muted + ';line-height:1.6">' +
               '<strong>¿Dudas?</strong><br>' +
-              'Escribinos por WhatsApp: <a href="' + waLink + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + '">+507 6981-2266</a>' +
+              'Escríbenos por WhatsApp: <a href="' + waLink + '" target="_blank" rel="noopener noreferrer" style="color:' + orange + '">+507 6981-2266</a>' +
             '</td>' +
             '<td align="right" style="font-size:11px;color:' + muted + ';letter-spacing:1px;text-transform:uppercase">' +
               '<a href="https://balanceclip.net" target="_blank" rel="noopener noreferrer" style="color:' + muted + ';text-decoration:none">balanceclip.net</a>' +

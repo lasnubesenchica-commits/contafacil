@@ -34,6 +34,37 @@
 //      — usado por email-watcher/Watcher.gs para entregarle al cliente
 //      el código de confirmación de Gmail vía WhatsApp.
 //
+//  ─────────────────────────────────────────────────────────────────
+//  CONTRATO Router ↔ per-client GAS
+//  ─────────────────────────────────────────────────────────────────
+//
+//  El router intercepta y responde directamente SOLO lo que es su
+//  responsabilidad multi-tenant. Todo lo demás se reenvía al GAS
+//  del cliente correspondiente.
+//
+//  Responsabilidades EXCLUSIVAS del router:
+//    • Signup de visitantes nuevos (demo/registrar/signup/prueba)
+//    • Wizard de email forwarder (configurar email + states de setup)
+//    • Verificación de códigos de Gmail (verifyEmailCode endpoint)
+//    • Demo inline para visitantes con XLSX (sin persistir)
+//    • Comandos de admin (activar / desactivar / duplicar-cliente / etc.)
+//    • Welcome inicial al saludar (cuando _routerYaSaludado falla)
+//    • Notificaciones de admin sobre interacciones / fallos
+//
+//  Lo que el router NO debe interceptar (siempre forward):
+//    • Cualquier media (foto, PDF, XLSX) de un cliente registrado
+//    • Respuestas interactivas (botones / list replies) que no son
+//      del namespace signup: / analisis: / setup:
+//    • Texto de un cliente registrado que no matchea triggers del
+//      router (configurar email / demo / etc.) — los saludos y
+//      comandos como "menu" son responsabilidad del client GAS,
+//      que tiene contexto del cliente para responder mejor.
+//
+//  Cuando el client GAS necesite hablar con el router (ej: para
+//  enviar un OTP de reset), llama a un action del router con un
+//  payload identificable y el router responde.
+//  ─────────────────────────────────────────────────────────────────
+//
 //  Formato CLIENTS_MAP_JSON
 //  ────────────────────────
 //    {
@@ -435,25 +466,25 @@ function _routerEnviarBienvenida(to, token, phoneId) {
   if (!token || !phoneId) { Logger.log('No puedo enviar bienvenida — faltan token/phoneId'); return; }
   var body =
     '🤖 *¡Hola! Soy el asistente de BalanceClip*\n\n' +
-    'Tengo 2 funciones, usá la que necesites:\n\n' +
+    'Tengo 2 funciones, usa la que necesites:\n\n' +
     '━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
     '📸 *Registrar facturas y gastos*\n\n' +
-    'Mandame foto o PDF de tu factura/recibo. La IA detecta monto, fecha, proveedor, RUC y categoría DGI, y te respondo con 2 botones:\n' +
+    'Envíame foto o PDF de tu factura/recibo. La IA detecta monto, fecha, proveedor, RUC y categoría DGI, y te respondo con 2 botones:\n' +
     '   ✅ *Aprobar* — acepta lo sugerido\n' +
     '   📝 *Cambiar categoría* — lista de opciones\n\n' +
-    'Funciona con facturas fiscales, electrónicas, Yappy, transferencias y PDFs. Revisás todo en balanceclip.net\n\n' +
+    'Funciona con facturas fiscales, electrónicas, Yappy, transferencias y PDFs. Puedes revisar todo en balanceclip.net\n\n' +
     '━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
     '📊 *Analizar estado de cuenta bancario*\n\n' +
-    'Mandame el .xlsx de tu cuenta de Banco General. Te doy:\n' +
+    'Envíame el .xlsx de tu cuenta de Banco General. Te doy:\n' +
     '• Resumen de saldo, flujo y top categorías al instante\n' +
     '• Excel ejecutivo con diagnóstico, semáforo de salud y drill-downs por destinatario/merchant\n' +
-    '• *Asesor IA*: preguntame _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi plata?"_, etc.\n\n' +
+    '• *Asesor IA*: pregúntame _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi dinero?"_, etc.\n\n' +
     'Drill por texto: *ver comida*, *ver mayo*, *excel*.\n\n' +
     '━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
     '📋 *Comandos útiles*\n' +
     '• *ayuda* — ver estas instrucciones\n' +
     '• *configurar email* — reenvío automático de facturas desde tu Gmail/Outlook a *facturas@balanceclip.net*\n\n' +
-    '¿Listo? Mandame una factura o un .xlsx 📤';
+    '¿Listo? Envíame una factura o un .xlsx 📤';
   _routerSendText(to, body, token, phoneId);
 }
 
@@ -524,9 +555,9 @@ function _routerReplyDesconocido(to, token, phoneId) {
             '👋 ¡Hola! Soy *BalanceClip* — asistente fiscal automatizado para profesionales y negocios en Panamá. 🇵🇦\n\n' +
             'Llevo tus finanzas por WhatsApp, sin entrar a una app:\n\n' +
             '📸 *Registro tus facturas y gastos*\n' +
-            'Mandame foto/PDF o reenviá emails → una IA los lee, categoriza según DGI y los deja listos para aprobar.\n\n' +
+            'Envíame foto/PDF o reenvía emails → una IA los lee, categoriza según DGI y los deja listos para aprobar.\n\n' +
             '📊 *Analizo tu cuenta de Banco General*\n' +
-            'Subís el .xlsx → te devuelvo análisis al instante, reporte PDF ejecutivo, Excel con matriz destinatario × mes y asesor IA.\n\n' +
+            'Subes el .xlsx → te devuelvo análisis al instante, reporte PDF ejecutivo, Excel con matriz destinatario × mes y asesor IA.\n\n' +
             'Reportes ITBMS mensual e informe anual DGI listos para presentar.\n\n' +
             '¿Qué te interesa probar?\n\n' +
             '_Al usar el servicio aceptas nuestros términos y política de privacidad._\n' +
@@ -2348,8 +2379,8 @@ function _routerNotifySenderSinRegistrar(senderEmail, msg) {
       'Hola,\n\n' +
       'Recibimos tu email en analisis@balanceclip.net, pero tu dirección ' +
       senderEmail + ' todavía no está asociada a una cuenta de BalanceClip.\n\n' +
-      'Para activar el atajo email→análisis, escribime "configurar email" ' +
-      'al bot de WhatsApp de BalanceClip y registrá tu email desde ahí. ' +
+      'Para activar el atajo email→análisis, escríbele "configurar email" ' +
+      'al bot de WhatsApp de BalanceClip y registra tu email desde ahí. ' +
       'Una vez registrado, cualquier estado de cuenta que mandes a este ' +
       'alias va a llegar directo a tu WhatsApp con el análisis listo.\n\n' +
       '— BalanceClip';
@@ -2697,7 +2728,7 @@ function _routerCheckVentana24hAdmin() {
   var remaining = (24 - hoursSince).toFixed(1);
   _routerSendText(adminPhone,
     '⏰ *Tu ventana de 24h cierra en ~' + remaining + 'h*\n\n' +
-    'Si querés seguir recibiendo notificaciones de clientes sin usar templates pagos, mandá cualquier mensaje (un "ok" basta) para reactivar la ventana.\n\n' +
+    'Si quieres seguir recibiendo notificaciones de clientes sin usar templates pagos, envía cualquier mensaje (un "ok" basta) para reactivar la ventana.\n\n' +
     '_Después de la ventana cerrada, las notifs requieren plantilla aprobada por Meta — costo ~$0.016 c/u._',
     token, phoneId);
   props.setProperty('lastWarning24h_' + adminPhone, String(Date.now()));

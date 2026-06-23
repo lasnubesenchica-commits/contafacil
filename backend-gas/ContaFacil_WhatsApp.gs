@@ -1,12 +1,33 @@
 // ════════════════════════════════════════════════════════════════════
 //  ContaFacil_WhatsApp.gs
 //
-//  Recepción de facturas vía WhatsApp Business Cloud API (Meta).
+//  Handler de mensajes WhatsApp por cliente (per-tenant). Lo invoca
+//  el Router multi-tenant via forward `procesarWhatsAppForward`, o
+//  directamente Meta si el deploy del cliente está expuesto.
 //
-//  FLUJO
+//  RESPONSABILIDADES DE ESTE MÓDULO (per-client):
+//    • Procesar facturas (foto/PDF) → OCR + extracción + pendiente
+//    • Procesar XLSX de banco → análisis (delega a ContaFacil_Banco)
+//    • Asesor conversacional sobre gastos registrados (delega a
+//      ContaFacil_AsesorGastos) y sobre estado de cuenta bancario
+//      (delega a ContaFacil_Banco)
+//    • Drill-downs por texto sobre el banco
+//    • Manejo de botones de aprobación de factura (wa:*)
+//    • Welcome / fallback cuando no se reconoce nada
+//
+//  NO ES RESPONSABILIDAD DE ESTE MÓDULO (vive en el Router):
+//    • Signup de visitantes
+//    • Setup de email forwarder
+//    • Comandos de admin
+//    • Demo inline para no-clientes
+//
+//  Ver `whatsapp-router/Router.gs` para el contrato completo de la
+//  división de responsabilidades.
+//
+//  FLUJO BÁSICO de factura
 //  ─────
-//    1. Cliente envía foto/PDF de factura al número WhatsApp de iris.
-//    2. Meta hace POST al webhook (este Apps Script web app).
+//    1. Cliente envía foto/PDF al número WhatsApp.
+//    2. Meta hace POST al webhook → Router → forward al per-client.
 //    3. Descargamos la media autenticando con el token permanente.
 //    4. La IA clasifica: ¿gasto recibido o ingreso emitido?
 //    5. Si gasto → se crea pendiente en Acreedores_Pending (mismo flujo
@@ -270,16 +291,16 @@ function _whatsappProcesarMensaje(msg, metadata) {
     }
     _whatsappReply(from,
       '¡Hola! 👋 Soy el asistente de BalanceClip.\n\n' +
-      'Hago 2 cosas, podés usar la que necesites:\n\n' +
+      'Hago 2 cosas, usa la que necesites:\n\n' +
       '📸 *Registrar una factura*\n' +
-      'Mandame una foto o PDF de tu factura/recibo. Le saco monto + categoría DGI ' +
+      'Envíame una foto o PDF de tu factura/recibo. Le extraigo monto + categoría DGI ' +
       'y la dejo pendiente en la app para que la apruebes:\n' +
       _whatsappFrontendUrl() + '\n\n' +
       '📊 *Analizar tu estado de cuenta bancario*\n' +
-      'Mandame el .xlsx de tu cuenta de Banco General. Te doy:\n' +
+      'Envíame el .xlsx de tu cuenta de Banco General. Te doy:\n' +
       '• Saldo, flujo, top categorías y destinatarios\n' +
       '• Excel con diagnóstico y drill-downs\n' +
-      '• Asesor IA: preguntame "¿cuánto gasté en comida?"',
+      '• Asesor IA: pregúntame "¿cuánto gasté en comida?"',
       token, phoneId);
     return;
   }
@@ -330,7 +351,7 @@ function _whatsappProcesarMensaje(msg, metadata) {
     Logger.log('Duplicado por contenido: hash=' + contentHash.substr(0,12) + ' → ' + dupInfo.pendId);
     _whatsappReply(from,
       '📋 Esta factura ya está registrada (#' + dupInfo.pendId + ').\n\n' +
-      'Si querés volver a procesarla, primero rechazala desde el panel.',
+      'Si quieres volver a procesarla, primero recházala desde el panel.',
       token, phoneId);
     return;
   }
@@ -391,7 +412,7 @@ function _whatsappProcesarMensaje(msg, metadata) {
       (dupContenido.ref ? ' (' + dupContenido.ref + ')' : '') + '.\n\n' +
       'Proveedor: ' + (parsed.nombre_otro || '?') + '\n' +
       'N° factura: ' + (parsed.num_factura || '?') + '\n\n' +
-      'Si querés volver a procesarla, primero rechazala desde el panel.',
+      'Si quieres volver a procesarla, primero recházala desde el panel.',
       token, phoneId);
     return;
   }
@@ -1738,9 +1759,9 @@ function _whatsappOnOtraCategoria(pendId, from, token, phoneId) {
   if (!pendId) { _whatsappReply(from, '⚠️ ID inválido.', token, phoneId); return; }
   _waSetCatTextoState(from, pendId);
   _whatsappReply(from,
-    '✏ Escribí el nombre de la categoría para *' + pendId + '* — yo busco la coincidencia DGI.\n\n' +
+    '✏ Escribe el nombre de la categoría para *' + pendId + '* — yo busco la coincidencia DGI.\n\n' +
     'Ejemplos: _oficina_, _nómina_, _internet_, _mantenimiento_, _publicidad_, _viáticos_.\n\n' +
-    '(Tenés 10 minutos. Si te confundís, mandá la palabra "cancelar")',
+    '(Tienes 10 minutos. Si te equivocas, envía la palabra "cancelar")',
     token, phoneId
   );
 }
@@ -1757,7 +1778,7 @@ function _whatsappOnCategoriaTexto(text, pendId, from, token, phoneId) {
   if (!match || !match.scored.length) {
     _whatsappReply(from,
       '🤔 No encontré una categoría DGI parecida a "' + raw + '".\n\n' +
-      'Probá con una palabra más simple (ej: "internet", "papelería") o mandá "cancelar".',
+      'Prueba con una palabra más simple (ej: "internet", "papelería") o envía "cancelar".',
       token, phoneId
     );
     return;
@@ -1781,7 +1802,7 @@ function _whatsappOnCategoriaTexto(text, pendId, from, token, phoneId) {
     };
   });
   _whatsappReplyBotones(from,
-    '🤔 "' + raw + '" se parece a varias. ¿Cuál querés?',
+    '🤔 "' + raw + '" se parece a varias. ¿Cuál prefieres?',
     'Sugerencias DGI',
     btns, token, phoneId
   );
