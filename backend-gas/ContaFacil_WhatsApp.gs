@@ -274,10 +274,18 @@ function _whatsappProcesarMensaje(msg, metadata) {
     if (intentActivo && intentActivo.kind === 'buscar') {
       // El cliente tocó "Buscar gasto/ingreso" del menú. Su próximo
       // mensaje es la consulta. Lo enviamos al AsesorGastos sí o sí
-      // (sin depender de que el detector matchee), y limpiamos el
-      // intent para no quedar atrapados.
+      // (sin depender de que el detector matchee) y limpiamos el
+      // intent — buscar es una sola consulta.
       _menuClearIntent(from);
-      _asesorGastosHandle(body, from, token, phoneId);
+      _asesorGastosHandle(body, from, token, phoneId, intentActivo);
+      return;
+    }
+    if (intentActivo && (intentActivo.kind === 'editar_categoria' || intentActivo.kind === 'editar_alcance')) {
+      // El cliente está en un flujo de edición conversacional. Todos
+      // los mensajes hasta que se aplique el cambio (el tool lo limpia
+      // al éxito) o expire el TTL (10 min) van al AsesorGastos con el
+      // intent inyectado para que Claude siga el flujo paso a paso.
+      _asesorGastosHandle(body, from, token, phoneId, intentActivo);
       return;
     }
 

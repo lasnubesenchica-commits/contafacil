@@ -153,15 +153,16 @@ function _asesorGastosEsPregunta(text) {
 //  HANDLER PRINCIPAL — orquesta el loop con Claude
 // ════════════════════════════════════════════════════════════════════
 
-function _asesorGastosHandle(question, from, token, phoneId) {
+function _asesorGastosHandle(question, from, token, phoneId, intent) {
   _whatsappReply(from, '🔎 Revisando tus registros…', token, phoneId);
   try {
-    // Cargar conversación previa si existe (TTL 10 min). Si hay, el
-    // nuevo mensaje es una continuación; si no, arranca thread nuevo.
-    var prior = _agSesionLoad(from) || [];
-    var resultado = _agConsultarConTools(question, prior);
+    // Cargar conversación previa si existe (TTL 10 min). Si viene un
+    // intent del menú arrancamos fresh — el intent inicia un flujo
+    // nuevo y mezclar thread anterior puede confundir a Claude.
+    var prior = intent ? [] : (_agSesionLoad(from) || []);
+    var resultado = _agConsultarConTools(question, prior, from, intent);
     if (!resultado || !resultado.texto) {
-      _whatsappReply(from, '🤔 No pude armar una respuesta. ¿Podés reformular la pregunta?', token, phoneId);
+      _whatsappReply(from, '🤔 No pude armar una respuesta. Intenta reformular la pregunta.', token, phoneId);
       return true;
     }
     _whatsappReply(from, _agRender(resultado.texto), token, phoneId);
@@ -540,18 +541,18 @@ function _agToolInfoDataset() {
 //  TOOL DEFINITIONS — schema que ve Claude
 // ════════════════════════════════════════════════════════════════════
 
-function _agToolDefs() {
+function _agToolDefs(intent) {
   var commonFilters = {
     tipo:         { type: 'string', enum: ['egreso', 'ingreso'], description: 'Filtra por tipo. Omitir para incluir ambos.' },
     proveedor:    { type: 'string', description: 'Nombre del proveedor/contraparte. Fuzzy match (acepta variaciones: "Arrocha" matchea "FCIAS ARROCHA SA"). También busca en descripción.' },
     categoria:    { type: 'string', description: 'Categoría DGI (ej: salud, educacion, alimentacion, transporte, servicios). Substring case-insensitive.' },
-    fecha_desde:  { type: 'string', description: 'ISO YYYY-MM-DD inclusivo. Calculá vos a partir de hoy.' },
+    fecha_desde:  { type: 'string', description: 'ISO YYYY-MM-DD inclusivo.' },
     fecha_hasta:  { type: 'string', description: 'ISO YYYY-MM-DD inclusivo.' },
     alcance:      { type: 'string', enum: ['negocio', 'personal'], description: 'Solo aplica a egresos. Omitir para incluir todos.' },
     monto_min:    { type: 'number', description: 'Monto total mínimo USD.' },
     monto_max:    { type: 'number', description: 'Monto total máximo USD.' },
   };
-  return [
+  var tools = [
     {
       name: 'info_dataset',
       description: 'Devuelve metadata global: rango de fechas con data, totales globales de egresos/ingresos, y top categorías. Útil al principio para saber qué hay disponible.',
@@ -570,7 +571,7 @@ function _agToolDefs() {
     },
     {
       name: 'buscar_operaciones',
-      description: 'Busca operaciones individuales con filtros. Devuelve las primeras N (más recientes primero) + total de matches. Usá esto para preguntas tipo "cuándo fue la última vez que..." o "muéstrame las facturas de X".',
+      description: 'Busca operaciones individuales con filtros. Devuelve las primeras N (más recientes primero) y el total de matches. Útil para "cuándo fue la última vez..." o "muéstrame las facturas de X".',
       input_schema: {
         type: 'object',
         properties: Object.assign({}, commonFilters, {
@@ -580,7 +581,7 @@ function _agToolDefs() {
     },
     {
       name: 'agregar_operaciones',
-      description: 'Suma/cuenta operaciones agrupándolas. Usá esto para preguntas tipo "cuánto he gastado", "cuántas veces", "cuánto por mes". Agrupar_por: total (sin grupo), proveedor, categoria, mes, anio, tipo.',
+      description: 'Suma/cuenta operaciones agrupándolas. Útil para "cuánto he gastado", "cuántas veces", "cuánto por mes". Agrupar_por: total (sin grupo), proveedor, categoria, mes, anio, tipo.',
       input_schema: {
         type: 'object',
         properties: Object.assign({}, commonFilters, {
@@ -589,14 +590,51 @@ function _agToolDefs() {
       },
     },
   ];
+
+  // Tools de ESCRITURA — solo expuestos cuando el menú lo solicitó.
+  // No los exponemos por defecto para evitar que Claude los llame
+  // espontáneamente en preguntas de solo-lectura.
+  if (intent && intent.kind === 'editar_categoria') {
+    tools.push({
+      name: 'cambiar_categoria_egreso',
+      description: 'Cambia la categoría DGI de UN egreso ya registrado. Llama este tool SOLO después de que el usuario confirme expresamente con un "sí" / "confirmo" / "ok" / "procede" / "adelante" o equivalente. La frase del usuario debe ir en confirmacion_usuario textualmente.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          id_egreso:            { type: 'string', description: 'ID del egreso a re-categorizar.' },
+          nueva_categoria:      { type: 'string', description: 'Valor exacto de la categoría DGI (ej: gastos_medicos, gastos_escolares, alimentacion, transporte, servicios_basicos, alquileres).' },
+          confirmacion_usuario: { type: 'string', description: 'Cita literal del mensaje donde el usuario confirma. Si no hay confirmación expresa NO llames este tool.' },
+        },
+        required: ['id_egreso', 'nueva_categoria', 'confirmacion_usuario'],
+      },
+    });
+  }
+  if (intent && intent.kind === 'editar_alcance') {
+    tools.push({
+      name: 'cambiar_alcance_egreso',
+      description: 'Cambia el alcance (personal o negocio) de UN egreso. Solo después de confirmación expresa del usuario.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          id_egreso:            { type: 'string' },
+          nuevo_alcance:        { type: 'string', enum: ['negocio', 'personal'] },
+          confirmacion_usuario: { type: 'string', description: 'Cita literal de la confirmación del usuario.' },
+        },
+        required: ['id_egreso', 'nuevo_alcance', 'confirmacion_usuario'],
+      },
+    });
+  }
+  return tools;
 }
 
-function _agEjecutarTool(name, input) {
+function _agEjecutarTool(name, input, fromPhone) {
   try {
-    if (name === 'info_dataset')        return _agToolInfoDataset();
-    if (name === 'listar_proveedores')  return _agToolListarProveedores(input || {});
-    if (name === 'buscar_operaciones')  return _agToolBuscar(input || {});
-    if (name === 'agregar_operaciones') return _agToolAgregar(input || {});
+    if (name === 'info_dataset')             return _agToolInfoDataset();
+    if (name === 'listar_proveedores')       return _agToolListarProveedores(input || {});
+    if (name === 'buscar_operaciones')       return _agToolBuscar(input || {});
+    if (name === 'agregar_operaciones')      return _agToolAgregar(input || {});
+    if (name === 'cambiar_categoria_egreso') return _agToolCambiarCategoria(input || {}, fromPhone);
+    if (name === 'cambiar_alcance_egreso')   return _agToolCambiarAlcance(input || {}, fromPhone);
     return { error: 'Tool desconocido: ' + name };
   } catch(err) {
     Logger.log('Tool ' + name + ' ERROR: ' + err.message);
@@ -604,11 +642,126 @@ function _agEjecutarTool(name, input) {
   }
 }
 
+// ────────────────────────────────────────────────────────────────────
+//  Tools de ESCRITURA — solo invocados cuando el menú activa un intent
+// ────────────────────────────────────────────────────────────────────
+
+function _agToolCambiarCategoria(input, fromPhone) {
+  var id = String(input.id_egreso || '').trim();
+  var nuevaCat = String(input.nueva_categoria || '').trim();
+  var confirmacion = String(input.confirmacion_usuario || '').trim();
+  if (!id) return { ok: false, error: 'id_egreso requerido' };
+  if (!nuevaCat) return { ok: false, error: 'nueva_categoria requerida' };
+  if (!confirmacion) return { ok: false, error: 'Falta confirmacion_usuario. NO se aplicó el cambio.' };
+  if (typeof _handleReclasificarEgreso !== 'function') {
+    return { ok: false, error: 'Backend de reclasificación no disponible.' };
+  }
+  var resp = _handleReclasificarEgreso({ id_egreso: id, nuevo_tipo: nuevaCat }, null);
+  var data;
+  try { data = JSON.parse(resp.getContent()); }
+  catch(_) { data = { success: false, error: 'Respuesta inválida del backend' }; }
+  if (!data.success) return { ok: false, error: data.error || 'No se pudo aplicar el cambio.' };
+  // Limpiar intent del menú tras éxito para no quedar atrapados en el flujo.
+  if (fromPhone && typeof _menuClearIntent === 'function') _menuClearIntent(fromPhone);
+  // Invalidar memo del dataset para que la próxima consulta refleje el cambio.
+  try { delete _agLoadDataset.__memo; } catch(_) {}
+  return {
+    ok:                 true,
+    id_egreso:          id,
+    categoria_anterior: data.tipo_anterior,
+    categoria_nueva:    data.tipo_nuevo,
+    mensaje:            'Categoría actualizada correctamente.',
+  };
+}
+
+function _agToolCambiarAlcance(input, fromPhone) {
+  var id = String(input.id_egreso || '').trim();
+  var nuevoAlc = String(input.nuevo_alcance || '').trim().toLowerCase();
+  var confirmacion = String(input.confirmacion_usuario || '').trim();
+  if (!id) return { ok: false, error: 'id_egreso requerido' };
+  if (nuevoAlc !== 'negocio' && nuevoAlc !== 'personal') {
+    return { ok: false, error: 'nuevo_alcance debe ser "negocio" o "personal"' };
+  }
+  if (!confirmacion) return { ok: false, error: 'Falta confirmacion_usuario. NO se aplicó el cambio.' };
+  try {
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_EGRESOS);
+    if (!sheet) return { ok: false, error: 'Hoja Egresos no encontrada' };
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 2) return { ok: false, error: 'Hoja Egresos vacía' };
+    var data = sheet.getRange(3, 1, lastRow - 2, EGRESOS_NCOLS).getValues();
+    for (var i = 0; i < data.length; i++) {
+      if (String(data[i][COL_E.ID - 1] || '').trim() !== id) continue;
+      var rowNum = i + 3;
+      var alcAnterior = String(data[i][COL_E.ALCANCE - 1] || 'negocio');
+      if (alcAnterior === nuevoAlc) {
+        if (fromPhone && typeof _menuClearIntent === 'function') _menuClearIntent(fromPhone);
+        return { ok: true, id_egreso: id, alcance_anterior: alcAnterior, alcance_nuevo: nuevoAlc, mensaje: 'El alcance ya estaba en "' + nuevoAlc + '".' };
+      }
+      sheet.getRange(rowNum, COL_E.ALCANCE).setValue(nuevoAlc);
+      var stamp = Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm');
+      var notasActual = String(sheet.getRange(rowNum, COL_E.NOTAS).getValue() || '');
+      var notaCambio = 'Alcance: ' + alcAnterior + ' → ' + nuevoAlc + ' | ' + stamp + ' (WhatsApp)';
+      sheet.getRange(rowNum, COL_E.NOTAS).setValue(notasActual ? notasActual + ' | ' + notaCambio : notaCambio);
+      if (fromPhone && typeof _menuClearIntent === 'function') _menuClearIntent(fromPhone);
+      try { delete _agLoadDataset.__memo; } catch(_) {}
+      return {
+        ok:               true,
+        id_egreso:        id,
+        alcance_anterior: alcAnterior,
+        alcance_nuevo:    nuevoAlc,
+        mensaje:          'Alcance actualizado correctamente.',
+      };
+    }
+    return { ok: false, error: 'No encontré el egreso con id ' + id };
+  } catch(err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+// Bloque extra de system prompt que se inyecta cuando el AsesorGastos
+// viene desde un tap del menú. Explica a Claude el flujo paso a paso
+// y las condiciones para llamar al tool de escritura.
+function _agIntentSystemPrompt(intent) {
+  if (!intent || !intent.kind) return '';
+  if (intent.kind === 'editar_categoria') {
+    return (
+      '\nCONTEXTO DEL MENÚ — el usuario tocó "Cambiar categoría".\n' +
+      'Tu trabajo en este turno y los siguientes:\n' +
+      '1) Identificar UN solo egreso a partir de la descripción del usuario (usa buscar_operaciones).\n' +
+      '2) Si hay varios candidatos, lista hasta 5 numerados y pídele que elija "1", "2", etc.\n' +
+      '3) Muestra el egreso seleccionado (proveedor, fecha, monto, categoría actual) y pregunta a qué categoría DGI lo quiere cambiar. Lista 8-10 opciones comunes con su nombre interno entre paréntesis: gastos_medicos, gastos_escolares, alimentacion, transporte, servicios_basicos, seguros, alquileres, mantenimiento, honorarios_servicios, otros_gastos.\n' +
+      '4) Cuando el usuario elija categoría, muestra resumen "voy a cambiar X de A a B" y pide confirmación expresa ("sí" / "confirmo").\n' +
+      '5) SOLO cuando confirme con un sí explícito, llama el tool cambiar_categoria_egreso con id_egreso, nueva_categoria (valor interno exacto) y confirmacion_usuario (lo que escribió el usuario).\n' +
+      '6) Tras el tool, confirma con un mensaje corto: "✅ Listo. <Proveedor> ahora aparece como <nueva categoría>."\n'
+    );
+  }
+  if (intent.kind === 'editar_alcance') {
+    return (
+      '\nCONTEXTO DEL MENÚ — el usuario tocó "Personal o negocio".\n' +
+      'Flujo:\n' +
+      '1) Identifica UN egreso (buscar_operaciones).\n' +
+      '2) Si hay varios candidatos, lista hasta 5 numerados y pide elegir.\n' +
+      '3) Muestra el egreso con su alcance actual y pregunta a cuál cambiarlo: "negocio" o "personal".\n' +
+      '4) Pide confirmación expresa antes de aplicar.\n' +
+      '5) Solo entonces llama cambiar_alcance_egreso con id_egreso, nuevo_alcance, confirmacion_usuario.\n' +
+      '6) Confirma con un mensaje corto: "✅ Listo. Ahora ese gasto es <alcance>."\n'
+    );
+  }
+  if (intent.kind === 'buscar') {
+    return (
+      '\nCONTEXTO DEL MENÚ — el usuario tocó "Buscar gasto/ingreso".\n' +
+      'Su próximo mensaje describe qué quiere encontrar. Usa las tools de lectura para responder con la información solicitada. Si la pregunta es ambigua, pide una sola aclaración concreta.\n'
+    );
+  }
+  return '';
+}
+
 // ════════════════════════════════════════════════════════════════════
 //  CLAUDE TOOL LOOP
 // ════════════════════════════════════════════════════════════════════
 
-function _agConsultarConTools(question, priorMessages) {
+function _agConsultarConTools(question, priorMessages, fromPhone, intent) {
   var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
 
@@ -616,33 +769,39 @@ function _agConsultarConTools(question, priorMessages) {
   var negocio = String(CONFIG.NEGOCIO || 'el cliente');
 
   var system =
-    'Sos el asistente de BalanceClip respondiendo preguntas sobre los GASTOS E INGRESOS REGISTRADOS de ' + negocio + ' vía WhatsApp.\n\n' +
+    'Eres el asistente financiero de BalanceClip respondiendo preguntas sobre los GASTOS E INGRESOS REGISTRADOS de ' + negocio + ' por WhatsApp.\n\n' +
     'Hoy es ' + hoy + ' (zona Panamá).\n\n' +
-    'Tenés tools para consultar la data real. Usalas siempre — nunca inventes números.\n\n' +
+    'Tienes herramientas (tools) para consultar la data real. Úsalas siempre — nunca inventes números.\n\n' +
+    'TONO Y LENGUAJE:\n' +
+    '• Español neutro panameño (tú/usted indistinto). EVITA vos/tenés/podés/querés/usá/sos/mandame.\n' +
+    '• Imperativos: "puedes", "tienes", "envíame", "dime", "ve", "abre".\n\n' +
     'CONVERSACIÓN:\n' +
-    '• Si el usuario manda una respuesta corta tipo "si", "si por favor", "dale", "ok", "y de mayo?", "muestrame mas", etc, es una CONTINUACIÓN de la conversación. Mirá el historial para entender qué quería ver y respondé directamente con esos datos. NO le pidas que reformule.\n' +
-    '• Si ofrecés mostrar más detalle ("¿querés ver…?"), prepárate para que la próxima respuesta sea afirmativa — ya en este mismo turno podés decidir si dar el detalle de una vez sin preguntar (preferible) o esperar confirmación.\n' +
-    '• Idealmente, dale al usuario una respuesta completa al primer intento. Solo preguntá si la opción es genuinamente ambigua (ej: "¿te refieres a Arrocha sucursal Costa del Este o todas?").\n\n' +
+    '• Si el usuario manda una respuesta corta tipo "sí", "sí por favor", "ok", "y de mayo?", "muéstrame más", es una CONTINUACIÓN. Mira el historial para entender qué quería y responde directamente con esos datos. NO le pidas que reformule.\n' +
+    '• Idealmente da una respuesta completa al primer intento. Solo pregunta si la opción es genuinamente ambigua.\n\n' +
     'ESTRATEGIA DE TOOLS:\n' +
-    '1. Para preguntas sobre un proveedor específico ("¿cuándo pagué Arrocha?"), primero llamá listar_proveedores con el patrón → ver cómo está escrito en la data → después buscar/agregar con el nombre real encontrado (o usá el patrón fuzzy directo, que también funciona).\n' +
-    '2. Si la primera búsqueda devuelve 0 resultados, intentá ampliar: patrón más corto, sin acentos, palabra clave del medio. La data en Panamá viene escrita con muchas variaciones ("Arrocha" vs "FCIAS ARROCHA" vs "Farmacia Arrocha SA").\n' +
-    '3. Para "cuándo fue la última vez" → buscar_operaciones con proveedor + limit 1.\n' +
-    '4. Para "cuántos pagos he hecho" → agregar_operaciones con agrupar_por=total, filtrá por proveedor.\n' +
-    '5. Para "cuánto he gastado en X este mes" → agregar_operaciones con fecha_desde=primer día del mes actual, fecha_hasta=' + hoy + ', filtros relevantes.\n' +
-    '6. Calculá vos los rangos de fecha (este mes, último año, etc) a partir de hoy.\n' +
-    '7. Si la pregunta es ambigua o requiere ver opciones, usá listar_proveedores o info_dataset antes de comprometerte.\n\n' +
+    '1. Para preguntas sobre un proveedor específico, primero llama listar_proveedores con el patrón para ver cómo aparece escrito en la data; luego busca/agrega.\n' +
+    '2. Si una búsqueda devuelve 0 resultados, amplía el patrón (más corto, sin acentos). La data en Panamá tiene variaciones ("Arrocha" vs "FCIAS ARROCHA" vs "Farmacia Arrocha SA").\n' +
+    '3. "Cuándo fue la última vez" → buscar_operaciones + limit 1.\n' +
+    '4. "Cuántos pagos he hecho" → agregar_operaciones con agrupar_por=total, filtrado por proveedor.\n' +
+    '5. "Cuánto he gastado en X este mes" → agregar_operaciones con fecha_desde=primer día del mes y fecha_hasta=' + hoy + '.\n' +
+    '6. Calcula los rangos de fecha (este mes, último año) a partir de hoy.\n\n' +
     'FORMATO DE RESPUESTA:\n' +
-    '• WhatsApp — sé conciso (4-8 líneas).\n' +
+    '• Mensaje de WhatsApp — conciso (4-8 líneas).\n' +
     '• Cifras exactas con 2 decimales y prefijo "$".\n' +
     '• Fechas en formato "15 may 2026" o "2026-05-15".\n' +
-    '• Usá *bold* para destacar cifras clave y viñetas con • para listas.\n' +
-    '• Si encontraste data: devolvé respuesta directa. Si no: decílo claro ("No encontré registros de X").\n' +
-    '• No agregues caveats legales/fiscales — esto es lookup de datos, no consejo.\n';
+    '• Usa *bold* para cifras clave y viñetas con • para listas.\n' +
+    '• Si encontraste data, da respuesta directa. Si no, dilo claro ("No encontré registros de X").\n' +
+    '• No agregues advertencias legales/fiscales — esto es lookup de datos.\n';
+
+  // Inyectar contexto del intent del menú si vino desde un tap.
+  if (intent && intent.kind && typeof _agIntentSystemPrompt === 'function') {
+    system += _agIntentSystemPrompt(intent);
+  }
 
   // Construir messages: si hay thread previo, lo continuamos; sino arranca limpio.
   var messages = (priorMessages && priorMessages.length) ? priorMessages.slice() : [];
   messages.push({ role: 'user', content: question });
-  var tools = _agToolDefs();
+  var tools = _agToolDefs(intent);
   var lastText = '';
   var totalIn = 0, totalOut = 0, totalToolCalls = 0;
   var startMs = Date.now();
@@ -697,7 +856,7 @@ function _agConsultarConTools(question, priorMessages) {
 
     // Ejecutar tools y armar tool_result
     var toolResults = toolUses.map(function(tu) {
-      var result = _agEjecutarTool(tu.name, tu.input);
+      var result = _agEjecutarTool(tu.name, tu.input, fromPhone);
       var json = JSON.stringify(result);
       // Cap por tool_result: 12KB por entry para evitar prompts gigantes
       if (json.length > 12000) json = json.substring(0, 12000) + '... [truncado]';
@@ -830,7 +989,7 @@ function _agResetCosto() {
 function _agTestPregunta(q) {
   if (!q) q = '¿Cuándo fue la última vez que tuve un gasto?';
   Logger.log('Pregunta: ' + q);
-  var resp = _agConsultarConTools(q, []);
+  var resp = _agConsultarConTools(q, [], null, null);
   Logger.log('Respuesta:\n' + (resp && resp.texto));
 }
 

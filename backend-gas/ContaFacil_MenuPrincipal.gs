@@ -87,6 +87,13 @@ function _menuSendListaConBody(from, body, token, phoneId) {
       ],
     },
     {
+      title: '✏️ Editar un gasto',
+      rows: [
+        { id: 'menu:editar-cat',     title: 'Cambiar categoría',      description: 'Reclasificar un gasto a otra categoría DGI' },
+        { id: 'menu:editar-alcance', title: 'Personal o negocio',     description: 'Cambiar el alcance del gasto' },
+      ],
+    },
+    {
       title: '🏦 Banco',
       rows: [
         { id: 'menu:banco-analizar',   title: 'Analizar mi cuenta',    description: 'Subir XLSX de Banco General' },
@@ -96,8 +103,7 @@ function _menuSendListaConBody(from, body, token, phoneId) {
     {
       title: '📥 Reportes',
       rows: [
-        { id: 'menu:excel-mes', title: 'Excel del mes', description: 'Descarga el detalle del mes' },
-        { id: 'menu:pyl',       title: 'Reporte anual', description: 'Cierre fiscal DGI Panamá' },
+        { id: 'menu:pyl', title: 'Reportes fiscales', description: 'Excel del mes y declaración anual' },
       ],
     },
     {
@@ -125,9 +131,10 @@ function _menuHandleTap(rowId, from, token, phoneId) {
     case 'resumen-mes':       _menuResumenMes(from, token, phoneId);           return true;
     case 'proveedor-top':     _menuProveedorTop(from, token, phoneId);         return true;
     case 'buscar':            _menuBuscarPrompt(from, token, phoneId);         return true;
+    case 'editar-cat':        _menuEditarCatPrompt(from, token, phoneId);     return true;
+    case 'editar-alcance':    _menuEditarAlcancePrompt(from, token, phoneId); return true;
     case 'banco-analizar':    _menuBancoAnalizar(from, token, phoneId);        return true;
     case 'banco-pendientes':  _menuBancoPendientes(from, token, phoneId);      return true;
-    case 'excel-mes':         _menuExcelMes(from, token, phoneId);             return true;
     case 'pyl':               _menuPyl(from, token, phoneId);                  return true;
     case 'info':              _menuInfo(from, token, phoneId);                 return true;
     default:
@@ -227,23 +234,14 @@ function _menuBancoAnalizar(from, token, phoneId) {
   _whatsappReply(from, msg, token, phoneId);
 }
 
-function _menuExcelMes(from, token, phoneId) {
-  var msg =
-    '📥 *Excel del mes*\n\n' +
-    'Por el momento, descarga el detalle desde tu dashboard:\n\n' +
-    _whatsappFrontendUrl() + '\n\n' +
-    '_Próximamente: envío del Excel directamente aquí._' +
-    _menuFooter();
-  _whatsappReply(from, msg, token, phoneId);
-}
-
 function _menuPyl(from, token, phoneId) {
   var msg =
-    '📊 *Reportes fiscales*\n\n' +
-    'Los reportes detallados están en tu dashboard:\n\n' +
-    '• *Cierre anual* (DGI Panamá)\n' +
-    '• *ITBMS mensual*\n' +
-    '• *P&L por período*\n\n' +
+    '📥 *Reportes fiscales*\n\n' +
+    'Tus reportes están disponibles en el dashboard:\n\n' +
+    '• *Excel del mes* — detalle de movimientos\n' +
+    '• *ITBMS mensual* — declaración del mes\n' +
+    '• *Cierre anual* — declaración DGI Panamá\n' +
+    '• *P&L por período* — estado de resultados\n\n' +
     'Accede desde: ' + _whatsappFrontendUrl() + '/reportes/' +
     _menuFooter();
   _whatsappReply(from, msg, token, phoneId);
@@ -274,6 +272,33 @@ function _menuBuscarPrompt(from, token, phoneId) {
     '• _gastos médicos este año_\n' +
     '• _compras mayores a $100 este mes_\n' +
     '• _último pago de luz_',
+    token, phoneId
+  );
+}
+
+function _menuEditarCatPrompt(from, token, phoneId) {
+  _menuSetIntent(from, { kind: 'editar_categoria', step: 'identificar_gasto' });
+  _whatsappReply(from,
+    '✏️ *Cambiar categoría de un gasto*\n\n' +
+    'Dime qué gasto quieres reclasificar. Ejemplos:\n' +
+    '• _el gasto de Arrocha del 18 de junio_\n' +
+    '• _factura 12345_\n' +
+    '• _la última compra en el supermercado_\n\n' +
+    'Si hay varios candidatos, te muestro la lista para que elijas.\n' +
+    'Antes de aplicar el cambio te pediré confirmación expresa.',
+    token, phoneId
+  );
+}
+
+function _menuEditarAlcancePrompt(from, token, phoneId) {
+  _menuSetIntent(from, { kind: 'editar_alcance', step: 'identificar_gasto' });
+  _whatsappReply(from,
+    '🔀 *Cambiar alcance (personal o negocio)*\n\n' +
+    'Dime qué gasto quieres reclasificar. Ejemplo:\n' +
+    '• _Arrocha del 18 de junio_\n' +
+    '• _factura 12345_\n\n' +
+    'Una vez identificado, te pregunto si lo marcas como *personal* o *negocio*.\n' +
+    'El cambio solo se aplica con tu confirmación expresa.',
     token, phoneId
   );
 }
