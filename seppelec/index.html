@@ -340,10 +340,17 @@ table.cal tfoot tr.r-saldo td.c-po{background:#FBF4EF;color:var(--orange)}
   .topbar-actions{width:100%}
   .topbar-actions .btn{flex:1;font-size:.74rem;padding:.5rem .4rem;white-space:nowrap}
   /* en móvil: la tabla de Órdenes y facturas se reemplaza por las tarjetas
-     y el editor del modal; ocultamos sus tabs y forzamos el calendario */
-  .tabs{display:none!important}
+     y el editor del modal; ocultamos los tabs y forzamos el calendario */
+  .tabnav{display:none!important}
   #panel-datos{display:none!important}
   #panel-cal{display:block!important}
+  /* resumen por línea legible en móvil */
+  #summaryModal .modal-card{width:100%;padding:1.1rem .9rem}
+  #summaryBody{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .lsum{font-size:.76rem}
+  .lsum th,.lsum td{padding:.45rem .45rem;white-space:nowrap}
+  .lsum thead th{font-size:.55rem}
+  .lsum .dotc{margin-right:.25rem}
 }
 
 /* ── board controls: view toggle + sliding window ── */
