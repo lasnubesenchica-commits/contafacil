@@ -308,6 +308,15 @@ function _whatsappProcesarMensaje(msg, metadata) {
       var attGastos = _asesorGastosHandle(body, from, token, phoneId);
       if (attGastos) return;
     }
+    // QuickText — registro rápido de gastos por texto corto ("Uber 20",
+    // "luz 80", "100 a julia"). Va DESPUÉS de AsesorGastos para que
+    // preguntas claras del asesor tengan prioridad. Si Claude determina
+    // que NO es un gasto, _quickTextHandle devuelve false y caemos al
+    // banco/default.
+    if (typeof _quickTextEsCandidato === 'function' && _quickTextEsCandidato(body)) {
+      var attQt = _quickTextHandle(body, from, msgId, token, phoneId);
+      if (attQt) return;
+    }
     if (_bancoEsPreguntaAsesor(body)) {
       var attended = _bancoHandleAsesor(body, from, token, phoneId);
       if (attended) return;
