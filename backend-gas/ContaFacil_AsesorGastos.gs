@@ -244,6 +244,7 @@ function _agLoadEgresos(ss) {
       tipoOp:      String(row[COL_E.TIPO_EGRESO - 1] || ''),
       alcance:     String(row[COL_E.ALCANCE - 1] || ''),
       estado:      estado,
+      notas:       String(row[COL_E.NOTAS - 1] || '').substring(0, 200),
       driveUrl:    String(row[COL_E.DRIVE_URL - 1] || ''),
     });
   }
@@ -282,6 +283,7 @@ function _agLoadIngresos(ss) {
       tipoOp:      String(row[COL_I.TIPO_INGRESO - 1] || ''),
       alcance:     '',
       estado:      estado,
+      notas:       String(row[COL_I.NOTAS_INT - 1] || '').substring(0, 200),
       driveUrl:    String(row[COL_I.DRIVE_URL - 1] || ''),
     });
   }
@@ -415,7 +417,7 @@ function _agToolBuscar(input) {
   matches.sort(function(a, b) { return b.fecha - a.fecha; });
   var limit = Math.min(parseInt(input.limit, 10) || AG_MAX_ROWS_OUT, AG_MAX_ROWS_OUT);
   var slim = matches.slice(0, limit).map(function(r) {
-    return {
+    var row = {
       id:          r.id,
       tipo:        r.kind,
       fecha:       r.fechaIso,
@@ -427,6 +429,18 @@ function _agToolBuscar(input) {
       descripcion: (r.descripcion || '').substring(0, 120),
       alcance:     r.alcance,
     };
+    // Estado solo si NO es el estado "final" esperado — evita ruido.
+    // Si está pendiente, borrador u otro estado intermedio, Claude
+    // debe mencionarlo al cliente para que sepa el contexto.
+    if (r.estado && r.estado !== 'registrado' && r.estado !== 'aprobado') {
+      row.estado = r.estado;
+    }
+    // Notas (trazabilidad): origen del registro (BATCH-IMPORT, acreedor_auto,
+    // reclasificaciones), confianza IA, etc. Útil cuando el cliente
+    // pregunta "¿de dónde salió ese registro?" o el bot necesita
+    // distinguir imports manuales de capturas por WhatsApp.
+    if (r.notas) row.notas = r.notas;
+    return row;
   });
   return {
     total_matches: matches.length,
@@ -513,6 +527,80 @@ function _agToolListarProveedores(input) {
   return { total_proveedores: Object.keys(counts).length, proveedores: arr };
 }
 
+// ────────────────────────────────────────────────────────────────────
+//  Tool: detectar_duplicados
+//  ──────────────────────────────────────────────────────────────────
+//  Lógica EXPLÍCITA (no alucinada por el LLM): agrupa por
+//  (fecha_iso + monto_redondeado_2dec + proveedor_normalizado + alcance)
+//  y devuelve grupos con count > 1.
+//
+//  Reglas para considerar un grupo como duplicado sospechoso:
+//    - Mismo día, mismo monto, mismo proveedor (después de normalizar),
+//      mismo alcance (personal/negocio).
+//    - Si los num_factura difieren, NO es duplicado — son operaciones
+//      distintas que coincidieron en monto/fecha (legítimo).
+//    - El más reciente queda marcado como "vigente"; los anteriores
+//      como "candidatos a revisar".
+//
+//  Esto reemplaza el patrón anterior donde el LLM deducía duplicados
+//  "a ojo" y a veces marcaba operaciones legítimas. El bug que motivó
+//  esto fue: Claude reportó 6 BATCH001-006 anulados como duplicados
+//  contra BV2024-2029 vigentes — los anulados ahora se filtran (fix
+//  previo), pero falta este tool para que la detección sea
+//  determinista cuando hay duplicados reales.
+// ────────────────────────────────────────────────────────────────────
+function _agToolDetectarDuplicados(input) {
+  var ds = _agLoadDataset();
+  // Solo egresos por ahora — duplicados de ingresos son raros.
+  var rows = (input && input.incluir_ingresos) ? (ds.egresos).concat(ds.ingresos) : ds.egresos.slice();
+
+  var groups = {};
+  rows.forEach(function(r) {
+    var prov = _agNorm(r.proveedor);
+    if (!prov) prov = '(sin proveedor)';
+    var key = r.fechaIso + '|' + r.total.toFixed(2) + '|' + prov + '|' + (r.alcance || '');
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+
+  var dupes = [];
+  Object.keys(groups).forEach(function(k) {
+    var arr = groups[k];
+    if (arr.length < 2) return;
+
+    // Si todos los num_factura son distintos y no vacíos, NO es duplicado.
+    var facturas = arr.map(function(r) { return String(r.numFactura || '').trim(); }).filter(Boolean);
+    if (facturas.length === arr.length && new Set(facturas).size === arr.length) return;
+
+    // Ordenar por id (los IDs incluyen timestamp, así que ordena cronológicamente
+    // por cuándo se REGISTRÓ, no por la fecha del gasto).
+    arr.sort(function(a, b) { return String(a.id).localeCompare(String(b.id)); });
+    var vigente = arr[arr.length - 1];
+    var anteriores = arr.slice(0, -1);
+
+    dupes.push({
+      fecha:        arr[0].fechaIso,
+      monto:        +arr[0].total.toFixed(2),
+      proveedor:    arr[0].proveedor,
+      alcance:      arr[0].alcance,
+      total_copias: arr.length,
+      vigente:      { id: vigente.id, categoria: vigente.categoria, notas: (vigente.notas || '').substring(0, 100) },
+      candidatos_a_revisar: anteriores.map(function(r) {
+        return { id: r.id, categoria: r.categoria, notas: (r.notas || '').substring(0, 100) };
+      }),
+    });
+  });
+
+  // Ordenar por monto descendente — los duplicados más significativos primero.
+  dupes.sort(function(a, b) { return b.monto - a.monto; });
+
+  return {
+    total_grupos_duplicados: dupes.length,
+    grupos:                  dupes.slice(0, 20),
+    nota_metodologia:        'Agrupado por (fecha + monto + proveedor normalizado + alcance). Excluye registros anulados/cancelados/rechazados (no aparecen). Si dos registros con mismo monto y fecha tienen num_factura distintos, NO se reportan como duplicados.',
+  };
+}
+
 function _agToolInfoDataset() {
   var ds = _agLoadDataset();
   var all = (ds.egresos).concat(ds.ingresos);
@@ -593,6 +681,16 @@ function _agToolDefs(intent) {
         }),
       },
     },
+    {
+      name: 'detectar_duplicados',
+      description: 'Devuelve grupos de registros que parecen duplicados — agrupados por (fecha + monto + proveedor normalizado + alcance). Excluye automáticamente registros anulados/cancelados/rechazados, y descarta grupos donde los números de factura difieren (esos son legítimamente distintos). Marca el más reciente de cada grupo como "vigente" y los anteriores como "candidatos a revisar". USA SIEMPRE este tool cuando el usuario pregunte por duplicados — NUNCA deduzcas duplicación a ojo desde los resultados de buscar_operaciones.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          incluir_ingresos: { type: 'boolean', description: 'Si true, también busca duplicados en ingresos. Default false (solo egresos, que es el caso común).' },
+        },
+      },
+    },
   ];
 
   // Tools de ESCRITURA — solo expuestos cuando el menú lo solicitó.
@@ -637,6 +735,7 @@ function _agEjecutarTool(name, input, fromPhone) {
     if (name === 'listar_proveedores')       return _agToolListarProveedores(input || {});
     if (name === 'buscar_operaciones')       return _agToolBuscar(input || {});
     if (name === 'agregar_operaciones')      return _agToolAgregar(input || {});
+    if (name === 'detectar_duplicados')      return _agToolDetectarDuplicados(input || {});
     if (name === 'cambiar_categoria_egreso') return _agToolCambiarCategoria(input || {}, fromPhone);
     if (name === 'cambiar_alcance_egreso')   return _agToolCambiarAlcance(input || {}, fromPhone);
     return { error: 'Tool desconocido: ' + name };
@@ -788,7 +887,11 @@ function _agConsultarConTools(question, priorMessages, fromPhone, intent) {
     '3. "Cuándo fue la última vez" → buscar_operaciones + limit 1.\n' +
     '4. "Cuántos pagos he hecho" → agregar_operaciones con agrupar_por=total, filtrado por proveedor.\n' +
     '5. "Cuánto he gastado en X este mes" → agregar_operaciones con fecha_desde=primer día del mes y fecha_hasta=' + hoy + '.\n' +
-    '6. Calcula los rangos de fecha (este mes, último año) a partir de hoy.\n\n' +
+    '6. Calcula los rangos de fecha (este mes, último año) a partir de hoy.\n' +
+    '7. DUPLICADOS: cuando el usuario pregunte por "registros duplicados", "transacciones repetidas", "lo mismo dos veces", USA SIEMPRE el tool detectar_duplicados. NO deduzcas duplicación a ojo desde los resultados de buscar_operaciones — el LLM se equivoca con eso. El tool aplica criterios deterministas y los explica al usuario.\n\n' +
+    'INTERPRETACIÓN DE LA DATA:\n' +
+    '• Si un registro trae el campo "estado" significa que NO está en estado final (puede ser "pendiente", "borrador", etc). Menciónalo brevemente.\n' +
+    '• Las "notas" contienen trazabilidad: "BATCH-IMPORT-*" = importado manualmente, "acreedor_auto" = capturado por IA, "Reclasificado: X → Y" = cambio anterior. Úsalas si el usuario pregunta el origen del registro.\n\n' +
     'FORMATO DE RESPUESTA:\n' +
     '• Mensaje de WhatsApp — conciso (4-8 líneas).\n' +
     '• Cifras exactas con 2 decimales y prefijo "$".\n' +
