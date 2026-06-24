@@ -32,6 +32,37 @@ function getAuthClient() {
   return auth;
 }
 
+// Retry helper para llamadas a la Apps Script API. El endpoint OAuth2
+// (oauth2.googleapis.com) ocasionalmente devuelve "Premature close" o
+// ECONNRESET de forma transitoria — sin retry, un solo hiccup tumba
+// el deploy completo de todos los clientes. Backoff exponencial 1s,
+// 2s, 4s, 8s, hasta 4 reintentos.
+async function withRetry(fn, label) {
+  const maxAttempts = 5;
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const msg = String(err.message || '');
+      const isTransient =
+        msg.includes('Premature close') ||
+        msg.includes('ECONNRESET') ||
+        msg.includes('ETIMEDOUT') ||
+        msg.includes('ENOTFOUND') ||
+        msg.includes('socket hang up') ||
+        msg.includes('network socket disconnected') ||
+        (err.code && err.code >= 500 && err.code < 600);
+      if (!isTransient || attempt === maxAttempts) throw err;
+      const delayMs = 1000 * Math.pow(2, attempt - 1);
+      console.warn(`  ⏳ ${label}: error transitorio (${msg.slice(0, 80)}), retry en ${delayMs / 1000}s [${attempt}/${maxAttempts - 1}]`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw lastErr;
+}
+
 function readGasFiles(dirPath) {
   const files = [];
   for (const entry of fs.readdirSync(dirPath).sort()) {
@@ -51,7 +82,10 @@ function readGasFiles(dirPath) {
 
 // Lee la config actual del proyecto GAS del cliente para re-inyectarla.
 async function readClientConfig(scriptApi, scriptId) {
-  const res = await scriptApi.projects.getContent({ scriptId });
+  const res = await withRetry(
+    () => scriptApi.projects.getContent({ scriptId }),
+    'getContent'
+  );
   const codeFile = (res.data.files || []).find(f => f.name === 'Code');
   if (!codeFile) return {};
   const src = codeFile.source;
@@ -87,7 +121,10 @@ function injectConfig(files, cfg) {
 
 async function deploymentExists(scriptApi, scriptId, deploymentId) {
   try {
-    await scriptApi.projects.deployments.get({ scriptId, deploymentId });
+    await withRetry(
+      () => scriptApi.projects.deployments.get({ scriptId, deploymentId }),
+      'deployments.get'
+    );
     return true;
   } catch (err) {
     if (err.response?.status === 404) return false;
@@ -96,7 +133,10 @@ async function deploymentExists(scriptApi, scriptId, deploymentId) {
 }
 
 async function findWebAppDeploymentId(scriptApi, scriptId) {
-  const res = await scriptApi.projects.deployments.list({ scriptId });
+  const res = await withRetry(
+    () => scriptApi.projects.deployments.list({ scriptId }),
+    'deployments.list'
+  );
   for (const dep of (res.data.deployments || [])) {
     if (!dep.deploymentConfig?.versionNumber) continue; // ignorar HEAD (read-only)
     for (const ep of (dep.entryPoints || [])) {
@@ -169,17 +209,23 @@ async function deployCliente(scriptApi, cliente, repoRoot, otpConfig) {
   }
 
   // 2. Actualizar codigo fuente
-  await scriptApi.projects.updateContent({
-    scriptId: cliente.scriptId,
-    requestBody: { scriptId: cliente.scriptId, files },
-  });
+  await withRetry(
+    () => scriptApi.projects.updateContent({
+      scriptId: cliente.scriptId,
+      requestBody: { scriptId: cliente.scriptId, files },
+    }),
+    'updateContent'
+  );
   console.log(`  ✓ Codigo actualizado`);
 
   // 3. Crear nueva version
-  const versionRes = await scriptApi.projects.versions.create({
-    scriptId: cliente.scriptId,
-    requestBody: { description: `Auto-deploy ${new Date().toISOString()}` },
-  });
+  const versionRes = await withRetry(
+    () => scriptApi.projects.versions.create({
+      scriptId: cliente.scriptId,
+      requestBody: { description: `Auto-deploy ${new Date().toISOString()}` },
+    }),
+    'versions.create'
+  );
   const versionNumber = versionRes.data.versionNumber;
   console.log(`  ✓ Version ${versionNumber} creada`);
 
@@ -195,7 +241,8 @@ async function deployCliente(scriptApi, cliente, repoRoot, otpConfig) {
     deploymentFixed = true;
   }
 
-  await scriptApi.projects.deployments.update({
+  await withRetry(
+    () => scriptApi.projects.deployments.update({
     scriptId: cliente.scriptId,
     deploymentId,
     requestBody: {
@@ -206,7 +253,9 @@ async function deployCliente(scriptApi, cliente, repoRoot, otpConfig) {
         description:      `Auto-deploy ${new Date().toISOString()}`,
       },
     },
-  });
+  }),
+    'deployments.update'
+  );
   console.log(`  ✓ Deployment ${deploymentId} actualizado a version ${versionNumber}`);
   console.log(`✓ ${cliente.nombre} deployado correctamente.`);
 
