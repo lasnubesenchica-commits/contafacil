@@ -357,3 +357,158 @@ function _proactivoTestRender() {
   var rec  = _proactivoDetectarRecurrentes();
   Logger.log(_proactivoRenderInsights(bills, anom, rec));
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  TEMPLATE HSM "alerta_bill_atrasado" — cron diario + envío
+//  ──────────────────────────────────────────────────────────────────
+//  Notifica proactivamente al cliente cuando un pago recurrente lleva
+//  más de lo usual sin registrarse. Trigger time-based diario 9am
+//  hora Panamá. Si la ventana 24h del cliente está abierta envía
+//  mensaje libre (gratis); si está cerrada envía template HSM (~\$0.016).
+//
+//  CONFIGURACIÓN EN META BUSINESS MANAGER (una sola vez):
+//  ─────────────────────────────────────────────────────
+//  1. Ir a Meta Business Suite → WhatsApp → Configuración →
+//     Plantillas de mensajes → Crear plantilla.
+//  2. Nombre:         alerta_bill_atrasado
+//     Categoría:      UTILITY (no marketing)
+//     Idioma:         Spanish (España) — código es_ES
+//                     (mismo que digest_balanceclip ya aprobado)
+//  3. Sin header.
+//  4. Body:
+//     "🔔 Hola {{1}}, parece que falta tu pago a *{{2}}*
+//      (suele ser ~${{3}}).
+//      Va {{4}} día(s) atrás de lo usual.
+//      Toca abajo si quieres ver el detalle, o ignora si ya lo registraste."
+//  5. Footer: BalanceClip
+//  6. Botones → Botón de respuesta rápida:
+//     Texto del botón: "📋 Ver detalle"
+//  7. Enviar para aprobación. Meta suele responder en 1-24h.
+//  8. Una vez aprobada, setear Script Property:
+//        WA_TEMPLATE_BILL_ALERTA_ENABLED = true
+//     y opcional (default = "alerta_bill_atrasado", "es_ES"):
+//        WA_TEMPLATE_BILL_ALERTA_NAME   = alerta_bill_atrasado
+//        WA_TEMPLATE_LANG                = es_ES
+//  9. Correr installProactivoBillsTrigger() una sola vez para instalar
+//     el trigger diario.
+//
+//  Para desactivar temporalmente: WA_TEMPLATE_BILL_ALERTA_ENABLED = false
+//  El trigger sigue corriendo pero no envía nada.
+// ════════════════════════════════════════════════════════════════════
+
+var PROACTIVO_BILL_DEBOUNCE_H = 7 * 24;  // 7 días por bill (un solo aviso por semana)
+
+function _proactivoFlagsAlertas() {
+  var p = PropertiesService.getScriptProperties();
+  return {
+    enabled:      String(p.getProperty('WA_TEMPLATE_BILL_ALERTA_ENABLED') || '').toLowerCase() === 'true',
+    templateName: p.getProperty('WA_TEMPLATE_BILL_ALERTA_NAME') || 'alerta_bill_atrasado',
+    lang:         p.getProperty('WA_TEMPLATE_LANG')             || 'es_ES',
+  };
+}
+
+function _proactivoCronAlertasBills() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(3000)) { Logger.log('proactivo cron: lock no obtenido — skip'); return; }
+  try {
+    var phone = String(CONFIG.WA_NUM || '').replace(/\D/g, '');
+    if (phone.length === 8) phone = '507' + phone;
+    if (!phone || phone.length < 10) { Logger.log('proactivo cron: WA_NUM inválido — skip'); return; }
+
+    var bills = _proactivoAlertasBills();
+    if (!bills.atrasados.length) {
+      Logger.log('proactivo cron: sin bills atrasados — skip');
+      return;
+    }
+    // Solo notificamos el bill MÁS atrasado por monto, para no inundar.
+    bills.atrasados.sort(function(a, b) { return b.monto_esperado - a.monto_esperado; });
+    var b = bills.atrasados[0];
+
+    // Debounce por proveedor — máximo 1 alerta cada 7 días por bill.
+    var billKey = 'bill_' + _proactivoNormProveedor(b.proveedor).replace(/\s+/g, '_').substring(0, 30);
+    if (typeof _waCanSendTemplate !== 'function') {
+      Logger.log('proactivo cron: módulo Digest no cargado, falta _waCanSendTemplate');
+      return;
+    }
+    if (!_waCanSendTemplate(phone, billKey, PROACTIVO_BILL_DEBOUNCE_H)) {
+      Logger.log('proactivo cron: bill ' + b.proveedor + ' dentro de debounce — skip');
+      return;
+    }
+
+    var props = PropertiesService.getScriptProperties();
+    var token = props.getProperty('META_WHATSAPP_TOKEN');
+    var phoneId = props.getProperty('META_PHONE_ID');
+    if (!token || !phoneId) { Logger.log('proactivo cron: META credentials faltan — skip'); return; }
+
+    // Si ventana 24h abierta, mensaje libre (gratis, mejor UX que template).
+    if (_waIsWindowOpen(phone)) {
+      _whatsappReply(phone,
+        '🔔 *Pago pendiente detectado*\n\n' +
+        '*' + b.proveedor + '* suele ser ~$' + b.monto_esperado.toFixed(2) + '.\n' +
+        'Último pago: ' + b.ultima_fecha + ' (' + b.dias_atraso + ' día(s) atrás de lo usual).\n\n' +
+        'Si ya lo pagaste, regístralo. Si necesitas el detalle escribe *menu* y toca "Insights y alertas".',
+        token, phoneId);
+      _waMarkTemplateSent(phone, billKey);
+      Logger.log('✅ proactivo cron: alerta enviada (libre, ventana abierta): ' + b.proveedor);
+      return;
+    }
+
+    // Ventana cerrada — usar template HSM (cuesta ~$0.016).
+    var flags = _proactivoFlagsAlertas();
+    if (!flags.enabled) {
+      Logger.log('proactivo cron: ventana cerrada y WA_TEMPLATE_BILL_ALERTA_ENABLED=false — skip');
+      return;
+    }
+    var clientName = String(CONFIG.NEGOCIO || '').split(' ')[0] || 'cliente';
+    var bodyParams = [clientName, b.proveedor, b.monto_esperado.toFixed(2), String(b.dias_atraso)];
+    var btnPayload = 'pro:bill:detalle';
+    var r = _waSendTemplate(phone, flags.templateName, flags.lang, bodyParams, btnPayload, token, phoneId);
+    if (r.success) {
+      _waMarkTemplateSent(phone, billKey);
+      Logger.log('✅ proactivo cron: template enviado para ' + b.proveedor);
+    } else {
+      Logger.log('✗ proactivo cron: template FALLÓ: ' + (r.error || 'desconocido'));
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Handler del quick-reply del template "alerta_bill_atrasado".
+// El cliente tapeó "📋 Ver detalle" → la ventana 24h queda abierta
+// por su tap (inbound) → mandamos el resumen completo de insights.
+function _proactivoHandleBillDetalle(from, token, phoneId) {
+  try {
+    _proactivoMenuHandler(from, token, phoneId);
+  } catch(err) {
+    Logger.log('_proactivoHandleBillDetalle ERROR: ' + err.message);
+    _whatsappReply(from, '⚠️ No pude generar los detalles. Intenta de nuevo escribiendo *menu*.', token, phoneId);
+  }
+}
+
+// Helper para instalar el trigger una sola vez. Correr desde el editor.
+function installProactivoBillsTrigger() {
+  var existing = ScriptApp.getProjectTriggers();
+  var removed = 0;
+  existing.forEach(function(t) {
+    if (t.getHandlerFunction() === '_proactivoCronAlertasBills') {
+      ScriptApp.deleteTrigger(t);
+      removed++;
+    }
+  });
+  ScriptApp.newTrigger('_proactivoCronAlertasBills')
+    .timeBased().everyDays(1).atHour(9).inTimezone('America/Panama').create();
+  Logger.log('✅ Trigger diario _proactivoCronAlertasBills instalado @ 9am Panamá (removidos ' + removed + ' duplicados).');
+}
+
+function uninstallProactivoBillsTrigger() {
+  var existing = ScriptApp.getProjectTriggers();
+  var removed = 0;
+  existing.forEach(function(t) {
+    if (t.getHandlerFunction() === '_proactivoCronAlertasBills') {
+      ScriptApp.deleteTrigger(t);
+      removed++;
+    }
+  });
+  Logger.log('Trigger _proactivoCronAlertasBills: ' + removed + ' removido(s).');
+}

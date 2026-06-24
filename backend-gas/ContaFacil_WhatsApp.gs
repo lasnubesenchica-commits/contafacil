@@ -232,6 +232,9 @@ function _whatsappProcesarMensaje(msg, metadata) {
       _tapToEngageHandleRevisar(from, token, phoneId);
     } else if (payload === 'tr:digest:detail' && typeof _digestHandleVerDetalle === 'function') {
       _digestHandleVerDetalle(from, token, phoneId);
+    } else if (payload === 'pro:bill:detalle' && typeof _proactivoHandleBillDetalle === 'function') {
+      // Quick-reply del template alerta_bill_atrasado
+      _proactivoHandleBillDetalle(from, token, phoneId);
     } else {
       Logger.log('Button payload sin handler: ' + payload);
     }
@@ -945,6 +948,15 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId, contentHash) {
     catch(e) { Logger.log('hintDeducible ERROR: ' + e.message); }
   }
 
+  // Hint proactivo de bills pendientes: si hay un pago recurrente
+  // atrasado de OTRA categoría (no la actual — el cliente acaba de
+  // pagar algo, no le recordamos eso mismo), agregamos un nudge corto.
+  var hintProactivo = '';
+  if (typeof _proactivoHintParaFactura === 'function') {
+    try { hintProactivo = _proactivoHintParaFactura(catSug); }
+    catch(e) { Logger.log('hintProactivo ERROR: ' + e.message); }
+  }
+
   var bodyTxt = '✅ Gasto recibido\n\n' +
                 '📦 ' + (acreedor.nombre || 'Sin proveedor') + '\n' +
                 lineaFecha + '\n' +
@@ -952,6 +964,7 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId, contentHash) {
                 '📋 Categoría sugerida: ' + _waCatLabel(catSug) + '\n' +
                 lineaDeducible +
                 hintDeducibleDgi +
+                hintProactivo +
                 (dashboardUrl
                   ? '\n\n🔗 Ver o aprobar en el panel:\n' + dashboardUrl
                   : '');
