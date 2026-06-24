@@ -228,7 +228,7 @@ function _menuBancoAnalizar(from, token, phoneId) {
     'Te devuelvo:\n' +
     '• Saldo, flujo y top categorías\n' +
     '• Suscripciones detectadas\n' +
-    '• Excel con drill-downs por mes y categoría\n' +
+    '• Excel con desglose por mes y categoría\n' +
     '• Asesor IA para preguntas sobre tu cuenta\n' +
     _menuFooter();
   _whatsappReply(from, msg, token, phoneId);
