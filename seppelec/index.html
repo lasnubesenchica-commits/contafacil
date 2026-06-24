@@ -99,6 +99,8 @@ body.readonly .del-btn{display:none}
 .cd-pick{cursor:pointer} .cd-pick input{margin:0 .5rem 0 0;flex:0 0 auto} .cd-pick .po{flex:1;min-width:0}
 .cd-oc .po{font-weight:600} .cd-oc .mo{font-family:'DM Mono',monospace}
 .cd-tot{display:flex;justify-content:space-between;font-size:.84rem;font-weight:700;padding:.25rem .55rem;margin-top:.2rem}
+.cd-cur{font-size:.66rem;color:var(--muted);white-space:nowrap}
+.cd-share{width:88px;flex:0 0 auto;padding:.25rem .4rem;font-size:.78rem;border:1px solid var(--border);border-radius:6px;text-align:right;font-family:'DM Mono',monospace;margin:0!important}
 .cd-tot .mo{font-family:'DM Mono',monospace}
 .cd-check{display:flex;align-items:flex-start;gap:.45rem;font-size:.8rem;padding:.45rem .6rem;border-radius:8px;margin:.4rem 0;font-weight:600;line-height:1.3}
 .cd-ok{background:var(--verde-bg);color:var(--verde)}
@@ -1630,6 +1632,28 @@ function _previewDoc(doc){
   return o;
 }
 function _cdLinkHtml(url,label){ return url?`<a href="${esc(url)}" target="_blank" rel="noopener">📎 ${label}</a>`:''; }
+/* reparto editable del ajuste de monto entre las órdenes de una factura */
+let _cdItem=null;
+function _cdRedist(){ const it=_cdItem; if(!it||!it._dist) return; const checked=it._dist.filter(d=>d.checked), autos=checked.filter(d=>!d.manual);
+  const manualSum=checked.filter(d=>d.manual).reduce((s,d)=>s+(+d.share||0),0); let rem=it._delta-manualSum;
+  if(autos.length){ const cents=Math.round(rem*100), base=Math.trunc(cents/autos.length); let r=cents-base*autos.length, sgn=r<0?-1:1; r=Math.abs(r);
+    autos.forEach((d,i)=>{ d.share=Math.round(base+(i<r?sgn:0))/100; }); }
+}
+function _cdRenderDist(){ const it=_cdItem, box=document.getElementById('cdDistBox'); if(!it||!box) return;
+  const money=window.money||(n=>'$'+(+n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  _cdRedist();
+  let h='';
+  it._existing.forEach((r,k)=>{ const d=it._dist[k];
+    h+=`<div class="cd-oc cd-pick"><input type="checkbox" ${d.checked?'checked':''} onchange="_cdDistToggle(${k})">`+
+       `<span class="po">OC ${esc(r.po)}</span><span class="cd-cur">${money(r.monto)} +</span>`+
+       `<input class="cd-share" type="number" step="0.01" value="${d.checked?(+d.share||0).toFixed(2):''}" ${d.checked?'':'disabled'} onchange="_cdDistEdit(${k},this.value)"></div>`;
+  });
+  const asign=it._dist.filter(d=>d.checked).reduce((s,d)=>s+(+d.share||0),0), ok=Math.abs(asign-it._delta)<0.005;
+  h+=`<div class="cd-tot"><span>Asignado del ajuste</span><span style="color:${ok?'var(--verde)':'var(--rojo)'}">${money(asign)} / ${money(it._delta)} ${ok?'✓':'⚠'}</span></div>`;
+  box.innerHTML=h;
+}
+function _cdDistEdit(k,val){ const it=_cdItem; if(!it)return; const d=it._dist[k]; if(!d.checked)return; d.manual=true; d.share=Math.round((+val||0)*100)/100; _cdRenderDist(); }
+function _cdDistToggle(k){ const it=_cdItem; if(!it)return; const d=it._dist[k]; d.checked=!d.checked; d.manual=false; d.share=0; _cdRenderDist(); }
 function showConfirmDoc(item){
   item._existing=null; item._delta=0;
   const p=_previewDoc(item.doc), money=window.money||(n=>'$'+(+n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
@@ -1679,9 +1703,10 @@ function showConfirmDoc(item){
         v += `<div class="cd-check cd-warn">⚠ Cambió el monto de la factura:<br><b>${money(p.existingSum)} → ${money(p.monto)}</b> (${sube?'+':'−'}${money(Math.abs(p.montoDelta))}${sube?' · p. ej. flete/transporte agregado':''}). Al confirmar se actualizará.</div>`;
       } else if(p.existing.length>1 && p.monto>0 && Math.abs(p.montoDelta)>=0.5){
         const sube=p.montoDelta>0;
-        v += `<div class="cd-check cd-warn">⚠ Cambió el total de la factura: <b>${money(p.existingSum)} → ${money(p.monto)}</b> (${sube?'+':'−'}${money(Math.abs(p.montoDelta))}). Marca a qué órdenes aplicar el ajuste (flete/transporte); se reparte en partes iguales.</div>`;
+        v += `<div class="cd-check cd-warn">⚠ Cambió el total de la factura: <b>${money(p.existingSum)} → ${money(p.monto)}</b> (${sube?'+':'−'}${money(Math.abs(p.montoDelta))}). Marca las órdenes y edita el reparto del ajuste (flete/transporte); lo no editado se reparte equitativo.</div>`;
         item._existing = p.existing; item._delta = p.montoDelta;
-        p.existing.forEach((r,k)=> v += `<label class="cd-oc cd-pick"><input type="checkbox" id="cdChk${k}" checked><span class="po">OC ${esc(r.po)}</span><span class="mo">${money(+r.monto||0)}</span></label>`);
+        if(!item._dist || item._dist.length!==p.existing.length) item._dist = p.existing.map(()=>({checked:true,manual:false,share:0}));
+        v += `<div id="cdDistBox"></div>`;
       }
     } else if(p.matches.length){
       p.matches.forEach(r=> v += `<div class="cd-oc"><span class="po">OC ${esc(r.po)}</span><span class="mo">${money(+r.monto||0)}</span></div>`);
@@ -1713,6 +1738,7 @@ function showConfirmDoc(item){
     v = `<div class="cd-sec"><div class="cd-check info-x">⚡ Extraordinaria · términos: 50% al facturar + 50% a 60 días. La factura entra como <b>No pagado</b>; registra los pagos con su constancia o manualmente.</div></div>` + v;
   }
   document.getElementById('cdVinc').innerHTML = v;
+  if(item._existing && item._existing.length>1 && item._dist && Math.abs(item._delta)>=0.5){ _cdItem=item; _cdRenderDist(); }
 
   // selector de línea (no aplica a una constancia de pago)
   const showLine = !p.isPago;
@@ -1845,14 +1871,11 @@ document.getElementById('cdConfirm').onclick = ()=>{
   if(item){ const t=String(item.doc.tipo||'').toLowerCase();
     const esPago = t==='pago'||t==='constancia'||t==='comprobante'||t==='transferencia';
     let res = esPago ? applyPago(item.doc, item.fileUrl) : upsertDoc(item.doc, item.fileUrl, item._linea||'regular');
-    // factura multi-orden con cambio de total: repartir el ajuste entre las órdenes marcadas
-    if(!esPago && item._existing && item._existing.length>1 && Math.abs(item._delta)>=0.5){
-      const sel = item._existing.filter((r,k)=>{ const cb=document.getElementById('cdChk'+k); return cb && cb.checked; });
-      if(sel.length){
-        const cents=Math.round(item._delta*100), base=Math.trunc(cents/sel.length); let rem=cents-base*sel.length, sgn=rem<0?-1:1; rem=Math.abs(rem);
-        sel.forEach((r,k)=>{ const add=base + (k<rem?sgn:0); r.monto = Math.round((+r.monto||0)*100 + add)/100; });
-        res = {tipo:res.tipo, ref:res.ref, action:`ajuste repartido en ${sel.length} orden(es)`};
-      }
+    // factura multi-orden con cambio de total: aplicar el reparto (editable) por orden
+    if(!esPago && item._existing && item._existing.length>1 && item._dist && Math.abs(item._delta)>=0.5){
+      let cnt=0;
+      item._existing.forEach((r,k)=>{ const d=item._dist[k]; if(d && d.checked && Math.abs(+d.share||0)>=0.005){ r.monto = Math.round(((+r.monto||0)+(+d.share||0))*100)/100; cnt++; } });
+      if(cnt) res = {tipo:res.tipo, ref:res.ref, action:`ajuste repartido en ${cnt} orden(es)`};
     }
     save(); renderAll(); toast(`${res.tipo} ${res.ref} · ${res.action}`); }
   _nextDoc();
