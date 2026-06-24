@@ -273,6 +273,17 @@ function _whatsappProcesarMensaje(msg, metadata) {
       return;
     }
 
+    // Triggers educativos (Fase 9). Van ANTES del asesor para que
+    // "aprende" / "qué es ITBMS" no se interpreten como otra cosa.
+    if (typeof _aprendeEsTriggerMenu === 'function' && _aprendeEsTriggerMenu(body)) {
+      _aprendeMenuHandler(from, token, phoneId);
+      return;
+    }
+    if (typeof _aprendeEsTriggerDefinicion === 'function' && _aprendeEsTriggerDefinicion(body)) {
+      _aprendeHandleDefinicion(body, from, token, phoneId);
+      return;
+    }
+
     var intentActivo = (typeof _menuLoadIntent === 'function') ? _menuLoadIntent(from) : null;
     if (intentActivo && intentActivo.kind === 'buscar') {
       // El cliente tocó "Buscar gasto/ingreso" del menú. Su próximo
@@ -1259,6 +1270,12 @@ function _whatsappOnInteractive(msg, from, token, phoneId) {
   // de los botones del welcome.
   if (parts[0] === 'menu' && typeof _menuHandleTap === 'function') {
     _menuHandleTap(id, from, token, phoneId);
+    return;
+  }
+  // Branch para la lista de cursos y navegación dentro de un curso
+  // (Aprende — Fase 9). Formato: aprende:start:<id> | aprende:next | aprende:exit
+  if (parts[0] === 'aprende' && typeof _aprendeHandleTap === 'function') {
+    _aprendeHandleTap(id, from, token, phoneId);
     return;
   }
   // Branch para respuestas del flujo de transferencias bancarias (BG)
