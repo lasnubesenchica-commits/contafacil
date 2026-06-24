@@ -218,9 +218,13 @@ function _agLoadEgresos(ss) {
     var id = row[COL_E.ID - 1];
     if (!id) continue;
     var estado = String(row[COL_E.ESTADO - 1] || '').toLowerCase();
-    // Excluir cancelados/rechazados (residuo histórico). Conservar
-    // aprobado, pendiente, etc — algunos clientes registran sin aprobar.
-    if (estado.indexOf('cancel') >= 0 || estado.indexOf('rechaz') >= 0) continue;
+    // Excluir registros sin efecto contable (cancelados, rechazados,
+    // anulados). Conservar aprobado, pendiente, registrado, etc —
+    // algunos clientes registran sin aprobar y eso sigue contando.
+    // Sin este filtro, el AsesorGastos toma egresos anulados como
+    // activos y los reporta como duplicados de los reemplazos
+    // (caso real: BATCH001-006 anulados vs BV2024-2029 vigentes).
+    if (estado.indexOf('cancel') >= 0 || estado.indexOf('rechaz') >= 0 || estado.indexOf('anul') >= 0) continue;
     var fecha = _agParseDate(row[COL_E.FECHA_GASTO - 1] || row[COL_E.FECHA_REG - 1]);
     if (!fecha) continue;
     out.push({
