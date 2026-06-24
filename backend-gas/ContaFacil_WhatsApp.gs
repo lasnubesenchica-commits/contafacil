@@ -294,6 +294,12 @@ function _whatsappProcesarMensaje(msg, metadata) {
       _saludHandleConfigurarIngreso(body, from, token, phoneId);
       return;
     }
+    if (intentActivo && intentActivo.kind === 'generar_form90' && typeof _deduciblesHandleConfirmacionForm90 === 'function') {
+      // El cliente tocó "Mis deducibles DGI" y el bot ofreció generar
+      // el Excel. Este mensaje es su sí/no.
+      _deduciblesHandleConfirmacionForm90(body, from, token, phoneId);
+      return;
+    }
 
     var esNuevaPreguntaGastos = (typeof _asesorGastosEsPregunta === 'function') && _asesorGastosEsPregunta(body);
     var sesionActivaGastos    = (typeof _agSesionActiva === 'function') && _agSesionActiva(from);
@@ -920,12 +926,23 @@ function _whatsappGuardarGasto(parsed, blob, mime, from, msgId, contentHash) {
     lineaFecha = '📅 Fecha: ⚠️ no se pudo leer';
   }
 
+  // Hint proactivo de deducibles DGI: si la categoría sugerida cae en
+  // una línea DP-N del Form 90, agregamos al mensaje el acumulado del
+  // año. Visibilidad de cuánto está acumulando en deducibles personales
+  // sin tener que abrir el dashboard ni consultarlo aparte.
+  var hintDeducibleDgi = '';
+  if (typeof _deduciblesHintParaFactura === 'function') {
+    try { hintDeducibleDgi = _deduciblesHintParaFactura(catSug); }
+    catch(e) { Logger.log('hintDeducible ERROR: ' + e.message); }
+  }
+
   var bodyTxt = '✅ Gasto recibido\n\n' +
                 '📦 ' + (acreedor.nombre || 'Sin proveedor') + '\n' +
                 lineaFecha + '\n' +
                 lineaMonto + '\n' +
                 '📋 Categoría sugerida: ' + _waCatLabel(catSug) + '\n' +
                 lineaDeducible +
+                hintDeducibleDgi +
                 (dashboardUrl
                   ? '\n\n🔗 Ver o aprobar en el panel:\n' + dashboardUrl
                   : '');

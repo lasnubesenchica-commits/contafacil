@@ -104,7 +104,7 @@ function _menuSendListaConBody(from, body, token, phoneId) {
     {
       title: '📥 Reportes',
       rows: [
-        { id: 'menu:pyl', title: 'Reportes fiscales', description: 'Excel del mes y declaración anual' },
+        { id: 'menu:deducibles', title: 'Mis deducibles DGI', description: 'Acumulado Form 90 del año fiscal' },
       ],
     },
     {
@@ -137,6 +137,7 @@ function _menuHandleTap(rowId, from, token, phoneId) {
     case 'editar-alcance':    _menuEditarAlcancePrompt(from, token, phoneId); return true;
     case 'banco-analizar':    _menuBancoAnalizar(from, token, phoneId);        return true;
     case 'banco-pendientes':  _menuBancoPendientes(from, token, phoneId);      return true;
+    case 'deducibles':        _deduciblesMenuHandler(from, token, phoneId);    return true;
     case 'pyl':               _menuPyl(from, token, phoneId);                  return true;
     case 'info':              _menuInfo(from, token, phoneId);                 return true;
     default:
