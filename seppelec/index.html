@@ -1614,6 +1614,8 @@ function _previewDoc(doc){
   }
   if(o.isFactura){
     o.existing = factura ? state.rows.filter(r=>r.inv && r.inv.toLowerCase()===factura.toLowerCase()) : [];
+    o.existingSum = o.existing.reduce((s,r)=>s+(+r.monto||0),0);
+    o.montoDelta = monto - o.existingSum;
     o.matches  = (!o.existing.length && po) ? state.rows.filter(r=>!r.inv && r.po && _poMatch(r.po,po)) : [];
     o.sum = o.matches.reduce((s,r)=>s+(+r.monto||0),0);
     const mtok=new Set(); o.matches.forEach(r=>String(r.po).split(/[\/,\-\s]+/).filter(Boolean).forEach(t=>mtok.add(t)));
@@ -1669,7 +1671,13 @@ function showConfirmDoc(item){
   } else if(p.isFactura){
     v += `<div class="cd-sec"><div class="cd-h">Vinculación con órdenes de compra</div>`;
     if(p.existing.length){
-      v += `<div class="cd-check cd-ok">✓ Esta factura ya está registrada (${p.existing.length} fila${p.existing.length>1?'s':''}). Se actualizarán sus datos${item.fileUrl?' y el enlace al PDF':''}.</div>`;
+      v += `<div class="cd-check cd-ok">✓ Esta factura ya está registrada (${p.existing.length} fila${p.existing.length>1?'s':''}). Se actualizará la fecha${item.fileUrl?' y el PDF':''}.</div>`;
+      if(p.existing.length===1 && p.monto>0 && Math.abs(p.montoDelta)>=0.5){
+        const sube=p.montoDelta>0;
+        v += `<div class="cd-check cd-warn">⚠ Cambió el monto de la factura:<br><b>${money(p.existingSum)} → ${money(p.monto)}</b> (${sube?'+':'−'}${money(Math.abs(p.montoDelta))}${sube?' · p. ej. flete/transporte agregado':''}). Al confirmar se actualizará.</div>`;
+      } else if(p.existing.length>1 && p.monto>0 && Math.abs(p.montoDelta)>=0.5){
+        v += `<div class="cd-check cd-warn">⚠ El total del PDF (${money(p.monto)}) difiere de la suma registrada (${money(p.existingSum)}). Como la factura tiene ${p.existing.length} líneas, los montos por orden <b>no se modifican</b> automáticamente; ajústalos a mano si hace falta.</div>`;
+      }
     } else if(p.matches.length){
       p.matches.forEach(r=> v += `<div class="cd-oc"><span class="po">OC ${esc(r.po)}</span><span class="mo">${money(+r.monto||0)}</span></div>`);
       if(p.matches.length>1) v += `<div class="cd-tot"><span>Suma de ${p.matches.length} OC</span><span class="mo">${money(p.sum)}</span></div>`;
