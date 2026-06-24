@@ -701,6 +701,16 @@ function _agToolDefs(intent) {
         },
       },
     },
+    {
+      name: 'resumen_deducibles_dgi',
+      description: 'Devuelve el acumulado de deducibles personales del Form 90 DGI Panamá del cliente para un año fiscal. Desglosado por línea DP-1 (gastos médicos), DP-2 (gastos escolares), DP-3 (intereses hipotecarios), DP-4 (intereses préstamos educativos), DP-5 (gastos escolares discapacitados). Usa SIEMPRE este tool cuando el usuario pregunte por deducibles, Form 90, declaración anual DGI, "cuánto llevo deducible" o equivalentes. No inventes topes legales — sugiere al cliente contrastar con su contador.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          anio_fiscal: { type: 'integer', description: 'Año fiscal a consultar (ej: 2026). Si se omite, usa el año actual.' },
+        },
+      },
+    },
   ];
 
   // Tools de ESCRITURA — solo expuestos cuando el menú lo solicitó.
@@ -747,6 +757,7 @@ function _agEjecutarTool(name, input, fromPhone) {
     if (name === 'agregar_operaciones')      return _agToolAgregar(input || {});
     if (name === 'detectar_duplicados')      return _agToolDetectarDuplicados(input || {});
     if (name === 'analizar_salud_financiera') return (typeof _agToolSaludFinanciera === 'function') ? _agToolSaludFinanciera(input || {}) : { error: 'Tool no cargado' };
+    if (name === 'resumen_deducibles_dgi')   return (typeof _agToolResumenDeducibles === 'function') ? _agToolResumenDeducibles(input || {}) : { error: 'Tool no cargado' };
     if (name === 'cambiar_categoria_egreso') return _agToolCambiarCategoria(input || {}, fromPhone);
     if (name === 'cambiar_alcance_egreso')   return _agToolCambiarAlcance(input || {}, fromPhone);
     return { error: 'Tool desconocido: ' + name };
