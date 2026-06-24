@@ -543,11 +543,11 @@ function _routerReplyDesconocido(to, token, phoneId) {
           body: { text:
             '👋 Hola, soy *BalanceClip* — tu asistente financiero por WhatsApp.\n\n' +
             'Empecemos por algo *gratis*: analizo tu cuenta de Banco General.\n\n' +
-            '📊 Envíame el archivo *XLSX* que descargas desde Banca en Línea (Estado de cuenta → Exportar Excel) y en 30 segundos te devuelvo:\n' +
-            '• Saldo, flujo y top categorías\n' +
-            '• Suscripciones recurrentes detectadas\n' +
-            '• Excel con desglose por mes y categoría\n' +
-            '• Asesor IA — pregúntame _"¿cuánto gasté en comida?"_\n\n' +
+            '📊 Envíame el archivo *XLSX* que descargas desde Banca en Línea (Estado de cuenta → Exportar Excel) y en 30 segundos te entrego un reporte detallado que te muestra:\n\n' +
+            '• *En qué categorías gastas más dinero* (supermercado, entretenimiento, suscripciones, transporte, salud, etc.)\n' +
+            '• *Cuáles son los principales comercios donde gastas* (Ensa, Supermercado Rey, Farmacias Arrocha, etc.)\n' +
+            '• *Oportunidades de ahorro* detectadas en tus movimientos (suscripciones olvidadas, gastos chicos que suman, concentración por proveedor)\n' +
+            '• *Asesor IA* — pregúntame _"¿cuánto gasté en comida?"_ o _"¿en qué se va más mi dinero?"_\n\n' +
             'BalanceClip también lleva tu contabilidad completa (facturas, ITBMS, reportes DGI). Toca un botón para conocer más.\n\n' +
             '_Al usar el servicio aceptas nuestros términos y política de privacidad: https://balanceclip.net/privacidad/_'
           },
@@ -672,11 +672,13 @@ function _routerEnviarInfoAnalisis(to, token, phoneId) {
           type: 'button',
           body: { text:
             '📊 *Analizar tu cuenta de Banco General*\n\n' +
-            'Envíame el .xlsx de tu cuenta y te devuelvo en 30 segundos:\n\n' +
-            '• Saldo, flujo, ahorro y top categorías\n' +
-            '• *Reporte PDF ejecutivo* con semáforo de salud, donut chart de categorías y tendencia mensual\n' +
-            '• Excel con matriz destinatario × mes (heatmap) y desglose por categoría\n' +
-            '• *Asesor IA*: pregúntame en lenguaje natural — _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi dinero?"_\n\n' +
+            'Envíame el .xlsx de tu cuenta y te entrego un reporte detallado que analiza:\n\n' +
+            '• *En qué categorías gastas más* (supermercado, entretenimiento, suscripciones, etc.)\n' +
+            '• *Principales comercios donde gastas* (Ensa, Rey, Arrocha, etc.)\n' +
+            '• *Oportunidades de ahorro* (suscripciones olvidadas, gastos chicos que suman, concentración por proveedor)\n' +
+            '• *Reporte PDF ejecutivo* con semáforo de salud, donut chart y tendencia mensual\n' +
+            '• *Excel* con matriz destinatario × mes y desglose por categoría\n' +
+            '• *Asesor IA* — pregúntame _"¿cuánto gasté en comida?"_ o _"¿en qué se va más mi dinero?"_\n\n' +
             '📥 *Cómo descargar tu xlsx*\n' +
             '1. Entra a Banca en Línea de Banco General desde tu laptop\n' +
             '2. Movimientos → Estado de cuenta\n' +
