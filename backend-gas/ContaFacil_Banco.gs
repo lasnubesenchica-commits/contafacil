@@ -175,13 +175,12 @@ function _bancoEnviarUpsellVisitor(analisis, from, token, phoneId) {
   }
 
   lineas.push('Como cliente BalanceClip automatizamos esto y más:');
-  lineas.push('📸 Registras facturas con foto/PDF — categorización DGI');
-  lineas.push('🧾 Tus deducibles personales se suman para el Form 90');
-  lineas.push('💳 Transferencias bancarias se vuelven gastos automáticamente');
+  lineas.push('📸 Registras facturas por WhatsApp (foto o PDF)');
+  lineas.push('📧 Reenvío automatizado desde tu Gmail/Outlook');
+  lineas.push('📊 Dashboard para analizar ingresos vs gastos, finanzas personales y reportes fiscales');
   lineas.push('💬 Asesor IA con TODOS tus gastos, no solo lo del banco');
-  lineas.push('📊 Reportes ITBMS y declaración anual listos');
   lineas.push('');
-  lineas.push('🎁 Pruébalo 7 días gratis, sin tarjeta.');
+  lineas.push('🎁 Pruébalo 7 días gratis, sin tarjeta. Planes desde $19/mes.');
 
   var body = lineas.join('\n');
   // _whatsappReply existe en el router (alias hacia _routerSendText) y en
@@ -1497,7 +1496,7 @@ function _bancoHandleDrill(intent, from, token, phoneId) {
   if (!cache) {
     _whatsappReply(from,
       '⏳ No tengo un análisis reciente tuyo cacheado (expiró la hora).\n\n' +
-      'Envíame el xlsx del banco otra vez y después puedes pedir drill-downs.',
+      'Envíame el xlsx del banco otra vez y después puedes pedir el desglose.',
       token, phoneId);
     return;
   }
@@ -3829,7 +3828,7 @@ function _bancoPoblarDiagnostico(sh, cache, agg) {
   // Footer con navegación
   rows.push(['', '', '', '']);
   rows.push(['📑 NAVEGACIÓN', '', '', '']);
-  rows.push(['Resumen y drill-downs', '', '', '=HYPERLINK("#\'Resumen\'!A1","→ Ir al Resumen")']);
+  rows.push(['Resumen y desglose', '', '', '=HYPERLINK("#\'Resumen\'!A1","→ Ir al Resumen")']);
   rows.push(['Todos los movimientos', '', '', '=HYPERLINK("#\'Movimientos\'!A1","→ Ver Movimientos")']);
 
   // ─── Aplicar al sheet ───────────────────────────────────────

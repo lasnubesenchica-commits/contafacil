@@ -466,9 +466,9 @@ function _routerEnviarBienvenida(to, token, phoneId) {
     '📊 *Analizar estado de cuenta bancario*\n\n' +
     'Envíame el .xlsx de tu cuenta de Banco General. Te doy:\n' +
     '• Resumen de saldo, flujo y top categorías al instante\n' +
-    '• Excel ejecutivo con diagnóstico, semáforo de salud y drill-downs por destinatario/merchant\n' +
+    '• Excel ejecutivo con diagnóstico, semáforo de salud y desglose por destinatario/merchant\n' +
     '• *Asesor IA*: pregúntame _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi dinero?"_, etc.\n\n' +
-    'Drill por texto: *ver comida*, *ver mayo*, *excel*.\n\n' +
+    'Desglose por texto: *ver comida*, *ver mayo*, *excel*.\n\n' +
     '━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
     '📋 *Comandos útiles*\n' +
     '• *menu* — abrir el menú principal con todas las opciones\n' +
@@ -546,7 +546,7 @@ function _routerReplyDesconocido(to, token, phoneId) {
             '📊 Envíame el archivo *XLSX* que descargas desde Banca en Línea (Estado de cuenta → Exportar Excel) y en 30 segundos te devuelvo:\n' +
             '• Saldo, flujo y top categorías\n' +
             '• Suscripciones recurrentes detectadas\n' +
-            '• Excel con drill-downs por mes y categoría\n' +
+            '• Excel con desglose por mes y categoría\n' +
             '• Asesor IA — pregúntame _"¿cuánto gasté en comida?"_\n\n' +
             'BalanceClip también lleva tu contabilidad completa (facturas, ITBMS, reportes DGI). Toca un botón para conocer más.\n\n' +
             '_Al usar el servicio aceptas nuestros términos y política de privacidad: https://balanceclip.net/privacidad/_'
@@ -570,14 +570,12 @@ function _routerEnviarInfoMarketing(to, token, phoneId) {
   var tour =
     'ℹ️ *Qué hace BalanceClip*\n\n' +
     'Soy un asistente financiero por WhatsApp para profesionales, asalariados y negocios en Panamá.\n\n' +
-    '📸 *Registrar facturas y gastos*\n' +
-    'Me envías foto, PDF o reenvías emails. Una IA extrae monto, fecha, proveedor, RUC y categoría DGI. Apruebas con un tap.\n\n' +
-    '📊 *Analizar tu cuenta bancaria* (gratis, sin registro)\n' +
-    'Subes el XLSX de Banco General y te devuelvo análisis, categorías, suscripciones y asesor IA.\n\n' +
-    '💳 *Auto-registro de transferencias*\n' +
-    'Las alertas de transferencias de tu banco se vuelven gastos automáticamente, categorizados.\n\n' +
-    '🧾 *Reportes fiscales DGI*\n' +
-    'ITBMS mensual y declaración anual listos para presentar.\n\n' +
+    '📸 *Registro tus facturas por WhatsApp*\n' +
+    'Me envías foto o PDF de cualquier factura o recibo. Una IA extrae monto, fecha, proveedor, RUC y categoría DGI. Apruebas con un tap.\n\n' +
+    '📧 *Envío automatizado por email*\n' +
+    'Configuras una vez tus emails de proveedores para reenviar a facturas@balanceclip.net y las facturas se registran solas, sin que las mandes una por una.\n\n' +
+    '📊 *Dashboard contable y fiscal*\n' +
+    'Panel web para analizar ingresos vs gastos, finanzas personales y de negocio, registros contables ordenados por categoría DGI y reportes fiscales (ITBMS mensual y declaración anual).\n\n' +
     '💬 *Asesor IA con todos tus gastos registrados*\n' +
     'Pregúntame _"¿cuándo pagué luz?"_, _"¿cuánto llevo en farmacias este mes?"_, _"¿cuántos pagos he hecho al colegio?"_';
   _routerSendText(to, tour, token, phoneId);
@@ -585,10 +583,9 @@ function _routerEnviarInfoMarketing(to, token, phoneId) {
 
   // Mensaje 2 — planes y CTA (con botones).
   var ctaBody =
-    '*¿Qué plan te queda mejor?*\n\n' +
-    '• *BalanceClip Pro* — para consultores, asalariados y profesionales que necesitan reportes DGI completos. Desde $149/mes.\n\n' +
-    '• *BalanceClip Trade* — para comercio (compras y ventas, inventario). Desde $19/mes.\n\n' +
-    '🎁 Ambos con 7 días gratis, sin tarjeta.';
+    '*Planes desde $19/mes*\n\n' +
+    '🎁 Prueba 7 días gratis, sin tarjeta.\n\n' +
+    'Toca un botón para empezar.';
   try {
     UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
       method:      'post',
@@ -678,7 +675,7 @@ function _routerEnviarInfoAnalisis(to, token, phoneId) {
             'Envíame el .xlsx de tu cuenta y te devuelvo en 30 segundos:\n\n' +
             '• Saldo, flujo, ahorro y top categorías\n' +
             '• *Reporte PDF ejecutivo* con semáforo de salud, donut chart de categorías y tendencia mensual\n' +
-            '• Excel con matriz destinatario × mes (heatmap) y drill-down por categoría\n' +
+            '• Excel con matriz destinatario × mes (heatmap) y desglose por categoría\n' +
             '• *Asesor IA*: pregúntame en lenguaje natural — _"¿cuánto gasté en comida?"_, _"¿en qué se va más mi dinero?"_\n\n' +
             '📥 *Cómo descargar tu xlsx*\n' +
             '1. Entra a Banca en Línea de Banco General desde tu laptop\n' +
