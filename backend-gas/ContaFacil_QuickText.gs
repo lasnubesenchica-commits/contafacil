@@ -202,6 +202,12 @@ function _quickTextEnviarConfirmacion(parsed, pendId, from, token, phoneId) {
     try { hintDeducible = _deduciblesHintParaFactura(parsed.categoria_dgi); }
     catch(e) { /* silent */ }
   }
+  // Hint proactivo de bills pendientes (otro proveedor, recordatorio sutil)
+  var hintProactivo = '';
+  if (typeof _proactivoHintParaFactura === 'function') {
+    try { hintProactivo = _proactivoHintParaFactura(parsed.categoria_dgi); }
+    catch(e) { /* silent */ }
+  }
 
   var bodyTxt =
     '⚡ *Gasto rápido recibido*\n\n' +
@@ -209,7 +215,8 @@ function _quickTextEnviarConfirmacion(parsed, pendId, from, token, phoneId) {
     '📅 Fecha: ' + fechaLabel + '\n' +
     '💵 B/. ' + Number(parsed.monto || 0).toFixed(2) + '\n' +
     '📋 Categoría sugerida: ' + _waCatLabel(parsed.categoria_dgi) +
-    hintDeducible;
+    hintDeducible +
+    hintProactivo;
 
   _whatsappReplyBotones(from, bodyTxt, '#' + pendId, [
     { id: 'wa:apr:' + pendId, title: '✅ Aprobar' },
