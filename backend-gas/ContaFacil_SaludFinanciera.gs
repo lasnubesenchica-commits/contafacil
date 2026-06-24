@@ -264,8 +264,16 @@ function _saludRenderScorecard(s) {
     diagnosticos.forEach(function(d) { lineas.push(d); });
   }
   lineas.push('');
-
-  lineas.push('_Regla 50/30/20 (Elizabeth Warren) — base de planificación financiera personal, validada por estudios de hogares con alta tasa de ahorro._');
+  lineas.push('━━━━━━━━━━━━━━━━━━━━━━━');
+  lineas.push('');
+  lineas.push('📚 *Sobre la regla 50/30/20*');
+  lineas.push('Marco de planificación financiera personal popularizado por Elizabeth Warren en su libro _All Your Worth_ (2005). Divide tu ingreso neto en tres categorías:');
+  lineas.push('');
+  lineas.push('• *50% Necesidades* — gastos que no puedes evitar: vivienda, servicios básicos, alimentación, transporte, salud, seguros.');
+  lineas.push('• *30% Deseos* — gastos discrecionales: entretenimiento, ropa, viajes recreativos, restaurantes.');
+  lineas.push('• *20% Ahorro / Inversión* — fondo de emergencia, retiro, inversiones, pago acelerado de deudas.');
+  lineas.push('');
+  lineas.push('_Es una guía, no una regla rígida. Sirve para detectar desbalances y mantener un margen saludable de ahorro a largo plazo._');
 
   return lineas.join('\n');
 }
