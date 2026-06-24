@@ -303,6 +303,12 @@ function _whatsappProcesarMensaje(msg, metadata) {
       _deduciblesHandleConfirmacionForm90(body, from, token, phoneId);
       return;
     }
+    if (intentActivo && intentActivo.kind === 'crear_objetivo' && typeof _objsHandleCrearObjetivo === 'function') {
+      // El cliente tocó "Mis objetivos" sin tener ninguno y el bot le
+      // pidió describir su meta. Este mensaje es la descripción.
+      _objsHandleCrearObjetivo(body, from, token, phoneId);
+      return;
+    }
 
     var esNuevaPreguntaGastos = (typeof _asesorGastosEsPregunta === 'function') && _asesorGastosEsPregunta(body);
     var sesionActivaGastos    = (typeof _agSesionActiva === 'function') && _agSesionActiva(from);
