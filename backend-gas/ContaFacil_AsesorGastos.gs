@@ -721,6 +721,11 @@ function _agToolDefs(intent) {
       description: 'Devuelve los objetivos financieros del cliente con progreso real: monto objetivo, monto acumulado, % avance, meta mensual sugerida, y comparación con su ahorro mensual real estimado (de salud financiera). Útil para preguntas tipo "¿cómo voy con mi objetivo de casa?", "¿cuánto falta para mi fondo de emergencia?", "¿llego a tiempo a mi meta?". Si el cliente no tiene objetivos configurados, sugiérele tocar "Mis objetivos" en el menú principal para plantear uno.',
       input_schema: { type: 'object', properties: {} },
     },
+    {
+      name: 'listar_cursos_aprende',
+      description: 'Devuelve los mini-cursos educativos disponibles en BalanceClip (50/30/20, Form 90 DGI, Fondo de emergencia, Leer estado de cuenta, Suscripciones). Útil si el usuario pregunta "¿qué cursos hay?", "¿qué me puedes enseñar?", "quiero aprender de X". Si pregunta sobre uno específico, dirígelo a escribir "aprende" para verlos todos con opción de tap.',
+      input_schema: { type: 'object', properties: {} },
+    },
   ];
 
   // Tools de ESCRITURA — solo expuestos cuando el menú lo solicitó.
@@ -770,6 +775,7 @@ function _agEjecutarTool(name, input, fromPhone) {
     if (name === 'resumen_deducibles_dgi')   return (typeof _agToolResumenDeducibles === 'function') ? _agToolResumenDeducibles(input || {}) : { error: 'Tool no cargado' };
     if (name === 'insights_proactivos')      return (typeof _agToolInsightsProactivos === 'function') ? _agToolInsightsProactivos(input || {}) : { error: 'Tool no cargado' };
     if (name === 'mis_objetivos')            return (typeof _agToolMisObjetivos === 'function') ? _agToolMisObjetivos(input || {}) : { error: 'Tool no cargado' };
+    if (name === 'listar_cursos_aprende')    return (typeof _agToolListarCursos === 'function') ? _agToolListarCursos(input || {}) : { error: 'Tool no cargado' };
     if (name === 'cambiar_categoria_egreso') return _agToolCambiarCategoria(input || {}, fromPhone);
     if (name === 'cambiar_alcance_egreso')   return _agToolCambiarAlcance(input || {}, fromPhone);
     return { error: 'Tool desconocido: ' + name };
