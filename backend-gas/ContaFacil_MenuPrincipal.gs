@@ -83,8 +83,8 @@ function _menuSendListaConBody(from, body, token, phoneId) {
       rows: [
         { id: 'menu:resumen-mes',     title: 'Resumen del mes',       description: 'Totales del mes y categorías principales' },
         { id: 'menu:salud-financiera', title: 'Mi salud financiera',  description: 'Regla 50/30/20 con tus números reales' },
-        { id: 'menu:proveedor-top',   title: 'Mis top proveedores',   description: 'A quién le pagas más' },
-        { id: 'menu:buscar',          title: 'Buscar gasto/ingreso',  description: 'Por proveedor, fecha o categoría' },
+        { id: 'menu:insights',         title: 'Insights y alertas',   description: 'Pagos pendientes, anomalías, recurrentes' },
+        { id: 'menu:buscar',           title: 'Buscar gasto/ingreso', description: 'Por proveedor, fecha o categoría' },
       ],
     },
     {
@@ -131,6 +131,7 @@ function _menuHandleTap(rowId, from, token, phoneId) {
     case 'open':              _menuSendPrincipal(from, token, phoneId);        return true;
     case 'resumen-mes':       _menuResumenMes(from, token, phoneId);           return true;
     case 'salud-financiera':  _saludMenuHandler(from, token, phoneId);         return true;
+    case 'insights':          _proactivoMenuHandler(from, token, phoneId);     return true;
     case 'proveedor-top':     _menuProveedorTop(from, token, phoneId);         return true;
     case 'buscar':            _menuBuscarPrompt(from, token, phoneId);         return true;
     case 'editar-cat':        _menuEditarCatPrompt(from, token, phoneId);     return true;
