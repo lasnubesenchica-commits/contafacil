@@ -716,6 +716,11 @@ function _agToolDefs(intent) {
       description: 'Devuelve insights proactivos del cliente: (a) pagos recurrentes detectados, (b) bills atrasados o próximos a vencer, (c) categorías con spending fuera del patrón habitual. Útil para preguntas tipo "¿qué pagos recurrentes tengo?", "¿hay algo raro en mis gastos?", "¿qué bills tengo pendientes?". No reportes alertas falsas — si arrays están vacíos, dilo claramente.',
       input_schema: { type: 'object', properties: {} },
     },
+    {
+      name: 'mis_objetivos',
+      description: 'Devuelve los objetivos financieros del cliente con progreso real: monto objetivo, monto acumulado, % avance, meta mensual sugerida, y comparación con su ahorro mensual real estimado (de salud financiera). Útil para preguntas tipo "¿cómo voy con mi objetivo de casa?", "¿cuánto falta para mi fondo de emergencia?", "¿llego a tiempo a mi meta?". Si el cliente no tiene objetivos configurados, sugiérele tocar "Mis objetivos" en el menú principal para plantear uno.',
+      input_schema: { type: 'object', properties: {} },
+    },
   ];
 
   // Tools de ESCRITURA — solo expuestos cuando el menú lo solicitó.
@@ -764,6 +769,7 @@ function _agEjecutarTool(name, input, fromPhone) {
     if (name === 'analizar_salud_financiera') return (typeof _agToolSaludFinanciera === 'function') ? _agToolSaludFinanciera(input || {}) : { error: 'Tool no cargado' };
     if (name === 'resumen_deducibles_dgi')   return (typeof _agToolResumenDeducibles === 'function') ? _agToolResumenDeducibles(input || {}) : { error: 'Tool no cargado' };
     if (name === 'insights_proactivos')      return (typeof _agToolInsightsProactivos === 'function') ? _agToolInsightsProactivos(input || {}) : { error: 'Tool no cargado' };
+    if (name === 'mis_objetivos')            return (typeof _agToolMisObjetivos === 'function') ? _agToolMisObjetivos(input || {}) : { error: 'Tool no cargado' };
     if (name === 'cambiar_categoria_egreso') return _agToolCambiarCategoria(input || {}, fromPhone);
     if (name === 'cambiar_alcance_egreso')   return _agToolCambiarAlcance(input || {}, fromPhone);
     return { error: 'Tool desconocido: ' + name };

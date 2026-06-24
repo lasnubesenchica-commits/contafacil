@@ -88,10 +88,15 @@ function _menuSendListaConBody(from, body, token, phoneId) {
       ],
     },
     {
+      title: '🎯 Mis objetivos',
+      rows: [
+        { id: 'menu:objetivos', title: 'Mis objetivos', description: 'Plantear y trackear metas de ahorro' },
+      ],
+    },
+    {
       title: '✏️ Editar un gasto',
       rows: [
         { id: 'menu:editar-cat',     title: 'Cambiar categoría',      description: 'Reclasificar un gasto a otra categoría DGI' },
-        { id: 'menu:editar-alcance', title: 'Personal o negocio',     description: 'Cambiar el alcance del gasto' },
       ],
     },
     {
@@ -134,6 +139,7 @@ function _menuHandleTap(rowId, from, token, phoneId) {
     case 'insights':          _proactivoMenuHandler(from, token, phoneId);     return true;
     case 'proveedor-top':     _menuProveedorTop(from, token, phoneId);         return true;
     case 'buscar':            _menuBuscarPrompt(from, token, phoneId);         return true;
+    case 'objetivos':         _objsMenuHandler(from, token, phoneId);          return true;
     case 'editar-cat':        _menuEditarCatPrompt(from, token, phoneId);     return true;
     case 'editar-alcance':    _menuEditarAlcancePrompt(from, token, phoneId); return true;
     case 'banco-analizar':    _menuBancoAnalizar(from, token, phoneId);        return true;
