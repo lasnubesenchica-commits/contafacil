@@ -691,6 +691,16 @@ function _agToolDefs(intent) {
         },
       },
     },
+    {
+      name: 'analizar_salud_financiera',
+      description: 'Genera un scorecard de salud financiera del cliente para un mes, comparando su distribución de gastos personales contra la regla 50/30/20 (Elizabeth Warren). Requiere que el cliente haya configurado su ingreso mensual previamente. Si devuelve necesita_configuracion=true, pídele al cliente que toque "Mi salud financiera" en el menú principal para configurarlo. NO inventes el ingreso ni los porcentajes — usa SIEMPRE este tool.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          mes: { type: 'string', description: 'Mes en formato YYYY-MM (ej: 2026-05). Si se omite, analiza el mes pasado completo.' },
+        },
+      },
+    },
   ];
 
   // Tools de ESCRITURA — solo expuestos cuando el menú lo solicitó.
@@ -736,6 +746,7 @@ function _agEjecutarTool(name, input, fromPhone) {
     if (name === 'buscar_operaciones')       return _agToolBuscar(input || {});
     if (name === 'agregar_operaciones')      return _agToolAgregar(input || {});
     if (name === 'detectar_duplicados')      return _agToolDetectarDuplicados(input || {});
+    if (name === 'analizar_salud_financiera') return (typeof _agToolSaludFinanciera === 'function') ? _agToolSaludFinanciera(input || {}) : { error: 'Tool no cargado' };
     if (name === 'cambiar_categoria_egreso') return _agToolCambiarCategoria(input || {}, fromPhone);
     if (name === 'cambiar_alcance_egreso')   return _agToolCambiarAlcance(input || {}, fromPhone);
     return { error: 'Tool desconocido: ' + name };

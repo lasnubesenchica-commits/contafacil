@@ -288,6 +288,12 @@ function _whatsappProcesarMensaje(msg, metadata) {
       _asesorGastosHandle(body, from, token, phoneId, intentActivo);
       return;
     }
+    if (intentActivo && intentActivo.kind === 'configurar_ingreso' && typeof _saludHandleConfigurarIngreso === 'function') {
+      // El cliente tocó "Salud financiera" del menú sin haber configurado
+      // su ingreso. Su próximo mensaje es el monto del ingreso mensual.
+      _saludHandleConfigurarIngreso(body, from, token, phoneId);
+      return;
+    }
 
     var esNuevaPreguntaGastos = (typeof _asesorGastosEsPregunta === 'function') && _asesorGastosEsPregunta(body);
     var sesionActivaGastos    = (typeof _agSesionActiva === 'function') && _agSesionActiva(from);
