@@ -96,6 +96,7 @@ body.readonly .del-btn{display:none}
 .cd-sec{border-top:1px solid var(--border);margin-top:.7rem;padding-top:.7rem}
 .cd-h{font-size:.66rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
 .cd-oc{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;padding:.32rem .55rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.35rem;background:var(--bg)}
+.cd-pick{cursor:pointer} .cd-pick input{margin:0 .5rem 0 0;flex:0 0 auto} .cd-pick .po{flex:1;min-width:0}
 .cd-oc .po{font-weight:600} .cd-oc .mo{font-family:'DM Mono',monospace}
 .cd-tot{display:flex;justify-content:space-between;font-size:.84rem;font-weight:700;padding:.25rem .55rem;margin-top:.2rem}
 .cd-tot .mo{font-family:'DM Mono',monospace}
@@ -1630,6 +1631,7 @@ function _previewDoc(doc){
 }
 function _cdLinkHtml(url,label){ return url?`<a href="${esc(url)}" target="_blank" rel="noopener">📎 ${label}</a>`:''; }
 function showConfirmDoc(item){
+  item._existing=null; item._delta=0;
   const p=_previewDoc(item.doc), money=window.money||(n=>'$'+(+n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
   const n=_docQueue.length, pos = n>1?` (1 de ${n})`:'';
   const titulo = p.isPago?'Constancia de pago detectada':(p.isFactura?'Factura detectada':'Orden de compra detectada');
@@ -1676,7 +1678,10 @@ function showConfirmDoc(item){
         const sube=p.montoDelta>0;
         v += `<div class="cd-check cd-warn">⚠ Cambió el monto de la factura:<br><b>${money(p.existingSum)} → ${money(p.monto)}</b> (${sube?'+':'−'}${money(Math.abs(p.montoDelta))}${sube?' · p. ej. flete/transporte agregado':''}). Al confirmar se actualizará.</div>`;
       } else if(p.existing.length>1 && p.monto>0 && Math.abs(p.montoDelta)>=0.5){
-        v += `<div class="cd-check cd-warn">⚠ El total del PDF (${money(p.monto)}) difiere de la suma registrada (${money(p.existingSum)}). Como la factura tiene ${p.existing.length} líneas, los montos por orden <b>no se modifican</b> automáticamente; ajústalos a mano si hace falta.</div>`;
+        const sube=p.montoDelta>0;
+        v += `<div class="cd-check cd-warn">⚠ Cambió el total de la factura: <b>${money(p.existingSum)} → ${money(p.monto)}</b> (${sube?'+':'−'}${money(Math.abs(p.montoDelta))}). Marca a qué órdenes aplicar el ajuste (flete/transporte); se reparte en partes iguales.</div>`;
+        item._existing = p.existing; item._delta = p.montoDelta;
+        p.existing.forEach((r,k)=> v += `<label class="cd-oc cd-pick"><input type="checkbox" id="cdChk${k}" checked><span class="po">OC ${esc(r.po)}</span><span class="mo">${money(+r.monto||0)}</span></label>`);
       }
     } else if(p.matches.length){
       p.matches.forEach(r=> v += `<div class="cd-oc"><span class="po">OC ${esc(r.po)}</span><span class="mo">${money(+r.monto||0)}</span></div>`);
@@ -1839,7 +1844,16 @@ document.getElementById('cdConfirm').onclick = ()=>{
   const item=_docQueue.shift();
   if(item){ const t=String(item.doc.tipo||'').toLowerCase();
     const esPago = t==='pago'||t==='constancia'||t==='comprobante'||t==='transferencia';
-    const res = esPago ? applyPago(item.doc, item.fileUrl) : upsertDoc(item.doc, item.fileUrl, item._linea||'regular');
+    let res = esPago ? applyPago(item.doc, item.fileUrl) : upsertDoc(item.doc, item.fileUrl, item._linea||'regular');
+    // factura multi-orden con cambio de total: repartir el ajuste entre las órdenes marcadas
+    if(!esPago && item._existing && item._existing.length>1 && Math.abs(item._delta)>=0.5){
+      const sel = item._existing.filter((r,k)=>{ const cb=document.getElementById('cdChk'+k); return cb && cb.checked; });
+      if(sel.length){
+        const cents=Math.round(item._delta*100), base=Math.trunc(cents/sel.length); let rem=cents-base*sel.length, sgn=rem<0?-1:1; rem=Math.abs(rem);
+        sel.forEach((r,k)=>{ const add=base + (k<rem?sgn:0); r.monto = Math.round((+r.monto||0)*100 + add)/100; });
+        res = {tipo:res.tipo, ref:res.ref, action:`ajuste repartido en ${sel.length} orden(es)`};
+      }
+    }
     save(); renderAll(); toast(`${res.tipo} ${res.ref} · ${res.action}`); }
   _nextDoc();
 };
