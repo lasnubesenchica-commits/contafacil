@@ -22,6 +22,7 @@ var SHEET_ACREEDORES_CONFIG  = 'Acreedores_Config';
 var SHEET_ACREEDORES_PENDING = 'Acreedores_Pending';
 var LABEL_ACREEDOR           = 'cf_acreedor_procesado';   // thread completamente procesado
 var LABEL_ACREEDOR_PENDING   = 'cf_acreedor_pending';     // thread con rate limit, pendiente de retry
+var LABEL_ACREEDOR_VISTO     = 'cf_acreedor_visto';       // thread escaneado en modo broad sin acreedores — evita re-escaneo y quema de cuota Gmail
 
 var CATEGORIAS_ACREEDOR = [
   { valor: 'nomina',                   label: 'Nómina / Salarios (L42)'               },
@@ -191,7 +192,7 @@ function _getEmailAcrQuery() {
     base = 'label:' + inboxLabel + ' has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
     Logger.log('📧 Query Acreedores (label-scoped): ' + base);
   } else {
-    base = 'has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
+    base = 'has:attachment -label:' + LABEL_ACREEDOR + ' -label:' + LABEL_ACREEDOR_VISTO + ' newer_than:14d';
     Logger.log('📧 Query Acreedores (broad): ' + base + ' | dest=' + dest);
   }
   return base;
@@ -275,15 +276,19 @@ function _handleResetLabelsAcreedores(data) {
       return _jsonAcr({ success: false, error: 'Email destino no configurado' });
     }
 
-    var query = 'to:' + dest + ' has:attachment (label:' + LABEL_ACREEDOR + ' OR label:' + LABEL_ACREEDOR_PENDING + ' OR label:procesado_cf_op)';
+    var query = 'to:' + dest + ' has:attachment (label:' + LABEL_ACREEDOR + ' OR label:' + LABEL_ACREEDOR_PENDING + ' OR label:' + LABEL_ACREEDOR_VISTO + ' OR label:procesado_cf_op OR label:cf_op_visto)';
     var threads = GmailApp.search(query, 0, 200);
     Logger.log('🧹 Reset labels: encontrados ' + threads.length + ' threads para limpiar.');
 
     var labelAcr     = _getOrCreateLabelAcr(LABEL_ACREEDOR);
     var labelPending = null;
     try { labelPending = GmailApp.getUserLabelByName(LABEL_ACREEDOR_PENDING); } catch (e) {}
+    var labelVisto = null;
+    try { labelVisto = GmailApp.getUserLabelByName(LABEL_ACREEDOR_VISTO); } catch (e) {}
     var labelOp = null;
     try { labelOp = GmailApp.getUserLabelByName('procesado_cf_op'); } catch (e) {}
+    var labelOpVisto = null;
+    try { labelOpVisto = GmailApp.getUserLabelByName('cf_op_visto'); } catch (e) {}
 
     var removed = 0;
     for (var i = 0; i < threads.length; i++) {
@@ -291,8 +296,14 @@ function _handleResetLabelsAcreedores(data) {
       if (labelPending) {
         try { threads[i].removeLabel(labelPending); } catch (e) {}
       }
+      if (labelVisto) {
+        try { threads[i].removeLabel(labelVisto); } catch (e) {}
+      }
       if (labelOp) {
         try { threads[i].removeLabel(labelOp); } catch (e) {}
+      }
+      if (labelOpVisto) {
+        try { threads[i].removeLabel(labelOpVisto); } catch (e) {}
       }
       removed++;
     }
@@ -786,6 +797,24 @@ function _sincronizarEmailsAcreedores() {
           Logger.log(todosListos
             ? '✅ Label cf_acreedor_procesado aplicado.'
             : '⚠️  Label cf_acreedor_procesado aplicado (con errores parciales no-transitorios).');
+        } else if (!inboxLabel) {
+          // MODO BROAD: el thread se escaneó completo y no tenía nada
+          // para este cliente (no es del reenviador permitido, no va al
+          // alias, o sin adjuntos de acreedor). Lo marcamos
+          // cf_acreedor_visto para que el query amplio deje de re-leerlo
+          // en CADA corrida (cada getMessages/getRawContent cuenta contra
+          // la cuota diaria de Gmail — esa es la causa raíz del error
+          // "Service invoked too many times for one day: gmail").
+          // Consistente con cómo cf_acreedor_procesado ya trata los
+          // threads como terminales; un reenvío de factura siempre llega
+          // en un thread nuevo, así que no perdemos facturas futuras.
+          // En modo label-scoped no aplica: el universo ya es pequeño.
+          try {
+            threads[t].addLabel(_getOrCreateLabelAcr(LABEL_ACREEDOR_VISTO));
+            Logger.log('⏭ Thread sin acreedores — marcado cf_acreedor_visto (no re-escaneo).');
+          } catch (eVisto) {
+            Logger.log('⏭ Thread sin acreedores — no se pudo marcar visto: ' + eVisto.message);
+          }
         } else {
           // Todo ignorado — no consumir el thread
           Logger.log('⏭ Thread sin acreedores — sin label.');

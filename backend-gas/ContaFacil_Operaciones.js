@@ -574,10 +574,10 @@ function sincronizarEmails() {
     query = 'label:' + inboxLabelOp + ' has:attachment -label:procesado_cf_op';
     Logger.log('📧 Query Retail (label-scoped): ' + query);
   } else if (cfg.email_op_destino) {
-    query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op';
+    query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op -label:cf_op_visto';
     Logger.log('📧 Query Retail: to:' + cfg.email_op_destino);
   } else if (cfg.email_comprobantes) {
-    query = 'to:' + cfg.email_comprobantes + ' has:attachment -label:procesado_cf_op';
+    query = 'to:' + cfg.email_comprobantes + ' has:attachment -label:procesado_cf_op -label:cf_op_visto';
     Logger.log('📧 Query Retail (legado): to:' + cfg.email_comprobantes);
   } else {
     throw new Error('Email de entrada Retail no configurado. Ir a Configuración → Operaciones.');
@@ -694,6 +694,22 @@ function sincronizarEmails() {
           Logger.log(tienePendiente
             ? '⚠️  Label procesado_cf_op aplicado (con errores parciales).'
             : '✅ Label procesado_cf_op aplicado.');
+        } else if (!inboxLabelOp && !tienePendiente) {
+          // MODO BROAD: ningún adjunto era de Comercialización (típicamente
+          // factura de acreedor o correo ajeno) y no quedó nada pendiente de
+          // reintento. Lo marcamos cf_op_visto para que Comercialización
+          // deje de re-leer este thread cada 15 min (cada getMessages/
+          // getAttachments cuenta contra la cuota diaria de Gmail — causa
+          // raíz del "Service invoked too many times for one day: gmail").
+          // NO afecta a Acreedores: su query NO excluye cf_op_visto, así que
+          // sigue viendo el thread para procesar la factura de acreedor.
+          // En modo label-scoped no aplica: el universo ya es pequeño.
+          try {
+            threads[t].addLabel(_getOrCreateLabel('cf_op_visto'));
+            Logger.log('⏭ Sin adjuntos de Comercialización — marcado cf_op_visto (no re-escaneo). Acreedores aún lo verá.');
+          } catch (eVisto) {
+            Logger.log('⏭ Sin adjuntos de Comercialización — no se pudo marcar visto: ' + eVisto.message);
+          }
         } else {
           Logger.log('⏭ Thread sin adjuntos de Comercialización — sin label (disponible para Acreedores).');
         }
