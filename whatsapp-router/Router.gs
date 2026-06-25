@@ -2214,10 +2214,13 @@ function procesarEmailsAnalisisBanco() {
   var phoneId = props.getProperty('META_PHONE_ID');
   var clientsMap = _routerGetClientsMap();
 
-  // Query amplio + validación destino en código (mismo patrón que el
-  // watcher de Acreedores). El catch-all puede entregar a cualquier
-  // *@balanceclip.net, así que filtramos por análisis del To/headers.
-  var query   = 'has:attachment -label:' + ANALISIS_LABEL_DONE + ' newer_than:7d';
+  // Query restrictivo: Gmail filtra server-side por destino. Antes
+  // usábamos solo "has:attachment newer_than:7d" y caímos en una
+  // trampa: threads que NO eran análisis pero tenían adjunto se
+  // re-procesaban cada minuto (no se etiquetaban en el branch skip),
+  // saturando la cuota diaria de Gmail (Service invoked too many
+  // times for one day). Con `to:` el volumen baja a 100x menos.
+  var query   = 'to:' + ANALISIS_ALIAS_EMAIL + ' has:attachment -label:' + ANALISIS_LABEL_DONE + ' newer_than:7d';
   var threads = GmailApp.search(query, 0, 50);
   Logger.log('📧 Watcher analisis: ' + threads.length + ' threads candidatos');
 
@@ -2303,9 +2306,11 @@ function procesarEmailsAnalisisBanco() {
         Logger.log('  ❌ Error procesando mensaje: ' + err.message);
       }
     }
-    if (hitInThread) {
-      try { thread.addLabel(doneLabel); } catch(e) { Logger.log('No pude poner label: ' + e.message); }
-    }
+    // SIEMPRE etiquetar el thread como procesado, aunque haya
+    // skippeado todos sus mensajes. Si no lo hacemos, threads que NO
+    // matcheen el filtro de destino se re-procesan eternamente cada
+    // ejecución del trigger, saturando la cuota diaria de Gmail.
+    try { thread.addLabel(doneLabel); } catch(e) { Logger.log('No pude poner label: ' + e.message); }
   }
 
   Logger.log('📧 Watcher analisis: procesados=' + processed + ' skipped=' + skipped);
@@ -2417,8 +2422,11 @@ function _routerGetOrCreateLabel(name) {
   }
 }
 
-// Instalar el trigger time-based cada 1 min. Ejecutar manualmente desde
+// Instalar el trigger time-based cada 5 min. Ejecutar manualmente desde
 // el editor de Apps Script una vez por deployment.
+// Frecuencia 5min (no 1min) — el análisis bancario no requiere respuesta
+// sub-minuto y bajar la frecuencia evita saturar la cuota diaria de Gmail
+// (Service invoked too many times for one day). 1440 → 288 ejecuciones/día.
 function _installAnalisisBancoTrigger() {
   // Limpiar triggers viejos
   var triggers = ScriptApp.getProjectTriggers();
@@ -2429,9 +2437,9 @@ function _installAnalisisBancoTrigger() {
   }
   ScriptApp.newTrigger('procesarEmailsAnalisisBanco')
     .timeBased()
-    .everyMinutes(1)
+    .everyMinutes(5)
     .create();
-  Logger.log('✓ Trigger instalado: procesarEmailsAnalisisBanco cada 1 min');
+  Logger.log('✓ Trigger instalado: procesarEmailsAnalisisBanco cada 5 min');
 }
 
 // ════════════════════════════════════════════════════════════════════
