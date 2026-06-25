@@ -574,10 +574,10 @@ function sincronizarEmails() {
     query = 'label:' + inboxLabelOp + ' has:attachment -label:procesado_cf_op';
     Logger.log('📧 Query Retail (label-scoped): ' + query);
   } else if (cfg.email_op_destino) {
-    query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op -label:cf_op_visto';
+    query = 'to:' + cfg.email_op_destino + ' has:attachment -label:procesado_cf_op -label:' + _labelOpVisto();
     Logger.log('📧 Query Retail: to:' + cfg.email_op_destino);
   } else if (cfg.email_comprobantes) {
-    query = 'to:' + cfg.email_comprobantes + ' has:attachment -label:procesado_cf_op -label:cf_op_visto';
+    query = 'to:' + cfg.email_comprobantes + ' has:attachment -label:procesado_cf_op -label:' + _labelOpVisto();
     Logger.log('📧 Query Retail (legado): to:' + cfg.email_comprobantes);
   } else {
     throw new Error('Email de entrada Retail no configurado. Ir a Configuración → Operaciones.');
@@ -705,8 +705,8 @@ function sincronizarEmails() {
           // sigue viendo el thread para procesar la factura de acreedor.
           // En modo label-scoped no aplica: el universo ya es pequeño.
           try {
-            threads[t].addLabel(_getOrCreateLabel('cf_op_visto'));
-            Logger.log('⏭ Sin adjuntos de Comercialización — marcado cf_op_visto (no re-escaneo). Acreedores aún lo verá.');
+            threads[t].addLabel(_getOrCreateLabel(_labelOpVisto()));
+            Logger.log('⏭ Sin adjuntos de Comercialización — marcado ' + _labelOpVisto() + ' (no re-escaneo). Acreedores aún lo verá.');
           } catch (eVisto) {
             Logger.log('⏭ Sin adjuntos de Comercialización — no se pudo marcar visto: ' + eVisto.message);
           }
@@ -1415,6 +1415,13 @@ function _filaVacia(n) {
   var f = new Array(n);
   for (var i = 0; i < n; i++) f[i] = '';
   return f;
+}
+
+// Nombre completo del label "visto" de Comercialización para ESTE cliente.
+// Sufijo por-cliente (_clientLabelTag, def. en ContaFacil_Acreedores) para
+// no chocar entre clientes broad en el buzón compartido.
+function _labelOpVisto() {
+  return 'cf_op_visto_' + _clientLabelTag();
 }
 
 function _getOrCreateLabel(nombre) {

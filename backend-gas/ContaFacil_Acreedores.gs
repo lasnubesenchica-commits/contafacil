@@ -22,7 +22,29 @@ var SHEET_ACREEDORES_CONFIG  = 'Acreedores_Config';
 var SHEET_ACREEDORES_PENDING = 'Acreedores_Pending';
 var LABEL_ACREEDOR           = 'cf_acreedor_procesado';   // thread completamente procesado
 var LABEL_ACREEDOR_PENDING   = 'cf_acreedor_pending';     // thread con rate limit, pendiente de retry
-var LABEL_ACREEDOR_VISTO     = 'cf_acreedor_visto';       // thread escaneado en modo broad sin acreedores — evita re-escaneo y quema de cuota Gmail
+var LABEL_ACREEDOR_VISTO     = 'cf_acreedor_visto';       // PREFIJO; el label real lleva sufijo por-cliente (ver _labelAcrVisto)
+
+// Sufijo corto y estable por cliente, derivado del SHEET_ID (único por
+// cliente, inyectado por el deploy). CRÍTICO para los labels "visto": en
+// el buzón compartido (facturas@/analisis@balanceclip.net) varios scripts
+// de clientes corren bajo la MISMA cuenta de Gmail y comparten el namespace
+// de labels. Sin sufijo, un cliente en modo broad podría marcar "visto" un
+// thread de OTRO cliente broad y ocultárselo a su propio sync. Con sufijo
+// por-cliente, cada uno excluye solo el suyo.
+function _clientLabelTag() {
+  var id = '';
+  try { id = String(CONFIG.SHEET_ID || ''); } catch (e) {}
+  var h = 0;
+  for (var i = 0; i < id.length; i++) {
+    h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
+// Nombre completo del label "visto" de Acreedores para ESTE cliente.
+function _labelAcrVisto() {
+  return LABEL_ACREEDOR_VISTO + '_' + _clientLabelTag();
+}
 
 var CATEGORIAS_ACREEDOR = [
   { valor: 'nomina',                   label: 'Nómina / Salarios (L42)'               },
@@ -192,7 +214,7 @@ function _getEmailAcrQuery() {
     base = 'label:' + inboxLabel + ' has:attachment -label:' + LABEL_ACREEDOR + ' newer_than:14d';
     Logger.log('📧 Query Acreedores (label-scoped): ' + base);
   } else {
-    base = 'has:attachment -label:' + LABEL_ACREEDOR + ' -label:' + LABEL_ACREEDOR_VISTO + ' newer_than:14d';
+    base = 'has:attachment -label:' + LABEL_ACREEDOR + ' -label:' + _labelAcrVisto() + ' newer_than:14d';
     Logger.log('📧 Query Acreedores (broad): ' + base + ' | dest=' + dest);
   }
   return base;
@@ -276,7 +298,7 @@ function _handleResetLabelsAcreedores(data) {
       return _jsonAcr({ success: false, error: 'Email destino no configurado' });
     }
 
-    var query = 'to:' + dest + ' has:attachment (label:' + LABEL_ACREEDOR + ' OR label:' + LABEL_ACREEDOR_PENDING + ' OR label:' + LABEL_ACREEDOR_VISTO + ' OR label:procesado_cf_op OR label:cf_op_visto)';
+    var query = 'to:' + dest + ' has:attachment (label:' + LABEL_ACREEDOR + ' OR label:' + LABEL_ACREEDOR_PENDING + ' OR label:' + _labelAcrVisto() + ' OR label:procesado_cf_op OR label:' + _labelOpVisto() + ')';
     var threads = GmailApp.search(query, 0, 200);
     Logger.log('🧹 Reset labels: encontrados ' + threads.length + ' threads para limpiar.');
 
@@ -284,11 +306,11 @@ function _handleResetLabelsAcreedores(data) {
     var labelPending = null;
     try { labelPending = GmailApp.getUserLabelByName(LABEL_ACREEDOR_PENDING); } catch (e) {}
     var labelVisto = null;
-    try { labelVisto = GmailApp.getUserLabelByName(LABEL_ACREEDOR_VISTO); } catch (e) {}
+    try { labelVisto = GmailApp.getUserLabelByName(_labelAcrVisto()); } catch (e) {}
     var labelOp = null;
     try { labelOp = GmailApp.getUserLabelByName('procesado_cf_op'); } catch (e) {}
     var labelOpVisto = null;
-    try { labelOpVisto = GmailApp.getUserLabelByName('cf_op_visto'); } catch (e) {}
+    try { labelOpVisto = GmailApp.getUserLabelByName(_labelOpVisto()); } catch (e) {}
 
     var removed = 0;
     for (var i = 0; i < threads.length; i++) {
@@ -810,8 +832,8 @@ function _sincronizarEmailsAcreedores() {
           // en un thread nuevo, así que no perdemos facturas futuras.
           // En modo label-scoped no aplica: el universo ya es pequeño.
           try {
-            threads[t].addLabel(_getOrCreateLabelAcr(LABEL_ACREEDOR_VISTO));
-            Logger.log('⏭ Thread sin acreedores — marcado cf_acreedor_visto (no re-escaneo).');
+            threads[t].addLabel(_getOrCreateLabelAcr(_labelAcrVisto()));
+            Logger.log('⏭ Thread sin acreedores — marcado ' + _labelAcrVisto() + ' (no re-escaneo).');
           } catch (eVisto) {
             Logger.log('⏭ Thread sin acreedores — no se pudo marcar visto: ' + eVisto.message);
           }
