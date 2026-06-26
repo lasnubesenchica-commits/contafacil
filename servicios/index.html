@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f97316">
+<title>BalanceClip · Micro-sistemas con IA para tu operación</title>
+<meta name="description" content="Construyo micro-sistemas que leen tus facturas y órdenes con IA, las vinculan automáticamente y te dan el número que importa — margen, saldo por cobrar, inventario. Casos reales en Panamá.">
+<link rel="icon" type="image/svg+xml" href="/balanceclip.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --orange:#f97316; --orange2:#fb923c; --orange-light:#fff7ed;
+  --blue:#3b82f6; --blue-light:#eff6ff; --purple:#8b5cf6; --purple-light:#f5f3ff; --teal:#14b8a6; --teal-light:#f0fdfa;
+  --ink:#1e1b4b; --ink2:#4b5563; --ink3:#9ca3af; --white:#fff; --bg:#fafafa; --border:rgba(0,0,0,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 1.3rem}
+a{color:inherit}
+.btn{display:inline-flex;align-items:center;gap:.5rem;font-weight:800;font-size:1rem;border-radius:100px;padding:.85rem 1.6rem;border:2px solid transparent;cursor:pointer;text-decoration:none;transition:transform .15s,box-shadow .15s}
+.btn.primary{background:var(--orange);color:#fff;box-shadow:0 8px 24px rgba(249,115,22,.3)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(249,115,22,.4)}
+.btn.ghost{border-color:var(--border);background:#fff;color:var(--ink)}
+.btn.ghost:hover{border-color:var(--orange);color:var(--orange)}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:40;background:rgba(250,250,250,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+.logo{font-weight:900;font-size:1.25rem;letter-spacing:-.02em}
+.logo span{color:var(--orange)}
+.nav .lk{font-weight:700;font-size:.92rem;color:var(--ink2);text-decoration:none}
+
+/* hero */
+.hero{padding:4.5rem 0 3rem;text-align:center}
+.pill{display:inline-block;background:var(--orange-light);color:var(--orange);font-weight:800;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;padding:.4rem .9rem;border-radius:100px;margin-bottom:1.3rem}
+.hero h1{font-size:clamp(2.1rem,5.5vw,3.4rem);font-weight:900;letter-spacing:-.03em;line-height:1.08}
+.hero h1 .hl{color:var(--orange)}
+.hero p.sub{font-size:clamp(1.05rem,2.5vw,1.3rem);color:var(--ink2);max-width:720px;margin:1.2rem auto 2rem;font-weight:500}
+.hero .cta{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap}
+.trust{margin-top:1.6rem;font-size:.85rem;color:var(--ink3);font-weight:600}
+
+/* sección genérica */
+section{padding:3.2rem 0}
+.sec-tag{text-align:center;font-weight:800;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);margin-bottom:.5rem}
+.sec-h{text-align:center;font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em;margin-bottom:.6rem}
+.sec-p{text-align:center;color:var(--ink2);max-width:680px;margin:0 auto 2.2rem;font-weight:500;font-size:1.05rem}
+
+/* problema */
+.prob{background:var(--ink);color:#fff;border-radius:26px;padding:2.6rem 2rem;text-align:center}
+.prob h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:900;letter-spacing:-.02em}
+.prob p{color:#c7c9e8;max-width:620px;margin:.9rem auto 1.6rem;font-weight:500}
+.prob-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;max-width:760px;margin:0 auto}
+.prob-item{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:.9rem;font-weight:700;font-size:.92rem}
+.prob-item b{display:block;font-size:1.4rem;margin-bottom:.2rem}
+
+/* motor / cómo funciona */
+.engine{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;align-items:stretch}
+.step{background:#fff;border:1px solid var(--border);border-radius:18px;padding:1.2rem .9rem;text-align:center;position:relative}
+.step .ic{font-size:1.7rem;display:block;margin-bottom:.5rem}
+.step h4{font-size:.98rem;font-weight:900;margin-bottom:.25rem}
+.step p{font-size:.8rem;color:var(--ink2);font-weight:600;line-height:1.35}
+.step .n{position:absolute;top:.6rem;right:.7rem;font-size:.7rem;font-weight:900;color:var(--ink3)}
+.step.k{border-color:var(--orange);box-shadow:0 8px 26px rgba(249,115,22,.12)}
+.step.k h4{color:var(--orange)}
+@media(max-width:760px){.engine{grid-template-columns:1fr 1fr}}
+
+/* casos */
+.cases{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.case{background:#fff;border:1px solid var(--border);border-radius:22px;padding:1.6rem;position:relative;overflow:hidden}
+.case::before{content:'';position:absolute;top:0;left:0;right:0;height:5px}
+.case.c1::before{background:linear-gradient(90deg,var(--orange),var(--orange2))}
+.case.c2::before{background:linear-gradient(90deg,var(--purple),var(--blue))}
+.case .badge{display:inline-block;font-weight:800;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;padding:.3rem .7rem;border-radius:100px;margin-bottom:.7rem}
+.case.c1 .badge{background:var(--orange-light);color:var(--orange)}
+.case.c2 .badge{background:var(--purple-light);color:var(--purple)}
+.case h3{font-size:1.25rem;font-weight:900;letter-spacing:-.01em;margin-bottom:.2rem}
+.case .who{font-size:.85rem;color:var(--ink3);font-weight:700;margin-bottom:.9rem}
+.case .flow{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;font-weight:800;font-size:.82rem;margin-bottom:.9rem}
+.case .flow .t{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.25rem .5rem}
+.case .flow .ar{color:var(--ink3)}
+.case ul{list-style:none;display:flex;flex-direction:column;gap:.5rem}
+.case li{font-size:.92rem;color:var(--ink2);font-weight:600;display:flex;gap:.5rem}
+.case li b{color:var(--ink)}
+.case li::before{content:'✓';color:var(--teal);font-weight:900}
+.case .res{margin-top:1rem;background:var(--bg);border-radius:12px;padding:.7rem .9rem;font-weight:800;font-size:.9rem}
+.case .res .big{color:var(--orange);font-size:1.05rem}
+.case.c2 .res .big{color:var(--purple)}
+@media(max-width:760px){.cases{grid-template-columns:1fr}}
+
+/* aplica a */
+.uses{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem}
+.use{background:#fff;border:1px solid var(--border);border-radius:16px;padding:1.1rem 1.2rem}
+.use .ic{font-size:1.4rem}
+.use h4{font-size:1rem;font-weight:900;margin:.3rem 0 .2rem}
+.use p{font-size:.85rem;color:var(--ink2);font-weight:600}
+
+/* por qué */
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
+.why div{background:var(--orange-light);border-radius:16px;padding:1.2rem}
+.why h4{font-size:1.05rem;font-weight:900;margin-bottom:.25rem}
+.why p{font-size:.88rem;color:var(--ink2);font-weight:600}
+
+/* cierre */
+.close{background:linear-gradient(135deg,var(--orange),#ea580c);color:#fff;border-radius:26px;padding:3rem 2rem;text-align:center;margin-bottom:3rem}
+.close h2{font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em}
+.close p{max-width:560px;margin:.8rem auto 1.6rem;font-weight:600;opacity:.95}
+.close .btn.primary{background:#fff;color:var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padding:1.5rem 0 3rem}
+</style>
+</head>
+<body>
+
+<nav class="nav"><div class="wrap">
+  <div class="logo">Balance<span>Clip</span></div>
+  <a class="lk" href="#contacto">Hablemos →</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <span class="pill">Micro-sistemas con IA · Panamá</span>
+  <h1>Tus documentos, leídos por IA y <span class="hl">conectados solos</span>.</h1>
+  <p class="sub">Construyo sistemas a la medida que <b>leen tus facturas y órdenes con IA</b>, las <b>emparejan automáticamente</b> y te dan el número que importa —margen, saldo por cobrar, inventario— reemplazando ese Excel frágil.</p>
+  <div class="cta">
+    <a class="btn primary" href="#contacto">Quiero uno para mi empresa</a>
+    <a class="btn ghost" href="#casos">Ver casos reales</a>
+  </div>
+  <div class="trust">Hecho para PYMEs · sin ERP caro · listo en semanas, no meses</div>
+</div></header>
+
+<section><div class="wrap">
+  <div class="prob">
+    <h2>Tu operación vive en Excel, correo y PDFs</h2>
+    <p>Las facturas llegan por correo, las órdenes en PDF, y alguien las transcribe y empareja a mano en una hoja que solo esa persona entiende. Lento, con errores, y sin saber en tiempo real cómo está el negocio.</p>
+    <div class="prob-grid">
+      <div class="prob-item"><b>🧾</b>Digitación manual</div>
+      <div class="prob-item"><b>🔌</b>Conciliación a mano</div>
+      <div class="prob-item"><b>❓</b>Cero visibilidad</div>
+      <div class="prob-item"><b>📉</b>Errores costosos</div>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-tag">El motor</div>
+  <h2 class="sec-h">Un mismo músculo, muchos procesos</h2>
+  <p class="sec-p">Todos estos sistemas comparten el mismo flujo. Cambia el documento y el número de salida; la mecánica es la misma.</p>
+  <div class="engine">
+    <div class="step"><span class="n">1</span><span class="ic">📥</span><h4>Captura</h4><p>Subes el PDF (o llega por correo).</p></div>
+    <div class="step"><span class="n">2</span><span class="ic">🤖</span><h4>Lee con IA</h4><p>Clasifica y extrae los datos.</p></div>
+    <div class="step k"><span class="n">3</span><span class="ic">🔗</span><h4>Vincula A ↔ B</h4><p>Empareja las dos puntas de la transacción.</p></div>
+    <div class="step"><span class="n">4</span><span class="ic">🧮</span><h4>Calcula la brecha</h4><p>Margen, saldo, inventario…</p></div>
+    <div class="step"><span class="n">5</span><span class="ic">📊</span><h4>Visualiza y alerta</h4><p>Tablero claro y a tiempo.</p></div>
+  </div>
+</div></section>
+
+<section id="casos"><div class="wrap">
+  <div class="sec-tag">Casos reales</div>
+  <h2 class="sec-h">Dos empresas, el mismo enfoque</h2>
+  <p class="sec-p">Clientes reales en Panamá (datos anonimizados). Distinto proceso, mismo motor.</p>
+  <div class="cases">
+    <div class="case c1">
+      <span class="badge">Cuentas por cobrar · Flujo de caja</span>
+      <h3>Importador industrial</h3>
+      <div class="who">Repuestos / equipos · ventas a crédito 60 días</div>
+      <div class="flow"><span class="t">Orden de compra</span><span class="ar">→</span><span class="t">Factura</span><span class="ar">→</span><span class="t">Pago</span></div>
+      <ul>
+        <li>Sube la <b>OC, la factura o la constancia de pago</b> y la IA la lee y vincula.</li>
+        <li>Maneja <b>dos líneas de crédito</b> con reglas propias (plazos, abonos).</li>
+        <li><b>Calendario de cobros</b>, aging y vencimientos a 60 días.</li>
+        <li>Reparte ajustes (ej. flete) entre órdenes; móvil y Excel.</li>
+      </ul>
+      <div class="res">Resultado: <span class="big">saldo por cobrar y flujo de caja</span> claros en tiempo real.</div>
+    </div>
+    <div class="case c2">
+      <span class="badge">Comercialización · Márgenes</span>
+      <h3>Comercializadora / distribuidora</h3>
+      <div class="who">Compra para revender · varios proveedores</div>
+      <div class="flow"><span class="t">Factura de compra</span><span class="ar">↔</span><span class="t">Factura de venta</span></div>
+      <ul>
+        <li>Las facturas <b>llegan por correo</b>; la IA distingue compra de venta.</li>
+        <li>Empareja cada <b>compra con su venta</b> automáticamente.</li>
+        <li>Calcula <b>margen bruto</b> por producto y por operación.</li>
+        <li>Reportes de <b>inventario valorado</b>, cobros y flujo.</li>
+      </ul>
+      <div class="res">Resultado: <span class="big">margen e inventario</span> sin conciliar a mano.</div>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-tag">¿Tienes algo parecido?</div>
+  <h2 class="sec-h">Si lo emparejas a mano, se puede automatizar</h2>
+  <p class="sec-p">Casi toda PYME tiene un proceso así: documentos que entran, alguien los empata con otros, y de ahí sale un número en un Excel.</p>
+  <div class="uses">
+    <div class="use"><span class="ic">💰</span><h4>Compra ↔ Venta</h4><p>Márgenes y comercialización.</p></div>
+    <div class="use"><span class="ic">📃</span><h4>Orden ↔ Factura ↔ Pago</h4><p>Cuentas por cobrar y flujo.</p></div>
+    <div class="use"><span class="ic">📦</span><h4>Factura ↔ Recepción</h4><p>Inventario y entradas de mercancía.</p></div>
+    <div class="use"><span class="ic">🧾</span><h4>Gasto ↔ Presupuesto</h4><p>Control de costos y viáticos.</p></div>
+    <div class="use"><span class="ic">🏦</span><h4>Pago ↔ Contrato/Cuota</h4><p>Conciliación y cobranza.</p></div>
+    <div class="use"><span class="ic">⏰</span><h4>Documento ↔ Vencimiento</h4><p>Pólizas, permisos, renovaciones.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-tag">Por qué un micro-sistema</div>
+  <h2 class="sec-h">La potencia de un ERP, sin su peso</h2>
+  <div class="why">
+    <div><h4>⚡ Rápido</h4><p>De tu Excel a un sistema funcionando en semanas, no meses.</p></div>
+    <div><h4>🎯 A tu medida</h4><p>Con tus reglas exactas — no te adaptas tú al software.</p></div>
+    <div><h4>💵 Costo mínimo</h4><p>Corre sobre infraestructura ligera; sin licencias caras.</p></div>
+    <div><h4>🤖 IA incluida</h4><p>Lee tus documentos: el dato entra solo, no a mano.</p></div>
+  </div>
+</div></section>
+
+<section id="contacto"><div class="wrap">
+  <div class="close">
+    <h2>¿Qué proceso te está costando horas en Excel?</h2>
+    <p>Cuéntame ese flujo de documentos que hoy empatas a mano. Te digo si se puede automatizar y cómo se vería.</p>
+    <a class="btn primary" href="mailto:hola@balanceclip.net?subject=Quiero%20un%20micro-sistema%20con%20IA">Hablemos →</a>
+  </div>
+</div></section>
+
+<footer>BalanceClip · Micro-sistemas operativos con IA · Panamá</footer>
+
+</body>
+</html>
