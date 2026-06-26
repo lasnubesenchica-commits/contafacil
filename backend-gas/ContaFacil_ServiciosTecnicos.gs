@@ -937,17 +937,7 @@ function _handleActualizarEgresoST(data) {
       Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd');
     var yearEgr = new Date(fechaGasto + 'T12:00:00').getFullYear() || ahora.getFullYear();
 
-    var seqEgr      = 1;
-    var lastEgrRow2 = sheetEgr.getLastRow();
-    if (lastEgrRow2 > 2) {
-      var idsEgr2 = sheetEgr.getRange(3, 1, lastEgrRow2 - 2, 1).getValues();
-      for (var ke = idsEgr2.length - 1; ke >= 0; ke--) {
-        var ve     = String(idsEgr2[ke][0] || '');
-        var partsE = ve.split('-');
-        var ne     = parseInt(partsE[partsE.length - 1], 10);
-        if (!isNaN(ne)) { seqEgr = ne + 1; break; }
-      }
-    }
+    var seqEgr = _nextEgresoSeq(sheetEgr, yearEgr);
     var egresoIdNuevo = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
 
     var tipoMap = {
@@ -1687,18 +1677,9 @@ function _handleRegistrarEgresoST(data) {
     if (!sheetEgr) throw new Error('Hoja Egresos no encontrada. Ejecuta initSheets().');
 
     var yearEgr    = new Date(fechaGasto + 'T12:00:00').getFullYear() || ahora.getFullYear();
-    var seqEgr     = 1;
+    var seqEgr     = _nextEgresoSeq(sheetEgr, yearEgr);
     var lastEgrRow = sheetEgr.getLastRow();
-    if (lastEgrRow > 2) {
-      var idsEgr = sheetEgr.getRange(3, 1, lastEgrRow - 2, 1).getValues();
-      for (var ke = idsEgr.length - 1; ke >= 0; ke--) {
-        var ve     = String(idsEgr[ke][0] || '');
-        var partsE = ve.split('-');
-        var ne     = parseInt(partsE[partsE.length - 1], 10);
-        if (!isNaN(ne)) { seqEgr = ne + 1; break; }
-      }
-    }
-    var egresoId = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
+    var egresoId   = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
 
     var proveedor  = data.proveedor  || '';
     var numFactura = data.num_factura || '';
