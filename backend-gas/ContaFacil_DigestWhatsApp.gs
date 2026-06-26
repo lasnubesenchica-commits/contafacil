@@ -736,9 +736,11 @@ function _waLimpiarPendhashViejos(diasMin) {
   Logger.log('Encontrados: ' + hashKeys.length + ' wa_pendhash_*, ' + metaKeys.length + ' wa_pendmeta_*');
   var borradosHash = 0, borradosMeta = 0;
   // Borrar por timestamp en wa_pendmeta_*
+  var pendIdsConMeta = {};
   metaKeys.forEach(function(metaKey) {
     try {
       var meta = JSON.parse(all[metaKey] || '{}');
+      if (meta.pendId) pendIdsConMeta[meta.pendId] = true;
       var ts = Date.parse(meta.ts);
       if (!ts || ts < cutoffMs) {
         props.deleteProperty(metaKey);
@@ -754,7 +756,21 @@ function _waLimpiarPendhashViejos(diasMin) {
       borradosMeta++;
     }
   });
+  // Cleanup de wa_pendhash_* HUÉRFANOS — sin meta correspondiente.
+  // Estos son del código pre-wa_pendmeta y se acumulan eternamente.
+  // Sin meta no podemos saber su edad, pero el peor caso es que una
+  // factura ya aprobada de hace mucho se procese de nuevo si Meta la
+  // reenvía (escenario muy raro). Vale más que ahogue properties.
+  var borradosHuerfanos = 0;
+  hashKeys.forEach(function(hashKey) {
+    var pendId = hashKey.substring('wa_pendhash_'.length);
+    if (!pendIdsConMeta[pendId]) {
+      props.deleteProperty(hashKey);
+      borradosHuerfanos++;
+    }
+  });
   Logger.log('✅ Limpieza: ' + borradosMeta + ' wa_pendmeta_* + ' + borradosHash +
-             ' wa_pendhash_* borrados (timestamp < ' + dias + ' días).');
+             ' wa_pendhash_* (con meta > ' + dias + ' días) + ' + borradosHuerfanos +
+             ' wa_pendhash_* huérfanos (sin meta) borrados.');
   Logger.log('   Total properties restantes: ' + Object.keys(props.getProperties()).length);
 }
