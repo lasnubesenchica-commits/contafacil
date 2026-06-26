@@ -80,10 +80,10 @@ section{padding:3.2rem 0}
 .case .flow{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;font-weight:800;font-size:.82rem;margin-bottom:.9rem}
 .case .flow .t{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.25rem .5rem}
 .case .flow .ar{color:var(--ink3)}
-.case ul{list-style:none;display:flex;flex-direction:column;gap:.5rem}
-.case li{font-size:.92rem;color:var(--ink2);font-weight:600;display:flex;gap:.5rem}
+.case ul{list-style:none}
+.case li{font-size:.92rem;color:var(--ink2);font-weight:600;position:relative;padding-left:1.5rem;margin-bottom:.55rem;text-align:left}
 .case li b{color:var(--ink)}
-.case li::before{content:'✓';color:var(--teal);font-weight:900}
+.case li::before{content:'✓';position:absolute;left:0;top:0;color:var(--teal);font-weight:900}
 .case .res{margin-top:1rem;background:var(--bg);border-radius:12px;padding:.7rem .9rem;font-weight:800;font-size:.9rem}
 .case .res .big{color:var(--orange);font-size:1.05rem}
 .case.c2 .res .big{color:var(--purple)}
@@ -108,6 +108,36 @@ section{padding:3.2rem 0}
 .close p{max-width:560px;margin:.8rem auto 1.6rem;font-weight:600;opacity:.95}
 .close .btn.primary{background:#fff;color:var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.18)}
 footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padding:1.5rem 0 3rem}
+
+/* bots de WhatsApp */
+.bots{display:grid;grid-template-columns:1.1fr .9fr;gap:2rem;align-items:center;background:#fff;border:1px solid var(--border);border-radius:26px;padding:2.2rem}
+.bots-list{list-style:none;display:flex;flex-direction:column;gap:.7rem}
+.bots-list li{font-size:.96rem;color:var(--ink2);font-weight:600}
+.bots-list li b{color:var(--ink)}
+.bot-phone{background:#0b141a;border-radius:22px;padding:.5rem;max-width:300px;width:100%;margin:0 auto;box-shadow:0 20px 50px rgba(0,0,0,.22)}
+.bp-top{background:#202c33;color:#e9edef;font-weight:800;font-size:.85rem;padding:.65rem .85rem;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:.5rem}
+.bp-top::before{content:'';width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--orange),#ea580c)}
+.bp-body{background:#0b141a;padding:.8rem;display:flex;flex-direction:column;gap:.5rem;border-radius:0 0 16px 16px;min-height:280px}
+.bub{max-width:86%;padding:.5rem .7rem;border-radius:10px;font-size:.8rem;font-weight:600;line-height:1.35}
+.bub.in{align-self:flex-end;background:#005c4b;color:#e9edef;border-bottom-right-radius:3px}
+.bub.bot{align-self:flex-start;background:#202c33;color:#e9edef;border-bottom-left-radius:3px}
+.bub.pop{opacity:0}
+.bots.in .bub.pop{animation:bubIn .45s ease forwards;animation-delay:var(--d,0s)}
+@keyframes bubIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+@media(max-width:760px){.bots{grid-template-columns:1fr;padding:1.4rem}}
+
+/* animaciones */
+@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.hero .pill{animation:up .6s .05s both}
+.hero h1{animation:up .7s .15s both}
+.hero p.sub{animation:up .7s .3s both}
+.hero .cta{animation:up .7s .45s both}
+.hero .trust{animation:up .7s .58s both}
+.rv{opacity:0;transform:translateY(20px);transition:opacity .65s ease,transform .65s ease}
+.rv.in{opacity:1;transform:none}
+.step.k{animation:pulse 2.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 8px 26px rgba(249,115,22,.12)}50%{box-shadow:0 12px 36px rgba(249,115,22,.36)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
 </style>
 </head>
 <body>
@@ -120,7 +150,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 <header class="hero"><div class="wrap">
   <span class="pill">Micro-sistemas con IA · Panamá</span>
   <h1>Tus documentos, leídos por IA y <span class="hl">conectados solos</span>.</h1>
-  <p class="sub">Construyo sistemas a la medida que <b>leen tus facturas y órdenes con IA</b>, las <b>emparejan automáticamente</b> y te dan el número que importa —margen, saldo por cobrar, inventario— reemplazando ese Excel frágil.</p>
+  <p class="sub">Construyo sistemas a la medida que <b>leen tus facturas y órdenes con IA</b>, las <b>vincula automáticamente</b> y te dan el número que importa —margen, saldo por cobrar, inventario— reemplazando ese Excel frágil.</p>
   <div class="cta">
     <a class="btn primary" href="#contacto">Quiero uno para mi empresa</a>
     <a class="btn ghost" href="#casos">Ver casos reales</a>
@@ -131,7 +161,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 <section><div class="wrap">
   <div class="prob">
     <h2>Tu operación vive en Excel, correo y PDFs</h2>
-    <p>Las facturas llegan por correo, las órdenes en PDF, y alguien las transcribe y empareja a mano en una hoja que solo esa persona entiende. Lento, con errores, y sin saber en tiempo real cómo está el negocio.</p>
+    <p>Las facturas llegan por correo, las órdenes en PDF, y alguien las transcribe y vincula a mano en una hoja que solo esa persona entiende. Lento, con errores, y sin saber en tiempo real cómo está el negocio.</p>
     <div class="prob-grid">
       <div class="prob-item"><b>🧾</b>Digitación manual</div>
       <div class="prob-item"><b>🔌</b>Conciliación a mano</div>
@@ -188,10 +218,36 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
   </div>
 </div></section>
 
-<section><div class="wrap">
+<section id="bots"><div class="wrap reveal">
+  <div class="bots">
+    <div class="bots-copy">
+      <div class="sec-tag" style="text-align:left">+ Bots de WhatsApp</div>
+      <h2 style="font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em;margin-bottom:.6rem">El sistema te habla por WhatsApp</h2>
+      <p style="color:var(--ink2);font-weight:500;font-size:1.05rem;margin-bottom:1.2rem">Sumamos un bot que <b>recibe, alerta y asiste</b> dentro del proceso — donde ya está tu equipo y tus clientes: en WhatsApp.</p>
+      <ul class="bots-list">
+        <li><b>📎 Recibe documentos</b> — mandas la factura por WhatsApp y la IA la lee y registra sola.</li>
+        <li><b>🔔 Alerta de cobros</b> — avisa de vencimientos y saldos por cobrar antes de que se venzan.</li>
+        <li><b>💬 Asiste y consulta</b> — “¿cuánto me debe X?”, “¿qué vence esta semana?” — responde al instante.</li>
+        <li><b>✅ Confirma acciones</b> — registra pagos, marca estados y notifica al equipo.</li>
+      </ul>
+    </div>
+    <div class="bot-phone" aria-hidden="true">
+      <div class="bp-top">BalanceClip Bot</div>
+      <div class="bp-body">
+        <div class="bub in">📎 Factura F26281.pdf</div>
+        <div class="bub bot pop" style="--d:.3s">✅ Registrada · OC 4200002286 · $7,653.78 · vence 21-ago</div>
+        <div class="bub bot pop" style="--d:1.2s">🔔 Mañana vence F26225 — $28,180 por cobrar</div>
+        <div class="bub in pop" style="--d:2.1s">¿Cuánto me debe Industrias Lácteas?</div>
+        <div class="bub bot pop" style="--d:3s">💬 $67,698.98 por cobrar · 1 factura vence en 3 días</div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap reveal">
   <div class="sec-tag">¿Tienes algo parecido?</div>
-  <h2 class="sec-h">Si lo emparejas a mano, se puede automatizar</h2>
-  <p class="sec-p">Casi toda PYME tiene un proceso así: documentos que entran, alguien los empata con otros, y de ahí sale un número en un Excel.</p>
+  <h2 class="sec-h">Si lo vinculas a mano, se puede automatizar</h2>
+  <p class="sec-p">Casi toda PYME tiene un proceso así: documentos que entran, alguien los vincula con otros, y de ahí sale un número en un Excel.</p>
   <div class="uses">
     <div class="use"><span class="ic">💰</span><h4>Compra ↔ Venta</h4><p>Márgenes y comercialización.</p></div>
     <div class="use"><span class="ic">📃</span><h4>Orden ↔ Factura ↔ Pago</h4><p>Cuentas por cobrar y flujo.</p></div>
@@ -216,7 +272,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 <section id="contacto"><div class="wrap">
   <div class="close">
     <h2>¿Qué proceso te está costando horas en Excel?</h2>
-    <p>Cuéntame ese flujo de documentos que hoy empatas a mano. Te digo si se puede automatizar y cómo se vería.</p>
+    <p>Cuéntame ese flujo de documentos que hoy vinculas a mano. Te digo si se puede automatizar y cómo se vería.</p>
     <div class="cta" style="justify-content:center">
       <a class="btn primary" href="https://wa.me/50769812266?text=Hola%2C%20quiero%20un%20micro-sistema%20con%20IA%20para%20mi%20empresa" target="_blank" rel="noopener">💬 WhatsApp · 6981-2266</a>
       <a class="btn ghost" href="mailto:josh@balanceclip.net?subject=Quiero%20un%20micro-sistema%20con%20IA" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.5);color:#fff">✉ josh@balanceclip.net</a>
@@ -226,5 +282,9 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 
 <footer>BalanceClip · Micro-sistemas operativos con IA · Panamá</footer>
 
+<script>
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }),{threshold:.12});
+  document.querySelectorAll('.prob,.step,.case,.bots,.use,.why div,.close').forEach(el=>{ el.classList.add('rv'); io.observe(el); });
+</script>
 </body>
 </html>
