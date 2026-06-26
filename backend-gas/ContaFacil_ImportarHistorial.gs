@@ -2564,6 +2564,73 @@ function limpiarYReimportarCarpeta(mes, nombreCarpeta, ejecutar) {
   Logger.log('═══════════════════════════════════════════');
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+//  importarCarpetaPorId — importar UNA factura por ID de carpeta Drive
+//
+//  Para facturas sueltas (ej. FACT542) cuya carpeta está en cualquier
+//  parte de Drive, fuera de la estructura root/MES que usa
+//  importarHistorialMes. Procesa la carpeta tal cual con el mismo núcleo
+//  (_procesarCarpetaFactura) y registra en Import_Log.
+//
+//  NO usa Gmail — solo Drive + Claude + Sheets — así que funciona aunque
+//  la cuota diaria de Gmail esté agotada. El guard _ingresoYaExiste evita
+//  duplicar si la factura ya fue importada antes.
+//
+//  Uso:  importarCarpetaPorId('13BDAoF9yRS-XCLcLdZe17jSJriVnFBS-', 'FACT542')
+// ═══════════════════════════════════════════════════════════════
+function importarCarpetaPorId(folderId, etiqueta) {
+  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  _initImportLog(ss);
+  var logSheet = ss.getSheetByName(IH_CONFIG.SHEET_IMPORT_LOG);
+
+  var folder;
+  try {
+    folder = DriveApp.getFolderById(folderId);
+  } catch (e) {
+    Logger.log('❌ No se pudo abrir la carpeta ' + folderId + ': ' + e.message);
+    return null;
+  }
+
+  var nombreCarpeta = folder.getName();
+  var mes = etiqueta ||
+    ('MANUAL ' + Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM'));
+
+  Logger.log('═══════════════════════════════════════════');
+  Logger.log('📁 Importando carpeta por ID: ' + nombreCarpeta + ' (etiqueta=' + mes + ')');
+  Logger.log('═══════════════════════════════════════════');
+
+  var resultado;
+  try {
+    resultado = _procesarCarpetaFactura(ss, folder, mes);
+  } catch (err) {
+    Logger.log('  ❌ Excepción: ' + err.message);
+    resultado = {
+      id_st: '', num_factura: '', cliente: '',
+      total_venta: 0, total_costo: 0,
+      tipo_venta: '', tipo_costo: '',
+      estado: 'error', ingreso_id: '',
+      items_warning: '', error_msg: err.message,
+    };
+  }
+  _registrarLogImport(logSheet, mes, nombreCarpeta, resultado);
+
+  Logger.log('\n═══════════════════════════════════════════');
+  Logger.log((resultado.estado === 'error' ? '❌' : '✅') + ' ' + nombreCarpeta);
+  Logger.log('   ST: ' + resultado.id_st + ' | fact: ' + resultado.num_factura +
+             ' | $' + resultado.total_venta + ' | ' + resultado.tipo_venta);
+  Logger.log('   Estado: ' + resultado.estado);
+  if (resultado.items_warning) Logger.log('   ⚠️  Warning: ' + resultado.items_warning);
+  if (resultado.error_msg)     Logger.log('   ❌ Error: ' + resultado.error_msg);
+  Logger.log('═══════════════════════════════════════════');
+  return resultado;
+}
+
+// Conveniencia — FACT542 (carpeta suelta en Drive)
+function importarFACT542() {
+  return importarCarpetaPorId('13BDAoF9yRS-XCLcLdZe17jSJriVnFBS-', 'FACT542');
+}
+
 function _borrarFilas(sheet, indicesData, dataStart, ejecutar, label, stats) {
   var n = indicesData.length;
   Logger.log('\n[' + label + '] ' + n + ' fila(s) ' + (ejecutar ? 'a borrar' : '(dry run)'));
