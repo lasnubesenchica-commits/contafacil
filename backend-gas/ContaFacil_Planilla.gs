@@ -388,19 +388,7 @@ function _handleRegistrarPlanilla(data) {
     var notasBase = 'Planilla ' + periodo + (data.notas ? ' | ' + data.notas : '');
 
     // Obtener siguiente secuencia de egreso
-    var lastRow = sheetEgr.getLastRow();
-    var seq     = 1;
-    if (lastRow > 2) {
-      var ids = sheetEgr.getRange(3, COL_E.ID, lastRow - 2, 1).getValues();
-      for (var k = ids.length - 1; k >= 0; k--) {
-        var v = String(ids[k][0] || '');
-        if (v.indexOf('EGR-RP-') === 0) {
-          var parts = v.split('-');
-          var n = parseInt(parts[parts.length - 1], 10);
-          if (!isNaN(n)) { seq = n + 1; break; }
-        }
-      }
-    }
+    var seq = _nextEgresoSeq(sheetEgr, year);
 
     var empleados = data.empleados || [];
     var eIds = [];

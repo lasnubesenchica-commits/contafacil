@@ -110,6 +110,31 @@ var COL_E = {
 };
 var EGRESOS_NCOLS = 23;  // v13.1: era 22
 
+// ── Correlativo de egreso ─────────────────────────────────────
+//  Devuelve el siguiente número de secuencia para un egreso del año dado:
+//  escanea TODAS las filas y devuelve (máximo del año) + 1.
+//
+//  Reemplaza el patrón viejo "última fila + 1" (iterar hacia atrás y tomar
+//  el primer EGR-RP- encontrado), que produce IDs DUPLICADOS cuando las filas
+//  no están en orden de secuencia (p.ej. tras anulaciones, ediciones o imports
+//  por lote). Fuente única para todos los generadores de egreso.
+function _nextEgresoSeq(sheetEgr, year) {
+  if (!sheetEgr) return 1;
+  var lastRow = sheetEgr.getLastRow();
+  if (lastRow <= 2) return 1;
+  var ids = sheetEgr.getRange(3, COL_E.ID, lastRow - 2, 1).getValues();
+  var max = 0;
+  for (var k = 0; k < ids.length; k++) {
+    var v = String(ids[k][0] || '');
+    if (v.indexOf('EGR-RP-') !== 0) continue;
+    var parts = v.split('-');
+    var y = parseInt(parts[parts.length - 2], 10);
+    var n = parseInt(parts[parts.length - 1], 10);
+    if (y === year && !isNaN(n) && n > max) max = n;
+  }
+  return max + 1;
+}
+
 // Columnas Compras_Ventas usadas por _handleCorregirComprobante
 var _CC_DRIVE_URL_EMIT = 25;  // col Y — drive_url_emitida (= COL_CV.DRIVE_URL_EMIT)
 var _CC_INGRESO_ID     = 27;  // col AA — ingreso_id (= COL_CV.INGRESO_ID)
@@ -1992,19 +2017,7 @@ function _handleRegistrarEgresoOperativo(params, callback) {
     var fechaGasto = params.fecha || Utilities.formatDate(ahora, 'America/Panama', 'yyyy-MM-dd');
     var year       = new Date(fechaGasto + 'T12:00:00').getFullYear() || ahora.getFullYear();
 
-    var lastRow = sheet.getLastRow();
-    var seq     = 1;
-    if (lastRow > 2) {
-      var ids = sheet.getRange(3, COL_E.ID, lastRow - 2, 1).getValues();
-      for (var k = ids.length - 1; k >= 0; k--) {
-        var v = String(ids[k][0] || '');
-        if (v.indexOf('EGR-RP-') === 0) {
-          var parts = v.split('-');
-          var n     = parseInt(parts[parts.length - 1], 10);
-          if (!isNaN(n)) { seq = n + 1; break; }
-        }
-      }
-    }
+    var seq = _nextEgresoSeq(sheet, year);
     var id = 'EGR-RP-' + year + '-' + String(seq).padStart(4, '0');
 
     var total    = parseFloat(params.total)    || 0;
@@ -2250,17 +2263,7 @@ function _handleMoverAInventario(params, callback) {
 
       var yearEgr = new Date((fechaCompra || ahora.toISOString().slice(0,10)) + 'T12:00:00').getFullYear() || ahora.getFullYear();
 
-      var lastEgr = sheetEgr.getLastRow();
-      var seqEgr  = 1;
-      if (lastEgr > 2) {
-        var idsEgr = sheetEgr.getRange(3, COL_E.ID, lastEgr - 2, 1).getValues();
-        for (var ke = idsEgr.length - 1; ke >= 0; ke--) {
-          var ve     = String(idsEgr[ke][0] || '');
-          var partsE = ve.split('-');
-          var ne     = parseInt(partsE[partsE.length - 1], 10);
-          if (!isNaN(ne)) { seqEgr = ne + 1; break; }
-        }
-      }
+      var seqEgr = _nextEgresoSeq(sheetEgr, yearEgr);
       var egresoId = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
 
       var fechaCompraDate = new Date((fechaCompra || ahora.toISOString().slice(0,10)) + 'T12:00:00');

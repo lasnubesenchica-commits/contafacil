@@ -2040,23 +2040,8 @@ function _insertarEgreso(ss, p) {
   var yearEgr   = isNaN(fechaDate.getTime()) ? p.ahora.getFullYear() : fechaDate.getFullYear();
   var mesEgr    = isNaN(fechaDate.getTime()) ? '' : (fechaDate.getMonth() + 1);
 
-  // Correlativo anual — escanear el MÁXIMO del año (no "última fila + 1", que
-  // genera IDs duplicados si las filas no están en orden de secuencia).
-  var lastRow = sheetEgr.getLastRow();
-  var seqEgr  = 1;
-  if (lastRow > 2) {
-    var idsEgr = sheetEgr.getRange(3, COL_E.ID, lastRow - 2, 1).getValues();
-    var maxE = 0;
-    for (var ke = 0; ke < idsEgr.length; ke++) {
-      var ve = String(idsEgr[ke][0] || '');
-      if (ve.indexOf('EGR-RP-') !== 0) continue;
-      var parts = ve.split('-');
-      var y     = parseInt(parts[parts.length - 2], 10);
-      var n     = parseInt(parts[parts.length - 1], 10);
-      if (y === yearEgr && !isNaN(n) && n > maxE) maxE = n;
-    }
-    seqEgr = maxE + 1;
-  }
+  // Correlativo anual — máximo del año + 1 (ver _nextEgresoSeq en Code.js).
+  var seqEgr   = _nextEgresoSeq(sheetEgr, yearEgr);
   var egresoId = 'EGR-RP-' + yearEgr + '-' + String(seqEgr).padStart(4, '0');
 
   // Guard duplicado (solo si no es inventario)
