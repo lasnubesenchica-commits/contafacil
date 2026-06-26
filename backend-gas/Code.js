@@ -293,6 +293,14 @@ function doPost(e) {
       return _handleParseFacturaEgreso(data);
     }
 
+    // ── ADMIN: importar facturas subidas desde la PC ────────────
+    // Sube N archivos (PDF/XML/JPG) de un ST, los guarda en Drive y los
+    // procesa con el MISMO núcleo del import histórico. Escribe en
+    // CONFIG.SHEET_ID — la misma hoja que lee el dashboard.
+    if (action === 'importarFacturasManual') {
+      return _handleImportarFacturasManual(data);
+    }
+
     // ── ADMIN: analizar comprobante de ingreso con IA ───────────
     // ── SERVICIOS TÉCNICOS ──────────────────────────────────────
     if (action === 'crearCotizacion')        return _handleCrearCotizacion(data);
