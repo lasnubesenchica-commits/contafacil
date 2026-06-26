@@ -293,16 +293,21 @@ function migrarEgresosST() {
 function _nextSTSeq(ss) {
   var sheet   = ss.getSheetByName(SHEET_ST);
   var anio    = new Date().getFullYear();
-  var seq     = 1;
-  if (!sheet || sheet.getLastRow() <= 2) return { anio: anio, seq: seq };
+  if (!sheet || sheet.getLastRow() <= 2) return { anio: anio, seq: 1 };
   var ids = sheet.getRange(3, COL_ST.ID, sheet.getLastRow() - 2, 1).getValues();
-  for (var k = ids.length - 1; k >= 0; k--) {
-    var v     = String(ids[k][0] || '');
-    var parts = v.split('-');
-    var n     = parseInt(parts[parts.length - 1], 10);
-    if (!isNaN(n)) { seq = n + 1; break; }
+  // Escanear TODAS las filas y tomar el MÁXIMO correlativo del año actual.
+  // (Antes tomaba "última fila + 1", lo que generaba IDs DUPLICADOS cuando las
+  // filas no estaban en orden de secuencia — p. ej. por sorts u onEdit. Caso
+  // real: FACT542 recibió ST-RP-2026-0052 que ya tenía FACT541.)
+  var maxN = 0;
+  for (var k = 0; k < ids.length; k++) {
+    var parts = String(ids[k][0] || '').split('-');
+    if (parts.length < 2) continue;
+    var y = parseInt(parts[parts.length - 2], 10);
+    var n = parseInt(parts[parts.length - 1], 10);
+    if (y === anio && !isNaN(n) && n > maxN) maxN = n;
   }
-  return { anio: anio, seq: seq };
+  return { anio: anio, seq: maxN + 1 };
 }
 
 function _calcItemTotals(item) {
