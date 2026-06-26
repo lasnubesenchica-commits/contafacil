@@ -3574,3 +3574,76 @@ function _procesarDesdeBlobs(ss, archivos, mes, contexto) {
   Logger.log('  ✅ ST: ' + idST + ' | ING: ' + idIng + ' | tipo: ' + resultado.tipo_venta);
   return resultado;
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+//  reasignarEgresosFACT542 — corrige los 2 costos de la FACT542
+//  (FRECUENC + REPARACION FREQUENCIMETRO) que aparecen colgados
+//  bajo el detalle de la FACT541.
+//
+//  Causa: cuando la FACT542 se renumeró de ST-RP-2026-0052 a
+//  ST-RP-2026-0053, las filas ST_Items quedaron correctas en 0053,
+//  pero las NOTAS de sus egresos (EGR-RP-2026-0181 y EGR-RP-2026-0212)
+//  siguen diciendo "ST: ST-RP-2026-0052". El detalle de un ST
+//  sintetiza como costos los egresos cuyas notas contienen
+//  "ST: <idST>", asi que estos 2 se muestran bajo la 541 (0052).
+//
+//  Solucion: NO borrarlos (son costos reales de la 542), sino
+//  reescribir sus notas a "ST: ST-RP-2026-0053". Asi desaparecen
+//  del detalle de la 541 y quedan correctamente bajo la 542.
+//
+//  Uso (una sola vez desde el editor de Apps Script):
+//    reasignarEgresosFACT542()
+// ═══════════════════════════════════════════════════════════════
+function reasignarEgresosFACT542() {
+  var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  var sheetEgr = ss.getSheetByName(SHEET_EGRESOS);
+  if (!sheetEgr) throw new Error('Hoja Egresos no encontrada');
+
+  var ST_VIEJO = 'ST-RP-2026-0052';
+  var ST_NUEVO = 'ST-RP-2026-0053';
+  var objetivo = {
+    'EGR-RP-2026-0181': false,  // FRECUENC 45-65HZ
+    'EGR-RP-2026-0212': false,  // REPARACION FREQUENCIMETRO
+  };
+
+  var lastRow = sheetEgr.getLastRow();
+  if (lastRow < 3) { Logger.log('Hoja Egresos vacia'); return { actualizados: 0 }; }
+
+  var numEgr  = lastRow - 2;
+  var idCol   = sheetEgr.getRange(3, COL_E.ID, numEgr, 1).getValues();
+  var cambios = [];
+
+  for (var e = 0; e < idCol.length; e++) {
+    var id = String(idCol[e][0] || '').trim();
+    if (!(id in objetivo)) continue;
+
+    var rowEgr     = e + 3;
+    var celdaNotas = sheetEgr.getRange(rowEgr, COL_E.NOTAS);
+    var notaVieja  = String(celdaNotas.getValue() || '');
+
+    if (notaVieja.indexOf(ST_VIEJO) === -1) {
+      Logger.log('i ' + id + ' no contiene ' + ST_VIEJO + ' -- notas: "' + notaVieja + '"');
+      objetivo[id] = true;
+      continue;
+    }
+
+    var notaNueva = notaVieja.split(ST_VIEJO).join(ST_NUEVO);
+    celdaNotas.setValue(notaNueva);
+    objetivo[id] = true;
+    cambios.push({ id: id, antes: notaVieja, despues: notaNueva });
+    Logger.log('OK ' + id + ' reasignado: "' + notaVieja + '" -> "' + notaNueva + '"');
+  }
+
+  var noEncontrados = Object.keys(objetivo).filter(function (k) { return !objetivo[k]; });
+  if (noEncontrados.length) {
+    Logger.log('! Egresos no encontrados: ' + noEncontrados.join(', '));
+  }
+
+  Logger.log('===========================================');
+  Logger.log('Reasignacion FACT542 completada -- ' + cambios.length + ' egreso(s) actualizado(s)');
+  Logger.log('La 541 ya no debe mostrar FRECUENC ni REPARACION. Refresca el dashboard.');
+  Logger.log('===========================================');
+
+  return { actualizados: cambios.length, cambios: cambios, no_encontrados: noEncontrados };
+}
