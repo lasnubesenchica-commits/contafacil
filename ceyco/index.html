@@ -10694,5 +10694,54 @@ document.getElementById('plEmpIsr').addEventListener('change', function() {
     </div>
   </div>
 
+  <!-- ═══ Importar factura(s) desde la PC — botón autocontenido ═══ -->
+  <button id="btnImportFactura" title="Importar factura(s) y PDFs de un proyecto desde la PC"
+    style="position:fixed;bottom:20px;right:20px;z-index:99999;background:#E65100;color:#fff;border:none;border-radius:28px;padding:.75rem 1.15rem;font-size:.9rem;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28);cursor:pointer;font-family:inherit">
+    📤 Importar factura
+  </button>
+  <input type="file" id="importFacturaInput" multiple
+    accept=".pdf,.xml,.jpg,.jpeg,.png,application/pdf,text/xml,application/xml,image/*"
+    style="display:none">
+  <script>
+  (function(){
+    var btn = document.getElementById('btnImportFactura');
+    var inp = document.getElementById('importFacturaInput');
+    if (!btn || !inp) return;
+    btn.addEventListener('click', function(){ inp.value = ''; inp.click(); });
+    inp.addEventListener('change', async function(){
+      var files = Array.prototype.slice.call(inp.files || []);
+      if (!files.length) return;
+      var etiqueta = (prompt('Etiqueta para este proyecto/factura (ej. FACT542). Opcional:', '') || '').trim();
+      var orig = btn.textContent;
+      btn.disabled = true; btn.textContent = '⏳ Subiendo ' + files.length + ' archivo(s)…';
+      try {
+        var archivos = await Promise.all(files.map(function(f){
+          return new Promise(function(res, rej){
+            var rd = new FileReader();
+            rd.onload  = function(){ res({ name: f.name, mimeType: f.type || 'application/octet-stream', dataB64: String(rd.result) }); };
+            rd.onerror = function(){ rej(new Error('No se pudo leer ' + f.name)); };
+            rd.readAsDataURL(f);
+          });
+        }));
+        btn.textContent = '⏳ Procesando con IA…';
+        var resp = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'importarFacturasManual', etiqueta: etiqueta, archivos: archivos })
+        });
+        var data = await resp.json();
+        if (!data.success) throw new Error(data.error || 'Error al importar');
+        var fact = data.num_factura ? ('FACT ' + String(data.num_factura).replace(/^0+/, '')) : 'Factura';
+        showToast('✅ ' + fact + ' importada — ' + data.id_st + ' · $' + data.total_venta +
+                  (data.items_warning ? (' ⚠️ sin costo: ' + data.items_warning) : ''));
+        setTimeout(function(){ location.reload(); }, 1800);
+      } catch (err) {
+        showToast('⚠️ ' + err.message, true);
+        btn.disabled = false; btn.textContent = orig;
+      }
+    });
+  })();
+  </script>
+
 </body>
 </html>

@@ -2634,6 +2634,86 @@ function importarFACT542() {
   return importarCarpetaPorId('13BDAoF9yRS-XCLcLdZe17jSJriVnFBS-', 'FACT542');
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+//  _handleImportarFacturasManual — endpoint para el botón de subida
+//
+//  Recibe N archivos (base64) desde el dashboard, los guarda en una
+//  carpeta nueva en Drive (bajo VOUCHER_FOLDER_ID) y los procesa con el
+//  MISMO núcleo _procesarCarpetaFactura. Como corre en este script,
+//  escribe en CONFIG.SHEET_ID — exactamente la hoja que lee el dashboard,
+//  así que el desfase de hojas/deployments deja de importar.
+//
+//  payload: { action:'importarFacturasManual', etiqueta?:'FACT542',
+//             archivos:[{ name, mimeType, dataB64 }] }
+// ═══════════════════════════════════════════════════════════════
+function _handleImportarFacturasManual(data) {
+  try {
+    var archivos = (data && (data.archivos || data.files)) || [];
+    if (!archivos.length) return _ihJsonOut({ success: false, error: 'No se recibieron archivos' });
+
+    var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+    // 1. Carpeta destino en Drive (bajo VOUCHER_FOLDER_ID si está configurado)
+    var parent;
+    try {
+      parent = CONFIG.VOUCHER_FOLDER_ID
+        ? DriveApp.getFolderById(CONFIG.VOUCHER_FOLDER_ID)
+        : DriveApp.getRootFolder();
+    } catch (eF) { parent = DriveApp.getRootFolder(); }
+
+    var etiqueta = String((data && data.etiqueta) || '').trim() ||
+      ('Import manual ' + Utilities.formatDate(new Date(), 'America/Panama', 'yyyy-MM-dd HH:mm'));
+    var folder = parent.createFolder(etiqueta);
+
+    // 2. Guardar cada archivo subido como blob
+    var guardados = 0;
+    for (var i = 0; i < archivos.length; i++) {
+      var a   = archivos[i] || {};
+      var b64 = String(a.dataB64 || a.base64 || a.data || '');
+      // Quitar prefijo data URL (data:application/pdf;base64,....)
+      if (b64.lastIndexOf('data:', 0) === 0) {
+        var comma = b64.indexOf(',');
+        if (comma !== -1) b64 = b64.substring(comma + 1);
+      }
+      if (!b64) continue;
+      var bytes  = Utilities.base64Decode(b64);
+      var mime   = a.mimeType || a.type || 'application/octet-stream';
+      var nombre = a.name || ('archivo_' + (i + 1));
+      folder.createFile(Utilities.newBlob(bytes, mime, nombre));
+      guardados++;
+    }
+    if (!guardados) return _ihJsonOut({ success: false, error: 'No se pudo decodificar ningún archivo' });
+
+    // 3. Procesar con el MISMO núcleo del import histórico
+    _initImportLog(ss);
+    var logSheet  = ss.getSheetByName(IH_CONFIG.SHEET_IMPORT_LOG);
+    var resultado = _procesarCarpetaFactura(ss, folder, etiqueta);
+    _registrarLogImport(logSheet, etiqueta, folder.getName(), resultado);
+
+    return _ihJsonOut({
+      success:     resultado.estado !== 'error',
+      estado:      resultado.estado,
+      id_st:       resultado.id_st,
+      num_factura: resultado.num_factura,
+      cliente:     resultado.cliente,
+      total_venta: resultado.total_venta,
+      tipo_venta:  resultado.tipo_venta,
+      items_warning: resultado.items_warning,
+      error:       resultado.error_msg || '',
+      carpeta_url: folder.getUrl(),
+    });
+  } catch (err) {
+    return _ihJsonOut({ success: false, error: String(err && err.message || err) });
+  }
+}
+
+function _ihJsonOut(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function _borrarFilas(sheet, indicesData, dataStart, ejecutar, label, stats) {
   var n = indicesData.length;
   Logger.log('\n[' + label + '] ' + n + ' fila(s) ' + (ejecutar ? 'a borrar' : '(dry run)'));
