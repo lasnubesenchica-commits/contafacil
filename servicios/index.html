@@ -48,12 +48,36 @@ section{padding:3.2rem 0}
 .sec-p{text-align:center;color:var(--ink2);max-width:680px;margin:0 auto 2.2rem;font-weight:500;font-size:1.05rem}
 
 /* problema */
-.prob{background:var(--ink);color:#fff;border-radius:26px;padding:2.6rem 2rem;text-align:center}
-.prob h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:900;letter-spacing:-.02em}
-.prob p{color:#c7c9e8;max-width:620px;margin:.9rem auto 1.6rem;font-weight:500}
-.prob-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;max-width:760px;margin:0 auto}
-.prob-item{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:.9rem;font-weight:700;font-size:.92rem}
-.prob-item b{display:block;font-size:1.4rem;margin-bottom:.2rem}
+/* problema — el "antes": documentos sueltos */
+.prob{background:#fff;border:1px solid var(--border);border-radius:26px;padding:2.2rem;display:grid;grid-template-columns:1.05fr .95fr;gap:2rem;align-items:center;color:var(--ink);text-align:left}
+.prob-copy h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:900;letter-spacing:-.02em;margin:.5rem 0 .6rem}
+.prob-hl{color:var(--orange);white-space:nowrap}
+.prob-copy>p{color:var(--ink2);max-width:520px;margin:0 0 1.3rem;font-weight:500;font-size:1.02rem}
+.prob-list{list-style:none;display:flex;flex-direction:column;gap:.7rem}
+.prob-list li{display:flex;align-items:flex-start;gap:.7rem}
+.prob-list .pi{flex:none;width:38px;height:38px;border-radius:11px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;font-size:1.15rem}
+.prob-list li:nth-child(2) .pi{background:#f1ecfe}
+.prob-list li:nth-child(3) .pi{background:#e6f7f4}
+.prob-list li:nth-child(4) .pi{background:#fee2e2}
+.prob-list b{display:block;font-weight:900;font-size:.98rem;line-height:1.2}
+.prob-list span{font-size:.85rem;color:var(--ink2);font-weight:600}
+/* stage de documentos dispersos */
+.prob-stage{position:relative;min-height:344px;border-radius:18px;background:radial-gradient(120% 120% at 72% 8%,#fff,#f6f2ea);border:1px solid #efe9df;overflow:hidden}
+.prob-stage .pgrid{position:absolute;inset:0;background-image:radial-gradient(rgba(30,27,75,.05) .8px,transparent .8px);background-size:22px 22px}
+.prob-stage svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.prob-stage .tangle{fill:none;stroke:var(--orange);stroke-width:2;stroke-dasharray:5 6;opacity:.55;stroke-linecap:round;animation:pdash 1.4s linear infinite}
+@keyframes pdash{to{stroke-dashoffset:-22}}
+.pdoc{position:absolute;width:132px;background:#fff;border-radius:12px;box-shadow:0 18px 36px -18px rgba(30,27,75,.42);overflow:hidden;z-index:2}
+.pdoc .pbar{height:6px}
+.pdoc .pbody{padding:10px 11px 12px}
+.pdoc .pttl{display:flex;align-items:center;gap:5px;font-weight:800;font-size:11px;color:var(--ink)}
+.pdoc .pln{height:6px;border-radius:3px;background:#ecebf3;margin-top:7px}
+.pdoc-a{--r:-7deg;left:5%;top:11%;transform:rotate(-7deg);animation:pfloat 5.2s ease-in-out infinite}
+.pdoc-b{--r:4deg;left:13%;bottom:7%;transform:rotate(4deg);animation:pfloat 6s ease-in-out infinite .6s}
+.pdoc-c{--r:8deg;right:5%;top:19%;transform:rotate(8deg);animation:pfloat 5.6s ease-in-out infinite 1.1s}
+@keyframes pfloat{0%,100%{transform:translateY(0) rotate(var(--r))}50%{transform:translateY(-6px) rotate(var(--r))}}
+.pbadge{position:absolute;left:46%;top:51%;transform:translate(-50%,-50%) rotate(-3deg);background:#fff;border:1px solid #f5c9c9;color:#c0392b;font-weight:800;font-size:12px;padding:6px 11px;border-radius:100px;box-shadow:0 10px 22px -12px rgba(192,57,43,.5);display:inline-flex;align-items:center;gap:6px;z-index:3;white-space:nowrap}
+@media(max-width:780px){.prob{grid-template-columns:1fr;padding:1.5rem}.prob-stage{min-height:300px}}
 
 /* motor / cómo funciona */
 /* Clipping — definición (banda superior) */
@@ -270,13 +294,27 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 
 <section><div class="wrap">
   <div class="prob">
-    <h2>Tu operación vive en Excel, correo y PDFs</h2>
-    <p>Las facturas llegan por correo, las órdenes en PDF, y alguien las transcribe y vincula a mano en una hoja que solo esa persona entiende. Lento, con errores, y sin saber en tiempo real cómo está el negocio.</p>
-    <div class="prob-grid">
-      <div class="prob-item"><b>🧾</b>Digitación manual</div>
-      <div class="prob-item"><b>🔌</b>Conciliación a mano</div>
-      <div class="prob-item"><b>❓</b>Cero visibilidad</div>
-      <div class="prob-item"><b>📉</b>Errores costosos</div>
+    <div class="prob-copy">
+      <div class="sec-tag" style="text-align:left">El antes</div>
+      <h2>Hoy tus documentos viven <span class="prob-hl">desconectados</span></h2>
+      <p>Las facturas llegan por correo, las órdenes en PDF, y alguien las transcribe y vincula a mano en una hoja de Excel que solo esa persona entiende. Lento, con errores y a ciegas.</p>
+      <ul class="prob-list">
+        <li><span class="pi">🧾</span><div><b>Digitación manual</b><span>Teclear cada documento a mano.</span></div></li>
+        <li><span class="pi">🔌</span><div><b>Conciliación a mano</b><span>Cruzar órdenes y facturas una por una.</span></div></li>
+        <li><span class="pi">❓</span><div><b>Cero visibilidad</b><span>Nunca sabes el número real de hoy.</span></div></li>
+        <li><span class="pi">📉</span><div><b>Errores costosos</b><span>Un dígito mal y se va el margen.</span></div></li>
+      </ul>
+    </div>
+    <div class="prob-stage" aria-hidden="true">
+      <div class="pgrid"></div>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path class="tangle" vector-effect="non-scaling-stroke" d="M18,24 C 35,40 8,56 27,79"></path>
+        <path class="tangle" vector-effect="non-scaling-stroke" d="M27,79 C 52,66 60,15 83,30"></path>
+      </svg>
+      <div class="pdoc pdoc-a"><div class="pbar" style="background:#8b5cf6"></div><div class="pbody"><div class="pttl">📄 Factura.pdf</div><div class="pln" style="width:80%"></div><div class="pln" style="width:60%"></div></div></div>
+      <div class="pdoc pdoc-b"><div class="pbar" style="background:#16a34a"></div><div class="pbody"><div class="pttl">📊 Hoja.xlsx</div><div class="pln" style="width:72%"></div><div class="pln" style="width:88%"></div></div></div>
+      <div class="pdoc pdoc-c"><div class="pbar" style="background:#14b8a6"></div><div class="pbody"><div class="pttl">✉️ Orden · correo</div><div class="pln" style="width:84%"></div><div class="pln" style="width:55%"></div></div></div>
+      <div class="pbadge">✋ vinculado a mano</div>
     </div>
   </div>
 </div></section>
