@@ -7,8 +7,8 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#D04E00">
-<title>BalanceClip — Your invoices, finally connected.</title>
-<meta name="description" content="BalanceClip uses AI to automatically match every purchase invoice to its sale — with full DGI compliance built in.">
+<title>BalanceClip — Your documents, read and connected by AI.</title>
+<meta name="description" content="AI that reads your invoices and documents and connects them — the number that matters, without fragile Excel. BalanceClip Pro (ready-made) or custom systems built around your process. Panama, DGI 2026.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -327,6 +327,18 @@ h1 .accent {
   position: relative; z-index: 2;
 }
 .track-card-pro .hero-card-main { animation-delay: 1.5s; }
+
+/* ── Hero concept demo (el Clipping) ── */
+.hero-demo { margin-top: 2.5rem; text-align: center; }
+.hero-demo-cap { max-width: 540px; margin: 1.4rem auto 0; font-size: 1.02rem; color: var(--ink2); font-weight: 600; line-height: 1.5; }
+.hero-demo-cap strong { color: var(--orange); }
+
+/* ── Dos caminos (router) ── */
+.doors-section { padding: 3rem 2rem 1rem; }
+.doors-inner { max-width: 1100px; margin: 0 auto; text-align: center; }
+.doors-h { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 900; letter-spacing: -0.02em; color: var(--ink); }
+.doors-sub { color: var(--ink2); font-weight: 600; margin: 0.55rem auto 0; max-width: 620px; }
+.doors-section .track-grid { text-align: left; margin-top: 2rem; }
 
 .card-header {
   display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem;
@@ -849,17 +861,18 @@ body:not(.es) .es { display: none !important; }
     Balance<span class="logo-clip">Clip</span>
   </a>
   <ul class="nav-links">
-    <li><a href="/trade"><span class="en">Trade</span><span class="es">Trade</span></a></li>
+    <li><a href="#clipping"><span class="en">The Clipping</span><span class="es">El Clipping</span></a></li>
     <li><a href="/pro"><span class="en">Pro</span><span class="es">Pro</span></a></li>
+    <li><a href="/servicios"><span class="en">Custom</span><span class="es">A medida</span></a></li>
   </ul>
   <div class="nav-right">
     <button class="lang-btn active" onclick="setLang('en')" id="btn-en">EN</button>
     <button class="lang-btn" onclick="setLang('es')" id="btn-es">ES</button>
-    <a href="mailto:hello@balanceclip.net" class="btn-signin">
+    <a href="mailto:josh@balanceclip.net" class="btn-signin">
       <span class="en">Sign In</span><span class="es">Ingresar</span>
     </a>
-    <a href="https://wa.me/50760188276?text=demo" target="_blank" rel="noopener" class="btn-cta">
-      <span class="en">🎁 Try 7 days free →</span><span class="es">🎁 Probar 7 días gratis →</span>
+    <a href="https://wa.me/50760188276?text=Hola%2C%20quiero%20saber%20m%C3%A1s%20de%20BalanceClip" target="_blank" rel="noopener" class="btn-cta">
+      <span class="en">💬 Let's talk →</span><span class="es">💬 Hablemos →</span>
     </a>
   </div>
 </nav>
@@ -874,182 +887,139 @@ body:not(.es) .es { display: none !important; }
         🇵🇦 <span class="en">Panama Native · DGI 2026 Ready</span>
              <span class="es">Hecho para Panamá · DGI 2026</span>
       </div>
-      <div class="hero-trial-badge">
-        🎁 <span class="en">Pro: 7-day free trial · No credit card · Sign up by WhatsApp</span>
-             <span class="es">Pro: 7 días gratis · Sin tarjeta · Registro por WhatsApp</span>
-      </div>
       <h1>
-        <span class="en">Your books,<br><span class="accent">finally closed.</span></span>
-        <span class="es">Tu contabilidad,<br><span class="accent">finalmente cerrada.</span></span>
+        <span class="en">Your documents,<br><span class="accent">read and connected by AI.</span></span>
+        <span class="es">Tus documentos contables,<br><span class="accent">leídos y conectados por IA.</span></span>
       </h1>
       <p class="hero-sub">
-        <span class="en">Zero manual entry. DGI-native. Two products, one promise — pick yours below.</span>
-        <span class="es">Cero entrada manual. DGI nativo. Dos productos, una promesa — elige el tuyo abajo.</span>
+        <span class="en">We read your invoices and documents with AI and <strong>connect them on their own</strong> — the number that matters, without fragile Excel. Two ways to get it: ready-made (<strong>Pro</strong>) or <strong>custom</strong>.</span>
+        <span class="es">Leemos tus facturas y documentos con IA y los <strong>conectamos solos</strong> — el número que importa, sin Excel frágil. Dos formas de tenerlo: listo para usar (<strong>Pro</strong>) o <strong>a medida</strong>.</span>
       </p>
     </div>
 
-    <!-- TRACK GRID -->
+    <!-- EL CLIPPING — demo del concepto -->
+    <div class="hero-demo" id="clipping">
+      <div class="hero-card-main">
+        <div class="card-header">
+          <div class="card-icon">📎</div>
+          <div>
+            <div class="card-title">BalanceClip AI</div>
+            <div class="card-sub"><span class="en">Connecting documents...</span><span class="es">Conectando documentos...</span></div>
+          </div>
+        </div>
+        <div class="clip-animation">
+          <div class="invoice-row matched">
+            <div class="inv-left">
+              <span class="inv-dot inv-dot-buy"></span>
+              <div>
+                <div class="inv-label">EMPRESAS CARBONE, S.A.</div>
+                <div class="inv-sub"><span class="en">Purchase</span><span class="es">Compra</span> · FACT-2024-001</div>
+              </div>
+            </div>
+            <div class="inv-amount">$4,250.00</div>
+          </div>
+          <div class="clip-connector">
+            <div class="clip-line"></div>
+            <div class="clip-badge">✦ AI Clip</div>
+            <div class="clip-line"></div>
+          </div>
+          <div class="invoice-row matched">
+            <div class="inv-left">
+              <span class="inv-dot inv-dot-sell"></span>
+              <div>
+                <div class="inv-label">Mi Empresa, S.A.</div>
+                <div class="inv-sub"><span class="en">Sale</span><span class="es">Venta</span> · FACT-2024-089</div>
+              </div>
+            </div>
+            <div class="inv-amount">$6,800.00</div>
+          </div>
+        </div>
+        <div class="card-stats">
+          <div class="mini-stat">
+            <div class="mini-num">$2,550</div>
+            <div class="mini-label"><span class="en">Margin</span><span class="es">Margen</span></div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-num">37.5%</div>
+            <div class="mini-label">ITBMS OK</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-num">✓</div>
+            <div class="mini-label">DGI</div>
+          </div>
+        </div>
+      </div>
+      <p class="hero-demo-cap">
+        <span class="en">This is <strong>Clipping</strong>: AI takes both sides of a transaction and connects them — purchase ↔ sale, order ↔ invoice — and gives you the number that matters.</span>
+        <span class="es">Esto es <strong>Clipping</strong>: la IA toma los dos lados de una transacción y los conecta — compra ↔ venta, orden ↔ factura — y te da el número que importa.</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- DOS CAMINOS (router) -->
+<section class="doors-section" id="caminos">
+  <div class="doors-inner">
+    <h2 class="doors-h">
+      <span class="en">One engine. Two ways to get it.</span>
+      <span class="es">Un mismo motor. Dos formas de tenerlo.</span>
+    </h2>
+    <p class="doors-sub">
+      <span class="en">Your case is already solved — or we build the system around your process.</span>
+      <span class="es">Tu caso ya está resuelto — o construimos el sistema alrededor de tu proceso.</span>
+    </p>
     <div class="track-grid">
 
-      <!-- TRADE TRACK (Track 02 — sale después de Pro) -->
-      <a href="/trade" class="track-card track-card-trade track-card-second">
-        <span class="track-pill-card">📦 Track 02 · Trade</span>
-        <h2 class="track-card-h">
-          <span class="en">I buy and sell products</span>
-          <span class="es">Compro y vendo productos</span>
-        </h2>
+      <!-- PRO -->
+      <a href="/pro" class="track-card track-card-pro track-card-first">
+        <span class="track-pill-card">💼 <span class="en">Product · BalanceClip Pro</span><span class="es">Producto · BalanceClip Pro</span></span>
+        <h3 class="track-card-h">
+          <span class="en">Your case is already solved</span>
+          <span class="es">Tu caso ya está resuelto</span>
+        </h3>
         <p class="track-card-sub">
-          <span class="en">Retail, wholesale, distribution, contractors.</span>
-          <span class="es">Al detal, por mayor, distribución, contratistas.</span>
+          <span class="en">For professionals who bill for their time or services. DGI-native, capture by WhatsApp &amp; Gmail, year-end report ready.</span>
+          <span class="es">Para quien factura su tiempo o servicios. DGI nativo, captura por WhatsApp y Gmail, cierre anual listo.</span>
         </p>
-
-        <div class="hero-card-main">
-          <div class="card-header">
-            <div class="card-icon">📎</div>
-            <div>
-              <div class="card-title">BalanceClip AI</div>
-              <div class="card-sub"><span class="en">Matching invoices...</span><span class="es">Cruzando facturas...</span></div>
-            </div>
-          </div>
-          <div class="clip-animation">
-            <div class="invoice-row matched">
-              <div class="inv-left">
-                <span class="inv-dot inv-dot-buy"></span>
-                <div>
-                  <div class="inv-label">EMPRESAS CARBONE, S.A.</div>
-                  <div class="inv-sub"><span class="en">Purchase</span><span class="es">Compra</span> · FACT-2024-001</div>
-                </div>
-              </div>
-              <div class="inv-amount">$4,250.00</div>
-            </div>
-            <div class="clip-connector">
-              <div class="clip-line"></div>
-              <div class="clip-badge">✦ AI Clip</div>
-              <div class="clip-line"></div>
-            </div>
-            <div class="invoice-row matched">
-              <div class="inv-left">
-                <span class="inv-dot inv-dot-sell"></span>
-                <div>
-                  <div class="inv-label">Mi Empresa, S.A.</div>
-                  <div class="inv-sub"><span class="en">Sale</span><span class="es">Venta</span> · FACT-2024-089</div>
-                </div>
-              </div>
-              <div class="inv-amount">$6,800.00</div>
-            </div>
-          </div>
-          <div class="card-stats">
-            <div class="mini-stat">
-              <div class="mini-num">$2,550</div>
-              <div class="mini-label"><span class="en">Margin</span><span class="es">Margen</span></div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-num">37.5%</div>
-              <div class="mini-label">ITBMS OK</div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-num">✓</div>
-              <div class="mini-label">DGI</div>
-            </div>
-          </div>
-        </div>
-
         <ul class="track-benefits">
-          <li><span class="en">AI clips each purchase to its sale</span><span class="es">La IA cruza cada compra con su venta</span></li>
-          <li><span class="en">Real-time P&amp;L, COGS &amp; AR</span><span class="es">P&amp;L, costo de ventas y CxC en tiempo real</span></li>
-          <li><span class="en">Multi-client dashboard for CPAs</span><span class="es">Panel multi-cliente para contadores</span></li>
+          <li><span class="en">AI reads &amp; categorizes your invoices</span><span class="es">La IA lee y categoriza tus facturas</span></li>
+          <li><span class="en">DGI 2026 ready · ITBMS, e-Tax 2.0</span><span class="es">Listo para DGI 2026 · ITBMS, e-Tax 2.0</span></li>
+          <li><span class="en">Year-end report for your accountant</span><span class="es">Cierre anual listo para tu contable</span></li>
         </ul>
-
         <div class="track-price">
           <span class="track-price-label"><span class="en">From</span><span class="es">Desde</span></span>
-          <span class="track-price-num">$149</span>
+          <span class="track-price-num">$9</span>
           <span class="track-price-per">/mes</span>
         </div>
-        <div class="track-onboard-pill">📞 <span class="en">Custom onboarding · talk to sales</span><span class="es">Onboarding personalizado · contacta ventas</span></div>
-
+        <div class="track-onboard-pill">💬 <span class="en">We set it up with you · message me</span><span class="es">Te acompañamos · escríbeme</span></div>
         <span class="track-cta-btn">
-          <span class="en">See BalanceClip Trade →</span><span class="es">Ver BalanceClip Trade →</span>
+          <span class="en">Discover Pro →</span><span class="es">Conoce Pro →</span>
         </span>
       </a>
 
-      <!-- PRO TRACK (Track 01 — sale primero) -->
-      <a href="/pro" class="track-card track-card-pro track-card-first">
-        <span class="track-pill-card">💼 Track 01 · Pro</span>
-        <h2 class="track-card-h">
-          <span class="en">I bill for my time or services</span>
-          <span class="es">Cobro por mi tiempo o servicios</span>
-        </h2>
+      <!-- A MEDIDA / CUSTOM -->
+      <a href="/servicios" class="track-card track-card-trade track-card-second">
+        <span class="track-pill-card">🛠️ <span class="en">Custom · Made to measure</span><span class="es">A medida · Custom</span></span>
+        <h3 class="track-card-h">
+          <span class="en">Your process is unique</span>
+          <span class="es">Tu proceso es único</span>
+        </h3>
         <p class="track-card-sub">
-          <span class="en">Consultants, service providers, salaried professionals.</span>
-          <span class="es">Consultores, prestadores de servicios, asalariados.</span>
+          <span class="en">Buy↔sell margins, projects, accounts receivable, bookings… We build the system around your rules, in weeks.</span>
+          <span class="es">Compra↔venta, proyectos, cuentas por cobrar, reservas… Construimos el sistema con tus reglas, en semanas.</span>
         </p>
-
-        <div class="hero-card-main">
-          <div class="card-header">
-            <div class="card-icon">📎</div>
-            <div>
-              <div class="card-title">BalanceClip AI</div>
-              <div class="card-sub"><span class="en">Capturing deductibles...</span><span class="es">Capturando deducibles...</span></div>
-            </div>
-          </div>
-          <div class="clip-animation">
-            <div class="invoice-row matched">
-              <div class="inv-left">
-                <span class="inv-dot inv-dot-buy"></span>
-                <div>
-                  <div class="inv-label">Farmacias Arrocha, S.A.</div>
-                  <div class="inv-sub">📨 <span class="en">Gmail</span><span class="es">Gmail</span> · <span class="en">Medical</span><span class="es">Gastos Médicos</span></div>
-                </div>
-              </div>
-              <div class="inv-amount">$59.99</div>
-            </div>
-            <div class="clip-connector">
-              <div class="clip-line"></div>
-              <div class="clip-badge">✦ <span class="en">Auto-tagged</span><span class="es">Auto-clasificado</span></div>
-              <div class="clip-line"></div>
-            </div>
-            <div class="invoice-row matched">
-              <div class="inv-left">
-                <span class="inv-dot inv-dot-sell"></span>
-                <div>
-                  <div class="inv-label"><span class="en">Gas Station Delta</span><span class="es">Gasolinera Delta</span></div>
-                  <div class="inv-sub">📲 <span class="en">WhatsApp</span><span class="es">WhatsApp</span> · <span class="en">Fuel</span><span class="es">Combustible</span></div>
-                </div>
-              </div>
-              <div class="inv-amount">$42.50</div>
-            </div>
-          </div>
-          <div class="card-stats">
-            <div class="mini-stat">
-              <div class="mini-num">$1,250</div>
-              <div class="mini-label"><span class="en">Deductibles</span><span class="es">Deducibles</span></div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-num">18</div>
-              <div class="mini-label"><span class="en">Categories</span><span class="es">Rubros</span></div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-num">✓</div>
-              <div class="mini-label">DGI</div>
-            </div>
-          </div>
-        </div>
-
         <ul class="track-benefits">
-          <li><span class="en">Send invoices straight from WhatsApp — AI reads &amp; categorizes in seconds</span><span class="es">Envía facturas directo por WhatsApp — la IA las lee y categoriza en segundos</span></li>
-          <li><span class="en">Gmail invoices captured every 15 min</span><span class="es">Facturas de Gmail capturadas cada 15 min</span></li>
-          <li><span class="en">Year-end report ready for your accountant</span><span class="es">Cierre anual listo para tu contable</span></li>
+          <li><span class="en">Same AI engine — the Clipping</span><span class="es">El mismo motor de IA — el Clipping</span></li>
+          <li><span class="en">Real cases: Seppelec, Círculo, Contec, Las Nubes</span><span class="es">Casos reales: Seppelec, Círculo, Contec, Las Nubes</span></li>
+          <li><span class="en">Built to your rules, live in weeks</span><span class="es">A tus reglas, funcionando en semanas</span></li>
         </ul>
-
         <div class="track-price">
-          <span class="track-price-label"><span class="en">From</span><span class="es">Desde</span></span>
-          <span class="track-price-num">$19</span>
-          <span class="track-price-per">/mes</span>
+          <span class="track-price-label"><span class="en">By project</span><span class="es">Por proyecto</span></span>
+          <span class="track-price-num"><span class="en">Let's talk</span><span class="es">Hablemos</span></span>
         </div>
-        <div class="track-trial-pill">🎁 <span class="en">7-day free trial</span><span class="es">7 días gratis</span></div>
-
+        <div class="track-onboard-pill">📞 <span class="en">Tell me your flow</span><span class="es">Cuéntame tu flujo</span></div>
         <span class="track-cta-btn">
-          <span class="en">See BalanceClip Pro →</span><span class="es">Ver BalanceClip Pro →</span>
+          <span class="en">See real cases →</span><span class="es">Ver casos reales →</span>
         </span>
       </a>
 
@@ -1089,8 +1059,8 @@ body:not(.es) .es { display: none !important; }
         <span class="es">Hecho para Panamá. <span class="accent-orange">Listo para 2026.</span></span>
       </h2>
       <p>
-        <span class="en">Starting January 2026, DGI capped the free invoicer at <strong>B/.36,000/year</strong>. Growing businesses and professionals need an authorized provider — one that handles ITBMS, e-Tax 2.0 and RUC/DV out of the box. Both Trade and Pro run on the same DGI-native rails.</span>
-        <span class="es">Desde enero 2026, la DGI limitó el facturador gratuito a <strong>B/.36,000 al año</strong>. Si tu negocio o tu práctica crece, necesitas un proveedor autorizado — y uno que maneje ITBMS, e-Tax 2.0 y RUC/DV de fábrica. Trade y Pro corren sobre los mismos rieles DGI nativos.</span>
+        <span class="en">Starting January 2026, DGI capped the free invoicer at <strong>B/.36,000/year</strong>. Growing businesses and professionals need an authorized provider — one that handles ITBMS, e-Tax 2.0 and RUC/DV out of the box. BalanceClip Pro runs on DGI-native rails — and so do the custom systems we build.</span>
+        <span class="es">Desde enero 2026, la DGI limitó el facturador gratuito a <strong>B/.36,000 al año</strong>. Si tu negocio o tu práctica crece, necesitas un proveedor autorizado — y uno que maneje ITBMS, e-Tax 2.0 y RUC/DV de fábrica. BalanceClip Pro corre sobre rieles DGI nativos — y los sistemas a medida que construimos, también.</span>
       </p>
     </div>
     <div class="panama-chips">
@@ -1130,54 +1100,54 @@ body:not(.es) .es { display: none !important; }
   <div class="cta-decor2"></div>
   <div class="cta-inner">
     <h2>
-      <span class="en">Two products, two ways to start.</span>
-      <span class="es">Dos productos, dos caminos para empezar.</span>
+      <span class="en">Ready when you are.</span>
+      <span class="es">Cuando quieras, hablamos.</span>
     </h2>
     <p>
-      <span class="en">Pick the path that fits you. Pro is self-service via WhatsApp; Trade is set up with our team.</span>
-      <span class="es">Elige el camino que te calce. Pro es self-service por WhatsApp; Trade lo configuramos junto a nuestro equipo.</span>
+      <span class="en">Pick your path — both start with a quick message on WhatsApp.</span>
+      <span class="es">Elige tu camino — los dos empiezan con un mensaje por WhatsApp.</span>
     </p>
 
     <div class="cta-grid">
-      <!-- Pro: trial por WhatsApp -->
+      <!-- Pro: contacto por WhatsApp -->
       <div class="cta-card cta-card-pro">
-        <div class="cta-card-pill">🎁 <span class="en">Pro · 7 days free</span><span class="es">Pro · 7 días gratis</span></div>
+        <div class="cta-card-pill">💼 <span class="en">Pro · from $9/mo</span><span class="es">Pro · desde $9/mes</span></div>
         <div class="cta-card-h">
-          <span class="en">Free trial by WhatsApp</span>
-          <span class="es">Prueba gratuita por WhatsApp</span>
+          <span class="en">Get BalanceClip Pro</span>
+          <span class="es">Quiero BalanceClip Pro</span>
         </div>
         <div class="cta-card-sub">
-          <span class="en">Our bot guides you through 5 quick questions. Your account is ready in ~1h and you start sending invoices the same day.</span>
-          <span class="es">El bot te guía con 5 preguntas rápidas. Tu cuenta queda lista en ~1h y empiezas a mandar facturas el mismo día.</span>
+          <span class="en">Tell me how you bill and I'll get your account ready — capture by WhatsApp &amp; Gmail, DGI-native, year-end report included.</span>
+          <span class="es">Cuéntame cómo facturas y te dejo la cuenta lista — captura por WhatsApp y Gmail, DGI nativo, cierre anual incluido.</span>
         </div>
-        <a href="https://wa.me/50760188276?text=demo" target="_blank" rel="noopener" class="btn-whatsapp">
+        <a href="https://wa.me/50760188276?text=Hola%2C%20quiero%20BalanceClip%20Pro" target="_blank" rel="noopener" class="btn-whatsapp">
           <span>💬</span>
-          <span class="en">Start Pro trial on WhatsApp</span>
-          <span class="es">Probar Pro por WhatsApp</span>
+          <span class="en">Message me about Pro</span>
+          <span class="es">Escríbeme sobre Pro</span>
         </a>
         <div class="cta-card-fine">
-          <span class="en">No credit card · Cancel anytime</span>
-          <span class="es">Sin tarjeta · Cancelas cuando quieras</span>
+          <span class="en">From $9/mo · josh@balanceclip.net</span>
+          <span class="es">Desde $9/mes · josh@balanceclip.net</span>
         </div>
       </div>
 
-      <!-- Trade: contacto con ventas -->
+      <!-- A medida: contacto por WhatsApp -->
       <div class="cta-card cta-card-trade">
-        <div class="cta-card-pill cta-card-pill-trade">📞 <span class="en">Trade · Custom onboarding</span><span class="es">Trade · Onboarding personalizado</span></div>
+        <div class="cta-card-pill cta-card-pill-trade">🛠️ <span class="en">Custom · made to measure</span><span class="es">A medida · custom</span></div>
         <div class="cta-card-h">
-          <span class="en">Talk to our team</span>
-          <span class="es">Habla con nuestro equipo</span>
+          <span class="en">Build my system</span>
+          <span class="es">Construir mi sistema</span>
         </div>
         <div class="cta-card-sub">
-          <span class="en">Trade involves wiring purchases to sales, multi-client books and bespoke reports. We set it up with you — call, video or in person.</span>
-          <span class="es">Trade cruza compras con ventas, libros multi-cliente y reportes a medida. Lo configuramos con tú — llamada, video o presencial.</span>
+          <span class="en">Tell me the document flow you wire by hand today. I'll tell you if it can be automated and what it would look like.</span>
+          <span class="es">Cuéntame ese flujo de documentos que hoy vinculas a mano. Te digo si se puede automatizar y cómo se vería.</span>
         </div>
-        <a href="mailto:hello@balanceclip.net" class="btn-hero-primary">
-          <span class="en">✉️ Email sales</span><span class="es">✉️ Escribir a ventas</span>
+        <a href="https://wa.me/50769812266?text=Hola%2C%20quiero%20un%20sistema%20a%20medida" target="_blank" rel="noopener" class="btn-hero-primary">
+          <span class="en">💬 Message me about Custom</span><span class="es">💬 Escríbeme sobre A medida</span>
         </a>
         <div class="cta-card-fine">
-          <span class="en">From $149/mo · Panama-based support</span>
-          <span class="es">Desde $149/mes · Soporte en Panamá</span>
+          <span class="en">By project · josh@balanceclip.net</span>
+          <span class="es">Por proyecto · josh@balanceclip.net</span>
         </div>
       </div>
     </div>
