@@ -89,8 +89,12 @@ body:not(.es) .es { display: none !important; }
 
 /* RESPONSIVE BASE */
 @media (max-width: 900px) {
-  nav { padding: 1rem 1.5rem; }
+  nav { padding: 0.85rem 1.25rem; gap: 10px; }
   .nav-links { display: none; }
+  .nav-right .btn-signin, .nav-right .btn-cta { display: none; }
+  .logo { font-size: 1.2rem; gap: 8px; }
+  .logo-icon { width: 32px; height: 32px; font-size: 16px; }
+  .nav-right { gap: 8px; }
   .hero { padding: 7rem 1.5rem 4rem; }
   .section { padding: 3.5rem 1.5rem; }
   footer { flex-direction: column; gap: 6px; }
@@ -223,7 +227,9 @@ body:not(.es) .es { display: none !important; }
 .price-cta-fill { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%); color: var(--white); box-shadow: 0 4px 14px rgba(59,130,246,0.35); }
 .price-cta-fill:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(59,130,246,0.45); }
 .price-note { font-size: 13px; color: var(--ink3); font-weight: 600; margin-top: 1.5rem; text-align: center; }
+.pricing-grid.two { grid-template-columns: repeat(2, 1fr); max-width: 800px; margin-left: auto; margin-right: auto; }
 @media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .pricing-grid.two { grid-template-columns: 1fr; } }
 
 /* FAQ */
 .faq-list { display: flex; flex-direction: column; gap: 12px; max-width: 820px; margin: 2rem auto 0; }
@@ -254,14 +260,13 @@ body:not(.es) .es { display: none !important; }
     Balance<span class="logo-clip">Clip</span>
   </a>
   <ul class="nav-links">
-    <li><a href="/trade">Trade</a></li>
+    <li><a href="/"><span class="en">Home</span><span class="es">Inicio</span></a></li>
     <li><a href="/pro" class="active">Pro</a></li>
-    <li><a href="/#how"><span class="en">How It Works</span><span class="es">Cómo Funciona</span></a></li>
   </ul>
   <div class="nav-right">
     <button class="lang-btn active" onclick="setLang('en')" id="btn-en">EN</button>
     <button class="lang-btn" onclick="setLang('es')" id="btn-es">ES</button>
-    <a href="mailto:hello@balanceclip.net?subject=BalanceClip%20Pro" class="btn-signin">
+    <a href="mailto:josh@balanceclip.net?subject=BalanceClip%20Pro" class="btn-signin">
       <span class="en">Sign In</span><span class="es">Ingresar</span>
     </a>
     <a href="#contact" class="btn-cta">
@@ -277,7 +282,7 @@ body:not(.es) .es { display: none !important; }
     <div class="crumb">
       <a href="/">BalanceClip</a> <span class="sep">›</span> <span class="current">Pro</span>
     </div>
-    <span class="hero-pill">💼 Track 01 · Pro</span>
+    <span class="hero-pill">💼 BalanceClip Pro</span>
     <h1>
       <span class="en">If you bill for your time, <span class="accent">stop overpaying renta.</span></span>
       <span class="es">Si cobras por tu tiempo, <span class="accent">deja de pagar renta de más.</span></span>
@@ -501,71 +506,52 @@ body:not(.es) .es { display: none !important; }
 <section class="section section-alt" id="pricing">
   <div class="section-inner">
     <span class="section-tag"><span class="en">Pricing</span><span class="es">Precios</span></span>
-    <h2><span class="en">Plain pricing. No per-invoice surprises.</span><span class="es">Precios planos. Sin sorpresas por uso.</span></h2>
+    <h2><span class="en">One simple plan.</span><span class="es">Un plan simple.</span></h2>
     <p class="section-desc">
-      <span class="en">Pick a plan based on monthly invoice volume. Upgrade or downgrade anytime. Setup fee $99 — waived during launch.</span>
-      <span class="es">Elige el plan según tu volumen mensual de facturas. Cambias de plan cuando quieras. Setup $99 — gratis durante el lanzamiento.</span>
+      <span class="en">Everything a professional needs, one price. Need more invoice-processing capacity or several companies? Just message me.</span>
+      <span class="es">Todo lo que un profesional necesita, un solo precio. ¿Necesitas más capacidad de procesamiento o varias empresas? Escríbeme.</span>
     </p>
 
-    <div class="pricing-grid">
-
-      <div class="price-card">
-        <div class="price-name">Solo</div>
-        <div class="price-amount"><span class="price-cur">$</span>19<span class="price-per">/mes</span></div>
-        <div class="price-tag"><span class="en">For freelancers &amp; consultants</span><span class="es">Para freelancers y consultores</span></div>
-        <ul class="price-list">
-          <li><span class="en">Up to 50 invoices/month</span><span class="es">Hasta 50 facturas/mes</span></li>
-          <li><span class="en">1 user</span><span class="es">1 usuario</span></li>
-          <li><span class="en">Auto-capture from Gmail</span><span class="es">Captura automática desde Gmail</span></li>
-          <li><span class="en">DGI categories &amp; ITBMS report</span><span class="es">Categorías DGI y reporte ITBMS</span></li>
-          <li><span class="en">Annual fiscal close (Cierre Anual)</span><span class="es">Cierre Anual fiscal</span></li>
-          <li><span class="en">WhatsApp support</span><span class="es">Soporte por WhatsApp</span></li>
-        </ul>
-        <a href="https://wa.me/50760188276?text=Hola%2C%20quiero%20activar%20BalanceClip%20Pro%20Solo" target="_blank" rel="noopener" class="price-cta price-cta-outline">
-          <span class="en">Start with Solo</span><span class="es">Empezar con Solo</span>
-        </a>
-      </div>
+    <div class="pricing-grid two">
 
       <div class="price-card featured">
-        <div class="price-badge"><span class="en">Most popular</span><span class="es">Más popular</span></div>
+        <div class="price-badge"><span class="en">Simple &amp; complete</span><span class="es">Simple y completo</span></div>
         <div class="price-name">Pro</div>
-        <div class="price-amount"><span class="price-cur">$</span>45<span class="price-per">/mes</span></div>
-        <div class="price-tag"><span class="en">For SMBs and active practices</span><span class="es">Para PYMEs y oficinas activas</span></div>
+        <div class="price-amount"><span class="price-cur">$</span>9<span class="price-per">/mes</span></div>
+        <div class="price-tag"><span class="en">For professionals who bill their time or services</span><span class="es">Para profesionales que facturan su tiempo o servicios</span></div>
         <ul class="price-list">
-          <li><span class="en">Up to 200 invoices/month</span><span class="es">Hasta 200 facturas/mes</span></li>
-          <li><span class="en">Up to 3 users</span><span class="es">Hasta 3 usuarios</span></li>
-          <li><span class="en">Everything in Solo</span><span class="es">Todo lo de Solo</span></li>
-          <li><span class="en">Email reports to your CPA</span><span class="es">Envío de reportes a tu CPA por email</span></li>
-          <li><span class="en">Bulk invoice classification</span><span class="es">Reclasificación de facturas en bulk</span></li>
-          <li><span class="en">Priority WhatsApp support</span><span class="es">Soporte WhatsApp prioritario</span></li>
+          <li><span class="en">Send invoices by WhatsApp — AI reads &amp; categorizes</span><span class="es">Envía facturas por WhatsApp — la IA las lee y clasifica</span></li>
+          <li><span class="en">Auto-capture from Gmail</span><span class="es">Captura automática desde Gmail</span></li>
+          <li><span class="en">DGI categories &amp; monthly ITBMS</span><span class="es">Categorías DGI e ITBMS mensual</span></li>
+          <li><span class="en">Annual fiscal close, ready for your accountant</span><span class="es">Cierre anual fiscal, listo para tu contable</span></li>
+          <li><span class="en">Read-only access for your accountant</span><span class="es">Acceso de solo lectura para tu contador</span></li>
+          <li><span class="en">WhatsApp support</span><span class="es">Soporte por WhatsApp</span></li>
         </ul>
         <a href="https://wa.me/50760188276?text=Hola%2C%20quiero%20activar%20BalanceClip%20Pro" target="_blank" rel="noopener" class="price-cta price-cta-fill">
-          <span class="en">Start with Pro</span><span class="es">Empezar con Pro</span>
+          <span class="en">Start — message me on WhatsApp</span><span class="es">Empezar — escríbeme por WhatsApp</span>
         </a>
       </div>
 
       <div class="price-card">
-        <div class="price-name">Custom</div>
-        <div class="price-amount" style="font-size:1.6rem;line-height:1.1;padding-top:.6rem"><span class="en">Let's talk</span><span class="es">Hablemos</span></div>
-        <div class="price-tag"><span class="en">For higher volume or multiple companies</span><span class="es">Para más volumen o varias empresas</span></div>
+        <div class="price-name"><span class="en">More capacity</span><span class="es">Más capacidad</span></div>
+        <div class="price-amount" style="font-size:1.8rem;line-height:1.1;padding-top:.5rem"><span class="en">Let's talk</span><span class="es">Hablemos</span></div>
+        <div class="price-tag"><span class="en">More invoice volume, several companies or your own rules</span><span class="es">Más volumen de facturas, varias empresas o reglas propias</span></div>
         <ul class="price-list">
-          <li><span class="en">200+ invoices/month</span><span class="es">Más de 200 facturas/mes</span></li>
-          <li><span class="en">Unlimited users</span><span class="es">Usuarios ilimitados</span></li>
-          <li><span class="en">Everything in Pro</span><span class="es">Todo lo de Pro</span></li>
-          <li><span class="en">Multi-RUC / multi-empresa</span><span class="es">Multi-RUC / multi-empresa</span></li>
+          <li><span class="en">Higher invoice-processing capacity</span><span class="es">Mayor capacidad de procesamiento de facturas</span></li>
+          <li><span class="en">Multi-RUC / several companies</span><span class="es">Multi-RUC / varias empresas</span></li>
+          <li><span class="en">Additional users</span><span class="es">Usuarios adicionales</span></li>
           <li><span class="en">Dedicated onboarding</span><span class="es">Onboarding dedicado</span></li>
-          <li><span class="en">SLA on response time</span><span class="es">SLA en tiempo de respuesta</span></li>
         </ul>
-        <a href="https://wa.me/50760188276?text=Hola%2C%20quiero%20una%20cotizaci%C3%B3n%20de%20BalanceClip%20Pro%20Custom" target="_blank" rel="noopener" class="price-cta price-cta-outline">
-          <span class="en">Get a quote</span><span class="es">Cotizar</span>
+        <a href="https://wa.me/50760188276?text=Hola%2C%20necesito%20m%C3%A1s%20capacidad%20en%20BalanceClip%20Pro" target="_blank" rel="noopener" class="price-cta price-cta-outline">
+          <span class="en">Message me</span><span class="es">Escríbeme</span>
         </a>
       </div>
 
     </div>
 
     <p class="price-note">
-      <span class="en">Prices in USD · billed monthly · cancel anytime · setup fee $99 (waived during launch)</span>
-      <span class="es">Precios en USD · facturado mensual · cancelas cuando quieras · setup $99 (gratis en lanzamiento)</span>
+      <span class="en">In USD · billed monthly · cancel anytime · no setup fee. Need a full system built around your process? <a href="/" style="color:var(--blue);font-weight:800;text-decoration:none">See custom systems →</a></span>
+      <span class="es">En USD · facturado mensual · cancelas cuando quieras · sin costo de setup. ¿Quieres un sistema completo a la medida de tu proceso? <a href="/" style="color:var(--blue);font-weight:800;text-decoration:none">Mira los sistemas a medida →</a></span>
     </p>
   </div>
 </section>
@@ -577,8 +563,8 @@ body:not(.es) .es { display: none !important; }
     <h2><span class="en">The questions everyone asks first.</span><span class="es">Las preguntas que todos hacen primero.</span></h2>
     <div class="faq-list">
       <details class="faq-item">
-        <summary><span class="en">What if I go over the monthly invoice cap?</span><span class="es">¿Y si supero el cap de facturas del mes?</span></summary>
-        <p><span class="en">Nothing breaks. We allow up to 50% overage with no extra charge — your invoices keep flowing in and getting processed. If you consistently sit above the cap two or three months in a row, we WhatsApp you to suggest moving to the next tier (or a Custom plan). No surprise charges, no shutoffs mid-month.</span><span class="es">No pasa nada. Permitimos hasta 50% extra sin cargo — tus facturas siguen entrando y procesándose. Si te quedas consistentemente por encima del cap dos o tres meses seguidos, te escribimos por WhatsApp para sugerir el siguiente plan (o Custom). Sin cargos sorpresa, sin cortes a mitad de mes.</span></p>
+        <summary><span class="en">What if I need to process more invoices?</span><span class="es">¿Y si necesito procesar más facturas?</span></summary>
+        <p><span class="en">The $9 plan covers a typical independent professional's volume. If you need more processing capacity, several companies or multi-RUC, just message me on WhatsApp and we size it to you — no surprise charges, no shutoffs mid-month.</span><span class="es">El plan de $9 cubre el volumen de un profesional independiente típico. Si necesitas más capacidad de procesamiento, varias empresas o multi-RUC, escríbeme por WhatsApp y lo ajustamos a ti — sin cargos sorpresa, sin cortes a mitad de mes.</span></p>
       </details>
       <details class="faq-item">
         <summary><span class="en">I'm salaried — does Pro still help me?</span><span class="es">Soy asalariado — ¿Pro me sirve igual?</span></summary>
@@ -594,7 +580,7 @@ body:not(.es) .es { display: none !important; }
       </details>
       <details class="faq-item">
         <summary><span class="en">What happens with the new B/.36,000 DGI cap in 2026?</span><span class="es">¿Qué pasa con el nuevo tope de B/.36,000 de la DGI en 2026?</span></summary>
-        <p><span class="en">Starting January 2026, DGI capped the free invoicer at B/.36,000/year. If your business grows past that, you need an authorized provider. BalanceClip is built on the same DGI-native rails — Pro today, seamless upgrade to Trade tomorrow.</span><span class="es">Desde enero 2026 la DGI limitó el facturador gratuito a B/.36,000 al año. Si tu negocio supera eso, necesitas un proveedor autorizado. BalanceClip corre sobre los mismos rieles DGI-nativos — Pro hoy, salto sin fricción a Trade mañana.</span></p>
+        <p><span class="en">Starting January 2026, DGI capped the free invoicer at B/.36,000/year. If your business grows past that, you need an authorized provider. BalanceClip runs on DGI-native rails — and if you outgrow the standard plan, we scale it with you.</span><span class="es">Desde enero 2026 la DGI limitó el facturador gratuito a B/.36,000 al año. Si tu negocio supera eso, necesitas un proveedor autorizado. BalanceClip corre sobre rieles DGI-nativos — y si el plan estándar se te queda corto, lo escalamos contigo.</span></p>
       </details>
       <details class="faq-item">
         <summary><span class="en">Do I need to know accounting?</span><span class="es">¿Tengo que saber contabilidad?</span></summary>
@@ -605,8 +591,8 @@ body:not(.es) .es { display: none !important; }
         <p><span class="en">Yes. Add your accountant as a read-only viewer. They see everything: receipts, deductibles by category, monthly ITBMS. No more "send me your folder" emails.</span><span class="es">Sí. Agrega a tu contador como espectador de solo lectura. Ve todo: recibos, deducibles por rubro, ITBMS mensual. Se acabaron los correos de "mándame la carpeta".</span></p>
       </details>
       <details class="faq-item">
-        <summary><span class="en">What if I outgrow Pro?</span><span class="es">¿Y si Pro se me queda pequeño?</span></summary>
-        <p><span class="en">Click upgrade. Your data, categories and history move to BalanceClip Trade — same login, more horsepower for the buy/sell cycle.</span><span class="es">Haces clic en actualizar. Tus datos, rubros e historial se mueven a BalanceClip Trade — mismo acceso, más potencia para el ciclo compra/venta.</span></p>
+        <summary><span class="en">What if I outgrow the $9 plan?</span><span class="es">¿Y si el plan de $9 se me queda pequeño?</span></summary>
+        <p><span class="en">Message me. We add more processing capacity, extra users or multi-company on the same account — same login, more horsepower. And if your operation needs a system built fully around it, that's exactly what I build to measure.</span><span class="es">Escríbeme. Sumamos más capacidad de procesamiento, usuarios o multi-empresa en la misma cuenta — mismo acceso, más potencia. Y si tu operación necesita un sistema construido a su medida, eso es justo lo que armo a la medida.</span></p>
       </details>
     </div>
   </div>
@@ -618,17 +604,17 @@ body:not(.es) .es { display: none !important; }
   <div class="contact-cta-inner">
     <h2><span class="en">Stop overpaying income tax.</span><span class="es">Deja de pagar renta de más.</span></h2>
     <p>
-      <span class="en">7-day free trial. No card required. We answer in Panama time.</span>
-      <span class="es">7 días gratis. Sin tarjeta. Respondemos en hora Panamá.</span>
+      <span class="en">$9/mo, everything included. Message me and I'll set up your account — we answer in Panama time.</span>
+      <span class="es">$9/mes, todo incluido. Escríbeme y te dejo la cuenta lista — respondemos en hora Panamá.</span>
     </p>
     <div class="contact-actions">
-      <a href="mailto:hello@balanceclip.net?subject=BalanceClip%20Pro%20-%20Trial" class="btn-hero-primary">
-        <span class="en">✉️ Email Us</span><span class="es">✉️ Enviar Correo</span>
-      </a>
       <a href="https://wa.me/50760188276?text=Hola%2C%20me%20interesa%20BalanceClip%20Pro" target="_blank" rel="noopener" class="btn-whatsapp">
         <span>💬</span>
         <span class="en">WhatsApp +507 6018-8276</span>
         <span class="es">WhatsApp +507 6018-8276</span>
+      </a>
+      <a href="mailto:josh@balanceclip.net?subject=BalanceClip%20Pro" class="btn-hero-primary">
+        <span class="en">✉️ josh@balanceclip.net</span><span class="es">✉️ josh@balanceclip.net</span>
       </a>
     </div>
   </div>
