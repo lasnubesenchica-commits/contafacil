@@ -56,6 +56,11 @@ section{padding:3.2rem 0}
 .prob-item b{display:block;font-size:1.4rem;margin-bottom:.2rem}
 
 /* motor / cómo funciona */
+.clip-def{max-width:760px;margin:-.4rem auto 1.6rem;background:linear-gradient(180deg,#fffaf4,#fff5ea);border:1px solid #f5dcc0;border-left:4px solid var(--orange);border-radius:14px;padding:.95rem 1.15rem;font-size:1rem;font-weight:600;color:var(--ink2);line-height:1.5;text-align:left}
+.clip-def b{color:var(--ink);font-weight:900}
+.clip-def .cx{color:var(--orange)}
+.clip-def .cx-note{font-weight:600;color:var(--ink3);font-size:.86em}
+.clip-def i{font-style:italic}
 .engine{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;align-items:stretch}
 .step{background:#fff;border:1px solid var(--border);border-radius:18px;padding:1.2rem .9rem;text-align:center;position:relative}
 .step .ic{font-size:1.7rem;display:block;margin-bottom:.5rem}
@@ -124,16 +129,20 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 .bots-list{list-style:none;display:flex;flex-direction:column;gap:.7rem}
 .bots-list li{font-size:.96rem;color:var(--ink2);font-weight:600}
 .bots-list li b{color:var(--ink)}
-.bot-phone{background:#0b141a;border-radius:22px;padding:.5rem;max-width:300px;width:100%;margin:0 auto;box-shadow:0 20px 50px rgba(0,0,0,.22)}
-.bp-top{background:#202c33;color:#e9edef;font-weight:800;font-size:.85rem;padding:.65rem .85rem;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:.5rem}
-.bp-top::before{content:'';width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--orange),#ea580c)}
-.bp-body{background:#0b141a;padding:.8rem;display:flex;flex-direction:column;gap:.5rem;border-radius:0 0 16px 16px;min-height:280px}
-.bub{max-width:86%;padding:.5rem .7rem;border-radius:10px;font-size:.8rem;font-weight:600;line-height:1.35}
-.bub.in{align-self:flex-end;background:#005c4b;color:#e9edef;border-bottom-right-radius:3px}
-.bub.bot{align-self:flex-start;background:#202c33;color:#e9edef;border-bottom-left-radius:3px}
-.bub.pop{opacity:0}
-.bots.in .bub.pop{animation:bubIn .45s ease forwards;animation-delay:var(--d,0s)}
-@keyframes bubIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.bot-phone{background:#241b46;border-radius:30px;padding:.45rem;max-width:300px;width:100%;margin:0 auto;box-shadow:0 26px 60px -10px rgba(30,27,75,.45);overflow:hidden}
+.bp-status{background:#0f5f54;color:#d8f3ec;font-size:.62rem;font-weight:800;padding:.4rem .9rem .15rem;border-radius:26px 26px 0 0;display:flex;align-items:center;justify-content:space-between}
+.bp-sig{display:inline-flex;align-items:flex-end;gap:2px}
+.bp-sig i{width:3px;background:#d8f3ec;border-radius:1px}
+.bp-sig i:nth-child(1){height:4px}.bp-sig i:nth-child(2){height:6px}.bp-sig i:nth-child(3){height:8px}.bp-sig i:nth-child(4){height:10px}
+.bp-top{background:#0f5f54;color:#fff;padding:.5rem .85rem .7rem;display:flex;align-items:center;gap:.55rem}
+.bp-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--orange),#ea580c);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.95rem;color:#fff;flex:none}
+.bp-id{display:flex;flex-direction:column;line-height:1.15;font-weight:800;font-size:.86rem}
+.bp-id small{font-weight:700;font-size:.6rem;color:#a7f3d0}
+.bp-icons{margin-left:auto;font-size:.7rem;opacity:.85;letter-spacing:.15em}
+.bp-body{background:#e9e1d6;background-image:radial-gradient(rgba(15,95,84,.05) 1px,transparent 1px);background-size:18px 18px;padding:.85rem .7rem;display:flex;flex-direction:column;gap:.45rem;min-height:300px}
+.bp-input{background:#0f5f54;display:flex;align-items:center;gap:.5rem;padding:.45rem .55rem;border-radius:0 0 26px 26px}
+.bp-field{flex:1;background:#fff;color:#9aa4ab;font-size:.72rem;font-weight:600;padding:.42rem .7rem;border-radius:20px}
+.bp-send{width:26px;height:26px;border-radius:50%;background:#14b8a6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex:none}
 @media(max-width:760px){.bots{grid-template-columns:1fr;padding:1.4rem}}
 
 /* animaciones */
@@ -162,14 +171,24 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 .vinc-frame [data-demo]{display:none}
 
 /* chat de WhatsApp (animado) */
-.bub{max-width:86%;padding:.5rem .7rem;border-radius:10px;font-size:.8rem;font-weight:600;line-height:1.35;display:none;opacity:0}
-.bub.in{align-self:flex-end;background:#d8f3cf;color:#10331a;border-bottom-right-radius:3px}
+.bub{max-width:84%;padding:.45rem .6rem;border-radius:12px;font-size:.78rem;font-weight:600;line-height:1.35;display:none;opacity:0;box-shadow:0 1px 1px rgba(30,27,75,.12)}
+.bub.in{align-self:flex-end;background:#d6f5c9;color:#10331a;border-bottom-right-radius:3px}
 .bub.bot{align-self:flex-start;background:#fff;color:#1e1b4b;border-bottom-left-radius:3px}
-.bub.show{display:inline-block;animation:bubIn .32s cubic-bezier(.34,1.3,.64,1) both}
+.bub.show{display:flex;flex-direction:column;align-items:flex-start;animation:bubIn .32s cubic-bezier(.34,1.3,.64,1) both}
+.bub.in.show{align-items:flex-end}
 @keyframes bubIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
-.bub .ck{font-size:.62rem;margin-left:.25rem;color:#9fb89a;font-weight:800}
+.bub .fchip{display:inline-flex;align-items:center;gap:.3rem;background:rgba(15,95,84,.1);border-radius:7px;padding:.28rem .5rem;font-weight:800;font-size:.74rem}
+.bub.card{gap:.12rem;min-width:148px}
+.bub .lbl{font-weight:900;font-size:.72rem;letter-spacing:.01em}
+.bub .lbl.ok{color:#0f7a4e}.bub .lbl.warn{color:#c2700a}.bub .lbl.info{color:#5b54c9}
+.bub .big{font-weight:900;font-size:1.18rem;letter-spacing:-.01em;color:#1e1b4b;margin-top:.05rem}
+.bub .big.sm{font-size:1.02rem}
+.bub .sub{font-size:.68rem;font-weight:700;color:#8a86a6}
+.bub .meta{align-self:flex-end;font-size:.58rem;font-weight:700;color:#9aa4ab;margin-top:.1rem}
+.bub.in .meta{color:#5e8a52}
+.bub .ck{font-size:.6rem;margin-left:.12rem;color:#7fae73;font-weight:800}
 .bub .ck.read{color:#3aa0e3}
-.typing{align-self:flex-start;background:#fff;border-radius:10px;padding:.55rem .7rem;display:none;gap:4px}
+.typing{align-self:flex-start;background:#fff;border-radius:12px;padding:.55rem .7rem;display:none;gap:4px;box-shadow:0 1px 1px rgba(30,27,75,.12)}
 .typing.show{display:inline-flex}
 .typing span{width:6px;height:6px;border-radius:50%;background:#9aa4ab;display:inline-block;animation:bcdot 1.1s infinite}
 .typing span:nth-child(2){animation-delay:.18s}.typing span:nth-child(3){animation-delay:.36s}
@@ -194,7 +213,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 @keyframes ctapulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
 .close .btn.primary:hover{animation:none}
 
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}.bub{display:inline-block;opacity:1}.hl::after{transform:scaleX(1)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}.bub{display:flex;flex-direction:column;align-items:flex-start;opacity:1}.bub.in{align-items:flex-end}.hl::after{transform:scaleX(1)}}
 </style>
 </head>
 <body>
@@ -230,8 +249,9 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 
 <section><div class="wrap">
   <div class="sec-tag">El motor</div>
-  <h2 class="sec-h">Un mismo músculo, muchos procesos</h2>
+  <h2 class="sec-h">Una misma mecánica, menos cuellos de botella</h2>
   <p class="sec-p">Todos estos sistemas comparten el mismo flujo. Cambia el documento y el número de salida; la mecánica es la misma.</p>
+  <p class="clip-def">📎 Le llamamos <b>Clipping</b> <span class="cx-note">· del inglés <i>to&nbsp;clip</i>: prender, sujetar</span> — la IA toma los dos lados de una transacción y los <b>prende juntos</b>, como un clip une dos papeles. Es, literalmente, <b>Balance<span class="cx">Clip</span></b>.</p>
 
   <div class="vinc-frame" id="bc-frame"><div id="bc-stage" style="position:relative;width:720px;height:440px;background:radial-gradient(120% 120% at 50% 0%,#fdfcfa 0%,#f6f2eb 100%);border:1px solid #e7e2d8;border-radius:20px;overflow:hidden">
     <div style="position:absolute;inset:0;background-image:radial-gradient(#1e1b4b .6px,transparent .6px);background-size:22px 22px;opacity:.035"></div>
@@ -277,7 +297,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
   <div class="engine">
     <div class="step"><span class="n">1</span><span class="ic">📥</span><h4>Captura</h4><p>Subes el PDF (o llega por correo).</p></div>
     <div class="step"><span class="n">2</span><span class="ic">🤖</span><h4>Lee con IA</h4><p>Clasifica y extrae los datos.</p></div>
-    <div class="step k"><span class="n">3</span><span class="ic">🔗</span><h4>Vincula A ↔ B</h4><p>Conecta las dos puntas de la transacción.</p></div>
+    <div class="step k"><span class="n">3</span><span class="ic">📎</span><h4>El Clipping</h4><p>Prende las dos puntas: orden con factura, compra con venta.</p></div>
     <div class="step"><span class="n">4</span><span class="ic">🧮</span><h4>Calcula la brecha</h4><p>Margen, saldo, inventario…</p></div>
     <div class="step"><span class="n">5</span><span class="ic">📊</span><h4>Visualiza y alerta</h4><p>Tablero claro y a tiempo.</p></div>
   </div>
@@ -365,15 +385,17 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
       </ul>
     </div>
     <div class="bot-phone" id="botPhone" aria-hidden="true">
-      <div class="bp-top">BalanceClip · Bot <span style="margin-left:auto;font-size:.6rem;font-weight:700;color:#a7f3d0">en línea</span></div>
+      <div class="bp-status"><span>9:41</span><span class="bp-sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="bp-top"><span class="bp-av">B</span><span class="bp-id">BalanceClip · Bot<small>en línea</small></span><span class="bp-icons">📞 ⋮</span></div>
       <div class="bp-body" id="chatBody">
-        <div class="bub in" data-msg>📄 Factura_F26281.pdf <span class="ck">✓✓</span></div>
-        <div class="bub bot" data-msg data-typing>✅ Registrada · $7,653.78 · vence 21-ago</div>
-        <div class="bub bot" data-msg data-typing>🔔 Mañana vence F-26225 — $12,400.00</div>
-        <div class="bub in" data-msg>¿Cuánto me debe Industrias Lácteas? <span class="ck">✓✓</span></div>
-        <div class="bub bot" data-msg data-typing>💬 Por cobrar: $67,698.98 · 3 facturas</div>
+        <div class="bub in" data-msg><span class="fchip">📄 Factura_F26281.pdf</span><span class="meta">9:40 <span class="ck">✓✓</span></span></div>
+        <div class="bub bot card" data-msg data-typing><span class="lbl ok">✅ Registrada</span><span class="big">$7,653.78</span><span class="sub">Vence 21-ago · F-26281</span><span class="meta">9:41</span></div>
+        <div class="bub bot card" data-msg data-typing><span class="lbl warn">🔔 Mañana vence F-26225</span><span class="big sm">$12,400.00</span><span class="meta">9:41</span></div>
+        <div class="bub in" data-msg>¿Cuánto me debe Industrias Lácteas?<span class="meta">9:42 <span class="ck">✓✓</span></span></div>
+        <div class="bub bot card" data-msg data-typing><span class="lbl info">💬 Por cobrar</span><span class="big">$67,698.98</span><span class="sub">3 facturas pendientes</span><span class="meta">9:42</span></div>
         <div class="typing" id="chatTyping"><span></span><span></span><span></span></div>
       </div>
+      <div class="bp-input"><span class="bp-field">Escribe un mensaje…</span><span class="bp-send">➤</span></div>
     </div>
   </div>
 </div></section>
