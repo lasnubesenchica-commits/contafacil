@@ -138,19 +138,19 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 .bots-list li{font-size:.96rem;color:var(--ink2);font-weight:600}
 .bots-list li b{color:var(--ink)}
 .bot-phone{background:#241b46;border-radius:30px;padding:.45rem;max-width:300px;width:100%;margin:0 auto;box-shadow:0 26px 60px -10px rgba(30,27,75,.45);overflow:hidden}
-.bp-status{background:#0f5f54;color:#d8f3ec;font-size:.62rem;font-weight:800;padding:.4rem .9rem .15rem;border-radius:26px 26px 0 0;display:flex;align-items:center;justify-content:space-between}
+.bp-status{background:#008069;color:#eafff6;font-size:.62rem;font-weight:800;padding:.4rem .9rem .15rem;border-radius:26px 26px 0 0;display:flex;align-items:center;justify-content:space-between}
 .bp-sig{display:inline-flex;align-items:flex-end;gap:2px}
-.bp-sig i{width:3px;background:#d8f3ec;border-radius:1px}
+.bp-sig i{width:3px;background:#eafff6;border-radius:1px}
 .bp-sig i:nth-child(1){height:4px}.bp-sig i:nth-child(2){height:6px}.bp-sig i:nth-child(3){height:8px}.bp-sig i:nth-child(4){height:10px}
-.bp-top{background:#0f5f54;color:#fff;padding:.5rem .85rem .7rem;display:flex;align-items:center;gap:.55rem}
-.bp-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--orange),#ea580c);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.95rem;color:#fff;flex:none}
+.bp-top{background:#008069;color:#fff;padding:.5rem .85rem .7rem;display:flex;align-items:center;gap:.55rem}
+.bp-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#00a884,#008069);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.95rem;color:#fff;flex:none}
 .bp-id{display:flex;flex-direction:column;line-height:1.15;font-weight:800;font-size:.86rem}
 .bp-id small{font-weight:700;font-size:.6rem;color:#a7f3d0}
 .bp-icons{margin-left:auto;font-size:.7rem;opacity:.85;letter-spacing:.15em}
-.bp-body{background:#e9e1d6;background-image:radial-gradient(rgba(15,95,84,.05) 1px,transparent 1px);background-size:18px 18px;padding:.85rem .7rem;display:flex;flex-direction:column;gap:.45rem;min-height:300px}
-.bp-input{background:#0f5f54;display:flex;align-items:center;gap:.5rem;padding:.45rem .55rem;border-radius:0 0 26px 26px}
+.bp-body{background:#efeae2;background-image:radial-gradient(rgba(0,128,105,.05) 1px,transparent 1px);background-size:18px 18px;padding:.85rem .7rem;display:flex;flex-direction:column;justify-content:flex-end;gap:.45rem;height:350px;overflow:hidden}
+.bp-input{background:#008069;display:flex;align-items:center;gap:.5rem;padding:.45rem .55rem;border-radius:0 0 26px 26px}
 .bp-field{flex:1;background:#fff;color:#9aa4ab;font-size:.72rem;font-weight:600;padding:.42rem .7rem;border-radius:20px}
-.bp-send{width:26px;height:26px;border-radius:50%;background:#14b8a6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex:none}
+.bp-send{width:26px;height:26px;border-radius:50%;background:#00a884;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex:none}
 @media(max-width:760px){.bots{grid-template-columns:1fr;padding:1.4rem}}
 
 /* animaciones */
@@ -180,7 +180,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 
 /* chat de WhatsApp (animado) */
 .bub{max-width:84%;padding:.45rem .6rem;border-radius:12px;font-size:.78rem;font-weight:600;line-height:1.35;display:none;opacity:0;box-shadow:0 1px 1px rgba(30,27,75,.12)}
-.bub.in{align-self:flex-end;background:#d6f5c9;color:#10331a;border-bottom-right-radius:3px}
+.bub.in{align-self:flex-end;background:#d9fdd3;color:#10331a;border-bottom-right-radius:3px}
 .bub.bot{align-self:flex-start;background:#fff;color:#1e1b4b;border-bottom-left-radius:3px}
 .bub.show{display:flex;flex-direction:column;align-items:flex-start;animation:bubIn .32s cubic-bezier(.34,1.3,.64,1) both}
 .bub.in.show{align-items:flex-end}
@@ -234,7 +234,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 <header class="hero"><canvas id="heroCanvas" aria-hidden="true"></canvas><div class="wrap">
   <span class="pill">Micro-sistemas con IA · Panamá</span>
   <h1>Tus documentos, leídos por IA y <span class="hl">conectados solos</span>.</h1>
-  <p class="sub">Construyo sistemas a la medida que <b>leen tus facturas y órdenes con IA</b>, las <b>vinculan automáticamente</b> y te dan el número —o la acción— que importa: margen, saldo por cobrar, una reserva lista en un clic. Adiós a esa hoja que solo una persona entiende.</p>
+  <p class="sub">Construyo sistemas a la medida que <b>leen tus facturas y órdenes de compra con IA</b>, las <b>clipean automáticamente</b> y te dan el número —o la acción— que importa: margen, saldo por cobrar, una reserva lista en un clic. Adiós a esa hoja que solo una persona entiende.</p>
   <div class="cta">
     <a class="btn primary" href="#contacto">Quiero uno para mi empresa</a>
     <a class="btn ghost" href="#casos">Ver casos reales</a>
@@ -249,8 +249,8 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
       <span class="clip-pos">sustantivo</span>
       <span class="clip-clip">📎</span>
     </div>
-    <div class="clip-etym">del inglés <i>to&nbsp;clip</i>: prender, sujetar.</div>
-    <p class="clip-text">La IA toma los <b>dos lados de una transacción</b> —una orden y su factura, una compra y su venta— y los <b>prende juntos</b> sola, como un clip une dos papeles. Es, literalmente, lo que hace <b>Balance<span class="cx">Clip</span></b>.</p>
+    <div class="clip-etym">del inglés <i>to&nbsp;clip</i>: sujetar, unir.</div>
+    <p class="clip-text">La IA toma los <b>dos lados de una transacción</b> —una orden de compra y su factura, una compra y su venta— y los <b>asocia</b> sola, como un clip une dos papeles. Es, literalmente, lo que hace <b>Balance<span class="cx">Clip</span></b>.</p>
   </div>
 </div></section>
 
@@ -316,7 +316,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
   <div class="engine">
     <div class="step"><span class="n">1</span><span class="ic">📥</span><h4>Captura</h4><p>Subes el PDF (o llega por correo).</p></div>
     <div class="step"><span class="n">2</span><span class="ic">🤖</span><h4>Lee con IA</h4><p>Clasifica y extrae los datos.</p></div>
-    <div class="step k"><span class="n">3</span><span class="ic">📎</span><h4>El Clipping</h4><p>Prende las dos puntas: orden con factura, compra con venta.</p></div>
+    <div class="step k"><span class="n">3</span><span class="ic">📎</span><h4>El Clipping</h4><p>Asocia las dos puntas: orden de compra con factura, compra con venta.</p></div>
     <div class="step"><span class="n">4</span><span class="ic">🧮</span><h4>Calcula la brecha</h4><p>Margen, saldo, inventario…</p></div>
     <div class="step"><span class="n">5</span><span class="ic">📊</span><h4>Visualiza y alerta</h4><p>Tablero claro y a tiempo.</p></div>
   </div>
