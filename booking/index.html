@@ -1,658 +1,685 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BalanceClip Booking — Todo tu hospedaje boutique en una hoja</title>
-<meta name="description" content="Sistema de reservas, cobros, contabilidad y operaciones para hospedaje boutique. Bot WhatsApp 24/7, OCR con IA, sync con Airbnb. Diseñado en Panamá.">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f97316">
+<title>BalanceClip · Booking — tu hospedaje, en piloto automático</title>
+<meta name="description" content="Sistema todo-en-uno para hospedaje boutique en Panamá. Bot de WhatsApp que cotiza y cierra reservas 24/7, OCR de vouchers con IA, sync con Airbnb, contabilidad y alertas al equipo — todo sobre una hoja de Google.">
+<link rel="icon" type="image/svg+xml" href="/balanceclip.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --orange:      #f97316;
-    --orange-2:    #fb923c;
-    --orange-lt:   #fff7ed;
-    --blue:        #3b82f6;
-    --blue-lt:     #eff6ff;
-    --purple:      #8b5cf6;
-    --purple-lt:   #f5f3ff;
-    --teal:        #14b8a6;
-    --teal-lt:     #f0fdfa;
-    --indigo:      #5b54c9;
-    --indigo-lt:   #eef0ff;
+:root{
+  --orange:#f97316; --orange2:#fb923c; --orange-light:#fff7ed;
+  --blue:#3b82f6; --blue-light:#eff6ff; --purple:#8b5cf6; --purple-light:#f5f3ff; --teal:#14b8a6; --teal-light:#f0fdfa;
+  --ink:#1e1b4b; --ink2:#4b5563; --ink3:#9ca3af; --white:#fff; --bg:#fafafa; --border:rgba(0,0,0,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 1.3rem}
+a{color:inherit}
+.btn{display:inline-flex;align-items:center;gap:.5rem;font-weight:800;font-size:1rem;border-radius:100px;padding:.85rem 1.6rem;border:2px solid transparent;cursor:pointer;text-decoration:none;transition:transform .15s,box-shadow .15s}
+.btn.primary{background:var(--orange);color:#fff;box-shadow:0 8px 24px rgba(249,115,22,.3)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(249,115,22,.4)}
+.btn.ghost{border-color:var(--border);background:#fff;color:var(--ink)}
+.btn.ghost:hover{border-color:var(--orange);color:var(--orange)}
 
-    --ink:         #1e1b4b;
-    --ink-2:       #4b5563;
-    --ink-3:       #9ca3af;
+/* nav */
+.nav{position:sticky;top:0;z-index:40;background:rgba(250,250,250,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+.logo{font-weight:900;font-size:1.25rem;letter-spacing:-.02em}
+.logo span{color:var(--orange)}
+.nav .lk{font-weight:700;font-size:.92rem;color:var(--ink2);text-decoration:none}
 
-    --bg:          #fafafa;
-    --surface:     #ffffff;
-    --border:      rgba(0,0,0,.08);
+/* hero */
+.hero{padding:4.5rem 0 3rem;text-align:center}
+.pill{display:inline-block;background:var(--orange-light);color:var(--orange);font-weight:800;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;padding:.4rem .9rem;border-radius:100px;margin-bottom:1.3rem}
+.hero h1{font-size:clamp(2.1rem,5.5vw,3.4rem);font-weight:900;letter-spacing:-.03em;line-height:1.08}
+.hero h1 .hl{color:var(--orange)}
+.hero p.sub{font-size:clamp(1.05rem,2.5vw,1.3rem);color:var(--ink2);max-width:720px;margin:1.2rem auto 2rem;font-weight:500}
+.hero .cta{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap}
+.trust{margin-top:1.6rem;font-size:.85rem;color:var(--ink3);font-weight:600}
 
-    --ok:          #0f7a4e;
-    --warn:        #c2700a;
-    --err:         #c0392b;
-  }
+/* sección genérica */
+section{padding:3.2rem 0}
+.sec-tag{text-align:center;font-weight:800;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);margin-bottom:.5rem}
+.sec-h{text-align:center;font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em;margin-bottom:.6rem}
+.sec-p{text-align:center;color:var(--ink2);max-width:680px;margin:0 auto 2.2rem;font-weight:500;font-size:1.05rem}
 
-  * { box-sizing: border-box; }
+/* problema */
+/* problema — el "antes": documentos sueltos */
+.prob{background:#fff;border:1px solid var(--border);border-radius:26px;padding:2.2rem;display:grid;grid-template-columns:1.05fr .95fr;gap:2rem;align-items:center;color:var(--ink);text-align:left}
+.prob-copy h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:900;letter-spacing:-.02em;margin:.5rem 0 .6rem}
+.prob-hl{color:var(--orange);white-space:nowrap}
+.prob-copy>p{color:var(--ink2);max-width:520px;margin:0 0 1.3rem;font-weight:500;font-size:1.02rem}
+.prob-list{list-style:none;display:flex;flex-direction:column;gap:.7rem}
+.prob-list li{display:flex;align-items:flex-start;gap:.7rem}
+.prob-list .pi{flex:none;width:38px;height:38px;border-radius:11px;background:var(--orange-light);display:flex;align-items:center;justify-content:center;font-size:1.15rem}
+.prob-list li:nth-child(2) .pi{background:#f1ecfe}
+.prob-list li:nth-child(3) .pi{background:#e6f7f4}
+.prob-list li:nth-child(4) .pi{background:#fee2e2}
+.prob-list b{display:block;font-weight:900;font-size:.98rem;line-height:1.2}
+.prob-list span{font-size:.85rem;color:var(--ink2);font-weight:600}
+/* stage de documentos dispersos */
+.prob-stage{position:relative;min-height:344px;border-radius:18px;background:radial-gradient(120% 120% at 72% 8%,#fff,#f6f2ea);border:1px solid #efe9df;overflow:hidden}
+.prob-stage .pgrid{position:absolute;inset:0;background-image:radial-gradient(rgba(30,27,75,.05) .8px,transparent .8px);background-size:22px 22px}
+.prob-stage svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.prob-stage .tangle{fill:none;stroke:var(--orange);stroke-width:2;stroke-dasharray:5 6;opacity:.55;stroke-linecap:round;animation:pdash 1.4s linear infinite}
+@keyframes pdash{to{stroke-dashoffset:-22}}
+.pdoc{position:absolute;width:132px;background:#fff;border-radius:12px;box-shadow:0 18px 36px -18px rgba(30,27,75,.42);overflow:hidden;z-index:2}
+.pdoc .pbar{height:6px}
+.pdoc .pbody{padding:10px 11px 12px}
+.pdoc .pttl{display:flex;align-items:center;gap:5px;font-weight:800;font-size:11px;color:var(--ink)}
+.pdoc .pln{height:6px;border-radius:3px;background:#ecebf3;margin-top:7px}
+.pdoc-a{--r:-7deg;left:5%;top:11%;transform:rotate(-7deg);animation:pfloat 5.2s ease-in-out infinite}
+.pdoc-b{--r:4deg;left:13%;bottom:7%;transform:rotate(4deg);animation:pfloat 6s ease-in-out infinite .6s}
+.pdoc-c{--r:8deg;right:5%;top:19%;transform:rotate(8deg);animation:pfloat 5.6s ease-in-out infinite 1.1s}
+@keyframes pfloat{0%,100%{transform:translateY(0) rotate(var(--r))}50%{transform:translateY(-6px) rotate(var(--r))}}
+.pbadge{position:absolute;left:46%;top:51%;transform:translate(-50%,-50%) rotate(-3deg);background:#fff;border:1px solid #f5c9c9;color:#c0392b;font-weight:800;font-size:12px;padding:6px 11px;border-radius:100px;box-shadow:0 10px 22px -12px rgba(192,57,43,.5);display:inline-flex;align-items:center;gap:6px;z-index:3;white-space:nowrap}
+@media(max-width:780px){.prob{grid-template-columns:1fr;padding:1.5rem}.prob-stage{min-height:300px}}
 
-  html { scroll-behavior: smooth; }
+/* motor / cómo funciona */
+/* Clipping — definición (banda superior) */
+.clip-sec{padding-top:0}
+.clip-card{max-width:720px;margin:0 auto;background:#fff;border:1px solid var(--border);border-left:5px solid var(--orange);border-radius:18px;padding:1.4rem 1.6rem;box-shadow:0 18px 40px -24px rgba(30,27,75,.4)}
+.clip-head{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+.clip-word{font-weight:900;font-size:clamp(1.9rem,4.6vw,2.6rem);letter-spacing:-.02em;color:var(--ink);line-height:1}
+.clip-pos{font-style:italic;font-weight:700;color:var(--ink3);font-size:.95rem}
+.clip-clip{margin-left:auto;font-size:1.5rem}
+.clip-etym{font-weight:700;color:var(--orange);font-size:.95rem;margin:.15rem 0 .6rem}
+.clip-etym i{font-style:italic}
+.clip-text{font-size:1.05rem;font-weight:600;color:var(--ink2);line-height:1.55;margin:0}
+.clip-text b{color:var(--ink);font-weight:900}
+.clip-text .cx{color:var(--orange)}
+@media(max-width:560px){.clip-card{padding:1.15rem 1.2rem}.clip-clip{display:none}}
+.engine{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;align-items:stretch}
+.step{background:#fff;border:1px solid var(--border);border-radius:18px;padding:1.2rem .9rem;text-align:center;position:relative}
+.step .ic{font-size:1.7rem;display:block;margin-bottom:.5rem}
+.step h4{font-size:.98rem;font-weight:900;margin-bottom:.25rem}
+.step p{font-size:.8rem;color:var(--ink2);font-weight:600;line-height:1.35}
+.step .n{position:absolute;top:.6rem;right:.7rem;font-size:.7rem;font-weight:900;color:var(--ink3)}
+.step.k{border-color:var(--orange);box-shadow:0 8px 26px rgba(249,115,22,.12)}
+.step.k h4{color:var(--orange)}
+.step .ic{transition:transform .2s cubic-bezier(.22,1,.36,1)}
+.step:hover .ic{animation:bc-wiggle .5s ease}
+/* chispa que recorre el motor */
+.engine-wrap{position:relative}
+.eng-spark{position:absolute;left:0;right:0;top:42px;height:0;z-index:3;pointer-events:none}
+.eng-dot{position:absolute;top:-4.5px;left:6%;width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(249,115,22,.18);animation:eng-spark 3.4s ease-in-out infinite}
+@keyframes eng-spark{0%{left:6%;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:94%;opacity:0}}
+@keyframes bc-wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-10deg)}60%{transform:rotate(7deg)}}
+@media(max-width:760px){.engine{grid-template-columns:1fr 1fr}.eng-spark{display:none}}
+@media(prefers-reduced-motion:reduce){.eng-dot{display:none}}
 
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-weight: 500;
-    -webkit-font-smoothing: antialiased;
-    line-height: 1.55;
-  }
+/* features (producto) */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}
+.feat{background:#fff;border:1px solid var(--border);border-radius:20px;padding:1.5rem;position:relative;overflow:hidden;transition:transform .2s cubic-bezier(.22,1,.36,1),box-shadow .2s}
+.feat:hover{transform:translateY(-5px);box-shadow:0 22px 44px -22px rgba(30,27,75,.28)}
+.feat .fic{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:var(--orange-light);margin-bottom:.9rem}
+.feat:nth-child(2) .fic{background:var(--purple-light)}
+.feat:nth-child(3) .fic{background:var(--teal-light)}
+.feat:nth-child(4) .fic{background:var(--blue-light)}
+.feat:nth-child(5) .fic{background:#e6f7ee}
+.feat h3{font-size:1.12rem;font-weight:900;letter-spacing:-.01em;margin-bottom:.35rem}
+.feat p{font-size:.92rem;color:var(--ink2);font-weight:600;line-height:1.45}
+.feat.hot{border-color:var(--teal);box-shadow:0 12px 30px -14px rgba(20,184,166,.4)}
+.feat.hot .fic{background:var(--teal-light)}
+.feat .ftag{position:absolute;top:1.1rem;right:1.1rem;font-weight:800;font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--teal);background:var(--teal-light);padding:.2rem .5rem;border-radius:100px}
+.feat-more{text-align:center;color:var(--ink2);font-weight:600;font-size:.95rem;margin-top:1.5rem;max-width:760px;margin-left:auto;margin-right:auto}
+.feat-more b{color:var(--ink)}
+@media(max-width:860px){.feats{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.feats{grid-template-columns:1fr}}
+/* calendario de cobros (mockup) */
+.calmock{max-width:720px;margin:0 auto 1.4rem;background:#fff;border:1px solid var(--border);border-radius:20px;padding:1.2rem 1.3rem 1.4rem;box-shadow:0 20px 44px -26px rgba(30,27,75,.4)}
+.cal-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.9rem}
+.cal-month{font-weight:900;font-size:1.05rem}
+.cal-legend{display:flex;gap:.85rem;flex-wrap:wrap;font-weight:700;font-size:.72rem;color:var(--ink2)}
+.cal-legend span{display:inline-flex;align-items:center;gap:.3rem}
+.cal-legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-dow{text-align:center;font-weight:800;font-size:.62rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.02em;padding-bottom:2px}
+.cal-cell{min-height:52px;border:1px solid #f0eef5;border-radius:9px;padding:4px 5px;background:#fcfcfd;overflow:hidden}
+.cal-cell.out{background:transparent;border-color:transparent}
+.cal-cell .d{font-weight:800;font-size:.66rem;color:var(--ink3)}
+.cal-cell.today{border-color:var(--orange);box-shadow:0 0 0 2px rgba(249,115,22,.18)}
+.cal-cell.today .d{color:var(--orange)}
+.cchip{margin-top:3px;display:block;font-weight:800;font-size:.58rem;padding:2px 4px;border-radius:5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cchip.reg{background:var(--orange-light);color:#c2560a}
+.cchip.ext{background:var(--teal-light);color:#0f766e}
+.cchip.paid{background:#eef7ee;color:#5b8f63}
+.cal-flow{margin-top:1rem;padding-top:.9rem;border-top:1px dashed #e7e2ee}
+.cal-flow .fh{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.3rem;margin-bottom:.55rem}
+.cal-flow .fh b{font-weight:900;font-size:.82rem}
+.cal-flow .fh span{font-weight:800;font-size:.8rem;color:var(--ink2)}
+.cal-flow .fh em{font-style:normal;color:var(--orange);font-weight:900}
+.cal-bars{display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;align-items:end;height:96px}
+.cal-bars .bar{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px}
+.cal-bars .ba{font-weight:800;font-size:.56rem;color:var(--ink2)}
+.cal-bars .bv{width:100%;max-width:44px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--orange2),var(--orange))}
+.cal-bars .bar.today .bv{background:linear-gradient(180deg,#34d3c2,var(--teal))}
+.cal-bars .bl{font-weight:800;font-size:.56rem;color:var(--ink3);margin-top:1px}
+@media(max-width:560px){.cchip{font-size:.5rem;padding:1px 3px}.cal-cell{min-height:46px}}
 
-  a { color: var(--orange); text-decoration: none; }
-  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* casos */
+.cases{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.case{background:#fff;border:1px solid var(--border);border-radius:22px;padding:1.6rem;position:relative;overflow:hidden}
+.case::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;transform-origin:top;transition:transform .2s cubic-bezier(.22,1,.36,1)}
+.case:hover::before{transform:scaleY(2.1)}
+.case.c1::before{background:linear-gradient(90deg,var(--orange),var(--orange2))}
+.case.c2::before{background:linear-gradient(90deg,var(--purple),var(--blue))}
+.case.c3::before{background:linear-gradient(90deg,#14b8a6,#0d9488)}
+.case.c4::before{background:linear-gradient(90deg,#3b82f6,#0ea5e9)}
+.case .badge{display:inline-block;font-weight:800;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;padding:.3rem .7rem;border-radius:100px;margin-bottom:.7rem}
+.case.c1 .badge{background:var(--orange-light);color:var(--orange)}
+.case.c2 .badge{background:var(--purple-light);color:var(--purple)}
+.case.c3 .badge{background:#e6f7f4;color:#0d9488}
+.case.c4 .badge{background:#e6f1fe;color:#2563eb}
+.case h3{font-size:1.25rem;font-weight:900;letter-spacing:-.01em;margin-bottom:.2rem}
+.case .who{font-size:.85rem;color:var(--ink3);font-weight:700;margin-bottom:.9rem}
+.case .reto{font-size:.88rem;color:var(--ink2);font-weight:600;line-height:1.45;background:var(--bg);border-left:3px solid var(--ink3);border-radius:0 10px 10px 0;padding:.65rem .85rem;margin-bottom:1rem}
+.case.c1 .reto{border-left-color:var(--orange)} .case.c2 .reto{border-left-color:var(--purple)}
+.case.c3 .reto{border-left-color:#14b8a6} .case.c4 .reto{border-left-color:#3b82f6}
+.case .reto b{color:var(--ink)}
+.case .solh{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:.45rem}
+.case .flow{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;font-weight:800;font-size:.82rem;margin-bottom:.9rem}
+.case .flow .t{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.25rem .5rem}
+.case .flow .ar{color:var(--ink3)}
+.case ul{list-style:none}
+.case li{font-size:.92rem;color:var(--ink2);font-weight:600;position:relative;padding-left:1.5rem;margin-bottom:.55rem;text-align:left}
+.case li b{color:var(--ink)}
+.case li::before{content:'✓';position:absolute;left:0;top:0;color:var(--teal);font-weight:900}
+.case .res{margin-top:1rem;background:var(--bg);border-radius:12px;padding:.7rem .9rem;font-weight:800;font-size:.9rem}
+.case .res .big{color:var(--orange);font-size:1.05rem}
+.case.c2 .res .big{color:var(--purple)}
+.case.c3 .res .big{color:#0d9488} .case.c4 .res .big{color:#2563eb}
+@media(max-width:760px){.cases{grid-template-columns:1fr}}
 
-  :focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; border-radius: 4px; }
+/* aplica a */
+.uses{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem}
+.use{background:#fff;border:1px solid var(--border);border-radius:16px;padding:1.1rem 1.2rem}
+.use .ic{font-size:1.4rem;display:inline-block}
+.use:hover .ic{animation:bc-wiggle .5s ease}
+.use h4{font-size:1rem;font-weight:900;margin:.3rem 0 .2rem}
+.use p{font-size:.85rem;color:var(--ink2);font-weight:600}
 
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.3rem; }
-  .tabular { font-variant-numeric: tabular-nums; }
+/* por qué */
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
+.why div{background:var(--orange-light);border-radius:16px;padding:1.2rem}
+.why h4{font-size:1.05rem;font-weight:900;margin-bottom:.25rem}
+.why p{font-size:.88rem;color:var(--ink2);font-weight:600}
 
-  /* ─────────── NAV ─────────── */
-  .nav {
-    position: sticky; top: 0; z-index: 100;
-    background: rgba(250, 250, 250, 0.86);
-    backdrop-filter: saturate(1.4) blur(14px);
-    -webkit-backdrop-filter: saturate(1.4) blur(14px);
-    border-bottom: 1px solid var(--border);
-    height: 62px;
-    display: flex; align-items: center;
-  }
-  .nav .wrap { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-  .logo { font-weight: 800; font-size: 1.15rem; color: var(--ink); letter-spacing: -0.01em; }
-  .logo span { color: var(--orange); }
-  .logo .sub { font-weight: 700; font-size: 0.8rem; color: var(--ink-2); margin-left: 0.4rem; padding: 0.15rem 0.55rem; background: var(--orange-lt); border-radius: 100px; letter-spacing: 0.02em; }
-  .nav .links { display: flex; align-items: center; gap: 1.4rem; }
-  .lk { color: var(--ink-2); font-weight: 700; font-size: 0.95rem; position: relative; }
-  .lk::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -4px; height: 2px; background: var(--orange); transition: right 0.3s cubic-bezier(.22,1,.36,1); }
-  .lk:hover { color: var(--ink); text-decoration: none; }
-  .lk:hover::after { right: 0; }
+/* cierre */
+.close{background:linear-gradient(135deg,var(--orange),#ea580c);color:#fff;border-radius:26px;padding:3rem 2rem;text-align:center;margin-bottom:3rem}
+.close h2{font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em}
+.close p{max-width:560px;margin:.8rem auto 1.6rem;font-weight:600;opacity:.95}
+.close .btn.primary{background:#fff;color:var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padding:1.5rem 0 3rem}
 
-  /* ─────────── HERO ─────────── */
-  .hero { padding: 3.5rem 0 4.5rem; position: relative; overflow: hidden; }
-  .hero::before {
-    content: ""; position: absolute; inset: 0; z-index: -1;
-    background:
-      radial-gradient(600px 400px at 15% 10%, rgba(249, 115, 22, 0.10), transparent 60%),
-      radial-gradient(500px 300px at 100% 80%, rgba(139, 92, 246, 0.08), transparent 60%);
-  }
-  .pill {
-    display: inline-block;
-    background: var(--orange-lt); color: var(--orange);
-    padding: 0.35rem 0.85rem; border-radius: 100px;
-    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
-    margin-bottom: 1.5rem;
-  }
-  h1 {
-    font-size: clamp(2.4rem, 5.4vw, 4rem);
-    font-weight: 900;
-    line-height: 1.02;
-    letter-spacing: -0.025em;
-    margin: 0 0 1.2rem;
-    color: var(--ink);
-    text-wrap: balance;
-    max-width: 20ch;
-  }
-  h1 .hl {
-    position: relative;
-    color: var(--orange);
-    white-space: nowrap;
-  }
-  h1 .hl::after {
-    content: "";
-    position: absolute;
-    left: -0.1em; right: -0.1em;
-    bottom: 0.08em; height: 0.28em;
-    background: rgba(249, 115, 22, 0.18);
-    z-index: -1; border-radius: 4px;
-  }
-  .hero .lede {
-    font-size: clamp(1.05rem, 1.5vw, 1.2rem);
-    color: var(--ink-2);
-    max-width: 60ch;
-    margin: 0 0 2rem;
-    line-height: 1.5;
-  }
-  .hero .lede strong { color: var(--ink); font-weight: 700; }
+/* bots de WhatsApp */
+.bots{display:grid;grid-template-columns:1.1fr .9fr;gap:2rem;align-items:center;background:#fff;border:1px solid var(--border);border-radius:26px;padding:2.2rem}
+.bots-list{list-style:none;display:flex;flex-direction:column;gap:.7rem}
+.bots-list li{font-size:.96rem;color:var(--ink2);font-weight:600}
+.bots-list li b{color:var(--ink)}
+.bot-phone{background:#1e1b4b;border-radius:30px;padding:.45rem;max-width:300px;width:100%;margin:0 auto;box-shadow:0 26px 60px -10px rgba(30,27,75,.5),inset 0 0 0 2px rgba(255,255,255,.06);overflow:hidden}
+.bot-phone::after{content:'';position:absolute;inset:0;border-radius:30px;pointer-events:none;z-index:6;background:linear-gradient(125deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,0) 32%)}
+.bp-status{background:#14b8a6;color:#eafffb;font-size:.62rem;font-weight:800;padding:.4rem .9rem .15rem;border-radius:26px 26px 0 0;display:flex;align-items:center;justify-content:space-between}
+.bp-sig{display:inline-flex;align-items:flex-end;gap:2px}
+.bp-sig i{width:3px;background:#eafffb;border-radius:1px}
+.bp-sig i:nth-child(1){height:4px}.bp-sig i:nth-child(2){height:6px}.bp-sig i:nth-child(3){height:8px}.bp-sig i:nth-child(4){height:10px}
+.bp-top{background:linear-gradient(135deg,#14b8a6,#0d9488);color:#fff;padding:.5rem .85rem .7rem;display:flex;align-items:center;gap:.55rem}
+.bp-av{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.95rem;color:#fff;flex:none}
+.bp-id{display:flex;flex-direction:column;line-height:1.15;font-weight:800;font-size:.86rem}
+.bp-id small{font-weight:700;font-size:.6rem;color:rgba(255,255,255,.8)}
+.bp-icons{margin-left:auto;font-size:.7rem;opacity:.85;letter-spacing:.15em}
+.bp-body{background:linear-gradient(160deg,#ece4d8,#e3dacd);background-image:radial-gradient(rgba(30,27,75,.07) .5px,transparent .5px);background-size:18px 18px;padding:.85rem .7rem;display:flex;flex-direction:column;justify-content:flex-end;gap:.45rem;height:350px;overflow:hidden}
+.bp-input{background:#e3dacd;display:flex;align-items:center;gap:.5rem;padding:.45rem .55rem;border-radius:0 0 26px 26px}
+.bp-field{flex:1;background:#fff;color:#9aa4ab;font-size:.72rem;font-weight:600;padding:.42rem .7rem;border-radius:20px}
+.bp-send{width:26px;height:26px;border-radius:50%;background:#14b8a6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex:none}
+@media(max-width:760px){.bots{grid-template-columns:1fr;padding:1.4rem}}
 
-  .cta-row { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; margin-bottom: 2.4rem; }
+/* animaciones */
+@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.hero .pill{animation:up .6s .05s both}
+.hero h1{animation:up .7s .15s both}
+.hero p.sub{animation:up .7s .3s both}
+.hero .cta{animation:up .7s .45s both}
+.hero .trust{animation:up .7s .58s both}
+.rv{opacity:0;transform:translateY(20px);transition:opacity .65s ease,transform .65s ease}
+.rv.in{opacity:1;transform:none}
+.step.k{animation:pulse 2.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 8px 26px rgba(249,115,22,.12)}50%{box-shadow:0 12px 36px rgba(249,115,22,.36)}}
 
-  .btn {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.85rem 1.6rem;
-    border-radius: 100px;
-    font-family: inherit; font-weight: 800; font-size: 0.98rem;
-    cursor: pointer; transition: transform 0.2s cubic-bezier(.22,1,.36,1), box-shadow 0.2s ease, background 0.2s ease;
-    text-decoration: none;
-    border: 0;
-    letter-spacing: -0.005em;
-  }
-  .btn.primary {
-    background: var(--orange); color: #fff;
-    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3);
-  }
-  .btn.primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 14px 30px -8px rgba(249, 115, 22, 0.55);
-    text-decoration: none;
-  }
-  .btn.ghost {
-    background: #fff; color: var(--ink); border: 1px solid var(--border);
-  }
-  .btn.ghost:hover {
-    color: var(--orange); border-color: var(--orange);
-    transform: translateY(-2px);
-    text-decoration: none;
-  }
+/* hero constelación (canvas detrás) */
+.hero{position:relative;overflow:hidden}
+.hero .wrap{position:relative;z-index:2}
+#heroCanvas{position:absolute;inset:0;z-index:1;pointer-events:none}
+.hl{position:relative}
+.hl::after{content:'';position:absolute;left:-2px;right:-2px;bottom:.02em;height:.18em;background:rgba(249,115,22,.28);border-radius:3px;transform:scaleX(0);transform-origin:left;animation:drawx .52s .74s cubic-bezier(.4,0,.2,1) both}
+@keyframes drawx{to{transform:scaleX(1)}}
 
-  .trust { font-size: 0.85rem; color: var(--ink-3); font-weight: 600; }
-  .trust b { color: var(--ink-2); }
+/* ★ Vinculación — stage */
+.vinc-frame{max-width:720px;margin:0 auto 1.4rem}
+#bc-stage{transform-origin:top left}
+.vinc-frame [data-demo]{display:none}
 
-  /* ─────────── STAT STRIP ─────────── */
-  .stats {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 1.8rem 1.6rem;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
-    margin-top: 2rem;
-  }
-  @media (max-width: 780px) { .stats { grid-template-columns: repeat(2, 1fr); gap: 1.4rem 1rem; padding: 1.4rem 1.2rem; } }
-  .stats .st { text-align: left; }
-  .stats .st .n {
-    font-size: clamp(1.6rem, 2.6vw, 2.2rem);
-    font-weight: 900; letter-spacing: -0.02em; color: var(--ink); line-height: 1;
-    font-variant-numeric: tabular-nums;
-  }
-  .stats .st .n .sup { font-size: 0.55em; color: var(--orange); font-weight: 800; margin-left: 2px; }
-  .stats .st .k { margin-top: 0.4rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+/* chat de WhatsApp (animado) */
+.bub{max-width:84%;padding:.45rem .6rem;border-radius:12px;font-size:.78rem;font-weight:600;line-height:1.35;display:none;opacity:0;box-shadow:0 1px 1px rgba(30,27,75,.12)}
+.bub.in{align-self:flex-end;background:#d8f3cf;color:#10331a;border-bottom-right-radius:3px}
+.bub.bot{align-self:flex-start;background:#fff;color:#1e1b4b;border-bottom-left-radius:3px}
+.bub.show{display:flex;flex-direction:column;align-items:flex-start;animation:bubIn .32s cubic-bezier(.34,1.3,.64,1) both}
+.bub.in.show{align-items:flex-end}
+@keyframes bubIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+.bub .fchip{display:inline-flex;align-items:center;gap:.3rem;background:rgba(15,95,84,.1);border-radius:7px;padding:.28rem .5rem;font-weight:800;font-size:.74rem}
+.bub.card{gap:.12rem;min-width:148px}
+.bub .lbl{font-weight:900;font-size:.72rem;letter-spacing:.01em}
+.bub .lbl.ok{color:#0f7a4e}.bub .lbl.warn{color:#c2700a}.bub .lbl.info{color:#5b54c9}
+.bub .big{font-weight:900;font-size:1.18rem;letter-spacing:-.01em;color:#1e1b4b;margin-top:.05rem}
+.bub .big.sm{font-size:1.02rem}
+.bub .sub{font-size:.68rem;font-weight:700;color:#8a86a6}
+.bub .meta{align-self:flex-end;font-size:.58rem;font-weight:700;color:#9aa4ab;margin-top:.1rem}
+.bub.in .meta{color:#5e8a52}
+.bub .ck{font-size:.6rem;margin-left:.12rem;color:#7fae73;font-weight:800}
+.bub .ck.read{color:#3aa0e3}
+.typing{align-self:flex-start;background:#fff;border-radius:12px;padding:.55rem .7rem;display:none;gap:4px;box-shadow:0 1px 1px rgba(30,27,75,.12)}
+.typing.show{display:inline-flex}
+.typing span{width:6px;height:6px;border-radius:50%;background:#9aa4ab;display:inline-block;animation:bcdot 1.1s infinite}
+.typing span:nth-child(2){animation-delay:.18s}.typing span:nth-child(3){animation-delay:.36s}
+@keyframes bcdot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+.bot-phone{position:relative}
+.bot-phone.float{animation:bcfloat 4.2s ease-in-out infinite}
+@keyframes bcfloat{0%,100%{transform:translateY(-4px)}50%{transform:translateY(4px)}}
 
-  /* ─────────── SECTION HEADERS ─────────── */
-  section { padding: 4.5rem 0; }
-  .badge {
-    display: inline-block;
-    padding: 0.3rem 0.8rem;
-    border-radius: 100px;
-    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
-    margin-bottom: 1rem;
-  }
-  .badge.orange { background: var(--orange-lt); color: var(--orange); }
-  .badge.teal   { background: var(--teal-lt);   color: var(--teal); }
-  .badge.purple { background: var(--purple-lt); color: var(--purple); }
-  .badge.blue   { background: var(--blue-lt);   color: var(--blue); }
-  .badge.indigo { background: var(--indigo-lt); color: var(--indigo); }
+/* micro-interacciones */
+.btn:active{transform:scale(.97)}
+.nav .lk{position:relative}
+.nav .lk::after{content:'';position:absolute;left:0;right:0;bottom:-3px;height:2px;background:var(--orange);transform:scaleX(0);transform-origin:left;transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.nav .lk:hover::after{transform:scaleX(1)}
+.case{transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s}
+.case:hover{transform:translateY(-5px);box-shadow:0 22px 44px -22px rgba(30,27,75,.3)}
+.use{transition:transform .2s cubic-bezier(.22,1,.36,1)}
+.use:hover{transform:translateY(-3px)}
+.close{position:relative;overflow:hidden}
+.close::after{content:'';position:absolute;top:0;left:0;width:60%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.18),transparent);transform:translateX(-160%) skewX(-18deg);animation:shimmer 4.5s 1s ease-in-out infinite}
+@keyframes shimmer{0%{transform:translateX(-160%) skewX(-18deg)}55%,100%{transform:translateX(360%) skewX(-18deg)}}
+.close .btn.primary .wa-ic{display:inline-block}
+.close .btn.primary:hover .wa-ic{animation:bc-wiggle .5s ease}
+.close .btn.primary{animation:ctapulse 2.8s ease-in-out infinite}
+@keyframes ctapulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+.close .btn.primary:hover{animation:none}
 
-  h2 {
-    font-size: clamp(1.7rem, 3vw, 2.4rem);
-    font-weight: 900;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    margin: 0 0 1rem;
-    text-wrap: balance;
-    max-width: 24ch;
-  }
-  h2 .hl { color: var(--orange); }
-  section .kicker { color: var(--ink-2); font-size: 1.05rem; max-width: 60ch; margin: 0 0 2.4rem; line-height: 1.55; }
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}.bub{display:flex;flex-direction:column;align-items:flex-start;opacity:1}.bub.in{align-items:flex-end}.hl::after{transform:scaleX(1)}}
 
-  /* ─────────── PROBLEM LIST ─────────── */
-  .problem-list {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1.4rem 1.8rem;
-    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
-    list-style: none; margin: 0;
-  }
-  .problem-list li {
-    padding: 0.9rem 0;
-    display: flex; justify-content: space-between; gap: 1rem;
-    align-items: baseline;
-    border-bottom: 1px dashed var(--border);
-    font-weight: 600;
-  }
-  .problem-list li:last-child { border-bottom: 0; }
-  .problem-list li .k { color: var(--ink); }
-  .problem-list li .v { color: var(--ink-3); font-size: 0.9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-
-  /* ─────────── FEATURE CASES ─────────── */
-  .cases-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.4rem;
-  }
-  @media (max-width: 780px) { .cases-grid { grid-template-columns: 1fr; } }
-
-  .case {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1.6rem 1.6rem 1.8rem;
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.25s cubic-bezier(.22,1,.36,1), box-shadow 0.25s ease;
-    box-shadow: 0 1px 1px rgba(30, 27, 75, 0.05);
-  }
-  .case::before {
-    content: "";
-    position: absolute; top: 0; left: 0; right: 0; height: 5px;
-    background: var(--ink);
-    transform-origin: left; transition: transform 0.3s cubic-bezier(.22,1,.36,1);
-  }
-  .case:hover { transform: translateY(-4px); box-shadow: 0 22px 44px -22px rgba(30, 27, 75, 0.3); }
-  .case:hover::before { transform: scaleX(1.02); }
-
-  .case.c1::before { background: var(--orange); }
-  .case.c2::before { background: var(--teal); }
-  .case.c3::before { background: var(--purple); }
-  .case.c4::before { background: var(--blue); }
-  .case.c5::before { background: var(--indigo); }
-  .case.c6::before { background: var(--warn); }
-
-  .case h3 {
-    font-size: 1.35rem; font-weight: 900;
-    letter-spacing: -0.015em;
-    margin: 0.8rem 0 0.6rem;
-    color: var(--ink);
-  }
-  .case .who { color: var(--ink-2); font-size: 0.92rem; font-weight: 600; margin-bottom: 1.1rem; }
-  .case ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.7rem; }
-  .case ul li {
-    display: grid; grid-template-columns: 22px 1fr; gap: 0.6rem;
-    font-size: 0.94rem; color: var(--ink); line-height: 1.4;
-    font-weight: 600;
-  }
-  .case ul li .ico { color: inherit; font-weight: 900; font-size: 1rem; line-height: 1.3; }
-  .case.c1 ul li .ico { color: var(--orange); }
-  .case.c2 ul li .ico { color: var(--teal); }
-  .case.c3 ul li .ico { color: var(--purple); }
-  .case.c4 ul li .ico { color: var(--blue); }
-  .case.c5 ul li .ico { color: var(--indigo); }
-  .case.c6 ul li .ico { color: var(--warn); }
-  .case ul li b { display: block; font-weight: 800; color: var(--ink); margin-bottom: 2px; }
-  .case ul li span { color: var(--ink-2); font-weight: 500; font-size: 0.87rem; line-height: 1.4; }
-
-  /* ─────────── NUMBERS SECTION ─────────── */
-  .numbers-section {
-    background: linear-gradient(180deg, #fff 0%, var(--orange-lt) 100%);
-  }
-  .numbers-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.2rem;
-  }
-  @media (max-width: 780px) { .numbers-grid { grid-template-columns: repeat(2, 1fr); } }
-  .num-cell {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1.5rem 1.4rem;
-    box-shadow: 0 18px 40px -28px rgba(30, 27, 75, 0.35);
-  }
-  .num-cell .n {
-    font-weight: 900; font-size: clamp(2rem, 3.2vw, 2.8rem);
-    letter-spacing: -0.03em; line-height: 1; color: var(--ink);
-    font-variant-numeric: tabular-nums;
-  }
-  .num-cell .n .sup { font-size: 0.5em; color: var(--orange); }
-  .num-cell .k { margin-top: 0.7rem; font-size: 0.86rem; color: var(--ink-2); font-weight: 600; line-height: 1.4; }
-
-  /* ─────────── COMPARE TABLE ─────────── */
-  .compare-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 0.4rem;
-    overflow-x: auto;
-    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
-  }
-  table.compare {
-    width: 100%; border-collapse: collapse; min-width: 640px;
-    font-size: 0.93rem;
-  }
-  table.compare th, table.compare td {
-    padding: 0.95rem 1.1rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-  }
-  table.compare thead th {
-    color: var(--ink-3); font-weight: 800; font-size: 0.72rem;
-    text-transform: uppercase; letter-spacing: 0.08em;
-  }
-  table.compare thead th.us { color: var(--orange); }
-  table.compare tbody tr:last-child td { border-bottom: 0; }
-  table.compare tbody tr.tot td { background: var(--orange-lt); font-weight: 800; }
-  table.compare tbody tr.tot td:first-child { border-radius: 10px 0 0 10px; }
-  table.compare tbody tr.tot td:last-child  { border-radius: 0 10px 10px 0; color: var(--orange); }
-  table.compare tbody td:first-child { color: var(--ink); font-weight: 700; }
-  table.compare .yes { color: var(--ok); font-weight: 800; }
-  table.compare .partial { color: var(--warn); font-weight: 700; }
-  table.compare .no { color: var(--ink-3); font-weight: 600; }
-
-  /* ─────────── QUOTE ─────────── */
-  .quote-band {
-    background: var(--ink);
-    color: #fff;
-    padding: 4rem 0;
-  }
-  .quote-band blockquote {
-    font-size: clamp(1.4rem, 2.6vw, 2rem);
-    font-weight: 800;
-    line-height: 1.2;
-    letter-spacing: -0.015em;
-    margin: 0;
-    max-width: 24ch;
-    text-wrap: balance;
-    color: #fff;
-  }
-  .quote-band blockquote .hl { color: var(--orange-2); }
-  .quote-band cite {
-    display: block; margin-top: 1.6rem; font-style: normal;
-    font-size: 0.88rem; color: rgba(255, 255, 255, 0.55); font-weight: 600; letter-spacing: 0.02em;
-  }
-
-  /* ─────────── CTA ─────────── */
-  .cta-band {
-    background: linear-gradient(135deg, var(--orange) 0%, #f56b0d 100%);
-    color: #fff;
-    padding: 4.5rem 0 4rem;
-    text-align: center;
-  }
-  .cta-band h2 {
-    font-size: clamp(1.8rem, 3.4vw, 2.6rem);
-    font-weight: 900;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    margin: 0 auto 1rem;
-    max-width: 22ch;
-    color: #fff;
-    text-wrap: balance;
-  }
-  .cta-band p {
-    max-width: 52ch;
-    margin: 0 auto 2rem;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 1.05rem;
-    line-height: 1.55;
-    font-weight: 600;
-  }
-  .cta-band .cta-row { justify-content: center; }
-  .cta-band .btn.primary {
-    background: #fff; color: var(--orange);
-    box-shadow: 0 12px 30px rgba(30, 27, 75, 0.28);
-  }
-  .cta-band .btn.primary:hover { background: #fff; color: #d9600d; box-shadow: 0 18px 40px rgba(30, 27, 75, 0.4); }
-  .cta-band .btn.ghost {
-    background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4);
-  }
-  .cta-band .btn.ghost:hover { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: #fff; }
-
-  /* ─────────── FOOTER ─────────── */
-  footer {
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    padding: 1.6rem 0;
-    font-size: 0.85rem;
-    color: var(--ink-3);
-  }
-  footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem; font-weight: 600; }
-  footer a { color: var(--ink-2); font-weight: 700; }
-  footer a:hover { color: var(--orange); text-decoration: none; }
-
-  @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; }
-  }
+/* tabla comparativa */
+.compare-card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:.4rem;overflow-x:auto;box-shadow:0 18px 40px -24px rgba(30,27,75,.4);max-width:900px;margin:0 auto}
+table.compare{width:100%;border-collapse:collapse;min-width:640px;font-size:.93rem;font-variant-numeric:tabular-nums}
+table.compare th,table.compare td{padding:.9rem 1.1rem;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle}
+table.compare thead th{color:var(--ink3);font-weight:800;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em}
+table.compare thead th.us{color:var(--orange)}
+table.compare tbody tr:last-child td{border-bottom:0}
+table.compare tbody tr.tot td{background:var(--orange-light);font-weight:800}
+table.compare tbody tr.tot td:first-child{border-radius:10px 0 0 10px}
+table.compare tbody tr.tot td:last-child{border-radius:0 10px 10px 0;color:var(--orange)}
+table.compare tbody td:first-child{color:var(--ink);font-weight:700}
+table.compare .yes{color:#0f7a4e;font-weight:800}
+table.compare .partial{color:#c2700a;font-weight:700}
+table.compare .no{color:var(--ink3);font-weight:600}
 </style>
 </head>
 <body>
 
-<nav class="nav">
-  <div class="wrap">
-    <a href="/" class="logo" style="text-decoration:none">Balance<span>Clip</span> <span class="sub">Booking</span></a>
-    <div class="links">
-      <a class="lk" href="/">Otros productos</a>
-      <a class="lk" href="#contacto">Hablemos →</a>
+<nav class="nav"><div class="wrap">
+  <div class="logo">Balance<span>Clip</span> · Booking</div>
+  <a class="lk" href="#contacto">Agendar demo →</a>
+</div></nav>
+
+<header class="hero"><canvas id="heroCanvas" aria-hidden="true"></canvas><div class="wrap">
+  <span class="pill">Hospedaje boutique con IA · Panamá</span>
+  <h1>Tu hospedaje, en <span class="hl">piloto automático</span>.</h1>
+  <p class="sub">Un <b>bot de WhatsApp cotiza y cierra reservas 24/7</b>, la IA <b>lee el voucher y llena la reserva sola</b>, y todo se <b>sincroniza con Airbnb</b> en un solo calendario. Cobros, contabilidad y alertas al equipo — sin saltar entre ocho apps.</p>
+  <div class="cta">
+    <a class="btn primary" href="#contacto">Agenda una demo</a>
+    <a class="btn ghost" href="#features">Ver qué hace</a>
+  </div>
+  <div class="trust">Ya en producción: cabañas Las Nubes · Chicá · hecho para hospedajes de 1 a 10 unidades</div>
+</div></header>
+
+<section><div class="wrap">
+  <div class="prob">
+    <div class="prob-copy">
+      <div class="sec-tag" style="text-align:left">El antes</div>
+      <h2>Hoy tu hospedaje corre <span class="prob-hl">en ocho apps</span></h2>
+      Airbnb para el calendario, WhatsApp para las consultas, Yappy para el cobro, Excel para la contabilidad, Drive para los vouchers. Nada conversa — y transcribes cada reserva y cada pago a mano.
+      <ul class="prob-list">
+        <li><span class="pi">💬</span><div><b>Cotizaciones a toda hora</b><span>Responder disponibilidad y precios, todo el día.</span></div></li>
+        <li><span class="pi">🧾</span><div><b>Data-entry de vouchers</b><span>Teclear cada pago y reserva a mano.</span></div></li>
+        <li><span class="pi">📅</span><div><b>Riesgo de doble booking</b><span>Calendarios separados que no se hablan.</span></div></li>
+        <li><span class="pi">🧹</span><div><b>Coordinar al equipo</b><span>Limpieza y check-ins, recordados de memoria.</span></div></li>
+      </ul>
+    </div>
+    <div class="prob-stage" aria-hidden="true">
+      <div class="pgrid"></div>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path class="tangle" vector-effect="non-scaling-stroke" d="M18,24 C 35,40 8,56 27,79"></path>
+        <path class="tangle" vector-effect="non-scaling-stroke" d="M27,79 C 52,66 60,15 83,30"></path>
+      </svg>
+      <div class="pdoc pdoc-a"><div class="pbar" style="background:#8b5cf6"></div><div class="pbody"><div class="pttl">📅 Airbnb</div><div class="pln" style="width:80%"></div><div class="pln" style="width:60%"></div></div></div>
+      <div class="pdoc pdoc-b"><div class="pbar" style="background:#16a34a"></div><div class="pbody"><div class="pttl">📊 Excel</div><div class="pln" style="width:72%"></div><div class="pln" style="width:88%"></div></div></div>
+      <div class="pdoc pdoc-c"><div class="pbar" style="background:#14b8a6"></div><div class="pbody"><div class="pttl">💬 WhatsApp</div><div class="pln" style="width:84%"></div><div class="pln" style="width:55%"></div></div></div>
+      <div class="pbadge">✋ todo a mano</div>
     </div>
   </div>
-</nav>
+</div></section>
 
-<!-- ─────────── HERO ─────────── -->
-<section class="hero">
-  <div class="wrap">
-    <span class="pill">Micro-sistema para hospedaje boutique · Panamá</span>
-    <h1>Todo tu hospedaje. En una <span class="hl">sola hoja</span>.</h1>
-    <p class="lede">
-      <strong>Bot WhatsApp que vende 24/7. OCR de vouchers y facturas con IA. Contabilidad completa.</strong>
-      Sync bidireccional con Airbnb, referidos automáticos, alertas al equipo — corriendo sobre Google Apps Script.
-      Sin servidores, sin SaaS mensual, sin lock-in.
-    </p>
-    <div class="cta-row">
-      <a class="btn primary" href="#contacto">Quiero uno para mi hospedaje</a>
-      <a class="btn ghost" href="#features">Ver todo lo que hace</a>
+<section><div class="wrap">
+  <div class="sec-tag">Cómo funciona</div>
+  <h2 class="sec-h">Del voucher a la reserva, sola</h2>
+  <p class="sec-p">El huésped manda el voucher por WhatsApp y la IA hace el resto: lee nombre, fechas, monto y hasta los comentarios, crea la reserva y la sincroniza con tu calendario.</p>
+
+  <div class="vinc-frame" id="bc-frame"><div id="bc-stage" style="position:relative;width:720px;height:440px;background:radial-gradient(120% 120% at 50% 0%,#fdfcfa 0%,#f6f2eb 100%);border:1px solid #e7e2d8;border-radius:20px;overflow:hidden">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(#1e1b4b .6px,transparent .6px);background-size:22px 22px;opacity:.035"></div>
+    <div id="bc-doc-left" style="position:absolute;left:75px;top:84px;width:210px;height:272px;background:#fff;border-radius:18px;box-shadow:0 22px 44px -22px rgba(30,27,75,.45);overflow:hidden;will-change:transform,opacity">
+      <div style="height:7px;background:#8b5cf6"></div>
+      <div style="padding:15px 16px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Voucher de pago</div><div style="font-weight:800;font-size:9px;color:#8b5cf6;background:#f1ecfe;padding:3px 6px;border-radius:6px">PDF</div></div>
+        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">Yappy · Ana Gómez</div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
+          <div style="height:7px;width:86%;background:#ecebf3;border-radius:4px"></div>
+          <div style="position:relative;height:9px;width:70%"><div style="position:absolute;inset:0;background:#ecebf3;border-radius:4px"></div><div data-hl style="position:absolute;inset:0;background:#e6dafb;border-radius:4px;opacity:0"></div></div>
+          <div style="height:7px;width:58%;background:#ecebf3;border-radius:4px"></div>
+        </div>
+      </div>
+      <div style="position:absolute;left:16px;bottom:15px;right:16px"><div style="font-weight:800;font-size:9px;letter-spacing:.06em;color:#9893b5">TOTAL</div><div style="position:relative;display:inline-block;margin-top:3px"><span style="font-weight:900;font-size:17px">$340.00</span><div data-underline style="position:absolute;left:-3px;right:-3px;bottom:-2px;height:7px;background:rgba(139,92,246,.32);border-radius:3px;opacity:0;transform:scaleX(0);transform-origin:left"></div></div></div>
+      <div id="bc-scan-left" style="position:absolute;left:0;top:0;width:100%;height:48px;background:linear-gradient(180deg,rgba(249,115,22,0) 0%,rgba(249,115,22,.16) 42%,rgba(249,115,22,.55) 50%,rgba(249,115,22,.16) 58%,rgba(249,115,22,0) 100%);transform:translateY(-60px);opacity:0;pointer-events:none"></div>
     </div>
-    <div class="trust">Ya en producción: <b>3 cabañas Las Nubes · Chicá</b> + <b>Malaya Lodge</b> (referido con comisión).</div>
-
-    <div class="stats">
-      <div class="st"><div class="n tabular">60<span class="sup">+</span></div><div class="k">Features en producción</div></div>
-      <div class="st"><div class="n tabular">8</div><div class="k">Casos de IA con Claude</div></div>
-      <div class="st"><div class="n tabular">24/7</div><div class="k">Ventas por WhatsApp</div></div>
-      <div class="st"><div class="n tabular">~$0<span class="sup">/mes</span></div><div class="k">Costo de infra</div></div>
+    <div id="bc-doc-right" style="position:absolute;left:435px;top:84px;width:210px;height:272px;background:#fff;border-radius:18px;box-shadow:0 22px 44px -22px rgba(30,27,75,.45);overflow:hidden;will-change:transform,opacity">
+      <div style="height:7px;background:#f97316"></div>
+      <div style="padding:15px 16px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Reserva</div><div style="font-weight:800;font-size:9px;color:#f97316;background:#fdeede;padding:3px 6px;border-radius:6px">PDF</div></div>
+        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">Cabaña 2 · 12–14 ago</div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
+          <div style="height:7px;width:80%;background:#ecebf3;border-radius:4px"></div>
+          <div style="position:relative;height:9px;width:66%"><div style="position:absolute;inset:0;background:#ecebf3;border-radius:4px"></div><div data-hl style="position:absolute;inset:0;background:#fde2c8;border-radius:4px;opacity:0"></div></div>
+          <div style="height:7px;width:52%;background:#ecebf3;border-radius:4px"></div>
+        </div>
+      </div>
+      <div style="position:absolute;left:16px;bottom:15px;right:16px"><div style="font-weight:800;font-size:9px;letter-spacing:.06em;color:#9893b5">TOTAL</div><div style="position:relative;display:inline-block;margin-top:3px"><span style="font-weight:900;font-size:17px">$340.00</span><div data-underline style="position:absolute;left:-3px;right:-3px;bottom:-2px;height:7px;background:rgba(249,115,22,.34);border-radius:3px;opacity:0;transform:scaleX(0);transform-origin:left"></div></div></div>
+      <div id="bc-scan-right" style="position:absolute;left:0;top:0;width:100%;height:48px;background:linear-gradient(180deg,rgba(249,115,22,0) 0%,rgba(249,115,22,.16) 42%,rgba(249,115,22,.55) 50%,rgba(249,115,22,.16) 58%,rgba(249,115,22,0) 100%);transform:translateY(-60px);opacity:0;pointer-events:none"></div>
     </div>
+    <svg id="bc-svg" width="720" height="440" viewBox="0 0 720 440" style="position:absolute;left:0;top:0;overflow:visible;pointer-events:none">
+      <path id="bc-connector" d="M285,212 C 325,196 395,196 435,212" fill="none" stroke="#14b8a6" stroke-width="3" stroke-linecap="round" opacity="0.95"></path>
+      <g id="bc-node" style="transform-box:fill-box;transform-origin:center;opacity:0"><circle cx="360" cy="201" r="15" fill="#14b8a6"></circle><path d="M353,201 l5,5 l9,-11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></g>
+    </svg>
+    <div id="bc-glow" style="position:absolute;left:360px;top:280px;width:200px;height:64px;transform:translate(-50%,-50%) scale(1);background:radial-gradient(closest-side,rgba(249,115,22,.6),rgba(249,115,22,0) 72%);filter:blur(15px);opacity:0;pointer-events:none"></div>
+    <div id="bc-chip" style="position:absolute;left:360px;top:256px;transform:translate(-50%,12px);opacity:0;display:flex;align-items:center;gap:11px;background:#fff;border:1.5px solid #f97316;box-shadow:0 14px 30px -14px rgba(249,115,22,.55);border-radius:14px;padding:11px 17px;white-space:nowrap">
+      <span style="width:10px;height:10px;border-radius:50%;background:#f97316"></span>
+      <span style="display:flex;flex-direction:column;line-height:1.05"><span id="bc-label" style="font-weight:800;font-size:9px;letter-spacing:.1em;color:#a09bb8;text-transform:uppercase">Reserva confirmada</span><span id="bc-num" style="font-weight:900;font-size:22px;color:#1e1b4b">$340.00</span></span>
+    </div>
+  </div></div>
+
+  <div class="engine-wrap">
+  <div class="eng-spark" aria-hidden="true"><span class="eng-dot"></span></div>
+  <div class="engine">
+    <div class="step"><span class="n">1</span><span class="ic">💬</span><h4>Llega el voucher</h4><p>El huésped lo manda por WhatsApp al bot.</p></div>
+    <div class="step"><span class="n">2</span><span class="ic">🤖</span><h4>Lee con IA</h4><p>Nombre, fechas, monto y comentarios del voucher.</p></div>
+    <div class="step k"><span class="n">3</span><span class="ic">📝</span><h4>Crea la reserva</h4><p>Llena la ficha sola — reservar en un clic.</p></div>
+    <div class="step"><span class="n">4</span><span class="ic">📅</span><h4>Sync al calendario</h4><p>Un solo calendario, sin doble booking con Airbnb.</p></div>
+    <div class="step"><span class="n">5</span><span class="ic">🤝</span><h4>El bot atiende</h4><p>Check-in, guía y equipo — en automático.</p></div>
   </div>
-</section>
-
-<!-- ─────────── PROBLEM ─────────── -->
-<section>
-  <div class="wrap">
-    <span class="badge indigo">01 · El problema</span>
-    <h2>Un hospedaje boutique corre <span class="hl">en ocho apps</span>.</h2>
-    <p class="kicker">
-      Airbnb para el calendario, WhatsApp para las consultas, Yappy para el cobro, Excel para la contabilidad,
-      Gmail para las confirmaciones, Drive para los vouchers, un Word para el manual, y una libreta para tu equipo de limpieza.
-      Nada de eso conversa.
-    </p>
-    <ul class="problem-list">
-      <li><span class="k">Cotizaciones repetidas por WhatsApp</span><span class="v">30 – 90 min / día</span></li>
-      <li><span class="k">Data-entry de vouchers y facturas</span><span class="v">2 – 4 hrs / semana</span></li>
-      <li><span class="k">Coordinación con limpieza y equipo</span><span class="v">cada checkout</span></li>
-      <li><span class="k">Reconciliación de payouts Airbnb</span><span class="v">fin de mes, doloroso</span></li>
-      <li><span class="k">Reservas perdidas por no contestar a tiempo</span><span class="v">incontables</span></li>
-    </ul>
   </div>
-</section>
+</div></section>
 
-<!-- ─────────── FEATURES ─────────── -->
-<section id="features">
-  <div class="wrap">
-    <span class="badge orange">02 · Lo que hace</span>
-    <h2>Seis dominios. <span class="hl">Un solo sistema.</span></h2>
-    <p class="kicker">
-      Cada canal — Airbnb, WhatsApp, Yappy, Banco General — se convierte en filas de una hoja que se retroalimentan solas.
-      Automatizaciones que corren sin operador.
-    </p>
-
-    <div class="cases-grid">
-      <div class="case c1">
-        <span class="badge orange">i · Booking</span>
-        <h3>Bot que vende y calendario en tiempo real</h3>
-        <div class="who">Cotización, disponibilidad, canales y bloqueos — sincronizados con el mundo real.</div>
-        <ul>
-          <li><span class="ico">→</span><div><b>Bot WhatsApp 24/7</b><span>Cotiza, propone alternativas ±10 días, cierra reservas y sube el voucher — todo desde el chat.</span></div></li>
-          <li><span class="ico">→</span><div><b>Calendario público en tiempo real</b><span>Landing propio con disponibilidad multi-cabaña. Reservas directas sin comisión.</span></div></li>
-          <li><span class="ico">→</span><div><b>5 tipos de reserva</b><span>Noche, pasadía, pasatarde, early check-in, late check-out — con cortesías gestionadas.</span></div></li>
-          <li><span class="ico">→</span><div><b>Sync bidireccional con Airbnb</b><span>iCal in y out. Cero doble booking. Payouts sincronizados desde Gmail.</span></div></li>
-        </ul>
-      </div>
-
-      <div class="case c2">
-        <span class="badge teal">ii · Pagos</span>
-        <h3>Voucher a texto en segundos</h3>
-        <div class="who">Voucher → estructura → auto-fill del formulario. Sin data-entry manual.</div>
-        <ul>
-          <li><span class="ico">→</span><div><b>OCR de vouchers con Claude</b><span>Yappy, ACH, Banco General. Extrae remitente, monto, código, fecha, nombre y email del huésped.</span></div></li>
-          <li><span class="ico">→</span><div><b>Multi-abono con validación</b><span>Suma parciales, detecta descuadres, ofrece resolución. Sin errores de cuadre.</span></div></li>
-          <li><span class="ico">→</span><div><b>Recibo PDF numerado</b><span>Correlativo LN-XXXX generado y adjuntado al email de confirmación. Con lock anti-colisión.</span></div></li>
-          <li><span class="ico">→</span><div><b>Guardado a Drive automático</b><span>Nombre estructurado, descripción y sharing público — listo para compartir.</span></div></li>
-        </ul>
-      </div>
-
-      <div class="case c3">
-        <span class="badge purple">iii · Contabilidad</span>
-        <h3>Ingresos, egresos y P&amp;L con IA</h3>
-        <div class="who">Reconciliación bancaria con IA como analista. Sin contador para el día a día.</div>
-        <ul>
-          <li><span class="ico">→</span><div><b>OCR de facturas de gastos</b><span>Foto de la factura, categorización automática, detección de duplicados.</span></div></li>
-          <li><span class="ico">→</span><div><b>Reconciliación Banco General 🇵🇦</b><span>Import de XLSX, clasificación en 15 categorías, detector de suscripciones.</span></div></li>
-          <li><span class="ico">→</span><div><b>P&amp;L narrativo con Claude</b><span>Reporte mensual en prosa: cómo se movió la plata y qué categoría creció.</span></div></li>
-          <li><span class="ico">→</span><div><b>Cuentas por cobrar exportables</b><span>Rentabilidad con o sin préstamo. Gráficos por canal, cabaña y mes.</span></div></li>
-        </ul>
-      </div>
-
-      <div class="case c4">
-        <span class="badge blue">iv · Comunicación</span>
-        <h3>WhatsApp Business + email + CRM</h3>
-        <div class="who">Templates HSM aprobadas por Meta + Gmail + link público firmado.</div>
-        <ul>
-          <li><span class="ico">→</span><div><b>Confirmación email + WhatsApp</b><span>Con recibo PDF, guía de llegada, links de mapas y CTA a Instagram.</span></div></li>
-          <li><span class="ico">→</span><div><b>Templates HSM listas</b><span>Confirmación, recordatorio, checkout, alerta portón, saldo pendiente, referido post-estancia.</span></div></li>
-          <li><span class="ico">→</span><div><b>Link público firmado por HMAC</b><span>El huésped ve su reserva, saldo, keybox (revelado en ventana temporal) y guía self-service.</span></div></li>
-          <li><span class="ico">→</span><div><b>CRM ligero de conversaciones</b><span>Cada mensaje registrado con contexto. Fallback a Claude para consultas no estructuradas.</span></div></li>
-        </ul>
-      </div>
-
-      <div class="case c5">
-        <span class="badge indigo">v · Operaciones</span>
-        <h3>El equipo recibe lo que necesita</h3>
-        <div class="who">Sin recordatorios en tu cabeza. Alertas contextuales al equipo interno.</div>
-        <ul>
-          <li><span class="ico">→</span><div><b>Alerta al equipo de limpieza</b><span>WhatsApp cada mañana con salidas del día, siguiente reserva y si necesita cama auxiliar.</span></div></li>
-          <li><span class="ico">→</span><div><b>Servicios especiales 9am</b><span>Alerta cuando hay decoración, torta, cuna o traslado desde aeropuerto reservados.</span></div></li>
-          <li><span class="ico">→</span><div><b>Portón y checkout automáticos</b><span>El huésped confirma con un botón — el sistema le dice al equipo cuándo entrar.</span></div></li>
-          <li><span class="ico">→</span><div><b>OCR de cédula GDPR-safe</b><span>Verificación de identidad con borrado automático 3am de IDs viejos.</span></div></li>
-        </ul>
-      </div>
-
-      <div class="case c6">
-        <span class="badge orange">vi · Growth</span>
-        <h3>Cada huésped, un canal de venta</h3>
-        <div class="who">Fidelidad, referidos, cumpleaños y ROI de ads — sin operar promociones a mano.</div>
-        <ul>
-          <li><span class="ico">→</span><div><b>Fidelidad automática</b><span>2 estadías completadas → noche cortesía disparada por email dorado. Vence en 365 días.</span></div></li>
-          <li><span class="ico">→</span><div><b>Referidos con crédito doble</b><span>Códigos LN-XXXXXX únicos. $20 para el referidor + $20 para el nuevo huésped.</span></div></li>
-          <li><span class="ico">→</span><div><b>Cumpleaños con descuento</b><span>Email 30 días antes con 20% off. Dedup por año, no se manda dos veces.</span></div></li>
-          <li><span class="ico">→</span><div><b>ROI de Meta Ads</b><span>Import de gasto de Instagram/Facebook, cruce con reservas convertidas.</span></div></li>
-        </ul>
-      </div>
+<section><div class="wrap">
+  <div class="sec-tag">Tus reservas</div>
+  <h2 class="sec-h">Un solo calendario, sin doble booking</h2>
+  <p class="sec-p">Cada reserva —directa o de Airbnb— cae en un solo calendario, sin choques. Ves la ocupación de la semana y los ingresos del mes de un vistazo.</p>
+  <div class="calmock reveal">
+    <div class="cal-top">
+      <div class="cal-month">📅 Julio 2026 · Reservas</div>
+      <div class="cal-legend"><span><i style="background:var(--orange)"></i>Pendiente</span><span><i style="background:var(--teal)"></i>Airbnb</span><span><i style="background:#8fc79a"></i>Pagada</span></div>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-dow">Lun</div><div class="cal-dow">Mar</div><div class="cal-dow">Mié</div><div class="cal-dow">Jue</div><div class="cal-dow">Vie</div><div class="cal-dow">Sáb</div><div class="cal-dow">Dom</div>
+      <div class="cal-cell out"></div><div class="cal-cell out"></div><div class="cal-cell"><span class="d">1</span><span class="cchip paid">✓ Cab 2</span></div><div class="cal-cell"><span class="d">2</span></div><div class="cal-cell today"><span class="d">3</span><span class="cchip reg">Cab 1</span></div><div class="cal-cell"><span class="d">4</span></div><div class="cal-cell"><span class="d">5</span></div><div class="cal-cell"><span class="d">6</span></div><div class="cal-cell"><span class="d">7</span></div><div class="cal-cell"><span class="d">8</span></div><div class="cal-cell"><span class="d">9</span><span class="cchip reg">Cab 3</span></div><div class="cal-cell"><span class="d">10</span></div><div class="cal-cell"><span class="d">11</span></div><div class="cal-cell"><span class="d">12</span></div><div class="cal-cell"><span class="d">13</span></div><div class="cal-cell"><span class="d">14</span></div><div class="cal-cell"><span class="d">15</span><span class="cchip ext">Airbnb</span></div><div class="cal-cell"><span class="d">16</span></div><div class="cal-cell"><span class="d">17</span><span class="cchip reg">Cab 2</span></div><div class="cal-cell"><span class="d">18</span></div><div class="cal-cell"><span class="d">19</span></div><div class="cal-cell"><span class="d">20</span></div><div class="cal-cell"><span class="d">21</span></div><div class="cal-cell"><span class="d">22</span><span class="cchip ext">Airbnb</span></div><div class="cal-cell"><span class="d">23</span></div><div class="cal-cell"><span class="d">24</span></div><div class="cal-cell"><span class="d">25</span></div><div class="cal-cell"><span class="d">26</span></div><div class="cal-cell"><span class="d">27</span></div><div class="cal-cell"><span class="d">28</span></div><div class="cal-cell"><span class="d">29</span><span class="cchip reg">Cab 1</span></div><div class="cal-cell"><span class="d">30</span></div><div class="cal-cell"><span class="d">31</span></div><div class="cal-cell out"></div><div class="cal-cell out"></div>
+    </div>
+    <div class="cal-flow">
+      <div class="fh"><b>🛏️ Ingresos por semana</b><span>Ingresos de julio · <em>$10,900</em></span></div>
+      <div class="cal-bars"><div class="bar"><div class="ba">$1.9k</div><div class="bv" style="height:46%"></div><div class="bl">Sem 1</div></div><div class="bar"><div class="ba">$2.2k</div><div class="bv" style="height:53%"></div><div class="bl">Sem 2</div></div><div class="bar"><div class="ba">$2.5k</div><div class="bv" style="height:60%"></div><div class="bl">Sem 3</div></div><div class="bar"><div class="ba">$3.2k</div><div class="bv" style="height:78%"></div><div class="bl">Sem 4</div></div><div class="bar"><div class="ba">$1.1k</div><div class="bv" style="height:26%"></div><div class="bl">Sem 5</div></div></div>
     </div>
   </div>
-</section>
+</div></section>
 
-<!-- ─────────── NUMBERS ─────────── -->
-<section class="numbers-section">
-  <div class="wrap">
-    <span class="badge orange">03 · Los números</span>
-    <h2>Ya está corriendo. <span class="hl">No es un pitch de laboratorio.</span></h2>
-    <p class="kicker">Métricas reales del deployment activo hoy.</p>
-    <div class="numbers-grid">
-      <div class="num-cell">
-        <div class="n tabular">3<span class="sup">+1</span></div>
-        <div class="k">Propiedades operadas: 3 cabañas Las Nubes + 1 referida (Malaya Lodge, comisión).</div>
-      </div>
-      <div class="num-cell">
-        <div class="n tabular">0</div>
-        <div class="k">Doble bookings desde que arrancó el sync iCal con Airbnb.</div>
-      </div>
-      <div class="num-cell">
-        <div class="n tabular">8</div>
-        <div class="k">Casos de IA con Claude en producción: OCR, NLU, clasificación, reportes y fallback.</div>
-      </div>
-      <div class="num-cell">
-        <div class="n tabular">$0.01</div>
-        <div class="k">Costo aprox por mensaje de WhatsApp Business. Única línea variable.</div>
-      </div>
+<section id="features"><div class="wrap">
+  <div class="sec-tag">Todo lo que hace</div>
+  <h2 class="sec-h">Tu hospedaje, de punta a punta</h2>
+  <p class="sec-p">Reservas, cobros, contabilidad, comunicación, equipo y crecimiento — seis dominios en un solo sistema.</p>
+  <div class="feats">
+    <div class="feat">
+      <div class="fic">💬</div>
+      <h3>Bot que vende 24/7</h3>
+      <p>Cotiza, propone alternativas ±10 días y <b>cierra reservas en el chat</b>. Calendario público de disponibilidad y <b>reservas directas sin comisión</b>.</p>
+    </div>
+    <div class="feat">
+      <div class="fic">🧾</div>
+      <h3>Pagos con OCR</h3>
+      <p>Lee el <b>voucher</b> de Yappy, ACH o Banco General y <b>llena la reserva sola</b>. Multi-abono con validación y <b>recibo PDF numerado</b>.</p>
+    </div>
+    <div class="feat">
+      <div class="fic">📊</div>
+      <h3>Contabilidad con IA</h3>
+      <p>OCR de facturas de gastos, <b>reconciliación con Banco General</b> y un <b>P&amp;L narrativo</b> — rentabilidad por cabaña y por canal.</p>
+    </div>
+    <div class="feat">
+      <div class="fic">📇</div>
+      <h3>Comunicación &amp; CRM</h3>
+      <p>WhatsApp Business + email con <b>plantillas aprobadas</b>, y un <b>link firmado</b> donde el huésped ve su reserva, saldo y keybox.</p>
+    </div>
+    <div class="feat">
+      <div class="fic">🧹</div>
+      <h3>Operaciones del equipo</h3>
+      <p>Alerta al <b>equipo de limpieza</b> cada mañana, avisa de <b>servicios especiales</b> y maneja portón y check-out en automático.</p>
+    </div>
+    <div class="feat hot">
+      <span class="ftag">Growth</span>
+      <div class="fic">🎁</div>
+      <h3>Cada huésped, un canal</h3>
+      <p><b>Fidelidad</b> automática, <b>referidos con crédito</b>, cumpleaños con descuento y <b>ROI de Meta Ads</b> — sin operar promociones a mano.</p>
     </div>
   </div>
-</section>
+  <p class="feat-more">Y además: <b>recibos PDF numerados</b> · guía self-service con <b>keybox</b> temporal · verificación de cédula <b>GDPR-safe</b> · tus datos, sin lock-in.</p>
+</div></section>
 
-<!-- ─────────── COMPARE ─────────── -->
-<section>
-  <div class="wrap">
-    <span class="badge purple">04 · Comparativa</span>
-    <h2>No es un PMS más. <span class="hl">Es la capa que faltaba.</span></h2>
-    <p class="kicker">
-      Airbnb te da visibilidad pero se queda con hasta el 15%. Un PMS tradicional te cobra suscripción mensual
-      pero no integra con Yappy ni con Banco General. Este sistema hace ambos, y encima automatiza el equipo.
-    </p>
-    <div class="compare-card">
-      <table class="compare tabular">
-        <thead>
-          <tr>
-            <th>Capacidad</th>
-            <th>Solo Airbnb</th>
-            <th>PMS tradicional</th>
-            <th class="us">BalanceClip Booking</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Reservas directas sin comisión</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
-          <tr><td>Bot WhatsApp que cotiza y cierra</td><td class="no">—</td><td class="partial">Add-on ($50+/mes)</td><td class="yes">Incluido</td></tr>
-          <tr><td>OCR de vouchers Yappy / ACH con IA</td><td class="no">—</td><td class="no">No</td><td class="yes">Sí</td></tr>
-          <tr><td>Reconciliación con Banco General</td><td class="no">—</td><td class="no">No</td><td class="yes">Sí, con IA</td></tr>
-          <tr><td>Contabilidad ingresos + egresos + P&amp;L</td><td class="no">—</td><td class="partial">Módulo aparte</td><td class="yes">Incluido</td></tr>
-          <tr><td>Alertas automáticas al equipo</td><td class="no">—</td><td class="partial">Limitado</td><td class="yes">Sí, contextuales</td></tr>
-          <tr><td>Fidelidad + referidos automáticos</td><td class="no">—</td><td class="partial">Add-on</td><td class="yes">Incluido</td></tr>
-          <tr><td>Post-reserva con guía y keybox</td><td class="partial">Manual</td><td class="partial">Básico</td><td class="yes">Self-service</td></tr>
-          <tr><td>Datos son tuyos (sin lock-in)</td><td class="no">No</td><td class="no">No</td><td class="yes">Google Sheet</td></tr>
-          <tr class="tot"><td>Costo mensual</td><td>15% comisión</td><td>US$50 – 200</td><td>~US$0 + $0.01/msg WA</td></tr>
-        </tbody>
-      </table>
+<section id="bots"><div class="wrap reveal">
+  <div class="bots">
+    <div class="bots-copy">
+      <div class="sec-tag" style="text-align:left">+ Bot de WhatsApp</div>
+      <h2 style="font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em;margin-bottom:.6rem">El bot que vende y atiende</h2>
+      <p style="color:var(--ink2);font-weight:500;font-size:1.05rem;margin-bottom:1.2rem">Un bot que cotiza, cierra reservas y atiende al huésped 24/7 — y le avisa a tu equipo lo que necesita, sin que estés encima.</p>
+      <ul class="bots-list">
+        <li><b>💬 Cotiza y cierra</b> — disponibilidad, precios y alternativas ±10 días; cierra la reserva en el chat.</li>
+        <li><b>📄 Lee el voucher</b> — Yappy/ACH/Banco General; llena la reserva sola, incluidos los comentarios.</li>
+        <li><b>🧹 Alerta al equipo</b> — salidas del día, próxima reserva y servicios especiales, cada mañana.</li>
+        <li><b>🔑 Guía self-service</b> — link firmado con su reserva, saldo y keybox en ventana temporal.</li>
+        <li><b>🎁 Fidelidad y referidos</b> — noche cortesía y códigos de referido, en automático.</li>
+        <li><b>☀️ Resumen diario</b> — reservas, cobros y ocupación del día.</li>
+      </ul>
+    </div>
+    <div class="bot-phone" id="botPhone" aria-hidden="true">
+      <div class="bp-status"><span>9:41</span><span class="bp-sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="bp-top"><span class="bp-av">B</span><span class="bp-id">BalanceClip · Bot<small>en línea</small></span><span class="bp-icons">📞 ⋮</span></div>
+      <div class="bp-body" id="chatBody">
+        <div class="bub in" data-msg>¿Tienen cabaña libre el 12–14 ago?<span class="meta">9:40 <span class="ck">✓✓</span></span></div>
+        <div class="bub bot card" data-msg data-typing><span class="lbl ok">✅ Disponible · Cabaña 2</span><span class="big">$340.00</span><span class="sub">12–14 ago · 2 noches</span><span class="meta">9:41</span></div>
+        <div class="bub bot card" data-msg data-typing><span class="lbl warn">🔒 Te aparto la fecha</span><span class="big sm">por 24 horas</span><span class="meta">9:41</span></div>
+        <div class="bub in" data-msg><span class="fchip">📄 Voucher_Yappy.pdf</span><span class="meta">9:42 <span class="ck">✓✓</span></span></div>
+        <div class="bub bot card" data-msg data-typing><span class="lbl ok">✅ Reserva confirmada</span><span class="big sm">Cabaña 2 · Ana</span><span class="sub">check-in 12-ago · guía enviada</span><span class="meta">9:42</span></div>
+        <div class="bub bot card" data-msg data-typing><span class="lbl info">📅 Sincronizado con Airbnb</span><span class="big sm">sin doble booking</span><span class="meta">9:42</span></div>
+        <div class="typing" id="chatTyping"><span></span><span></span><span></span></div>
+      </div>
+      <div class="bp-input"><span class="bp-field">Escribe un mensaje…</span><span class="bp-send">➤</span></div>
     </div>
   </div>
-</section>
+</div></section>
 
-<!-- ─────────── QUOTE ─────────── -->
-<section class="quote-band">
-  <div class="wrap">
-    <blockquote>
-      <span class="hl">Menos apps.</span> Menos suscripciones. Más noches vendidas <span class="hl">mientras dormís.</span>
-    </blockquote>
-    <cite>— Diseñado en las montañas de Chicá, para hospedajes que ponen el detalle antes que el volumen.</cite>
+<section><div class="wrap reveal">
+  <div class="sec-tag">Para quién es</div>
+  <h2 class="sec-h">Para hospedajes que cuidan el detalle</h2>
+  <p class="sec-p">Hecho para hospedaje boutique en Panamá — de 1 a 10 unidades — que pone el detalle antes que el volumen.</p>
+  <div class="uses">
+    <div class="use"><span class="ic">🏕️</span><h4>Cabañas y glamping</h4><p>Estadías con detalle y cortesías.</p></div>
+    <div class="use"><span class="ic">🏡</span><h4>Casas y villas</h4><p>Rentas por noche o por temporada.</p></div>
+    <div class="use"><span class="ic">🛎️</span><h4>Hostales boutique</h4><p>Pocas unidades, mucho servicio.</p></div>
+    <div class="use"><span class="ic">🔑</span><h4>Anfitriones Airbnb</h4><p>Que quieren reservas directas sin comisión.</p></div>
+    <div class="use"><span class="ic">🌄</span><h4>Eco-lodges</h4><p>Operación remota, equipo pequeño.</p></div>
+    <div class="use"><span class="ic">🧳</span><h4>Rentas vacacionales</h4><p>Si hospedas huéspedes, es para ti.</p></div>
   </div>
-</section>
+</div></section>
 
-<!-- ─────────── CTA ─────────── -->
-<section class="cta-band" id="contacto">
-  <div class="wrap">
-    <h2>Instalado en tu hospedaje en semanas.</h2>
-    <p>
-      Adaptable a hospedajes boutique de 1 a 10 unidades. Configuración inicial guiada,
-      entrenamiento del equipo y traspaso completo del código. No hay renta de software.
-    </p>
-    <div class="cta-row">
-      <a class="btn primary" href="https://wa.me/50769812266?text=Hola,%20me%20interesa%20BalanceClip%20Booking%20para%20mi%20hospedaje." target="_blank" rel="noopener">Hablar por WhatsApp · +507 6981-2266</a>
-      <a class="btn ghost" href="mailto:hola@balanceclip.net">hola@balanceclip.net</a>
+<section><div class="wrap">
+  <div class="sec-tag">Por qué Booking</div>
+  <h2 class="sec-h">La potencia de un ERP, sin su peso</h2>
+  <div class="why">
+    <div><h4>⚡ Rápido</h4><p>De tu Excel a un sistema funcionando en semanas, no meses.</p></div>
+    <div><h4>🎯 A tu medida</h4><p>Con tus cabañas, precios y cortesías — no te adaptas tú al software.</p></div>
+    <div><h4>💵 Costo mínimo</h4><p>Corre sobre infraestructura ligera; sin licencias caras.</p></div>
+    <div><h4>🤖 IA incluida</h4><p>Lee tus documentos: el dato entra solo, no a mano.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap reveal">
+  <div class="sec-tag">Comparativa</div>
+  <h2 class="sec-h">No es un PMS más. Es la capa que faltaba.</h2>
+  <p class="sec-p">Airbnb te da visibilidad pero se queda con hasta el 15%. Un PMS tradicional cobra suscripción por usuario, pero no integra con Yappy ni con Banco General. Este sistema hace ambos — y encima automatiza al equipo.</p>
+  <div class="compare-card">
+    <table class="compare">
+      <thead><tr><th>Capacidad</th><th>Solo Airbnb</th><th>PMS tradicional</th><th class="us">BalanceClip Booking</th></tr></thead>
+      <tbody>
+        <tr><td>Reservas directas sin comisión</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+        <tr><td>Bot WhatsApp que cotiza y cierra</td><td class="no">—</td><td class="partial">Add-on</td><td class="yes">Incluido</td></tr>
+        <tr><td>OCR de vouchers Yappy / ACH con IA</td><td class="no">—</td><td class="no">No</td><td class="yes">Sí</td></tr>
+        <tr><td>Reconciliación con Banco General</td><td class="no">—</td><td class="no">No</td><td class="yes">Sí, con IA</td></tr>
+        <tr><td>Contabilidad ingresos + egresos + P&amp;L</td><td class="no">—</td><td class="partial">Módulo aparte</td><td class="yes">Incluido</td></tr>
+        <tr><td>Alertas automáticas al equipo</td><td class="no">—</td><td class="partial">Limitado</td><td class="yes">Sí, contextuales</td></tr>
+        <tr><td>Fidelidad + referidos automáticos</td><td class="no">—</td><td class="partial">Add-on</td><td class="yes">Incluido</td></tr>
+        <tr><td>Guía self-service + keybox</td><td class="partial">Manual</td><td class="partial">Básico</td><td class="yes">Sí</td></tr>
+        <tr><td>Tus datos, sin lock-in</td><td class="no">No</td><td class="no">No</td><td class="yes">Google Sheet</td></tr>
+        <tr class="tot"><td>Costo</td><td>15% comisión</td><td>US$ mensual + por usuario</td><td>Plan mensual + setup · a tu medida</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div></section>
+
+<section id="contacto"><div class="wrap">
+  <div class="close">
+    <h2>¿Listo para vender más noches, dormido?</h2>
+    <p>Agenda una demo de 15 minutos. Te muestro cómo se vería con tus cabañas y tu calendario.</p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn primary" href="https://wa.me/50769812266?text=Hola%2C%20quiero%20una%20demo%20de%20BalanceClip%20Booking" target="_blank" rel="noopener"><span class="wa-ic">💬</span> WhatsApp · 6981-2266</a>
+      <a class="btn ghost" href="mailto:hola@balanceclip.net?subject=Demo%20de%20BalanceClip%20Booking" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.5);color:#fff">✉ hola@balanceclip.net</a>
     </div>
   </div>
-</section>
+</div></section>
 
-<footer>
-  <div class="wrap">
-    <div>© 2026 <b style="color:var(--ink)">Balance<span style="color:var(--orange)">Clip</span></b> · Micro-sistemas con IA · Panamá</div>
-    <div><a href="/">Otros productos</a> · <a href="/pro">Pro</a> · <a href="/cobros/">Cobros</a> · <a href="/trade/">Trade</a> · <a href="/seppelec/">Seppelec</a></div>
-  </div>
-</footer>
+<footer>BalanceClip · Booking — hospedaje boutique con IA · Panamá</footer>
 
+<script>
+(function(){
+  const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* reveal al hacer scroll */
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }),{threshold:.12});
+  document.querySelectorAll('.prob,.step,.feat,.bots,.use,.why div,.close').forEach(el=>{ el.classList.add('rv'); io.observe(el); });
+
+  /* ★ Vinculación — momento estrella (timeline WAAPI) */
+  (function(){
+    const stage=document.getElementById('bc-stage'), frame=document.getElementById('bc-frame'); if(!stage) return;
+    const q=s=>stage.querySelector(s), qa=s=>[...stage.querySelectorAll(s)];
+    const E={enter:'cubic-bezier(.22,1,.36,1)',settle:'cubic-bezier(.34,1.3,.64,1)',draw:'cubic-bezier(.4,0,.2,1)'};
+    const fmt=v=>'$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    let anims=[],timers=[],raf=0,inView=false;
+    const add=a=>{if(a)anims.push(a);return a;}, at=(f,ms)=>timers.push(setTimeout(f,ms));
+    const A=(sel,fr,op)=>{const el=q(sel); if(el)add(el.animate(fr,op));};
+    function applyMode(){ const sc=Math.min(1,frame.clientWidth/720); stage.style.transform='scale('+sc+')'; frame.style.height=(440*sc)+'px'; }
+    function clear(){ timers.forEach(clearTimeout); timers=[]; if(raf)cancelAnimationFrame(raf); anims.forEach(a=>{try{a.cancel()}catch(e){}}); anims=[]; }
+    function ticker(t,dur){ const num=q('#bc-num'); if(!num)return; const t0=performance.now();
+      const stp=now=>{const p=Math.min(1,(now-t0)/dur); num.textContent=fmt(t*(1-Math.pow(1-p,3))); if(p<1)raf=requestAnimationFrame(stp);}; raf=requestAnimationFrame(stp); }
+    function applyStatic(){ clear();
+      [['#bc-doc-left',{transform:'none',opacity:1}],['#bc-doc-right',{transform:'none',opacity:1}]].forEach(([s,c])=>{const e=q(s);if(e)Object.assign(e.style,c);});
+      qa('[data-hl]').forEach(e=>e.style.opacity=1);
+      qa('[data-underline]').forEach(e=>{e.style.opacity=1;e.style.transform='scaleX(1)';});
+      const path=q('#bc-connector'); if(path){path.style.strokeDasharray='none';path.style.strokeDashoffset=0;}
+      const nd=q('#bc-node'); if(nd){nd.style.opacity=1;nd.style.transform='scale(1)';}
+      const chip=q('#bc-chip'); if(chip){chip.style.opacity=1;chip.style.transform='translate(-50%,0) scale(1)';}
+      const glow=q('#bc-glow'); if(glow)glow.style.opacity=.45;
+      const num=q('#bc-num'); if(num)num.textContent=fmt(340);
+    }
+    function run(){ clear(); if(RM){applyStatic();return;}
+      const m=innerWidth<=760?0.72:1, docDur=1850*m;
+      A('#bc-doc-left',[{transform:'translateX(-310px) rotate(-5deg)',opacity:0,offset:0,easing:E.enter},{transform:'translateX(-55px) rotate(-3deg)',opacity:1,offset:.35,easing:'linear'},{transform:'translateX(-55px) rotate(-3deg)',opacity:1,offset:.76,easing:E.settle},{transform:'translateX(0) rotate(0)',opacity:1,offset:1}],{duration:docDur,fill:'both'});
+      A('#bc-doc-right',[{transform:'translateX(310px) rotate(5deg)',opacity:0,offset:0,easing:E.enter},{transform:'translateX(55px) rotate(3deg)',opacity:1,offset:.35,easing:'linear'},{transform:'translateX(55px) rotate(3deg)',opacity:1,offset:.76,easing:E.settle},{transform:'translateX(0) rotate(0)',opacity:1,offset:1}],{duration:docDur,delay:110*m,fill:'both'});
+      const scan=[{transform:'translateY(-60px)',opacity:0,offset:0},{transform:'translateY(0)',opacity:.95,offset:.16},{transform:'translateY(232px)',opacity:.95,offset:.86},{transform:'translateY(290px)',opacity:0,offset:1}];
+      A('#bc-scan-left',scan,{duration:850*m,delay:620*m,fill:'both',easing:'linear'});
+      A('#bc-scan-right',scan,{duration:850*m,delay:720*m,fill:'both',easing:'linear'});
+      qa('[data-hl]').forEach((el,i)=>add(el.animate([{opacity:0},{opacity:1}],{duration:280*m,delay:(980+i*110)*m,fill:'both',easing:'ease-out'})));
+      qa('[data-underline]').forEach((el,i)=>add(el.animate([{opacity:0,transform:'scaleX(0)'},{opacity:1,transform:'scaleX(0)',offset:.0001},{opacity:1,transform:'scaleX(1)'}],{duration:460*m,delay:(1240+i*90)*m,fill:'both',easing:E.draw})));
+      const path=q('#bc-connector'); if(path){const len=path.getTotalLength(); path.style.strokeDasharray=len; path.style.strokeDashoffset=len; add(path.animate([{strokeDashoffset:len},{strokeDashoffset:0}],{duration:600*m,delay:1820*m,fill:'both',easing:E.draw}));}
+      A('#bc-node',[{transform:'scale(0)',opacity:0,offset:0},{transform:'scale(1.18)',opacity:1,offset:.7},{transform:'scale(1)',opacity:1,offset:1}],{duration:400*m,delay:2160*m,fill:'both',easing:E.settle});
+      A('#bc-chip',[{transform:'translate(-50%,12px) scale(.85)',opacity:0,offset:0},{transform:'translate(-50%,-2px) scale(1.04)',opacity:1,offset:.7},{transform:'translate(-50%,0) scale(1)',opacity:1,offset:1}],{duration:480*m,delay:2360*m,fill:'both',easing:E.settle});
+      const num=q('#bc-num'); if(num)num.textContent=fmt(0); at(()=>ticker(340,820*m),2420*m);
+      at(()=>A('#bc-glow',[{opacity:.32,transform:'translate(-50%,-50%) scale(1)'},{opacity:.6,transform:'translate(-50%,-50%) scale(1.08)'},{opacity:.32,transform:'translate(-50%,-50%) scale(1)'}],{duration:4200,iterations:Infinity,easing:'ease-in-out'}),2900*m);
+      at(()=>{ if(inView) run(); }, 3300*m+2600);
+    }
+    applyMode(); addEventListener('resize',applyMode);
+    new IntersectionObserver(es=>es.forEach(e=>{ inView=e.isIntersecting; if(e.isIntersecting)run(); else clear(); }),{threshold:.35}).observe(stage);
+  })();
+
+  /* chat de WhatsApp (secuencia con typing) */
+  (function(){
+    const phone=document.getElementById('botPhone'), body=document.getElementById('chatBody'), typing=document.getElementById('chatTyping'); if(!phone) return;
+    const msgs=[...body.querySelectorAll('[data-msg]')]; let timers=[], inView=false;
+    const at=(f,ms)=>timers.push(setTimeout(f,ms)), clear=()=>{timers.forEach(clearTimeout);timers=[];};
+    const down=()=>{ body.scrollTop=body.scrollHeight; };
+    function reset(){ clear(); msgs.forEach(m=>m.classList.remove('show')); typing.classList.remove('show'); phone.querySelectorAll('.ck').forEach(c=>c.classList.remove('read')); }
+    function play(){ if(RM){ msgs.forEach(m=>m.classList.add('show')); phone.querySelectorAll('.ck').forEach(c=>c.classList.add('read')); return; }
+      reset(); let t=300;
+      msgs.forEach(m=>{ if(m.hasAttribute('data-typing')){
+          at(()=>{ body.insertBefore(typing,m); typing.classList.add('show'); down(); }, t); t+=850;
+          at(()=>{ typing.classList.remove('show'); m.classList.add('show'); down(); }, t); t+=650;
+        } else { at(()=>{ m.classList.add('show'); down(); }, t); t+=780; } });
+      at(()=>phone.querySelectorAll('.in .ck').forEach(c=>c.classList.add('read')), t); t+=300;
+      at(()=>{ if(inView) play(); }, t+3200);
+    }
+    new IntersectionObserver(es=>es.forEach(e=>{ inView=e.isIntersecting; if(e.isIntersecting){ phone.classList.add('float'); play(); } else clear(); }),{threshold:.3}).observe(phone);
+  })();
+
+  /* constelación de documentos (canvas, ≤8% opacidad) */
+  (function(){
+    const cv=document.getElementById('heroCanvas'); if(!cv) return;
+    const ctx=cv.getContext('2d'), hero=cv.parentElement;
+    let W=0,H=0,dpr=1,nodes=[],raf=0; const mouse={x:.5,y:.5}, off={x:0,y:0};
+    const rr=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();};
+    function seed(){ const n=W<560?10:22; nodes=[]; for(let i=0;i<n;i++)nodes.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()*2-1)*.22,vy:(Math.random()*2-1)*.22,depth:.3+Math.random()*.7,doc:Math.random()<.28,orange:Math.random()<.18}); }
+    function resize(){ const r=hero.getBoundingClientRect(); dpr=Math.min(2,window.devicePixelRatio||1); W=r.width;H=r.height; cv.width=W*dpr;cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); seed(); if(RM)draw(); }
+    function draw(){ ctx.clearRect(0,0,W,H);
+      const D=150, base=.07;
+      const pos=nodes.map(p=>({x:p.x+off.x*p.depth,y:p.y+off.y*p.depth,p}));
+      ctx.lineWidth=1;
+      for(let i=0;i<pos.length;i++)for(let j=i+1;j<pos.length;j++){ const dx=pos[i].x-pos[j].x,dy=pos[i].y-pos[j].y,d=Math.hypot(dx,dy); if(d<D){ ctx.strokeStyle='rgba(30,27,75,'+(base*.7*(1-d/D))+')'; ctx.beginPath(); ctx.moveTo(pos[i].x,pos[i].y); ctx.lineTo(pos[j].x,pos[j].y); ctx.stroke(); } }
+      pos.forEach(({x,y,p})=>{ const col=p.orange?'249,115,22':'30,27,75';
+        if(p.doc){ ctx.fillStyle='rgba('+col+','+(base*1.6)+')'; rr(x-6,y-8,12,16,2.5); ctx.fill();
+          ctx.fillStyle='rgba(250,250,250,'+(base*1.6)+')'; ctx.beginPath(); ctx.moveTo(x+6,y-8); ctx.lineTo(x+6,y-3); ctx.lineTo(x+1,y-8); ctx.closePath(); ctx.fill();
+          ctx.fillStyle='rgba('+col+','+(base*1.1)+')'; ctx.fillRect(x-3.5,y-1,7,1.3); ctx.fillRect(x-3.5,y+2.5,5,1.3);
+        } else { ctx.fillStyle='rgba('+col+','+(base*2.2)+')'; ctx.beginPath(); ctx.arc(x,y,p.orange?2.6:2,0,6.283); ctx.fill(); } });
+      ctx.globalAlpha=1;
+    }
+    function step(){ off.x+=((mouse.x-.5)*30-off.x)*.06; off.y+=((mouse.y-.5)*18-off.y)*.06;
+      nodes.forEach(p=>{ p.x+=p.vx;p.y+=p.vy; if(p.x<-20)p.x=W+20; if(p.x>W+20)p.x=-20; if(p.y<-20)p.y=H+20; if(p.y>H+20)p.y=-20; }); }
+    function loop(){ step(); draw(); raf=requestAnimationFrame(loop); }
+    resize(); addEventListener('resize',resize);
+    addEventListener('mousemove',e=>{ mouse.x=e.clientX/innerWidth; mouse.y=e.clientY/innerHeight; },{passive:true});
+    if(!RM) new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ if(!raf)loop(); } else { cancelAnimationFrame(raf); raf=0; } }),{threshold:.01}).observe(hero);
+  })();
+})();
+</script>
 </body>
 </html>
