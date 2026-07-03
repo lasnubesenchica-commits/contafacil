@@ -280,14 +280,20 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 .prod-custom h3{font-weight:900;font-size:1.25rem;margin-bottom:.35rem;color:var(--ink)}
 .prod-custom p{color:var(--ink2);font-weight:600;max-width:540px;margin:0 auto 1.1rem}
 .prod-custom .cta-row{display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap}
+
+.nav-links{display:flex;align-items:center;gap:1.3rem}
+@media(max-width:760px){.nav-links{gap:1rem}.nav-links .np{display:none}}
 </style>
 </head>
 <body>
 
 <nav class="nav"><div class="wrap">
   <div class="logo">Balance<span>Clip</span></div>
-  <div style="display:flex;align-items:center;gap:1.5rem">
-    <a class="lk" href="/pro">Pro</a>
+  <div class="nav-links">
+    <a class="lk np" href="/flow/">Flow</a>
+    <a class="lk np" href="/trade/">Trade</a>
+    <a class="lk np" href="/booking/">Booking</a>
+    <a class="lk np" href="/pro">Pro</a>
     <a class="lk" href="#contacto">Hablemos →</a>
   </div>
 </div></nav>
