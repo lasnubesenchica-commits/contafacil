@@ -324,6 +324,23 @@ table.compare tbody td:first-child{color:var(--ink);font-weight:700}
 table.compare .yes{color:#0f7a4e;font-weight:800}
 table.compare .partial{color:#c2700a;font-weight:700}
 table.compare .no{color:var(--ink3);font-weight:600}
+
+/* precios */
+.price-wrap{max-width:520px;margin:0 auto;text-align:center}
+.price-card{background:#fff;border:1px solid var(--border);border-radius:22px;padding:2rem 1.8rem;box-shadow:0 22px 50px -28px rgba(30,27,75,.4);position:relative;overflow:hidden}
+.price-card::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--orange),var(--orange2))}
+.price-badge{display:inline-block;font-weight:800;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--orange);background:var(--orange-light);padding:.3rem .8rem;border-radius:100px;margin-bottom:.9rem}
+.price-amt{display:flex;align-items:baseline;justify-content:center;gap:2px;margin-bottom:.3rem}
+.price-amt .cur{font-weight:900;font-size:1.4rem;color:var(--ink)}
+.price-amt .big{font-weight:900;font-size:3.4rem;letter-spacing:-.03em;color:var(--ink);line-height:1}
+.price-amt .per{font-weight:700;font-size:1rem;color:var(--ink3)}
+.price-sub{font-weight:600;font-size:.92rem;color:var(--ink2);margin-bottom:1.2rem}
+.price-feats{list-style:none;text-align:left;max-width:340px;margin:0 auto 1.4rem;display:flex;flex-direction:column;gap:.55rem}
+.price-feats li{font-weight:600;font-size:.95rem;color:var(--ink)}
+.price-feats li i{color:#0f7a4e;font-weight:900;font-style:normal;margin-right:.35rem}
+.price-card .btn.primary{width:100%;justify-content:center}
+.price-note{font-weight:600;font-size:.9rem;color:var(--ink2);margin-top:1.1rem}
+.price-note b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -566,6 +583,22 @@ table.compare .no{color:var(--ink3);font-weight:600}
         <tr class="tot"><td>Costo</td><td>15% comisión</td><td>US$ mensual + por usuario</td><td>Plan mensual + setup · a tu medida</td></tr>
       </tbody>
     </table>
+  </div>
+</div></section>
+
+<section id="precios"><div class="wrap reveal">
+  <div class="sec-tag">Precios</div>
+  <h2 class="sec-h">Desde $9 al mes</h2>
+  <p class="sec-p">Un plan mensual según los documentos que proceses. Empieza con un volumen moderado y sube cuando lo necesites.</p>
+  <div class="price-wrap">
+    <div class="price-card">
+      <div class="price-badge">Plan inicial</div>
+      <div class="price-amt"><span class="cur">$</span><span class="big">9</span><span class="per">/mes</span></div>
+      <div class="price-sub">Volumen moderado de reservas y comprobantes al mes</div>
+      <ul class="price-feats"><li><i>✓</i>Bot que cotiza y cierra reservas 24/7</li><li><i>✓</i>OCR de vouchers + calendario</li><li><i>✓</i>Contabilidad e ITBMS a la DGI</li><li><i>✓</i>Sync con Airbnb</li><li><i>✓</i>Setup guiado · tus datos, sin lock-in</li></ul>
+      <a class="btn primary" href="#contacto">Agenda una demo</a>
+    </div>
+    <p class="price-note">¿Más volumen o reglas propias? <b>Plan a tu medida</b> — lo vemos en la demo.</p>
   </div>
 </div></section>
 
