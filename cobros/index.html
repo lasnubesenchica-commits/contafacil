@@ -361,6 +361,63 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
   <h2 class="sec-h">Del PDF a tu calendario de cobros</h2>
   <p class="sec-p">Subes el documento y la IA hace el resto: lee, vincula la orden de compra con su factura y su pago, y lo ubica en tu calendario con su fecha de cobro.</p>
 
+  <div class="vinc-frame" id="bc-frame"><div id="bc-stage" style="position:relative;width:720px;height:440px;background:radial-gradient(120% 120% at 50% 0%,#fdfcfa 0%,#f6f2eb 100%);border:1px solid #e7e2d8;border-radius:20px;overflow:hidden">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(#1e1b4b .6px,transparent .6px);background-size:22px 22px;opacity:.035"></div>
+    <div id="bc-doc-left" style="position:absolute;left:75px;top:84px;width:210px;height:272px;background:#fff;border-radius:18px;box-shadow:0 22px 44px -22px rgba(30,27,75,.45);overflow:hidden;will-change:transform,opacity">
+      <div style="height:7px;background:#8b5cf6"></div>
+      <div style="padding:15px 16px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Orden de compra</div><div style="font-weight:800;font-size:9px;color:#8b5cf6;background:#f1ecfe;padding:3px 6px;border-radius:6px">PDF</div></div>
+        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">OC-4200 · Cliente Norte</div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
+          <div style="height:7px;width:86%;background:#ecebf3;border-radius:4px"></div>
+          <div style="position:relative;height:9px;width:70%"><div style="position:absolute;inset:0;background:#ecebf3;border-radius:4px"></div><div data-hl style="position:absolute;inset:0;background:#e6dafb;border-radius:4px;opacity:0"></div></div>
+          <div style="height:7px;width:58%;background:#ecebf3;border-radius:4px"></div>
+        </div>
+      </div>
+      <div style="position:absolute;left:16px;bottom:15px;right:16px"><div style="font-weight:800;font-size:9px;letter-spacing:.06em;color:#9893b5">TOTAL</div><div style="position:relative;display:inline-block;margin-top:3px"><span style="font-weight:900;font-size:17px">$7,653.78</span><div data-underline style="position:absolute;left:-3px;right:-3px;bottom:-2px;height:7px;background:rgba(139,92,246,.32);border-radius:3px;opacity:0;transform:scaleX(0);transform-origin:left"></div></div></div>
+      <div id="bc-scan-left" style="position:absolute;left:0;top:0;width:100%;height:48px;background:linear-gradient(180deg,rgba(249,115,22,0) 0%,rgba(249,115,22,.16) 42%,rgba(249,115,22,.55) 50%,rgba(249,115,22,.16) 58%,rgba(249,115,22,0) 100%);transform:translateY(-60px);opacity:0;pointer-events:none"></div>
+    </div>
+    <div id="bc-doc-right" style="position:absolute;left:435px;top:84px;width:210px;height:272px;background:#fff;border-radius:18px;box-shadow:0 22px 44px -22px rgba(30,27,75,.45);overflow:hidden;will-change:transform,opacity">
+      <div style="height:7px;background:#f97316"></div>
+      <div style="padding:15px 16px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Factura</div><div style="font-weight:800;font-size:9px;color:#f97316;background:#fdeede;padding:3px 6px;border-radius:6px">PDF</div></div>
+        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">F-26281 · Cliente Norte</div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
+          <div style="height:7px;width:80%;background:#ecebf3;border-radius:4px"></div>
+          <div style="position:relative;height:9px;width:66%"><div style="position:absolute;inset:0;background:#ecebf3;border-radius:4px"></div><div data-hl style="position:absolute;inset:0;background:#fde2c8;border-radius:4px;opacity:0"></div></div>
+          <div style="height:7px;width:52%;background:#ecebf3;border-radius:4px"></div>
+        </div>
+      </div>
+      <div style="position:absolute;left:16px;bottom:15px;right:16px"><div style="font-weight:800;font-size:9px;letter-spacing:.06em;color:#9893b5">TOTAL</div><div style="position:relative;display:inline-block;margin-top:3px"><span style="font-weight:900;font-size:17px">$7,653.78</span><div data-underline style="position:absolute;left:-3px;right:-3px;bottom:-2px;height:7px;background:rgba(249,115,22,.34);border-radius:3px;opacity:0;transform:scaleX(0);transform-origin:left"></div></div></div>
+      <div id="bc-scan-right" style="position:absolute;left:0;top:0;width:100%;height:48px;background:linear-gradient(180deg,rgba(249,115,22,0) 0%,rgba(249,115,22,.16) 42%,rgba(249,115,22,.55) 50%,rgba(249,115,22,.16) 58%,rgba(249,115,22,0) 100%);transform:translateY(-60px);opacity:0;pointer-events:none"></div>
+    </div>
+    <svg id="bc-svg" width="720" height="440" viewBox="0 0 720 440" style="position:absolute;left:0;top:0;overflow:visible;pointer-events:none">
+      <path id="bc-connector" d="M285,212 C 325,196 395,196 435,212" fill="none" stroke="#14b8a6" stroke-width="3" stroke-linecap="round" opacity="0.95"></path>
+      <g id="bc-node" style="transform-box:fill-box;transform-origin:center;opacity:0"><circle cx="360" cy="201" r="15" fill="#14b8a6"></circle><path d="M353,201 l5,5 l9,-11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></g>
+    </svg>
+    <div id="bc-glow" style="position:absolute;left:360px;top:280px;width:200px;height:64px;transform:translate(-50%,-50%) scale(1);background:radial-gradient(closest-side,rgba(249,115,22,.6),rgba(249,115,22,0) 72%);filter:blur(15px);opacity:0;pointer-events:none"></div>
+    <div id="bc-chip" style="position:absolute;left:360px;top:256px;transform:translate(-50%,12px);opacity:0;display:flex;align-items:center;gap:11px;background:#fff;border:1.5px solid #f97316;box-shadow:0 14px 30px -14px rgba(249,115,22,.55);border-radius:14px;padding:11px 17px;white-space:nowrap">
+      <span style="width:10px;height:10px;border-radius:50%;background:#f97316"></span>
+      <span style="display:flex;flex-direction:column;line-height:1.05"><span id="bc-label" style="font-weight:800;font-size:9px;letter-spacing:.1em;color:#a09bb8;text-transform:uppercase">Por cobrar · vence 21-ago</span><span id="bc-num" style="font-weight:900;font-size:22px;color:#1e1b4b">$7,653.78</span></span>
+    </div>
+  </div></div>
+
+  <div class="engine-wrap">
+  <div class="eng-spark" aria-hidden="true"><span class="eng-dot"></span></div>
+  <div class="engine">
+    <div class="step"><span class="n">1</span><span class="ic">📥</span><h4>Captura</h4><p>Subes la OC, factura o constancia — o la mandas por WhatsApp.</p></div>
+    <div class="step"><span class="n">2</span><span class="ic">🤖</span><h4>Lee con IA</h4><p>Extrae N° de OC, factura, fecha y monto. Sin digitar.</p></div>
+    <div class="step k"><span class="n">3</span><span class="ic">📎</span><h4>Vincula</h4><p>Asocia orden ↔ factura ↔ pago y valida los montos.</p></div>
+    <div class="step"><span class="n">4</span><span class="ic">📅</span><h4>Ubica el cobro</h4><p>Cae en tu calendario según su vencimiento.</p></div>
+    <div class="step"><span class="n">5</span><span class="ic">🔔</span><h4>Te alerta</h4><p>Antes de que venza — por pantalla y WhatsApp.</p></div>
+  </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-tag">Tu flujo de caja</div>
+  <h2 class="sec-h">Todo cae en tu calendario</h2>
+  <p class="sec-p">Cada factura aparece en su día, por línea de crédito. Ves qué entra esta semana y cuánto te queda por cobrar en el mes — tu flujo de caja, de un vistazo.</p>
   <div class="calmock reveal">
     <div class="cal-top">
       <div class="cal-month">📅 Julio 2026 · Calendario de cobros</div>
@@ -374,17 +431,6 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
       <div class="fh"><b>💵 Flujo de caja por semana</b><span>Por cobrar en julio · <em>$61,500</em></span></div>
       <div class="cal-bars"><div class="bar"><div class="ba">$10.7k</div><div class="bv" style="height:46%"></div><div class="bl">Sem 1</div></div><div class="bar"><div class="ba">$12.4k</div><div class="bv" style="height:53%"></div><div class="bl">Sem 2</div></div><div class="bar"><div class="ba">$14.0k</div><div class="bv" style="height:60%"></div><div class="bl">Sem 3</div></div><div class="bar"><div class="ba">$18.3k</div><div class="bv" style="height:78%"></div><div class="bl">Sem 4</div></div><div class="bar"><div class="ba">$6.1k</div><div class="bv" style="height:26%"></div><div class="bl">Sem 5</div></div></div>
     </div>
-  </div>
-
-  <div class="engine-wrap">
-  <div class="eng-spark" aria-hidden="true"><span class="eng-dot"></span></div>
-  <div class="engine">
-    <div class="step"><span class="n">1</span><span class="ic">📥</span><h4>Captura</h4><p>Subes la OC, factura o constancia — o la mandas por WhatsApp.</p></div>
-    <div class="step"><span class="n">2</span><span class="ic">🤖</span><h4>Lee con IA</h4><p>Extrae N° de OC, factura, fecha y monto. Sin digitar.</p></div>
-    <div class="step k"><span class="n">3</span><span class="ic">📎</span><h4>Vincula</h4><p>Asocia orden ↔ factura ↔ pago y valida los montos.</p></div>
-    <div class="step"><span class="n">4</span><span class="ic">📅</span><h4>Ubica el cobro</h4><p>Cae en tu calendario según su vencimiento.</p></div>
-    <div class="step"><span class="n">5</span><span class="ic">🔔</span><h4>Te alerta</h4><p>Antes de que venza — por pantalla y WhatsApp.</p></div>
-  </div>
   </div>
 </div></section>
 
