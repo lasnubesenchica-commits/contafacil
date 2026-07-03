@@ -130,6 +130,36 @@ section{padding:3.2rem 0}
 .feat-more b{color:var(--ink)}
 @media(max-width:860px){.feats{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.feats{grid-template-columns:1fr}}
+/* calendario de cobros (mockup) */
+.calmock{max-width:720px;margin:0 auto 1.4rem;background:#fff;border:1px solid var(--border);border-radius:20px;padding:1.2rem 1.3rem 1.4rem;box-shadow:0 20px 44px -26px rgba(30,27,75,.4)}
+.cal-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.9rem}
+.cal-month{font-weight:900;font-size:1.05rem}
+.cal-legend{display:flex;gap:.85rem;flex-wrap:wrap;font-weight:700;font-size:.72rem;color:var(--ink2)}
+.cal-legend span{display:inline-flex;align-items:center;gap:.3rem}
+.cal-legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-dow{text-align:center;font-weight:800;font-size:.62rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.02em;padding-bottom:2px}
+.cal-cell{min-height:52px;border:1px solid #f0eef5;border-radius:9px;padding:4px 5px;background:#fcfcfd;overflow:hidden}
+.cal-cell.out{background:transparent;border-color:transparent}
+.cal-cell .d{font-weight:800;font-size:.66rem;color:var(--ink3)}
+.cal-cell.today{border-color:var(--orange);box-shadow:0 0 0 2px rgba(249,115,22,.18)}
+.cal-cell.today .d{color:var(--orange)}
+.cchip{margin-top:3px;display:block;font-weight:800;font-size:.58rem;padding:2px 4px;border-radius:5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cchip.reg{background:var(--orange-light);color:#c2560a}
+.cchip.ext{background:var(--teal-light);color:#0f766e}
+.cchip.paid{background:#eef7ee;color:#5b8f63}
+.cal-flow{margin-top:1rem;padding-top:.9rem;border-top:1px dashed #e7e2ee}
+.cal-flow .fh{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.3rem;margin-bottom:.55rem}
+.cal-flow .fh b{font-weight:900;font-size:.82rem}
+.cal-flow .fh span{font-weight:800;font-size:.8rem;color:var(--ink2)}
+.cal-flow .fh em{font-style:normal;color:var(--orange);font-weight:900}
+.cal-bars{display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;align-items:end;height:96px}
+.cal-bars .bar{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px}
+.cal-bars .ba{font-weight:800;font-size:.56rem;color:var(--ink2)}
+.cal-bars .bv{width:100%;max-width:44px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--orange2),var(--orange))}
+.cal-bars .bar.today .bv{background:linear-gradient(180deg,#34d3c2,var(--teal))}
+.cal-bars .bl{font-weight:800;font-size:.56rem;color:var(--ink3);margin-top:1px}
+@media(max-width:560px){.cchip{font-size:.5rem;padding:1px 3px}.cal-cell{min-height:46px}}
 
 /* casos */
 .cases{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
@@ -291,12 +321,12 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 <header class="hero"><canvas id="heroCanvas" aria-hidden="true"></canvas><div class="wrap">
   <span class="pill">Cuentas por cobrar con IA · Panamá</span>
   <h1>Tus cuentas por cobrar, <span class="hl">leídas por IA</span>.</h1>
-  <p class="sub">Sube la <b>factura o la orden de compra</b> y la IA la <b>lee y la vincula sola</b>. Ves tu <b>flujo de caja en un calendario</b>, manejas líneas de crédito, y un <b>bot de WhatsApp te alerta</b> de cada vencimiento. Adiós al Excel de cobros que solo una persona entiende.</p>
+  <p class="sub">Sube la <b>factura y la orden de compra</b> y la IA las <b>lee y las vincula solas</b>. Ves tu <b>flujo de caja en un calendario</b>, manejas líneas de crédito, y un <b>bot de WhatsApp te alerta</b> de cada vencimiento. Adiós al Excel de cobros que solo una persona entiende.</p>
   <div class="cta">
     <a class="btn primary" href="#contacto">Agenda una demo</a>
     <a class="btn ghost" href="#features">Ver qué hace</a>
   </div>
-  <div class="trust">Para PYMEs que venden a crédito · sin ERP caro · listo en semanas</div>
+  <div class="trust">Para PYMEs que venden a crédito · sin ERP caro · listo en días</div>
 </div></header>
 
 <section><div class="wrap">
@@ -331,46 +361,20 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
   <h2 class="sec-h">Del PDF a tu calendario de cobros</h2>
   <p class="sec-p">Subes el documento y la IA hace el resto: lee, vincula la orden de compra con su factura y su pago, y lo ubica en tu calendario con su fecha de cobro.</p>
 
-  <div class="vinc-frame" id="bc-frame"><div id="bc-stage" style="position:relative;width:720px;height:440px;background:radial-gradient(120% 120% at 50% 0%,#fdfcfa 0%,#f6f2eb 100%);border:1px solid #e7e2d8;border-radius:20px;overflow:hidden">
-    <div style="position:absolute;inset:0;background-image:radial-gradient(#1e1b4b .6px,transparent .6px);background-size:22px 22px;opacity:.035"></div>
-    <div id="bc-doc-left" style="position:absolute;left:75px;top:84px;width:210px;height:272px;background:#fff;border-radius:18px;box-shadow:0 22px 44px -22px rgba(30,27,75,.45);overflow:hidden;will-change:transform,opacity">
-      <div style="height:7px;background:#8b5cf6"></div>
-      <div style="padding:15px 16px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Orden de compra</div><div style="font-weight:800;font-size:9px;color:#8b5cf6;background:#f1ecfe;padding:3px 6px;border-radius:6px">PDF</div></div>
-        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">OC-4200 · Cliente Norte</div>
-        <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
-          <div style="height:7px;width:86%;background:#ecebf3;border-radius:4px"></div>
-          <div style="position:relative;height:9px;width:70%"><div style="position:absolute;inset:0;background:#ecebf3;border-radius:4px"></div><div data-hl style="position:absolute;inset:0;background:#e6dafb;border-radius:4px;opacity:0"></div></div>
-          <div style="height:7px;width:58%;background:#ecebf3;border-radius:4px"></div>
-        </div>
-      </div>
-      <div style="position:absolute;left:16px;bottom:15px;right:16px"><div style="font-weight:800;font-size:9px;letter-spacing:.06em;color:#9893b5">TOTAL</div><div style="position:relative;display:inline-block;margin-top:3px"><span style="font-weight:900;font-size:17px">$7,653.78</span><div data-underline style="position:absolute;left:-3px;right:-3px;bottom:-2px;height:7px;background:rgba(139,92,246,.32);border-radius:3px;opacity:0;transform:scaleX(0);transform-origin:left"></div></div></div>
-      <div id="bc-scan-left" style="position:absolute;left:0;top:0;width:100%;height:48px;background:linear-gradient(180deg,rgba(249,115,22,0) 0%,rgba(249,115,22,.16) 42%,rgba(249,115,22,.55) 50%,rgba(249,115,22,.16) 58%,rgba(249,115,22,0) 100%);transform:translateY(-60px);opacity:0;pointer-events:none"></div>
+  <div class="calmock reveal">
+    <div class="cal-top">
+      <div class="cal-month">📅 Julio 2026 · Calendario de cobros</div>
+      <div class="cal-legend"><span><i style="background:var(--orange)"></i>Regular</span><span><i style="background:var(--teal)"></i>Extraordinaria</span><span><i style="background:#8fc79a"></i>Pagado</span></div>
     </div>
-    <div id="bc-doc-right" style="position:absolute;left:435px;top:84px;width:210px;height:272px;background:#fff;border-radius:18px;box-shadow:0 22px 44px -22px rgba(30,27,75,.45);overflow:hidden;will-change:transform,opacity">
-      <div style="height:7px;background:#f97316"></div>
-      <div style="padding:15px 16px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Factura</div><div style="font-weight:800;font-size:9px;color:#f97316;background:#fdeede;padding:3px 6px;border-radius:6px">PDF</div></div>
-        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">F-26281 · Cliente Norte</div>
-        <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
-          <div style="height:7px;width:80%;background:#ecebf3;border-radius:4px"></div>
-          <div style="position:relative;height:9px;width:66%"><div style="position:absolute;inset:0;background:#ecebf3;border-radius:4px"></div><div data-hl style="position:absolute;inset:0;background:#fde2c8;border-radius:4px;opacity:0"></div></div>
-          <div style="height:7px;width:52%;background:#ecebf3;border-radius:4px"></div>
-        </div>
-      </div>
-      <div style="position:absolute;left:16px;bottom:15px;right:16px"><div style="font-weight:800;font-size:9px;letter-spacing:.06em;color:#9893b5">TOTAL</div><div style="position:relative;display:inline-block;margin-top:3px"><span style="font-weight:900;font-size:17px">$7,653.78</span><div data-underline style="position:absolute;left:-3px;right:-3px;bottom:-2px;height:7px;background:rgba(249,115,22,.34);border-radius:3px;opacity:0;transform:scaleX(0);transform-origin:left"></div></div></div>
-      <div id="bc-scan-right" style="position:absolute;left:0;top:0;width:100%;height:48px;background:linear-gradient(180deg,rgba(249,115,22,0) 0%,rgba(249,115,22,.16) 42%,rgba(249,115,22,.55) 50%,rgba(249,115,22,.16) 58%,rgba(249,115,22,0) 100%);transform:translateY(-60px);opacity:0;pointer-events:none"></div>
+    <div class="cal-grid">
+      <div class="cal-dow">Lun</div><div class="cal-dow">Mar</div><div class="cal-dow">Mié</div><div class="cal-dow">Jue</div><div class="cal-dow">Vie</div><div class="cal-dow">Sáb</div><div class="cal-dow">Dom</div>
+      <div class="cal-cell out"></div><div class="cal-cell out"></div><div class="cal-cell"><span class="d">1</span><span class="cchip paid">✓ $3,100</span></div><div class="cal-cell"><span class="d">2</span></div><div class="cal-cell today"><span class="d">3</span><span class="cchip reg">$7,653</span></div><div class="cal-cell"><span class="d">4</span></div><div class="cal-cell"><span class="d">5</span></div><div class="cal-cell"><span class="d">6</span></div><div class="cal-cell"><span class="d">7</span></div><div class="cal-cell"><span class="d">8</span></div><div class="cal-cell"><span class="d">9</span><span class="cchip reg">$12,400</span></div><div class="cal-cell"><span class="d">10</span></div><div class="cal-cell"><span class="d">11</span></div><div class="cal-cell"><span class="d">12</span></div><div class="cal-cell"><span class="d">13</span></div><div class="cal-cell"><span class="d">14</span></div><div class="cal-cell"><span class="d">15</span><span class="cchip ext">$4,200</span></div><div class="cal-cell"><span class="d">16</span></div><div class="cal-cell"><span class="d">17</span><span class="cchip reg">$9,800</span></div><div class="cal-cell"><span class="d">18</span></div><div class="cal-cell"><span class="d">19</span></div><div class="cal-cell"><span class="d">20</span></div><div class="cal-cell"><span class="d">21</span></div><div class="cal-cell"><span class="d">22</span><span class="cchip ext">$18,300</span></div><div class="cal-cell"><span class="d">23</span></div><div class="cal-cell"><span class="d">24</span></div><div class="cal-cell"><span class="d">25</span></div><div class="cal-cell"><span class="d">26</span></div><div class="cal-cell"><span class="d">27</span></div><div class="cal-cell"><span class="d">28</span></div><div class="cal-cell"><span class="d">29</span><span class="cchip reg">$6,050</span></div><div class="cal-cell"><span class="d">30</span></div><div class="cal-cell"><span class="d">31</span></div><div class="cal-cell out"></div><div class="cal-cell out"></div>
     </div>
-    <svg id="bc-svg" width="720" height="440" viewBox="0 0 720 440" style="position:absolute;left:0;top:0;overflow:visible;pointer-events:none">
-      <path id="bc-connector" d="M285,212 C 325,196 395,196 435,212" fill="none" stroke="#14b8a6" stroke-width="3" stroke-linecap="round" opacity="0.95"></path>
-      <g id="bc-node" style="transform-box:fill-box;transform-origin:center;opacity:0"><circle cx="360" cy="201" r="15" fill="#14b8a6"></circle><path d="M353,201 l5,5 l9,-11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></g>
-    </svg>
-    <div id="bc-glow" style="position:absolute;left:360px;top:280px;width:200px;height:64px;transform:translate(-50%,-50%) scale(1);background:radial-gradient(closest-side,rgba(249,115,22,.6),rgba(249,115,22,0) 72%);filter:blur(15px);opacity:0;pointer-events:none"></div>
-    <div id="bc-chip" style="position:absolute;left:360px;top:256px;transform:translate(-50%,12px);opacity:0;display:flex;align-items:center;gap:11px;background:#fff;border:1.5px solid #f97316;box-shadow:0 14px 30px -14px rgba(249,115,22,.55);border-radius:14px;padding:11px 17px;white-space:nowrap">
-      <span style="width:10px;height:10px;border-radius:50%;background:#f97316"></span>
-      <span style="display:flex;flex-direction:column;line-height:1.05"><span id="bc-label" style="font-weight:800;font-size:9px;letter-spacing:.1em;color:#a09bb8;text-transform:uppercase">Por cobrar · vence 21-ago</span><span id="bc-num" style="font-weight:900;font-size:22px;color:#1e1b4b">$7,653.78</span></span>
+    <div class="cal-flow">
+      <div class="fh"><b>💵 Flujo de caja por semana</b><span>Por cobrar en julio · <em>$61,500</em></span></div>
+      <div class="cal-bars"><div class="bar"><div class="ba">$10.7k</div><div class="bv" style="height:46%"></div><div class="bl">Sem 1</div></div><div class="bar"><div class="ba">$12.4k</div><div class="bv" style="height:53%"></div><div class="bl">Sem 2</div></div><div class="bar"><div class="ba">$14.0k</div><div class="bv" style="height:60%"></div><div class="bl">Sem 3</div></div><div class="bar"><div class="ba">$18.3k</div><div class="bv" style="height:78%"></div><div class="bl">Sem 4</div></div><div class="bar"><div class="ba">$6.1k</div><div class="bv" style="height:26%"></div><div class="bl">Sem 5</div></div></div>
     </div>
-  </div></div>
+  </div>
 
   <div class="engine-wrap">
   <div class="eng-spark" aria-hidden="true"><span class="eng-dot"></span></div>
