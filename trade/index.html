@@ -1,24 +1,654 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/svg+xml" href="/balanceclip.svg">
-<title>BalanceClip — A medida</title>
-<link rel="canonical" href="https://balanceclip.net">
-<meta http-equiv="refresh" content="0; url=/">
-<meta name="robots" content="noindex">
-<script>location.replace('/');</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BalanceClip Trade — Compra, vende y sabé tu margen real</title>
+<meta name="description" content="Sistema de comercialización con IA para distribuidoras y comercializadoras en Panamá. La IA lee tus facturas de compra y venta, vincula cada compra con su venta y te muestra el margen por producto. Inventario valorado, cuentas por cobrar, ITBMS a DGI y bot de WhatsApp.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  body{font-family:'Nunito',system-ui,sans-serif;background:#fafafa;color:#1e1b4b;
-    display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:2rem;margin:0}
-  a{color:#f97316;font-weight:800;text-decoration:none}
+  :root {
+    --orange:      #f97316;
+    --orange-2:    #fb923c;
+    --orange-lt:   #fff7ed;
+    --blue:        #3b82f6;
+    --blue-lt:     #eff6ff;
+    --purple:      #8b5cf6;
+    --purple-lt:   #f5f3ff;
+    --teal:        #14b8a6;
+    --teal-lt:     #f0fdfa;
+    --indigo:      #5b54c9;
+    --indigo-lt:   #eef0ff;
+
+    --ink:         #1e1b4b;
+    --ink-2:       #4b5563;
+    --ink-3:       #9ca3af;
+
+    --bg:          #fafafa;
+    --surface:     #ffffff;
+    --border:      rgba(0,0,0,.08);
+
+    --ok:          #0f7a4e;
+    --warn:        #c2700a;
+    --err:         #c0392b;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+
+  a { color: var(--orange); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  :focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; border-radius: 4px; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.3rem; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* ─────────── NAV ─────────── */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(250, 250, 250, 0.86);
+    backdrop-filter: saturate(1.4) blur(14px);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid var(--border);
+    height: 62px;
+    display: flex; align-items: center;
+  }
+  .nav .wrap { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .logo { font-weight: 800; font-size: 1.15rem; color: var(--ink); letter-spacing: -0.01em; }
+  .logo span { color: var(--orange); }
+  .logo .sub { font-weight: 700; font-size: 0.8rem; color: var(--ink-2); margin-left: 0.4rem; padding: 0.15rem 0.55rem; background: var(--orange-lt); border-radius: 100px; letter-spacing: 0.02em; }
+  .nav .links { display: flex; align-items: center; gap: 1.4rem; }
+  .lk { color: var(--ink-2); font-weight: 700; font-size: 0.95rem; position: relative; }
+  .lk::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -4px; height: 2px; background: var(--orange); transition: right 0.3s cubic-bezier(.22,1,.36,1); }
+  .lk:hover { color: var(--ink); text-decoration: none; }
+  .lk:hover::after { right: 0; }
+
+  /* ─────────── HERO ─────────── */
+  .hero { padding: 3.5rem 0 4.5rem; position: relative; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background:
+      radial-gradient(600px 400px at 15% 10%, rgba(249, 115, 22, 0.10), transparent 60%),
+      radial-gradient(500px 300px at 100% 80%, rgba(139, 92, 246, 0.08), transparent 60%);
+  }
+  .pill {
+    display: inline-block;
+    background: var(--orange-lt); color: var(--orange);
+    padding: 0.35rem 0.85rem; border-radius: 100px;
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+  h1 {
+    font-size: clamp(2.4rem, 5.4vw, 4rem);
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin: 0 0 1.2rem;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+  h1 .hl {
+    position: relative;
+    color: var(--orange);
+    white-space: nowrap;
+  }
+  h1 .hl::after {
+    content: "";
+    position: absolute;
+    left: -0.1em; right: -0.1em;
+    bottom: 0.08em; height: 0.28em;
+    background: rgba(249, 115, 22, 0.18);
+    z-index: -1; border-radius: 4px;
+  }
+  .hero .lede {
+    font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0 0 2rem;
+    line-height: 1.5;
+  }
+  .hero .lede strong { color: var(--ink); font-weight: 700; }
+
+  .cta-row { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; margin-bottom: 2.4rem; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.85rem 1.6rem;
+    border-radius: 100px;
+    font-family: inherit; font-weight: 800; font-size: 0.98rem;
+    cursor: pointer; transition: transform 0.2s cubic-bezier(.22,1,.36,1), box-shadow 0.2s ease, background 0.2s ease;
+    text-decoration: none;
+    border: 0;
+    letter-spacing: -0.005em;
+  }
+  .btn.primary {
+    background: var(--orange); color: #fff;
+    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3);
+  }
+  .btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px -8px rgba(249, 115, 22, 0.55);
+    text-decoration: none;
+  }
+  .btn.ghost {
+    background: #fff; color: var(--ink); border: 1px solid var(--border);
+  }
+  .btn.ghost:hover {
+    color: var(--orange); border-color: var(--orange);
+    transform: translateY(-2px);
+    text-decoration: none;
+  }
+
+  .trust { font-size: 0.85rem; color: var(--ink-3); font-weight: 600; }
+  .trust b { color: var(--ink-2); }
+
+  /* ─────────── STAT STRIP ─────────── */
+  .stats {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.8rem 1.6rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
+    margin-top: 2rem;
+  }
+  @media (max-width: 780px) { .stats { grid-template-columns: repeat(2, 1fr); gap: 1.4rem 1rem; padding: 1.4rem 1.2rem; } }
+  .stats .st { text-align: left; }
+  .stats .st .n {
+    font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+    font-weight: 900; letter-spacing: -0.02em; color: var(--ink); line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stats .st .n .sup { font-size: 0.55em; color: var(--orange); font-weight: 800; margin-left: 2px; }
+  .stats .st .k { margin-top: 0.4rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+
+  /* ─────────── SECTION HEADERS ─────────── */
+  section { padding: 4.5rem 0; }
+  .badge {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 100px;
+    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .badge.orange { background: var(--orange-lt); color: var(--orange); }
+  .badge.teal   { background: var(--teal-lt);   color: var(--teal); }
+  .badge.purple { background: var(--purple-lt); color: var(--purple); }
+  .badge.blue   { background: var(--blue-lt);   color: var(--blue); }
+  .badge.indigo { background: var(--indigo-lt); color: var(--indigo); }
+
+  h2 {
+    font-size: clamp(1.7rem, 3vw, 2.4rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+    max-width: 24ch;
+  }
+  h2 .hl { color: var(--orange); }
+  section .kicker { color: var(--ink-2); font-size: 1.05rem; max-width: 60ch; margin: 0 0 2.4rem; line-height: 1.55; }
+
+  /* ─────────── PROBLEM LIST ─────────── */
+  .problem-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.4rem 1.8rem;
+    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
+    list-style: none; margin: 0;
+  }
+  .problem-list li {
+    padding: 0.9rem 0;
+    display: flex; justify-content: space-between; gap: 1rem;
+    align-items: baseline;
+    border-bottom: 1px dashed var(--border);
+    font-weight: 600;
+  }
+  .problem-list li:last-child { border-bottom: 0; }
+  .problem-list li .k { color: var(--ink); }
+  .problem-list li .v { color: var(--ink-3); font-size: 0.9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ─────────── FEATURE CASES ─────────── */
+  .cases-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.4rem;
+  }
+  @media (max-width: 780px) { .cases-grid { grid-template-columns: 1fr; } }
+
+  .case {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.6rem 1.6rem 1.8rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s cubic-bezier(.22,1,.36,1), box-shadow 0.25s ease;
+    box-shadow: 0 1px 1px rgba(30, 27, 75, 0.05);
+  }
+  .case::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 5px;
+    background: var(--ink);
+    transform-origin: left; transition: transform 0.3s cubic-bezier(.22,1,.36,1);
+  }
+  .case:hover { transform: translateY(-4px); box-shadow: 0 22px 44px -22px rgba(30, 27, 75, 0.3); }
+  .case:hover::before { transform: scaleX(1.02); }
+
+  .case.c1::before { background: var(--orange); }
+  .case.c2::before { background: var(--teal); }
+  .case.c3::before { background: var(--purple); }
+  .case.c4::before { background: var(--blue); }
+  .case.c5::before { background: var(--indigo); }
+  .case.c6::before { background: var(--warn); }
+
+  .case h3 {
+    font-size: 1.35rem; font-weight: 900;
+    letter-spacing: -0.015em;
+    margin: 0.8rem 0 0.6rem;
+    color: var(--ink);
+  }
+  .case .who { color: var(--ink-2); font-size: 0.92rem; font-weight: 600; margin-bottom: 1.1rem; }
+  .case ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.7rem; }
+  .case ul li {
+    display: grid; grid-template-columns: 22px 1fr; gap: 0.6rem;
+    font-size: 0.94rem; color: var(--ink); line-height: 1.4;
+    font-weight: 600;
+  }
+  .case ul li .ico { color: inherit; font-weight: 900; font-size: 1rem; line-height: 1.3; }
+  .case.c1 ul li .ico { color: var(--orange); }
+  .case.c2 ul li .ico { color: var(--teal); }
+  .case.c3 ul li .ico { color: var(--purple); }
+  .case.c4 ul li .ico { color: var(--blue); }
+  .case.c5 ul li .ico { color: var(--indigo); }
+  .case.c6 ul li .ico { color: var(--warn); }
+  .case ul li b { display: block; font-weight: 800; color: var(--ink); margin-bottom: 2px; }
+  .case ul li span { color: var(--ink-2); font-weight: 500; font-size: 0.87rem; line-height: 1.4; }
+
+  /* ─────────── NUMBERS SECTION ─────────── */
+  .numbers-section {
+    background: linear-gradient(180deg, #fff 0%, var(--orange-lt) 100%);
+  }
+  .numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+  }
+  @media (max-width: 780px) { .numbers-grid { grid-template-columns: repeat(2, 1fr); } }
+  .num-cell {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.5rem 1.4rem;
+    box-shadow: 0 18px 40px -28px rgba(30, 27, 75, 0.35);
+  }
+  .num-cell .n {
+    font-weight: 900; font-size: clamp(2rem, 3.2vw, 2.8rem);
+    letter-spacing: -0.03em; line-height: 1; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .num-cell .n .sup { font-size: 0.5em; color: var(--orange); }
+  .num-cell .k { margin-top: 0.7rem; font-size: 0.86rem; color: var(--ink-2); font-weight: 600; line-height: 1.4; }
+
+  /* ─────────── COMPARE TABLE ─────────── */
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.4rem;
+    overflow-x: auto;
+    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
+  }
+  table.compare {
+    width: 100%; border-collapse: collapse; min-width: 640px;
+    font-size: 0.93rem;
+  }
+  table.compare th, table.compare td {
+    padding: 0.95rem 1.1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.compare thead th {
+    color: var(--ink-3); font-weight: 800; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  table.compare thead th.us { color: var(--orange); }
+  table.compare tbody tr:last-child td { border-bottom: 0; }
+  table.compare tbody tr.tot td { background: var(--orange-lt); font-weight: 800; }
+  table.compare tbody tr.tot td:first-child { border-radius: 10px 0 0 10px; }
+  table.compare tbody tr.tot td:last-child  { border-radius: 0 10px 10px 0; color: var(--orange); }
+  table.compare tbody td:first-child { color: var(--ink); font-weight: 700; }
+  table.compare .yes { color: var(--ok); font-weight: 800; }
+  table.compare .partial { color: var(--warn); font-weight: 700; }
+  table.compare .no { color: var(--ink-3); font-weight: 600; }
+
+  /* ─────────── QUOTE ─────────── */
+  .quote-band {
+    background: var(--ink);
+    color: #fff;
+    padding: 4rem 0;
+  }
+  .quote-band blockquote {
+    font-size: clamp(1.4rem, 2.6vw, 2rem);
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin: 0;
+    max-width: 24ch;
+    text-wrap: balance;
+    color: #fff;
+  }
+  .quote-band blockquote .hl { color: var(--orange-2); }
+  .quote-band cite {
+    display: block; margin-top: 1.6rem; font-style: normal;
+    font-size: 0.88rem; color: rgba(255, 255, 255, 0.55); font-weight: 600; letter-spacing: 0.02em;
+  }
+
+  /* ─────────── CTA ─────────── */
+  .cta-band {
+    background: linear-gradient(135deg, var(--orange) 0%, #f56b0d 100%);
+    color: #fff;
+    padding: 4.5rem 0 4rem;
+    text-align: center;
+  }
+  .cta-band h2 {
+    font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin: 0 auto 1rem;
+    max-width: 22ch;
+    color: #fff;
+    text-wrap: balance;
+  }
+  .cta-band p {
+    max-width: 52ch;
+    margin: 0 auto 2rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.05rem;
+    line-height: 1.55;
+    font-weight: 600;
+  }
+  .cta-band .cta-row { justify-content: center; }
+  .cta-band .btn.primary {
+    background: #fff; color: var(--orange);
+    box-shadow: 0 12px 30px rgba(30, 27, 75, 0.28);
+  }
+  .cta-band .btn.primary:hover { background: #fff; color: #d9600d; box-shadow: 0 18px 40px rgba(30, 27, 75, 0.4); }
+  .cta-band .btn.ghost {
+    background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4);
+  }
+  .cta-band .btn.ghost:hover { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: #fff; }
+
+  /* ─────────── FOOTER ─────────── */
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 1.6rem 0;
+    font-size: 0.85rem;
+    color: var(--ink-3);
+  }
+  footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem; font-weight: 600; }
+  footer a { color: var(--ink-2); font-weight: 700; }
+  footer a:hover { color: var(--orange); text-decoration: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
-  <div>
-    <p style="font-weight:800;font-size:1.15rem;margin:0">Esto ahora es <strong>BalanceClip a medida</strong>.</p>
-    <p style="margin:.6rem 0 0">Te llevamos a <a href="/">balanceclip.net</a>…</p>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/" class="logo" style="text-decoration:none">Balance<span>Clip</span> <span class="sub">Trade</span></a>
+    <div class="links">
+      <a class="lk" href="/">Otros productos</a>
+      <a class="lk" href="#contacto">Hablemos &rarr;</a>
+    </div>
   </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <span class="pill">Comercialización con IA · Panamá</span>
+    <h1>De la compra a la venta, con el <span class="hl">margen exacto</span>.</h1>
+    <p class="lede">
+      <strong>La IA lee tus facturas de compra y de venta, y vincula cada producto con la venta que lo saca.</strong>
+      Sabés el margen por producto y por operación, ves tu inventario valorado, tus cuentas por cobrar y el ITBMS a la DGI — y capturás comprobantes por WhatsApp.
+      Todo sobre una hoja de Google. Sin ERP caro, sin lock-in.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="#contacto">Quiero uno para mi negocio</a>
+      <a class="btn ghost" href="#features">Ver todo lo que hace</a>
+    </div>
+    <div class="trust">Ya en producción: <b>Círculo Financiero · Ramón Pico</b> — distribución de equipos industriales y comerciales.</div>
+
+    <div class="stats">
+      <div class="st"><div class="n tabular">IA</div><div class="k">Lee tus facturas de compra y venta (Claude)</div></div>
+      <div class="st"><div class="n tabular">4</div><div class="k">Estados del ciclo: pendiente → inventario → facturado → cerrado</div></div>
+      <div class="st"><div class="n tabular">Margen</div><div class="k">Por producto y operación · Alto / Medio / Bajo</div></div>
+      <div class="st"><div class="n tabular">~$0<span class="sup">/mes</span></div><div class="k">Corre sobre Google Sheets · tus datos, sin lock-in</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section>
+  <div class="wrap">
+    <span class="badge indigo">01 · El problema</span>
+    <h2>Comprar es fácil. Saber <span class="hl">cuánto ganás</span>, no.</h2>
+    <p class="kicker">
+      Las facturas de compra llegan de tus proveedores, las de venta las emitís vos, y alguien cruza a mano cada compra con su venta en un Excel para sacar el margen. Lento, con errores, y sin ver qué producto deja plata ni cuánto capital tenés parado en inventario.
+    </p>
+    <ul class="problem-list">
+      <li><span class="k">Cruzar cada compra con su venta para el margen</span><span class="v">horas / cierre</span></li>
+      <li><span class="k">Digitar facturas de compra y venta a mano</span><span class="v">2 – 4 hrs / semana</span></li>
+      <li><span class="k">No saber qué producto deja margen y cuál no</span><span class="v">a ciegas</span></li>
+      <li><span class="k">Mercancía vieja parada sin detectar</span><span class="v">capital atrapado</span></li>
+      <li><span class="k">ITBMS, cobros e inventario cuadrados a mano</span><span class="v">fin de mes, doloroso</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <span class="badge orange">02 · Lo que hace</span>
+    <h2>Seis dominios. <span class="hl">Un solo sistema.</span></h2>
+    <p class="kicker">
+      Cada factura —compra o venta— se convierte en una fila que se vincula sola y viaja por su ciclo hasta que cierra. De ahí salen márgenes, inventario, cobros y flujo, sin conciliar a mano.
+    </p>
+
+    <div class="cases-grid">
+      <div class="case c1">
+        <span class="badge orange">i · Captura</span>
+        <h3>Compra y venta, leídas solas</h3>
+        <div class="who">Subís el PDF (o llega por correo / WhatsApp) y la IA extrae todo.</div>
+        <ul>
+          <li><span class="ico">&rarr;</span><div><b>Lee facturas de compra</b><span>N&ordm;, fecha, RUC del proveedor, subtotal, ITBMS, total y cada ítem: código, descripción, cantidad, precio y descuento.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Lee facturas de venta emitidas</b><span>Cliente, RUC/DV, subtotal, ITBMS y total — listo para vincular.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Aprende el formato de cada proveedor</b><span>Con una factura de ejemplo se ajusta a cada vendedor; mejor lectura con el tiempo.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Captura por WhatsApp</b><span>Mandás una foto o PDF y el bot lo clasifica (gasto vs. ingreso) y lo registra.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c2">
+        <span class="badge teal">ii · El match</span>
+        <h3>Cada compra, con la venta que la saca</h3>
+        <div class="who">El corazón del sistema: compra &harr; venta = margen.</div>
+        <ul>
+          <li><span class="ico">&rarr;</span><div><b>Vinculación automática</b><span>Asocia cada ítem comprado con su factura de venta y calcula el margen de la operación.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Score de confianza</b><span>Los matches dudosos caen en &ldquo;Revisar&rdquo; para que los apruebes con un clic. Nada se cuela.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Ciclo de vida por operación</b><span>Pendiente &rarr; Inventario &rarr; Facturado &rarr; Cerrado. Siempre sabés dónde está cada cosa.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Vincula tu tienda en línea</b><span>Las órdenes de tu catálogo web entran al mismo ledger, sin doble captura.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c3">
+        <span class="badge purple">iii · Márgenes</span>
+        <h3>Qué producto deja plata y cuál no</h3>
+        <div class="who">Margen por producto y por operación, en vivo — no a fin de mes.</div>
+        <ul>
+          <li><span class="ico">&rarr;</span><div><b>Margen $ y % por producto</b><span>Sobre las ventas cerradas: unidades, costo, venta y margen bruto.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Bandas automáticas</b><span>Alto &ge;20% · Medio 10&ndash;20% · Bajo &lt;10%. Ves de un vistazo qué revisar.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Top productos por margen</b><span>Ranking de lo que más aporta a la utilidad del negocio.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>P&amp;L / dashboard</b><span>La foto de ingresos, egresos y utilidad del negocio en una pantalla.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c4">
+        <span class="badge blue">iv · Inventario</span>
+        <h3>Tu inventario, valorado al costo real</h3>
+        <div class="who">Lo que compraste y aún no vendés — con su costo y su antigüedad.</div>
+        <ul>
+          <li><span class="ico">&rarr;</span><div><b>Costo real de la factura</b><span>Valora cada ítem al costo exacto de su compra, no a promedios.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Antigüedad y mercancía vieja</b><span>Detecta lo parado &gt;90 días sin vender — el capital atrapado, visible.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Valor total del inventario</b><span>Cuánto tenés invertido en stock y la antigüedad promedio.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Soporte a un clic</b><span>Link al PDF de la compra de cada ítem, guardado en Drive.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c5">
+        <span class="badge indigo">v · Cobros &amp; caja</span>
+        <h3>Cuentas por cobrar e ITBMS, cuadrados</h3>
+        <div class="who">Aging de cobros, flujo de caja e impuestos — sin Excel.</div>
+        <ul>
+          <li><span class="ico">&rarr;</span><div><b>Cuentas por cobrar con aging</b><span>0&ndash;30 / 31&ndash;60 / +60 días, con el total por cobrar y cada documento enlazado.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Flujo de caja mensual</b><span>Ingresos, egresos y saldo acumulado, mes a mes, con su gráfico.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>ITBMS neto a la DGI</b><span>Captura el ITBMS en compra y venta y calcula el neto a pagar.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Todo auditable</b><span>Cada número con su factura de respaldo, a un clic.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c6">
+        <span class="badge orange">vi · Proyectos</span>
+        <h3>Cotiza servicios y controla el margen</h3>
+        <div class="who">Para trabajos que mezclan producto, mano de obra y logística.</div>
+        <ul>
+          <li><span class="ico">&rarr;</span><div><b>Cotización por ítems</b><span>Producto, mano de obra, flete, combustible, fianza, subcontrato e impuesto — con o sin ITBMS.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Margen &harr; precio</b><span>Solver que va del % de margen al precio de venta y te da la utilidad estimada.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Envía la cotización</b><span>Al cliente por correo, directo desde el sistema.</span></div></li>
+          <li><span class="ico">&rarr;</span><div><b>Presupuestado vs. ejecutado</b><span>Al cerrar el trabajo, comparás el margen cotizado con el real.</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NUMBERS -->
+<section class="numbers-section">
+  <div class="wrap">
+    <span class="badge orange">03 · Los números</span>
+    <h2>Ya está corriendo. <span class="hl">No es un pitch de laboratorio.</span></h2>
+    <p class="kicker">Construido y en producción con un distribuidor real en Panamá.</p>
+    <div class="numbers-grid">
+      <div class="num-cell">
+        <div class="n tabular">En vivo</div>
+        <div class="k">En producción con Círculo Financiero (Ramón Pico), distribuidor de equipos industriales.</div>
+      </div>
+      <div class="num-cell">
+        <div class="n tabular">centavos</div>
+        <div class="k">Costo por factura leída con IA. Hosting sobre Google: prácticamente $0/mes.</div>
+      </div>
+      <div class="num-cell">
+        <div class="n tabular">ITBMS<span class="sup">✓</span></div>
+        <div class="k">Captura el ITBMS en compra y venta y calcula el neto a la DGI 🇵🇦.</div>
+      </div>
+      <div class="num-cell">
+        <div class="n tabular">WhatsApp</div>
+        <div class="k">Recibe comprobantes por foto/PDF y manda el resumen diario al cierre.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section>
+  <div class="wrap">
+    <span class="badge purple">04 · Comparativa</span>
+    <h2>No es otro contable. <span class="hl">Es el control que faltaba.</span></h2>
+    <p class="kicker">
+      El Excel es &ldquo;gratis&rdquo; pero te cuesta horas y errores. Un software contable registra, pero no lee tus facturas ni te dice el margen por producto. Este sistema hace las dos cosas — y encima valora tu inventario.
+    </p>
+    <div class="compare-card">
+      <table class="compare tabular">
+        <thead>
+          <tr>
+            <th>Capacidad</th>
+            <th>Excel</th>
+            <th>Software contable</th>
+            <th class="us">BalanceClip Trade</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Lee compra y venta con IA</td><td class="no">No</td><td class="no">No</td><td class="yes">Sí (Claude)</td></tr>
+          <tr><td>Vincula cada compra con su venta</td><td class="partial">Manual</td><td class="no">No</td><td class="yes">Automático + confianza</td></tr>
+          <tr><td>Margen por producto (Alto/Medio/Bajo)</td><td class="partial">Manual</td><td class="partial">Parcial</td><td class="yes">En vivo</td></tr>
+          <tr><td>Inventario valorado a costo real + antigüedad</td><td class="partial">Manual</td><td class="partial">Módulo aparte</td><td class="yes">Incluido</td></tr>
+          <tr><td>Cuentas por cobrar con aging</td><td class="partial">Manual</td><td class="yes">Sí</td><td class="yes">Incluido</td></tr>
+          <tr><td>ITBMS neto a la DGI</td><td class="partial">Manual</td><td class="yes">Sí</td><td class="yes">Calculado</td></tr>
+          <tr><td>Captura por WhatsApp (foto/PDF)</td><td class="no">—</td><td class="no">No</td><td class="yes">Sí</td></tr>
+          <tr><td>Cotización de servicios (producto + mano de obra + flete)</td><td class="partial">Manual</td><td class="no">No</td><td class="yes">Incluido</td></tr>
+          <tr><td>Tus datos, sin lock-in</td><td class="yes">Sí</td><td class="no">No</td><td class="yes">Google Sheet</td></tr>
+          <tr class="tot"><td>Costo</td><td>&ldquo;gratis&rdquo; + horas</td><td>US$ mensual</td><td>A medida · ~US$0 infra</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- QUOTE -->
+<section class="quote-band">
+  <div class="wrap">
+    <blockquote>
+      Sabé el margen de <span class="hl">cada venta</span> — no a <span class="hl">fin de mes</span>.
+    </blockquote>
+    <cite>— Hecho en Panamá para comercializadoras que compran para revender.</cite>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-band" id="contacto">
+  <div class="wrap">
+    <h2>Instalado en tu comercializadora en semanas.</h2>
+    <p>
+      Adaptable a tu proceso y a tus proveedores. Configuración inicial guiada, importación de tu historial,
+      entrenamiento del equipo y traspaso completo del código. Sin renta de software.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="https://wa.me/50769812266?text=Hola,%20me%20interesa%20BalanceClip%20Trade%20para%20mi%20comercializadora." target="_blank" rel="noopener">Hablar por WhatsApp · +507 6981-2266</a>
+      <a class="btn ghost" href="mailto:hola@balanceclip.net?subject=Quiero%20BalanceClip%20Trade">hola@balanceclip.net</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>&copy; 2026 <b style="color:var(--ink)">Balance<span style="color:var(--orange)">Clip</span></b> · Micro-sistemas con IA · Panamá</div>
+    <div><a href="/">Otros productos</a> · <a href="/pro">Pro</a> · <a href="/cobros/">Cobros</a> · <a href="/booking/">Booking</a></div>
+  </div>
+</footer>
+
 </body>
 </html>
