@@ -4,23 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f97316">
-<title>BalanceClip — Micro-sistemas con IA a medida · Panamá</title>
-<meta name="description" content="Leemos tus facturas y documentos con IA y los conectamos solos — el número que importa, sin Excel frágil. Sistemas a la medida de tu proceso (casos reales en Panamá) y BalanceClip Pro, listo desde $9/mes.">
-<link rel="canonical" href="https://balanceclip.net/">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="BalanceClip">
-<meta property="og:locale" content="es_PA">
-<meta property="og:url" content="https://balanceclip.net/">
-<meta property="og:title" content="BalanceClip — Micro-sistemas con IA a medida · Panamá">
-<meta property="og:description" content="Leemos tus documentos con IA y los conectamos solos — el número que importa, sin Excel frágil. Sistemas a medida y BalanceClip Pro.">
-<meta property="og:image" content="https://balanceclip.net/og-cover.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="BalanceClip — tus documentos contables, leídos y conectados por IA.">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="BalanceClip — Micro-sistemas con IA a medida · Panamá">
-<meta name="twitter:description" content="Leemos tus documentos con IA y los conectamos solos — sin Excel frágil. A medida y BalanceClip Pro.">
-<meta name="twitter:image" content="https://balanceclip.net/og-cover.png">
+<title>BalanceClip · Flow — tus cuentas por cobrar, leídas por IA</title>
+<meta name="description" content="Software de cuentas por cobrar con IA para PYMEs en Panamá. Sube la factura o la orden de compra y la IA la lee y la vincula sola; ves tu flujo de caja en un calendario, manejas líneas de crédito y un bot de WhatsApp te alerta de cada vencimiento.">
 <link rel="icon" type="image/svg+xml" href="/balanceclip.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -108,7 +93,7 @@ section{padding:3.2rem 0}
 .clip-text b{color:var(--ink);font-weight:900}
 .clip-text .cx{color:var(--orange)}
 @media(max-width:560px){.clip-card{padding:1.15rem 1.2rem}.clip-clip{display:none}}
-.engine{display:grid;grid-template-columns:repeat(6,1fr);gap:.6rem;align-items:stretch}
+.engine{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;align-items:stretch}
 .step{background:#fff;border:1px solid var(--border);border-radius:18px;padding:1.2rem .9rem;text-align:center;position:relative}
 .step .ic{font-size:1.7rem;display:block;margin-bottom:.5rem}
 .step h4{font-size:.98rem;font-weight:900;margin-bottom:.25rem}
@@ -126,6 +111,55 @@ section{padding:3.2rem 0}
 @keyframes bc-wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-10deg)}60%{transform:rotate(7deg)}}
 @media(max-width:760px){.engine{grid-template-columns:1fr 1fr}.eng-spark{display:none}}
 @media(prefers-reduced-motion:reduce){.eng-dot{display:none}}
+
+/* features (producto) */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}
+.feat{background:#fff;border:1px solid var(--border);border-radius:20px;padding:1.5rem;position:relative;overflow:hidden;transition:transform .2s cubic-bezier(.22,1,.36,1),box-shadow .2s}
+.feat:hover{transform:translateY(-5px);box-shadow:0 22px 44px -22px rgba(30,27,75,.28)}
+.feat .fic{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:var(--orange-light);margin-bottom:.9rem}
+.feat:nth-child(2) .fic{background:var(--purple-light)}
+.feat:nth-child(3) .fic{background:var(--teal-light)}
+.feat:nth-child(4) .fic{background:var(--blue-light)}
+.feat:nth-child(5) .fic{background:#e6f7ee}
+.feat h3{font-size:1.12rem;font-weight:900;letter-spacing:-.01em;margin-bottom:.35rem}
+.feat p{font-size:.92rem;color:var(--ink2);font-weight:600;line-height:1.45}
+.feat.hot{border-color:var(--teal);box-shadow:0 12px 30px -14px rgba(20,184,166,.4)}
+.feat.hot .fic{background:var(--teal-light)}
+.feat .ftag{position:absolute;top:1.1rem;right:1.1rem;font-weight:800;font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--teal);background:var(--teal-light);padding:.2rem .5rem;border-radius:100px}
+.feat-more{text-align:center;color:var(--ink2);font-weight:600;font-size:.95rem;margin-top:1.5rem;max-width:760px;margin-left:auto;margin-right:auto}
+.feat-more b{color:var(--ink)}
+@media(max-width:860px){.feats{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.feats{grid-template-columns:1fr}}
+/* calendario de cobros (mockup) */
+.calmock{max-width:720px;margin:0 auto 1.4rem;background:#fff;border:1px solid var(--border);border-radius:20px;padding:1.2rem 1.3rem 1.4rem;box-shadow:0 20px 44px -26px rgba(30,27,75,.4)}
+.cal-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.9rem}
+.cal-month{font-weight:900;font-size:1.05rem}
+.cal-legend{display:flex;gap:.85rem;flex-wrap:wrap;font-weight:700;font-size:.72rem;color:var(--ink2)}
+.cal-legend span{display:inline-flex;align-items:center;gap:.3rem}
+.cal-legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-dow{text-align:center;font-weight:800;font-size:.62rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.02em;padding-bottom:2px}
+.cal-cell{min-height:52px;border:1px solid #f0eef5;border-radius:9px;padding:4px 5px;background:#fcfcfd;overflow:hidden}
+.cal-cell.out{background:transparent;border-color:transparent}
+.cal-cell .d{font-weight:800;font-size:.66rem;color:var(--ink3)}
+.cal-cell.today{border-color:var(--orange);box-shadow:0 0 0 2px rgba(249,115,22,.18)}
+.cal-cell.today .d{color:var(--orange)}
+.cchip{margin-top:3px;display:block;font-weight:800;font-size:.58rem;padding:2px 4px;border-radius:5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cchip.reg{background:var(--orange-light);color:#c2560a}
+.cchip.ext{background:var(--teal-light);color:#0f766e}
+.cchip.paid{background:#eef7ee;color:#5b8f63}
+.cal-flow{margin-top:1rem;padding-top:.9rem;border-top:1px dashed #e7e2ee}
+.cal-flow .fh{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.3rem;margin-bottom:.55rem}
+.cal-flow .fh b{font-weight:900;font-size:.82rem}
+.cal-flow .fh span{font-weight:800;font-size:.8rem;color:var(--ink2)}
+.cal-flow .fh em{font-style:normal;color:var(--orange);font-weight:900}
+.cal-bars{display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;align-items:end;height:96px}
+.cal-bars .bar{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px}
+.cal-bars .ba{font-weight:800;font-size:.56rem;color:var(--ink2)}
+.cal-bars .bv{width:100%;max-width:44px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--orange2),var(--orange))}
+.cal-bars .bar.today .bv{background:linear-gradient(180deg,#34d3c2,var(--teal))}
+.cal-bars .bl{font-weight:800;font-size:.56rem;color:var(--ink3);margin-top:1px}
+@media(max-width:560px){.cchip{font-size:.5rem;padding:1px 3px}.cal-cell{min-height:46px}}
 
 /* casos */
 .cases{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
@@ -276,56 +310,53 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}.bub{display:flex;flex-direction:column;align-items:flex-start;opacity:1}.bub.in{align-items:flex-end}.hl::after{transform:scaleX(1)}}
 
-.prod-custom{text-align:center;margin-top:1.8rem;padding-top:1.6rem;border-top:1px dashed #cfe0fb}
-.prod-custom h3{font-weight:900;font-size:1.25rem;margin-bottom:.35rem;color:var(--ink)}
-.prod-custom p{color:var(--ink2);font-weight:600;max-width:540px;margin:0 auto 1.1rem}
-.prod-custom .cta-row{display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap}
+/* precios */
+.price-wrap{max-width:520px;margin:0 auto;text-align:center}
+.price-card{background:#fff;border:1px solid var(--border);border-radius:22px;padding:2rem 1.8rem;box-shadow:0 22px 50px -28px rgba(30,27,75,.4);position:relative;overflow:hidden}
+.price-card::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--orange),var(--orange2))}
+.price-badge{display:inline-block;font-weight:800;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--orange);background:var(--orange-light);padding:.3rem .8rem;border-radius:100px;margin-bottom:.9rem}
+.price-amt{display:flex;align-items:baseline;justify-content:center;gap:2px;margin-bottom:.3rem}
+.price-amt .cur{font-weight:900;font-size:1.4rem;color:var(--ink)}
+.price-amt .big{font-weight:900;font-size:3.4rem;letter-spacing:-.03em;color:var(--ink);line-height:1}
+.price-amt .per{font-weight:700;font-size:1rem;color:var(--ink3)}
+.price-sub{font-weight:600;font-size:.92rem;color:var(--ink2);margin-bottom:1.2rem}
+.price-feats{list-style:none;text-align:left;max-width:340px;margin:0 auto 1.4rem;display:flex;flex-direction:column;gap:.55rem}
+.price-feats li{font-weight:600;font-size:.95rem;color:var(--ink)}
+.price-feats li i{color:#0f7a4e;font-weight:900;font-style:normal;margin-right:.35rem}
+.price-card .btn.primary{width:100%;justify-content:center}
+.price-note{font-weight:600;font-size:.9rem;color:var(--ink2);margin-top:1.1rem}
+.price-note b{color:var(--ink)}
 </style>
 </head>
 <body>
 
 <nav class="nav"><div class="wrap">
-  <div class="logo">Balance<span>Clip</span></div>
-  <div style="display:flex;align-items:center;gap:1.5rem">
-    <a class="lk" href="/pro">Pro</a>
-    <a class="lk" href="#contacto">Hablemos →</a>
-  </div>
+  <div class="logo">Balance<span>Clip</span> · Flow</div>
+  <a class="lk" href="#contacto">Agendar demo →</a>
 </div></nav>
 
 <header class="hero"><canvas id="heroCanvas" aria-hidden="true"></canvas><div class="wrap">
-  <span class="pill">Micro-sistemas con IA · Panamá</span>
-  <h1>Tus documentos contables, leídos y <span class="hl">conectados por IA</span>.</h1>
-  <p class="sub">Construyo sistemas a la medida que <b>leen tus facturas y órdenes de compra con IA</b>, las <b><span class="hl">clipean</span> automáticamente</b> y te dan el número —o la acción— que importa: margen, saldo por cobrar, una venta lista en un clic. Adiós a esa hoja de excel que solo una persona entiende y accede.</p>
+  <span class="pill">Cuentas por cobrar con IA · Panamá</span>
+  <h1>Tus cuentas por cobrar, <span class="hl">leídas por IA</span>.</h1>
+  <p class="sub">Sube la <b>factura y la orden de compra</b> y la IA las <b>lee y las vincula solas</b>. Ves tu <b>flujo de caja en un calendario</b>, manejas líneas de crédito, y un <b>bot de WhatsApp te alerta</b> de cada vencimiento. Adiós al Excel de cobros que solo una persona entiende.</p>
   <div class="cta">
-    <a class="btn primary" href="#contacto">Quiero uno para mi empresa</a>
-    <a class="btn ghost" href="#casos">Ver casos reales</a>
+    <a class="btn primary" href="#contacto">Agenda una demo</a>
+    <a class="btn ghost" href="#features">Ver qué hace</a>
   </div>
-  <div class="trust">Hecho para PYMEs · sin ERP caro · listo en semanas, no meses</div>
+  <div class="trust">Para PYMEs que venden a crédito · sin ERP caro · listo en días</div>
 </div></header>
-
-<section class="clip-sec"><div class="wrap reveal">
-  <div class="clip-card">
-    <div class="clip-head">
-      <span class="clip-word">Clipping</span>
-      <span class="clip-pos">sustantivo</span>
-      <span class="clip-clip">📎</span>
-    </div>
-    <div class="clip-etym">del inglés <i>to&nbsp;clip</i>: sujetar, unir.</div>
-    <p class="clip-text">La IA toma los <b>dos lados de una transacción</b> —una orden de compra y su factura, una compra y su venta— y los <b>conecta</b> sola, como un clip une dos papeles. Es, literalmente, lo que hace <b>Balance<span class="cx">Clip</span></b>.</p>
-  </div>
-</div></section>
 
 <section><div class="wrap">
   <div class="prob">
     <div class="prob-copy">
       <div class="sec-tag" style="text-align:left">El antes</div>
-      <h2>Hoy tus documentos viven <span class="prob-hl">desconectados</span></h2>
-      <p>Las facturas llegan por correo, las órdenes en PDF, y alguien las transcribe y vincula a mano en una hoja de Excel que solo esa persona entiende. Lento, con errores y a ciegas.</p>
+      <h2>Hoy cobras <span class="prob-hl">a ciegas</span></h2>
+      <p>Órdenes de compra, facturas y constancias de pago regadas en correos y PDFs, transcritas a mano en un Excel que solo una persona entiende. No sabes cuánto te deben hoy, qué vence esta semana ni si ya te pagaron.</p>
       <ul class="prob-list">
-        <li><span class="pi">🧾</span><div><b>Digitación manual</b><span>Teclear cada documento a mano.</span></div></li>
-        <li><span class="pi">🔌</span><div><b>Conciliación a mano</b><span>Cruzar órdenes y facturas una por una.</span></div></li>
-        <li><span class="pi">❓</span><div><b>Cero visibilidad</b><span>Nunca sabes el número real de hoy.</span></div></li>
-        <li><span class="pi">📉</span><div><b>Errores costosos</b><span>Un dígito mal y se va el margen.</span></div></li>
+        <li><span class="pi">🧾</span><div><b>Digitación manual</b><span>Teclear cada factura y orden a mano.</span></div></li>
+        <li><span class="pi">📅</span><div><b>Vencimientos que se pasan</b><span>Te enteras del cobro cuando ya venció.</span></div></li>
+        <li><span class="pi">❓</span><div><b>Sin flujo de caja</b><span>No sabes cuánto entra ni cuándo.</span></div></li>
+        <li><span class="pi">📉</span><div><b>Cartera vencida</b><span>Cobras tarde y el capital se te queda afuera.</span></div></li>
       </ul>
     </div>
     <div class="prob-stage" aria-hidden="true">
@@ -343,17 +374,17 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 </div></section>
 
 <section><div class="wrap">
-  <div class="sec-tag">El motor</div>
-  <h2 class="sec-h">Una misma mecánica, menos cuellos de botella</h2>
-  <p class="sec-p">Todos estos sistemas comparten el mismo flujo —el <b>Clipping</b>. Cambia el documento y el número de salida; la mecánica es la misma.</p>
+  <div class="sec-tag">Cómo funciona</div>
+  <h2 class="sec-h">Del PDF a tu calendario de cobros</h2>
+  <p class="sec-p">Subes el documento y la IA hace el resto: lee, vincula la orden de compra con su factura y su pago, y lo ubica en tu calendario con su fecha de cobro.</p>
 
   <div class="vinc-frame" id="bc-frame"><div id="bc-stage" style="position:relative;width:720px;height:440px;background:radial-gradient(120% 120% at 50% 0%,#fdfcfa 0%,#f6f2eb 100%);border:1px solid #e7e2d8;border-radius:20px;overflow:hidden">
     <div style="position:absolute;inset:0;background-image:radial-gradient(#1e1b4b .6px,transparent .6px);background-size:22px 22px;opacity:.035"></div>
     <div id="bc-doc-left" style="position:absolute;left:75px;top:84px;width:210px;height:272px;background:#fff;border-radius:18px;box-shadow:0 22px 44px -22px rgba(30,27,75,.45);overflow:hidden;will-change:transform,opacity">
       <div style="height:7px;background:#8b5cf6"></div>
       <div style="padding:15px 16px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Factura de compra</div><div style="font-weight:800;font-size:9px;color:#8b5cf6;background:#f1ecfe;padding:3px 6px;border-radius:6px">PDF</div></div>
-        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">F-26281 · Proveedor S.A.</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Orden de compra</div><div style="font-weight:800;font-size:9px;color:#8b5cf6;background:#f1ecfe;padding:3px 6px;border-radius:6px">PDF</div></div>
+        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">OC-4200 · Cliente Norte</div>
         <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
           <div style="height:7px;width:86%;background:#ecebf3;border-radius:4px"></div>
           <div style="position:relative;height:9px;width:70%"><div style="position:absolute;inset:0;background:#ecebf3;border-radius:4px"></div><div data-hl style="position:absolute;inset:0;background:#e6dafb;border-radius:4px;opacity:0"></div></div>
@@ -366,8 +397,8 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
     <div id="bc-doc-right" style="position:absolute;left:435px;top:84px;width:210px;height:272px;background:#fff;border-radius:18px;box-shadow:0 22px 44px -22px rgba(30,27,75,.45);overflow:hidden;will-change:transform,opacity">
       <div style="height:7px;background:#f97316"></div>
       <div style="padding:15px 16px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Factura de venta</div><div style="font-weight:800;font-size:9px;color:#f97316;background:#fdeede;padding:3px 6px;border-radius:6px">PDF</div></div>
-        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">F-26225 · Cliente Norte</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:13px">Factura</div><div style="font-weight:800;font-size:9px;color:#f97316;background:#fdeede;padding:3px 6px;border-radius:6px">PDF</div></div>
+        <div style="font-weight:700;font-size:10px;color:#9893b5;margin-top:3px">F-26281 · Cliente Norte</div>
         <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px">
           <div style="height:7px;width:80%;background:#ecebf3;border-radius:4px"></div>
           <div style="position:relative;height:9px;width:66%"><div style="position:absolute;inset:0;background:#ecebf3;border-radius:4px"></div><div data-hl style="position:absolute;inset:0;background:#fde2c8;border-radius:4px;opacity:0"></div></div>
@@ -384,139 +415,95 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
     <div id="bc-glow" style="position:absolute;left:360px;top:280px;width:200px;height:64px;transform:translate(-50%,-50%) scale(1);background:radial-gradient(closest-side,rgba(249,115,22,.6),rgba(249,115,22,0) 72%);filter:blur(15px);opacity:0;pointer-events:none"></div>
     <div id="bc-chip" style="position:absolute;left:360px;top:256px;transform:translate(-50%,12px);opacity:0;display:flex;align-items:center;gap:11px;background:#fff;border:1.5px solid #f97316;box-shadow:0 14px 30px -14px rgba(249,115,22,.55);border-radius:14px;padding:11px 17px;white-space:nowrap">
       <span style="width:10px;height:10px;border-radius:50%;background:#f97316"></span>
-      <span style="display:flex;flex-direction:column;line-height:1.05"><span id="bc-label" style="font-weight:800;font-size:9px;letter-spacing:.1em;color:#a09bb8;text-transform:uppercase">Conciliado</span><span id="bc-num" style="font-weight:900;font-size:22px;color:#1e1b4b">$7,653.78</span></span>
+      <span style="display:flex;flex-direction:column;line-height:1.05"><span id="bc-label" style="font-weight:800;font-size:9px;letter-spacing:.1em;color:#a09bb8;text-transform:uppercase">Por cobrar · vence 21-ago</span><span id="bc-num" style="font-weight:900;font-size:22px;color:#1e1b4b">$7,653.78</span></span>
     </div>
   </div></div>
 
   <div class="engine-wrap">
   <div class="eng-spark" aria-hidden="true"><span class="eng-dot"></span></div>
   <div class="engine">
-    <div class="step"><span class="n">1</span><span class="ic">📥</span><h4>Captura</h4><p>Subes el PDF (o llega por correo).</p></div>
-    <div class="step"><span class="n">2</span><span class="ic">🤖</span><h4>Lee con IA</h4><p>Clasifica y extrae los datos.</p></div>
-    <div class="step k"><span class="n">3</span><span class="ic">📎</span><h4>El Clipping</h4><p>Conecta las dos puntas: orden de compra con factura, compra con venta.</p></div>
-    <div class="step"><span class="n">4</span><span class="ic">🧮</span><h4>Calcula la brecha</h4><p>Margen, saldo, inventario…</p></div>
-    <div class="step"><span class="n">5</span><span class="ic">📊</span><h4>Visualiza</h4><p>Tablero claro y a tiempo.</p></div>
-    <div class="step"><span class="n">6</span><span class="ic">🔔</span><h4>Alerta</h4><p>Un bot en WhatsApp te avisa a tiempo.</p></div>
+    <div class="step"><span class="n">1</span><span class="ic">📥</span><h4>Captura</h4><p>Subes la OC, factura o constancia — o la mandas por WhatsApp.</p></div>
+    <div class="step"><span class="n">2</span><span class="ic">🤖</span><h4>Lee con IA</h4><p>Extrae N° de OC, factura, fecha y monto. Sin digitar.</p></div>
+    <div class="step k"><span class="n">3</span><span class="ic">📎</span><h4>Vincula</h4><p>Asocia orden ↔ factura ↔ pago y valida los montos.</p></div>
+    <div class="step"><span class="n">4</span><span class="ic">📅</span><h4>Ubica el cobro</h4><p>Cae en tu calendario según su vencimiento.</p></div>
+    <div class="step"><span class="n">5</span><span class="ic">🔔</span><h4>Te alerta</h4><p>Antes de que venza — por pantalla y WhatsApp.</p></div>
   </div>
   </div>
 </div></section>
 
-<section id="casos"><div class="wrap">
-  <div class="sec-tag">Casos reales</div>
-  <h2 class="sec-h">Cuatro empresas, el mismo enfoque</h2>
-  <p class="sec-p">Clientes reales en Panamá. Distinto proceso, mismo motor.</p>
-  <div class="cases">
-    <div class="case c1">
-      <span class="badge">Cuentas por cobrar · Flujo de caja</span>
-      <h3>Seppelec</h3>
-      <div class="who">Equipos / repuestos industriales · ventas a crédito 60 días</div>
-      <div class="reto"><b>El reto.</b> Sus cuentas por cobrar vivían en un Excel frágil: órdenes, facturas y constancias de pago regadas en correos y PDFs. No sabían con certeza cuánto les debían, qué estaba por vencer ni si ya habían cobrado — y manejaban <b>dos líneas de crédito</b> con reglas distintas, conciliando todo a mano.</div>
-      <div class="solh">La solución</div>
-      <div class="flow"><span class="t">Orden de compra</span><span class="ar">→</span><span class="t">Factura</span><span class="ar">→</span><span class="t">Pago</span></div>
-      <ul>
-        <li>Sube la <b>OC, la factura o la constancia de pago</b> y la IA la lee y vincula.</li>
-        <li>Maneja <b>dos líneas de crédito</b> con reglas propias (plazos, abonos).</li>
-        <li><b>Calendario de cobros</b>, aging y vencimientos a 60 días.</li>
-        <li>Reparte ajustes (ej. flete) entre órdenes; móvil y Excel.</li>
-      </ul>
-      <div class="res">Resultado: <span class="big">saldo por cobrar y flujo de caja</span> claros en tiempo real.</div>
+<section><div class="wrap">
+  <div class="sec-tag">Tu flujo de caja</div>
+  <h2 class="sec-h">Todo cae en tu calendario</h2>
+  <p class="sec-p">Cada factura aparece en su día, por línea de crédito. Ves qué entra esta semana y cuánto te queda por cobrar en el mes — tu flujo de caja, de un vistazo.</p>
+  <div class="calmock reveal">
+    <div class="cal-top">
+      <div class="cal-month">📅 Julio 2026 · Calendario de cobros</div>
+      <div class="cal-legend"><span><i style="background:var(--orange)"></i>Regular</span><span><i style="background:var(--teal)"></i>Extraordinaria</span><span><i style="background:#8fc79a"></i>Pagado</span></div>
     </div>
-    <div class="case c2">
-      <span class="badge">Comercialización · Márgenes</span>
-      <h3>Círculo Financiero</h3>
-      <div class="who">Compra para revender · varios proveedores</div>
-      <div class="reto"><b>El reto.</b> Compraban para revender de varios proveedores, pero las facturas de compra y de venta llegaban sueltas por correo. Cruzar cada compra con su venta para saber el <b>margen real</b> de cada operación —y cuánto inventario seguía sin vender— era una conciliación manual en Excel, lenta y propensa a errores.</div>
-      <div class="solh">La solución</div>
-      <div class="flow"><span class="t">Factura de compra</span><span class="ar">↔</span><span class="t">Factura de venta</span></div>
-      <ul>
-        <li>Las facturas <b>llegan por correo</b>; la IA distingue compra de venta.</li>
-        <li>Vincula cada <b>compra con su venta</b> automáticamente.</li>
-        <li>Calcula <b>margen bruto</b> por producto y por operación.</li>
-        <li>Reportes de <b>inventario valorado</b>, cobros y flujo.</li>
-      </ul>
-      <div class="res">Resultado: <span class="big">margen e inventario</span> sin conciliar a mano.</div>
+    <div class="cal-grid">
+      <div class="cal-dow">Lun</div><div class="cal-dow">Mar</div><div class="cal-dow">Mié</div><div class="cal-dow">Jue</div><div class="cal-dow">Vie</div><div class="cal-dow">Sáb</div><div class="cal-dow">Dom</div>
+      <div class="cal-cell out"></div><div class="cal-cell out"></div><div class="cal-cell"><span class="d">1</span><span class="cchip paid">✓ $3,100</span></div><div class="cal-cell"><span class="d">2</span></div><div class="cal-cell today"><span class="d">3</span><span class="cchip reg">$7,653</span></div><div class="cal-cell"><span class="d">4</span></div><div class="cal-cell"><span class="d">5</span></div><div class="cal-cell"><span class="d">6</span></div><div class="cal-cell"><span class="d">7</span></div><div class="cal-cell"><span class="d">8</span></div><div class="cal-cell"><span class="d">9</span><span class="cchip reg">$12,400</span></div><div class="cal-cell"><span class="d">10</span></div><div class="cal-cell"><span class="d">11</span></div><div class="cal-cell"><span class="d">12</span></div><div class="cal-cell"><span class="d">13</span></div><div class="cal-cell"><span class="d">14</span></div><div class="cal-cell"><span class="d">15</span><span class="cchip ext">$4,200</span></div><div class="cal-cell"><span class="d">16</span></div><div class="cal-cell"><span class="d">17</span><span class="cchip reg">$9,800</span></div><div class="cal-cell"><span class="d">18</span></div><div class="cal-cell"><span class="d">19</span></div><div class="cal-cell"><span class="d">20</span></div><div class="cal-cell"><span class="d">21</span></div><div class="cal-cell"><span class="d">22</span><span class="cchip ext">$18,300</span></div><div class="cal-cell"><span class="d">23</span></div><div class="cal-cell"><span class="d">24</span></div><div class="cal-cell"><span class="d">25</span></div><div class="cal-cell"><span class="d">26</span></div><div class="cal-cell"><span class="d">27</span></div><div class="cal-cell"><span class="d">28</span></div><div class="cal-cell"><span class="d">29</span><span class="cchip reg">$6,050</span></div><div class="cal-cell"><span class="d">30</span></div><div class="cal-cell"><span class="d">31</span></div><div class="cal-cell out"></div><div class="cal-cell out"></div>
     </div>
-    <div class="case c3">
-      <span class="badge">Proyectos · Servicios técnicos</span>
-      <h3>Contec</h3>
-      <div class="who">Proyectos técnicos · varias compras por proyecto</div>
-      <div class="reto"><b>El reto.</b> Cada proyecto junta <b>varias facturas de proveedores</b> (materiales, equipos, fletes) contra una sola factura de venta. Sacar el costo real y el margen del proyecto —con <b>fletes e impuestos que no son triviales</b> (ITBMS, retenciones)— era un rompecabezas en Excel, difícil de auditar y fácil de equivocar.</div>
-      <div class="solh">La solución · módulo Proyectos</div>
-      <div class="flow"><span class="t">N facturas de proveedor</span><span class="ar">→</span><span class="t">Proyecto</span><span class="ar">→</span><span class="t">Factura de venta</span></div>
-      <ul>
-        <li>La IA <b>lee todas las facturas</b> del proyecto —venta, proveedores, fletes— y <b>segrega cada costo</b> automáticamente.</li>
-        <li>Calcula <b>impuestos complejos</b> (ITBMS, retenciones) y el <b>costo real</b> sin tocar Excel.</li>
-        <li>Agrupa todas las compras alrededor de su <b>factura de venta</b>.</li>
-        <li><b>Margen y rentabilidad por proyecto</b>, auditable de punta a punta.</li>
-      </ul>
-      <div class="res">Resultado: <span class="big">costo real y margen por proyecto</span>, sin rompecabezas.</div>
-    </div>
-    <div class="case c4">
-      <span class="badge">Reservas · Hospedaje + Bot</span>
-      <h3>Las Nubes</h3>
-      <div class="who">Cabañas · reservas multicanal</div>
-      <div class="reto"><b>El reto.</b> Las reservas llegaban por Airbnb y otros canales, cada una en su propio calendario — con riesgo de <b>dobles reservas</b> y de perder el hilo de cada huésped. La operación (limpieza, check-in, mensajes) se coordinaba a mano.</div>
-      <div class="solh">La solución</div>
-      <div class="flow"><span class="t">Airbnb / canales</span><span class="ar">→</span><span class="t">Calendario único</span><span class="ar">→</span><span class="t">Bot</span></div>
-      <ul>
-        <li>Tomar una reserva es <b>subir el voucher de pago y dar guardar</b>: la IA lee todo del comprobante —<b>incluidos los comentarios</b>— y <b>llena la reserva sola</b>.</li>
-        <li>Lee las reservas de <b>Airbnb</b> y las <b>unifica en un solo calendario</b>, sin dobles reservas.</li>
-        <li>Un <b>bot</b> gestiona operaciones y ventas, y <b>asiste al huésped</b> en check-in, estadía y post-estadía.</li>
-        <li>Todo desde un panel, sin saltar entre apps.</li>
-      </ul>
-      <div class="res">Resultado: <span class="big">reservar en un clic</span> y un huésped atendido de punta a punta.</div>
+    <div class="cal-flow">
+      <div class="fh"><b>💵 Flujo de caja por semana</b><span>Por cobrar en julio · <em>$61,500</em></span></div>
+      <div class="cal-bars"><div class="bar"><div class="ba">$10.7k</div><div class="bv" style="height:46%"></div><div class="bl">Sem 1</div></div><div class="bar"><div class="ba">$12.4k</div><div class="bv" style="height:53%"></div><div class="bl">Sem 2</div></div><div class="bar"><div class="ba">$14.0k</div><div class="bv" style="height:60%"></div><div class="bl">Sem 3</div></div><div class="bar"><div class="ba">$18.3k</div><div class="bv" style="height:78%"></div><div class="bl">Sem 4</div></div><div class="bar"><div class="ba">$6.1k</div><div class="bv" style="height:26%"></div><div class="bl">Sem 5</div></div></div>
     </div>
   </div>
 </div></section>
 
-<style>
-.prod-band{background:linear-gradient(135deg,#eff6ff,#fff);border:1px solid #dbeafe;border-radius:26px;padding:2.2rem}
-.prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1.5rem}
-.prod-band .prod-card{padding:1.3rem}
-.prod-band .prod-logo{font-size:1.12rem}
-.prod-band .prod-feats{gap:.4rem;margin-bottom:.85rem}
-.prod-band .prod-feats li{font-size:.84rem}
-.prod-band .prod-price{padding-top:.7rem;margin-bottom:.8rem}
-.prod-band .prod-price .num{font-size:1.35rem}
-.prod-band .prod-cta{padding:.65rem 1rem;font-size:.88rem}
-.prod-h{font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em;margin:.4rem 0 .7rem;color:var(--ink)}
-.prod-copy>p{color:var(--ink2);font-weight:500;font-size:1.05rem;max-width:520px;margin:0 0 .9rem}
-.prod-note{font-weight:800;color:var(--orange)}
-.prod-card{display:block;background:#fff;border:1.5px solid var(--blue);border-radius:20px;padding:1.6rem;box-shadow:0 22px 50px -26px rgba(59,130,246,.5);text-decoration:none;color:inherit;transition:transform .2s,box-shadow .2s}
-.prod-card:hover{transform:translateY(-4px);box-shadow:0 28px 58px -24px rgba(59,130,246,.6)}
-.prod-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem}
-.prod-logo{font-weight:900;font-size:1.4rem;letter-spacing:-.02em;color:var(--ink)}
-.prod-logo span{color:var(--orange)}.prod-logo b{color:var(--blue)}
-.prod-tag{font-weight:800;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);background:#eff6ff;padding:5px 11px;border-radius:100px}
-.prod-feats{list-style:none;display:flex;flex-direction:column;gap:.6rem;margin:0 0 1.2rem}
-.prod-feats li{font-weight:600;font-size:.98rem;color:var(--ink2)}
-.prod-price{display:flex;align-items:baseline;gap:6px;border-top:1px dashed var(--border);padding-top:.9rem;margin-bottom:1rem}
-.prod-price .lbl{font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
-.prod-price .num{font-size:1.7rem;font-weight:900;color:var(--ink)}
-.prod-price .per{font-size:.85rem;font-weight:600;color:var(--ink3)}
-.prod-cta{display:flex;align-items:center;justify-content:center;width:100%;background:var(--blue);color:#fff;font-weight:800;padding:.85rem 1.4rem;border-radius:100px;box-shadow:0 8px 24px rgba(59,130,246,.3)}
-.close-fork{display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:740px;margin:1.5rem auto 0;text-align:left}
-.fork-opt{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.42);border-radius:18px;padding:1.3rem;display:flex;flex-direction:column}
-.fork-h{font-weight:900;font-size:1.06rem;margin-bottom:.3rem}
-.fork-sub{font-weight:600;opacity:.92;margin-bottom:1.1rem;font-size:.94rem;flex:1}
-.fork-opt .btn{width:100%;justify-content:center}
-@media(max-width:900px){.prod-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:520px){.prod-grid{grid-template-columns:1fr}}
-@media(max-width:780px){.prod-band{padding:1.5rem}}
-@media(max-width:620px){.close-fork{grid-template-columns:1fr}}
-</style>
+<section id="features"><div class="wrap">
+  <div class="sec-tag">Todo lo que hace</div>
+  <h2 class="sec-h">Tu cobranza, de punta a punta</h2>
+  <p class="sec-p">Desde que entra el documento hasta que te alerta el vencimiento — sin Excel y sin digitar.</p>
+  <div class="feats">
+    <div class="feat">
+      <div class="fic">📥</div>
+      <h3>Captura por IA</h3>
+      <p>Sube la <b>orden de compra, factura o constancia</b> en PDF y la IA lee tipo, N° de OC, N° de factura, fecha y monto — incluso formato europeo y fechas en texto. Cero digitación.</p>
+    </div>
+    <div class="feat">
+      <div class="fic">📎</div>
+      <h3>Vinculación automática</h3>
+      <p>Asocia <b>orden ↔ factura ↔ pago</b>, valida que N° y monto coincidan, y reparte ajustes (ej. flete) entre varias órdenes <b>al centavo</b>.</p>
+    </div>
+    <div class="feat">
+      <div class="fic">📅</div>
+      <h3>Calendario de cobros</h3>
+      <p>Dos vistas —<b>mes y línea de tiempo</b>— con ventana de 12 meses y botón "Hoy·60 días". Ves <b>cuándo entra el dinero</b> y qué vence esta semana.</p>
+    </div>
+    <div class="feat">
+      <div class="fic">💳</div>
+      <h3>Líneas de crédito</h3>
+      <p><b>Regular + Extraordinaria</b> con tope configurable, distintivo por color y mover órdenes entre líneas. <b>Controlas el cupo</b> y no te pasas del límite.</p>
+    </div>
+    <div class="feat">
+      <div class="fic">✅</div>
+      <h3>Pagos con constancia</h3>
+      <p>La factura nace <b>"No pagado"</b>; subes el voucher bancario y la IA lo lee → marca <b>Pagado/Abono</b> y enlaza el comprobante. Reversible y auditable.</p>
+    </div>
+    <div class="feat hot">
+      <span class="ftag">Nuevo</span>
+      <div class="fic">📲</div>
+      <h3>Bot de WhatsApp</h3>
+      <p>Te <b>alerta de todo</b> —vencimientos, mora, cupo de línea—, <b>recibe documentos</b>, <b>registra pagos</b> y responde consultas. Sin abrir la app.</p>
+    </div>
+  </div>
+  <p class="feat-more">Y además: <b>exporta a Excel</b> con pestañas y links a tus PDFs · opera todo desde el <b>móvil</b> · <b>detección de duplicados</b> · control de acceso (ver / editar).</p>
+</div></section>
 
 <section id="bots"><div class="wrap reveal">
   <div class="bots">
     <div class="bots-copy">
-      <div class="sec-tag" style="text-align:left">+ Bots de WhatsApp</div>
-      <h2 style="font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em;margin-bottom:.6rem">El sistema te habla por WhatsApp</h2>
-      <p style="color:var(--ink2);font-weight:500;font-size:1.05rem;margin-bottom:1.2rem">Sumamos un bot que <b>recibe, alerta y asiste</b> dentro del proceso — donde ya está tu equipo y tus clientes: en WhatsApp.</p>
+      <div class="sec-tag" style="text-align:left">+ Bot de WhatsApp</div>
+      <h2 style="font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em;margin-bottom:.6rem">Te alerta de todo por WhatsApp</h2>
+      <p style="color:var(--ink2);font-weight:500;font-size:1.05rem;margin-bottom:1.2rem">Un bot que vive donde ya estás — te avisa antes de que algo se venza y hace la cobranza más liviana, sin abrir la app.</p>
       <ul class="bots-list">
-        <li><b>📎 Recibe documentos</b> — mandas la factura por WhatsApp y la IA la lee y registra sola.</li>
-        <li><b>🔔 Alerta de cobros</b> — avisa de vencimientos y saldos por cobrar antes de que se venzan.</li>
-        <li><b>💬 Asiste y consulta</b> — “¿cuánto me debe X?”, “¿qué vence esta semana?” — responde al instante.</li>
-        <li><b>✅ Confirma acciones</b> — registra pagos, marca estados y notifica al equipo.</li>
+        <li><b>🔔 Alerta de vencimientos</b> — “Mañana vence F-26225 · $12,400” y el resumen de la semana.</li>
+        <li><b>🚦 Mora y cupo</b> — te avisa si una factura se venció o si una línea de crédito llegó a su tope.</li>
+        <li><b>📎 Recibe documentos</b> — reenvías la factura, OC o constancia y la IA la registra sola.</li>
+        <li><b>🧾 Registra pagos</b> — mandas el voucher y marca Pagado/Abono con su comprobante.</li>
+        <li><b>💬 Consulta al instante</b> — “¿cuánto me debe X?”, “¿qué vence esta semana?”, “¿cuánto por cobrar?”.</li>
+        <li><b>☀️ Resumen diario</b> — cada mañana: por cobrar hoy, vencimientos y cobros de ayer.</li>
       </ul>
     </div>
     <div class="bot-phone" id="botPhone" aria-hidden="true">
@@ -526,6 +513,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
         <div class="bub in" data-msg><span class="fchip">📄 Factura_F26281.pdf</span><span class="meta">9:40 <span class="ck">✓✓</span></span></div>
         <div class="bub bot card" data-msg data-typing><span class="lbl ok">✅ Registrada</span><span class="big">$7,653.78</span><span class="sub">Vence 21-ago · F-26281</span><span class="meta">9:41</span></div>
         <div class="bub bot card" data-msg data-typing><span class="lbl warn">🔔 Mañana vence F-26225</span><span class="big sm">$12,400.00</span><span class="meta">9:41</span></div>
+        <div class="bub bot card" data-msg data-typing><span class="lbl warn">🚦 Línea Extraordinaria al 90%</span><span class="big sm">$63,000 / $70,000</span><span class="meta">9:41</span></div>
         <div class="bub in" data-msg>¿Cuánto me debe Industrias Lácteas?<span class="meta">9:42 <span class="ck">✓✓</span></span></div>
         <div class="bub bot card" data-msg data-typing><span class="lbl info">💬 Por cobrar</span><span class="big">$67,698.98</span><span class="sub">3 facturas pendientes</span><span class="meta">9:42</span></div>
         <div class="typing" id="chatTyping"><span></span><span></span><span></span></div>
@@ -536,75 +524,58 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 </div></section>
 
 <section><div class="wrap reveal">
-  <div class="sec-tag">¿Tienes algo parecido?</div>
-  <h2 class="sec-h">Si lo vinculas a mano, se puede <span class="hl">clippear</span></h2>
-  <p class="sec-p">Casi toda PYME tiene un proceso así: documentos que entran, alguien los vincula con otros, y de ahí sale un número en un Excel.</p>
+  <div class="sec-tag">Para quién es</div>
+  <h2 class="sec-h">Si vendes a crédito, esto es para ti</h2>
+  <p class="sec-p">Hecho para PYMEs en Panamá que emiten órdenes de compra y facturan a plazo, y hoy llevan sus cobros en Excel y carpetas de PDFs.</p>
   <div class="uses">
-    <div class="use"><span class="ic">💰</span><h4>Compra ↔ Venta</h4><p>Márgenes y comercialización.</p></div>
-    <div class="use"><span class="ic">📃</span><h4>Orden ↔ Factura ↔ Pago</h4><p>Cuentas por cobrar y flujo.</p></div>
-    <div class="use"><span class="ic">📦</span><h4>Factura ↔ Recepción</h4><p>Inventario y entradas de mercancía.</p></div>
-    <div class="use"><span class="ic">🧾</span><h4>Gasto ↔ Presupuesto</h4><p>Control de costos y viáticos.</p></div>
-    <div class="use"><span class="ic">🏦</span><h4>Pago ↔ Contrato/Cuota</h4><p>Conciliación y cobranza.</p></div>
-    <div class="use"><span class="ic">⏰</span><h4>Documento ↔ Vencimiento</h4><p>Pólizas, permisos, renovaciones.</p></div>
+    <div class="use"><span class="ic">🏭</span><h4>Proveedores industriales</h4><p>Repuestos y equipos, ventas a 30/60 días.</p></div>
+    <div class="use"><span class="ic">🚚</span><h4>Distribuidoras</h4><p>Muchas facturas, muchos clientes a crédito.</p></div>
+    <div class="use"><span class="ic">🔧</span><h4>Ferreterías y materiales</h4><p>Órdenes de compra y crédito a obra.</p></div>
+    <div class="use"><span class="ic">📦</span><h4>Importadoras</h4><p>Cobros grandes con plazos largos.</p></div>
+    <div class="use"><span class="ic">🛠️</span><h4>Servicios B2B</h4><p>Proyectos facturados contra orden de compra.</p></div>
+    <div class="use"><span class="ic">💳</span><h4>Vendes a crédito</h4><p>Si te deben y quieres cobrar a tiempo, es para ti.</p></div>
   </div>
 </div></section>
 
 <section><div class="wrap">
-  <div class="sec-tag">Por qué un micro-sistema</div>
+  <div class="sec-tag">Por qué Flow</div>
   <h2 class="sec-h">La potencia de un ERP, sin su peso</h2>
   <div class="why">
     <div><h4>⚡ Rápido</h4><p>De tu Excel a un sistema funcionando en semanas, no meses.</p></div>
-    <div><h4>🎯 A tu medida</h4><p>Con tus reglas exactas — no te adaptas tú al software.</p></div>
+    <div><h4>🎯 A tu medida</h4><p>Con tus reglas de crédito exactas — no te adaptas tú al software.</p></div>
     <div><h4>💵 Costo mínimo</h4><p>Corre sobre infraestructura ligera; sin licencias caras.</p></div>
     <div><h4>🤖 IA incluida</h4><p>Lee tus documentos: el dato entra solo, no a mano.</p></div>
   </div>
 </div></section>
 
+<section id="precios"><div class="wrap reveal">
+  <div class="sec-tag">Precios</div>
+  <h2 class="sec-h">Desde $9 al mes</h2>
+  <p class="sec-p">Un plan mensual según los documentos que proceses. Empieza con un volumen moderado y sube cuando lo necesites.</p>
+  <div class="price-wrap">
+    <div class="price-card">
+      <div class="price-badge">Plan inicial</div>
+      <div class="price-amt"><span class="cur">$</span><span class="big">9</span><span class="per">/mes</span></div>
+      <div class="price-sub">Volumen moderado de facturas y órdenes al mes</div>
+      <ul class="price-feats"><li><i>✓</i>Captura por IA de facturas y órdenes</li><li><i>✓</i>Vinculación + calendario de cobros</li><li><i>✓</i>Líneas de crédito</li><li><i>✓</i>Bot de WhatsApp incluido</li><li><i>✓</i>Setup guiado · tus datos, sin lock-in</li></ul>
+      <a class="btn primary" href="#contacto">Agenda una demo</a>
+    </div>
+    <p class="price-note">¿Más volumen o reglas propias? <b>Plan a tu medida</b> — lo vemos en la demo.</p>
+  </div>
+</div></section>
+
 <section id="contacto"><div class="wrap">
-  <div class="prod-band">
-    <div class="prod-copy">
-      <div class="sec-tag" style="text-align:left">Cuando un caso se repite…</div>
-      <h2 class="prod-h">Lo volvemos producto.</h2>
-      <p>Cada sistema que construimos, cuando el problema se repite en muchas empresas, lo empaquetamos como <b>producto listo para usar</b> — desde $9/mes. ¿Tu proceso es único? También lo armo a medida.</p>
-    </div>
-    <div class="prod-grid">
-      <a class="prod-card" href="/flow/">
-      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Flow</b></span><span class="prod-tag">Producto</span></div>
-      <ul class="prod-feats"><li>📅 Calendario de cobros</li><li>📎 Orden ↔ factura ↔ pago</li><li>📲 Bot de WhatsApp</li></ul>
-      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
-      <span class="prod-cta">Conoce Flow →</span>
-    </a>
-      <a class="prod-card" href="/trade/">
-      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Trade</b></span><span class="prod-tag">Producto</span></div>
-      <ul class="prod-feats"><li>🔗 Compra ↔ venta = margen</li><li>📦 Inventario valorado</li><li>🧾 ITBMS a la DGI</li></ul>
-      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
-      <span class="prod-cta">Conoce Trade →</span>
-    </a>
-      <a class="prod-card" href="/booking/">
-      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Booking</b></span><span class="prod-tag">Producto</span></div>
-      <ul class="prod-feats"><li>💬 Bot que vende 24/7</li><li>📄 OCR de vouchers</li><li>📅 Sync con Airbnb</li></ul>
-      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
-      <span class="prod-cta">Conoce Booking →</span>
-    </a>
-      <a class="prod-card" href="/pro">
-      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Pro</b></span><span class="prod-tag">Producto</span></div>
-      <ul class="prod-feats"><li>📲 Captura por WhatsApp</li><li>🇵🇦 DGI · ITBMS, e-Tax 2.0</li><li>📄 Reporte anual</li></ul>
-      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
-      <span class="prod-cta">Conoce Pro →</span>
-    </a>
-    </div>
-    <div class="prod-custom">
-      <h3>¿Tu proceso es único?</h3>
-      <p>Si ninguno encaja del todo, cuéntame ese flujo que hoy haces a mano en Excel y te armo un micro-sistema <b>a tu medida</b>.</p>
-      <div class="cta-row">
-        <a class="btn primary" href="https://wa.me/50769812266?text=Hola%2C%20quiero%20un%20micro-sistema%20con%20IA%20a%20medida" target="_blank" rel="noopener"><span class="wa-ic">💬</span> WhatsApp · 6981-2266</a>
-        <a class="btn ghost" href="mailto:josh@balanceclip.net?subject=Quiero%20un%20sistema%20a%20medida">✉ josh@balanceclip.net</a>
-      </div>
+  <div class="close">
+    <h2>¿Listo para cobrar a tiempo?</h2>
+    <p>Agenda una demo de 15 minutos. Te muestro cómo se vería con tus propias facturas y órdenes de compra.</p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn primary" href="https://wa.me/50769812266?text=Hola%2C%20quiero%20una%20demo%20de%20BalanceClip%20Flow" target="_blank" rel="noopener"><span class="wa-ic">💬</span> WhatsApp · 6981-2266</a>
+      <a class="btn ghost" href="mailto:josh@balanceclip.net?subject=Demo%20de%20BalanceClip%20Flow" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.5);color:#fff">✉ josh@balanceclip.net</a>
     </div>
   </div>
 </div></section>
 
-<footer>BalanceClip · Micro-sistemas operativos con IA · Panamá</footer>
+<footer>BalanceClip · Flow — cuentas por cobrar con IA · Panamá</footer>
 
 <script>
 (function(){
@@ -612,7 +583,7 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 
   /* reveal al hacer scroll */
   const io=new IntersectionObserver((es)=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }),{threshold:.12});
-  document.querySelectorAll('.clip-card,.prob,.step,.case,.bots,.use,.why div,.close').forEach(el=>{ el.classList.add('rv'); io.observe(el); });
+  document.querySelectorAll('.prob,.step,.feat,.bots,.use,.why div,.close').forEach(el=>{ el.classList.add('rv'); io.observe(el); });
 
   /* ★ Vinculación — momento estrella (timeline WAAPI) */
   (function(){
