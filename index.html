@@ -275,6 +275,11 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 .close .btn.primary:hover{animation:none}
 
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}.bub{display:flex;flex-direction:column;align-items:flex-start;opacity:1}.bub.in{align-items:flex-end}.hl::after{transform:scaleX(1)}}
+
+.prod-custom{text-align:center;margin-top:1.8rem;padding-top:1.6rem;border-top:1px dashed #cfe0fb}
+.prod-custom h3{font-weight:900;font-size:1.25rem;margin-bottom:.35rem;color:var(--ink)}
+.prod-custom p{color:var(--ink2);font-weight:600;max-width:540px;margin:0 auto 1.1rem}
+.prod-custom .cta-row{display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -501,42 +506,6 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 @media(max-width:620px){.close-fork{grid-template-columns:1fr}}
 </style>
 
-<section><div class="wrap">
-  <div class="prod-band">
-    <div class="prod-copy">
-      <div class="sec-tag" style="text-align:left">Cuando un caso se repite…</div>
-      <h2 class="prod-h">Lo volvemos producto.</h2>
-      <p>Cada sistema que construimos, cuando el problema se repite en muchas empresas, lo empaquetamos como <b>producto listo para usar</b> — desde $9/mes. ¿Tu proceso es único? También lo armo a medida.</p>
-    </div>
-    <div class="prod-grid">
-      <a class="prod-card" href="/cobros/">
-      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Cobros</b></span><span class="prod-tag">Producto</span></div>
-      <ul class="prod-feats"><li>📅 Calendario de cobros</li><li>📎 Orden ↔ factura ↔ pago</li><li>📲 Bot de WhatsApp</li></ul>
-      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
-      <span class="prod-cta">Conoce Cobros →</span>
-    </a>
-      <a class="prod-card" href="/trade/">
-      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Trade</b></span><span class="prod-tag">Producto</span></div>
-      <ul class="prod-feats"><li>🔗 Compra ↔ venta = margen</li><li>📦 Inventario valorado</li><li>🧾 ITBMS a la DGI</li></ul>
-      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
-      <span class="prod-cta">Conoce Trade →</span>
-    </a>
-      <a class="prod-card" href="/booking/">
-      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Booking</b></span><span class="prod-tag">Producto</span></div>
-      <ul class="prod-feats"><li>💬 Bot que vende 24/7</li><li>📄 OCR de vouchers</li><li>📅 Sync con Airbnb</li></ul>
-      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
-      <span class="prod-cta">Conoce Booking →</span>
-    </a>
-      <a class="prod-card" href="/pro">
-      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Pro</b></span><span class="prod-tag">Producto</span></div>
-      <ul class="prod-feats"><li>📲 Captura por WhatsApp</li><li>🇵🇦 DGI · ITBMS, e-Tax 2.0</li><li>📄 Reporte anual</li></ul>
-      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
-      <span class="prod-cta">Conoce Pro →</span>
-    </a>
-    </div>
-  </div>
-</div></section>
-
 <section id="bots"><div class="wrap reveal">
   <div class="bots">
     <div class="bots-copy">
@@ -592,22 +561,46 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 </div></section>
 
 <section id="contacto"><div class="wrap">
-  <div class="close">
-    <h2>Dos formas de empezar</h2>
-    <p>Elige según tu caso — los dos arrancan con un mensaje.</p>
-    <div class="close-fork">
-      <div class="fork-opt">
-        <div class="fork-h">¿Tu proceso es único?</div>
-        <div class="fork-sub">Cuéntame ese flujo que hoy vinculas a mano y lo armamos a medida.</div>
-        <a class="btn primary" href="https://wa.me/50769812266?text=Hola%2C%20quiero%20un%20micro-sistema%20con%20IA%20para%20mi%20empresa" target="_blank" rel="noopener"><span class="wa-ic">💬</span> WhatsApp · 6981-2266</a>
-      </div>
-      <div class="fork-opt">
-        <div class="fork-h">¿Facturas por tu tiempo o servicios?</div>
-        <div class="fork-sub">Ya tienes uno listo: BalanceClip Pro, desde $9/mes.</div>
-        <a class="btn" href="/pro" style="background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.65);color:#fff">Ver Pro →</a>
+  <div class="prod-band">
+    <div class="prod-copy">
+      <div class="sec-tag" style="text-align:left">Cuando un caso se repite…</div>
+      <h2 class="prod-h">Lo volvemos producto.</h2>
+      <p>Cada sistema que construimos, cuando el problema se repite en muchas empresas, lo empaquetamos como <b>producto listo para usar</b> — desde $9/mes. ¿Tu proceso es único? También lo armo a medida.</p>
+    </div>
+    <div class="prod-grid">
+      <a class="prod-card" href="/cobros/">
+      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Cobros</b></span><span class="prod-tag">Producto</span></div>
+      <ul class="prod-feats"><li>📅 Calendario de cobros</li><li>📎 Orden ↔ factura ↔ pago</li><li>📲 Bot de WhatsApp</li></ul>
+      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
+      <span class="prod-cta">Conoce Cobros →</span>
+    </a>
+      <a class="prod-card" href="/trade/">
+      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Trade</b></span><span class="prod-tag">Producto</span></div>
+      <ul class="prod-feats"><li>🔗 Compra ↔ venta = margen</li><li>📦 Inventario valorado</li><li>🧾 ITBMS a la DGI</li></ul>
+      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
+      <span class="prod-cta">Conoce Trade →</span>
+    </a>
+      <a class="prod-card" href="/booking/">
+      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Booking</b></span><span class="prod-tag">Producto</span></div>
+      <ul class="prod-feats"><li>💬 Bot que vende 24/7</li><li>📄 OCR de vouchers</li><li>📅 Sync con Airbnb</li></ul>
+      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
+      <span class="prod-cta">Conoce Booking →</span>
+    </a>
+      <a class="prod-card" href="/pro">
+      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Pro</b></span><span class="prod-tag">Producto</span></div>
+      <ul class="prod-feats"><li>📲 Captura por WhatsApp</li><li>🇵🇦 DGI · ITBMS, e-Tax 2.0</li><li>📄 Reporte anual</li></ul>
+      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
+      <span class="prod-cta">Conoce Pro →</span>
+    </a>
+    </div>
+    <div class="prod-custom">
+      <h3>¿Tu proceso es único?</h3>
+      <p>Si ninguno encaja del todo, cuéntame ese flujo que hoy haces a mano en Excel y te armo un micro-sistema <b>a tu medida</b>.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="https://wa.me/50769812266?text=Hola%2C%20quiero%20un%20micro-sistema%20con%20IA%20a%20medida" target="_blank" rel="noopener"><span class="wa-ic">💬</span> WhatsApp · 6981-2266</a>
+        <a class="btn ghost" href="mailto:josh@balanceclip.net?subject=Quiero%20un%20sistema%20a%20medida">✉ josh@balanceclip.net</a>
       </div>
     </div>
-    <p style="margin-top:1.2rem;opacity:.9;font-size:.92rem">o escríbeme a <a href="mailto:josh@balanceclip.net" style="color:#fff;text-decoration:underline">josh@balanceclip.net</a></p>
   </div>
 </div></section>
 
