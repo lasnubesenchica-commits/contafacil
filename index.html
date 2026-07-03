@@ -465,7 +465,15 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 </div></section>
 
 <style>
-.prod-band{display:grid;grid-template-columns:1.05fr .95fr;gap:2rem;align-items:center;background:linear-gradient(135deg,#eff6ff,#fff);border:1px solid #dbeafe;border-radius:26px;padding:2.2rem}
+.prod-band{background:linear-gradient(135deg,#eff6ff,#fff);border:1px solid #dbeafe;border-radius:26px;padding:2.2rem}
+.prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1.5rem}
+.prod-band .prod-card{padding:1.3rem}
+.prod-band .prod-logo{font-size:1.12rem}
+.prod-band .prod-feats{gap:.4rem;margin-bottom:.85rem}
+.prod-band .prod-feats li{font-size:.84rem}
+.prod-band .prod-price{padding-top:.7rem;margin-bottom:.8rem}
+.prod-band .prod-price .num{font-size:1.35rem}
+.prod-band .prod-cta{padding:.65rem 1rem;font-size:.88rem}
 .prod-h{font-size:clamp(1.6rem,3.6vw,2.3rem);font-weight:900;letter-spacing:-.02em;margin:.4rem 0 .7rem;color:var(--ink)}
 .prod-copy>p{color:var(--ink2);font-weight:500;font-size:1.05rem;max-width:520px;margin:0 0 .9rem}
 .prod-note{font-weight:800;color:var(--orange)}
@@ -487,7 +495,9 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
 .fork-h{font-weight:900;font-size:1.06rem;margin-bottom:.3rem}
 .fork-sub{font-weight:600;opacity:.92;margin-bottom:1.1rem;font-size:.94rem;flex:1}
 .fork-opt .btn{width:100%;justify-content:center}
-@media(max-width:780px){.prod-band{grid-template-columns:1fr;padding:1.5rem}}
+@media(max-width:900px){.prod-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.prod-grid{grid-template-columns:1fr}}
+@media(max-width:780px){.prod-band{padding:1.5rem}}
 @media(max-width:620px){.close-fork{grid-template-columns:1fr}}
 </style>
 
@@ -496,22 +506,34 @@ footer{text-align:center;color:var(--ink3);font-size:.85rem;font-weight:600;padd
     <div class="prod-copy">
       <div class="sec-tag" style="text-align:left">Cuando un caso se repite…</div>
       <h2 class="prod-h">Lo volvemos producto.</h2>
-      <p>Vimos el mismo problema en decenas de profesionales que facturan su tiempo —deducibles, ITBMS, reporte anual. Así nació <b>BalanceClip Pro</b>: el mismo motor, ya empaquetado y listo para usar.</p>
-      <p class="prod-note">¿Tu proceso es más complejo? Eso es justo lo que construyo a medida 👇</p>
+      <p>Cada sistema que construimos, cuando el problema se repite en muchas empresas, lo empaquetamos como <b>producto listo para usar</b> — desde $9/mes. ¿Tu proceso es único? También lo armo a medida.</p>
     </div>
-    <a class="prod-card" href="/pro">
-      <div class="prod-card-top">
-        <span class="prod-logo">Balance<span>Clip</span> <b>Pro</b></span>
-        <span class="prod-tag">Producto</span>
-      </div>
-      <ul class="prod-feats">
-        <li>📲 Captura por WhatsApp y Gmail</li>
-        <li>🇵🇦 DGI nativo · ITBMS, e-Tax 2.0</li>
-        <li>📄 Reporte anual listo para tu contable</li>
-      </ul>
+    <div class="prod-grid">
+      <a class="prod-card" href="/cobros/">
+      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Cobros</b></span><span class="prod-tag">Producto</span></div>
+      <ul class="prod-feats"><li>📅 Calendario de cobros</li><li>📎 Orden ↔ factura ↔ pago</li><li>📲 Bot de WhatsApp</li></ul>
+      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
+      <span class="prod-cta">Conoce Cobros →</span>
+    </a>
+      <a class="prod-card" href="/trade/">
+      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Trade</b></span><span class="prod-tag">Producto</span></div>
+      <ul class="prod-feats"><li>🔗 Compra ↔ venta = margen</li><li>📦 Inventario valorado</li><li>🧾 ITBMS a la DGI</li></ul>
+      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
+      <span class="prod-cta">Conoce Trade →</span>
+    </a>
+      <a class="prod-card" href="/booking/">
+      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Booking</b></span><span class="prod-tag">Producto</span></div>
+      <ul class="prod-feats"><li>💬 Bot que vende 24/7</li><li>📄 OCR de vouchers</li><li>📅 Sync con Airbnb</li></ul>
+      <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
+      <span class="prod-cta">Conoce Booking →</span>
+    </a>
+      <a class="prod-card" href="/pro">
+      <div class="prod-card-top"><span class="prod-logo">Balance<span>Clip</span> <b>Pro</b></span><span class="prod-tag">Producto</span></div>
+      <ul class="prod-feats"><li>📲 Captura por WhatsApp</li><li>🇵🇦 DGI · ITBMS, e-Tax 2.0</li><li>📄 Reporte anual</li></ul>
       <div class="prod-price"><span class="lbl">Desde</span><span class="num">$9</span><span class="per">/mes</span></div>
       <span class="prod-cta">Conoce Pro →</span>
     </a>
+    </div>
   </div>
 </div></section>
 
