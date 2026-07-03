@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BalanceClip Booking — Todo tu hospedaje boutique en una hoja</title>
+<meta name="description" content="Sistema de reservas, cobros, contabilidad y operaciones para hospedaje boutique. Bot WhatsApp 24/7, OCR con IA, sync con Airbnb. Diseñado en Panamá.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange:      #f97316;
+    --orange-2:    #fb923c;
+    --orange-lt:   #fff7ed;
+    --blue:        #3b82f6;
+    --blue-lt:     #eff6ff;
+    --purple:      #8b5cf6;
+    --purple-lt:   #f5f3ff;
+    --teal:        #14b8a6;
+    --teal-lt:     #f0fdfa;
+    --indigo:      #5b54c9;
+    --indigo-lt:   #eef0ff;
+
+    --ink:         #1e1b4b;
+    --ink-2:       #4b5563;
+    --ink-3:       #9ca3af;
+
+    --bg:          #fafafa;
+    --surface:     #ffffff;
+    --border:      rgba(0,0,0,.08);
+
+    --ok:          #0f7a4e;
+    --warn:        #c2700a;
+    --err:         #c0392b;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+
+  a { color: var(--orange); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  :focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; border-radius: 4px; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.3rem; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* ─────────── NAV ─────────── */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(250, 250, 250, 0.86);
+    backdrop-filter: saturate(1.4) blur(14px);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid var(--border);
+    height: 62px;
+    display: flex; align-items: center;
+  }
+  .nav .wrap { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .logo { font-weight: 800; font-size: 1.15rem; color: var(--ink); letter-spacing: -0.01em; }
+  .logo span { color: var(--orange); }
+  .logo .sub { font-weight: 700; font-size: 0.8rem; color: var(--ink-2); margin-left: 0.4rem; padding: 0.15rem 0.55rem; background: var(--orange-lt); border-radius: 100px; letter-spacing: 0.02em; }
+  .nav .links { display: flex; align-items: center; gap: 1.4rem; }
+  .lk { color: var(--ink-2); font-weight: 700; font-size: 0.95rem; position: relative; }
+  .lk::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -4px; height: 2px; background: var(--orange); transition: right 0.3s cubic-bezier(.22,1,.36,1); }
+  .lk:hover { color: var(--ink); text-decoration: none; }
+  .lk:hover::after { right: 0; }
+
+  /* ─────────── HERO ─────────── */
+  .hero { padding: 3.5rem 0 4.5rem; position: relative; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background:
+      radial-gradient(600px 400px at 15% 10%, rgba(249, 115, 22, 0.10), transparent 60%),
+      radial-gradient(500px 300px at 100% 80%, rgba(139, 92, 246, 0.08), transparent 60%);
+  }
+  .pill {
+    display: inline-block;
+    background: var(--orange-lt); color: var(--orange);
+    padding: 0.35rem 0.85rem; border-radius: 100px;
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+  h1 {
+    font-size: clamp(2.4rem, 5.4vw, 4rem);
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin: 0 0 1.2rem;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+  h1 .hl {
+    position: relative;
+    color: var(--orange);
+    white-space: nowrap;
+  }
+  h1 .hl::after {
+    content: "";
+    position: absolute;
+    left: -0.1em; right: -0.1em;
+    bottom: 0.08em; height: 0.28em;
+    background: rgba(249, 115, 22, 0.18);
+    z-index: -1; border-radius: 4px;
+  }
+  .hero .lede {
+    font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0 0 2rem;
+    line-height: 1.5;
+  }
+  .hero .lede strong { color: var(--ink); font-weight: 700; }
+
+  .cta-row { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; margin-bottom: 2.4rem; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.85rem 1.6rem;
+    border-radius: 100px;
+    font-family: inherit; font-weight: 800; font-size: 0.98rem;
+    cursor: pointer; transition: transform 0.2s cubic-bezier(.22,1,.36,1), box-shadow 0.2s ease, background 0.2s ease;
+    text-decoration: none;
+    border: 0;
+    letter-spacing: -0.005em;
+  }
+  .btn.primary {
+    background: var(--orange); color: #fff;
+    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3);
+  }
+  .btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px -8px rgba(249, 115, 22, 0.55);
+    text-decoration: none;
+  }
+  .btn.ghost {
+    background: #fff; color: var(--ink); border: 1px solid var(--border);
+  }
+  .btn.ghost:hover {
+    color: var(--orange); border-color: var(--orange);
+    transform: translateY(-2px);
+    text-decoration: none;
+  }
+
+  .trust { font-size: 0.85rem; color: var(--ink-3); font-weight: 600; }
+  .trust b { color: var(--ink-2); }
+
+  /* ─────────── STAT STRIP ─────────── */
+  .stats {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.8rem 1.6rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
+    margin-top: 2rem;
+  }
+  @media (max-width: 780px) { .stats { grid-template-columns: repeat(2, 1fr); gap: 1.4rem 1rem; padding: 1.4rem 1.2rem; } }
+  .stats .st { text-align: left; }
+  .stats .st .n {
+    font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+    font-weight: 900; letter-spacing: -0.02em; color: var(--ink); line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stats .st .n .sup { font-size: 0.55em; color: var(--orange); font-weight: 800; margin-left: 2px; }
+  .stats .st .k { margin-top: 0.4rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+
+  /* ─────────── SECTION HEADERS ─────────── */
+  section { padding: 4.5rem 0; }
+  .badge {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 100px;
+    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .badge.orange { background: var(--orange-lt); color: var(--orange); }
+  .badge.teal   { background: var(--teal-lt);   color: var(--teal); }
+  .badge.purple { background: var(--purple-lt); color: var(--purple); }
+  .badge.blue   { background: var(--blue-lt);   color: var(--blue); }
+  .badge.indigo { background: var(--indigo-lt); color: var(--indigo); }
+
+  h2 {
+    font-size: clamp(1.7rem, 3vw, 2.4rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+    max-width: 24ch;
+  }
+  h2 .hl { color: var(--orange); }
+  section .kicker { color: var(--ink-2); font-size: 1.05rem; max-width: 60ch; margin: 0 0 2.4rem; line-height: 1.55; }
+
+  /* ─────────── PROBLEM LIST ─────────── */
+  .problem-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.4rem 1.8rem;
+    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
+    list-style: none; margin: 0;
+  }
+  .problem-list li {
+    padding: 0.9rem 0;
+    display: flex; justify-content: space-between; gap: 1rem;
+    align-items: baseline;
+    border-bottom: 1px dashed var(--border);
+    font-weight: 600;
+  }
+  .problem-list li:last-child { border-bottom: 0; }
+  .problem-list li .k { color: var(--ink); }
+  .problem-list li .v { color: var(--ink-3); font-size: 0.9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ─────────── FEATURE CASES ─────────── */
+  .cases-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.4rem;
+  }
+  @media (max-width: 780px) { .cases-grid { grid-template-columns: 1fr; } }
+
+  .case {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.6rem 1.6rem 1.8rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s cubic-bezier(.22,1,.36,1), box-shadow 0.25s ease;
+    box-shadow: 0 1px 1px rgba(30, 27, 75, 0.05);
+  }
+  .case::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 5px;
+    background: var(--ink);
+    transform-origin: left; transition: transform 0.3s cubic-bezier(.22,1,.36,1);
+  }
+  .case:hover { transform: translateY(-4px); box-shadow: 0 22px 44px -22px rgba(30, 27, 75, 0.3); }
+  .case:hover::before { transform: scaleX(1.02); }
+
+  .case.c1::before { background: var(--orange); }
+  .case.c2::before { background: var(--teal); }
+  .case.c3::before { background: var(--purple); }
+  .case.c4::before { background: var(--blue); }
+  .case.c5::before { background: var(--indigo); }
+  .case.c6::before { background: var(--warn); }
+
+  .case h3 {
+    font-size: 1.35rem; font-weight: 900;
+    letter-spacing: -0.015em;
+    margin: 0.8rem 0 0.6rem;
+    color: var(--ink);
+  }
+  .case .who { color: var(--ink-2); font-size: 0.92rem; font-weight: 600; margin-bottom: 1.1rem; }
+  .case ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.7rem; }
+  .case ul li {
+    display: grid; grid-template-columns: 22px 1fr; gap: 0.6rem;
+    font-size: 0.94rem; color: var(--ink); line-height: 1.4;
+    font-weight: 600;
+  }
+  .case ul li .ico { color: inherit; font-weight: 900; font-size: 1rem; line-height: 1.3; }
+  .case.c1 ul li .ico { color: var(--orange); }
+  .case.c2 ul li .ico { color: var(--teal); }
+  .case.c3 ul li .ico { color: var(--purple); }
+  .case.c4 ul li .ico { color: var(--blue); }
+  .case.c5 ul li .ico { color: var(--indigo); }
+  .case.c6 ul li .ico { color: var(--warn); }
+  .case ul li b { display: block; font-weight: 800; color: var(--ink); margin-bottom: 2px; }
+  .case ul li span { color: var(--ink-2); font-weight: 500; font-size: 0.87rem; line-height: 1.4; }
+
+  /* ─────────── NUMBERS SECTION ─────────── */
+  .numbers-section {
+    background: linear-gradient(180deg, #fff 0%, var(--orange-lt) 100%);
+  }
+  .numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+  }
+  @media (max-width: 780px) { .numbers-grid { grid-template-columns: repeat(2, 1fr); } }
+  .num-cell {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.5rem 1.4rem;
+    box-shadow: 0 18px 40px -28px rgba(30, 27, 75, 0.35);
+  }
+  .num-cell .n {
+    font-weight: 900; font-size: clamp(2rem, 3.2vw, 2.8rem);
+    letter-spacing: -0.03em; line-height: 1; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .num-cell .n .sup { font-size: 0.5em; color: var(--orange); }
+  .num-cell .k { margin-top: 0.7rem; font-size: 0.86rem; color: var(--ink-2); font-weight: 600; line-height: 1.4; }
+
+  /* ─────────── COMPARE TABLE ─────────── */
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.4rem;
+    overflow-x: auto;
+    box-shadow: 0 18px 40px -24px rgba(30, 27, 75, 0.4);
+  }
+  table.compare {
+    width: 100%; border-collapse: collapse; min-width: 640px;
+    font-size: 0.93rem;
+  }
+  table.compare th, table.compare td {
+    padding: 0.95rem 1.1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.compare thead th {
+    color: var(--ink-3); font-weight: 800; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  table.compare thead th.us { color: var(--orange); }
+  table.compare tbody tr:last-child td { border-bottom: 0; }
+  table.compare tbody tr.tot td { background: var(--orange-lt); font-weight: 800; }
+  table.compare tbody tr.tot td:first-child { border-radius: 10px 0 0 10px; }
+  table.compare tbody tr.tot td:last-child  { border-radius: 0 10px 10px 0; color: var(--orange); }
+  table.compare tbody td:first-child { color: var(--ink); font-weight: 700; }
+  table.compare .yes { color: var(--ok); font-weight: 800; }
+  table.compare .partial { color: var(--warn); font-weight: 700; }
+  table.compare .no { color: var(--ink-3); font-weight: 600; }
+
+  /* ─────────── QUOTE ─────────── */
+  .quote-band {
+    background: var(--ink);
+    color: #fff;
+    padding: 4rem 0;
+  }
+  .quote-band blockquote {
+    font-size: clamp(1.4rem, 2.6vw, 2rem);
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin: 0;
+    max-width: 24ch;
+    text-wrap: balance;
+    color: #fff;
+  }
+  .quote-band blockquote .hl { color: var(--orange-2); }
+  .quote-band cite {
+    display: block; margin-top: 1.6rem; font-style: normal;
+    font-size: 0.88rem; color: rgba(255, 255, 255, 0.55); font-weight: 600; letter-spacing: 0.02em;
+  }
+
+  /* ─────────── CTA ─────────── */
+  .cta-band {
+    background: linear-gradient(135deg, var(--orange) 0%, #f56b0d 100%);
+    color: #fff;
+    padding: 4.5rem 0 4rem;
+    text-align: center;
+  }
+  .cta-band h2 {
+    font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin: 0 auto 1rem;
+    max-width: 22ch;
+    color: #fff;
+    text-wrap: balance;
+  }
+  .cta-band p {
+    max-width: 52ch;
+    margin: 0 auto 2rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.05rem;
+    line-height: 1.55;
+    font-weight: 600;
+  }
+  .cta-band .cta-row { justify-content: center; }
+  .cta-band .btn.primary {
+    background: #fff; color: var(--orange);
+    box-shadow: 0 12px 30px rgba(30, 27, 75, 0.28);
+  }
+  .cta-band .btn.primary:hover { background: #fff; color: #d9600d; box-shadow: 0 18px 40px rgba(30, 27, 75, 0.4); }
+  .cta-band .btn.ghost {
+    background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4);
+  }
+  .cta-band .btn.ghost:hover { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: #fff; }
+
+  /* ─────────── FOOTER ─────────── */
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 1.6rem 0;
+    font-size: 0.85rem;
+    color: var(--ink-3);
+  }
+  footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem; font-weight: 600; }
+  footer a { color: var(--ink-2); font-weight: 700; }
+  footer a:hover { color: var(--orange); text-decoration: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/" class="logo" style="text-decoration:none">Balance<span>Clip</span> <span class="sub">Booking</span></a>
+    <div class="links">
+      <a class="lk" href="/">Otros productos</a>
+      <a class="lk" href="#contacto">Hablemos →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ─────────── HERO ─────────── -->
+<section class="hero">
+  <div class="wrap">
+    <span class="pill">Micro-sistema para hospedaje boutique · Panamá</span>
+    <h1>Todo tu hospedaje. En una <span class="hl">sola hoja</span>.</h1>
+    <p class="lede">
+      <strong>Bot WhatsApp que vende 24/7. OCR de vouchers y facturas con IA. Contabilidad completa.</strong>
+      Sync bidireccional con Airbnb, referidos automáticos, alertas al equipo — corriendo sobre Google Apps Script.
+      Sin servidores, sin SaaS mensual, sin lock-in.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="#contacto">Quiero uno para mi hospedaje</a>
+      <a class="btn ghost" href="#features">Ver todo lo que hace</a>
+    </div>
+    <div class="trust">Ya en producción: <b>3 cabañas Las Nubes · Chicá</b> + <b>Malaya Lodge</b> (referido con comisión).</div>
+
+    <div class="stats">
+      <div class="st"><div class="n tabular">60<span class="sup">+</span></div><div class="k">Features en producción</div></div>
+      <div class="st"><div class="n tabular">8</div><div class="k">Casos de IA con Claude</div></div>
+      <div class="st"><div class="n tabular">24/7</div><div class="k">Ventas por WhatsApp</div></div>
+      <div class="st"><div class="n tabular">~$0<span class="sup">/mes</span></div><div class="k">Costo de infra</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── PROBLEM ─────────── -->
+<section>
+  <div class="wrap">
+    <span class="badge indigo">01 · El problema</span>
+    <h2>Un hospedaje boutique corre <span class="hl">en ocho apps</span>.</h2>
+    <p class="kicker">
+      Airbnb para el calendario, WhatsApp para las consultas, Yappy para el cobro, Excel para la contabilidad,
+      Gmail para las confirmaciones, Drive para los vouchers, un Word para el manual, y una libreta para tu equipo de limpieza.
+      Nada de eso conversa.
+    </p>
+    <ul class="problem-list">
+      <li><span class="k">Cotizaciones repetidas por WhatsApp</span><span class="v">30 – 90 min / día</span></li>
+      <li><span class="k">Data-entry de vouchers y facturas</span><span class="v">2 – 4 hrs / semana</span></li>
+      <li><span class="k">Coordinación con limpieza y equipo</span><span class="v">cada checkout</span></li>
+      <li><span class="k">Reconciliación de payouts Airbnb</span><span class="v">fin de mes, doloroso</span></li>
+      <li><span class="k">Reservas perdidas por no contestar a tiempo</span><span class="v">incontables</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─────────── FEATURES ─────────── -->
+<section id="features">
+  <div class="wrap">
+    <span class="badge orange">02 · Lo que hace</span>
+    <h2>Seis dominios. <span class="hl">Un solo sistema.</span></h2>
+    <p class="kicker">
+      Cada canal — Airbnb, WhatsApp, Yappy, Banco General — se convierte en filas de una hoja que se retroalimentan solas.
+      Automatizaciones que corren sin operador.
+    </p>
+
+    <div class="cases-grid">
+      <div class="case c1">
+        <span class="badge orange">i · Booking</span>
+        <h3>Bot que vende y calendario en tiempo real</h3>
+        <div class="who">Cotización, disponibilidad, canales y bloqueos — sincronizados con el mundo real.</div>
+        <ul>
+          <li><span class="ico">→</span><div><b>Bot WhatsApp 24/7</b><span>Cotiza, propone alternativas ±10 días, cierra reservas y sube el voucher — todo desde el chat.</span></div></li>
+          <li><span class="ico">→</span><div><b>Calendario público en tiempo real</b><span>Landing propio con disponibilidad multi-cabaña. Reservas directas sin comisión.</span></div></li>
+          <li><span class="ico">→</span><div><b>5 tipos de reserva</b><span>Noche, pasadía, pasatarde, early check-in, late check-out — con cortesías gestionadas.</span></div></li>
+          <li><span class="ico">→</span><div><b>Sync bidireccional con Airbnb</b><span>iCal in y out. Cero doble booking. Payouts sincronizados desde Gmail.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c2">
+        <span class="badge teal">ii · Pagos</span>
+        <h3>Voucher a texto en segundos</h3>
+        <div class="who">Voucher → estructura → auto-fill del formulario. Sin data-entry manual.</div>
+        <ul>
+          <li><span class="ico">→</span><div><b>OCR de vouchers con Claude</b><span>Yappy, ACH, Banco General. Extrae remitente, monto, código, fecha, nombre y email del huésped.</span></div></li>
+          <li><span class="ico">→</span><div><b>Multi-abono con validación</b><span>Suma parciales, detecta descuadres, ofrece resolución. Sin errores de cuadre.</span></div></li>
+          <li><span class="ico">→</span><div><b>Recibo PDF numerado</b><span>Correlativo LN-XXXX generado y adjuntado al email de confirmación. Con lock anti-colisión.</span></div></li>
+          <li><span class="ico">→</span><div><b>Guardado a Drive automático</b><span>Nombre estructurado, descripción y sharing público — listo para compartir.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c3">
+        <span class="badge purple">iii · Contabilidad</span>
+        <h3>Ingresos, egresos y P&amp;L con IA</h3>
+        <div class="who">Reconciliación bancaria con IA como analista. Sin contador para el día a día.</div>
+        <ul>
+          <li><span class="ico">→</span><div><b>OCR de facturas de gastos</b><span>Foto de la factura, categorización automática, detección de duplicados.</span></div></li>
+          <li><span class="ico">→</span><div><b>Reconciliación Banco General 🇵🇦</b><span>Import de XLSX, clasificación en 15 categorías, detector de suscripciones.</span></div></li>
+          <li><span class="ico">→</span><div><b>P&amp;L narrativo con Claude</b><span>Reporte mensual en prosa: cómo se movió la plata y qué categoría creció.</span></div></li>
+          <li><span class="ico">→</span><div><b>Cuentas por cobrar exportables</b><span>Rentabilidad con o sin préstamo. Gráficos por canal, cabaña y mes.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c4">
+        <span class="badge blue">iv · Comunicación</span>
+        <h3>WhatsApp Business + email + CRM</h3>
+        <div class="who">Templates HSM aprobadas por Meta + Gmail + link público firmado.</div>
+        <ul>
+          <li><span class="ico">→</span><div><b>Confirmación email + WhatsApp</b><span>Con recibo PDF, guía de llegada, links de mapas y CTA a Instagram.</span></div></li>
+          <li><span class="ico">→</span><div><b>Templates HSM listas</b><span>Confirmación, recordatorio, checkout, alerta portón, saldo pendiente, referido post-estancia.</span></div></li>
+          <li><span class="ico">→</span><div><b>Link público firmado por HMAC</b><span>El huésped ve su reserva, saldo, keybox (revelado en ventana temporal) y guía self-service.</span></div></li>
+          <li><span class="ico">→</span><div><b>CRM ligero de conversaciones</b><span>Cada mensaje registrado con contexto. Fallback a Claude para consultas no estructuradas.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c5">
+        <span class="badge indigo">v · Operaciones</span>
+        <h3>El equipo recibe lo que necesita</h3>
+        <div class="who">Sin recordatorios en tu cabeza. Alertas contextuales al equipo interno.</div>
+        <ul>
+          <li><span class="ico">→</span><div><b>Alerta al equipo de limpieza</b><span>WhatsApp cada mañana con salidas del día, siguiente reserva y si necesita cama auxiliar.</span></div></li>
+          <li><span class="ico">→</span><div><b>Servicios especiales 9am</b><span>Alerta cuando hay decoración, torta, cuna o traslado desde aeropuerto reservados.</span></div></li>
+          <li><span class="ico">→</span><div><b>Portón y checkout automáticos</b><span>El huésped confirma con un botón — el sistema le dice al equipo cuándo entrar.</span></div></li>
+          <li><span class="ico">→</span><div><b>OCR de cédula GDPR-safe</b><span>Verificación de identidad con borrado automático 3am de IDs viejos.</span></div></li>
+        </ul>
+      </div>
+
+      <div class="case c6">
+        <span class="badge orange">vi · Growth</span>
+        <h3>Cada huésped, un canal de venta</h3>
+        <div class="who">Fidelidad, referidos, cumpleaños y ROI de ads — sin operar promociones a mano.</div>
+        <ul>
+          <li><span class="ico">→</span><div><b>Fidelidad automática</b><span>2 estadías completadas → noche cortesía disparada por email dorado. Vence en 365 días.</span></div></li>
+          <li><span class="ico">→</span><div><b>Referidos con crédito doble</b><span>Códigos LN-XXXXXX únicos. $20 para el referidor + $20 para el nuevo huésped.</span></div></li>
+          <li><span class="ico">→</span><div><b>Cumpleaños con descuento</b><span>Email 30 días antes con 20% off. Dedup por año, no se manda dos veces.</span></div></li>
+          <li><span class="ico">→</span><div><b>ROI de Meta Ads</b><span>Import de gasto de Instagram/Facebook, cruce con reservas convertidas.</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── NUMBERS ─────────── -->
+<section class="numbers-section">
+  <div class="wrap">
+    <span class="badge orange">03 · Los números</span>
+    <h2>Ya está corriendo. <span class="hl">No es un pitch de laboratorio.</span></h2>
+    <p class="kicker">Métricas reales del deployment activo hoy.</p>
+    <div class="numbers-grid">
+      <div class="num-cell">
+        <div class="n tabular">3<span class="sup">+1</span></div>
+        <div class="k">Propiedades operadas: 3 cabañas Las Nubes + 1 referida (Malaya Lodge, comisión).</div>
+      </div>
+      <div class="num-cell">
+        <div class="n tabular">0</div>
+        <div class="k">Doble bookings desde que arrancó el sync iCal con Airbnb.</div>
+      </div>
+      <div class="num-cell">
+        <div class="n tabular">8</div>
+        <div class="k">Casos de IA con Claude en producción: OCR, NLU, clasificación, reportes y fallback.</div>
+      </div>
+      <div class="num-cell">
+        <div class="n tabular">$0.01</div>
+        <div class="k">Costo aprox por mensaje de WhatsApp Business. Única línea variable.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── COMPARE ─────────── -->
+<section>
+  <div class="wrap">
+    <span class="badge purple">04 · Comparativa</span>
+    <h2>No es un PMS más. <span class="hl">Es la capa que faltaba.</span></h2>
+    <p class="kicker">
+      Airbnb te da visibilidad pero se queda con hasta el 15%. Un PMS tradicional te cobra suscripción mensual
+      pero no integra con Yappy ni con Banco General. Este sistema hace ambos, y encima automatiza el equipo.
+    </p>
+    <div class="compare-card">
+      <table class="compare tabular">
+        <thead>
+          <tr>
+            <th>Capacidad</th>
+            <th>Solo Airbnb</th>
+            <th>PMS tradicional</th>
+            <th class="us">BalanceClip Booking</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Reservas directas sin comisión</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+          <tr><td>Bot WhatsApp que cotiza y cierra</td><td class="no">—</td><td class="partial">Add-on ($50+/mes)</td><td class="yes">Incluido</td></tr>
+          <tr><td>OCR de vouchers Yappy / ACH con IA</td><td class="no">—</td><td class="no">No</td><td class="yes">Sí</td></tr>
+          <tr><td>Reconciliación con Banco General</td><td class="no">—</td><td class="no">No</td><td class="yes">Sí, con IA</td></tr>
+          <tr><td>Contabilidad ingresos + egresos + P&amp;L</td><td class="no">—</td><td class="partial">Módulo aparte</td><td class="yes">Incluido</td></tr>
+          <tr><td>Alertas automáticas al equipo</td><td class="no">—</td><td class="partial">Limitado</td><td class="yes">Sí, contextuales</td></tr>
+          <tr><td>Fidelidad + referidos automáticos</td><td class="no">—</td><td class="partial">Add-on</td><td class="yes">Incluido</td></tr>
+          <tr><td>Post-reserva con guía y keybox</td><td class="partial">Manual</td><td class="partial">Básico</td><td class="yes">Self-service</td></tr>
+          <tr><td>Datos son tuyos (sin lock-in)</td><td class="no">No</td><td class="no">No</td><td class="yes">Google Sheet</td></tr>
+          <tr class="tot"><td>Costo mensual</td><td>15% comisión</td><td>US$50 – 200</td><td>~US$0 + $0.01/msg WA</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── QUOTE ─────────── -->
+<section class="quote-band">
+  <div class="wrap">
+    <blockquote>
+      <span class="hl">Menos apps.</span> Menos suscripciones. Más noches vendidas <span class="hl">mientras dormís.</span>
+    </blockquote>
+    <cite>— Diseñado en las montañas de Chicá, para hospedajes que ponen el detalle antes que el volumen.</cite>
+  </div>
+</section>
+
+<!-- ─────────── CTA ─────────── -->
+<section class="cta-band" id="contacto">
+  <div class="wrap">
+    <h2>Instalado en tu hospedaje en semanas.</h2>
+    <p>
+      Adaptable a hospedajes boutique de 1 a 10 unidades. Configuración inicial guiada,
+      entrenamiento del equipo y traspaso completo del código. No hay renta de software.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="https://wa.me/50769812266?text=Hola,%20me%20interesa%20BalanceClip%20Booking%20para%20mi%20hospedaje." target="_blank" rel="noopener">Hablar por WhatsApp · +507 6981-2266</a>
+      <a class="btn ghost" href="mailto:hola@balanceclip.net">hola@balanceclip.net</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 <b style="color:var(--ink)">Balance<span style="color:var(--orange)">Clip</span></b> · Micro-sistemas con IA · Panamá</div>
+    <div><a href="/">Otros productos</a> · <a href="/pro">BalanceClip Pro</a> · <a href="/seppelec/">Seppelec</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
