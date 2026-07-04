@@ -176,6 +176,79 @@
     font-size:13px;
   }
 
+  /* ────────── Bot toggle ────────── */
+  .bot-toggle-row {
+    display:flex; align-items:center; gap:12px; margin-top:14px;
+    padding:12px 14px; background:var(--surface2);
+    border:1px solid var(--border); border-radius:8px;
+  }
+  .bot-toggle-row .lbl { flex:1; font-size:12px; line-height:1.4; }
+  .bot-toggle-row .lbl b { display:block; font-size:13px; font-weight:700; margin-bottom:2px; }
+  .bot-toggle-row .lbl .hint { color:var(--muted); font-size:11px; }
+  .bot-toggle-row .state {
+    font-size:11px; font-weight:700; padding:3px 8px; border-radius:10px;
+    text-transform:uppercase; letter-spacing:.5px;
+  }
+  .bot-toggle-row .state.on  { background:#E8F5E9; color:var(--green); }
+  .bot-toggle-row .state.off { background:#FFEBEE; color:var(--red); }
+  .switch {
+    position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0;
+  }
+  .switch input { opacity:0; width:0; height:0; }
+  .switch .slider {
+    position:absolute; cursor:pointer; inset:0;
+    background:#CED4DA; transition:.2s; border-radius:26px;
+  }
+  .switch .slider:before {
+    position:absolute; content:''; height:20px; width:20px; left:3px; bottom:3px;
+    background:#fff; transition:.2s; border-radius:50%;
+    box-shadow:0 1px 3px rgba(0,0,0,.2);
+  }
+  .switch input:checked + .slider { background:var(--green); }
+  .switch input:checked + .slider:before { transform:translateX(20px); }
+  .switch input:disabled + .slider { opacity:.5; cursor:wait; }
+
+  /* ────────── Reply composer ────────── */
+  .composer {
+    border-top:1px solid var(--border); background:var(--surface);
+    padding:10px 12px 12px; display:flex; flex-direction:column; gap:6px;
+  }
+  .composer-info {
+    font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px;
+    flex-wrap:wrap;
+  }
+  .composer-info .pill {
+    padding:2px 7px; border-radius:8px; font-weight:700;
+    font-size:10px; text-transform:uppercase; letter-spacing:.3px;
+  }
+  .composer-info .pill.warn { background:#FFF3E0; color:#E65100; }
+  .composer-info .pill.ok   { background:#E8F5E9; color:var(--green); }
+  .composer-info .pill.info { background:#E3F2FD; color:var(--blue); }
+  .composer-row { display:flex; gap:8px; align-items:flex-end; }
+  .composer textarea {
+    flex:1; resize:vertical; min-height:44px; max-height:180px;
+    padding:9px 12px; font-size:13px; font-family:inherit;
+    border:1px solid var(--border2); border-radius:10px; background:var(--surface);
+    color:var(--text); outline:none; line-height:1.4;
+  }
+  .composer textarea:focus { border-color:var(--orange); }
+  .composer textarea:disabled { background:var(--surface2); cursor:not-allowed; }
+  .btn-send {
+    background:var(--orange); color:#fff; border:none; cursor:pointer;
+    padding:0 16px; height:44px; border-radius:10px; font-size:13px;
+    font-family:inherit; font-weight:600; white-space:nowrap;
+  }
+  .btn-send:hover:not(:disabled) { background:var(--orange2); }
+  .btn-send:disabled { background:var(--border2); cursor:not-allowed; }
+  .composer-msg { font-size:11px; min-height:14px; }
+  .composer-msg.err { color:var(--red); }
+  .composer-msg.ok  { color:var(--green); }
+
+  .bubble.out.manual {
+    background:#FFE8CC; /* naranja pálido para distinguir del bot */
+    border:1px solid #FFCC99;
+  }
+
   @media (max-width:600px) {
     .container { padding:14px 12px 60px; }
     .hero { padding:14px 16px 16px; }
@@ -201,6 +274,18 @@
     <div class="hero-title">💬 Conversaciones del bot</div>
     <div class="hero-desc">Leads que interactuaron con el bot de WhatsApp de BalanceClip (signup, setup, soporte).</div>
     <div class="hero-stats" id="heroStats">—</div>
+
+    <div class="bot-toggle-row">
+      <div class="lbl">
+        <b>Bot para visitantes</b>
+        <span class="hint">Si lo desactivas, tú respondes manualmente a los leads no registrados. Los clientes activos siempre reciben respuesta del bot.</span>
+      </div>
+      <span class="state" id="botToggleState">—</span>
+      <label class="switch" title="Activar/desactivar bot para visitantes">
+        <input type="checkbox" id="botToggleInput" onchange="onBotToggle(this)" disabled>
+        <span class="slider"></span>
+      </label>
+    </div>
   </div>
 
   <div class="controls">
@@ -233,6 +318,14 @@
     <button class="btn-ic" onclick="reloadThread()" title="Refrescar">↻</button>
   </div>
   <div class="thread-body" id="threadBody"><div class="loading">⏳ Cargando…</div></div>
+  <div class="composer" id="composer" style="display:none">
+    <div class="composer-info" id="composerInfo"></div>
+    <div class="composer-row">
+      <textarea id="composerText" placeholder="Escribe tu respuesta…" rows="2" onkeydown="onComposerKey(event)"></textarea>
+      <button class="btn-send" id="btnSend" onclick="sendManual()">Enviar</button>
+    </div>
+    <div class="composer-msg" id="composerMsg"></div>
+  </div>
 </div>
 
 <script>
@@ -242,6 +335,8 @@ let _items = [];
 let _q = '';
 let _status = 'all';
 let _currentPhone = null;
+let _currentThread = null; // { isClient, ventanaAbierta, lastInbound }
+let _botEnabled = null;
 
 function getToken() { return localStorage.getItem('bc_admin_token') || ''; }
 
@@ -315,6 +410,61 @@ function previewText(c) {
   else if (tipo === 'document') msg = '📄 [documento]';
   else if (tipo === 'audio')    msg = '🎤 [audio]';
   return '<span class="lead-preview-icon">' + prefix + '</span>' + esc(msg);
+}
+
+async function loadBotToggle() {
+  const t = getToken();
+  if (!t) return;
+  const inp = document.getElementById('botToggleInput');
+  const st  = document.getElementById('botToggleState');
+  try {
+    const data = await jsonpGet({ action:'getBotToggle', adminToken:t });
+    if (!data || !data.ok) {
+      st.textContent = 'error';
+      st.className = 'state off';
+      return;
+    }
+    _botEnabled = !!data.enabled;
+    inp.checked = _botEnabled;
+    inp.disabled = false;
+    st.textContent = _botEnabled ? 'ON' : 'OFF';
+    st.className = 'state ' + (_botEnabled ? 'on' : 'off');
+  } catch (e) {
+    st.textContent = 'error';
+    st.className = 'state off';
+  }
+}
+
+async function onBotToggle(inp) {
+  const t = getToken();
+  if (!t) return;
+  const newVal = inp.checked;
+  inp.disabled = true;
+  const st = document.getElementById('botToggleState');
+  st.textContent = '…';
+  try {
+    const data = await jsonpGet({
+      action:'setBotToggle', adminToken:t,
+      enabled: newVal ? 'true' : 'false',
+    });
+    if (!data || !data.ok) {
+      inp.checked = !newVal;
+      st.textContent = 'error';
+      st.className = 'state off';
+      alert('No se pudo actualizar: ' + ((data && data.error) || 'error desconocido'));
+    } else {
+      _botEnabled = !!data.enabled;
+      st.textContent = _botEnabled ? 'ON' : 'OFF';
+      st.className = 'state ' + (_botEnabled ? 'on' : 'off');
+    }
+  } catch (e) {
+    inp.checked = !newVal;
+    st.textContent = 'error';
+    st.className = 'state off';
+    alert('Error de red: ' + e.message);
+  } finally {
+    inp.disabled = false;
+  }
 }
 
 async function loadList(forceFresh) {
@@ -410,6 +560,15 @@ async function openThread(phone) {
 function closeThread() {
   document.getElementById('threadOverlay').classList.remove('active');
   _currentPhone = null;
+  _currentThread = null;
+  const ta = document.getElementById('composerText');
+  if (ta) ta.value = '';
+  const msg = document.getElementById('composerMsg');
+  if (msg) { msg.textContent = ''; msg.className = 'composer-msg'; }
+  // Limpiar query param si venimos de un deeplink.
+  if (location.search.indexOf('phone=') >= 0) {
+    history.replaceState(null, '', location.pathname);
+  }
 }
 
 async function reloadThread() {
@@ -425,12 +584,103 @@ async function loadThread() {
     if (!data || !data.ok) {
       document.getElementById('threadBody').innerHTML =
         '<div class="err-banner">⚠️ ' + esc((data && data.error) || 'error') + '</div>';
+      updateComposer(null);
       return;
     }
+    _currentThread = {
+      isClient:       !!data.isClient,
+      ventanaAbierta: !!data.ventanaAbierta,
+      lastInbound:    data.lastInbound || 0,
+    };
     renderThread(data.items || []);
+    updateComposer(_currentThread);
   } catch (e) {
     document.getElementById('threadBody').innerHTML =
       '<div class="err-banner">⚠️ ' + esc(e.message) + '</div>';
+    updateComposer(null);
+  }
+}
+
+function updateComposer(info) {
+  const box  = document.getElementById('composer');
+  const ta   = document.getElementById('composerText');
+  const btn  = document.getElementById('btnSend');
+  const info$= document.getElementById('composerInfo');
+  const msg  = document.getElementById('composerMsg');
+  msg.textContent = ''; msg.className = 'composer-msg';
+
+  if (!info) { box.style.display = 'none'; return; }
+
+  // Solo mostramos composer para visitantes. Clientes registrados usan
+  // el bot normal — el admin no debe interceptar conversaciones activas.
+  if (info.isClient) {
+    box.style.display = 'block';
+    ta.disabled = true; btn.disabled = true;
+    info$.innerHTML = '<span class="pill info">Cliente registrado</span>' +
+      '<span>El bot atiende automáticamente. Composer deshabilitado.</span>';
+    ta.value = '';
+    return;
+  }
+
+  box.style.display = 'block';
+  if (!info.ventanaAbierta) {
+    ta.disabled = true; btn.disabled = true;
+    info$.innerHTML = '<span class="pill warn">Ventana 24h cerrada</span>' +
+      '<span>WhatsApp no permite enviar texto libre. Espera a que el contacto escriba de nuevo.</span>';
+    return;
+  }
+
+  ta.disabled = false; btn.disabled = false;
+  const rem = Math.max(0, 24 - Math.floor((Date.now() - (info.lastInbound || 0)) / 3600000));
+  info$.innerHTML = '<span class="pill ok">Ventana abierta</span>' +
+    '<span>~' + rem + 'h restantes para responder con texto libre.</span>';
+}
+
+function onComposerKey(e) {
+  // Enter envía; Shift+Enter salto de línea.
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendManual();
+  }
+}
+
+async function sendManual() {
+  if (!_currentPhone || !_currentThread) return;
+  const ta  = document.getElementById('composerText');
+  const btn = document.getElementById('btnSend');
+  const msg = document.getElementById('composerMsg');
+  const texto = (ta.value || '').trim();
+  if (!texto) return;
+  const t = getToken();
+  if (!t) { msg.textContent = 'Falta ADMIN_TOKEN'; msg.className = 'composer-msg err'; return; }
+
+  btn.disabled = true; ta.disabled = true;
+  msg.textContent = 'Enviando…'; msg.className = 'composer-msg';
+  try {
+    const data = await jsonpGet({
+      action: 'enviarMensajeManual', adminToken: t,
+      phone: _currentPhone, mensaje: texto,
+    });
+    if (!data || !data.ok) {
+      let m = (data && data.message) || (data && data.error) || 'error';
+      if (data && data.error === 'ventana_24h') {
+        // Refrescar estado del thread — probablemente cerró justo ahora.
+        await loadThread();
+        m = data.message || 'Ventana de 24h cerrada.';
+      }
+      msg.textContent = '⚠️ ' + m;
+      msg.className = 'composer-msg err';
+      btn.disabled = false; ta.disabled = false;
+      return;
+    }
+    ta.value = '';
+    msg.textContent = '✅ Enviado';
+    msg.className = 'composer-msg ok';
+    await loadThread();
+  } catch (e) {
+    msg.textContent = '⚠️ ' + e.message;
+    msg.className = 'composer-msg err';
+    btn.disabled = false; ta.disabled = false;
   }
 }
 
@@ -450,13 +700,16 @@ function renderThread(items) {
       html += '<div class="day-sep">' + esc(fmtDay(d)) + '</div>';
     }
     const sideCls = m.dir === 'out' ? 'out' : 'in';
+    const isManual = m.dir === 'out' && String(m.accion || '').indexOf('admin:manual') === 0;
+    const manualCls = isManual ? ' manual' : '';
     const hhmm = ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
     let body = esc(m.contenido || '');
     // Light styling: WhatsApp uses *bold* and _italic_; we render *bold* as <b>
     body = body.replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
-    const accion = m.accion ? `<span class="accion">${esc(m.accion)}</span>` : '';
+    const accionLabel = isManual ? 'manual' : (m.accion || '');
+    const accion = accionLabel ? `<span class="accion">${esc(accionLabel)}</span>` : '';
     html += `
-      <div class="bubble ${sideCls}">
+      <div class="bubble ${sideCls}${manualCls}">
         ${body || '<i style="color:var(--muted)">(vacío)</i>'}
         <div class="bubble-meta"><span>${hhmm}</span>${accion}<span style="opacity:.7">${esc(m.tipo)}</span></div>
       </div>`;
@@ -481,7 +734,13 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && _currentPhone) closeThread();
 });
 
-loadList(true);
+loadBotToggle();
+loadList(true).then(() => {
+  // Deeplink: si viene ?phone=507xxx en la URL (desde la notif del bot
+  // en OFF), abrir el thread automáticamente.
+  const p = new URLSearchParams(location.search).get('phone');
+  if (p && /^\d{8,15}$/.test(p)) openThread(p);
+});
 </script>
 
 </body>

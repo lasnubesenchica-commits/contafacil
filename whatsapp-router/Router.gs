@@ -273,6 +273,15 @@ function _routerForwardMensaje(msg, metadata) {
   //    El módulo ContaFacil_Banco está incluido en este proyecto y
   //    detecta IS_DEMO=true para skip persistencia.
   if (!clientUrl) {
+    // Toggle global: si el admin desactivó el bot para visitantes desde
+    // admin/conversaciones.html, notificar y NO responder. El admin
+    // atenderá el lead manualmente. Clientes registrados no se ven afectados.
+    if (!_routerVisitorBotEnabled()) {
+      Logger.log('Visitor bot OFF — notif admin, skip respuesta (' + _routerMaskPhone(from) + ')');
+      try { _routerNotifyBotOffLead(msg, from, adminPhone, token, phoneId); }
+      catch (e) { Logger.log('BotOff notify ERROR: ' + e.message); }
+      return;
+    }
     var isXlsxDoc = (msg.type === 'document') && _routerEsXlsxAttachment(msg);
     var hasDemoSession = _routerGetDemoSession(from);
     if (isXlsxDoc || hasDemoSession) {
@@ -1884,6 +1893,9 @@ function _routerHandleAdminQuery(params) {
     if (params.action === 'listClientMap')     return _resp(_routerAdminListClientMap());
     if (params.action === 'setClientMap')      return _resp(_routerAdminSetClientMap(params));
     if (params.action === 'deleteClientMap')   return _resp(_routerAdminDeleteClientMap(params));
+    if (params.action === 'getBotToggle')      return _resp(_routerAdminGetBotToggle());
+    if (params.action === 'setBotToggle')      return _resp(_routerAdminSetBotToggle(params));
+    if (params.action === 'enviarMensajeManual') return _resp(_routerAdminEnviarManual(params));
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
@@ -1989,6 +2001,76 @@ function _routerAdminDeleteClientMap(params) {
   return { ok: true, phone: phone, deleted: prev };
 }
 
+// ────────────────────────────────────────────────────────────────────
+//  Admin API — handoff (toggle bot + envío manual de mensajes)
+// ────────────────────────────────────────────────────────────────────
+
+function _routerAdminGetBotToggle() {
+  return { ok: true, enabled: _routerVisitorBotEnabled() };
+}
+
+function _routerAdminSetBotToggle(params) {
+  var enabled = String(params.enabled || '').toLowerCase();
+  if (enabled !== 'true' && enabled !== 'false') {
+    return { ok: false, error: 'param "enabled" debe ser "true" o "false"' };
+  }
+  PropertiesService.getScriptProperties().setProperty('ROUTER_VISITOR_BOT_ENABLED', enabled);
+  return { ok: true, enabled: (enabled === 'true') };
+}
+
+// Envía un texto libre a `phone` desde el número del bot. Solo funciona
+// dentro de la ventana de 24h de Meta (último inbound del contacto <24h).
+// Fuera de la ventana requeriría un template HSM aprobado (no soportado
+// por ahora en este endpoint).
+function _routerAdminEnviarManual(params) {
+  var phone   = String(params.phone   || '').trim();
+  var mensaje = String(params.mensaje || '').trim();
+  if (!/^\d{8,15}$/.test(phone)) return { ok: false, error: 'phone inválido' };
+  if (!mensaje) return { ok: false, error: 'mensaje vacío' };
+  if (mensaje.length > 4000) mensaje = mensaje.substring(0, 4000);
+
+  var props = PropertiesService.getScriptProperties();
+  var lastInbound = parseInt(props.getProperty('lastInbound_' + phone), 10) || 0;
+  var VENTANA_MS = 24 * 60 * 60 * 1000;
+  if (!lastInbound || (Date.now() - lastInbound) >= VENTANA_MS) {
+    return {
+      ok: false, error: 'ventana_24h',
+      message: 'El contacto no ha escrito en las últimas 24h. WhatsApp no permite enviar texto libre fuera de esa ventana; requiere plantilla aprobada.'
+    };
+  }
+
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID');
+  if (!token || !phoneId) return { ok: false, error: 'META creds faltan en el router' };
+
+  var status = 'err';
+  var errBody = '';
+  try {
+    var r = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: phone,
+        text: { body: mensaje },
+      }),
+      muteHttpExceptions: true,
+    });
+    var code = r.getResponseCode();
+    status = (code >= 200 && code < 300) ? 'ok' : ('http_' + code);
+    if (code < 200 || code >= 300) errBody = r.getContentText();
+    _routerLog('out', phone, 'text', 'admin:manual', mensaje, status);
+    if (code < 200 || code >= 300) {
+      return { ok: false, error: 'meta_error', code: code, body: errBody.substring(0, 500) };
+    }
+    return { ok: true, phone: phone, status: status };
+  } catch (err) {
+    _routerLog('out', phone, 'text', 'admin:manual', mensaje, 'error:' + err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
 function _routerAdminListConversations(params) {
   var ss    = _routerLogEnsureSheet();
   var sheet = ss.getSheetByName('logs') || ss.getSheets()[0];
@@ -2028,6 +2110,16 @@ function _routerAdminListConversations(params) {
       c.lastAccion = accion;
     }
   }
+  // Info para el UI: qué phones están registrados (bot les responde
+  // siempre) vs visitantes (afectados por el toggle) y si están dentro
+  // de la ventana de 24h para poder recibir texto libre manual.
+  var routerProps = PropertiesService.getScriptProperties();
+  var clientsMapForUi;
+  try { clientsMapForUi = JSON.parse(routerProps.getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch(e) { clientsMapForUi = {}; }
+  var nowMs = Date.now();
+  var VENTANA24 = 24 * 60 * 60 * 1000;
+
   var items = [];
   Object.keys(byPhone).forEach(function(k){
     var c = byPhone[k];
@@ -2039,6 +2131,9 @@ function _routerAdminListConversations(params) {
     else if (a.indexOf('wa:apr:') === 0)       c.signupStatus = 'aprobando';
     else if (c.outCount > 0 && c.inCount > 0)  c.signupStatus = 'activo';
     else if (c.inCount > 0 && c.outCount === 0) c.signupStatus = 'nuevo';
+    c.isClient = !!clientsMapForUi[c.phone];
+    var li = parseInt(routerProps.getProperty('lastInbound_' + c.phone), 10) || 0;
+    c.ventanaAbierta = (li > 0) && ((nowMs - li) < VENTANA24);
     items.push(c);
   });
   items.sort(function(a,b){ return b.lastTime - a.lastTime; });
@@ -2062,10 +2157,19 @@ function _routerAdminListConversations(params) {
 
 function _routerAdminGetConversation(phone) {
   if (!phone) return { ok: false, error: 'phone required' };
+  var props = PropertiesService.getScriptProperties();
+  var clientsMap;
+  try { clientsMap = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch(e) { clientsMap = {}; }
+  var isClient = !!clientsMap[phone];
+  var li = parseInt(props.getProperty('lastInbound_' + phone), 10) || 0;
+  var ventanaAbierta = (li > 0) && ((Date.now() - li) < 24 * 60 * 60 * 1000);
+  var botEnabled = _routerVisitorBotEnabled();
+
   var ss    = _routerLogEnsureSheet();
   var sheet = ss.getSheetByName('logs') || ss.getSheets()[0];
   var last  = sheet.getLastRow();
-  if (last < 2) return { ok: true, phone: phone, items: [] };
+  if (last < 2) return { ok: true, phone: phone, items: [], isClient: isClient, ventanaAbierta: ventanaAbierta, botEnabled: botEnabled, lastInbound: li };
   var values = sheet.getRange(2, 1, last - 1, 7).getValues();
   var items = [];
   for (var i = 0; i < values.length; i++) {
@@ -2082,7 +2186,11 @@ function _routerAdminGetConversation(phone) {
     });
   }
   items.sort(function(a,b){ return a.time - b.time; });
-  return { ok: true, phone: phone, items: items };
+  return {
+    ok: true, phone: phone, items: items,
+    isClient: isClient, ventanaAbierta: ventanaAbierta,
+    botEnabled: botEnabled, lastInbound: li
+  };
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2699,6 +2807,42 @@ function _routerNotificarAdminInteraccion(msg, from, adminPhone, token, phoneId)
               '📱 +' + from + '\n' +
               interactionDesc;
   // _routerSendText es try/catch internamente — no tira si falla.
+  _routerSendText(adminPhone, notif, token, phoneId);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  BOT-OFF HANDOFF — toggle para atender leads manualmente
+//  ─────────────────────────────────────────────────────
+//  Cuando ROUTER_VISITOR_BOT_ENABLED=false, el bot no responde a
+//  visitantes (números no en CLIENTS_MAP_JSON). El admin recibe una
+//  notif y responde manualmente vía admin/conversaciones.html.
+//  Clientes registrados no se ven afectados.
+// ════════════════════════════════════════════════════════════════════
+
+function _routerVisitorBotEnabled() {
+  var v = String(PropertiesService.getScriptProperties()
+    .getProperty('ROUTER_VISITOR_BOT_ENABLED') || 'true').toLowerCase();
+  return v !== 'false' && v !== '0' && v !== 'off';
+}
+
+function _routerNotifyBotOffLead(msg, from, adminPhone, token, phoneId) {
+  if (!from || !adminPhone || !token || !phoneId) return;
+  var props = PropertiesService.getScriptProperties();
+  // Debounce corto: primer mensaje del lead notifica, siguientes en <5 min
+  // se agrupan silenciosamente (para no spamear si el lead escribe 10 veces).
+  var debounceMin = parseInt(props.getProperty('BOT_OFF_NOTIFY_DEBOUNCE_MIN'), 10) || 5;
+  var debounceMs  = debounceMin * 60 * 1000;
+  var lastKey = 'botOffNotif_' + from;
+  var last    = parseInt(props.getProperty(lastKey), 10) || 0;
+  if (Date.now() - last < debounceMs) return;
+  props.setProperty(lastKey, String(Date.now()));
+
+  var interactionDesc = _routerDescribirInteraccion(msg);
+  var link = 'https://balanceclip.net/admin/conversaciones.html?phone=' + encodeURIComponent(from);
+  var notif = '🔴 *Bot OFF — atiéndelo tú*\n' +
+              '📱 +' + from + '\n' +
+              interactionDesc + '\n\n' +
+              '➡️ ' + link;
   _routerSendText(adminPhone, notif, token, phoneId);
 }
 
