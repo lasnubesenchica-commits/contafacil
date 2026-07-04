@@ -149,18 +149,24 @@
     background:#ECE5DD; /* WhatsApp-ish backdrop */
   }
   .bubble {
-    max-width:70%; padding:7px 11px 9px; border-radius:8px; margin-bottom:4px;
-    font-size:13px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word;
+    max-width:70%; padding:4px 9px 5px; border-radius:7px; margin-bottom:3px;
+    font-size:13px; line-height:1.35; white-space:pre-wrap; word-wrap:break-word;
     box-shadow:0 1px 0.5px rgba(0,0,0,0.08);
+    width:fit-content;
   }
   .bubble.in  { background:var(--bubble-in); margin-right:auto; border-bottom-left-radius:2px; }
   .bubble.out { background:var(--bubble-out); margin-left:auto;  border-bottom-right-radius:2px; }
+  /* Meta inline al final del texto, tipo WhatsApp Web */
   .bubble-meta {
-    font-size:10px; color:var(--muted); margin-top:4px; display:flex; gap:6px;
+    display:inline; font-size:10px; color:var(--muted);
+    margin-left:8px; white-space:nowrap; opacity:.75;
+    vertical-align:baseline;
   }
   .bubble-meta .accion {
-    font-family:var(--mono); background:rgba(0,0,0,0.05); padding:1px 5px; border-radius:3px;
+    font-family:var(--mono); background:rgba(0,0,0,0.05);
+    padding:0 4px; border-radius:3px; margin-left:4px; font-size:9px;
   }
+  .bubble-meta .tipo { margin-left:4px; }
   .bubble.system {
     background:rgba(255,255,255,0.7); color:var(--muted); font-size:11px;
     text-align:center; max-width:60%; margin:14px auto;
@@ -769,11 +775,11 @@ function renderThread(items) {
     body = body.replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
     const accionLabel = isManual ? 'manual' : (m.accion || '');
     const accion = accionLabel ? `<span class="accion">${esc(accionLabel)}</span>` : '';
+    // Solo mostrar tipo si NO es 'text' (redundante — 99% son text)
+    const tipo = (m.tipo && m.tipo !== 'text') ? `<span class="tipo">${esc(m.tipo)}</span>` : '';
+    const bodyHtml = body || '<i style="color:var(--muted)">(vacío)</i>';
     html += `
-      <div class="bubble ${sideCls}${manualCls}">
-        ${body || '<i style="color:var(--muted)">(vacío)</i>'}
-        <div class="bubble-meta"><span>${hhmm}</span>${accion}<span style="opacity:.7">${esc(m.tipo)}</span></div>
-      </div>`;
+      <div class="bubble ${sideCls}${manualCls}">${bodyHtml}<span class="bubble-meta">${hhmm}${accion}${tipo}</span></div>`;
   });
   const body = document.getElementById('threadBody');
   body.innerHTML = html;
