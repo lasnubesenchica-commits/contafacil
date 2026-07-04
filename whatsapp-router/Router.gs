@@ -102,6 +102,7 @@ function doGet(e) {
     listEmailMappings: 1, setEmailMapping: 1, deleteEmailMapping: 1,
     listClientMap: 1, setClientMap: 1, deleteClientMap: 1,
     getBotToggle: 1, setBotToggle: 1, enviarMensajeManual: 1,
+    setPhoneAlias: 1,
   };
   if (params.action && ADMIN_ACTIONS[params.action]) {
     return _routerHandleAdminQuery(params);
@@ -1897,6 +1898,7 @@ function _routerHandleAdminQuery(params) {
     if (params.action === 'getBotToggle')      return _resp(_routerAdminGetBotToggle());
     if (params.action === 'setBotToggle')      return _resp(_routerAdminSetBotToggle(params));
     if (params.action === 'enviarMensajeManual') return _resp(_routerAdminEnviarManual(params));
+    if (params.action === 'setPhoneAlias')     return _resp(_routerAdminSetPhoneAlias(params));
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
@@ -2010,6 +2012,27 @@ function _routerAdminGetBotToggle() {
   return { ok: true, enabled: _routerVisitorBotEnabled() };
 }
 
+// Alias legibles por phone — guardados en Script Property PHONE_ALIASES_JSON.
+// Ej: {"50767254580": "Juan Pérez (Ferretería Ronda)"}
+function _routerGetPhoneAliases() {
+  var raw = PropertiesService.getScriptProperties().getProperty('PHONE_ALIASES_JSON') || '{}';
+  try { return JSON.parse(raw); } catch(e) { Logger.log('PHONE_ALIASES_JSON inválido: ' + e.message); return {}; }
+}
+
+function _routerAdminSetPhoneAlias(params) {
+  var phone = String(params.phone || '').trim();
+  var alias = String(params.alias || '').trim();
+  if (!/^\d{8,15}$/.test(phone)) return { ok: false, error: 'phone inválido' };
+  if (alias.length > 80) alias = alias.substring(0, 80);
+  var props = PropertiesService.getScriptProperties();
+  var map = _routerGetPhoneAliases();
+  var prev = map[phone] || null;
+  if (alias) map[phone] = alias;
+  else delete map[phone];
+  props.setProperty('PHONE_ALIASES_JSON', JSON.stringify(map));
+  return { ok: true, phone: phone, alias: alias || null, replaced: prev };
+}
+
 function _routerAdminSetBotToggle(params) {
   var enabled = String(params.enabled || '').toLowerCase();
   if (enabled !== 'true' && enabled !== 'false') {
@@ -2118,6 +2141,7 @@ function _routerAdminListConversations(params) {
   var clientsMapForUi;
   try { clientsMapForUi = JSON.parse(routerProps.getProperty('CLIENTS_MAP_JSON') || '{}'); }
   catch(e) { clientsMapForUi = {}; }
+  var aliasMap = _routerGetPhoneAliases();
   var nowMs = Date.now();
   var VENTANA24 = 24 * 60 * 60 * 1000;
 
@@ -2133,6 +2157,7 @@ function _routerAdminListConversations(params) {
     else if (c.outCount > 0 && c.inCount > 0)  c.signupStatus = 'activo';
     else if (c.inCount > 0 && c.outCount === 0) c.signupStatus = 'nuevo';
     c.isClient = !!clientsMapForUi[c.phone];
+    c.alias = aliasMap[c.phone] || '';
     var li = parseInt(routerProps.getProperty('lastInbound_' + c.phone), 10) || 0;
     c.ventanaAbierta = (li > 0) && ((nowMs - li) < VENTANA24);
     items.push(c);
@@ -2142,6 +2167,7 @@ function _routerAdminListConversations(params) {
   if (q) {
     items = items.filter(function(c){
       return c.phone.indexOf(q) >= 0
+        || (c.alias   && c.alias.toLowerCase().indexOf(q)   >= 0)
         || (c.lastMsg && c.lastMsg.toLowerCase().indexOf(q) >= 0);
     });
   }
@@ -2163,6 +2189,7 @@ function _routerAdminGetConversation(phone) {
   try { clientsMap = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); }
   catch(e) { clientsMap = {}; }
   var isClient = !!clientsMap[phone];
+  var alias = _routerGetPhoneAliases()[phone] || '';
   var li = parseInt(props.getProperty('lastInbound_' + phone), 10) || 0;
   var ventanaAbierta = (li > 0) && ((Date.now() - li) < 24 * 60 * 60 * 1000);
   var botEnabled = _routerVisitorBotEnabled();
@@ -2170,7 +2197,7 @@ function _routerAdminGetConversation(phone) {
   var ss    = _routerLogEnsureSheet();
   var sheet = ss.getSheetByName('logs') || ss.getSheets()[0];
   var last  = sheet.getLastRow();
-  if (last < 2) return { ok: true, phone: phone, items: [], isClient: isClient, ventanaAbierta: ventanaAbierta, botEnabled: botEnabled, lastInbound: li };
+  if (last < 2) return { ok: true, phone: phone, items: [], alias: alias, isClient: isClient, ventanaAbierta: ventanaAbierta, botEnabled: botEnabled, lastInbound: li };
   var values = sheet.getRange(2, 1, last - 1, 7).getValues();
   var items = [];
   for (var i = 0; i < values.length; i++) {
@@ -2189,7 +2216,7 @@ function _routerAdminGetConversation(phone) {
   items.sort(function(a,b){ return a.time - b.time; });
   return {
     ok: true, phone: phone, items: items,
-    isClient: isClient, ventanaAbierta: ventanaAbierta,
+    alias: alias, isClient: isClient, ventanaAbierta: ventanaAbierta,
     botEnabled: botEnabled, lastInbound: li
   };
 }
