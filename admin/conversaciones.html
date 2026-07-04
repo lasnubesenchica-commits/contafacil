@@ -380,6 +380,7 @@
           <div class="name" id="threadName">—</div>
           <div class="phone" id="threadPhone">—</div>
         </div>
+        <button class="btn-ic" onclick="renameContact()" title="Renombrar contacto">✏️</button>
         <button class="btn-ic" onclick="reloadThread()" title="Refrescar">↻</button>
       </div>
       <div class="thread-body" id="threadBody"><div class="loading">⏳ Cargando…</div></div>
@@ -585,6 +586,7 @@ function renderList() {
   if (q) {
     arr = arr.filter(c =>
       c.phone.indexOf(q) >= 0 ||
+      (c.alias   && c.alias.toLowerCase().indexOf(q)   >= 0) ||
       (c.lastMsg && c.lastMsg.toLowerCase().indexOf(q) >= 0)
     );
   }
@@ -593,17 +595,23 @@ function renderList() {
     list.innerHTML = '<div class="empty">Sin conversaciones para los filtros aplicados.</div>';
     return;
   }
-  list.innerHTML = arr.map(c => `
+  list.innerHTML = arr.map(c => {
+    const displayName = c.alias ? esc(c.alias) : esc(fmtPhone(c.phone));
+    const subLabel = c.alias
+      ? `<span class="lead-phone">${esc(fmtPhone(c.phone))} · ${c.msgCount} msg${c.msgCount===1?'':'s'}</span>`
+      : `<span class="lead-phone">·  ${c.msgCount} msg${c.msgCount===1?'':'s'}</span>`;
+    return `
     <div class="lead" onclick="openThread('${esc(c.phone)}')">
       <div class="lead-head">
         ${c.signupStatus ? `<span class="badge ${esc(c.signupStatus)}">${statusLabel(c.signupStatus)}</span>` : ''}
-        <span class="lead-name">${esc(fmtPhone(c.phone))}</span>
-        <span class="lead-phone">·  ${c.msgCount} msg${c.msgCount===1?'':'s'}</span>
+        <span class="lead-name">${displayName}</span>
+        ${subLabel}
       </div>
       <div class="lead-time">${timeAgo(c.lastTime)}</div>
       <div class="lead-preview">${previewText(c)}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function onSearch() {
@@ -617,11 +625,45 @@ function onStatus() {
 
 async function openThread(phone) {
   _currentPhone = phone;
-  document.getElementById('threadName').textContent = fmtPhone(phone);
+  // Nombre optimista desde el listado (para no mostrar el phone crudo si tenemos alias).
+  const cached = _items.find(c => c.phone === phone);
+  const displayName = (cached && cached.alias) ? cached.alias : fmtPhone(phone);
+  document.getElementById('threadName').textContent = displayName;
   document.getElementById('threadPhone').textContent = '+' + phone;
   document.getElementById('threadBody').innerHTML = '<div class="loading">⏳ Cargando thread…</div>';
   document.getElementById('threadOverlay').classList.add('active');
   await loadThread();
+}
+
+async function renameContact() {
+  if (!_currentPhone) return;
+  const cached = _items.find(c => c.phone === _currentPhone);
+  const current = (cached && cached.alias) || '';
+  const nuevo = prompt(
+    'Nombre del contacto (deja vacío para quitar el alias):\n' +
+    '📱 ' + fmtPhone(_currentPhone),
+    current
+  );
+  if (nuevo === null) return; // cancel
+  const t = getToken();
+  if (!t) { alert('Falta ADMIN_TOKEN'); return; }
+  try {
+    const data = await jsonpGet({
+      action: 'setPhoneAlias', adminToken: t,
+      phone: _currentPhone, alias: nuevo.trim(),
+    });
+    if (!data || !data.ok) {
+      alert('No se pudo guardar: ' + ((data && data.error) || 'error'));
+      return;
+    }
+    // Actualizar cache y UI
+    if (cached) cached.alias = nuevo.trim();
+    const displayName = nuevo.trim() || fmtPhone(_currentPhone);
+    document.getElementById('threadName').textContent = displayName;
+    renderList();
+  } catch (e) {
+    alert('Error de red: ' + e.message);
+  }
 }
 
 function closeThread() {
@@ -658,7 +700,11 @@ async function loadThread() {
       isClient:       !!data.isClient,
       ventanaAbierta: !!data.ventanaAbierta,
       lastInbound:    data.lastInbound || 0,
+      alias:          data.alias || '',
     };
+    // Sync del header con el alias más fresco del server
+    const displayName = data.alias || fmtPhone(_currentPhone);
+    document.getElementById('threadName').textContent = displayName;
     renderThread(data.items || []);
     updateComposer(_currentThread);
   } catch (e) {
