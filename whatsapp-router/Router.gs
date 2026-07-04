@@ -101,6 +101,7 @@ function doGet(e) {
     getConversations: 1, getConversation: 1,
     listEmailMappings: 1, setEmailMapping: 1, deleteEmailMapping: 1,
     listClientMap: 1, setClientMap: 1, deleteClientMap: 1,
+    getBotToggle: 1, setBotToggle: 1, enviarMensajeManual: 1,
   };
   if (params.action && ADMIN_ACTIONS[params.action]) {
     return _routerHandleAdminQuery(params);
