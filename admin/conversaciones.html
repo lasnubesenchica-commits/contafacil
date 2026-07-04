@@ -262,6 +262,17 @@
     .topbar { padding:12px 14px; }
   }
 
+  /* iOS Safari auto-zoomea al enfocar cualquier input < 16px.
+     Forzamos 16px en mobile para prevenir el zoom. Desktop mantiene 13px
+     via el @media (min-width:900px) más abajo. */
+  @media (max-width:899px) {
+    .search-wrap input,
+    .status-sel,
+    .composer textarea {
+      font-size:16px;
+    }
+  }
+
   /* ═══════════════ Desktop: split view tipo WhatsApp Web ═══════════════ */
   @media (min-width:900px) {
     .container { max-width:1240px; padding:18px 24px 40px; }
