@@ -45,6 +45,7 @@
   .btn-ic:hover { color:var(--orange); border-color:var(--orange); }
 
   .container { max-width:780px; margin:0 auto; padding:18px 16px 80px; }
+  .workspace { display:block; }
 
   .hero {
     background:var(--surface); border:1px solid var(--border); border-radius:12px;
@@ -148,9 +149,9 @@
     background:#ECE5DD; /* WhatsApp-ish backdrop */
   }
   .bubble {
-    max-width:78%; padding:8px 12px 10px; border-radius:10px; margin-bottom:6px;
-    font-size:13px; line-height:1.42; white-space:pre-wrap; word-wrap:break-word;
-    box-shadow:0 1px 1px rgba(0,0,0,0.06);
+    max-width:70%; padding:7px 11px 9px; border-radius:8px; margin-bottom:4px;
+    font-size:13px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word;
+    box-shadow:0 1px 0.5px rgba(0,0,0,0.08);
   }
   .bubble.in  { background:var(--bubble-in); margin-right:auto; border-bottom-left-radius:2px; }
   .bubble.out { background:var(--bubble-out); margin-left:auto;  border-bottom-right-radius:2px; }
@@ -254,6 +255,62 @@
     .hero { padding:14px 16px 16px; }
     .topbar { padding:12px 14px; }
   }
+
+  /* ═══════════════ Desktop: split view tipo WhatsApp Web ═══════════════ */
+  @media (min-width:900px) {
+    .container { max-width:1240px; padding:18px 24px 40px; }
+    .workspace {
+      display:flex; gap:14px;
+      height:calc(100vh - 260px); min-height:520px;
+    }
+    .sidebar {
+      flex:0 0 340px; display:flex; flex-direction:column; gap:12px;
+      min-height:0;
+    }
+    .sidebar .controls { margin-bottom:0; }
+    .sidebar .lead-list {
+      flex:1; overflow-y:auto; border-radius:12px;
+    }
+    /* En desktop la lista es más compacta */
+    .sidebar .lead { padding:11px 14px; }
+    .sidebar .lead-preview { font-size:12px; -webkit-line-clamp:1; max-height:18px; }
+
+    /* Thread pane: inline en vez de overlay */
+    .thread-overlay {
+      position:static; inset:auto; z-index:auto;
+      display:flex; flex-direction:column;
+      flex:1; min-width:0;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:12px; overflow:hidden;
+    }
+    .thread-overlay .thread-topbar {
+      background:var(--surface2);
+    }
+    .thread-topbar .topbar-back { display:none; } /* no hace falta "atrás" en desktop */
+
+    /* Empty state cuando no hay conversación activa */
+    .thread-overlay:not(.active) > * { display:none !important; }
+    .thread-overlay:not(.active)::before {
+      content:'💬  Selecciona una conversación';
+      display:flex; align-items:center; justify-content:center;
+      width:100%; height:100%; color:var(--muted); font-size:13px;
+      background:#ECE5DD;
+    }
+
+    /* Burbujas más contenidas + hard cap */
+    .bubble { max-width:min(70%, 460px); }
+    .bubble.system { max-width:50%; }
+
+    /* Hero más compacto para dar aire al split */
+    .hero { padding:14px 18px 16px; margin-bottom:12px; }
+    .hero-title { font-size:15px; }
+    .hero-desc { display:none; }
+    .hero-stats { margin-top:8px; font-size:11px; }
+    .bot-toggle-row { margin-top:10px; padding:10px 12px; }
+    .bot-toggle-row .lbl { font-size:11px; }
+    .bot-toggle-row .lbl b { font-size:12px; }
+    .bot-toggle-row .lbl .hint { display:none; }
+  }
 </style>
 </head>
 <body>
@@ -288,43 +345,47 @@
     </div>
   </div>
 
-  <div class="controls">
-    <div class="search-wrap">
-      <input type="search" id="qInput" placeholder="Buscar nombre o teléfono…" oninput="onSearch()">
-    </div>
-    <select class="status-sel" id="statusSel" onchange="onStatus()">
-      <option value="all">Todos los estados</option>
-      <option value="nuevo">🆕 Nuevo</option>
-      <option value="signup">📝 En signup</option>
-      <option value="setup">⚙️ En setup</option>
-      <option value="aprobando">⏳ Aprobando facturas</option>
-      <option value="activo">✅ Activo</option>
-    </select>
-  </div>
+  <div class="workspace">
+    <div class="sidebar">
+      <div class="controls">
+        <div class="search-wrap">
+          <input type="search" id="qInput" placeholder="Buscar nombre o teléfono…" oninput="onSearch()">
+        </div>
+        <select class="status-sel" id="statusSel" onchange="onStatus()">
+          <option value="all">Todos los estados</option>
+          <option value="nuevo">🆕 Nuevo</option>
+          <option value="signup">📝 En signup</option>
+          <option value="setup">⚙️ En setup</option>
+          <option value="aprobando">⏳ Aprobando facturas</option>
+          <option value="activo">✅ Activo</option>
+        </select>
+      </div>
 
-  <div id="leadList" class="lead-list">
-    <div class="loading">⏳ Cargando…</div>
-  </div>
-</div>
+      <div id="leadList" class="lead-list">
+        <div class="loading">⏳ Cargando…</div>
+      </div>
+    </div>
 
-<!-- Thread overlay -->
-<div class="thread-overlay" id="threadOverlay">
-  <div class="thread-topbar">
-    <button class="topbar-back" onclick="closeThread()">←</button>
-    <div class="thread-info">
-      <div class="name" id="threadName">—</div>
-      <div class="phone" id="threadPhone">—</div>
+    <!-- Thread pane: overlay en mobile, columna derecha en desktop -->
+    <div class="thread-overlay" id="threadOverlay">
+      <div class="thread-topbar">
+        <button class="topbar-back" onclick="closeThread()">←</button>
+        <div class="thread-info">
+          <div class="name" id="threadName">—</div>
+          <div class="phone" id="threadPhone">—</div>
+        </div>
+        <button class="btn-ic" onclick="reloadThread()" title="Refrescar">↻</button>
+      </div>
+      <div class="thread-body" id="threadBody"><div class="loading">⏳ Cargando…</div></div>
+      <div class="composer" id="composer" style="display:none">
+        <div class="composer-info" id="composerInfo"></div>
+        <div class="composer-row">
+          <textarea id="composerText" placeholder="Escribe tu respuesta…" rows="2" onkeydown="onComposerKey(event)"></textarea>
+          <button class="btn-send" id="btnSend" onclick="sendManual()">Enviar</button>
+        </div>
+        <div class="composer-msg" id="composerMsg"></div>
+      </div>
     </div>
-    <button class="btn-ic" onclick="reloadThread()" title="Refrescar">↻</button>
-  </div>
-  <div class="thread-body" id="threadBody"><div class="loading">⏳ Cargando…</div></div>
-  <div class="composer" id="composer" style="display:none">
-    <div class="composer-info" id="composerInfo"></div>
-    <div class="composer-row">
-      <textarea id="composerText" placeholder="Escribe tu respuesta…" rows="2" onkeydown="onComposerKey(event)"></textarea>
-      <button class="btn-send" id="btnSend" onclick="sendManual()">Enviar</button>
-    </div>
-    <div class="composer-msg" id="composerMsg"></div>
   </div>
 </div>
 
