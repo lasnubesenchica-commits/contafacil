@@ -390,6 +390,36 @@
     .container { padding:14px 12px 60px; }
     .hero { padding:14px 16px 16px; }
     .topbar { padding:12px 14px; }
+
+    /* Escala tipográfica coherente en phone
+       ─────────────────────────────────────
+       Nivel 1 (títulos):           15px bold
+       Nivel 2 (body / preview):    12-13px
+       Nivel 3 (meta / times):      11px
+       Los inputs siguen 16px por anti-zoom iOS. */
+    .topbar-title  { font-size:14px; }
+    .topbar-sub    { font-size:11px; }
+
+    .hero-title    { font-size:15px; }
+    .hero-desc     { font-size:12px; line-height:1.4; }
+    .hero-stats    { font-size:12px; }
+
+    .bot-toggle-row .lbl        { font-size:12px; }
+    .bot-toggle-row .lbl b      { font-size:14px; margin-bottom:3px; }
+    .bot-toggle-row .lbl .hint  { font-size:11px; line-height:1.4; }
+    .bot-toggle-row .state      { font-size:11px; }
+
+    .lead                { padding:12px 16px; }
+    .lead-name           { font-size:15px; }
+    .lead-phone          { font-size:12px; }
+    .lead-time           { font-size:11px; }
+    .lead-preview        { font-size:12px; }
+    .badge               { font-size:11px; padding:2px 8px; }
+
+    .composer-info       { font-size:11px; }
+    .composer-info .pill { font-size:10px; }
+
+    .qr-chip             { font-size:13px; padding:5px 11px; }
   }
 
   /* iOS Safari auto-zoomea al enfocar cualquier input < 16px.
