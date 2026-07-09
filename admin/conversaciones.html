@@ -256,6 +256,60 @@
     border:1px solid #FFCC99;
   }
 
+  /* ────────── Quick replies (chips arriba del composer) ────────── */
+  .quick-replies {
+    display:flex; flex-wrap:wrap; gap:5px;
+    padding:8px 12px 8px;
+    border-bottom:1px solid var(--border);
+    background:var(--surface2);
+    max-height:96px; overflow-y:auto;
+  }
+  .quick-replies:empty { display:none; }
+  .qr-chip {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:4px 10px; border-radius:14px;
+    background:var(--surface); border:1px solid var(--border);
+    font-size:12px; color:var(--text); cursor:pointer;
+    white-space:nowrap; transition:all .12s;
+    max-width:200px;
+  }
+  .qr-chip span.title {
+    overflow:hidden; text-overflow:ellipsis; max-width:170px;
+  }
+  .qr-chip:hover {
+    background:#FFF5EB; border-color:var(--orange); color:var(--orange);
+  }
+  .qr-chip.disabled { opacity:.5; cursor:not-allowed; }
+  .qr-chip .qr-icons {
+    display:none; gap:2px; margin-left:2px;
+  }
+  .qr-chip:hover .qr-icons { display:inline-flex; }
+  .qr-chip .qr-ic {
+    background:none; border:none; cursor:pointer; padding:0 3px;
+    font-size:11px; line-height:1; color:inherit; opacity:.7;
+  }
+  .qr-chip .qr-ic:hover { opacity:1; }
+  .qr-chip.add {
+    background:transparent; border:1px dashed var(--border2);
+    color:var(--muted);
+  }
+  .qr-chip.add:hover {
+    border-style:solid; border-color:var(--orange); color:var(--orange);
+    background:transparent;
+  }
+
+  @media (max-width:899px) {
+    .quick-replies {
+      flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden;
+      max-height:none; padding:8px 12px;
+      scrollbar-width:none; /* Firefox */
+    }
+    .quick-replies::-webkit-scrollbar { display:none; }
+    .qr-chip { flex-shrink:0; }
+    /* En mobile los iconos siempre visibles (no hay hover) */
+    .qr-chip .qr-icons { display:inline-flex; }
+  }
+
   @media (max-width:600px) {
     .container { padding:14px 12px 60px; }
     .hero { padding:14px 16px 16px; }
@@ -396,6 +450,7 @@
       </div>
       <div class="thread-body" id="threadBody"><div class="loading">⏳ Cargando…</div></div>
       <div class="composer" id="composer" style="display:none">
+        <div class="quick-replies" id="quickReplies"></div>
         <div class="composer-info" id="composerInfo"></div>
         <div class="composer-row">
           <textarea id="composerText" placeholder="Escribe tu respuesta…" rows="2" onkeydown="onComposerKey(event)"></textarea>
@@ -416,6 +471,7 @@ let _status = 'all';
 let _currentPhone = null;
 let _currentThread = null; // { isClient, ventanaAbierta, lastInbound }
 let _botEnabled = null;
+let _quickReplies = [];
 
 function getToken() { return localStorage.getItem('bc_admin_token') || ''; }
 
@@ -677,6 +733,104 @@ async function renameContact() {
   }
 }
 
+// ═════════════════ Quick replies ═════════════════
+
+async function loadQuickReplies() {
+  const t = getToken();
+  if (!t) return;
+  try {
+    const data = await jsonpGet({ action:'getQuickReplies', adminToken:t });
+    if (data && data.ok) {
+      _quickReplies = data.items || [];
+      renderQuickReplies();
+    }
+  } catch (e) { /* silent — no crítico */ }
+}
+
+function renderQuickReplies() {
+  const box = document.getElementById('quickReplies');
+  if (!box) return;
+  const chips = _quickReplies.map(qr => `
+    <span class="qr-chip" onclick="insertQuickReply('${esc(qr.id)}')" title="${esc(qr.text)}">
+      <span class="title">${esc(qr.title)}</span>
+      <span class="qr-icons">
+        <button class="qr-ic" onclick="event.stopPropagation();editQuickReply('${esc(qr.id)}')" title="Editar">✏️</button>
+        <button class="qr-ic" onclick="event.stopPropagation();deleteQuickReply('${esc(qr.id)}')" title="Borrar">✕</button>
+      </span>
+    </span>
+  `).join('');
+  const addChip = `<span class="qr-chip add" onclick="addQuickReply()">+ Nueva</span>`;
+  box.innerHTML = chips + addChip;
+}
+
+function insertQuickReply(id) {
+  const qr = _quickReplies.find(q => q.id === id);
+  if (!qr) return;
+  const ta = document.getElementById('composerText');
+  if (ta.disabled) { alert('El composer está deshabilitado (ventana 24h cerrada o cliente registrado).'); return; }
+  const before = ta.value;
+  const sep = before.length && !/\s$/.test(before) ? ' ' : '';
+  ta.value = before + sep + qr.text;
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+  ta.scrollTop = ta.scrollHeight;
+}
+
+async function addQuickReply() {
+  const title = prompt('Título corto para el chip (ej: "Precios", "Agendar demo"):');
+  if (title === null) return;
+  if (!title.trim()) { alert('El título no puede estar vacío.'); return; }
+  const text = prompt('Texto de la respuesta:');
+  if (text === null) return;
+  if (!text.trim()) { alert('El texto no puede estar vacío.'); return; }
+  await _saveQuickReply({ id: '', title: title.trim(), text: text.trim() });
+}
+
+async function editQuickReply(id) {
+  const qr = _quickReplies.find(q => q.id === id);
+  if (!qr) return;
+  const newTitle = prompt('Título:', qr.title);
+  if (newTitle === null) return;
+  const newText = prompt('Texto:', qr.text);
+  if (newText === null) return;
+  await _saveQuickReply({ id: id, title: newTitle.trim(), text: newText.trim() });
+}
+
+async function _saveQuickReply(payload) {
+  const t = getToken();
+  if (!t) { alert('Falta ADMIN_TOKEN'); return; }
+  if (!payload.title) { alert('Título vacío'); return; }
+  if (!payload.text)  { alert('Texto vacío'); return; }
+  try {
+    const data = await jsonpGet({
+      action: 'saveQuickReply', adminToken: t,
+      id: payload.id, title: payload.title, text: payload.text,
+    });
+    if (!data || !data.ok) { alert('Error: ' + ((data && data.error) || '?')); return; }
+    const idx = _quickReplies.findIndex(q => q.id === data.item.id);
+    if (idx >= 0) _quickReplies[idx] = data.item;
+    else _quickReplies.push(data.item);
+    renderQuickReplies();
+  } catch (e) {
+    alert('Error de red: ' + e.message);
+  }
+}
+
+async function deleteQuickReply(id) {
+  const qr = _quickReplies.find(q => q.id === id);
+  if (!qr) return;
+  if (!confirm('¿Borrar "' + qr.title + '"?')) return;
+  const t = getToken();
+  try {
+    const data = await jsonpGet({ action:'deleteQuickReply', adminToken:t, id:id });
+    if (!data || !data.ok) { alert('Error: ' + ((data && data.error) || '?')); return; }
+    _quickReplies = _quickReplies.filter(q => q.id !== id);
+    renderQuickReplies();
+  } catch (e) {
+    alert('Error de red: ' + e.message);
+  }
+}
+
 function closeThread() {
   document.getElementById('threadOverlay').classList.remove('active');
   _currentPhone = null;
@@ -859,6 +1013,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 loadBotToggle();
+loadQuickReplies();
 loadList(true).then(() => {
   // Deeplink: si viene ?phone=507xxx en la URL (desde la notif del bot
   // en OFF), abrir el thread automáticamente.
