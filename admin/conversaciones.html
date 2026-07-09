@@ -94,6 +94,23 @@
   }
   .lead:last-child { border-bottom:none; }
   .lead:hover { background:var(--surface2); }
+
+  /* Mensaje sin leer: fondo tenue naranja + puntito al lado del nombre. */
+  .lead.unread { background:#FFF9F2; }
+  .lead.unread:hover { background:#FFF3E6; }
+  .lead.unread .lead-name::after {
+    content:'●'; color:var(--orange); font-size:9px;
+    margin-left:6px; vertical-align:middle;
+  }
+  .lead.unread .lead-preview { color:var(--text); font-weight:500; }
+
+  /* Parpadeo por ~10s cuando llega un mensaje nuevo. */
+  @keyframes leadFlash {
+    0%, 100% { background:#FFF9F2; }
+    50%      { background:#FFE0BA; }
+  }
+  .lead.flash { animation:leadFlash 1s ease-in-out 10; }
+  .lead.unread.flash { animation:leadFlash 1s ease-in-out 10; }
   .lead-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .lead-name {
     font-weight:700; font-size:14px; color:var(--text);
@@ -601,6 +618,26 @@ let _items = [];
 let _q = '';
 let _status = 'all';
 let _currentPhone = null;
+// Tracking de "nuevo desde el último render" para el flash de 10s.
+// Al primer render de la sesión no aplicamos flash (para no relampaguear
+// toda la lista al abrir la página).
+let _prevLeadTimes = {};
+let _prevRenderReady = false;
+
+function readKey(phone) { return 'bc_read_' + phone; }
+function markLeadRead(phone) {
+  if (!phone) return;
+  try { localStorage.setItem(readKey(phone), String(Date.now())); } catch(e){}
+}
+function isLeadUnread(c) {
+  if (!c || !c.lastTime) return false;
+  // Solo cuentan como "no leído" mensajes recibidos (in). Si el último es
+  // un out del bot o del admin, no es "no leído".
+  if (c.lastDir !== 'in') return false;
+  let r = 0;
+  try { r = parseInt(localStorage.getItem(readKey(c.phone)) || '0', 10); } catch(e){}
+  return c.lastTime > r;
+}
 let _currentThread = null; // { isClient, ventanaAbierta, lastInbound }
 let _botEnabled = null;
 let _quickReplies = [];
@@ -794,15 +831,30 @@ function renderList() {
   if (_status !== 'all') arr = arr.filter(c => c.signupStatus === _status);
   if (!arr.length) {
     list.innerHTML = '<div class="empty">Sin conversaciones para los filtros aplicados.</div>';
+    // Aún así actualizamos el tracker para no perder el estado.
+    _items.forEach(c => { _prevLeadTimes[c.phone] = c.lastTime; });
+    _prevRenderReady = true;
     return;
+  }
+  // Detectar leads con mensaje nuevo desde el último render (para flash).
+  // Solo aplicable después del primer render (para no flashear todo al abrir).
+  const flashSet = new Set();
+  if (_prevRenderReady) {
+    arr.forEach(c => {
+      const prev = _prevLeadTimes[c.phone] || 0;
+      // Flash solo si es inbound nuevo (no cuando el admin envió algo).
+      if (c.lastDir === 'in' && c.lastTime > prev) flashSet.add(c.phone);
+    });
   }
   list.innerHTML = arr.map(c => {
     const displayName = c.alias ? esc(c.alias) : esc(fmtPhone(c.phone));
     const subLabel = c.alias
       ? `<span class="lead-phone">${esc(fmtPhone(c.phone))} · ${c.msgCount} msg${c.msgCount===1?'':'s'}</span>`
       : `<span class="lead-phone">·  ${c.msgCount} msg${c.msgCount===1?'':'s'}</span>`;
+    const unreadCls = isLeadUnread(c) ? ' unread' : '';
+    const flashCls  = flashSet.has(c.phone) ? ' flash' : '';
     return `
-    <div class="lead" onclick="openThread('${esc(c.phone)}')">
+    <div class="lead${unreadCls}${flashCls}" onclick="openThread('${esc(c.phone)}')">
       <div class="lead-head">
         ${c.signupStatus ? `<span class="badge ${esc(c.signupStatus)}">${statusLabel(c.signupStatus)}</span>` : ''}
         <span class="lead-name">${displayName}</span>
@@ -813,6 +865,10 @@ function renderList() {
     </div>
   `;
   }).join('');
+  // Actualizar el tracker de últimos tiempos SIEMPRE, para toda la lista
+  // (no solo lo filtrado), para no perder el estado al cambiar de filtro.
+  _items.forEach(c => { _prevLeadTimes[c.phone] = c.lastTime; });
+  _prevRenderReady = true;
 }
 
 function onSearch() {
@@ -826,6 +882,7 @@ function onStatus() {
 
 async function openThread(phone) {
   _currentPhone = phone;
+  markLeadRead(phone); // optimista — el usuario está por leerlo
   // Nombre optimista desde el listado (para no mostrar el phone crudo si tenemos alias).
   const cached = _items.find(c => c.phone === phone);
   const displayName = (cached && cached.alias) ? cached.alias : fmtPhone(phone);
@@ -833,6 +890,7 @@ async function openThread(phone) {
   document.getElementById('threadPhone').textContent = '+' + phone;
   document.getElementById('threadBody').innerHTML = '<div class="loading">⏳ Cargando thread…</div>';
   document.getElementById('threadOverlay').classList.add('active');
+  renderList(); // limpiar el unread visualmente ya
   await loadThread();
   startPollingThread();
 }
@@ -1033,6 +1091,9 @@ async function loadThread() {
       lastInbound:    data.lastInbound || 0,
       alias:          data.alias || '',
     };
+    // Estamos viendo el thread — marcamos leído para que no aparezca
+    // como no-leído cuando la lista se re-renderice en el próximo poll.
+    markLeadRead(_currentPhone);
     // Sync del header con el alias más fresco del server
     const displayName = data.alias || fmtPhone(_currentPhone);
     document.getElementById('threadName').textContent = displayName;
