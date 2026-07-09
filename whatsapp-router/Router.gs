@@ -104,6 +104,7 @@ function doGet(e) {
     getBotToggle: 1, setBotToggle: 1, enviarMensajeManual: 1,
     setPhoneAlias: 1,
     getQuickReplies: 1, saveQuickReply: 1, deleteQuickReply: 1,
+    setAutoQuickReplyId: 1,
   };
   if (params.action && ADMIN_ACTIONS[params.action]) {
     return _routerHandleAdminQuery(params);
@@ -280,7 +281,9 @@ function _routerForwardMensaje(msg, metadata) {
     // admin/conversaciones.html, notificar y NO responder. El admin
     // atenderá el lead manualmente. Clientes registrados no se ven afectados.
     if (!_routerVisitorBotEnabled()) {
-      Logger.log('Visitor bot OFF — notif admin, skip respuesta (' + _routerMaskPhone(from) + ')');
+      Logger.log('Visitor bot OFF — auto-QR + notif admin, skip respuesta (' + _routerMaskPhone(from) + ')');
+      try { _routerTrySendAutoQuickReply(from, token, phoneId); }
+      catch (e) { Logger.log('AutoQR ERROR: ' + e.message); }
       try { _routerNotifyBotOffLead(msg, from, adminPhone, token, phoneId); }
       catch (e) { Logger.log('BotOff notify ERROR: ' + e.message); }
       return;
@@ -1903,6 +1906,7 @@ function _routerHandleAdminQuery(params) {
     if (params.action === 'getQuickReplies')   return _resp(_routerAdminGetQuickReplies());
     if (params.action === 'saveQuickReply')    return _resp(_routerAdminSaveQuickReply(params));
     if (params.action === 'deleteQuickReply')  return _resp(_routerAdminDeleteQuickReply(params));
+    if (params.action === 'setAutoQuickReplyId') return _resp(_routerAdminSetAutoQuickReplyId(params));
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
@@ -2052,7 +2056,28 @@ function _routerGetQuickReplies() {
 }
 
 function _routerAdminGetQuickReplies() {
-  return { ok: true, items: _routerGetQuickReplies() };
+  var props = PropertiesService.getScriptProperties();
+  return {
+    ok: true,
+    items: _routerGetQuickReplies(),
+    autoId: props.getProperty('AUTO_QUICK_REPLY_ID') || '',
+  };
+}
+
+// Marca UNA quick reply como "auto-envío" al primer mensaje de un visitor
+// cuando el bot está OFF. Id vacío = desactiva la función.
+function _routerAdminSetAutoQuickReplyId(params) {
+  var id = String(params.id || '').trim();
+  var props = PropertiesService.getScriptProperties();
+  if (!id) {
+    props.deleteProperty('AUTO_QUICK_REPLY_ID');
+    return { ok: true, autoId: '' };
+  }
+  var arr = _routerGetQuickReplies();
+  var exists = arr.some(function(x) { return x.id === id; });
+  if (!exists) return { ok: false, error: 'quick reply no existe' };
+  props.setProperty('AUTO_QUICK_REPLY_ID', id);
+  return { ok: true, autoId: id };
 }
 
 function _routerAdminSaveQuickReply(params) {
@@ -2073,6 +2098,43 @@ function _routerAdminSaveQuickReply(params) {
   else arr.push(item);
   PropertiesService.getScriptProperties().setProperty('QUICK_REPLIES_JSON', JSON.stringify(arr));
   return { ok: true, item: item };
+}
+
+// Envía la quick reply marcada como "auto" — se dispara cuando el bot
+// está OFF y un visitor escribe por primera vez. Una vez por phone
+// (idempotente vía autoQrSent_<phone>). Silencioso si no hay auto-QR
+// configurada o si ya se envió antes.
+function _routerTrySendAutoQuickReply(from, token, phoneId) {
+  if (!from || !token || !phoneId) return;
+  var props = PropertiesService.getScriptProperties();
+  var autoId = props.getProperty('AUTO_QUICK_REPLY_ID') || '';
+  if (!autoId) return;
+  var sentKey = 'autoQrSent_' + from;
+  if (props.getProperty(sentKey)) return;
+  var arr = _routerGetQuickReplies();
+  var qr = null;
+  for (var i = 0; i < arr.length; i++) if (arr[i].id === autoId) { qr = arr[i]; break; }
+  if (!qr) return;
+  var status = 'err';
+  try {
+    var r = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: from,
+        text: { body: String(qr.text).substring(0, 4096) },
+      }),
+      muteHttpExceptions: true,
+    });
+    var code = r.getResponseCode();
+    status = (code >= 200 && code < 300) ? 'ok' : ('http_' + code);
+  } catch (err) {
+    status = 'error:' + err.message;
+  }
+  _routerLog('out', from, 'text', 'auto:qr', qr.text, status);
+  if (status === 'ok') props.setProperty(sentKey, String(Date.now()));
 }
 
 function _routerAdminDeleteQuickReply(params) {
