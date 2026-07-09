@@ -1153,10 +1153,32 @@ document.addEventListener('keydown', (e) => {
 // Thread abierto: refresca cada 10s.
 // Lista: cada 30s (para timestamps + preview + nuevos leads).
 // Pausa cuando la pestaña no está visible (ahorra quota del router).
-const POLL_MS_THREAD = 10000;
-const POLL_MS_LIST   = 30000;
-let _pollTimerThread = null;
-let _pollTimerList   = null;
+const POLL_MS_THREAD    = 10000;
+const POLL_MS_LIST      = 30000;
+const HEARTBEAT_MS      = 30000;
+let _pollTimerThread    = null;
+let _pollTimerList      = null;
+let _heartbeatTimer     = null;
+
+// Heartbeat: mientras la pestaña esté visible, avisamos al router que el
+// admin está atento. El router usa esto para decidir si mandar DMs al
+// admin cuando entra un mensaje (solo cuando está "away" > 3 min sin ping).
+async function sendHeartbeat() {
+  if (document.hidden) return;
+  const t = getToken();
+  if (!t) return;
+  try { await jsonpGet({ action:'heartbeat', adminToken:t }, 8000); }
+  catch (e) { /* silent — no crítico */ }
+}
+function startHeartbeat() {
+  stopHeartbeat();
+  if (document.hidden) return;
+  sendHeartbeat();
+  _heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_MS);
+}
+function stopHeartbeat() {
+  if (_heartbeatTimer) { clearInterval(_heartbeatTimer); _heartbeatTimer = null; }
+}
 
 function startPollingThread() {
   stopPollingThread();
@@ -1185,17 +1207,20 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     stopPollingThread();
     stopPollingList();
+    stopHeartbeat();
   } else {
-    // Refresco inmediato al volver + reinicia polling.
+    // Refresco + heartbeat inmediato al volver + reinicia todos los timers.
     if (_currentPhone) loadThread();
     loadList(false);
     startPollingList();
     if (_currentPhone) startPollingThread();
+    startHeartbeat();
   }
 });
 
 loadBotToggle();
 loadQuickReplies();
+startHeartbeat();
 loadList(true).then(() => {
   startPollingList();
   // Deeplink: si viene ?phone=507xxx en la URL (desde la notif del bot
