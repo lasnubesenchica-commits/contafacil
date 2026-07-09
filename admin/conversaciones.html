@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" type="image/svg+xml" href="/balanceclip.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -382,9 +382,8 @@
     background:var(--orange); color:#fff; border-color:var(--orange);
   }
   .qr-modal-actions .btn-primary:hover { background:var(--orange2); }
-  @media (max-width:899px) {
-    .qr-modal-input, .qr-modal-textarea { font-size:16px; } /* iOS anti-zoom */
-  }
+  /* qr-modal font-size ahora se define abajo (iOS anti-zoom deshabilitado
+     via maximum-scale=1.0 en el viewport meta). */
 
   @media (max-width:600px) {
     .container { padding:10px 10px 60px; }
@@ -431,15 +430,14 @@
     .qr-chip             { font-size:13px; padding:5px 11px; }
   }
 
-  /* iOS Safari auto-zoomea al enfocar cualquier input < 16px.
-     Forzamos 16px en mobile para prevenir el zoom. Desktop mantiene 13px
-     via el @media (min-width:900px) más abajo. */
+  /* iOS auto-zoom deshabilitado via maximum-scale=1.0 en el viewport meta,
+     así podemos usar el mismo tamaño de texto para inputs en todos los
+     tamaños. Composer textarea queda un poco más grande para touch. */
   @media (max-width:899px) {
     .search-wrap input,
-    .status-sel,
-    .composer textarea {
-      font-size:16px;
-    }
+    .status-sel { font-size:13px; }
+    .composer textarea { font-size:14px; }
+    .qr-modal-input, .qr-modal-textarea { font-size:14px; }
   }
 
   /* ═══════════════ Desktop: split view tipo WhatsApp Web ═══════════════ */
