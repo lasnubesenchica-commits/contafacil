@@ -106,6 +106,7 @@ function doGet(e) {
     getQuickReplies: 1, saveQuickReply: 1, deleteQuickReply: 1,
     setAutoQuickReplyId: 1,
     heartbeat: 1,
+    deleteConversation: 1,
   };
   if (params.action && ADMIN_ACTIONS[params.action]) {
     return _routerHandleAdminQuery(params);
@@ -2212,6 +2213,7 @@ function _routerHandleAdminQuery(params) {
     if (params.action === 'deleteQuickReply')  return _resp(_routerAdminDeleteQuickReply(params));
     if (params.action === 'setAutoQuickReplyId') return _resp(_routerAdminSetAutoQuickReplyId(params));
     if (params.action === 'heartbeat')         return _resp(_routerAdminHeartbeat());
+    if (params.action === 'deleteConversation') return _resp(_routerAdminDeleteConversation(params));
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
@@ -2638,6 +2640,49 @@ function _routerAdminGetConversation(phone) {
     alias: alias, isClient: isClient, ventanaAbierta: ventanaAbierta,
     botEnabled: botEnabled, lastInbound: li
   };
+}
+
+// Borra TODOS los mensajes de un phone del log sheet. Irreversible.
+// Estrategia: lee todo, filtra los que NO son de ese phone, borra el
+// contenido en bloque, y re-escribe lo filtrado. Mucho más rápido que
+// deleteRow uno por uno para casos con muchos mensajes.
+function _routerAdminDeleteConversation(params) {
+  var phone = String(params.phone || '').trim();
+  if (!phone) return { ok: false, error: 'phone requerido' };
+  if (!/^\d{8,15}$/.test(phone)) return { ok: false, error: 'phone inválido' };
+
+  var ss = _routerLogEnsureSheet();
+  var sheet = ss.getSheetByName('logs') || ss.getSheets()[0];
+  var last = sheet.getLastRow();
+  if (last < 2) return { ok: true, phone: phone, deletedCount: 0 };
+
+  var values = sheet.getRange(2, 1, last - 1, 7).getValues();
+  var kept = [];
+  var deletedCount = 0;
+  for (var i = 0; i < values.length; i++) {
+    if (String(values[i][1] || '').trim() === phone) deletedCount++;
+    else kept.push(values[i]);
+  }
+  if (deletedCount === 0) return { ok: true, phone: phone, deletedCount: 0 };
+
+  // Limpiar la zona de datos y re-escribir lo que se queda.
+  sheet.getRange(2, 1, last - 1, 7).clearContent();
+  if (kept.length > 0) {
+    sheet.getRange(2, 1, kept.length, 7).setValues(kept);
+  }
+
+  // Limpiar props relacionadas al phone (mantengo el alias por si el
+  // contacto vuelve a escribir; los demás son estados temporales).
+  var props = PropertiesService.getScriptProperties();
+  props.deleteProperty('lastInbound_' + phone);
+  props.deleteProperty('adminNotif_' + phone);
+  props.deleteProperty('botOffNotif_' + phone);
+  props.deleteProperty('autoQrSent_' + phone);
+  props.deleteProperty('activeSystem_' + phone);
+  props.deleteProperty('pendingMultiMsg_' + phone);
+  props.deleteProperty('welcomed_' + phone);
+
+  return { ok: true, phone: phone, deletedCount: deletedCount };
 }
 
 // ════════════════════════════════════════════════════════════════════
