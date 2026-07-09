@@ -310,6 +310,82 @@
     .qr-chip .qr-icons { display:inline-flex; }
   }
 
+  /* Chip marcado como auto-envío */
+  .qr-chip.auto {
+    background:#FFF9E6; border-color:#F59E0B; color:#B45309;
+  }
+  .qr-chip.auto::before {
+    content:'⚡'; margin-right:2px; font-size:11px;
+  }
+  .qr-chip.auto:hover {
+    background:#FEF3C7; border-color:#D97706; color:#92400E;
+  }
+
+  /* ────────── Modal para agregar/editar quick replies ────────── */
+  .qr-modal {
+    position:fixed; inset:0; display:none;
+    background:rgba(0,0,0,.5); z-index:100;
+    align-items:center; justify-content:center;
+    padding:16px;
+  }
+  .qr-modal.active { display:flex; }
+  .qr-modal-content {
+    background:var(--surface); border-radius:12px;
+    padding:20px 20px 16px; width:100%; max-width:520px;
+    box-shadow:0 8px 24px rgba(0,0,0,.15);
+    max-height:90vh; overflow-y:auto;
+    display:flex; flex-direction:column;
+  }
+  .qr-modal-header {
+    display:flex; align-items:center; margin-bottom:14px;
+  }
+  .qr-modal-header h3 {
+    flex:1; font-size:16px; margin:0; font-weight:700;
+    font-family:var(--sans);
+  }
+  .qr-modal-close {
+    background:none; border:none; cursor:pointer;
+    font-size:18px; color:var(--muted); padding:4px 8px;
+    line-height:1;
+  }
+  .qr-modal-close:hover { color:var(--text); }
+  .qr-modal-label {
+    display:block; font-size:11px; font-weight:600;
+    color:var(--muted); margin-top:10px; margin-bottom:4px;
+    text-transform:uppercase; letter-spacing:.5px;
+  }
+  .qr-modal-input, .qr-modal-textarea {
+    width:100%; padding:8px 10px; font-size:14px;
+    border:1px solid var(--border2); border-radius:8px;
+    font-family:inherit; background:var(--surface);
+    color:var(--text); outline:none; resize:vertical;
+  }
+  .qr-modal-input:focus, .qr-modal-textarea:focus {
+    border-color:var(--orange);
+  }
+  .qr-modal-textarea { min-height:120px; line-height:1.5; }
+  .qr-modal-hint {
+    font-size:11px; color:var(--muted); margin-top:6px;
+  }
+  .qr-modal-actions {
+    display:flex; justify-content:flex-end;
+    gap:8px; margin-top:16px;
+  }
+  .qr-modal-actions button {
+    padding:9px 18px; border-radius:8px; font-size:13px;
+    font-family:inherit; font-weight:600; cursor:pointer;
+    border:1px solid var(--border2); background:var(--surface);
+    color:var(--text);
+  }
+  .qr-modal-actions button:hover { background:var(--surface2); }
+  .qr-modal-actions .btn-primary {
+    background:var(--orange); color:#fff; border-color:var(--orange);
+  }
+  .qr-modal-actions .btn-primary:hover { background:var(--orange2); }
+  @media (max-width:899px) {
+    .qr-modal-input, .qr-modal-textarea { font-size:16px; } /* iOS anti-zoom */
+  }
+
   @media (max-width:600px) {
     .container { padding:14px 12px 60px; }
     .hero { padding:14px 16px 16px; }
@@ -462,6 +538,25 @@
   </div>
 </div>
 
+<!-- Modal para agregar/editar quick replies -->
+<div class="qr-modal" id="qrModal" onclick="onQrModalBackdropClick(event)">
+  <div class="qr-modal-content" onclick="event.stopPropagation()">
+    <div class="qr-modal-header">
+      <h3 id="qrModalTitle">Nueva respuesta</h3>
+      <button class="qr-modal-close" onclick="closeQrModal()" title="Cerrar">✕</button>
+    </div>
+    <label class="qr-modal-label" for="qrModalTitleInput">Título (chip)</label>
+    <input class="qr-modal-input" id="qrModalTitleInput" type="text" maxlength="40" placeholder="ej: Precios">
+    <label class="qr-modal-label" for="qrModalTextInput">Texto de la respuesta</label>
+    <textarea class="qr-modal-textarea" id="qrModalTextInput" maxlength="4000" placeholder="Lo que se enviará al cliente…"></textarea>
+    <div class="qr-modal-hint">Máx. 40 caracteres en el título, 4000 en el texto.</div>
+    <div class="qr-modal-actions">
+      <button onclick="closeQrModal()">Cancelar</button>
+      <button class="btn-primary" onclick="submitQrModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const ROUTER_URL = 'https://script.google.com/macros/s/AKfycbzzgc0zIe4cQ52jZciIMy6IYfiHNeQsgql5Mz_tPIabSLk4CVMfg8cImlukumGr906orw/exec';
 
@@ -472,6 +567,8 @@ let _currentPhone = null;
 let _currentThread = null; // { isClient, ventanaAbierta, lastInbound }
 let _botEnabled = null;
 let _quickReplies = [];
+let _autoQrId = ''; // ID de la quick reply marcada como auto-envío
+let _qrModalCurrentId = null; // null = agregando; string = editando
 
 function getToken() { return localStorage.getItem('bc_admin_token') || ''; }
 
@@ -742,6 +839,7 @@ async function loadQuickReplies() {
     const data = await jsonpGet({ action:'getQuickReplies', adminToken:t });
     if (data && data.ok) {
       _quickReplies = data.items || [];
+      _autoQrId     = data.autoId || '';
       renderQuickReplies();
     }
   } catch (e) { /* silent — no crítico */ }
@@ -750,17 +848,66 @@ async function loadQuickReplies() {
 function renderQuickReplies() {
   const box = document.getElementById('quickReplies');
   if (!box) return;
-  const chips = _quickReplies.map(qr => `
-    <span class="qr-chip" onclick="insertQuickReply('${esc(qr.id)}')" title="${esc(qr.text)}">
+  const chips = _quickReplies.map(qr => {
+    const isAuto = qr.id === _autoQrId;
+    const autoTitle = isAuto ? 'Auto-envío activado — click para desactivar' : 'Marcar como auto-envío al primer mensaje';
+    return `
+    <span class="qr-chip ${isAuto ? 'auto' : ''}" onclick="insertQuickReply('${esc(qr.id)}')" title="${esc(qr.text)}">
       <span class="title">${esc(qr.title)}</span>
       <span class="qr-icons">
-        <button class="qr-ic" onclick="event.stopPropagation();editQuickReply('${esc(qr.id)}')" title="Editar">✏️</button>
+        <button class="qr-ic" onclick="event.stopPropagation();toggleAutoQuickReply('${esc(qr.id)}')" title="${esc(autoTitle)}">⚡</button>
+        <button class="qr-ic" onclick="event.stopPropagation();openQrModal('${esc(qr.id)}')" title="Editar">✏️</button>
         <button class="qr-ic" onclick="event.stopPropagation();deleteQuickReply('${esc(qr.id)}')" title="Borrar">✕</button>
       </span>
     </span>
-  `).join('');
-  const addChip = `<span class="qr-chip add" onclick="addQuickReply()">+ Nueva</span>`;
+  `;
+  }).join('');
+  const addChip = `<span class="qr-chip add" onclick="openQrModal(null)">+ Nueva</span>`;
   box.innerHTML = chips + addChip;
+}
+
+// ═════════════ Modal add/edit ═════════════
+
+function openQrModal(id) {
+  _qrModalCurrentId = id || null;
+  const qr = id ? _quickReplies.find(q => q.id === id) : null;
+  document.getElementById('qrModalTitle').textContent = qr ? 'Editar respuesta' : 'Nueva respuesta';
+  document.getElementById('qrModalTitleInput').value = qr ? qr.title : '';
+  document.getElementById('qrModalTextInput').value  = qr ? qr.text  : '';
+  document.getElementById('qrModal').classList.add('active');
+  setTimeout(() => document.getElementById('qrModalTitleInput').focus(), 60);
+}
+
+function closeQrModal() {
+  document.getElementById('qrModal').classList.remove('active');
+  _qrModalCurrentId = null;
+}
+
+function onQrModalBackdropClick(e) {
+  if (e.target.id === 'qrModal') closeQrModal();
+}
+
+async function submitQrModal() {
+  const title = document.getElementById('qrModalTitleInput').value.trim();
+  const text  = document.getElementById('qrModalTextInput').value.trim();
+  if (!title) { alert('Título vacío'); return; }
+  if (!text)  { alert('Texto vacío'); return; }
+  await _saveQuickReply({ id: _qrModalCurrentId || '', title, text });
+  closeQrModal();
+}
+
+async function toggleAutoQuickReply(id) {
+  const nextId = (_autoQrId === id) ? '' : id;
+  const t = getToken();
+  if (!t) { alert('Falta ADMIN_TOKEN'); return; }
+  try {
+    const data = await jsonpGet({ action:'setAutoQuickReplyId', adminToken:t, id: nextId });
+    if (!data || !data.ok) { alert('Error: ' + ((data && data.error) || '?')); return; }
+    _autoQrId = data.autoId || '';
+    renderQuickReplies();
+  } catch (e) {
+    alert('Error de red: ' + e.message);
+  }
 }
 
 function insertQuickReply(id) {
@@ -774,26 +921,6 @@ function insertQuickReply(id) {
   ta.focus();
   ta.setSelectionRange(ta.value.length, ta.value.length);
   ta.scrollTop = ta.scrollHeight;
-}
-
-async function addQuickReply() {
-  const title = prompt('Título corto para el chip (ej: "Precios", "Agendar demo"):');
-  if (title === null) return;
-  if (!title.trim()) { alert('El título no puede estar vacío.'); return; }
-  const text = prompt('Texto de la respuesta:');
-  if (text === null) return;
-  if (!text.trim()) { alert('El texto no puede estar vacío.'); return; }
-  await _saveQuickReply({ id: '', title: title.trim(), text: text.trim() });
-}
-
-async function editQuickReply(id) {
-  const qr = _quickReplies.find(q => q.id === id);
-  if (!qr) return;
-  const newTitle = prompt('Título:', qr.title);
-  if (newTitle === null) return;
-  const newText = prompt('Texto:', qr.text);
-  if (newText === null) return;
-  await _saveQuickReply({ id: id, title: newTitle.trim(), text: newText.trim() });
 }
 
 async function _saveQuickReply(payload) {
@@ -1009,7 +1136,13 @@ function fmtDay(d) {
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && _currentPhone) closeThread();
+  if (e.key === 'Escape') {
+    if (document.getElementById('qrModal').classList.contains('active')) {
+      closeQrModal();
+      return;
+    }
+    if (_currentPhone) closeThread();
+  }
 });
 
 loadBotToggle();
