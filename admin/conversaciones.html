@@ -797,6 +797,7 @@ async function openThread(phone) {
   document.getElementById('threadBody').innerHTML = '<div class="loading">⏳ Cargando thread…</div>';
   document.getElementById('threadOverlay').classList.add('active');
   await loadThread();
+  startPollingThread();
 }
 
 async function renameContact() {
@@ -959,6 +960,7 @@ async function deleteQuickReply(id) {
 }
 
 function closeThread() {
+  stopPollingThread();
   document.getElementById('threadOverlay').classList.remove('active');
   _currentPhone = null;
   _currentThread = null;
@@ -1090,9 +1092,12 @@ async function sendManual() {
 }
 
 function renderThread(items) {
+  const body = document.getElementById('threadBody');
+  // Solo scroll al final si el user ya estaba abajo (tolerancia 100px);
+  // así no le robamos el scroll si está leyendo mensajes viejos.
+  const wasAtBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 100;
   if (!items.length) {
-    document.getElementById('threadBody').innerHTML =
-      '<div class="empty">Sin mensajes registrados.</div>';
+    body.innerHTML = '<div class="empty">Sin mensajes registrados.</div>';
     return;
   }
   let html = '';
@@ -1119,9 +1124,8 @@ function renderThread(items) {
     html += `
       <div class="bubble ${sideCls}${manualCls}">${bodyHtml}<span class="bubble-meta">${hhmm}${accion}${tipo}</span></div>`;
   });
-  const body = document.getElementById('threadBody');
   body.innerHTML = html;
-  body.scrollTop = body.scrollHeight;
+  if (wasAtBottom) body.scrollTop = body.scrollHeight;
 }
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1145,9 +1149,55 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// ═════════════ Auto-refresh (polling) ═════════════
+// Thread abierto: refresca cada 10s.
+// Lista: cada 30s (para timestamps + preview + nuevos leads).
+// Pausa cuando la pestaña no está visible (ahorra quota del router).
+const POLL_MS_THREAD = 10000;
+const POLL_MS_LIST   = 30000;
+let _pollTimerThread = null;
+let _pollTimerList   = null;
+
+function startPollingThread() {
+  stopPollingThread();
+  if (document.hidden) return;
+  _pollTimerThread = setInterval(() => {
+    if (document.hidden || !_currentPhone) return;
+    loadThread();
+  }, POLL_MS_THREAD);
+}
+function stopPollingThread() {
+  if (_pollTimerThread) { clearInterval(_pollTimerThread); _pollTimerThread = null; }
+}
+function startPollingList() {
+  stopPollingList();
+  if (document.hidden) return;
+  _pollTimerList = setInterval(() => {
+    if (document.hidden) return;
+    loadList(false);
+  }, POLL_MS_LIST);
+}
+function stopPollingList() {
+  if (_pollTimerList) { clearInterval(_pollTimerList); _pollTimerList = null; }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopPollingThread();
+    stopPollingList();
+  } else {
+    // Refresco inmediato al volver + reinicia polling.
+    if (_currentPhone) loadThread();
+    loadList(false);
+    startPollingList();
+    if (_currentPhone) startPollingThread();
+  }
+});
+
 loadBotToggle();
 loadQuickReplies();
 loadList(true).then(() => {
+  startPollingList();
   // Deeplink: si viene ?phone=507xxx en la URL (desde la notif del bot
   // en OFF), abrir el thread automáticamente.
   const p = new URLSearchParams(location.search).get('phone');
