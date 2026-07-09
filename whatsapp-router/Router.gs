@@ -725,6 +725,20 @@ function _routerResolveMultiSystemAndForward(from, msg, metadata, systems, token
     return;
   }
 
+  // Aprobación de Las Nubes (ln:apr:*) — ir directo al handler
+  // independientemente de la sesión. Cubre el edge case donde el usuario
+  // demora más de 30 min entre recibir el preview y tocar el botón.
+  if (interactiveId.indexOf('ln:apr:') === 0) {
+    var lasNubesSys = null;
+    for (var i = 0; i < systems.length; i++) {
+      if (systems[i].type === 'sheet_direct') { lasNubesSys = systems[i]; break; }
+    }
+    if (lasNubesSys) {
+      _lasNubesHandle(lasNubesSys, msg, from, token, phoneId);
+      return;
+    }
+  }
+
   // Picker pick → activar sesión + forward buffered si existe.
   if (interactiveId.indexOf('sys:pick:') === 0) {
     var pickIdx = parseInt(interactiveId.substring('sys:pick:'.length), 10);
@@ -768,12 +782,9 @@ function _routerDispatchToSystem(system, msg, metadata, from, token, phoneId) {
     return;
   }
   if (type === 'sheet_direct') {
-    // PR 2: implementar OCR + write al sheet. Por ahora, avisar al usuario.
-    _routerSendText(from,
-      '🚧 *' + system.name + '* está en construcción.\n\n' +
-      'La sesión sigue activa, pero por ahora este sistema no procesa mensajes. ' +
-      'Podés escribir *cambiar* para volver al picker y elegir otro sistema.',
-      token, phoneId);
+    // Handler dedicado en _LasNubes.gs — OCR con Claude, upload a Drive,
+    // preview con botones de cabaña, y escritura al Sheet Egresos.
+    _lasNubesHandle(system, msg, from, token, phoneId);
     return;
   }
   Logger.log('Multi-system: tipo desconocido "' + type + '" — skipping');
