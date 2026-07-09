@@ -103,6 +103,7 @@ function doGet(e) {
     listClientMap: 1, setClientMap: 1, deleteClientMap: 1,
     getBotToggle: 1, setBotToggle: 1, enviarMensajeManual: 1,
     setPhoneAlias: 1,
+    getQuickReplies: 1, saveQuickReply: 1, deleteQuickReply: 1,
   };
   if (params.action && ADMIN_ACTIONS[params.action]) {
     return _routerHandleAdminQuery(params);
@@ -1899,6 +1900,9 @@ function _routerHandleAdminQuery(params) {
     if (params.action === 'setBotToggle')      return _resp(_routerAdminSetBotToggle(params));
     if (params.action === 'enviarMensajeManual') return _resp(_routerAdminEnviarManual(params));
     if (params.action === 'setPhoneAlias')     return _resp(_routerAdminSetPhoneAlias(params));
+    if (params.action === 'getQuickReplies')   return _resp(_routerAdminGetQuickReplies());
+    if (params.action === 'saveQuickReply')    return _resp(_routerAdminSaveQuickReply(params));
+    if (params.action === 'deleteQuickReply')  return _resp(_routerAdminDeleteQuickReply(params));
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
@@ -2031,6 +2035,54 @@ function _routerAdminSetPhoneAlias(params) {
   else delete map[phone];
   props.setProperty('PHONE_ALIASES_JSON', JSON.stringify(map));
   return { ok: true, phone: phone, alias: alias || null, replaced: prev };
+}
+
+// Quick replies (respuestas pre-guardadas) — array global de {id, title, text}
+// guardado en QUICK_REPLIES_JSON. Se usan desde el composer para insertar
+// texto en el textarea con un click.
+function _routerGetQuickReplies() {
+  var raw = PropertiesService.getScriptProperties().getProperty('QUICK_REPLIES_JSON') || '[]';
+  try {
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch(e) {
+    Logger.log('QUICK_REPLIES_JSON inválido: ' + e.message);
+    return [];
+  }
+}
+
+function _routerAdminGetQuickReplies() {
+  return { ok: true, items: _routerGetQuickReplies() };
+}
+
+function _routerAdminSaveQuickReply(params) {
+  var id    = String(params.id    || '').trim();
+  var title = String(params.title || '').trim();
+  var text  = String(params.text  || '').trim();
+  if (!title) return { ok: false, error: 'título vacío' };
+  if (!text)  return { ok: false, error: 'texto vacío' };
+  if (title.length > 40)   title = title.substring(0, 40);
+  if (text.length  > 4000) text  = text.substring(0, 4000);
+  if (!id) id = 'qr_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+
+  var arr = _routerGetQuickReplies();
+  var idx = -1;
+  for (var i = 0; i < arr.length; i++) if (arr[i].id === id) { idx = i; break; }
+  var item = { id: id, title: title, text: text };
+  if (idx >= 0) arr[idx] = item;
+  else arr.push(item);
+  PropertiesService.getScriptProperties().setProperty('QUICK_REPLIES_JSON', JSON.stringify(arr));
+  return { ok: true, item: item };
+}
+
+function _routerAdminDeleteQuickReply(params) {
+  var id = String(params.id || '').trim();
+  if (!id) return { ok: false, error: 'id requerido' };
+  var arr = _routerGetQuickReplies();
+  var filtered = arr.filter(function(x) { return x.id !== id; });
+  if (filtered.length === arr.length) return { ok: false, error: 'no existe' };
+  PropertiesService.getScriptProperties().setProperty('QUICK_REPLIES_JSON', JSON.stringify(filtered));
+  return { ok: true, id: id };
 }
 
 function _routerAdminSetBotToggle(params) {
