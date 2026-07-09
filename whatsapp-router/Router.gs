@@ -278,14 +278,17 @@ function _routerForwardMensaje(msg, metadata) {
   }
 
   // ── 4. Routing normal: cliente conocido o desconocido.
-  var map = _routerGetClientsMap();
-  var clientUrl = map[from];
+  // _routerGetSystemsForPhone normaliza el valor del map:
+  //   - string   → [{name:'default', url, type:'gas'}]  (legacy)
+  //   - array    → array de {name, url, type}           (multi-system)
+  //   - ausente  → null                                 (visitor)
+  var phoneSystems = _routerGetSystemsForPhone(from);
 
   // ── Número desconocido: si manda un xlsx o ya está en sesión demo
   //    activa → procesar INLINE como demo (sin HTTP roundtrip).
   //    El módulo ContaFacil_Banco está incluido en este proyecto y
   //    detecta IS_DEMO=true para skip persistencia.
-  if (!clientUrl) {
+  if (!phoneSystems || phoneSystems.length === 0) {
     // Toggle global: si el admin desactivó el bot para visitantes desde
     // admin/conversaciones.html, notificar y NO responder. El admin
     // atenderá el lead manualmente. Clientes registrados no se ven afectados.
@@ -334,6 +337,20 @@ function _routerForwardMensaje(msg, metadata) {
       _routerClearSetupState(from);
       _routerSendText(from, '👍 Configuración cancelada.', token, phoneId);
       return;
+    }
+
+    // Multi-system: comando "cambiar" cierra la sesión de sistema.
+    // Solo aplica si el phone tiene más de un sistema configurado.
+    if (/^(cambiar|cambiar\s+sistema|switch)$/.test(bodyText)) {
+      var systemsForCambiar = _routerGetSystemsForPhone(from);
+      if (systemsForCambiar && systemsForCambiar.length > 1) {
+        _routerClearActiveSystem(from);
+        _routerGetBufferedMessage(from); // limpiar cualquier buffer viejo
+        _routerSendText(from,
+          '🔄 Sesión cerrada. Manda tu próximo mensaje y te pregunto en cuál sistema guardarlo.',
+          token, phoneId);
+        return;
+      }
     }
 
     // En estado awaiting_link_confirmation — esperamos LISTO/ya/confirmé
@@ -404,7 +421,17 @@ function _routerForwardMensaje(msg, metadata) {
     // `configurar email`. Después de eso, todo lo gestiona el client.
   }
 
-  // ── Media (image/document) e interactivos → forward al cliente GAS ──
+  // ── Media (image/document) e interactivos → forward al cliente ──
+  // Si el phone tiene más de un sistema configurado en CLIENTS_MAP_JSON,
+  // esta función gestiona: sesión sticky, buffered messages, picker de
+  // botones, comando "cambiar". Para single-system, solo forwardea.
+  _routerResolveMultiSystemAndForward(from, msg, metadata, phoneSystems, token, phoneId);
+}
+
+// Forward a un client GAS específico. Extraído del handler principal para
+// que multi-system (envío de buffered messages tras el picker) pueda
+// reutilizar la misma lógica.
+function _routerForwardToClientGas(clientUrl, msg, metadata, from, token, phoneId) {
   Logger.log('Forward from=' + from + ' → ' + clientUrl);
 
   var payload = {
@@ -542,6 +569,263 @@ function _routerGetClientsMap() {
   var json = PropertiesService.getScriptProperties().getProperty('CLIENTS_MAP_JSON') || '{}';
   try { return JSON.parse(json); }
   catch(err) { Logger.log('CLIENTS_MAP_JSON inválido: ' + err.message); return {}; }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  MULTI-SYSTEM — un phone puede estar mapeado a varios sistemas
+//  ─────────────────────────────────────────────────────────────
+//  Esquema de CLIENTS_MAP_JSON extendido:
+//    { phone: "url" }                                    ← legacy, un sistema
+//    { phone: [{name, url, type}, ...] }                 ← multi-system
+//
+//  Cuando hay >1 sistema, el router pregunta al usuario cuál elegir la
+//  primera vez y mantiene una "sesión sticky" de 30 min (renovada por
+//  cada mensaje). El comando "cambiar" cierra la sesión. Los tipos
+//  soportados de sistema son:
+//    - "gas"          (default): forward al Apps Script del cliente.
+//    - "sheet_direct" (PR 2)    : router escribe directo al sheet.
+// ════════════════════════════════════════════════════════════════════
+
+var MULTI_SESSION_TTL_MS  = 30 * 60 * 1000; // 30 min sticky
+var MULTI_BUFFER_TTL_MS   =  5 * 60 * 1000; // 5 min max esperando picker
+
+function _routerGetSystemsForPhone(phone) {
+  var map = _routerGetClientsMap();
+  var val = map[phone];
+  if (!val) return null;
+  // Legacy: string simple → un solo sistema.
+  if (typeof val === 'string') {
+    return [{ name: 'default', url: val, type: 'gas' }];
+  }
+  if (Array.isArray(val)) {
+    return val.map(function(s) {
+      return {
+        name:    String(s.name || 'sistema').substring(0, 20),
+        url:     String(s.url || ''),
+        type:    String(s.type || 'gas').toLowerCase(),
+        sheetId: String(s.sheetId || ''),
+      };
+    }).filter(function(s) {
+      // Requerir url para 'gas' o sheetId para 'sheet_direct'.
+      if (s.type === 'gas')          return !!s.url;
+      if (s.type === 'sheet_direct') return !!s.sheetId;
+      return false;
+    });
+  }
+  return null;
+}
+
+function _routerGetActiveSystem(phone) {
+  var props = PropertiesService.getScriptProperties();
+  var raw   = props.getProperty('activeSystem_' + phone);
+  if (!raw) return null;
+  try {
+    var s = JSON.parse(raw);
+    if (!s || !s.expiresAt || s.expiresAt < Date.now()) {
+      props.deleteProperty('activeSystem_' + phone);
+      return null;
+    }
+    return s; // { idx, name, expiresAt }
+  } catch(e) {
+    props.deleteProperty('activeSystem_' + phone);
+    return null;
+  }
+}
+
+function _routerSetActiveSystem(phone, idx, name) {
+  PropertiesService.getScriptProperties().setProperty(
+    'activeSystem_' + phone,
+    JSON.stringify({ idx: idx, name: name, expiresAt: Date.now() + MULTI_SESSION_TTL_MS })
+  );
+}
+
+function _routerClearActiveSystem(phone) {
+  PropertiesService.getScriptProperties().deleteProperty('activeSystem_' + phone);
+}
+
+function _routerBufferMessage(phone, msg, metadata) {
+  PropertiesService.getScriptProperties().setProperty(
+    'pendingMultiMsg_' + phone,
+    JSON.stringify({ msg: msg, metadata: metadata, expiresAt: Date.now() + MULTI_BUFFER_TTL_MS })
+  );
+}
+
+function _routerGetBufferedMessage(phone) {
+  var props = PropertiesService.getScriptProperties();
+  var raw   = props.getProperty('pendingMultiMsg_' + phone);
+  if (!raw) return null;
+  props.deleteProperty('pendingMultiMsg_' + phone);
+  try {
+    var b = JSON.parse(raw);
+    if (!b || !b.expiresAt || b.expiresAt < Date.now()) return null;
+    return b;
+  } catch(e) { return null; }
+}
+
+function _routerSendSystemPicker(phone, systems, token, phoneId) {
+  if (!token || !phoneId) return;
+  // Meta permite hasta 3 botones. Los primeros N sistemas (max 3) van
+  // como botones y las opciones extra quedan fuera. Si tenés > 3 sistemas
+  // en el futuro habría que migrar a "list_reply" (permite hasta 10).
+  var buttons = systems.slice(0, 3).map(function(s, idx) {
+    return { type: 'reply', reply: { id: 'sys:pick:' + idx, title: s.name } };
+  });
+  var body = '📋 *¿En qué sistema guardar?*\n\n' +
+             'Elegí uno. La sesión queda activa 30 min o hasta que escribas *cambiar*.';
+  var payload = {
+    messaging_product: 'whatsapp',
+    to: phone,
+    type: 'interactive',
+    interactive: {
+      type:   'button',
+      body:   { text: body },
+      action: { buttons: buttons },
+    },
+  };
+  try {
+    var r = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+    var status = (r.getResponseCode() >= 200 && r.getResponseCode() < 300) ? 'ok' : ('http_' + r.getResponseCode());
+    _routerLog('out', phone, 'interactive', 'sys:picker', body, status);
+  } catch(err) {
+    Logger.log('SendSystemPicker ERROR: ' + err.message);
+  }
+}
+
+// Función principal del flujo multi-system. Se llama en lugar del forward
+// directo al cliente GAS. Si el phone tiene 1 solo sistema, forwardea
+// como siempre. Si tiene >1, gestiona sesión + picker + buffered.
+function _routerResolveMultiSystemAndForward(from, msg, metadata, systems, token, phoneId) {
+  if (!systems || systems.length === 0) return;
+
+  // Single-system: comportamiento legacy — forward directo.
+  if (systems.length === 1) {
+    _routerDispatchToSystem(systems[0], msg, metadata, from, token, phoneId);
+    return;
+  }
+
+  // Multi-system.
+  var interactiveId = '';
+  if (msg.type === 'interactive') {
+    var iaReply = msg.interactive || {};
+    interactiveId = (iaReply.list_reply   && iaReply.list_reply.id)   ||
+                    (iaReply.button_reply && iaReply.button_reply.id) || '';
+  }
+
+  // Cancelar picker → limpiar sesión + buffer, sin forward.
+  if (interactiveId === 'sys:cancel') {
+    _routerClearActiveSystem(from);
+    _routerGetBufferedMessage(from);
+    _routerSendText(from, '👍 Cancelado. Manda otro mensaje cuando quieras.', token, phoneId);
+    return;
+  }
+
+  // Picker pick → activar sesión + forward buffered si existe.
+  if (interactiveId.indexOf('sys:pick:') === 0) {
+    var pickIdx = parseInt(interactiveId.substring('sys:pick:'.length), 10);
+    if (isNaN(pickIdx) || pickIdx < 0 || pickIdx >= systems.length) {
+      _routerSendText(from, '⚠️ Opción inválida.', token, phoneId);
+      return;
+    }
+    var picked = systems[pickIdx];
+    _routerSetActiveSystem(from, pickIdx, picked.name);
+    _routerSendText(from,
+      '✅ Modo activo: *' + picked.name + '* (30 min)\n\n' +
+      'Escribe *cambiar* cuando quieras elegir otro sistema.',
+      token, phoneId);
+    var buffered = _routerGetBufferedMessage(from);
+    if (buffered) {
+      _routerDispatchToSystem(picked, buffered.msg, buffered.metadata, from, token, phoneId);
+    }
+    return;
+  }
+
+  // Sesión activa → renovar TTL y forwardear al sistema activo.
+  var active = _routerGetActiveSystem(from);
+  if (active && active.idx >= 0 && active.idx < systems.length) {
+    _routerSetActiveSystem(from, active.idx, active.name);
+    _routerDispatchToSystem(systems[active.idx], msg, metadata, from, token, phoneId);
+    return;
+  }
+
+  // Sin sesión → buffer el mensaje + mandar picker.
+  _routerBufferMessage(from, msg, metadata);
+  _routerSendSystemPicker(from, systems, token, phoneId);
+}
+
+// Despacha un mensaje al sistema seleccionado. Por tipo:
+//   - "gas"          → forward al Apps Script del cliente (comportamiento normal).
+//   - "sheet_direct" → placeholder por ahora (PR 2 lo implementa).
+function _routerDispatchToSystem(system, msg, metadata, from, token, phoneId) {
+  var type = String(system.type || 'gas').toLowerCase();
+  if (type === 'gas') {
+    _routerForwardToClientGas(system.url, msg, metadata, from, token, phoneId);
+    return;
+  }
+  if (type === 'sheet_direct') {
+    // PR 2: implementar OCR + write al sheet. Por ahora, avisar al usuario.
+    _routerSendText(from,
+      '🚧 *' + system.name + '* está en construcción.\n\n' +
+      'La sesión sigue activa, pero por ahora este sistema no procesa mensajes. ' +
+      'Podés escribir *cambiar* para volver al picker y elegir otro sistema.',
+      token, phoneId);
+    return;
+  }
+  Logger.log('Multi-system: tipo desconocido "' + type + '" — skipping');
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Helpers para correr desde el editor (setup manual de multi-system)
+// ────────────────────────────────────────────────────────────────────
+
+// Habilita multi-system para el phone del admin: Joslyn Lopez + Las Nubes.
+// Correr UNA vez desde el editor de Apps Script. Después el bot va a
+// preguntar cuál sistema en el próximo mensaje que le mandes.
+function routerActivarMultiSystemAdminPhone() {
+  var phone = '50769812266';
+  var systems = [
+    {
+      name: 'Joslyn Lopez',
+      type: 'gas',
+      url:  'https://script.google.com/macros/s/AKfycbyfmUwqG67T8RxTpUxYUsmTo3esmd-esS0Kv3kbXgZ69e4lHbs93N28yceLZtOsUkjnGA/exec',
+    },
+    {
+      name: 'Las Nubes',
+      type: 'sheet_direct',
+      sheetId: '15CJLNbyq8BQns8ybMDsZ_QAA-wWE5sT9GCRzwum2Ujo',
+    },
+  ];
+  var props = PropertiesService.getScriptProperties();
+  var map;
+  try { map = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch(e) { map = {}; }
+  map[phone] = systems;
+  props.setProperty('CLIENTS_MAP_JSON', JSON.stringify(map));
+  Logger.log('✅ Multi-system activado para ' + phone);
+  Logger.log(JSON.stringify(systems, null, 2));
+  Logger.log('Ahora, en tu próximo mensaje al bot, te va a preguntar cuál sistema.');
+}
+
+// Revierte a single-system (solo Joslyn). Correr si algo sale mal y
+// querés volver al comportamiento anterior.
+function routerRevertirMultiSystemAdminPhone() {
+  var phone = '50769812266';
+  var joslynUrl = 'https://script.google.com/macros/s/AKfycbyfmUwqG67T8RxTpUxYUsmTo3esmd-esS0Kv3kbXgZ69e4lHbs93N28yceLZtOsUkjnGA/exec';
+  var props = PropertiesService.getScriptProperties();
+  var map;
+  try { map = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); }
+  catch(e) { map = {}; }
+  map[phone] = joslynUrl; // string legacy = single system
+  props.setProperty('CLIENTS_MAP_JSON', JSON.stringify(map));
+  // Limpiar sesión + buffer para no dejar estado stale.
+  props.deleteProperty('activeSystem_' + phone);
+  props.deleteProperty('pendingMultiMsg_' + phone);
+  Logger.log('✅ Revertido a single-system (Joslyn) para ' + phone);
 }
 
 // ────────────────────────────────────────────────────────────────────
