@@ -84,6 +84,32 @@
     font-family:inherit; cursor:pointer;
   }
 
+  /* Segment control para filtrar por scope (visitantes/clientes/todos) */
+  .scope-tabs {
+    display:flex; gap:0;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:10px; padding:3px;
+    margin-bottom:10px; width:100%;
+  }
+  .scope-tab {
+    flex:1; padding:7px 8px; font-size:12px; font-weight:600;
+    font-family:inherit; cursor:pointer; color:var(--muted);
+    background:transparent; border:none; border-radius:7px;
+    transition:all .12s; white-space:nowrap;
+  }
+  .scope-tab:hover:not(.active) { color:var(--text); }
+  .scope-tab.active {
+    background:var(--surface); color:var(--text);
+    box-shadow:0 1px 2px rgba(0,0,0,.08);
+  }
+  .scope-tab .count {
+    display:inline-block; margin-left:4px;
+    padding:1px 5px; border-radius:8px;
+    background:var(--border); color:var(--muted);
+    font-size:10px; font-weight:700;
+  }
+  .scope-tab.active .count { background:var(--orange); color:#fff; }
+
   .lead-list {
     background:var(--surface); border:1px solid var(--border); border-radius:12px;
     overflow:hidden;
@@ -549,6 +575,18 @@
 
   <div class="workspace">
     <div class="sidebar">
+      <div class="scope-tabs">
+        <button class="scope-tab active" data-scope="visitors" onclick="onScopeChange('visitors')">
+          🆕 Visitantes <span class="count" id="scopeCountVisitors">0</span>
+        </button>
+        <button class="scope-tab" data-scope="clients" onclick="onScopeChange('clients')">
+          ✅ Clientes <span class="count" id="scopeCountClients">0</span>
+        </button>
+        <button class="scope-tab" data-scope="all" onclick="onScopeChange('all')">
+          Todos <span class="count" id="scopeCountAll">0</span>
+        </button>
+      </div>
+
       <div class="controls">
         <div class="search-wrap">
           <input type="search" id="qInput" placeholder="Buscar nombre o teléfono…" oninput="onSearch()">
@@ -619,6 +657,7 @@ const ROUTER_URL = 'https://script.google.com/macros/s/AKfycbzzgc0zIe4cQ52jZciIM
 let _items = [];
 let _q = '';
 let _status = 'all';
+let _scope  = 'visitors'; // 'visitors' | 'clients' | 'all'. Default: visitantes.
 let _currentPhone = null;
 // Tracking de "nuevo desde el último render" para el flash de 10s.
 // Al primer render de la sesión no aplicamos flash (para no relampaguear
@@ -819,10 +858,35 @@ function renderHeroStats(items, totalMsgs) {
     '<span><b>' + (totalMsgs || 0) + '</b> mensajes</span>';
 }
 
+function updateScopeCounts() {
+  const total    = _items.length;
+  const clients  = _items.filter(c => c.isClient).length;
+  const visitors = total - clients;
+  const setCount = (id, n) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = n;
+  };
+  setCount('scopeCountVisitors', visitors);
+  setCount('scopeCountClients',  clients);
+  setCount('scopeCountAll',      total);
+}
+
+function onScopeChange(scope) {
+  _scope = scope;
+  document.querySelectorAll('.scope-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.scope === scope);
+  });
+  renderList();
+}
+
 function renderList() {
+  updateScopeCounts();
   const list = document.getElementById('leadList');
   const q = _q.toLowerCase();
   let arr = _items;
+  // Scope filter (visitantes/clientes/todos)
+  if (_scope === 'visitors')      arr = arr.filter(c => !c.isClient);
+  else if (_scope === 'clients')  arr = arr.filter(c =>  c.isClient);
   if (q) {
     arr = arr.filter(c =>
       c.phone.indexOf(q) >= 0 ||
