@@ -105,6 +105,7 @@ function doGet(e) {
     setPhoneAlias: 1,
     getQuickReplies: 1, saveQuickReply: 1, deleteQuickReply: 1,
     setAutoQuickReplyId: 1,
+    heartbeat: 1,
   };
   if (params.action && ADMIN_ACTIONS[params.action]) {
     return _routerHandleAdminQuery(params);
@@ -194,11 +195,19 @@ function _routerForwardMensaje(msg, metadata) {
   var adminPhone = props.getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
 
   // Notificar al admin sobre la interacción del cliente — debounced para
-  // no spamear. NO notifica si: from === admin, flag OFF, o pasó menos
-  // del debounce desde la última notif para este phone.
+  // no spamear. Se dispara si el admin está "away" (>3 min sin heartbeat
+  // del dashboard) o si el flag ADMIN_NOTIFY_INTERACCIONES=true está set.
+  // NO se ejecuta si: from === admin, o si es un visitor con bot=OFF
+  // (ese caso lo maneja _routerNotifyBotOffLead con framing específico).
   if (from !== adminPhone) {
-    try { _routerNotificarAdminInteraccion(msg, from, adminPhone, token, phoneId); }
-    catch (notifErr) { Logger.log('Admin notif ERROR: ' + notifErr.message); }
+    var mapForNotifSkip;
+    try { mapForNotifSkip = JSON.parse(props.getProperty('CLIENTS_MAP_JSON') || '{}'); }
+    catch(e) { mapForNotifSkip = {}; }
+    var isVisitorSkipGeneric = !mapForNotifSkip[from] && !_routerVisitorBotEnabled();
+    if (!isVisitorSkipGeneric) {
+      try { _routerNotificarAdminInteraccion(msg, from, adminPhone, token, phoneId); }
+      catch (notifErr) { Logger.log('Admin notif ERROR: ' + notifErr.message); }
+    }
   }
 
   // ── 1. Interactivos del flujo de SIGNUP / ANÁLISIS PROSPECT
@@ -1907,6 +1916,7 @@ function _routerHandleAdminQuery(params) {
     if (params.action === 'saveQuickReply')    return _resp(_routerAdminSaveQuickReply(params));
     if (params.action === 'deleteQuickReply')  return _resp(_routerAdminDeleteQuickReply(params));
     if (params.action === 'setAutoQuickReplyId') return _resp(_routerAdminSetAutoQuickReplyId(params));
+    if (params.action === 'heartbeat')         return _resp(_routerAdminHeartbeat());
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
@@ -2925,7 +2935,12 @@ function _routerUpdateLastInbound(phone) {
 function _routerNotificarAdminInteraccion(msg, from, adminPhone, token, phoneId) {
   if (!from || !adminPhone || !token || !phoneId) return;
   var props = PropertiesService.getScriptProperties();
-  if (String(props.getProperty('ADMIN_NOTIFY_INTERACCIONES') || '').toLowerCase() !== 'true') return;
+
+  // Gate: notificar si (flag explícito ON) OR (admin no está viendo el
+  // dashboard — >3 min sin heartbeat). Cuando el admin está activo, no
+  // hace falta el DM porque el UI hace polling y muestra los mensajes.
+  var explicitOn = String(props.getProperty('ADMIN_NOTIFY_INTERACCIONES') || '').toLowerCase() === 'true';
+  if (!explicitOn && !_routerAdminIsAway()) return;
 
   // Determinar si es cliente existente o nuevo (lookup en CLIENTS_MAP_JSON)
   var clientsMap;
@@ -2943,11 +2958,19 @@ function _routerNotificarAdminInteraccion(msg, from, adminPhone, token, phoneId)
   if (Date.now() - last < debounceMs) return;
   props.setProperty(lastKey, String(Date.now()));
 
+  // Alias legible si existe (ej. "Juan (Ferretería Ronda)")
+  var aliasMap = _routerGetPhoneAliases();
+  var alias = aliasMap[from] || '';
   var label = isExisting ? '✅ *Cliente activo*' : '🆕 *Nuevo / Visitante*';
+  var contactLine = alias
+    ? ('👤 *' + alias + '* (+' + from + ')')
+    : ('📱 +' + from);
   var interactionDesc = _routerDescribirInteraccion(msg);
+  var link = 'https://balanceclip.net/admin/conversaciones.html?phone=' + encodeURIComponent(from);
   var notif = label + '\n' +
-              '📱 +' + from + '\n' +
-              interactionDesc;
+              contactLine + '\n' +
+              interactionDesc + '\n\n' +
+              '➡️ ' + link;
   // _routerSendText es try/catch internamente — no tira si falla.
   _routerSendText(adminPhone, notif, token, phoneId);
 }
@@ -2961,6 +2984,24 @@ function _routerNotificarAdminInteraccion(msg, from, adminPhone, token, phoneId)
 //  Clientes registrados no se ven afectados.
 // ════════════════════════════════════════════════════════════════════
 
+// Heartbeat del admin dashboard — se llama cada 30s mientras la pestaña
+// está visible. El router usa el timestamp para decidir si mandar notif
+// por WhatsApp cuando entra un mensaje (solo si el admin está "away").
+function _routerAdminHeartbeat() {
+  PropertiesService.getScriptProperties()
+    .setProperty('lastAdminHeartbeat', String(Date.now()));
+  return { ok: true, ts: Date.now() };
+}
+
+// True si el admin no ha "latido" en los últimos N minutos (default 3).
+// Si nunca hubo heartbeat (dashboard nunca abierto), retorna true → notifica.
+function _routerAdminIsAway() {
+  var props = PropertiesService.getScriptProperties();
+  var last  = parseInt(props.getProperty('lastAdminHeartbeat'), 10) || 0;
+  var minutes = parseInt(props.getProperty('ADMIN_AWAY_MIN'), 10) || 3;
+  return (Date.now() - last) > (minutes * 60 * 1000);
+}
+
 function _routerVisitorBotEnabled() {
   var v = String(PropertiesService.getScriptProperties()
     .getProperty('ROUTER_VISITOR_BOT_ENABLED') || 'true').toLowerCase();
@@ -2969,6 +3010,9 @@ function _routerVisitorBotEnabled() {
 
 function _routerNotifyBotOffLead(msg, from, adminPhone, token, phoneId) {
   if (!from || !adminPhone || !token || !phoneId) return;
+  // Si el admin está viendo el dashboard, el UI hace polling y muestra el
+  // mensaje solo — no hace falta gastar quota mandando un DM.
+  if (!_routerAdminIsAway()) return;
   var props = PropertiesService.getScriptProperties();
   // Debounce corto: primer mensaje del lead notifica, siguientes en <5 min
   // se agrupan silenciosamente (para no spamear si el lead escribe 10 veces).
@@ -2979,10 +3023,15 @@ function _routerNotifyBotOffLead(msg, from, adminPhone, token, phoneId) {
   if (Date.now() - last < debounceMs) return;
   props.setProperty(lastKey, String(Date.now()));
 
+  var aliasMap = _routerGetPhoneAliases();
+  var alias = aliasMap[from] || '';
+  var contactLine = alias
+    ? ('👤 *' + alias + '* (+' + from + ')')
+    : ('📱 +' + from);
   var interactionDesc = _routerDescribirInteraccion(msg);
   var link = 'https://balanceclip.net/admin/conversaciones.html?phone=' + encodeURIComponent(from);
   var notif = '🔴 *Bot OFF — atiéndelo tú*\n' +
-              '📱 +' + from + '\n' +
+              contactLine + '\n' +
               interactionDesc + '\n\n' +
               '➡️ ' + link;
   _routerSendText(adminPhone, notif, token, phoneId);
