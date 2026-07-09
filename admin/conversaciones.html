@@ -43,6 +43,7 @@
     width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:14px;
   }
   .btn-ic:hover { color:var(--orange); border-color:var(--orange); }
+  .btn-ic-danger:hover { color:var(--red); border-color:var(--red); }
 
   .container { max-width:780px; margin:0 auto; padding:18px 16px 80px; }
   .workspace { display:block; }
@@ -576,6 +577,7 @@
           <div class="phone" id="threadPhone">—</div>
         </div>
         <button class="btn-ic" onclick="renameContact()" title="Renombrar contacto">✏️</button>
+        <button class="btn-ic btn-ic-danger" onclick="deleteConversation()" title="Borrar conversación">🗑</button>
         <button class="btn-ic" onclick="reloadThread()" title="Refrescar">↻</button>
       </div>
       <div class="thread-body" id="threadBody"><div class="loading">⏳ Cargando…</div></div>
@@ -893,6 +895,39 @@ async function openThread(phone) {
   renderList(); // limpiar el unread visualmente ya
   await loadThread();
   startPollingThread();
+}
+
+async function deleteConversation() {
+  if (!_currentPhone) return;
+  const cached = _items.find(c => c.phone === _currentPhone);
+  const displayName = (cached && cached.alias) ? cached.alias : fmtPhone(_currentPhone);
+  const msgCount = cached ? cached.msgCount : 0;
+  const confirmMsg =
+    '¿Borrar la conversación con ' + displayName + '?\n\n' +
+    'Se eliminarán ' + msgCount + ' mensaje' + (msgCount === 1 ? '' : 's') + ' del sheet de logs.\n' +
+    'Esta acción no se puede deshacer.';
+  if (!confirm(confirmMsg)) return;
+  const t = getToken();
+  if (!t) { alert('Falta ADMIN_TOKEN'); return; }
+  try {
+    const data = await jsonpGet({
+      action: 'deleteConversation', adminToken: t, phone: _currentPhone,
+    }, 30000);
+    if (!data || !data.ok) {
+      alert('No se pudo borrar: ' + ((data && data.error) || 'error desconocido'));
+      return;
+    }
+    // Limpiar estado local del contacto borrado.
+    try { localStorage.removeItem('bc_read_' + _currentPhone); } catch(e){}
+    _items = _items.filter(c => c.phone !== _currentPhone);
+    delete _prevLeadTimes[_currentPhone];
+    closeThread();
+    renderList();
+    // Refresh full para asegurar consistencia con el server.
+    loadList(false);
+  } catch (e) {
+    alert('Error de red: ' + e.message);
+  }
 }
 
 async function renameContact() {
