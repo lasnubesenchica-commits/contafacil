@@ -183,27 +183,27 @@ function _routerForwardMensaje(msg, metadata) {
   var from = msg.from || '';
   if (!from) { Logger.log('Mensaje sin from, ignorando'); return; }
 
-  // Logging inbound — siempre primero para tener trazabilidad completa.
-  _routerLogInbound(msg, from);
+  var props   = PropertiesService.getScriptProperties();
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID') || (metadata.phone_number_id || '');
 
-  // Bloqueo por número: seguimos registrando el inbound (para que el
-  // admin vea intentos en el panel), pero salimos sin responder ni
-  // notificar. Si el admin luego desbloquea, el número vuelve a operar
-  // normalmente.
+  // Bloqueo por número: NO logueamos el inbound. Enviamos "Blocked user."
+  // una sola vez por sesión de bloqueo — al desbloquear se limpia el
+  // flag, así que si se re-bloquea el mensaje vuelve a ir.
   if (_routerIsPhoneBlocked(from)) {
-    Logger.log('Router: phone ' + _routerMaskPhone(from) + ' está bloqueado — skip');
+    Logger.log('Router: phone ' + _routerMaskPhone(from) + ' bloqueado — skip inbound');
+    _routerNotifyBlockedOnce(from, token, phoneId);
     return;
   }
+
+  // Logging inbound — siempre primero para tener trazabilidad completa.
+  _routerLogInbound(msg, from);
 
   // Track last-inbound timestamp por phone — usado por:
   // 1. _routerCheckVentana24hAdmin (warning antes que cierre la ventana
   //    de 24h del admin).
   // 2. Notificaciones admin (debounce por cliente).
   _routerUpdateLastInbound(from);
-
-  var props   = PropertiesService.getScriptProperties();
-  var token   = props.getProperty('META_WHATSAPP_TOKEN');
-  var phoneId = props.getProperty('META_PHONE_ID') || (metadata.phone_number_id || '');
   var adminPhone = props.getProperty('SIGNUP_ADMIN_PHONE') || '50769812266';
 
   // Notificar al admin sobre la interacción del cliente — debounced para
@@ -2692,11 +2692,43 @@ function _routerAdminBlockPhone(params) {
 function _routerAdminUnblockPhone(params) {
   var phone = String(params.phone || '').trim();
   if (!/^\d{8,15}$/.test(phone)) return { ok: false, error: 'phone inválido' };
+  var props = PropertiesService.getScriptProperties();
   var arr = _routerGetBlockedPhones();
   var idx = arr.indexOf(phone);
   if (idx >= 0) arr.splice(idx, 1);
-  PropertiesService.getScriptProperties().setProperty('BLOCKED_PHONES_JSON', JSON.stringify(arr));
+  props.setProperty('BLOCKED_PHONES_JSON', JSON.stringify(arr));
+  // Limpiar el flag de "ya notificado" para que si se re-bloquea después,
+  // el mensaje "Blocked user." vuelva a mandarse una vez.
+  props.deleteProperty('blockedNotified_' + phone);
   return { ok: true, phone: phone, blocked: false };
+}
+
+// Envía "Blocked user." al número bloqueado una sola vez por sesión de
+// bloqueo. El flag persiste en Script Properties hasta que el admin
+// desbloquee. El outbound sí se loguea (via _routerSendText → _routerLog),
+// así que ves en el panel que se envió la notificación.
+function _routerNotifyBlockedOnce(from, token, phoneId) {
+  if (!from || !token || !phoneId) return;
+  var props = PropertiesService.getScriptProperties();
+  var flagKey = 'blockedNotified_' + from;
+  if (props.getProperty(flagKey)) return; // ya se envió en esta sesión
+  props.setProperty(flagKey, String(Date.now()));
+  _routerSendText(from, 'Blocked user.', token, phoneId);
+}
+
+// Helper para sembrar la lista de bloqueados desde el editor. Idempotente:
+// no duplica si el número ya está.
+function routerAgregarBloqueados() {
+  var phones = ['50767254580']; // agregar más acá si hace falta
+  var props = PropertiesService.getScriptProperties();
+  var arr = _routerGetBlockedPhones();
+  var added = [];
+  phones.forEach(function(p) {
+    if (arr.indexOf(p) < 0) { arr.push(p); added.push(p); }
+  });
+  props.setProperty('BLOCKED_PHONES_JSON', JSON.stringify(arr));
+  Logger.log('✅ Bloqueados actuales: ' + JSON.stringify(arr));
+  Logger.log('   Agregados en esta ejecución: ' + JSON.stringify(added));
 }
 
 // Borra TODOS los mensajes de un phone del log sheet. Irreversible.
