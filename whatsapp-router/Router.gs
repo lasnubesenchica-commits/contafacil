@@ -107,6 +107,7 @@ function doGet(e) {
     setAutoQuickReplyId: 1,
     heartbeat: 1,
     deleteConversation: 1,
+    blockPhone: 1, unblockPhone: 1,
   };
   if (params.action && ADMIN_ACTIONS[params.action]) {
     return _routerHandleAdminQuery(params);
@@ -184,6 +185,16 @@ function _routerForwardMensaje(msg, metadata) {
 
   // Logging inbound — siempre primero para tener trazabilidad completa.
   _routerLogInbound(msg, from);
+
+  // Bloqueo por número: seguimos registrando el inbound (para que el
+  // admin vea intentos en el panel), pero salimos sin responder ni
+  // notificar. Si el admin luego desbloquea, el número vuelve a operar
+  // normalmente.
+  if (_routerIsPhoneBlocked(from)) {
+    Logger.log('Router: phone ' + _routerMaskPhone(from) + ' está bloqueado — skip');
+    return;
+  }
+
   // Track last-inbound timestamp por phone — usado por:
   // 1. _routerCheckVentana24hAdmin (warning antes que cierre la ventana
   //    de 24h del admin).
@@ -2214,6 +2225,8 @@ function _routerHandleAdminQuery(params) {
     if (params.action === 'setAutoQuickReplyId') return _resp(_routerAdminSetAutoQuickReplyId(params));
     if (params.action === 'heartbeat')         return _resp(_routerAdminHeartbeat());
     if (params.action === 'deleteConversation') return _resp(_routerAdminDeleteConversation(params));
+    if (params.action === 'blockPhone')        return _resp(_routerAdminBlockPhone(params));
+    if (params.action === 'unblockPhone')      return _resp(_routerAdminUnblockPhone(params));
     return _resp({ ok: false, error: 'unknown action' });
   } catch(err) {
     return _resp({ ok: false, error: err.message });
@@ -2563,6 +2576,9 @@ function _routerAdminListConversations(params) {
   try { clientsMapForUi = JSON.parse(routerProps.getProperty('CLIENTS_MAP_JSON') || '{}'); }
   catch(e) { clientsMapForUi = {}; }
   var aliasMap = _routerGetPhoneAliases();
+  var blockedArr = _routerGetBlockedPhones();
+  var blockedSet = {};
+  blockedArr.forEach(function(p) { blockedSet[p] = true; });
   var nowMs = Date.now();
   var VENTANA24 = 24 * 60 * 60 * 1000;
 
@@ -2579,6 +2595,7 @@ function _routerAdminListConversations(params) {
     else if (c.inCount > 0 && c.outCount === 0) c.signupStatus = 'nuevo';
     c.isClient = !!clientsMapForUi[c.phone];
     c.alias = aliasMap[c.phone] || '';
+    c.isBlocked = blockedSet[c.phone] === true;
     var li = parseInt(routerProps.getProperty('lastInbound_' + c.phone), 10) || 0;
     c.ventanaAbierta = (li > 0) && ((nowMs - li) < VENTANA24);
     items.push(c);
@@ -2611,6 +2628,7 @@ function _routerAdminGetConversation(phone) {
   catch(e) { clientsMap = {}; }
   var isClient = !!clientsMap[phone];
   var alias = _routerGetPhoneAliases()[phone] || '';
+  var isBlocked = _routerIsPhoneBlocked(phone);
   var li = parseInt(props.getProperty('lastInbound_' + phone), 10) || 0;
   var ventanaAbierta = (li > 0) && ((Date.now() - li) < 24 * 60 * 60 * 1000);
   var botEnabled = _routerVisitorBotEnabled();
@@ -2637,9 +2655,48 @@ function _routerAdminGetConversation(phone) {
   items.sort(function(a,b){ return a.time - b.time; });
   return {
     ok: true, phone: phone, items: items,
-    alias: alias, isClient: isClient, ventanaAbierta: ventanaAbierta,
+    alias: alias, isClient: isClient, isBlocked: isBlocked,
+    ventanaAbierta: ventanaAbierta,
     botEnabled: botEnabled, lastInbound: li
   };
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  Bloqueo por número — el bot ignora mensajes de phones bloqueados
+//  (sigue registrándolos en el log para trazabilidad, pero no responde
+//   ni notifica al admin).
+// ────────────────────────────────────────────────────────────────────
+
+function _routerGetBlockedPhones() {
+  var raw = PropertiesService.getScriptProperties().getProperty('BLOCKED_PHONES_JSON') || '[]';
+  try {
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch(e) { return []; }
+}
+
+function _routerIsPhoneBlocked(phone) {
+  if (!phone) return false;
+  return _routerGetBlockedPhones().indexOf(String(phone)) >= 0;
+}
+
+function _routerAdminBlockPhone(params) {
+  var phone = String(params.phone || '').trim();
+  if (!/^\d{8,15}$/.test(phone)) return { ok: false, error: 'phone inválido' };
+  var arr = _routerGetBlockedPhones();
+  if (arr.indexOf(phone) < 0) arr.push(phone);
+  PropertiesService.getScriptProperties().setProperty('BLOCKED_PHONES_JSON', JSON.stringify(arr));
+  return { ok: true, phone: phone, blocked: true };
+}
+
+function _routerAdminUnblockPhone(params) {
+  var phone = String(params.phone || '').trim();
+  if (!/^\d{8,15}$/.test(phone)) return { ok: false, error: 'phone inválido' };
+  var arr = _routerGetBlockedPhones();
+  var idx = arr.indexOf(phone);
+  if (idx >= 0) arr.splice(idx, 1);
+  PropertiesService.getScriptProperties().setProperty('BLOCKED_PHONES_JSON', JSON.stringify(arr));
+  return { ok: true, phone: phone, blocked: false };
 }
 
 // Borra TODOS los mensajes de un phone del log sheet. Irreversible.

@@ -166,6 +166,29 @@
   .badge.setup     { background:#F3E5F5; color:#6A1B9A; }
   .badge.aprobando { background:#FFF8E1; color:#F57F17; }
   .badge.activo    { background:#E8F5E9; color:var(--green); }
+  .badge.bloqueado { background:#FFEBEE; color:var(--red); }
+
+  /* Estilo de lead bloqueado */
+  .lead.blocked { opacity:.65; }
+  .lead.blocked .lead-name::after {
+    content:' 🚫'; margin-left:2px; font-size:11px;
+  }
+
+  /* Botón de bloquear en estado activo (contacto YA bloqueado) */
+  .btn-ic.blocked-on {
+    background:#FFEBEE; color:var(--red); border-color:#FFCDD2;
+  }
+  .btn-ic.blocked-on:hover { color:var(--red); border-color:var(--red); }
+
+  /* Chip "BLOQUEADO" en el header del thread */
+  .thread-blocked-pill {
+    display:inline-block; margin-left:8px;
+    background:#FFEBEE; color:var(--red);
+    font-size:10px; font-weight:700;
+    padding:2px 8px; border-radius:10px;
+    text-transform:uppercase; letter-spacing:.5px;
+    vertical-align:middle;
+  }
 
   .empty {
     text-align:center; padding:44px 20px; color:var(--muted); font-size:13px;
@@ -615,6 +638,7 @@
           <div class="phone" id="threadPhone">—</div>
         </div>
         <button class="btn-ic" onclick="renameContact()" title="Renombrar contacto">✏️</button>
+        <button class="btn-ic" id="btnBlock" onclick="toggleBlock()" title="Bloquear contacto">🚫</button>
         <button class="btn-ic btn-ic-danger" onclick="deleteConversation()" title="Borrar conversación">🗑</button>
         <button class="btn-ic" onclick="reloadThread()" title="Refrescar">↻</button>
       </div>
@@ -919,8 +943,9 @@ function renderList() {
       : `<span class="lead-phone">·  ${c.msgCount} msg${c.msgCount===1?'':'s'}</span>`;
     const unreadCls = isLeadUnread(c) ? ' unread' : '';
     const flashCls  = flashSet.has(c.phone) ? ' flash' : '';
+    const blockedCls = c.isBlocked ? ' blocked' : '';
     return `
-    <div class="lead${unreadCls}${flashCls}" onclick="openThread('${esc(c.phone)}')">
+    <div class="lead${unreadCls}${flashCls}${blockedCls}" onclick="openThread('${esc(c.phone)}')">
       <div class="lead-head">
         ${c.signupStatus ? `<span class="badge ${esc(c.signupStatus)}">${statusLabel(c.signupStatus)}</span>` : ''}
         <span class="lead-name">${displayName}</span>
@@ -959,6 +984,66 @@ async function openThread(phone) {
   renderList(); // limpiar el unread visualmente ya
   await loadThread();
   startPollingThread();
+}
+
+async function toggleBlock() {
+  if (!_currentPhone) return;
+  const cached = _items.find(c => c.phone === _currentPhone);
+  const isBlocked = !!(cached && cached.isBlocked);
+  const displayName = (cached && cached.alias) ? cached.alias : fmtPhone(_currentPhone);
+  const action = isBlocked ? 'unblockPhone' : 'blockPhone';
+  const verb   = isBlocked ? 'desbloquear' : 'bloquear';
+  const helpMsg = isBlocked
+    ? '¿Desbloquear ' + displayName + '? Volverá a poder interactuar con el bot.'
+    : '¿Bloquear ' + displayName + '?\n\nEl bot NO va a responder a este número. Los mensajes que reciba de él se van a seguir logueando (para que veas en el panel que insistió), pero sin respuesta ni notificación al admin.';
+  if (!confirm(helpMsg)) return;
+
+  const t = getToken();
+  if (!t) { alert('Falta ADMIN_TOKEN'); return; }
+  try {
+    const data = await jsonpGet({
+      action: action, adminToken: t, phone: _currentPhone,
+    });
+    if (!data || !data.ok) {
+      alert('No se pudo ' + verb + ': ' + ((data && data.error) || 'error'));
+      return;
+    }
+    // Actualizar cache y UI
+    if (cached) cached.isBlocked = !!data.blocked;
+    updateBlockButtonState(!!data.blocked);
+    updateThreadBlockPill(!!data.blocked);
+    renderList();
+  } catch (e) {
+    alert('Error de red: ' + e.message);
+  }
+}
+
+function updateBlockButtonState(isBlocked) {
+  const btn = document.getElementById('btnBlock');
+  if (!btn) return;
+  if (isBlocked) {
+    btn.classList.add('blocked-on');
+    btn.textContent = '↩︎';
+    btn.title = 'Desbloquear contacto';
+  } else {
+    btn.classList.remove('blocked-on');
+    btn.textContent = '🚫';
+    btn.title = 'Bloquear contacto';
+  }
+}
+
+function updateThreadBlockPill(isBlocked) {
+  const phoneEl = document.getElementById('threadPhone');
+  if (!phoneEl) return;
+  // Limpiar pill anterior si existe
+  const oldPill = phoneEl.parentNode.querySelector('.thread-blocked-pill');
+  if (oldPill) oldPill.remove();
+  if (isBlocked) {
+    const pill = document.createElement('span');
+    pill.className = 'thread-blocked-pill';
+    pill.textContent = '🚫 Bloqueado';
+    phoneEl.parentNode.insertBefore(pill, phoneEl.nextSibling);
+  }
 }
 
 async function deleteConversation() {
@@ -1156,6 +1241,8 @@ async function deleteQuickReply(id) {
 function closeThread() {
   stopPollingThread();
   document.getElementById('threadOverlay').classList.remove('active');
+  updateBlockButtonState(false);
+  updateThreadBlockPill(false);
   _currentPhone = null;
   _currentThread = null;
   const ta = document.getElementById('composerText');
@@ -1189,7 +1276,14 @@ async function loadThread() {
       ventanaAbierta: !!data.ventanaAbierta,
       lastInbound:    data.lastInbound || 0,
       alias:          data.alias || '',
+      isBlocked:      !!data.isBlocked,
     };
+    // Sync del botón bloquear + pill del header
+    updateBlockButtonState(!!data.isBlocked);
+    updateThreadBlockPill(!!data.isBlocked);
+    // Actualizar cache local por si el poll de la lista viene después
+    var cachedIdx = _items.findIndex(function(c){ return c.phone === _currentPhone; });
+    if (cachedIdx >= 0) _items[cachedIdx].isBlocked = !!data.isBlocked;
     // Estamos viendo el thread — marcamos leído para que no aparezca
     // como no-leído cuando la lista se re-renderice en el próximo poll.
     markLeadRead(_currentPhone);
