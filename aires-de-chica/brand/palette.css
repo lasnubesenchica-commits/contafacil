@@ -1,0 +1,27 @@
+/* Aires de Chicá — tokens de marca (extraídos del logo).
+   Paleta: teal/cyan (agua), coral/naranja (diente de león), verde (naturaleza). */
+:root {
+  --ac-teal:       #0E8FB0;
+  --ac-teal-600:   #0B7A98;
+  --ac-teal-700:   #086176;
+  --ac-teal-300:   #4FB4CE;
+  --ac-teal-50:    #E8F6FA;
+  --ac-coral:      #E8743B;
+  --ac-coral-300:  #F4A45C;
+  --ac-green:      #8DC63F;
+  --ac-green-600:  #6FA82C;
+
+  --ac-ink:        #143039;
+  --ac-muted:      #5B7883;
+  --ac-bg:         #F4FAFC;
+  --ac-white:      #ffffff;
+  --ac-border:     #D3E6EC;
+
+  --ac-ok:         #1E8E5A;
+  --ac-warn:       #B7791F;
+  --ac-danger:     #C0392B;
+
+  --ac-shadow:     0 1px 3px rgba(16,60,80,.08), 0 8px 24px rgba(16,60,80,.06);
+  --ac-radius:     12px;
+  --ac-font:       'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

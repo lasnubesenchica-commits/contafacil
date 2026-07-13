@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 380" width="460" height="380" role="img" aria-label="Aires de Chicá">
+  <defs>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12A2C4"/>
+      <stop offset="1" stop-color="#0A6E8F"/>
+    </linearGradient>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E8743B"/>
+      <stop offset="1" stop-color="#F4A45C"/>
+    </linearGradient>
+  </defs>
+
+  <!-- elliptical frame (tilted swoosh) -->
+  <g transform="rotate(-8 230 200)">
+    <ellipse cx="230" cy="200" rx="212" ry="150" fill="none" stroke="url(#teal)" stroke-width="3.5"/>
+    <ellipse cx="230" cy="200" rx="212" ry="150" fill="none" stroke="#12A2C4" stroke-width="1" opacity="0.35" transform="translate(3 3)"/>
+  </g>
+
+  <!-- green brush stroke behind "de" -->
+  <path d="M196 214 q34 -20 70 -6 q-30 22 -70 6 z" fill="#8DC63F" opacity="0.92"/>
+
+  <!-- dandelion: stem + seed head + drifting seeds (top-right) -->
+  <g stroke="url(#coral)" stroke-linecap="round" fill="none">
+    <path d="M250 150 q26 -30 60 -46" stroke-width="4" stroke="#8DC63F"/>
+    <g stroke-width="2.2">
+      <line x1="312" y1="102" x2="300" y2="70"/>
+      <line x1="312" y1="102" x2="316" y2="66"/>
+      <line x1="312" y1="102" x2="332" y2="74"/>
+      <line x1="312" y1="102" x2="342" y2="92"/>
+      <line x1="312" y1="102" x2="336" y2="112"/>
+      <line x1="312" y1="102" x2="292" y2="86"/>
+      <line x1="312" y1="102" x2="284" y2="104"/>
+    </g>
+  </g>
+  <g fill="url(#coral)">
+    <circle cx="300" cy="70" r="3.2"/><circle cx="316" cy="66" r="3.2"/>
+    <circle cx="332" cy="74" r="3.2"/><circle cx="342" cy="92" r="3.2"/>
+    <circle cx="336" cy="112" r="3.2"/><circle cx="292" cy="86" r="3.2"/>
+    <circle cx="284" cy="104" r="3.2"/>
+  </g>
+  <!-- drifting seeds -->
+  <g fill="#E8743B">
+    <g transform="translate(360 70)"><circle r="2.6"/><g stroke="#F4A45C" stroke-width="1.4">
+      <line x1="0" y1="0" x2="-9" y2="-7"/><line x1="0" y1="0" x2="-11" y2="-1"/><line x1="0" y1="0" x2="-9" y2="6"/></g></g>
+    <g transform="translate(392 92)"><circle r="2.3"/><g stroke="#F4A45C" stroke-width="1.3">
+      <line x1="0" y1="0" x2="-8" y2="-6"/><line x1="0" y1="0" x2="-10" y2="0"/><line x1="0" y1="0" x2="-8" y2="6"/></g></g>
+    <g transform="translate(418 116)"><circle r="2"/><g stroke="#F4A45C" stroke-width="1.2">
+      <line x1="0" y1="0" x2="-7" y2="-5"/><line x1="0" y1="0" x2="-9" y2="1"/></g></g>
+  </g>
+
+  <!-- wordmark -->
+  <g fill="url(#teal)" font-family="Georgia, 'Times New Roman', serif" font-style="italic">
+    <text x="150" y="176" font-size="70" font-weight="600" letter-spacing="1">Aires</text>
+    <text x="150" y="212" font-size="34" font-weight="500">de</text>
+    <text x="150" y="270" font-size="70" font-weight="600" letter-spacing="1">Chicá</text>
+  </g>
+
+  <!-- tagline -->
+  <text x="230" y="330" text-anchor="middle" fill="#0A6E8F"
+        font-family="Georgia, serif" font-size="13" letter-spacing="3">“TODO COMIENZA CON UN SUEÑO”</text>
+</svg>

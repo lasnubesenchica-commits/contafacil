@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Aires de Chicá · Estados de cuenta y cobros</title>
+<link rel="icon" href="brand/favicon.svg"/>
+<link rel="stylesheet" href="brand/palette.css"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+* { box-sizing: border-box; }
+body { margin:0; font-family: var(--ac-font); color: var(--ac-ink); background: var(--ac-bg); }
+a { color: var(--ac-teal-600); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 18px 60px; }
+
+/* Header */
+header.top { background: linear-gradient(120deg,#0B7A98,#0E8FB0 55%,#12A2C4); color:#fff; }
+.top-inner { max-width:1180px; margin:0 auto; padding:16px 18px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.top img { height:52px; background:#fff; border-radius:10px; padding:5px 8px; }
+.top h1 { font-size:1.15rem; margin:0; font-weight:700; }
+.top .sub { font-size:.78rem; opacity:.85; }
+.top .spacer { flex:1; }
+.demo-badge { background:#F4A45C; color:#4a2410; font-weight:700; font-size:.72rem; padding:4px 10px; border-radius:20px; }
+
+/* Tabs */
+nav.tabs { display:flex; gap:4px; border-bottom:1px solid var(--ac-border); margin:22px 0 20px; flex-wrap:wrap; }
+nav.tabs button { border:0; background:none; font:inherit; font-weight:600; color:var(--ac-muted);
+  padding:10px 16px; cursor:pointer; border-bottom:3px solid transparent; border-radius:8px 8px 0 0; }
+nav.tabs button.active { color:var(--ac-teal-700); border-bottom-color:var(--ac-teal); background:var(--ac-teal-50); }
+
+/* KPI cards */
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
+.kpi { background:#fff; border:1px solid var(--ac-border); border-radius:var(--ac-radius); padding:16px 18px;
+  position:relative; overflow:hidden; box-shadow:var(--ac-shadow); }
+.kpi::before { content:''; position:absolute; inset:0 auto 0 0; width:4px; background:var(--ac-teal); }
+.kpi.green::before{background:var(--ac-green);} .kpi.coral::before{background:var(--ac-coral);}
+.kpi.red::before{background:var(--ac-danger);} .kpi.warn::before{background:var(--ac-warn);}
+.kpi .label { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ac-muted); font-weight:600; }
+.kpi .val { font-size:1.7rem; font-weight:700; margin-top:4px; }
+.kpi .hint { font-size:.75rem; color:var(--ac-muted); margin-top:2px; }
+
+/* Section */
+.card { background:#fff; border:1px solid var(--ac-border); border-radius:var(--ac-radius); box-shadow:var(--ac-shadow); }
+.card .hd { padding:14px 18px; border-bottom:1px solid var(--ac-border); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.card .hd h2 { margin:0; font-size:1.05rem; }
+.card .bd { padding:6px 6px 10px; overflow-x:auto; }
+
+/* Table */
+table { width:100%; border-collapse:collapse; font-size:.86rem; }
+th,td { padding:9px 12px; text-align:left; white-space:nowrap; }
+thead th { color:var(--ac-muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--ac-border); }
+tbody tr { border-bottom:1px solid #eef5f8; }
+tbody tr:hover { background:var(--ac-teal-50); }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+.pill { display:inline-block; padding:3px 9px; border-radius:20px; font-size:.72rem; font-weight:700; }
+.pill.ok { background:#e4f5ec; color:var(--ac-ok); }
+.pill.warn { background:#fbf0dc; color:var(--ac-warn); }
+.pill.red { background:#fbe6e3; color:var(--ac-danger); }
+.link-btn { border:0; background:none; color:var(--ac-teal-600); font:inherit; font-weight:600; cursor:pointer; padding:0; }
+
+/* Controls */
+.controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+input[type=search], select { font:inherit; padding:8px 12px; border:1px solid var(--ac-border); border-radius:9px; background:#fff; }
+.btn { font:inherit; font-weight:600; border:0; border-radius:9px; padding:9px 16px; cursor:pointer;
+  background:var(--ac-teal); color:#fff; }
+.btn:hover { background:var(--ac-teal-600); }
+.btn.ghost { background:#fff; color:var(--ac-teal-700); border:1px solid var(--ac-border); }
+.btn.green { background:var(--ac-green-600); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+
+/* Modal */
+.modal-bg { position:fixed; inset:0; background:rgba(16,48,57,.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:50; }
+.modal-bg.show { display:flex; }
+.modal { background:#fff; border-radius:14px; max-width:640px; width:100%; max-height:90vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.modal .mh { padding:18px 22px; border-bottom:1px solid var(--ac-border); display:flex; justify-content:space-between; align-items:flex-start; }
+.modal .mb { padding:18px 22px; }
+.close { border:0; background:none; font-size:1.4rem; cursor:pointer; color:var(--ac-muted); }
+.grad { height:4px; background:linear-gradient(90deg,var(--ac-teal),var(--ac-green) 60%,var(--ac-coral)); }
+
+/* Drop zone */
+.drop { border:2px dashed var(--ac-teal-300); border-radius:12px; padding:30px; text-align:center; color:var(--ac-muted); background:#fbfeff; cursor:pointer; }
+.drop.drag { background:var(--ac-teal-50); border-color:var(--ac-teal); }
+.muted { color:var(--ac-muted); }
+.notice { background:#fff8ef; border:1px solid #f4d9b0; color:#7a4a12; padding:10px 14px; border-radius:10px; font-size:.85rem; }
+.right { text-align:right; }
+.mono { font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <img src="brand/logo.png" alt="Aires de Chicá"/>
+    <div>
+      <h1>Aires de Chicá</h1>
+      <div class="sub">Estados de cuenta y cobros de mantenimiento · 2026</div>
+    </div>
+    <div class="spacer"></div>
+    <span id="modeBadge" class="demo-badge">Modo demostración</span>
+  </div>
+</header>
+<div class="grad"></div>
+
+<div class="wrap">
+  <nav class="tabs" id="tabs">
+    <button data-tab="dash" class="active">Estado de cuentas</button>
+    <button data-tab="conc">Conciliación bancaria</button>
+    <button data-tab="prop">Propietarios</button>
+    <button data-tab="recor">Recordatorios</button>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <section id="tab-dash">
+    <div class="kpis" id="kpis"></div>
+    <div class="card">
+      <div class="hd">
+        <h2>Cuentas</h2>
+        <div class="spacer" style="flex:1"></div>
+        <div class="controls">
+          <select id="fRes"><option value="">Todos los residenciales</option></select>
+          <select id="fEstado"><option value="">Todos</option><option>Moroso</option><option>Al día</option></select>
+          <input type="search" id="fQ" placeholder="Buscar propietario o lote…"/>
+        </div>
+      </div>
+      <div class="bd"><table id="tblCuentas"><thead><tr>
+        <th>Lote</th><th>Residencial</th><th>Propietario</th><th class="num">Cuota/mes</th>
+        <th class="num">Pagado</th><th class="num">Saldo</th><th class="num">Mora</th><th class="num">Total</th>
+        <th>Estado</th><th>Vence</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- CONCILIACIÓN -->
+  <section id="tab-conc" style="display:none">
+    <div class="card">
+      <div class="hd"><h2>Subir estado de cuenta de Banco General</h2></div>
+      <div class="bd" style="padding:18px">
+        <div class="drop" id="drop">
+          <div style="font-size:2rem">📄</div>
+          <div><b>Arrastra aquí el archivo .xlsx</b> del estado de cuenta<br>
+          <span class="muted">o haz clic para seleccionarlo (formato BGRExcelContReport)</span></div>
+          <input type="file" id="file" accept=".xlsx,.xls,.csv" style="display:none"/>
+        </div>
+        <div id="concResult" style="margin-top:18px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROPIETARIOS -->
+  <section id="tab-prop" style="display:none">
+    <div class="card">
+      <div class="hd"><h2>Directorio de propietarios</h2><div class="spacer" style="flex:1"></div>
+        <input type="search" id="pQ" placeholder="Buscar…"/></div>
+      <div class="bd"><table id="tblProp"><thead><tr>
+        <th>Lote</th><th>Residencial</th><th>Propietario</th><th>Correo</th><th>Celular</th>
+        <th class="num">Lotes</th><th class="num">Cabañas</th><th class="num">Cuota/mes</th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- RECORDATORIOS -->
+  <section id="tab-recor" style="display:none">
+    <div class="card">
+      <div class="hd"><h2>Envío de recordatorios y estados de cuenta</h2></div>
+      <div class="bd" style="padding:18px">
+        <p class="muted">Envía a cada propietario su estado de cuenta en PDF por correo. Requiere el backend configurado.</p>
+        <div class="controls">
+          <button class="btn" onclick="enviar('mensual')">Recordatorio a todos los que deben</button>
+          <button class="btn coral" style="background:var(--ac-coral)" onclick="enviar('mora')">Aviso de mora (solo morosos con recargo)</button>
+        </div>
+        <div id="recorResult" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- MODAL estado de cuenta -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="grad"></div>
+    <div class="mh"><div id="modalHd"></div><button class="close" onclick="closeModal()">×</button></div>
+    <div class="mb" id="modalBd"></div>
+  </div>
+</div>
+
+<script src="brand/seed-demo.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+/* ═══════════ Configuración ═══════════ */
+// Tras provisionar el backend, pega aquí la URL /exec del Web App de Apps Script:
+const GAS_URL = ''; // '' = modo demostración (usa datos embebidos)
+const ANIO = 2026, HOY = new Date('2026-07-13');
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONEDA = 'B/.', CUOTA_BASE = 45, CABANA = 13.5, MORA_PCT = 0.10, MORA_DESDE = 2026*12+4;
+const money = n => MONEDA + (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const r2 = n => Math.round((Number(n)||0)*100)/100;
+
+/* ═══════════ Motor de estado de cuenta (espejo del backend, para demo/preview) ═══════════ */
+function calcEstadoJS(p, asOf){
+  asOf = asOf||HOY;
+  const cuota = r2(p.cuota || (p.lotes*CUOTA_BASE + p.cabanas*CABANA));
+  const mesActual = asOf.getFullYear()>ANIO ? 12 : asOf.getMonth()+1;
+  const buckets=[];
+  if(p.saldo2025>0) buckets.push({label:'Saldo 2025',year:2025,month:12,monto:r2(p.saldo2025),tipo:'s'});
+  for(let m=1;m<=mesActual;m++) buckets.push({label:MESES[m-1],year:ANIO,month:m,monto:cuota,tipo:'c'});
+  let pagado=r2((p.pagos||[]).reduce((a,b)=>a+(+b||0),0));
+  let rem=pagado, saldo=0, mora=0, oldest=null;
+  buckets.forEach(b=>{
+    const ap=Math.min(rem,b.monto); b.pagado=r2(ap); b.saldo=r2(b.monto-ap); rem=r2(rem-ap); b.mora=0;
+    if(b.saldo>0 && b.tipo==='c' && (b.year*12+b.month)>=MORA_DESDE){
+      const ml=Math.max(0, (asOf.getFullYear()*12+asOf.getMonth()+1)-(b.year*12+b.month));
+      b.mora=r2(b.saldo*MORA_PCT*ml);
+    }
+    if(b.saldo>0){ saldo+=b.saldo; mora+=b.mora; if(!oldest)oldest=b; }
+  });
+  saldo=r2(saldo); mora=r2(mora); const scm=r2(saldo+mora);
+  let dias=0; if(oldest){ const v=new Date(oldest.year,oldest.month,0); dias=Math.max(0,Math.floor((asOf-v)/864e5)); }
+  const aging = dias<=0?'al-dia':dias<=30?'0-30':dias<=60?'31-60':dias<=90?'61-90':'90+';
+  const estado = scm>0.009 ? (dias>0?'Moroso':'Pendiente') : 'Al día';
+  return {clave:p.clave,lote:p.lote,loteNum:p.loteNum,residencial:p.residencial,nombre:p.nombre,email:p.email,
+    celular:p.celular,cuota,lotes:p.lotes,cabanas:p.cabanas,buckets,facturado:r2(buckets.reduce((a,b)=>a+b.monto,0)),
+    pagado,saldo,mora,saldoConMora:scm,creditoAFavor:r2(rem),diasVencido:dias,aging,estado,
+    fechaVencimiento:new Date(ANIO,Math.min(12,mesActual),0),asOf};
+}
+function buildDashboardJS(seed){
+  const cuentas = seed.map(p=>calcEstadoJS(p));
+  const k={cuentas:cuentas.length,alDia:0,morosos:0,pendientes:0,totalFacturado:0,totalPagado:0,carteraVencida:0,
+    moraAcumulada:0,facturadoMes:0,pagadoMes:0};
+  const aging={'al-dia':0,'0-30':0,'31-60':0,'61-90':0,'90+':0};
+  const mesActual = HOY.getMonth()+1;
+  cuentas.forEach(e=>{ k.totalFacturado+=e.facturado; k.totalPagado+=e.pagado; k.carteraVencida+=e.saldo;
+    k.moraAcumulada+=e.mora; k.facturadoMes+=e.cuota; aging[e.aging]++;
+    if(e.diasVencido>0)k.morosos++; else if(e.saldoConMora>0.009)k.pendientes++; else k.alDia++; });
+  seed.forEach(p=>{ k.pagadoMes += (+p.pagos?.[mesActual-1]||0); });
+  ['totalFacturado','totalPagado','carteraVencida','moraAcumulada','facturadoMes','pagadoMes'].forEach(x=>k[x]=r2(k[x]));
+  k.saldoTotalConMora=r2(k.carteraVencida+k.moraAcumulada);
+  k.tasaMorosidad=r2(k.morosos/k.cuentas*100);
+  k.tasaRecaudacionMes=k.facturadoMes?r2(k.pagadoMes/k.facturadoMes*100):0;
+  k.tasaRecaudacionAnual=k.totalFacturado?r2(k.totalPagado/k.totalFacturado*100):0;
+  return {kpis:k, aging, mesActual:MESES[mesActual-1], anio:ANIO,
+    cuentas:cuentas.map(e=>({clave:e.clave,lote:e.lote,residencial:e.residencial,nombre:e.nombre,email:e.email,
+      cuota:e.cuota,pagado:e.pagado,saldo:e.saldo,mora:e.mora,saldoConMora:e.saldoConMora,estado:e.estado,
+      aging:e.aging,diasVencido:e.diasVencido,fechaVencimiento:e.fechaVencimiento}))};
+}
+
+/* ═══════════ Puente al backend (o demo) ═══════════ */
+const DEMO = !GAS_URL;
+function jsonp(action, params={}){
+  return new Promise((res,rej)=>{
+    const cb='__cb'+Math.random().toString(36).slice(2);
+    const qs=Object.entries({action,...params,callback:cb}).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+    const s=document.createElement('script'); s.src=GAS_URL+'?'+qs;
+    window[cb]=d=>{ delete window[cb]; s.remove(); d.ok?res(d.data):rej(d.error); };
+    s.onerror=()=>{ s.remove(); rej('network'); }; document.body.appendChild(s);
+  });
+}
+async function post(action,data={}){
+  const r=await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action,...data})});
+  const j=await r.json(); if(!j.ok) throw j.error; return j.data;
+}
+async function getDashboard(){ return DEMO ? buildDashboardJS(window.AC_DEMO_SEED) : jsonp('getDashboard'); }
+async function getPropietarios(){ return DEMO ? window.AC_DEMO_SEED : jsonp('getPropietarios'); }
+async function getEstado(clave){
+  if(DEMO){ const p=window.AC_DEMO_SEED.find(x=>x.clave===clave); return calcEstadoJS(p); }
+  return jsonp('getEstadoCuenta',{clave});
+}
+
+/* ═══════════ UI ═══════════ */
+let DASH=null;
+function pillFor(estado){ return estado==='Al día'?'<span class="pill ok">Al día</span>'
+  : estado==='Pendiente'?'<span class="pill warn">Pendiente</span>':'<span class="pill red">Moroso</span>'; }
+const fmtDate = d => { d=new Date(d); return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear(); };
+
+async function renderDash(){
+  DASH = await getDashboard();
+  const k=DASH.kpis;
+  document.getElementById('kpis').innerHTML = [
+    ['Recaudación del mes', k.tasaRecaudacionMes+'%', money(k.pagadoMes)+' de '+money(k.facturadoMes),'green'],
+    ['Cartera vencida', money(k.carteraVencida), k.morosos+' cuentas morosas','coral'],
+    ['Mora acumulada', money(k.moraAcumulada), 'Recargo 10% mensual','warn'],
+    ['Saldo total por cobrar', money(k.saldoTotalConMora), 'Incluye mora','red'],
+    ['Morosidad', k.tasaMorosidad+'%', k.morosos+' morosos · '+k.pendientes+' al corriente · '+k.alDia+' al día',''],
+    ['Recaudación anual', k.tasaRecaudacionAnual+'%', money(k.totalPagado)+' de '+money(k.totalFacturado),'green'],
+  ].map(([l,v,h,c])=>`<div class="kpi ${c}"><div class="label">${l}</div><div class="val">${v}</div><div class="hint">${h}</div></div>`).join('');
+  const rs=[...new Set(DASH.cuentas.map(c=>c.residencial))];
+  document.getElementById('fRes').innerHTML='<option value="">Todos los residenciales</option>'+rs.map(r=>`<option>${r}</option>`).join('');
+  renderTabla();
+}
+function renderTabla(){
+  const q=document.getElementById('fQ').value.toLowerCase(), fr=document.getElementById('fRes').value, fe=document.getElementById('fEstado').value;
+  const rows=DASH.cuentas.filter(c=>{
+    if(fr && c.residencial!==fr) return false;
+    if(fe==='Moroso' && c.saldoConMora<=0.009) return false;
+    if(fe==='Al día' && c.saldoConMora>0.009) return false;
+    if(q && !(c.nombre.toLowerCase().includes(q)||String(c.lote).toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=>b.saldoConMora-a.saldoConMora);
+  document.querySelector('#tblCuentas tbody').innerHTML = rows.map(c=>`<tr>
+    <td><b>${c.lote}</b></td><td>${c.residencial}</td><td>${c.nombre}</td>
+    <td class="num">${money(c.cuota)}</td><td class="num">${money(c.pagado)}</td>
+    <td class="num">${money(c.saldo)}</td><td class="num" style="color:var(--ac-coral)">${c.mora>0?money(c.mora):'—'}</td>
+    <td class="num"><b>${money(c.saldoConMora)}</b></td><td>${pillFor(c.estado)}</td>
+    <td>${fmtDate(c.fechaVencimiento)}</td>
+    <td><button class="link-btn" onclick="openEstado('${c.clave}')">Ver →</button></td></tr>`).join('')
+    || '<tr><td colspan="11" class="muted" style="padding:20px">Sin resultados.</td></tr>';
+}
+['fQ','fRes','fEstado'].forEach(id=>document.getElementById(id).addEventListener('input',renderTabla));
+
+async function openEstado(clave){
+  const e=await getEstado(clave);
+  const color = e.saldoConMora>0.009 ? (e.diasVencido>0?'var(--ac-danger)':'var(--ac-warn)') : 'var(--ac-ok)';
+  document.getElementById('modalHd').innerHTML=`<div><div style="font-weight:700;font-size:1.1rem">${e.nombre}</div>
+    <div class="muted">${e.residencial} · Lote ${e.lote} · ${e.lotes} lote(s)${e.cabanas?' · '+e.cabanas+' cabaña(s)':''} · Cuota ${money(e.cuota)}</div></div>`;
+  document.getElementById('modalBd').innerHTML=`
+    <table style="margin-bottom:12px"><thead><tr><th>Concepto</th><th class="num">Cuota</th><th class="num">Pagado</th><th class="num">Saldo</th><th class="num">Mora</th></tr></thead>
+    <tbody>${e.buckets.map(b=>`<tr style="${b.saldo>0.009?'background:#fff7f4':''}"><td>${b.label}</td>
+      <td class="num">${money(b.monto)}</td><td class="num">${money(b.pagado)}</td>
+      <td class="num">${b.saldo>0.009?money(b.saldo):"<span style='color:var(--ac-ok)'>Pagado</span>"}</td>
+      <td class="num" style="color:var(--ac-coral)">${b.mora>0.009?money(b.mora):'—'}</td></tr>`).join('')}</tbody></table>
+    <div style="display:flex;justify-content:flex-end"><div style="min-width:260px">
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span class="muted">Saldo pendiente</span><b>${money(e.saldo)}</b></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span class="muted">Mora (10%)</span><b style="color:var(--ac-coral)">${money(e.mora)}</b></div>
+      ${e.creditoAFavor>0.009?`<div style="display:flex;justify-content:space-between;padding:4px 0"><span class="muted">Crédito a favor</span><b style="color:var(--ac-ok)">-${money(e.creditoAFavor)}</b></div>`:''}
+      <div style="display:flex;justify-content:space-between;padding:10px 12px;background:var(--ac-teal-50);border-radius:8px;margin-top:6px">
+        <b>SALDO TOTAL</b><b style="color:${color};font-size:1.1rem">${money(e.saldoConMora)}</b></div>
+    </div></div>
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn ghost" onclick="pdfEstado('${e.clave}')">Descargar PDF</button>
+      <button class="btn" onclick="mailEstado('${e.clave}')" ${e.email?'':'disabled title="Sin correo"'}>Enviar por correo</button>
+    </div>
+    ${DEMO?'<div class="notice" style="margin-top:12px">Modo demostración: el PDF y el envío por correo funcionan con el backend GAS configurado.</div>':''}`;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+async function mailEstado(clave){ if(DEMO)return alert('Configura el backend para enviar correos.');
+  try{ const r=await post('enviarEstado',{clave}); alert(r.enviado?'Enviado a '+r.email:'No enviado: '+(r.motivo||'')); }catch(e){ alert('Error: '+e); } }
+async function pdfEstado(clave){ if(DEMO)return alert('El PDF se genera desde el backend GAS.'); window.open(GAS_URL+'?action=pdf&clave='+encodeURIComponent(clave)); }
+async function enviar(tipo){ if(DEMO)return document.getElementById('recorResult').innerHTML='<div class="notice">Modo demostración: configura el backend para enviar.</div>';
+  document.getElementById('recorResult').textContent='Enviando…';
+  try{ const r=await post('enviarRecordatorios',{tipo}); document.getElementById('recorResult').innerHTML=`<div class="notice">Enviados: ${r.enviados}. Sin correo: ${(r.sinCorreo||[]).length}.</div>`; }
+  catch(e){ document.getElementById('recorResult').innerHTML='<div class="notice">Error: '+e+'</div>'; }
+}
+
+/* Propietarios */
+async function renderProp(){
+  const ps=await getPropietarios();
+  const draw=()=>{ const q=document.getElementById('pQ').value.toLowerCase();
+    document.querySelector('#tblProp tbody').innerHTML=ps.filter(p=>!q||p.nombre.toLowerCase().includes(q)||String(p.lote).toLowerCase().includes(q))
+      .map(p=>`<tr><td><b>${p.lote}</b></td><td>${p.residencial}</td><td>${p.nombre}</td>
+      <td>${p.email||'<span class="muted">—</span>'}</td><td>${p.celular||''}</td>
+      <td class="num">${p.lotes}</td><td class="num">${p.cabanas||''}</td><td class="num">${money(p.cuota)}</td></tr>`).join(''); };
+  document.getElementById('pQ').oninput=draw; draw();
+}
+
+/* Conciliación */
+const drop=document.getElementById('drop'), fileInput=document.getElementById('file');
+drop.onclick=()=>fileInput.click();
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+drop.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
+fileInput.onchange=e=>handleFile(e.target.files[0]);
+
+async function handleFile(f){
+  if(!f) return;
+  const res=document.getElementById('concResult'); res.innerHTML='Leyendo archivo…';
+  const buf=await f.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array'});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false});
+  let data;
+  try{ data = DEMO ? conciliarDemo(rows) : await post('conciliarBanco',{rows,filename:f.name}); }
+  catch(e){ res.innerHTML='<div class="notice">Error: '+e+'</div>'; return; }
+  renderConc(data);
+}
+function renderConc(d){
+  const res=document.getElementById('concResult');
+  const rowsHtml=d.pagos.map((p,i)=>{
+    const conf = p.confianza==='alta'?'ok':p.confianza==='media'?'warn':'red';
+    const sel = p.match && !p.variosLotes ? 'checked':'';
+    const cand = (p.candidatos&&p.candidatos.length)
+      ? `<select data-i="${i}" class="candSel">${p.candidatos.map(c=>`<option value="${c.clave}">${c.residencial} · L${c.lote} · ${c.nombre}</option>`).join('')}<option value="">— sin asignar —</option></select>`
+      : (p.match?`${p.residencial||''} · L${p.lote} · ${p.nombre}`:`<span class="muted">${p.pagador||'sin identificar'}</span>`);
+    return `<tr><td><input type="checkbox" class="cchk" data-i="${i}" ${sel}></td>
+      <td>${p.fecha}</td><td class="num">${money(p.monto)}</td>
+      <td>${cand}</td><td><span class="pill ${conf}">${p.confianza}</span></td>
+      <td class="muted" style="max-width:280px;white-space:normal;font-size:.78rem">${p.descripcion}</td></tr>`;
+  }).join('');
+  res.innerHTML=`
+    <div class="kpis" style="margin-bottom:14px">
+      <div class="kpi green"><div class="label">Pagos detectados</div><div class="val">${d.pagosDetectados}</div><div class="hint">${money(d.totalCreditos)}</div></div>
+      <div class="kpi"><div class="label">Con match</div><div class="val">${d.conMatch}</div><div class="hint">listos para consolidar</div></div>
+      <div class="kpi warn"><div class="label">Requieren revisión</div><div class="val">${d.sinMatch}</div><div class="hint">asigna manualmente</div></div>
+      <div class="kpi coral"><div class="label">Duplicados omitidos</div><div class="val">${d.duplicados}</div><div class="hint">ya registrados</div></div>
+    </div>
+    <div class="card"><div class="hd"><h2>Revisar pagos entrantes</h2><div class="spacer" style="flex:1"></div>
+      <label class="muted" style="font-size:.85rem"><input type="checkbox" id="sendMails"> Enviar estado de cuenta al consolidar</label>
+      <button class="btn green" onclick="consolidar()">Consolidar seleccionados</button></div>
+      <div class="bd"><table><thead><tr><th></th><th>Fecha</th><th class="num">Monto</th><th>Cuenta</th><th>Confianza</th><th>Descripción del banco</th></tr></thead>
+      <tbody>${rowsHtml}</tbody></table></div></div>
+    ${d.gastos&&d.gastos.length?`<p class="muted" style="margin-top:12px">También se detectaron ${d.gastos.length} egresos (débitos) por ${money(d.totalGastos)} y ${(d.ignorados||[]).length} créditos que no son cuotas (interés/devoluciones).</p>`:''}
+    ${DEMO?'<div class="notice" style="margin-top:12px">Modo demostración: la consolidación real se hace con el backend GAS.</div>':''}`;
+  window.__conc=d;
+}
+async function consolidar(){
+  const d=window.__conc; const chks=[...document.querySelectorAll('.cchk')];
+  const sel=[]; chks.forEach(ch=>{ if(ch.checked){ const p={...d.pagos[+ch.dataset.i]};
+    const cs=document.querySelector('.candSel[data-i="'+ch.dataset.i+'"]'); if(cs) p.clave=cs.value;
+    if(p.clave) sel.push(p); } });
+  if(!sel.length) return alert('Selecciona al menos un pago con cuenta asignada.');
+  if(DEMO) return alert('Modo demostración: se consolidarían '+sel.length+' pagos con el backend configurado.');
+  try{ const r=await post('consolidarPagos',{pagos:sel,enviarCorreos:document.getElementById('sendMails').checked});
+    alert('Consolidados: '+r.insertados+' pagos.'); renderDash(); }catch(e){ alert('Error: '+e); }
+}
+// Conciliación en modo demo (motor JS espejo, para previsualizar la detección)
+function normTxt(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+const STOP=new Set('DE DEL LA LAS LOS EL Y O MANT MANTENIMIENTO CUOTA PAGO LOTE AREAS MOVIL BANCA LINEA TRANSFERENCIA ACH XPRESS DEPOSITO CUENTA AHORROS SIN LIBRETA CHICA ABRIL MAYO JUNIO JULIO'.split(' '));
+const tks=s=>normTxt(s).split(' ').filter(t=>t.length>2&&!STOP.has(t));
+const scoreNom=(a,b)=>{const B=new Set(tks(b));return tks(a).filter(t=>B.has(t)).length;};
+function extraer(desc){let m=String(desc||'').match(/TRANSFERENCIA\s+DE\s+(.+?)(?:\s+(?:mant|cuota|pago|para|abril|mayo|junio|julio|banca|lote|mensualidad)|$)/i);
+  if(m)return m[1].trim(); m=String(desc||'').match(/ACH(?:\s*XPRESS)?\s*-\s*([A-Za-zÁÉÍÓÚÑ ]+?)(?:\s+(?:mant|lote|cuota)|$)/i); return m?m[1].trim():'';}
+function conciliarDemo(rows){
+  const seed=window.AC_DEMO_SEED, RES={L:'Los Laureles',Q:'El Quira',H:'El Higueron'};
+  const byNum={}; seed.forEach(p=>String(p.lote).split(/[\/y]/i).forEach(t=>{const m=String(t).match(/([0-9]+\s*[A-Za-z]?)/);if(m){const k=m[1].replace(/\s/g,'').toUpperCase();(byNum[k]=byNum[k]||[]).push(p);}}));
+  let hIdx=-1,col={}; for(let i=0;i<Math.min(rows.length,15);i++){const rn=(rows[i]||[]).map(normTxt);
+    if(rn.indexOf('FECHA')>=0&&rn.indexOf('CREDITO')>=0){hIdx=i;rn.forEach((c,j)=>{if(c==='FECHA')col.f=j;else if(c.indexOf('DESCRIP')===0)col.d=j;else if(c==='DEBITO')col.de=j;else if(c==='CREDITO')col.c=j;});break;}}
+  if(hIdx<0) throw 'Formato no reconocido (falta encabezado Fecha/Crédito).';
+  const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;};
+  const pagos=[],gastos=[],ignorados=[]; let dup=0;
+  for(let k=hIdx+1;k<rows.length;k++){const row=rows[k]||[];const desc=String(row[col.d]||'').trim();
+    const cr=num(row[col.c]),db=num(row[col.de]); if(!row[col.f])continue;
+    if(db>0&&!(cr>0)){gastos.push({monto:r2(db)});continue;} if(!(cr>0))continue;
+    if(/INTERES|DEVOLUC|REVERSO|ANULAC/.test(normTxt(desc))){ignorados.push({monto:r2(cr)});continue;}
+    const lm=desc.match(/lote[s]?\s*([LQH])?\s*([0-9]+\s*[A-Za-z]?)/i);
+    const pref=lm&&lm[1]?lm[1].toUpperCase():'', ln=lm?lm[2].replace(/\s/g,'').toUpperCase():'';
+    const pag=extraer(desc); let cands=(byNum[ln]||[]).slice(); if(pref)cands=cands.filter(p=>p.residencial===RES[pref]);
+    let prop=null,conf='sin-match',cand=[];
+    if(cands.length===1){prop=cands[0];conf=pag&&scoreNom(pag,prop.nombre)>0?'alta':'media';}
+    else if(cands.length>1){let best=null,bs=0;cands.forEach(p=>{const s=scoreNom(pag,p.nombre);if(s>bs){bs=s;best=p;}});
+      if(best&&bs>0){prop=best;conf='alta';}else cand=cands.map(p=>({clave:p.clave,lote:p.lote,residencial:p.residencial,nombre:p.nombre}));}
+    if(!prop&&!cand.length){let best=null,bs=0;seed.forEach(p=>{const s=scoreNom(pag,p.nombre);if(s>bs){bs=s;best=p;}});if(best&&bs>=1){prop=best;conf=bs>=2?'alta':'media';}}
+    pagos.push({fecha:String(row[col.f]).slice(0,10),monto:r2(cr),descripcion:desc,clave:prop?prop.clave:'',
+      lote:prop?prop.lote:ln,residencial:prop?prop.residencial:(RES[pref]||''),nombre:prop?prop.nombre:pag,
+      pagador:pag,email:prop?prop.email:'',match:!!prop,confianza:prop?conf:'sin-match',candidatos:cand,variosLotes:/varios\s+lotes?/i.test(desc)});
+  }
+  pagos.sort((a,b)=>(a.match===b.match)?0:(a.match?-1:1));
+  return {pagosDetectados:pagos.length,conMatch:pagos.filter(p=>p.match).length,sinMatch:pagos.filter(p=>!p.match).length,
+    duplicados:dup,pagos,gastos,ignorados,totalCreditos:r2(pagos.reduce((a,p)=>a+p.monto,0)),totalGastos:r2(gastos.reduce((a,g)=>a+g.monto,0))};
+}
+
+/* Tabs */
+document.getElementById('tabs').addEventListener('click',e=>{
+  if(e.target.tagName!=='BUTTON')return;
+  [...document.querySelectorAll('#tabs button')].forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  const t=e.target.dataset.tab;
+  ['dash','conc','prop','recor'].forEach(x=>document.getElementById('tab-'+x).style.display=x===t?'':'none');
+  if(t==='prop')renderProp();
+});
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal')closeModal(); });
+
+/* init */
+if(!DEMO) document.getElementById('modeBadge').style.display='none';
+renderDash();
+</script>
+</body>
+</html>
