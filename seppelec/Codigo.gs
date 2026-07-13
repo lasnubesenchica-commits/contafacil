@@ -287,7 +287,10 @@ function _saveDocFile(b64, parsed) {
     var name = tipo + '_' + ref + '_' + fecha + '.pdf';
     var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'application/pdf', name);
     var file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    // El enlace se devuelve aunque el compartir público falle (política de la
+    // organización en Workspace o error transitorio de Drive): el archivo ya
+    // existe, así que la fila conserva su link en vez de quedar vacía.
+    try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (share) {}
     return file.getUrl();
   } catch (e) {
     return '';
