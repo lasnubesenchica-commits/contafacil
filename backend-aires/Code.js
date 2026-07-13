@@ -15,9 +15,9 @@ var CONFIG = {
   NEGOCIO:        'Aires de Chicá',
   RAZON_SOCIAL:   'Aires de Chica, S.A.',
   // Si se deja vacío y el script está ligado a un Sheet, usa el Sheet activo.
-  SHEET_ID:       '',
-  ADMIN_EMAIL:    'lasnubesenchica@gmail.com',
-  REPLY_TO:       'lasnubesenchica@gmail.com',
+  SHEET_ID:       '1S-mea6zy87PwYFuwtbb4hqHX8LaK7sHW4zqX5kk2_4E',
+  ADMIN_EMAIL:    'admin@airesdechica.org',
+  REPLY_TO:       'admin@airesdechica.org',
   // Logo servido desde GitHub Pages (se puede sobreescribir con una URL propia).
   LOGO_URL:       'https://balanceclip.net/aires-de-chica/brand/logo.svg',
   LOGO_PNG_URL:   'https://balanceclip.net/aires-de-chica/brand/logo.png',

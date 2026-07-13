@@ -36,6 +36,13 @@
       "deploymentId": "AKfycbyfmUwqG67T8RxTpUxYUsmTo3esmd-esS0Kv3kbXgZ69e4lHbs93N28yceLZtOsUkjnGA"
     },
     {
+      "id": "aires-de-chica",
+      "nombre": "Aires de Chicá",
+      "scriptId": "1M3Kr-Y58i-eJCmIdtKoq1DXXM7PU36vyMkIuAR5HAWiN9YTvsIBI-zVA",
+      "gasDir": "backend-aires",
+      "deploymentId": "AKfycbwuRoK_23HiOcqkR0itIV87lYH8YKzh-jIGnuJRWyZa9_QubxbjzlZnVU2BryyGikB4"
+    },
+    {
       "id": "panaderia-aurorita",
       "nombre": "Panadería Aurorita",
       "scriptId": "1aWq3LbW3ZZqFQenxb5FsmHvZJV_VQfzqBtjhErKqUIAU0bADklYMu66C",

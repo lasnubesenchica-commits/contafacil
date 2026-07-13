@@ -187,7 +187,7 @@ input[type=search], select { font:inherit; padding:8px 12px; border:1px solid va
 <script>
 /* ═══════════ Configuración ═══════════ */
 // Tras provisionar el backend, pega aquí la URL /exec del Web App de Apps Script:
-const GAS_URL = ''; // '' = modo demostración (usa datos embebidos)
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwuRoK_23HiOcqkR0itIV87lYH8YKzh-jIGnuJRWyZa9_QubxbjzlZnVU2BryyGikB4/exec'; // '' = modo demostración
 const ANIO = 2026, HOY = new Date('2026-07-13');
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MONEDA = 'B/.', CUOTA_BASE = 45, CABANA = 13.5, MORA_PCT = 0.10, MORA_DESDE = 2026*12+4;
@@ -271,7 +271,14 @@ function pillFor(estado){ return estado==='Al día'?'<span class="pill ok">Al d�
 const fmtDate = d => { d=new Date(d); return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear(); };
 
 async function renderDash(){
-  DASH = await getDashboard();
+  try { DASH = await getDashboard(); }
+  catch(err){
+    document.getElementById('kpis').innerHTML =
+      `<div class="notice" style="grid-column:1/-1">No se pudo leer el backend (${err}).<br>
+       Si es la primera vez, corre <b>ensureSheets()</b> y <b>seedInicial()</b> en Apps Script y recarga.</div>`;
+    document.querySelector('#tblCuentas tbody').innerHTML='';
+    return;
+  }
   const k=DASH.kpis;
   document.getElementById('kpis').innerHTML = [
     ['Recaudación del mes', k.tasaRecaudacionMes+'%', money(k.pagadoMes)+' de '+money(k.facturadoMes),'green'],
