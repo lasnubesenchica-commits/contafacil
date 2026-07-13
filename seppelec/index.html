@@ -1152,7 +1152,9 @@ function renderCalendar(){
   // body rows
   const vis = _visRows();
   const computed = vis.map(computeRow);          // para totales/saldos del footer (respeta filtro de línea)
-  let bodyRows = displayRows().map((r)=>{
+  let _dr = displayRows();
+  { const _f=[], _o=[]; _dr.forEach(x=>((computeRow(x).facturada?_f:_o).push(x))); _dr=_f.concat(_o); } // órdenes sin facturar siempre al final
+  let bodyRows = _dr.map((r)=>{
     const c = computeRow(r);
     const estVis = c.overdue?'vencido':r.estado;
     // mes (calendario) en que cae el pago — usado para la marca verde
@@ -1563,7 +1565,7 @@ function upsertDoc(doc, fileUrl, linea){
     let row = po ? state.rows.find(r=>!r.inv && r.po && _poMatch(r.po,po)) : null;
     let action='nueva';
     if(row){ action='actualizada'; }
-    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0,poUrl:'',invUrl:'',linea:ln}; state.rows.unshift(row); }
+    else { row={po:'',inv:'',fInv:'',monto:0,estado:'orden',fPago:'',abonado:0,poUrl:'',invUrl:'',linea:ln}; state.rows.push(row); }
     if(po) row.po=po;
     if(monto) row.monto=monto;
     if(url) row.poUrl=url;
@@ -1964,8 +1966,9 @@ function _calMatrix(){
   // encabezado de columnas
   const hd=[{v:'Orden / Factura',t:'s',s:8},{v:'Estado',t:'s',s:8}];
   cols.forEach(c=> hd.push(c.type==='wk'?{v:'S'+c.w.idx+'  '+fmtD(c.w.start),t:'s',s:8}:{v:'SALDO '+MESES[c.month],t:'s',s:8})); rows.push(hd);
-  // cuerpo
-  state.rows.forEach((r,ri)=>{ const c=computed[ri];
+  // cuerpo (órdenes sin facturar siempre al final, como en la vista)
+  const _fo=[],_oo=[]; state.rows.forEach((r,i)=>((computed[i].facturada?_fo:_oo).push(i)));
+  _fo.concat(_oo).forEach((ri)=>{ const r=state.rows[ri], c=computed[ri];
     const row=[{v:(r.po||'')+(r.inv?' · '+r.inv:'')+(_lineaOf(r)==='extra'?' · EXT':''),t:'s',s:7},{v:c.overdue?'Vencido':ESTADO_LBL[r.estado],t:'s',s:_estiloEstado(r,c)}];
     cols.forEach(col=>{
       if(col.type==='saldo'){ const facBy=c.facturada&&c.invMo!=null&&c.invMo<=col.month;
