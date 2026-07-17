@@ -3519,6 +3519,36 @@ function _handleActualizarEgreso(params, callback) {
     var idEgreso = String(params.id_egreso || '').trim();
     if (!idEgreso) throw new Error('id_egreso requerido');
 
+    // Si el ID viene con prefijo "PND-" es un pendiente (borrador,
+    // Acreedores_Pending) — el frontend usa este prefijo para
+    // distinguirlos de egresos ya registrados. Delegamos al handler
+    // correspondiente que opera sobre la otra hoja.
+    if (idEgreso.indexOf('PND-') === 0) {
+      var pendData = {
+        id:          idEgreso.substring(4),
+        num_fac:     params.num_fac,
+        categoria:   params.tipo || params.categoria,
+        descripcion: params.descripcion,
+        subtotal:    params.subtotal,
+        itbms:       params.itbms,
+        total:       params.total,
+        alcance:     params.alcance,
+        fecha:       params.fecha,
+      };
+      var pendResp = _handleActualizarPendienteAcr(pendData);
+      var pendObj = { success: false, error: 'pend response ilegible' };
+      try { pendObj = JSON.parse(pendResp.getContent()); } catch(e) {}
+      var pndResult = {
+        success:    !!pendObj.success,
+        error:      pendObj.error || null,
+        id_egreso:  idEgreso,
+        tipo_nuevo: params.tipo || params.categoria || '',
+      };
+      var pndJson = JSON.stringify(pndResult);
+      if (callback) return ContentService.createTextOutput(callback + '(' + pndJson + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+      return ContentService.createTextOutput(pndJson).setMimeType(ContentService.MimeType.JSON);
+    }
+
     var ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     var sheet = ss.getSheetByName(SHEET_EGRESOS);
     if (!sheet) throw new Error('Hoja Egresos no encontrada');

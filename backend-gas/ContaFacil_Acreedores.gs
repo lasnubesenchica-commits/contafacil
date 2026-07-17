@@ -1930,6 +1930,12 @@ function _handleActualizarPendienteAcr(data) {
       if (data.total)       sheet.getRange(rowNum, COL_PEND.TOTAL).setValue(parseFloat(data.total)||0);
       if (data.itbms)       sheet.getRange(rowNum, COL_PEND.ITBMS).setValue(parseFloat(data.itbms)||0);
       if (data.subtotal)    sheet.getRange(rowNum, COL_PEND.SUBTOTAL).setValue(parseFloat(data.subtotal)||0);
+      // Fecha de factura editable desde el modal "Editar gasto"
+      // (usado cuando el user edita un pendiente antes de aprobarlo).
+      if (data.fecha) {
+        var fp = _parseFechaPanama(String(data.fecha));
+        if (fp) sheet.getRange(rowNum, COL_PEND.FECHA_FAC).setValue(fp);
+      }
       if (data.alcance) {
         var notas = String(sheet.getRange(rowNum, COL_PEND.NOTAS).getValue() || '');
         notas = notas.match(/\balcance:(negocio|personal)\b/)
