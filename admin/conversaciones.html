@@ -110,6 +110,30 @@
   }
   .scope-tab.active .count { background:var(--orange); color:#fff; }
 
+  /* Quick filters — chips toggleables debajo de los scope tabs */
+  .quick-filters {
+    display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;
+  }
+  .quick-chip {
+    padding:6px 10px; font-size:12px; font-weight:500;
+    border:1px solid var(--border); background:var(--surface);
+    color:var(--muted); border-radius:14px; cursor:pointer;
+    transition:all .12s; font-family:inherit;
+    display:inline-flex; align-items:center; gap:4px;
+    white-space:nowrap;
+  }
+  .quick-chip:hover:not(.active) { color:var(--text); border-color:var(--border2); }
+  .quick-chip.active {
+    background:#FFF5EB; border-color:var(--orange); color:var(--orange);
+    font-weight:600;
+  }
+  .quick-chip .count {
+    padding:1px 6px; border-radius:8px;
+    background:var(--border); color:var(--muted);
+    font-size:10px; font-weight:700; line-height:1.3;
+  }
+  .quick-chip.active .count { background:var(--orange); color:#fff; }
+
   .lead-list {
     background:var(--surface); border:1px solid var(--border); border-radius:12px;
     overflow:hidden;
@@ -610,6 +634,18 @@
         </button>
       </div>
 
+      <div class="quick-filters">
+        <button class="quick-chip" data-qf="unread" onclick="toggleQuickFilter('unread')">
+          🔴 Sin leer <span class="count" id="qfCountUnread">0</span>
+        </button>
+        <button class="quick-chip" data-qf="hoy" onclick="toggleQuickFilter('hoy')">
+          📅 Hoy <span class="count" id="qfCountHoy">0</span>
+        </button>
+        <button class="quick-chip" data-qf="7dias" onclick="toggleQuickFilter('7dias')">
+          📆 7 días <span class="count" id="qfCount7dias">0</span>
+        </button>
+      </div>
+
       <div class="controls">
         <div class="search-wrap">
           <input type="search" id="qInput" placeholder="Buscar nombre o teléfono…" oninput="onSearch()">
@@ -682,6 +718,10 @@ let _items = [];
 let _q = '';
 let _status = 'all';
 let _scope  = 'visitors'; // 'visitors' | 'clients' | 'all'. Default: visitantes.
+// Quick filters — toggleables independientes, combinables entre sí y con el scope.
+let _qfUnread = false;
+let _qfHoy    = false;
+let _qf7dias  = false;
 let _currentPhone = null;
 // Tracking de "nuevo desde el último render" para el flash de 10s.
 // Al primer render de la sesión no aplicamos flash (para no relampaguear
@@ -867,19 +907,59 @@ async function loadList(forceFresh) {
   }
 }
 
+// Helpers de tiempo para quick filters
+function isLeadToday(c) {
+  if (!c || !c.lastTime) return false;
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return c.lastTime >= startOfDay;
+}
+function isLeadInLast7Days(c) {
+  if (!c || !c.lastTime) return false;
+  return (Date.now() - c.lastTime) < 7 * 24 * 60 * 60 * 1000;
+}
+
 function renderHeroStats(items, totalMsgs) {
   const by = { activo:0, signup:0, setup:0, aprobando:0, nuevo:0 };
   items.forEach(c => { if (by[c.signupStatus] != null) by[c.signupStatus]++; });
+  const hoy    = items.filter(isLeadToday).length;
+  const unread = items.filter(isLeadUnread).length;
   document.getElementById('heroStats').innerHTML =
     '<span><b>' + items.length + '</b> leads</span> ' +
     '<span>·</span> ' +
-    '<span><b>' + by.signup + '</b> en signup</span> ' +
+    '<span>📅 <b>' + hoy + '</b> hoy</span> ' +
     '<span>·</span> ' +
-    '<span><b>' + by.setup + '</b> en setup</span> ' +
+    '<span>🔴 <b>' + unread + '</b> sin leer</span> ' +
     '<span>·</span> ' +
     '<span><b>' + by.activo + '</b> activos</span> ' +
     '<span>·</span> ' +
     '<span><b>' + (totalMsgs || 0) + '</b> mensajes</span>';
+}
+
+function toggleQuickFilter(kind) {
+  if (kind === 'unread') _qfUnread = !_qfUnread;
+  if (kind === 'hoy')    _qfHoy    = !_qfHoy;
+  if (kind === '7dias')  _qf7dias  = !_qf7dias;
+  document.querySelectorAll('.quick-chip').forEach(el => {
+    const k = el.dataset.qf;
+    const on = (k === 'unread' && _qfUnread) ||
+               (k === 'hoy'    && _qfHoy)    ||
+               (k === '7dias'  && _qf7dias);
+    el.classList.toggle('active', on);
+  });
+  renderList();
+}
+
+function updateQuickCounts(baseArr) {
+  // Se calculan sobre el set POST-scope pero PRE-filtros rápidos para
+  // que el número prediga qué verás al tocar el chip.
+  const setCount = (id, n) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = n;
+  };
+  setCount('qfCountUnread', baseArr.filter(isLeadUnread).length);
+  setCount('qfCountHoy',    baseArr.filter(isLeadToday).length);
+  setCount('qfCount7dias',  baseArr.filter(isLeadInLast7Days).length);
 }
 
 function updateScopeCounts() {
@@ -911,6 +991,14 @@ function renderList() {
   // Scope filter (visitantes/clientes/todos)
   if (_scope === 'visitors')      arr = arr.filter(c => !c.isClient);
   else if (_scope === 'clients')  arr = arr.filter(c =>  c.isClient);
+  // Actualizar counts de los quick chips ANTES de aplicar los filtros
+  // rápidos, así el número siempre refleja "qué vería al tocar este chip"
+  // dentro del scope actual.
+  updateQuickCounts(arr);
+  // Quick filters — combinables entre sí (AND).
+  if (_qfUnread)  arr = arr.filter(isLeadUnread);
+  if (_qfHoy)     arr = arr.filter(isLeadToday);
+  if (_qf7dias)   arr = arr.filter(isLeadInLast7Days);
   if (q) {
     arr = arr.filter(c =>
       c.phone.indexOf(q) >= 0 ||
