@@ -98,12 +98,20 @@ function _lasNubesHandle(system, msg, from, token, phoneId) {
       _lasNubesHandleReject(from, '', token, phoneId);
       return;
     }
+    // Bulk approve — util cuando mandaste varias facturas y todas
+    // deberían ir a General. Frases aceptadas: "aprobar todas",
+    // "aprobar todo", "aprobar all", "todas", "todos".
+    if (/^(aprobar\s+(todas?|todo|all)|todas|todos)$/i.test(body)) {
+      _lasNubesHandleApproveAll(from, sheetId, token, phoneId);
+      return;
+    }
     // Cualquier otro texto → guía rápida.
     _routerSendText(from,
       '🏡 *Modo Las Nubes activo*\n\n' +
       'Mandame una foto o PDF de un gasto y lo registro en el Sheet.\n\n' +
-      '• Para elegir otro sistema: *cambiar*\n' +
-      '• Para descartar un gasto pendiente: *rechazar*',
+      '• Aprobar todos los pendientes como General: *aprobar todas*\n' +
+      '• Descartar el gasto pendiente más reciente: *rechazar*\n' +
+      '• Elegir otro sistema: *cambiar*',
       token, phoneId);
     return;
   }
@@ -114,10 +122,10 @@ function _lasNubesHandle(system, msg, from, token, phoneId) {
     return;
   }
 
-  // Otros tipos (audio, sticker, video) → no soportado por ahora.
-  _routerSendText(from,
-    '🤔 Solo puedo procesar *fotos* o *PDFs* de gastos en Las Nubes.',
-    token, phoneId);
+  // Otros tipos (audio, sticker, video, sistema, forward-wrapper) → log
+  // silencioso, no molestamos al user. Los "Procesando factura..." que
+  // se disparan por las imágenes reales dejan claro qué se procesó.
+  Logger.log('LasNubes: tipo no soportado, skip silencioso — ' + tipo);
 }
 
 // Detecta si un document es una factura procesable (jpg, png, pdf).
@@ -442,6 +450,71 @@ function _lasNubesSendCabanaPicker(from, pendId, token, phoneId) {
   }
 }
 
+// Aprobación en masa — comando de texto "aprobar todas". Guarda todos
+// los pendings del phone como cabaña General, con una sola confirmación
+// agregada al final. Útil cuando mandaste varias facturas y todas son
+// de gastos no específicos de una cabaña.
+function _lasNubesHandleApproveAll(from, sheetId, token, phoneId) {
+  var pendings = _lasNubesGetAllPendingsForPhone(from);
+  if (!pendings.length) {
+    _routerSendText(from, '🤔 No tengo gastos pendientes para aprobar.', token, phoneId);
+    return;
+  }
+  var ss;
+  try { ss = SpreadsheetApp.openById(sheetId); }
+  catch(err) {
+    _routerSendText(from, '⚠️ No pude abrir el Sheet de Las Nubes: ' + err.message, token, phoneId);
+    return;
+  }
+  var sheet = ss.getSheetByName('Egresos');
+  if (!sheet) {
+    _routerSendText(from, '⚠️ No encontré el tab "Egresos".', token, phoneId);
+    return;
+  }
+
+  var allRows = [];
+  var totalMonto = 0;
+  var okPendings = [];
+  var ts0 = Date.now();
+  for (var p = 0; p < pendings.length; p++) {
+    var pending = pendings[p].data;
+    var items = pending.items || [];
+    if (!items.length) continue;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      // Suffix único: <ts base + p>_<i> para evitar colisiones entre
+      // pendings procesados en el mismo batch.
+      var id = 'egr_' + (ts0 + p) + (items.length > 1 || pendings.length > 1 ? ('_' + i) : '');
+      var fecha = it.fecha || _lasNubesTodayISO();
+      var desc  = String(it.descripcion || '').substring(0, 500);
+      var monto = Number(it.monto) || 0;
+      var cat   = _lasNubesNormalizarCategoria(it.categoria);
+      var prov  = String(it.proveedor || '').substring(0, 200);
+      allRows.push([id, fecha, desc, monto, cat, 'General', prov, pending.driveUrl || '']);
+      totalMonto += monto;
+    }
+    okPendings.push(pendings[p].pendId);
+  }
+  if (!allRows.length) {
+    _routerSendText(from, '⚠️ Los pendings no tenían ítems válidos.', token, phoneId);
+    return;
+  }
+  try {
+    sheet.getRange(sheet.getLastRow() + 1, 1, allRows.length, allRows[0].length).setValues(allRows);
+  } catch(err) {
+    _routerSendText(from, '⚠️ No pude escribir al Sheet: ' + err.message, token, phoneId);
+    return;
+  }
+  // Limpiar pendings escritos correctamente.
+  okPendings.forEach(function(pid) { _lasNubesClearPending(pid); });
+
+  _routerSendText(from,
+    '✅ Aprobados *' + okPendings.length + '* comprobantes como *General*\n\n' +
+    '📊 ' + allRows.length + ' línea' + (allRows.length === 1 ? '' : 's') +
+    ' — total *$' + totalMonto.toFixed(2) + '*',
+    token, phoneId);
+}
+
 // ────────────────────────────────────────────────────────────────────
 //  Aprobación: escribir fila(s) al Sheet Egresos
 // ────────────────────────────────────────────────────────────────────
@@ -596,6 +669,31 @@ function _lasNubesClearPending(pendId) {
 
 function _lasNubesNewPendId() {
   return 'LN_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+}
+
+// Escanea Script Properties buscando todos los pendings vigentes de un
+// phone. Usado por el comando "aprobar todas". O(N) sobre todas las
+// keys — aceptable para el volumen esperado (<200 keys totales).
+function _lasNubesGetAllPendingsForPhone(phone) {
+  var props = PropertiesService.getScriptProperties();
+  var allKeys = props.getKeys();
+  var out = [];
+  for (var i = 0; i < allKeys.length; i++) {
+    var k = allKeys[i];
+    if (k.indexOf('lasNubesPend_LN_') !== 0) continue;
+    var raw = props.getProperty(k);
+    if (!raw) continue;
+    try {
+      var p = JSON.parse(raw);
+      if (!p || p.phone !== phone) continue;
+      if (!p.ts || (Date.now() - p.ts) > LAS_NUBES_PEND_TTL_MS) continue;
+      out.push({ pendId: k.substring('lasNubesPend_'.length), data: p });
+    } catch(e) {}
+  }
+  // También incluir el pending legacy si existe (formato lasNubesPend_<phone>).
+  var legacy = _lasNubesGetPendingById(phone);
+  if (legacy) out.push({ pendId: phone, data: legacy });
+  return out;
 }
 
 // ────────────────────────────────────────────────────────────────────
