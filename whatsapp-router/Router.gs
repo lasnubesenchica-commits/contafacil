@@ -741,7 +741,7 @@ function _routerResolveMultiSystemAndForward(from, msg, metadata, systems, token
   // rechazo) — ir directo al handler independientemente de la sesión.
   // Cubre el edge case donde el usuario demora >30 min entre recibir
   // el preview y tocar la opción.
-  if (interactiveId.indexOf('ln:apr:') === 0 || interactiveId === 'ln:rej') {
+  if (interactiveId.indexOf('ln:apr:') === 0 || interactiveId === 'ln:rej' || interactiveId === 'ln:pick') {
     var lasNubesSys = null;
     for (var i = 0; i < systems.length; i++) {
       if (systems[i].type === 'sheet_direct') { lasNubesSys = systems[i]; break; }
