@@ -148,6 +148,9 @@ function _lasNubesProcessMedia(msg, from, sheetId, token, phoneId) {
     _routerSendText(from, '⚠️ El mensaje no incluye media id.', token, phoneId);
     return;
   }
+  // Caption opcional que el user adjuntó a la imagen/PDF — se usa como
+  // hint para Claude (ej. "delivery" fuerza categoría Delivery).
+  var caption = String(mediaObj.caption || '').trim();
 
   // Cada factura tiene su propio pendId — múltiples facturas simultáneas
   // se manejan de forma independiente. No sobrescribimos.
@@ -178,9 +181,9 @@ function _lasNubesProcessMedia(msg, from, sheetId, token, phoneId) {
     return;
   }
 
-  // 3. Extraer con Claude.
+  // 3. Extraer con Claude (pasa el caption como hint si vino).
   var extracted;
-  try { extracted = _lasNubesExtractExpense(blob, mime); }
+  try { extracted = _lasNubesExtractExpense(blob, mime, caption); }
   catch(err) {
     Logger.log('LasNubes: Claude falló — ' + err.message);
     // Incluimos el err.message crudo en la respuesta para poder
@@ -243,7 +246,7 @@ function _lasNubesSubirADrive(blob, filename) {
 //  Claude: extraer campos del gasto
 //  Retorna { items: [{fecha, descripcion, monto, categoria, proveedor}, ...] }
 // ────────────────────────────────────────────────────────────────────
-function _lasNubesExtractExpense(blob, mime) {
+function _lasNubesExtractExpense(blob, mime, userCaption) {
   var apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) throw new Error('CLAUDE_API_KEY no configurada');
 
@@ -264,9 +267,22 @@ function _lasNubesExtractExpense(blob, mime) {
     };
   }
 
+  // Si el user adjuntó un caption a la imagen, lo pasamos como hint
+  // fuerte de contexto. Ejemplos comunes: "delivery" (fuerza cat=Delivery),
+  // "basura" (Basura), "gas cabaña verde" (proveedor+cabaña específica),
+  // "recibo del cliente" (podría ayudar a categorizar).
+  var captionBlock = '';
+  if (userCaption) {
+    captionBlock =
+      '\n\n📝 *COMENTARIO DEL USUARIO* (tratalo como hint prioritario, ' +
+      'úsalo para elegir categoría o clarificar descripción/proveedor):\n' +
+      '"""' + String(userCaption).substring(0, 500) + '"""\n\n';
+  }
+
   var prompt =
     'Este es un comprobante de gasto de "Las Nubes", un negocio de cabañas de alquiler en Panamá. ' +
-    'Analizá la imagen/PDF y extraé cada ítem del comprobante.\n\n' +
+    'Analizá la imagen/PDF y extraé cada ítem del comprobante.' +
+    captionBlock + '\n\n' +
     'Contexto para categorizar:\n' +
     '• Suministros: productos consumibles (papel higiénico, jabón, agua, gas, hielo, comida, etc.)\n' +
     '• Publicidad: pauta Instagram/Meta/Google, servicios de marketing\n' +
