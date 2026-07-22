@@ -226,8 +226,14 @@ function _lasNubesExtractExpense(blob, mime) {
     'REGLAS:\n' +
     '• Fecha en formato YYYY-MM-DD. Si no la ves, dejá null.\n' +
     '• Monto: solo el número (sin símbolo). Punto decimal.\n' +
-    '• Proveedor: razón social o nombre de quien emite. Si es una factura fiscal, tomá el emisor.\n' +
-    '• Descripción: nombre del producto/servicio. Si hay muchos ítems en la misma factura, listalos por separado.\n' +
+    '• Proveedor — ATENCIÓN, depende del tipo de comprobante:\n' +
+    '    - FACTURA FISCAL (con RUC, encabezado formal): el proveedor es el EMISOR (quien facturó).\n' +
+    '    - RECIBO DE PAGO (Yappy, Nequi, ACH, transferencia, comprobante de envío de dinero):\n' +
+    '      el proveedor es el DESTINATARIO del pago (a quien se le envió el dinero,\n' +
+    '      quien prestó el servicio). NO tomes al remitente — el remitente es el dueño\n' +
+    '      del negocio pagando. Buscá campos como "Enviado a", "Beneficiario", "Para",\n' +
+    '      "Cobra", "Destinatario" para identificar al proveedor.\n' +
+    '• Descripción: nombre del producto/servicio o concepto del pago. Si hay muchos ítems en la misma factura, listalos por separado.\n' +
     '• Si es una sola factura con varios ítems, devolvé un array items con uno por línea.\n' +
     '• Si es un solo gasto (recibo simple, transferencia), items tiene un solo elemento.\n\n' +
     'Respondé SOLO con JSON válido, sin markdown ni explicaciones:\n' +
@@ -329,9 +335,9 @@ function _lasNubesSendApprovalPrompt(from, items, driveUrl, token, phoneId) {
       body:   { text: body.substring(0, 1024) },
       action: {
         buttons: [
-          { type: 'reply', reply: { id: 'ln:apr:General', title: 'General'   } },
-          { type: 'reply', reply: { id: 'ln:apr:verde',   title: 'Verde 🌿'  } },
-          { type: 'reply', reply: { id: 'ln:apr:lila',    title: 'Lila 🌸'  } },
+          { type: 'reply', reply: { id: 'ln:apr:Paseo',  title: 'Paseo'  } },
+          { type: 'reply', reply: { id: 'ln:apr:Portal', title: 'Portal' } },
+          { type: 'reply', reply: { id: 'ln:apr:Puente', title: 'Puente' } },
         ],
       },
     },
