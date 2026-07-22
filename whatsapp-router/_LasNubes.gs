@@ -175,10 +175,14 @@ function _lasNubesProcessMedia(msg, from, sheetId, token, phoneId) {
   try { extracted = _lasNubesExtractExpense(blob, mime); }
   catch(err) {
     Logger.log('LasNubes: Claude falló — ' + err.message);
+    // Incluimos el err.message crudo en la respuesta para poder
+    // debuggear casos raros (rate limit, formato no soportado, etc).
+    var errShort = String(err.message || '').substring(0, 250);
     _routerSendText(from,
-      '⚠️ No pude extraer los datos automáticamente.\n\n' +
-      'Foto guardada en Drive: ' + driveInfo.url + '\n\n' +
-      'Podés escribir *rechazar* y volver a mandarla, o subir directo al Sheet.',
+      '⚠️ No pude extraer los datos: ' + errShort + '\n\n' +
+      '📷 mime: ' + mime + '\n' +
+      '📎 Foto guardada en Drive:\n' + driveInfo.url + '\n\n' +
+      'Reenvíame la foto (a veces reintentar resuelve) o subilo directo al Sheet.',
       token, phoneId);
     return;
   }
