@@ -558,12 +558,24 @@ function _lasNubesGetPendingById(pendId) {
 
 // Fallback: obtener el pending más reciente de un phone. Usado por el
 // comando de texto "rechazar" y por botones viejos (sin pendId).
+// Chequea 2 lugares:
+//   1. lasNubesLastPend_<phone> → pointer al pendId más reciente (nuevo).
+//   2. lasNubesPend_<phone>     → storage legacy pre-multi-pending (por si
+//                                  quedaban previews viejos en tránsito
+//                                  cuando el deploy corrió).
 function _lasNubesGetLatestPending(phone) {
   var props = PropertiesService.getScriptProperties();
   var pendId = props.getProperty('lasNubesLastPend_' + phone);
-  if (!pendId) return null;
-  var p = _lasNubesGetPendingById(pendId);
-  return p ? { pendId: pendId, data: p } : null;
+  if (pendId) {
+    var p = _lasNubesGetPendingById(pendId);
+    if (p) return { pendId: pendId, data: p };
+  }
+  // Fallback: storage legacy (clave = phone). _lasNubesGetPendingById
+  // sirve porque lee lasNubesPend_<clave> — y el phone es una clave
+  // válida (numérica, no colisiona con el formato LN_* de pendIds nuevos).
+  var pLegacy = _lasNubesGetPendingById(phone);
+  if (pLegacy) return { pendId: phone, data: pLegacy };
+  return null;
 }
 
 function _lasNubesSetPending(pendId, data) {
