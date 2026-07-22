@@ -34,7 +34,7 @@ function _lasNubesHandle(system, msg, from, token, phoneId) {
   }
   var tipo = msg.type;
 
-  // Botón de aprobación → guardar en el Sheet.
+  // Botón/lista de aprobación → guardar en el Sheet o rechazar.
   if (tipo === 'interactive') {
     var iaReply = msg.interactive || {};
     var btnId = (iaReply.list_reply   && iaReply.list_reply.id)   ||
@@ -42,6 +42,10 @@ function _lasNubesHandle(system, msg, from, token, phoneId) {
     if (btnId.indexOf('ln:apr:') === 0) {
       var cabana = btnId.substring('ln:apr:'.length);
       _lasNubesHandleApproval(from, cabana, sheetId, token, phoneId);
+      return;
+    }
+    if (btnId === 'ln:rej') {
+      _lasNubesHandleReject(from, token, phoneId);
       return;
     }
     // Botón interactivo desconocido → ignorar
@@ -322,22 +326,36 @@ function _lasNubesSendApprovalPrompt(from, items, driveUrl, token, phoneId) {
     if (items.length > maxShow) lines.push('… +' + (items.length - maxShow) + ' más');
   }
   lines.push('');
-  lines.push('¿En cuál *cabaña* lo registro?');
-  lines.push('_(o respondé *rechazar* para descartar)_');
+  lines.push('¿Dónde lo registro? Tocá *Elegir* para ver las opciones.');
 
   var body = lines.join('\n');
+  // Migrado de buttons (max 3) a list (max 10) para incluir General y
+  // Rechazar además de las 3 cabañas.
   var payload = {
     messaging_product: 'whatsapp',
     to: from,
     type: 'interactive',
     interactive: {
-      type:   'button',
+      type:   'list',
       body:   { text: body.substring(0, 1024) },
       action: {
-        buttons: [
-          { type: 'reply', reply: { id: 'ln:apr:Paseo',  title: 'Paseo'  } },
-          { type: 'reply', reply: { id: 'ln:apr:Portal', title: 'Portal' } },
-          { type: 'reply', reply: { id: 'ln:apr:Puente', title: 'Puente' } },
+        button: 'Elegir',
+        sections: [
+          {
+            title: 'Cabaña específica',
+            rows: [
+              { id: 'ln:apr:Paseo',   title: 'Paseo',   description: 'Registrar en cabaña Paseo' },
+              { id: 'ln:apr:Portal',  title: 'Portal',  description: 'Registrar en cabaña Portal' },
+              { id: 'ln:apr:Puente',  title: 'Puente',  description: 'Registrar en cabaña Puente' },
+            ],
+          },
+          {
+            title: 'Otro',
+            rows: [
+              { id: 'ln:apr:General', title: 'General', description: 'Gasto no específico de una cabaña' },
+              { id: 'ln:rej',         title: 'Rechazar', description: 'Descartar y borrar la foto' },
+            ],
+          },
         ],
       },
     },

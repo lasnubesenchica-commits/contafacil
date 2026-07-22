@@ -737,10 +737,11 @@ function _routerResolveMultiSystemAndForward(from, msg, metadata, systems, token
     return;
   }
 
-  // Aprobación de Las Nubes (ln:apr:*) — ir directo al handler
-  // independientemente de la sesión. Cubre el edge case donde el usuario
-  // demora más de 30 min entre recibir el preview y tocar el botón.
-  if (interactiveId.indexOf('ln:apr:') === 0) {
+  // Respuestas al preview de Las Nubes (ln:apr:* aprobación o ln:rej
+  // rechazo) — ir directo al handler independientemente de la sesión.
+  // Cubre el edge case donde el usuario demora >30 min entre recibir
+  // el preview y tocar la opción.
+  if (interactiveId.indexOf('ln:apr:') === 0 || interactiveId === 'ln:rej') {
     var lasNubesSys = null;
     for (var i = 0; i < systems.length; i++) {
       if (systems[i].type === 'sheet_direct') { lasNubesSys = systems[i]; break; }
