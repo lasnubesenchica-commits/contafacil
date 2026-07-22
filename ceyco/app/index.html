@@ -1306,6 +1306,7 @@ function doRefresh() {
   if      (currentView==='proyectos') ST.load().finally(done);
   else if (currentView==='comercial') OP.load().finally(done);
   else if (currentView==='pl')        PL.load().finally(done);
+  else if (currentView==='registros' && typeof REGD !== 'undefined') REGD.refresh().finally(done);
   else done();
 }
 async function doSync() {

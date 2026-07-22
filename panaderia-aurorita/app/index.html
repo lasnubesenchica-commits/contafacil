@@ -2189,6 +2189,7 @@ function doRefresh() {
   const done = () => btn.classList.remove('spin');
   if (currentView==='pl') PL.load().finally(done);
   else if (currentView==='gastos') PL.load().then(() => { GAS.onEnter(); done(); }).catch(done);
+  else if (currentView==='registros' && typeof REGD !== 'undefined') REGD.refresh().finally(done);
   else done();
 }
 
