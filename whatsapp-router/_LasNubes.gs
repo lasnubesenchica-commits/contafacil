@@ -35,23 +35,56 @@ function _lasNubesHandle(system, msg, from, token, phoneId) {
   var tipo = msg.type;
 
   // Botón/lista de aprobación → guardar en el Sheet o rechazar.
+  // Formatos de btnId soportados:
+  //   ln:apr:<pendId>:<cabana>   (nuevo — cada preview tiene su propio pendId)
+  //   ln:apr:<cabana>            (viejo — 1 pending por phone; fallback)
+  //   ln:pick:<pendId>           (nuevo)
+  //   ln:pick                    (viejo)
+  //   ln:rej:<pendId>            (nuevo)
+  //   ln:rej                     (viejo)
   if (tipo === 'interactive') {
     var iaReply = msg.interactive || {};
     var btnId = (iaReply.list_reply   && iaReply.list_reply.id)   ||
                 (iaReply.button_reply && iaReply.button_reply.id) || '';
+
     if (btnId.indexOf('ln:apr:') === 0) {
-      var cabana = btnId.substring('ln:apr:'.length);
-      _lasNubesHandleApproval(from, cabana, sheetId, token, phoneId);
+      var rest = btnId.substring('ln:apr:'.length);
+      var pendIdApr = '', cabana = '';
+      if (rest.indexOf(':') >= 0) {
+        // Nuevo: <pendId>:<cabana>
+        var idx = rest.indexOf(':');
+        pendIdApr = rest.substring(0, idx);
+        cabana    = rest.substring(idx + 1);
+      } else {
+        // Viejo: solo cabana → resolver al pending más reciente del phone.
+        cabana = rest;
+        var latest = _lasNubesGetLatestPending(from);
+        pendIdApr = latest ? latest.pendId : '';
+      }
+      _lasNubesHandleApproval(from, pendIdApr, cabana, sheetId, token, phoneId);
       return;
     }
-    if (btnId === 'ln:pick') {
-      _lasNubesSendCabanaPicker(from, token, phoneId);
+
+    if (btnId === 'ln:pick' || btnId.indexOf('ln:pick:') === 0) {
+      var pendIdPick = (btnId === 'ln:pick') ? '' : btnId.substring('ln:pick:'.length);
+      if (!pendIdPick) {
+        var lat2 = _lasNubesGetLatestPending(from);
+        pendIdPick = lat2 ? lat2.pendId : '';
+      }
+      if (!pendIdPick) {
+        _routerSendText(from, '🤔 No tengo el gasto asociado a este botón (probablemente expiró).', token, phoneId);
+        return;
+      }
+      _lasNubesSendCabanaPicker(from, pendIdPick, token, phoneId);
       return;
     }
-    if (btnId === 'ln:rej') {
-      _lasNubesHandleReject(from, token, phoneId);
+
+    if (btnId === 'ln:rej' || btnId.indexOf('ln:rej:') === 0) {
+      var pendIdRej = (btnId === 'ln:rej') ? '' : btnId.substring('ln:rej:'.length);
+      _lasNubesHandleReject(from, pendIdRej, token, phoneId);
       return;
     }
+
     // Botón interactivo desconocido → ignorar
     Logger.log('LasNubes: interactive sin handler: ' + btnId);
     return;
@@ -61,7 +94,8 @@ function _lasNubesHandle(system, msg, from, token, phoneId) {
   if (tipo === 'text') {
     var body = (msg.text && msg.text.body) ? String(msg.text.body).toLowerCase().trim() : '';
     if (body === 'rechazar' || body === 'no' || body === 'cancelar') {
-      _lasNubesHandleReject(from, token, phoneId);
+      // Texto sin pendId específico → rechaza el más reciente.
+      _lasNubesHandleReject(from, '', token, phoneId);
       return;
     }
     // Cualquier otro texto → guía rápida.
@@ -107,11 +141,10 @@ function _lasNubesProcessMedia(msg, from, sheetId, token, phoneId) {
     return;
   }
 
-  // Si ya había un pending sin aprobar, avisar y sobrescribir.
-  var existing = _lasNubesGetPending(from);
-  if (existing) {
-    Logger.log('LasNubes: reemplazando pending previo de ' + from + ' (había ' + (existing.items || []).length + ' item(s))');
-  }
+  // Cada factura tiene su propio pendId — múltiples facturas simultáneas
+  // se manejan de forma independiente. No sobrescribimos.
+  var pendId = _lasNubesNewPendId();
+  Logger.log('LasNubes: nuevo pending ' + pendId + ' para ' + from);
 
   _routerSendText(from, '⏳ Procesando factura para *Las Nubes*…', token, phoneId);
 
@@ -155,23 +188,24 @@ function _lasNubesProcessMedia(msg, from, sheetId, token, phoneId) {
     _routerSendText(from,
       '🤔 No detecté ningún gasto en la imagen.\n\n' +
       'Foto guardada en Drive: ' + driveInfo.url + '\n\n' +
-      'Reintenta con una foto más clara, o escribí *rechazar*.',
+      'Reintenta con una foto más clara.',
       token, phoneId);
-    _lasNubesClearPending(from);
     return;
   }
 
-  // 4. Guardar pending.
-  _lasNubesSetPending(from, {
+  // 4. Guardar pending (por pendId — no colisiona con otros pendings del
+  //    mismo phone que estén en cola).
+  _lasNubesSetPending(pendId, {
     items:       items,
     driveFileId: driveInfo.id,
     driveUrl:    driveInfo.url,
     sheetId:     sheetId,
+    phone:       from,
     ts:          Date.now(),
   });
 
-  // 5. Mandar preview + botones.
-  _lasNubesSendApprovalPrompt(from, items, driveInfo.url, token, phoneId);
+  // 5. Mandar preview + botones (con pendId en los IDs).
+  _lasNubesSendApprovalPrompt(from, pendId, items, driveInfo.url, token, phoneId);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -305,7 +339,7 @@ function _lasNubesParseJson(text) {
 // ────────────────────────────────────────────────────────────────────
 //  Preview + botones de aprobación
 // ────────────────────────────────────────────────────────────────────
-function _lasNubesSendApprovalPrompt(from, items, driveUrl, token, phoneId) {
+function _lasNubesSendApprovalPrompt(from, pendId, items, driveUrl, token, phoneId) {
   var total = 0;
   items.forEach(function(it) { total += (Number(it.monto) || 0); });
 
@@ -345,9 +379,9 @@ function _lasNubesSendApprovalPrompt(from, items, driveUrl, token, phoneId) {
       body:   { text: body.substring(0, 1024) },
       action: {
         buttons: [
-          { type: 'reply', reply: { id: 'ln:apr:General', title: '✅ Aprobar' } },
-          { type: 'reply', reply: { id: 'ln:pick',        title: '📋 Elegir cabaña' } },
-          { type: 'reply', reply: { id: 'ln:rej',         title: '❌ Rechazar' } },
+          { type: 'reply', reply: { id: 'ln:apr:' + pendId + ':General', title: '✅ Aprobar' } },
+          { type: 'reply', reply: { id: 'ln:pick:' + pendId,              title: '📋 Elegir cabaña' } },
+          { type: 'reply', reply: { id: 'ln:rej:' + pendId,               title: '❌ Rechazar' } },
         ],
       },
     },
@@ -369,8 +403,9 @@ function _lasNubesSendApprovalPrompt(from, items, driveUrl, token, phoneId) {
 }
 
 // Segundo paso cuando el usuario toca "Elegir cabaña" en el preview:
-// muestra 3 botones con las cabañas específicas.
-function _lasNubesSendCabanaPicker(from, token, phoneId) {
+// muestra 3 botones con las cabañas específicas, cada uno lleva el
+// pendId para que el approval sepa a qué factura se refiere.
+function _lasNubesSendCabanaPicker(from, pendId, token, phoneId) {
   var body = '🏡 *¿En cuál cabaña?*\n\nSi ninguna aplica, escribí *rechazar* para descartar.';
   var payload = {
     messaging_product: 'whatsapp',
@@ -381,9 +416,9 @@ function _lasNubesSendCabanaPicker(from, token, phoneId) {
       body:   { text: body },
       action: {
         buttons: [
-          { type: 'reply', reply: { id: 'ln:apr:Paseo',  title: 'Paseo'  } },
-          { type: 'reply', reply: { id: 'ln:apr:Portal', title: 'Portal' } },
-          { type: 'reply', reply: { id: 'ln:apr:Puente', title: 'Puente' } },
+          { type: 'reply', reply: { id: 'ln:apr:' + pendId + ':Paseo',  title: 'Paseo'  } },
+          { type: 'reply', reply: { id: 'ln:apr:' + pendId + ':Portal', title: 'Portal' } },
+          { type: 'reply', reply: { id: 'ln:apr:' + pendId + ':Puente', title: 'Puente' } },
         ],
       },
     },
@@ -406,18 +441,24 @@ function _lasNubesSendCabanaPicker(from, token, phoneId) {
 // ────────────────────────────────────────────────────────────────────
 //  Aprobación: escribir fila(s) al Sheet Egresos
 // ────────────────────────────────────────────────────────────────────
-function _lasNubesHandleApproval(from, cabana, sheetId, token, phoneId) {
-  var pending = _lasNubesGetPending(from);
+function _lasNubesHandleApproval(from, pendId, cabana, sheetId, token, phoneId) {
+  var pending = _lasNubesGetPendingById(pendId);
+  if (!pending) {
+    // Fallback: intentar con el pending más reciente del phone (por si el
+    // botón viene sin pendId o expiró).
+    var latest = _lasNubesGetLatestPending(from);
+    if (latest) { pendId = latest.pendId; pending = latest.data; }
+  }
   if (!pending) {
     _routerSendText(from,
-      '🤔 No tengo ningún gasto pendiente para aprobar. Mandame una foto primero.',
+      '🤔 No tengo ese gasto pendiente para aprobar (puede haber expirado o ya fue procesado). Mandame la foto de nuevo.',
       token, phoneId);
     return;
   }
   var items = pending.items || [];
   if (!items.length) {
     _routerSendText(from, '⚠️ El pending no tenía ítems. Reintenta con una foto.', token, phoneId);
-    _lasNubesClearPending(from);
+    _lasNubesClearPending(pendId);
     return;
   }
 
@@ -458,7 +499,7 @@ function _lasNubesHandleApproval(from, cabana, sheetId, token, phoneId) {
     return;
   }
 
-  _lasNubesClearPending(from);
+  _lasNubesClearPending(pendId);
 
   var confirm = '✅ Guardado en *Las Nubes* — cabaña *' + cabana + '*\n\n' +
                 (rows.length === 1
@@ -471,8 +512,13 @@ function _lasNubesHandleApproval(from, cabana, sheetId, token, phoneId) {
 // ────────────────────────────────────────────────────────────────────
 //  Rechazo: borrar archivo de Drive + limpiar pending
 // ────────────────────────────────────────────────────────────────────
-function _lasNubesHandleReject(from, token, phoneId) {
-  var pending = _lasNubesGetPending(from);
+function _lasNubesHandleReject(from, pendId, token, phoneId) {
+  var pending = pendId ? _lasNubesGetPendingById(pendId) : null;
+  if (!pending) {
+    // Fallback: rechazar el más reciente del phone.
+    var latest = _lasNubesGetLatestPending(from);
+    if (latest) { pendId = latest.pendId; pending = latest.data; }
+  }
   if (!pending) {
     _routerSendText(from, '🤔 No tengo nada pendiente para rechazar.', token, phoneId);
     return;
@@ -482,35 +528,58 @@ function _lasNubesHandleReject(from, token, phoneId) {
     try { DriveApp.getFileById(pending.driveFileId).setTrashed(true); }
     catch(err) { Logger.log('LasNubes reject: no pude borrar Drive file — ' + err.message); }
   }
-  _lasNubesClearPending(from);
+  _lasNubesClearPending(pendId);
   _routerSendText(from, '👍 Descartado. Mandá otra factura cuando quieras.', token, phoneId);
 }
 
 // ────────────────────────────────────────────────────────────────────
-//  Helpers de storage (pending por phone)
+//  Helpers de storage (pending por pendId — soporta múltiples pendings
+//  simultáneos del mismo phone)
+//
+//  Modelo:
+//    lasNubesPend_<pendId>    = { items, driveFileId, driveUrl, sheetId, ts, phone }
+//    lasNubesLastPend_<phone> = pendId más reciente (para fallback de
+//                                comandos que no llevan pendId, como
+//                                el texto "rechazar" o botones viejos).
 // ────────────────────────────────────────────────────────────────────
-function _lasNubesGetPending(phone) {
-  var raw = PropertiesService.getScriptProperties().getProperty('lasNubesPend_' + phone);
+function _lasNubesGetPendingById(pendId) {
+  if (!pendId) return null;
+  var raw = PropertiesService.getScriptProperties().getProperty('lasNubesPend_' + pendId);
   if (!raw) return null;
   try {
     var p = JSON.parse(raw);
     if (!p || !p.ts || (Date.now() - p.ts) > LAS_NUBES_PEND_TTL_MS) {
-      PropertiesService.getScriptProperties().deleteProperty('lasNubesPend_' + phone);
+      PropertiesService.getScriptProperties().deleteProperty('lasNubesPend_' + pendId);
       return null;
     }
     return p;
   } catch(e) { return null; }
 }
 
-function _lasNubesSetPending(phone, data) {
-  PropertiesService.getScriptProperties().setProperty(
-    'lasNubesPend_' + phone,
-    JSON.stringify(data)
-  );
+// Fallback: obtener el pending más reciente de un phone. Usado por el
+// comando de texto "rechazar" y por botones viejos (sin pendId).
+function _lasNubesGetLatestPending(phone) {
+  var props = PropertiesService.getScriptProperties();
+  var pendId = props.getProperty('lasNubesLastPend_' + phone);
+  if (!pendId) return null;
+  var p = _lasNubesGetPendingById(pendId);
+  return p ? { pendId: pendId, data: p } : null;
 }
 
-function _lasNubesClearPending(phone) {
-  PropertiesService.getScriptProperties().deleteProperty('lasNubesPend_' + phone);
+function _lasNubesSetPending(pendId, data) {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('lasNubesPend_' + pendId, JSON.stringify(data));
+  if (data && data.phone) {
+    props.setProperty('lasNubesLastPend_' + data.phone, pendId);
+  }
+}
+
+function _lasNubesClearPending(pendId) {
+  PropertiesService.getScriptProperties().deleteProperty('lasNubesPend_' + pendId);
+}
+
+function _lasNubesNewPendId() {
+  return 'LN_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
 }
 
 // ────────────────────────────────────────────────────────────────────
