@@ -44,6 +44,10 @@ function _lasNubesHandle(system, msg, from, token, phoneId) {
       _lasNubesHandleApproval(from, cabana, sheetId, token, phoneId);
       return;
     }
+    if (btnId === 'ln:pick') {
+      _lasNubesSendCabanaPicker(from, token, phoneId);
+      return;
+    }
     if (btnId === 'ln:rej') {
       _lasNubesHandleReject(from, token, phoneId);
       return;
@@ -326,36 +330,24 @@ function _lasNubesSendApprovalPrompt(from, items, driveUrl, token, phoneId) {
     if (items.length > maxShow) lines.push('… +' + (items.length - maxShow) + ' más');
   }
   lines.push('');
-  lines.push('¿Dónde lo registro? Tocá *Elegir* para ver las opciones.');
+  lines.push('*Aprobar* lo guarda como General. *Elegir cabaña* para asignar a una específica.');
 
   var body = lines.join('\n');
-  // Migrado de buttons (max 3) a list (max 10) para incluir General y
-  // Rechazar además de las 3 cabañas.
+  // 3 botones: Aprobar (default General) | Elegir cabaña (abre lista) | Rechazar.
+  // La mayoría de los gastos históricos son "General", así que este flujo
+  // hace 1-tap para el caso común y 2-tap para asignar cabaña específica.
   var payload = {
     messaging_product: 'whatsapp',
     to: from,
     type: 'interactive',
     interactive: {
-      type:   'list',
+      type:   'button',
       body:   { text: body.substring(0, 1024) },
       action: {
-        button: 'Elegir',
-        sections: [
-          {
-            title: 'Cabaña específica',
-            rows: [
-              { id: 'ln:apr:Paseo',   title: 'Paseo',   description: 'Registrar en cabaña Paseo' },
-              { id: 'ln:apr:Portal',  title: 'Portal',  description: 'Registrar en cabaña Portal' },
-              { id: 'ln:apr:Puente',  title: 'Puente',  description: 'Registrar en cabaña Puente' },
-            ],
-          },
-          {
-            title: 'Otro',
-            rows: [
-              { id: 'ln:apr:General', title: 'General', description: 'Gasto no específico de una cabaña' },
-              { id: 'ln:rej',         title: 'Rechazar', description: 'Descartar y borrar la foto' },
-            ],
-          },
+        buttons: [
+          { type: 'reply', reply: { id: 'ln:apr:General', title: '✅ Aprobar' } },
+          { type: 'reply', reply: { id: 'ln:pick',        title: '📋 Elegir cabaña' } },
+          { type: 'reply', reply: { id: 'ln:rej',         title: '❌ Rechazar' } },
         ],
       },
     },
@@ -373,6 +365,41 @@ function _lasNubesSendApprovalPrompt(from, items, driveUrl, token, phoneId) {
     if (status !== 'ok') Logger.log('LasNubes preview HTTP ' + r.getResponseCode() + ': ' + r.getContentText().substring(0, 200));
   } catch(err) {
     Logger.log('LasNubes preview ERROR: ' + err.message);
+  }
+}
+
+// Segundo paso cuando el usuario toca "Elegir cabaña" en el preview:
+// muestra 3 botones con las cabañas específicas.
+function _lasNubesSendCabanaPicker(from, token, phoneId) {
+  var body = '🏡 *¿En cuál cabaña?*\n\nSi ninguna aplica, escribí *rechazar* para descartar.';
+  var payload = {
+    messaging_product: 'whatsapp',
+    to: from,
+    type: 'interactive',
+    interactive: {
+      type:   'button',
+      body:   { text: body },
+      action: {
+        buttons: [
+          { type: 'reply', reply: { id: 'ln:apr:Paseo',  title: 'Paseo'  } },
+          { type: 'reply', reply: { id: 'ln:apr:Portal', title: 'Portal' } },
+          { type: 'reply', reply: { id: 'ln:apr:Puente', title: 'Puente' } },
+        ],
+      },
+    },
+  };
+  try {
+    var r = UrlFetchApp.fetch(META_GRAPH_BASE + '/' + phoneId + '/messages', {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { 'Authorization': 'Bearer ' + token },
+      payload:     JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+    var status = (r.getResponseCode() >= 200 && r.getResponseCode() < 300) ? 'ok' : ('http_' + r.getResponseCode());
+    _routerLog('out', from, 'interactive', 'ln:pick', body, status);
+  } catch(err) {
+    Logger.log('LasNubes cabana picker ERROR: ' + err.message);
   }
 }
 
