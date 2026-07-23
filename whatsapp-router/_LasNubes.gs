@@ -150,21 +150,33 @@ function _lasNubesProcessMedia(msg, from, sheetId, token, phoneId) {
     return;
   }
 
-  // Dedup por msg.id — Meta reintenta el webhook si el doPost tarda >10s
-  // (nuestro OCR con Claude puede tomar 5-15s). Sin este check, cada
-  // reintento generaba un pending nuevo con la misma factura → múltiples
-  // aprobaciones duplicadas.
-  var msgId = String(msg.id || mediaId);
-  if (msgId) {
-    var props = PropertiesService.getScriptProperties();
+  // Dedup por msg.id + mediaId — Meta reintenta el webhook si el doPost
+  // tarda >10s (nuestro OCR con Claude puede tomar 5-15s). Sin este check,
+  // cada reintento generaba un pending nuevo con la misma factura.
+  //
+  // Envuelto en LockService para evitar race: 2 invocaciones concurrentes
+  // podrían ambas ver getProperty(dedupKey) como null antes de que alguna
+  // haga setProperty. El lock garantiza check+set atómico.
+  var msgId = String(msg.id || '') + '|' + String(mediaId);
+  var alreadyProcessed = false;
+  var dedupLock = LockService.getScriptLock();
+  try {
+    dedupLock.waitLock(5000);
+    var props0 = PropertiesService.getScriptProperties();
     var dedupKey = 'lasNubesMsgSeen_' + msgId;
-    if (props.getProperty(dedupKey)) {
-      Logger.log('LasNubes: msg ' + msgId + ' ya procesado, skip dedup');
-      return;
+    if (props0.getProperty(dedupKey)) {
+      alreadyProcessed = true;
+    } else {
+      props0.setProperty(dedupKey, String(Date.now()));
     }
-    // Marcamos ANTES de empezar; el TTL efectivo lo maneja el auto-approve
-    // (TTL LAS_NUBES_PEND_TTL_MS del pending garantiza limpieza natural).
-    props.setProperty(dedupKey, String(Date.now()));
+  } catch(err) {
+    Logger.log('LasNubes dedup: lock error — ' + err.message + ' (procesando de todos modos)');
+  } finally {
+    try { dedupLock.releaseLock(); } catch(e) {}
+  }
+  if (alreadyProcessed) {
+    Logger.log('LasNubes: msg ' + msgId + ' ya procesado (dedup), skip');
+    return;
   }
 
   // Caption opcional que el user adjuntó a la imagen/PDF — se usa como
