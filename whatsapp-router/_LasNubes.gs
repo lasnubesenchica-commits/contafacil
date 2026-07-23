@@ -149,6 +149,24 @@ function _lasNubesProcessMedia(msg, from, sheetId, token, phoneId) {
     _routerSendText(from, '⚠️ El mensaje no incluye media id.', token, phoneId);
     return;
   }
+
+  // Dedup por msg.id — Meta reintenta el webhook si el doPost tarda >10s
+  // (nuestro OCR con Claude puede tomar 5-15s). Sin este check, cada
+  // reintento generaba un pending nuevo con la misma factura → múltiples
+  // aprobaciones duplicadas.
+  var msgId = String(msg.id || mediaId);
+  if (msgId) {
+    var props = PropertiesService.getScriptProperties();
+    var dedupKey = 'lasNubesMsgSeen_' + msgId;
+    if (props.getProperty(dedupKey)) {
+      Logger.log('LasNubes: msg ' + msgId + ' ya procesado, skip dedup');
+      return;
+    }
+    // Marcamos ANTES de empezar; el TTL efectivo lo maneja el auto-approve
+    // (TTL LAS_NUBES_PEND_TTL_MS del pending garantiza limpieza natural).
+    props.setProperty(dedupKey, String(Date.now()));
+  }
+
   // Caption opcional que el user adjuntó a la imagen/PDF — se usa como
   // hint para Claude (ej. "delivery" fuerza categoría Delivery).
   var caption = String(mediaObj.caption || '').trim();
@@ -762,6 +780,22 @@ function _lasNubesNormalizarCategoria(cat) {
 // ════════════════════════════════════════════════════════════════════
 
 function _lasNubesAutoApproveTick() {
+  // Lock: si otra instancia del trigger está corriendo, salir sin hacer
+  // nada. Previene procesamiento concurrente del mismo pending que
+  // resulta en duplicados en el Sheet.
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) {
+    Logger.log('LasNubes auto-approve: otro tick en curso, skip');
+    return;
+  }
+  try {
+    _lasNubesAutoApproveTickInner();
+  } finally {
+    try { lock.releaseLock(); } catch(e) {}
+  }
+}
+
+function _lasNubesAutoApproveTickInner() {
   var props = PropertiesService.getScriptProperties();
   var minStr = props.getProperty('LAS_NUBES_AUTO_APPROVE_MIN');
   var minutes = (minStr === null || minStr === '') ? LAS_NUBES_AUTO_APPROVE_DEFAULT_MIN : parseInt(minStr, 10);
@@ -789,6 +823,14 @@ function _lasNubesAutoApproveTick() {
   }
   if (!toApprove.length) return;
 
+  // Cap defensivo: no procesar más de 10 pendings en 1 tick. Si hay
+  // más (algo raro pasó), los procesa en el próximo tick — evita hitear
+  // límites de UrlFetch/Meta si hay un backlog masivo.
+  if (toApprove.length > 10) {
+    Logger.log('LasNubes auto-approve: ' + toApprove.length + ' pendings, capping a 10');
+    toApprove = toApprove.slice(0, 10);
+  }
+
   Logger.log('LasNubes auto-approve: ' + toApprove.length + ' pending(s) a aprobar');
   toApprove.forEach(function(entry) {
     try { _lasNubesAutoApproveOne(entry.pendId, entry.data, token, phoneId); }
@@ -797,6 +839,16 @@ function _lasNubesAutoApproveTick() {
 }
 
 function _lasNubesAutoApproveOne(pendId, pending, token, phoneId) {
+  // BUMP TS al empezar — si esta ejecución falla a mitad, el pending
+  // queda con ts=now y no se re-procesa hasta que pase el thresholdMs
+  // completo (evita reintento inmediato en el próximo tick).
+  var props = PropertiesService.getScriptProperties();
+  var bumpedData = {};
+  for (var kk in pending) bumpedData[kk] = pending[kk];
+  bumpedData.ts = Date.now();
+  bumpedData.autoApproving = true; // marca defensiva
+  props.setProperty('lasNubesPend_' + pendId, JSON.stringify(bumpedData));
+
   var ss = SpreadsheetApp.openById(pending.sheetId);
   var sheet = ss.getSheetByName('Egresos');
   if (!sheet) throw new Error('tab Egresos no encontrado');
