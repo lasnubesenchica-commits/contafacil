@@ -380,17 +380,30 @@ function _lasNubesSendApprovalPrompt(from, pendId, items, driveUrl, token, phone
     if (it.proveedor)   lines.push('🏢 ' + it.proveedor);
     if (it.descripcion) lines.push('📝 ' + it.descripcion);
     lines.push('💵 $' + Number(it.monto || 0).toFixed(2));
-    if (it.categoria)   lines.push('🏷 ' + it.categoria);
+    if (it.categoria)   lines.push('🏷 ' + _lasNubesNormalizarCategoria(it.categoria));
   } else {
-    lines.push('');
-    lines.push('🧾 ' + items.length + ' ítems detectados — total *$' + total.toFixed(2) + '*');
-    lines.push('');
-    var maxShow = Math.min(items.length, 8);
-    for (var i = 0; i < maxShow; i++) {
+    // Multi-ítem: mandamos primero un texto con el detalle completo (todos
+    // los ítems, monto, categoría). Después el interactive queda compacto
+    // solo con el total y los botones (body max 1024 chars en interactive).
+    var detailLines = ['🏡 *Detalle del gasto*'];
+    detailLines.push('');
+    var firstIt = items[0];
+    if (firstIt.fecha)     detailLines.push('📅 ' + firstIt.fecha);
+    if (firstIt.proveedor) detailLines.push('🏢 ' + firstIt.proveedor);
+    detailLines.push('🧾 ' + items.length + ' ítems — total *$' + total.toFixed(2) + '*');
+    detailLines.push('');
+    for (var i = 0; i < items.length; i++) {
       var x = items[i];
-      lines.push('• $' + Number(x.monto || 0).toFixed(2) + ' — ' + (x.descripcion || x.categoria || 'ítem'));
+      var cat = _lasNubesNormalizarCategoria(x.categoria);
+      detailLines.push('• $' + Number(x.monto || 0).toFixed(2) +
+                       ' — ' + (x.descripcion || 'ítem') +
+                       ' _[' + cat + ']_');
     }
-    if (items.length > maxShow) lines.push('… +' + (items.length - maxShow) + ' más');
+    _routerSendText(from, detailLines.join('\n').substring(0, 4096), token, phoneId);
+
+    // Body compacto para el interactive.
+    lines.push('');
+    lines.push('🧾 *' + items.length + ' ítems* — total *$' + total.toFixed(2) + '*');
   }
   lines.push('');
   lines.push('*Aprobar* lo guarda como General. *Elegir cabaña* para asignar a una específica.');
