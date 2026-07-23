@@ -24,6 +24,7 @@
 
 var LAS_NUBES_DEFAULT_FOLDER = '1gP-ZvBe1jfsqbw04d-kUuAHEe8GLTPXC';
 var LAS_NUBES_PEND_TTL_MS    = 24 * 60 * 60 * 1000; // 24h
+var LAS_NUBES_AUTO_APPROVE_DEFAULT_MIN = 1; // Auto-approve como General tras N min sin respuesta
 
 // Dispatcher — se llama desde _routerDispatchToSystem cuando type=sheet_direct.
 function _lasNubesHandle(system, msg, from, token, phoneId) {
@@ -733,4 +734,102 @@ function _lasNubesNormalizarCategoria(cat) {
   if (lower.indexOf('serv') === 0)  return 'Servicios';
   if (lower.indexOf('deliv') === 0) return 'Delivery';
   return 'Otro';
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  AUTO-APPROVE POR INACTIVIDAD
+//  ────────────────────────────────────────────────────────────────────
+//  Trigger que corre cada 1 min. Auto-aprueba como cabaña "General"
+//  todos los pendings cuyo ts es mayor al umbral (default 1 min,
+//  configurable via Script Property LAS_NUBES_AUTO_APPROVE_MIN).
+//  Setear la property a 0 desactiva el auto-approve.
+//
+//  Setup: correr routerInstallLasNubesAutoApprove() UNA vez desde el
+//  editor para instalar el trigger.
+// ════════════════════════════════════════════════════════════════════
+
+function _lasNubesAutoApproveTick() {
+  var props = PropertiesService.getScriptProperties();
+  var minStr = props.getProperty('LAS_NUBES_AUTO_APPROVE_MIN');
+  var minutes = (minStr === null || minStr === '') ? LAS_NUBES_AUTO_APPROVE_DEFAULT_MIN : parseInt(minStr, 10);
+  if (isNaN(minutes) || minutes <= 0) return; // desactivado
+  var thresholdMs = minutes * 60 * 1000;
+
+  var token   = props.getProperty('META_WHATSAPP_TOKEN');
+  var phoneId = props.getProperty('META_PHONE_ID');
+  if (!token || !phoneId) return;
+
+  var allKeys = props.getKeys();
+  var now = Date.now();
+  var toApprove = [];
+  for (var i = 0; i < allKeys.length; i++) {
+    var k = allKeys[i];
+    if (k.indexOf('lasNubesPend_LN_') !== 0) continue;
+    var raw = props.getProperty(k);
+    if (!raw) continue;
+    try {
+      var p = JSON.parse(raw);
+      if (!p || !p.phone || !p.sheetId || !p.ts) continue;
+      if ((now - p.ts) < thresholdMs) continue; // aún no cumple
+      toApprove.push({ pendId: k.substring('lasNubesPend_'.length), data: p });
+    } catch(e) {}
+  }
+  if (!toApprove.length) return;
+
+  Logger.log('LasNubes auto-approve: ' + toApprove.length + ' pending(s) a aprobar');
+  toApprove.forEach(function(entry) {
+    try { _lasNubesAutoApproveOne(entry.pendId, entry.data, token, phoneId); }
+    catch(e) { Logger.log('LasNubes auto-approve ERROR ' + entry.pendId + ': ' + e.message); }
+  });
+}
+
+function _lasNubesAutoApproveOne(pendId, pending, token, phoneId) {
+  var ss = SpreadsheetApp.openById(pending.sheetId);
+  var sheet = ss.getSheetByName('Egresos');
+  if (!sheet) throw new Error('tab Egresos no encontrado');
+
+  var items = pending.items || [];
+  if (!items.length) { _lasNubesClearPending(pendId); return; }
+
+  var ts = Date.now();
+  var rows = [];
+  var totalMonto = 0;
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var id = 'egr_' + ts + (items.length > 1 ? ('_' + i) : '');
+    var fecha = it.fecha || _lasNubesTodayISO();
+    var desc  = String(it.descripcion || '').substring(0, 500);
+    var monto = Number(it.monto) || 0;
+    var cat   = _lasNubesNormalizarCategoria(it.categoria);
+    var prov  = String(it.proveedor || '').substring(0, 200);
+    rows.push([id, fecha, desc, monto, cat, 'General', prov, pending.driveUrl || '']);
+    totalMonto += monto;
+  }
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+  _lasNubesClearPending(pendId);
+
+  var msg = '⏱ Auto-aprobado como *General* por inactividad\n\n' +
+            (rows.length === 1
+              ? '1 gasto por $' + totalMonto.toFixed(2)
+              : rows.length + ' gastos por total $' + totalMonto.toFixed(2)) + '\n\n' +
+            '🔗 ' + (pending.driveUrl || '(sin foto)');
+  _routerSendText(pending.phone, msg, token, phoneId);
+}
+
+// Setup — correr UNA vez desde el editor para instalar el trigger.
+// Idempotente: borra el trigger anterior si existía antes de crear.
+function routerInstallLasNubesAutoApprove() {
+  var existing = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < existing.length; i++) {
+    if (existing[i].getHandlerFunction() === '_lasNubesAutoApproveTick') {
+      ScriptApp.deleteTrigger(existing[i]);
+    }
+  }
+  ScriptApp.newTrigger('_lasNubesAutoApproveTick')
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+  Logger.log('✅ Trigger _lasNubesAutoApproveTick instalado (cada 1 min)');
+  Logger.log('   Umbral: LAS_NUBES_AUTO_APPROVE_MIN Script Property (default ' +
+             LAS_NUBES_AUTO_APPROVE_DEFAULT_MIN + ' min). Setear a 0 desactiva.');
 }
