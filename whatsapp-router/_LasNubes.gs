@@ -239,6 +239,16 @@ function _lasNubesProcessMedia(msg, from, sheetId, token, phoneId) {
     return;
   }
 
+  // Override determinístico: si la caption es exactamente el nombre de
+  // una categoría válida, forzarla en TODOS los ítems. Prompt engineering
+  // no siempre gana cuando el receipt tiene evidencia visual explícita
+  // (ej. Yappy con "basura" en el memo).
+  var captionCat = _lasNubesCategoriaDesdeCaption(caption);
+  if (captionCat) {
+    Logger.log('LasNubes: override cat="' + captionCat + '" desde caption "' + caption + '"');
+    items.forEach(function(it) { it.categoria = captionCat; });
+  }
+
   // 4. Guardar pending (por pendId — no colisiona con otros pendings del
   //    mismo phone que estén en cola).
   _lasNubesSetPending(pendId, {
@@ -762,6 +772,26 @@ function _lasNubesGetAllPendingsForPhone(phone) {
 function _lasNubesTodayISO() {
   var tz = Session.getScriptTimeZone() || 'America/Panama';
   return Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+}
+
+// Retorna la categoría canónica si la caption del user matchea
+// exactamente (case-insensitive) el nombre de una categoría o su alias
+// más común. Si no matchea, retorna null (no forzar override).
+function _lasNubesCategoriaDesdeCaption(caption) {
+  if (!caption) return null;
+  var c = String(caption).toLowerCase().trim();
+  var CANONICAL = {
+    'suministros':    'Suministros', 'suministro':  'Suministros',
+    'publicidad':     'Publicidad',  'pauta':       'Publicidad', 'ads': 'Publicidad',
+    'mantenimiento':  'Mantenimiento', 'reparacion': 'Mantenimiento', 'reparación': 'Mantenimiento',
+    'limpieza':       'Limpieza',
+    'basura':         'Basura',      'residuos':    'Basura',
+    'servicios':      'Servicios',   'servicio':    'Servicios',
+    'delivery':       'Delivery',    'mensajeria':  'Delivery', 'mensajería': 'Delivery',
+    'prestamo':       'Prestamo',    'préstamo':    'Prestamo', 'cuota': 'Prestamo',
+    'otro':           'Otro',        'otros':       'Otro',
+  };
+  return CANONICAL[c] || null;
 }
 
 function _lasNubesNormalizarCategoria(cat) {
