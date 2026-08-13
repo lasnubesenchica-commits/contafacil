@@ -32,24 +32,51 @@
 
 <style>
 :root {
-  --orange:  #E05A00;
-  --orange2: #CC5200;
-  --bg:      #F5F5F7;
-  --bg2:     #EBEBED;
-  --bg3:     #E0E0E3;
-  --border:  rgba(0,0,0,0.09);
-  --text:    #0A0A0A;
-  --muted:   #6C6C70;
-  --chrome:  #AEAEB2;
+  /* ── Skin Claro ──────────────────────────────────────────────
+     Regla: el naranja es el único color decorativo. Verde, ámbar y
+     rojo aparecen SOLO cuando comunican estado. Si un color no
+     significa nada, es un neutro. */
+
+  /* Acento — uno solo, el de marca */
+  --orange:  #D04E00;
+  --orange2: #B34400;
+  --orange-bg:#FCEFE7;
+
+  /* Base — grises con una pizca de azul para que el naranja
+     no se vea sucio al lado */
+  --bg:      #F6F7F9;
+  --bg2:     #F2F4F7;
+  --bg3:     #E7E9EE;
+  --border:  #E7E9EE;
+  --text:    #14161A;
+  --muted:   #6B7280;
+  --chrome:  #9AA1AC;
   --white:   #FFFFFF;
-  --green:   #2E7D32;
-  --green-bg:#E8F5E9;
-  --yellow-bg:#FFF9C4;
-  --blue-bg: #E3F2FD;
-  --red:     #C62828;
-  --red-bg:  #FFEBEE;
+
+  /* Estado — nunca decorativo */
+  --green:   #0F7B3F;
+  --green-bg:#E7F5EC;
+  --warn:    #A85B00;
+  --warn-bg: #FDF3E3;
+  --yellow-bg:#FDF3E3;
+  --red:     #B42318;
+  --red-bg:  #FDECEA;
+  --info:    #0B5FA5;
+  --info-bg: #E8F1F9;
+  --blue-bg: #E8F1F9;
+
+  /* Neutro de dato — para series y badges que no comunican estado */
+  --data:    #5B7A99;
+  --data-bg: #EEF2F6;
+
+  /* Alias de compatibilidad: ya se usaban en el CSS pero nunca
+     estuvieron definidos, así que renderizaban sin color ni radio. */
+  --card:    var(--white);
+  --danger:  var(--red);
+
+  --r1:      6px;
   --r:       8px;
-  --r2:      12px;
+  --r2:      10px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -95,19 +122,18 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;background:no
 /* ── TOP NAV ── */
 .topnav{
   position:sticky;top:0;z-index:100;
-  background:rgba(245,245,247,0.95);backdrop-filter:blur(20px);
+  background:var(--white);
   border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;
-  padding:0 2rem;height:60px;
+  padding:0 1.75rem;height:58px;
 }
-/* topnav vive en mobile (<900px) y print. Desktop usa sidebar. */
-@media (min-width:900px){ .topnav{ display:none } }
-.topnav-logo{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em}
+/* La barra superior es la navegación en todos los tamaños. */
+.topnav-logo{font-size:.95rem;font-weight:660;letter-spacing:-.01em;color:var(--text)}
 .topnav-logo span{color:var(--orange)}
 .topnav-badge{
-  font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.08em;
-  text-transform:uppercase;background:rgba(224,90,0,.1);color:var(--orange);
-  border:1px solid rgba(224,90,0,.25);border-radius:100px;padding:.2rem .7rem;
+  font-size:.62rem;font-weight:640;letter-spacing:.07em;
+  text-transform:uppercase;background:var(--orange-bg);color:var(--orange);
+  border:none;border-radius:100px;padding:.22rem .6rem;
 }
 .topnav-right{display:flex;align-items:center;gap:1rem}
 .topnav-refresh{
@@ -121,7 +147,7 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;background:no
 .topnav-gear{display:flex;align-items:center;font-size:1.05rem;color:var(--muted);background:none;border:none;padding:.3rem .45rem;cursor:pointer;border-radius:8px;transition:all .2s;line-height:1}
 .topnav-gear:hover{background:var(--bg2);color:var(--text)}
 .cfg-panel-tab{flex:1;padding:.55rem .2rem;font-size:.72rem;font-weight:700;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;background:var(--bg);color:var(--muted);transition:all .15s}
-.cfg-panel-tab.active{background:var(--white)!important;color:#1565C0!important;border-bottom-color:#1565C0!important}
+.cfg-panel-tab.active{background:var(--white)!important;color:var(--info)!important;border-bottom-color:var(--info)!important}
 
 /* ── STATS BAR ── */
 .stats-bar{
@@ -136,7 +162,7 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;background:no
 .stat-pill-num{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;line-height:1}
 .stat-pill-num.orange{color:var(--orange)}
 .stat-pill-num.green{color:var(--green)}
-.stat-pill-num.blue{color:#1565C0}
+.stat-pill-num.blue{color:var(--info)}
 .stat-pill-label{font-size:.72rem;color:var(--muted)}
 
 /* ── FILTER BAR ── */
@@ -196,12 +222,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
   text-transform:uppercase;font-weight:500;
   padding:.25rem .6rem;border-radius:4px;white-space:nowrap;
 }
-.badge-nueva     {background:var(--blue-bg);color:#1565C0}
+.badge-nueva     {background:var(--blue-bg);color:var(--info)}
 .badge-confirmada{background:var(--green-bg);color:var(--green)}
-.badge-entregada {background:#E8F5E9;color:#1B5E20}
+.badge-entregada {background:var(--green-bg);color:var(--green)}
 .badge-cancelada {background:var(--red-bg);color:var(--red)}
 .badge-yappy     {background:var(--yellow-bg);color:#795548}
-.badge-cod       {background:var(--blue-bg);color:#1565C0}
+.badge-cod       {background:var(--blue-bg);color:var(--info)}
 
 /* PAGO STATUS */
 .pago-badge{
@@ -220,16 +246,16 @@ tr:hover td{background:rgba(0,0,0,.015)}
   border-radius:5px;border:none;cursor:pointer;transition:all .2s;
   white-space:nowrap;display:inline-flex;align-items:center;gap:.25rem;
 }
-.btn-vision {background:#EDE7F6;color:#4527A0}
+.btn-vision {background:var(--data-bg);color:var(--data)}
 .btn-vision:hover{background:#D1C4E9}
 .btn-vision:disabled{opacity:.4;cursor:not-allowed}
-.btn-wa    {background:#E8F5E9;color:#2E7D32}
+.btn-wa    {background:var(--green-bg);color:var(--green)}
 .btn-wa:hover{background:#C8E6C9}
 .btn-confirm{background:var(--green-bg);color:var(--green)}
 .btn-confirm:hover{background:#C8E6C9}
 .btn-cancel{background:var(--red-bg);color:var(--red)}
-.btn-cancel:hover{background:#FFCDD2}
-.btn-deliver{background:var(--blue-bg);color:#1565C0}
+.btn-cancel:hover{background:var(--red-bg)}
+.btn-deliver{background:var(--blue-bg);color:var(--info)}
 .btn-deliver:hover{background:#BBDEFB}
 
 /* ── VOUCHER THUMB ── */
@@ -322,11 +348,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 /* VISION RESULT CARD */
 .vision-card{
-  background:#F3E5F5;border:1px solid #CE93D8;border-radius:var(--r2);
+  background:var(--data-bg);border:1px solid var(--border);border-radius:var(--r2);
   padding:1rem;margin-top:.75rem;display:none;
 }
 .vision-card.show{display:block}
-.vision-analyzing{display:flex;align-items:center;gap:.75rem;font-size:.82rem;color:#4527A0}
+.vision-analyzing{display:flex;align-items:center;gap:.75rem;font-size:.82rem;color:var(--data)}
 .vision-done{font-size:.78rem;color:var(--muted);margin-top:.5rem}
 
 /* TOAST */
@@ -395,28 +421,30 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .sidebar-foot-row .sidebar-link.logout{ color:#FF8A80 }
 .sidebar-foot-row .sidebar-link.logout:hover{ background:rgba(255,138,128,.1) }
 /* Empuja el contenido principal a la derecha en desktop */
-@media (min-width:900px){
-  #app{ padding-left:var(--sidebar-w) }
-}
-@media (max-width:899px){
-  .sidebar{ display:none }
-}
+/* Skin Claro: el sidebar oscuro salió. Se deja en el DOM porque
+   buildMenu() escribe ahí y switchTab() mantiene sus IDs en sync;
+   ocultarlo es más barato y seguro que reescribir ambas funciones. */
+.sidebar{ display:none }
 
 /* ── MAIN TABS (Ventas Web / Operaciones) ── */
 .main-tabs{
-  display:flex;gap:0;border-bottom:2px solid var(--border);
-  background:var(--white);padding:0 2rem;
+  display:flex;gap:0;border-bottom:1px solid var(--border);
+  background:var(--white);padding:0 1.75rem;
+  position:sticky;top:58px;z-index:99;
+  overflow-x:auto;scrollbar-width:none;
 }
-/* main-tabs solo en mobile (<900px). Desktop usa sidebar. */
-@media (min-width:900px){ .main-tabs{ display:none } }
+.main-tabs::-webkit-scrollbar{ display:none }
+
 .main-tab{
-  font-size:.82rem;font-weight:600;letter-spacing:.03em;
-  padding:.85rem 1.4rem;border-bottom:2px solid transparent;
-  margin-bottom:-2px;cursor:pointer;color:var(--muted);
-  transition:all .2s;border-radius:0;background:none;
+  font-size:.82rem;font-weight:560;letter-spacing:0;
+  padding:.8rem 1.05rem;border-bottom:2px solid transparent;
+  margin-bottom:-1px;cursor:pointer;color:var(--muted);
+  transition:color .15s,border-color .15s;border-radius:0;background:none;
+  white-space:nowrap;
 }
+.main-tab:focus-visible{ outline:2px solid var(--orange);outline-offset:-2px }
 .main-tab:hover{color:var(--text)}
-.main-tab.active{color:var(--orange);border-bottom-color:var(--orange)}
+.main-tab.active{color:var(--orange);border-bottom-color:var(--orange);font-weight:660}
 
 /* ── DROPDOWN REPORTES ── */
 .main-tab-group{position:relative;display:flex;align-items:stretch}
@@ -474,6 +502,75 @@ tr:hover td{background:rgba(0,0,0,.015)}
    / Detalle). Cada zona es una "card" con título arriba para
    separar las regiones del dashboard sin reordenar el flujo.
    ═══════════════════════════════════════════════════════════════ */
+/* ── KPI (skin Claro): superficie blanca + franja semántica ──
+   El color vive en la franja de 3px, no en el relleno. Seis tarjetas
+   rellenas competían entre sí; cuando todo resalta, nada resalta. */
+.rg-kpi{
+  position:relative; overflow:hidden;
+  background:var(--white); border:1px solid var(--border);
+  border-radius:var(--r2); padding:.7rem .85rem .75rem;
+  display:flex; flex-direction:column; gap:.15rem;
+  transition:border-color .15s, box-shadow .15s;
+}
+.rg-kpi::before{
+  content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--kpi-stripe,var(--muted));
+}
+.rg-kpi:hover{ border-color:var(--chrome) }
+.rg-kpi.is-active{
+  border-color:var(--orange);
+  box-shadow:0 0 0 1px var(--orange) inset;
+}
+.rg-kpi-label{
+  font-size:.62rem; font-weight:700; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted);
+}
+.rg-kpi-val{
+  font-family:'DM Mono',monospace; font-size:1.32rem; font-weight:700;
+  line-height:1.15; color:var(--text); font-variant-numeric:tabular-nums;
+}
+.rg-kpi-sub{ font-size:.66rem; color:var(--muted) }
+
+/* ── Acciones de tabla: enlaces, no botones de color ──
+   Tres botones rellenos por fila pesaban más que los datos. */
+.rg-act{ display:flex; gap:.55rem; align-items:center; white-space:nowrap }
+
+/* Chip Deducible / No deducible — mismo lenguaje que los badges de estado:
+   punto de color + texto, sin emoji que cambie de tamaño por plataforma. */
+.bc-alc-chip{
+  display:inline-flex; align-items:center; gap:.3rem;
+  font-size:.65rem; font-weight:600; white-space:nowrap;
+  padding:.15rem .45rem; border-radius:999px;
+  vertical-align:middle; cursor:pointer;
+}
+.bc-alc-chip i{ width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0 }
+.bc-alc-chip.is-ded  { background:var(--green-bg); color:var(--green) }
+.bc-alc-chip.is-nded { background:var(--bg3);      color:var(--muted) }
+.rg-act button, .rg-act a{
+  background:none; border:none; padding:0; cursor:pointer;
+  font-family:'DM Sans',sans-serif; font-size:.74rem; font-weight:600;
+  color:var(--muted); transition:color .15s; line-height:1;
+  text-decoration:none;
+}
+.rg-act button:hover, .rg-act a:hover{ color:var(--text) }
+.rg-act .is-primary{ color:var(--orange) }
+.rg-act .is-primary:hover{ color:var(--orange2) }
+.rg-act .is-ok{ color:var(--green) }
+.rg-act .is-danger:hover{ color:var(--red) }
+.rg-act button:focus-visible, .rg-act a:focus-visible{
+  outline:2px solid var(--orange); outline-offset:2px; border-radius:3px;
+}
+
+/* ── Badges de estado: punto + texto, sin emoji ── */
+.rg-badge{
+  display:inline-flex; align-items:center; gap:.35rem;
+  padding:.18rem .5rem; border-radius:999px;
+  font-size:.68rem; font-weight:600; white-space:nowrap;
+}
+.rg-badge i{ width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0 }
+.rg-badge-warn{ background:var(--warn-bg); color:var(--warn) }
+.rg-badge-ok  { background:var(--green-bg); color:var(--green) }
+
 .rg-zone{
   background:var(--white);border:1px solid var(--border);
   border-radius:12px;margin:1rem 1.5rem;overflow:hidden;
@@ -555,9 +652,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
   height:100%;border-radius:4px;background:linear-gradient(90deg,#FFB74D 0%,var(--orange) 100%);
   transition:width .2s;
 }
-.rg-chart-bar.prov{background:linear-gradient(90deg,#90CAF9 0%,#1565C0 100%)}
+.rg-chart-bar.prov{background:linear-gradient(90deg,#90CAF9 0%,var(--info) 100%)}
 .rg-chart-val{
-  font-family:'DM Mono',monospace;font-size:.7rem;text-align:right;color:#1B5E20;font-weight:700;
+  font-family:'DM Mono',monospace;font-size:.7rem;text-align:right;color:var(--green);font-weight:700;
 }
 
 /* ── OPERACIONES ITEM CARDS ── */
@@ -577,20 +674,20 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .op-table tr:hover td{background:rgba(0,0,0,.015)}
 
 /* Estado badges Operaciones */
-.badge-pendiente  {background:#FFF3E0;color:#E65100}
-.badge-inventario {background:#E3F2FD;color:#1565C0}
+.badge-pendiente  {background:var(--warn-bg);color:var(--warn)}
+.badge-inventario {background:var(--info-bg);color:var(--info)}
 .badge-vinculado  {background:var(--green-bg);color:var(--green)}
-.badge-cerrado    {background:#F1F8E9;color:#388E3C}
+.badge-cerrado    {background:var(--green-bg);color:#388E3C}
 .badge-revision   {background:var(--yellow-bg);color:#795548}
 
 /* Inventario btn */
-.btn-inventario{background:#E3F2FD;color:#1565C0}
+.btn-inventario{background:var(--info-bg);color:var(--info)}
 .btn-inventario:hover{background:#BBDEFB}
 
 /* Egresos tab */
-.badge-egreso-mercancia{background:#FFF3E0;color:#E65100}
-.badge-egreso-operativo{background:#F3E5F5;color:#6A1B9A}
-.badge-egreso-nomina   {background:#EDE7F6;color:#4527A0}
+.badge-egreso-mercancia{background:var(--warn-bg);color:var(--warn)}
+.badge-egreso-operativo{background:var(--data-bg);color:var(--data)}
+.badge-egreso-nomina   {background:var(--data-bg);color:var(--data)}
 .badge-egreso-servicios{background:#E8EAF6;color:#283593}
 
 /* ── Categoría clickeable con dropdown chips ── */
@@ -694,8 +791,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
   text-transform:uppercase;padding:.5rem .75rem;border-radius:4px;
   margin-bottom:.6rem;font-weight:600;
 }
-.op-section-compra{background:#FBE9E7;color:#BF360C}
-.op-section-venta {background:#E8F5E9;color:#1B5E20}
+.op-section-compra{background:var(--red-bg);color:var(--red)}
+.op-section-venta {background:var(--green-bg);color:var(--green)}
 .op-section-vinculo{background:var(--blue-bg);color:#0D47A1}
 
 /* Upload zone */
@@ -725,8 +822,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
 }
 .tbl-trash-btn:hover { opacity:1; color:var(--red); }
 .tbl-trash-btn svg { width:13px; height:13px; pointer-events:none; }
-.tbl-trash-btn.danger { color:#dc2626; opacity:.6; }
-.tbl-trash-btn.danger:hover { opacity:1; color:#991b1b; background:#fee2e2; }
+.tbl-trash-btn.danger { color:var(--red); opacity:.6; }
+.tbl-trash-btn.danger:hover { opacity:1; color:var(--red); background:var(--red-bg); }
 .tbl-cat-select {
   font-size:.72rem; color:var(--muted);
   border:none; background:transparent; outline:none; cursor:pointer;
@@ -756,7 +853,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 }
 .section-hdr-add:hover { transform:scale(1.1); }
 .section-hdr-add.ing { background:var(--green); color:#fff; }
-.section-hdr-add.egr { background:#6A1B9A; color:#fff; }
+.section-hdr-add.egr { background:var(--orange); color:#fff; }
 
 /* ── PL-STMT — mini estado de resultados en widget KPI ── */
 .pl-stmt-row {
@@ -824,7 +921,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
   padding:.35rem .8rem; border-radius:100px; border:1px solid var(--border);
   background:var(--bg); transition:all .18s;
 }
-.inv-stock-toggle.active { background:#E8F5E9; border-color:#2E7D32; color:#2E7D32; font-weight:600; }
+.inv-stock-toggle.active { background:var(--green-bg); border-color:var(--green); color:var(--green); font-weight:600; }
 
 /* ── KPI strip ── */
 .inv-kpi-strip {
@@ -839,7 +936,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 }
 .inv-kpi-label { font-size:.68rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin-bottom:.3rem; }
 .inv-kpi-val { font-family:'Bebas Neue',sans-serif; font-size:1.85rem; line-height:1; }
-.inv-kpi-val.blue   { color:#1565C0; }
+.inv-kpi-val.blue   { color:var(--info); }
 .inv-kpi-val.orange { color:var(--orange); }
 .inv-kpi-val.green  { color:var(--green); }
 .inv-kpi-val.red    { color:var(--red); }
@@ -865,8 +962,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
   padding:.2rem .55rem; border-radius:4px;
   font-family:'DM Mono',monospace; font-size:.78rem; font-weight:600;
 }
-.inv-stock-ok   { background:#E8F5E9; color:#2E7D32; }
-.inv-stock-low  { background:#FFF9C4; color:#795548; }
+.inv-stock-ok   { background:var(--green-bg); color:var(--green); }
+.inv-stock-low  { background:var(--warn-bg); color:#795548; }
 .inv-stock-zero { background:var(--red-bg); color:var(--red); }
 
 /* ── Tabla movimientos ── */
@@ -874,8 +971,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
   display:inline-block; padding:.2rem .6rem; border-radius:4px;
   font-size:.7rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
 }
-.inv-tipo-entrada { background:#E8F5E9; color:#2E7D32; }
-.inv-tipo-salida  { background:#FFF3E0; color:#E65100; }
+.inv-tipo-entrada { background:var(--green-bg); color:var(--green); }
+.inv-tipo-salida  { background:var(--warn-bg); color:var(--warn); }
 .inv-origen-badge {
   display:inline-block; padding:.15rem .5rem; border-radius:4px;
   font-size:.67rem; font-weight:600; letter-spacing:.04em;
@@ -891,8 +988,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .iv2-chart-section + .iv2-chart-section { border-left:1px solid var(--border); }
 .iv2-chart-title { font-family:'DM Mono',monospace; font-size:.63rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; font-weight:600; }
 .iv2-chart-wrap  { position:relative; height:190px; }
-.iv2-ant-fresh  { background:#E3F2FD; color:#1565C0; }
-.iv2-ant-medium { background:#FFF9C4; color:#795548; }
+.iv2-ant-fresh  { background:var(--info-bg); color:var(--info); }
+.iv2-ant-medium { background:var(--warn-bg); color:#795548; }
 .iv2-ant-old    { background:var(--red-bg); color:var(--red); }
 .iv2-ant-badge  { display:inline-block; padding:.2rem .55rem; border-radius:4px; font-size:.7rem; font-weight:600; }
 @media(max-width:768px) {
@@ -910,7 +1007,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 /* ── FINANZAS PERSONALES ── */
 #sectionFinanzas { display:none }
 .fn-pill{padding:.22rem .65rem;border-radius:100px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s}
-.fn-pill.active{background:#1565C0;color:#fff;border-color:#1565C0}
+.fn-pill.active{background:var(--info);color:#fff;border-color:var(--info)}
 .fn-section-hdr{font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.55rem}
 .fn-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem}
 
@@ -988,8 +1085,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .er-row-amount.green  { color:var(--green); }
 .er-row-amount.red    { color:var(--red); }
 .er-row-amount.orange { color:var(--orange); }
-.er-row-amount.purple { color:#6A1B9A; }
-.er-row-amount.blue   { color:#1565C0; }
+.er-row-amount.purple { color:var(--data); }
+.er-row-amount.blue   { color:var(--info); }
 .er-subtotal-row {
   display:flex;align-items:center;justify-content:space-between;
   padding:.75rem 1.5rem;border-bottom:1px solid var(--border);
@@ -1065,7 +1162,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .pl-kpi-tag { font-family:'DM Mono',monospace;font-size:.65rem;font-weight:600;padding:.15rem .45rem;border-radius:4px; }
 .pl-kpi-tag.pos { background:var(--green-bg);color:var(--green) }
 .pl-kpi-tag.neg { background:var(--red-bg);color:var(--red) }
-.pl-kpi-tag.neutral { background:var(--blue-bg);color:#1565C0 }
+.pl-kpi-tag.neutral { background:var(--blue-bg);color:var(--info) }
 /* ── Fila de desglose de costos por tipo ── */
 .pl-cost-row {
   display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;
@@ -1222,7 +1319,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
   padding:1rem 1.1rem;margin-bottom:1rem;font-size:.82rem;
 }
 .prov-ia-result .ia-tag {
-  display:inline-block;background:#E8F5E9;color:#2E7D32;font-size:.68rem;
+  display:inline-block;background:var(--green-bg);color:var(--green);font-size:.68rem;
   font-weight:700;letter-spacing:.06em;padding:.15rem .5rem;
   border-radius:4px;margin-bottom:.6rem;
 }
@@ -1269,7 +1366,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 }
 .inv-qty-badge {
   font-family:'Bebas Neue',sans-serif;font-size:1.3rem;
-  color:#1565C0;line-height:1;
+  color:var(--info);line-height:1;
 }
 .inv-qty-label { font-size:.62rem;color:var(--muted) }
 .inv-costo {
@@ -1388,7 +1485,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .driver-popover.bc-tour {
   border-radius: 14px;
   box-shadow: 0 18px 48px rgba(15,23,42,.22);
-  border: 1px solid var(--border, #e2e8f0);
+  border: 1px solid var(--border, var(--border));
   font-family: 'DM Sans', sans-serif;
   min-width: 360px; max-width: 460px;
   padding: 18px 22px 16px;
@@ -1421,12 +1518,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
   text-shadow: none;
 }
 .driver-popover.bc-tour button.driver-popover-next-btn {
-  background: var(--orange, #E05A00); color: #fff; border-color: var(--orange, #E05A00);
+  background: var(--orange, var(--orange)); color: #fff; border-color: var(--orange, var(--orange));
   box-shadow: 0 1px 3px rgba(224,90,0,.2);
 }
 .driver-popover.bc-tour button.driver-popover-next-btn:hover { opacity: .9; }
 .driver-popover.bc-tour button.driver-popover-prev-btn {
-  background: var(--bg, #f1f5f9); color: var(--text, #1a2535); border-color: var(--border, #e2e8f0);
+  background: var(--bg, #f1f5f9); color: var(--text, #1a2535); border-color: var(--border, var(--border));
 }
 .driver-popover.bc-tour button.driver-popover-close-btn {
   color: var(--muted, #64748b); font-size: 1.4rem; line-height: 1;
@@ -1440,19 +1537,19 @@ tr:hover td{background:rgba(0,0,0,.015)}
 .driver-popover.bc-tour .driver-popover-arrow-side-bottom.driver-popover-arrow,
 .driver-popover.bc-tour .driver-popover-arrow-side-left.driver-popover-arrow,
 .driver-popover.bc-tour .driver-popover-arrow-side-right.driver-popover-arrow {
-  border-color: var(--border, #e2e8f0) transparent transparent transparent;
+  border-color: var(--border, var(--border)) transparent transparent transparent;
 }
 /* Overlay más claro para que se vea el fondo (driver.js usa svg path) */
 .driver-overlay,
 .driver-overlay-animated { fill: rgba(15,23,42,.32) !important; }
 .bc-tour-btn {
-  background: transparent; border: 1px solid var(--border, #e2e8f0);
+  background: transparent; border: 1px solid var(--border, var(--border));
   color: var(--muted, #64748b); border-radius: 7px;
   padding: .3rem .72rem; font-size: .76rem; font-weight: 600;
   cursor: pointer; transition: background .15s, color .15s;
   display: inline-flex; align-items: center; gap: .35rem;
 }
-.bc-tour-btn:hover { background: var(--bg, #f8fafc); color: var(--text, #1a2535); }
+.bc-tour-btn:hover { background: var(--bg, var(--bg)); color: var(--text, #1a2535); }
 
 /* ── Wizard Captura Automática ─────────────────────────── */
 .capt-bg {
@@ -1492,30 +1589,30 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 .capt-stepper {
   display: flex; align-items: center; gap: 6px;
-  padding: .8rem 1.6rem; background: var(--bg, #f8fafc);
-  border-bottom: 1px solid var(--border, #e2e8f0);
+  padding: .8rem 1.6rem; background: var(--bg, var(--bg));
+  border-bottom: 1px solid var(--border, var(--border));
   font-size: .75rem; color: var(--muted, #64748b);
   flex-wrap: wrap;
 }
 .capt-step-pill {
   display: inline-flex; align-items: center; gap: 6px;
   padding: .25rem .55rem; border-radius: 100px;
-  background: var(--white, #fff); border: 1px solid var(--border, #e2e8f0);
+  background: var(--white, #fff); border: 1px solid var(--border, var(--border));
   font-weight: 600;
 }
 .capt-step-pill > span {
   width: 18px; height: 18px; border-radius: 50%;
-  background: var(--border, #e2e8f0); color: var(--muted, #64748b);
+  background: var(--border, var(--border)); color: var(--muted, #64748b);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: .68rem; font-weight: 700;
 }
-.capt-step-pill.active { background: var(--orange, #E05A00); color: #fff; border-color: var(--orange, #E05A00); }
+.capt-step-pill.active { background: var(--orange, var(--orange)); color: #fff; border-color: var(--orange, var(--orange)); }
 .capt-step-pill.active > span { background: rgba(255,255,255,.25); color: #fff; }
-.capt-step-pill.done { background: #2E7D32; color: #fff; border-color: #2E7D32; }
+.capt-step-pill.done { background: var(--green); color: #fff; border-color: var(--green); }
 .capt-step-pill.done > span { background: rgba(255,255,255,.25); color: #fff; }
 .capt-step-line {
   flex: 1 1 20px; height: 2px; min-width: 14px;
-  background: var(--border, #e2e8f0);
+  background: var(--border, var(--border));
 }
 
 .capt-body {
@@ -1546,21 +1643,21 @@ tr:hover td{background:rgba(0,0,0,.015)}
   counter-increment: capt-li;
   position: relative; padding: .6rem .8rem .6rem 2.6rem;
   font-size: .9rem; line-height: 1.55; color: var(--text, #1a2535);
-  border-left: 3px solid var(--orange, #E05A00);
-  background: var(--bg, #f8fafc); border-radius: 0 6px 6px 0;
+  border-left: 3px solid var(--orange, var(--orange));
+  background: var(--bg, var(--bg)); border-radius: 0 6px 6px 0;
   margin-bottom: .5rem;
 }
 .capt-overview li::before {
   content: counter(capt-li);
   position: absolute; left: .8rem; top: 50%; transform: translateY(-50%);
   width: 1.4rem; height: 1.4rem; border-radius: 50%;
-  background: var(--orange, #E05A00); color: #fff;
+  background: var(--orange, var(--orange)); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: .75rem;
 }
 
 .capt-card {
-  border: 1px solid var(--border, #e2e8f0); border-radius: 10px;
+  border: 1px solid var(--border, var(--border)); border-radius: 10px;
   padding: .4rem 0; background: var(--white, #fff);
   margin: 0 0 1rem;
 }
@@ -1583,14 +1680,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 .capt-email-box {
   display: flex; align-items: center; gap: .55rem;
-  background: var(--bg, #f8fafc);
-  border: 1.5px dashed var(--orange, #E05A00); border-radius: 8px;
+  background: var(--bg, var(--bg));
+  border: 1.5px dashed var(--orange, var(--orange)); border-radius: 8px;
   padding: .55rem .85rem; flex-wrap: wrap;
 }
 .capt-email-box code {
   flex: 1; min-width: 0;
   font-family: 'DM Mono', monospace; font-size: .92rem; font-weight: 700;
-  color: var(--orange, #E05A00); background: transparent;
+  color: var(--orange, var(--orange)); background: transparent;
   word-break: break-all;
 }
 
@@ -1603,13 +1700,13 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 .capt-check {
   display: flex; align-items: flex-start; gap: .55rem;
-  padding: .65rem .8rem; border: 1px solid var(--border, #e2e8f0);
+  padding: .65rem .8rem; border: 1px solid var(--border, var(--border));
   border-radius: 8px; cursor: pointer;
   font-size: .88rem; color: var(--text, #1a2535);
   transition: background .15s, border-color .15s;
   margin: .5rem 0;
 }
-.capt-check:hover { background: var(--bg, #f8fafc); }
+.capt-check:hover { background: var(--bg, var(--bg)); }
 .capt-check input { margin-top: 2px; cursor: pointer; flex-shrink: 0; }
 .capt-check input:checked + span { font-weight: 600; }
 
@@ -1623,11 +1720,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
   border: 1px solid transparent;
 }
 .capt-btn-primary {
-  background: var(--orange, #E05A00); color: #fff; border-color: var(--orange, #E05A00);
+  background: var(--orange, var(--orange)); color: #fff; border-color: var(--orange, var(--orange));
 }
 .capt-btn-primary:hover { opacity: .9; }
 .capt-btn-secondary {
-  background: var(--bg, #f8fafc); color: var(--text, #1a2535); border-color: var(--border, #e2e8f0);
+  background: var(--bg, var(--bg)); color: var(--text, #1a2535); border-color: var(--border, var(--border));
 }
 .capt-btn-secondary:hover { background: var(--white, #fff); border-color: var(--muted, #94a3b8); }
 .capt-btn-verify { margin-top: .65rem; }
@@ -1636,14 +1733,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
   margin-top: .5rem; min-height: 1.2em;
   font-size: .82rem; line-height: 1.5;
 }
-.capt-verify-result.ok { color: #1B5E20; }
-.capt-verify-result.warn { color: #BF360C; }
+.capt-verify-result.ok { color: var(--green); }
+.capt-verify-result.warn { color: var(--red); }
 .capt-verify-result.muted { color: var(--muted, #64748b); }
 
 .capt-footer {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; padding: .85rem 1.6rem;
-  border-top: 1px solid var(--border, #e2e8f0); background: var(--bg, #f8fafc);
+  border-top: 1px solid var(--border, var(--border)); background: var(--bg, var(--bg));
 }
 .capt-step-counter {
   font-family: 'DM Mono', monospace; font-size: .72rem;
@@ -1772,7 +1869,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
     <div class="topnav-right">
       <button class="bc-tour-btn" id="btnTourRG" onclick="rgStartTour()" title="Tour guiado del Registro General"
-        style="border-color:#1565C0;color:#1565C0">
+        style="border-color:var(--info);color:var(--info)">
         <span style="font-size:.95rem;line-height:1">🗺️</span><span>Tour guiado</span>
       </button>
       <button class="bc-tour-btn" id="btnWizardCaptura" onclick="captWizardOpen()" title="Configurar captura automática de facturas con IA"
@@ -1829,7 +1926,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div id="opDecOptEliminar" class="op-dec-option" onclick="opDecSeleccionar('eliminar')">
         <div class="op-dec-option-title">
           <span style="font-size:1.1rem">🗑️</span>
-          <strong style="color:#991b1b">Eliminar permanentemente</strong>
+          <strong style="color:var(--red)">Eliminar permanentemente</strong>
         </div>
         <p>Borra <strong>todas las filas</strong> — ítem CV, egreso e ingreso vinculados.
           <strong>No queda rastro</strong>. Usar solo si fue ingresado por error o es un duplicado.
@@ -1929,9 +2026,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
   <!-- Stats Egresos -->
   <div class="op-stats" id="egresoStatsBar">
     <div class="stat-pill"><div class="stat-pill-num orange" id="eStatTotal">—</div><div class="stat-pill-label">Total egresos</div></div>
-    <div class="stat-pill"><div class="stat-pill-num" style="color:#E65100" id="eStatMercancia">—</div><div class="stat-pill-label">Costo mercancía</div></div>
-    <div class="stat-pill"><div class="stat-pill-num" style="color:#6A1B9A" id="eStatOperativo">—</div><div class="stat-pill-label">Operativos</div></div>
-    <div class="stat-pill"><div class="stat-pill-num" style="color:#1565C0" id="eStatTotalMonto">—</div><div class="stat-pill-label">Total gastado</div></div>
+    <div class="stat-pill"><div class="stat-pill-num" style="color:var(--warn)" id="eStatMercancia">—</div><div class="stat-pill-label">Costo mercancía</div></div>
+    <div class="stat-pill"><div class="stat-pill-num" style="color:var(--data)" id="eStatOperativo">—</div><div class="stat-pill-label">Operativos</div></div>
+    <div class="stat-pill"><div class="stat-pill-num" style="color:var(--info)" id="eStatTotalMonto">—</div><div class="stat-pill-label">Total gastado</div></div>
   </div>
 
   <!-- Toolbar Egresos -->
@@ -1985,8 +2082,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
        según el sub-tab activo (egr=Gastos, ing=Ingresos, pl=Planilla). -->
   <div style="padding:1.1rem 1.75rem .85rem;background:var(--white);border-bottom:1px solid var(--border)">
     <div style="display:flex;align-items:baseline;gap:.55rem;flex-wrap:wrap">
-      <span id="rgHdrIcon"  style="font-size:1.3rem;line-height:1">📤</span>
-      <span id="rgHdrTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.04em;color:var(--text);line-height:1">Registro de Gastos</span>
+      <span id="rgHdrIcon" style="display:none"></span><span id="rgHdrTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.04em;color:var(--text);line-height:1">Registro de Gastos</span>
     </div>
     <div id="rgHdrSubtitle" style="font-size:.78rem;color:var(--muted);margin-top:.25rem;line-height:1.45">
       Lleva el control de tus gastos, clasifícalos y la IA aprende.
@@ -2008,7 +2104,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── ZONA 1: Resumen del período (KPIs) ──────────────── -->
     <section class="rg-zone">
       <div class="rg-zone-head">
-        <div class="rg-zone-title"><span class="rg-zone-title-icon">📊</span> Resumen del período</div>
+        <div class="rg-zone-title">Resumen del período</div>
       </div>
       <div class="rg-zone-body dense">
         <div id="rgEgrWidgets" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem"></div>
@@ -2018,7 +2114,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── ZONA 2: Insights (Top categorías + Top proveedores) ── -->
     <section class="rg-zone">
       <div class="rg-zone-head">
-        <div class="rg-zone-title"><span class="rg-zone-title-icon">🎯</span> Insights — qué pesa más</div>
+        <div class="rg-zone-title">Dónde se concentra el gasto</div>
       </div>
       <div class="rg-zone-body">
         <div id="rgEgrCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
@@ -2031,7 +2127,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── ZONA 3: Filtros + búsqueda ──────────────────────── -->
     <section class="rg-zone">
       <div class="rg-zone-head">
-        <div class="rg-zone-title"><span class="rg-zone-title-icon">🔍</span> Filtros y búsqueda</div>
+        <div class="rg-zone-title">Filtros</div>
         <div class="rg-zone-actions">
           <div class="search-wrap" style="max-width:270px">
             <span class="search-icon">🔍</span>
@@ -2082,14 +2178,14 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── ZONA 4: Egresos detallados (tabla) ──────────────── -->
     <section class="rg-zone">
       <div class="rg-zone-head">
-        <div class="rg-zone-title"><span class="rg-zone-title-icon">📋</span> Egresos detallados</div>
+        <div class="rg-zone-title">Egresos detallados</div>
         <div class="rg-zone-actions">
           <button id="rgRegistrarGastoBtn" class="section-hdr-add egr" onclick="rgAbrirNuevoEgreso()" title="Registrar egreso"
             style="width:auto;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
             <span style="font-size:.95rem;line-height:1">+</span><span>Registrar gasto</span>
           </button>
           <button id="rgRefreshBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar"
-            style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
+            style="background:var(--white);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:color .15s,border-color .15s">
             <span id="rgRefreshIcon">↻</span><span>Actualizar</span>
           </button>
         </div>
@@ -2097,11 +2193,11 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="rg-zone-body flush">
 
     <!-- ── Bulk actions bar ─────────────────────────────────── -->
-    <div id="rgEgrBulkBar" style="display:none;align-items:center;gap:.75rem;padding:.45rem 1.5rem;background:#E8F5E9;border-bottom:2px solid #2E7D32">
-      <span id="rgEgrBulkCount" style="font-size:.82rem;font-weight:700;color:#1B5E20"></span>
-      <button onclick="rgBulkAprobar()" style="padding:.28rem .75rem;background:#2E7D32;color:#fff;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">✅ Aprobar seleccionados</button>
-      <button onclick="rgBulkCategoriaOpen(event)" style="padding:.28rem .75rem;background:#6A1B9A;color:#fff;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">📋 Cambiar categoría</button>
-      <button onclick="rgBulkEliminar()" style="padding:.28rem .75rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">🗑 Eliminar</button>
+    <div id="rgEgrBulkBar" style="display:none;align-items:center;gap:.75rem;padding:.45rem 1.5rem;background:var(--green-bg);border-bottom:2px solid var(--green)">
+      <span id="rgEgrBulkCount" style="font-size:.82rem;font-weight:700;color:var(--green)"></span>
+      <button onclick="rgBulkAprobar()" style="padding:.28rem .75rem;background:var(--green);color:#fff;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">✅ Aprobar seleccionados</button>
+      <button onclick="rgBulkCategoriaOpen(event)" style="padding:.28rem .75rem;background:var(--data);color:#fff;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">Cambiar categoría</button>
+      <button onclick="rgBulkEliminar()" style="padding:.28rem .75rem;background:var(--bg);color:var(--red);border:1px solid var(--red-bg);border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">🗑 Eliminar</button>
       <button onclick="_rgEgrSel.clear();rgRenderEgr()" style="margin-left:auto;padding:.28rem .6rem;background:none;border:none;font-size:.9rem;cursor:pointer;color:var(--muted)" title="Deseleccionar todo">✕</button>
     </div>
 
@@ -2137,7 +2233,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── ZONA 1: Resumen del período (KPIs) ──────────────── -->
     <section class="rg-zone">
       <div class="rg-zone-head">
-        <div class="rg-zone-title"><span class="rg-zone-title-icon">📊</span> Resumen del período</div>
+        <div class="rg-zone-title">Resumen del período</div>
       </div>
       <div class="rg-zone-body dense">
         <div id="rgIngWidgets" style="display:grid;grid-template-columns:repeat(6,1fr);gap:.65rem"></div>
@@ -2147,7 +2243,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── ZONA 2: Insights (Top categorías + Top clientes) ── -->
     <section class="rg-zone">
       <div class="rg-zone-head">
-        <div class="rg-zone-title"><span class="rg-zone-title-icon">🎯</span> Insights — qué pesa más</div>
+        <div class="rg-zone-title">Dónde se concentra el gasto</div>
       </div>
       <div class="rg-zone-body">
         <div id="rgIngCharts" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
@@ -2160,7 +2256,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- ── ZONA 3: Filtros + búsqueda ──────────────────────── -->
     <section class="rg-zone">
       <div class="rg-zone-head">
-        <div class="rg-zone-title"><span class="rg-zone-title-icon">🔍</span> Filtros y búsqueda</div>
+        <div class="rg-zone-title">Filtros</div>
         <div class="rg-zone-actions">
           <div class="search-wrap" style="max-width:270px">
             <span class="search-icon">🔍</span>
@@ -2219,7 +2315,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
             <span style="font-size:.95rem;line-height:1">+</span><span>Registrar ingreso</span>
           </button>
           <button id="rgRefreshIngBtn" onclick="refreshCurrentSectionWithFeedback(this)" title="Actualizar"
-            style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
+            style="background:var(--info);color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
             <span id="rgRefreshIngIcon">↻</span><span>Actualizar</span>
           </button>
         </div>
@@ -2256,7 +2352,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <!-- Sub-tabs: Quincena | Empleados -->
     <div style="display:flex;gap:0;background:var(--bg);border-bottom:1px solid var(--border);padding:0 2rem">
       <button id="plSubQuincena" onclick="plShowSub('quincena')"
-        style="padding:.5rem 1rem;font-size:.78rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid #6A1B9A;color:#6A1B9A;margin-bottom:-1px">
+        style="padding:.5rem 1rem;font-size:.78rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--data);color:var(--data);margin-bottom:-1px">
         💰 Registrar quincena
       </button>
       <button id="plSubEmpleados" onclick="plShowSub('empleados')"
@@ -2293,7 +2389,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.3rem">Fecha de pago</div>
           <input type="date" id="plFechaPago" style="font-family:'DM Mono',monospace;font-size:.82rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.35rem .65rem;color:var(--text);outline:none">
         </div>
-        <button onclick="plCargarPreview()" style="margin-top:1.1rem;padding:.42rem 1.1rem;background:#6A1B9A;color:#fff;border:none;border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer">
+        <button onclick="plCargarPreview()" style="margin-top:1.1rem;padding:.42rem 1.1rem;background:var(--data);color:#fff;border:none;border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer">
           ⟳ Cargar empleados
         </button>
       </div>
@@ -2332,7 +2428,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
               style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.82rem;background:var(--bg);color:var(--text);outline:none">
           </div>
           <button id="plBtnRegistrar" onclick="plRegistrar()"
-            style="padding:.5rem 1.5rem;background:#2E7D32;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap">
+            style="padding:.5rem 1.5rem;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap">
             ✅ Registrar quincena
           </button>
         </div>
@@ -2346,7 +2442,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     <div id="plSubTabEmpleados" style="display:none;padding:1.5rem 2rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <span style="font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600">Catálogo de empleados</span>
-        <button onclick="plAbrirNuevoEmpleado()" style="padding:.38rem .9rem;background:#6A1B9A;color:#fff;border:none;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer">+ Nuevo empleado</button>
+        <button onclick="plAbrirNuevoEmpleado()" style="padding:.38rem .9rem;background:var(--data);color:#fff;border:none;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer">+ Nuevo empleado</button>
       </div>
       <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border);background:var(--white)">
         <table style="width:100%;border-collapse:collapse;font-size:.81rem">
@@ -2406,7 +2502,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="pl-month-pill" data-m="12" onclick="selectPlMonth(12)">Dic</button>
     </div>
     <button id="plRefreshBtn" onclick="plRefresh(this)" title="Actualizar datos del P&amp;L"
-      style="margin-left:auto;background:#1565C0;color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
+      style="margin-left:auto;background:var(--info);color:#fff;border:none;border-radius:8px;padding:.32rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:opacity .15s,background .15s">
       <span id="plRefreshIcon">↻</span> <span>Actualizar</span>
     </button>
   </div>
@@ -2478,8 +2574,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <div class="fn-section-hdr">Tendencia mensual <span id="fnTrendYear" style="font-weight:400;opacity:.6"></span></div>
       <div style="display:flex;align-items:flex-end;gap:3px;height:90px;overflow-x:auto;padding-bottom:4px" id="fnTrend"></div>
       <div style="display:flex;gap:1rem;margin-top:.5rem;font-size:.7rem;color:var(--muted)">
-        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#6A1B9A;margin-right:.3rem;vertical-align:middle"></span>Negocio</span>
-        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#E65100;margin-right:.3rem;vertical-align:middle"></span>Personal</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--data);margin-right:.3rem;vertical-align:middle"></span>Negocio</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--warn);margin-right:.3rem;vertical-align:middle"></span>Personal</span>
       </div>
     </div>
   </div>
@@ -2769,7 +2865,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <button onclick="(function(){var el=document.getElementById('guiaEmailDestino');navigator.clipboard.writeText(el.textContent.trim()).then(function(){showToast('✅ Copiado')}).catch(function(){showToast('Copia: '+el.textContent.trim())})})()" style="font-size:.78rem;padding:.35rem .75rem;border:1px solid var(--border);background:var(--white);border-radius:var(--r1);cursor:pointer;white-space:nowrap">📋 Copiar</button>
         </div>
 
-        <div style="padding:.55rem .8rem;background:#E3F2FD;border-radius:var(--r1);font-size:.77rem;color:#1565C0;line-height:1.5">
+        <div style="padding:.55rem .8rem;background:var(--info-bg);border-radius:var(--r1);font-size:.77rem;color:var(--info);line-height:1.5">
           ⏳ Una vez aprobado, Gmail mostrará <strong>facturas@balanceclip.net</strong> como opción disponible en tus filtros. Recién entonces puedes hacer el Paso B.
         </div>
 
@@ -2805,7 +2901,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       </div>
     </div>
 
-    <div style="margin-top:1rem;padding:.65rem .85rem;background:#FFF9C4;border-radius:var(--r1);font-size:.78rem;color:#5D4037;line-height:1.5">
+    <div style="margin-top:1rem;padding:.65rem .85rem;background:var(--warn-bg);border-radius:var(--r1);font-size:.78rem;color:#5D4037;line-height:1.5">
       <strong>💡 Tip:</strong> Repite el Paso B por cada proveedor. El filtro queda guardado en Gmail y aplica a todos los correos futuros — no necesitas hacerlo de nuevo.
       El sistema solo procesa correos que lleguen <strong>desde tu correo</strong> (<span id="guiaEmailRemitente" style="font-weight:600">—</span>).
     </div>
@@ -2859,7 +2955,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
           <button class="btn-secondary" onclick="authChangePwd()">🔑 Cambiar contraseña</button>
-          <button class="btn-secondary" onclick="logout()" style="border-color:#FFCDD2;color:#B71C1C">🚪 Cerrar sesión</button>
+          <button class="btn-secondary" onclick="logout()" style="border-color:var(--red-bg);color:var(--red)">🚪 Cerrar sesión</button>
         </div>
       </div>
 
@@ -3110,7 +3206,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
         <!-- Vision card COD -->
         <div class="vision-card" id="codVisionCard" style="display:none">
-          <div class="vision-analyzing" id="codVisionAnalyzing" style="display:none;align-items:center;gap:.75rem;font-size:.82rem;color:#4527A0">
+          <div class="vision-analyzing" id="codVisionAnalyzing" style="display:none;align-items:center;gap:.75rem;font-size:.82rem;color:var(--data)">
             <div class="spinner" style="width:18px;height:18px;border-width:2px"></div>
             Claude Vision analizando voucher...
           </div>
@@ -3159,7 +3255,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
     </div>
     <div class="modal-actions">
       <button class="btn-primary" id="btnAnalizarVision" onclick="analizarVisionModal()" style="display:none">✦ Analizar voucher</button>
-      <button class="btn-primary" id="btnAnalizarCod" onclick="analizarVoucherCod()" style="display:none;background:#4527A0">✦ Analizar voucher COD</button>
+      <button class="btn-primary" id="btnAnalizarCod" onclick="analizarVoucherCod()" style="display:none;background:var(--data)">✦ Analizar voucher COD</button>
       <button class="btn-primary" id="btnGuardar" onclick="guardarCambios()" style="background:var(--green)">💾 Guardar cambios</button>
       <button class="btn-secondary" onclick="abrirWhatsApp()">📲 WhatsApp</button>
       <button class="btn-secondary" onclick="closeModal()">Cerrar</button>
@@ -3339,7 +3435,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
           <li>Si un proveedor genera mucho ruido, en <b>Configuración → Automático → Proveedores detectados</b> puedes desactivarlo con su toggle.</li>
           <li>El sistema sincroniza cada 15 minutos automáticamente, o puedes forzarlo con el botón <b>↻ Actualizar</b>.</li>
         </ul>
-        <div class="capt-tip" style="background:#E8F5E9;border-color:#A5D6A7;color:#1B5E20">
+        <div class="capt-tip" style="background:var(--green-bg);border-color:#A5D6A7;color:var(--green)">
           ✓ Listo. Ya no tienes que registrar facturas a mano si vienen por email.
         </div>
       </section>
@@ -3383,12 +3479,12 @@ tr:hover td{background:rgba(0,0,0,.015)}
           </div>
         </div>
       </div>
-      <div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:.85rem 1rem;font-size:.8rem;color:#1565C0">
+      <div style="background:var(--info-bg);border:1px solid #90CAF9;border-radius:8px;padding:.85rem 1rem;font-size:.8rem;color:var(--info)">
         ℹ️ Al mover a inventario se registrará automáticamente un <strong>egreso de costo</strong> en la hoja de Egresos por el valor de la factura Carbone.
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn-primary" style="background:#1565C0" onclick="confirmarMoverInventario()">📦 Confirmar inventario</button>
+      <button class="btn-primary" style="background:var(--info)" onclick="confirmarMoverInventario()">📦 Confirmar inventario</button>
       <button class="btn-secondary" onclick="closeInvModal()">Cancelar</button>
     </div>
   </div>
@@ -3433,8 +3529,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
           </div>
           <!-- Preview de datos extraídos por IA -->
           <div class="modal-field full" id="pagoOpPreview" style="display:none;margin-top:.75rem">
-            <div style="background:#F3E5F5;border:1px solid #CE93D8;border-radius:8px;padding:.85rem 1rem;font-size:.82rem">
-              <div style="font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#6A1B9A;margin-bottom:.5rem;font-weight:600">✦ Datos extraídos por IA</div>
+            <div style="background:var(--data-bg);border:1px solid var(--border);border-radius:8px;padding:.85rem 1rem;font-size:.82rem">
+              <div style="font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--data);margin-bottom:.5rem;font-weight:600">✦ Datos extraídos por IA</div>
               <div id="pagoOpPreviewBody" style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .75rem"></div>
             </div>
           </div>
@@ -3456,7 +3552,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <button class="modal-close" onclick="closeCostoOpModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div style="background:#F3E5F5;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;border:1px solid #CE93D8" id="costoOpInfo"></div>
+      <div style="background:var(--data-bg);border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;border:1px solid var(--border)" id="costoOpInfo"></div>
       <p style="font-size:.82rem;color:var(--muted);margin:0 0 1rem">Este ítem no se facturará como venta. Se registrará como egreso operativo y quedará cerrado.</p>
       <div class="modal-section">
         <div class="modal-grid">
@@ -3535,8 +3631,8 @@ tr:hover td{background:rgba(0,0,0,.015)}
           </div>
           <!-- Hint contextual + retención esperada (poblado por inferirItbmsIngreso) -->
           <div class="modal-field full" id="iCatHint" style="display:none;padding:.6rem .75rem;background:#FFF8E1;border-left:3px solid #F9A825;border-radius:4px;font-size:.8rem;line-height:1.4;color:#5D4037"></div>
-          <div class="modal-field full" id="iRetencionInfo" style="display:none;padding:.5rem .75rem;background:#E3F2FD;border-radius:6px;font-size:.82rem;justify-content:space-between;align-items:center">
-            <span style="color:#1565C0;font-weight:500">💡 Retención esperada:</span>
+          <div class="modal-field full" id="iRetencionInfo" style="display:none;padding:.5rem .75rem;background:var(--info-bg);border-radius:6px;font-size:.82rem;justify-content:space-between;align-items:center">
+            <span style="color:var(--info);font-weight:500">💡 Retención esperada:</span>
             <span id="iRetencionMonto" style="font-family:'DM Mono',monospace;font-weight:700;color:#0D47A1">B/. 0.00</span>
           </div>
           <div class="modal-field full">
@@ -3720,9 +3816,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
             </select>
             <!-- Hint contextual sobre la categoría seleccionada -->
             <div id="eCategoriaHint" style="display:none;margin-top:.4rem;font-size:.72rem;color:var(--muted);line-height:1.45;padding:.5rem .65rem;background:#FFF8E6;border-left:3px solid var(--orange);border-radius:6px"></div>
-            <div id="eCategoriaSub" style="display:none;margin-top:.5rem;background:#F3E5F5;border-radius:8px;padding:.5rem .75rem">
-              <label style="font-size:.75rem;font-weight:700;color:#6A1B9A;display:block;margin-bottom:.3rem">Tipo de Deducible Personal</label>
-              <select id="eSubcatPersonal" onchange="inferirTipoEgreso()" style="width:100%;background:var(--white);border:1px solid #CE93D8;border-radius:6px;padding:.45rem .7rem;font-family:'DM Sans',sans-serif;font-size:.86rem;outline:none;color:#6A1B9A;font-weight:600">
+            <div id="eCategoriaSub" style="display:none;margin-top:.5rem;background:var(--data-bg);border-radius:8px;padding:.5rem .75rem">
+              <label style="font-size:.75rem;font-weight:700;color:var(--data);display:block;margin-bottom:.3rem">Tipo de Deducible Personal</label>
+              <select id="eSubcatPersonal" onchange="inferirTipoEgreso()" style="width:100%;background:var(--white);border:1px solid var(--border);border-radius:6px;padding:.45rem .7rem;font-family:'DM Sans',sans-serif;font-size:.86rem;outline:none;color:var(--data);font-weight:600">
                 <option value="gastos_medicos">🏥 Gastos médicos</option>
                 <option value="gastos_escolares">📖 Gastos escolares</option>
                 <option value="intereses_hipotecarios">🏡 Intereses hipotecarios</option>
@@ -3795,7 +3891,7 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <span style="font-size:.8rem;color:var(--text);font-weight:600">Tipo de gasto:</span>
       <div style="display:flex;background:var(--bg2);border-radius:20px;padding:2px;gap:2px">
         <button id="eAlcanceNeg" onclick="eSetAlcance('negocio')"
-          style="padding:.3rem .85rem;border-radius:20px;font-size:.75rem;font-weight:700;border:none;background:#6A1B9A;color:#fff;cursor:pointer">
+          style="padding:.3rem .85rem;border-radius:20px;font-size:.75rem;font-weight:700;border:none;background:var(--data);color:#fff;cursor:pointer">
           ✅ Deducible
         </button>
         <button id="eAlcancePers" onclick="eSetAlcance('personal')"
@@ -3806,13 +3902,13 @@ tr:hover td{background:rgba(0,0,0,.015)}
       <span id="eAlcanceHint" style="font-size:.72rem;color:var(--muted)">Deducible · aparece en reportes DGI</span>
     </div>
     <div id="egresoRecordarWrap" style="margin:.5rem 1.25rem .25rem;padding:.6rem .85rem;background:var(--bg);border-radius:7px;display:flex;align-items:center;gap:.6rem">
-      <input type="checkbox" id="eChkRecordar" style="cursor:pointer;accent-color:#6A1B9A;width:1rem;height:1rem;flex-shrink:0">
+      <input type="checkbox" id="eChkRecordar" style="cursor:pointer;accent-color:var(--data);width:1rem;height:1rem;flex-shrink:0">
       <label for="eChkRecordar" style="font-size:.8rem;color:var(--text);cursor:pointer;line-height:1.4">
         Recordar categoría y descripción para futuras facturas de <strong id="eRecordarNombre">este proveedor</strong>
       </label>
     </div>
     <div class="modal-actions" id="eFormActions" style="display:none">
-      <button class="btn-primary" style="background:#6A1B9A" onclick="guardarEgresoOperativo({ andNew:false })">💾 Guardar y cerrar</button>
+      <button class="btn-primary" style="background:var(--data)" onclick="guardarEgresoOperativo({ andNew:false })">💾 Guardar y cerrar</button>
       <button class="btn-primary" style="background:var(--orange)" onclick="guardarEgresoOperativo({ andNew:true })">💾 Guardar y subir otra</button>
       <button class="btn-secondary" onclick="closeEgresoModal()">Cancelar</button>
     </div>
@@ -3974,15 +4070,15 @@ function buildMenu() {
   // Mobile / print: main-tabs horizontal (oculto en desktop por CSS).
   const tabs = document.getElementById('mainTabs');
   if (tabs) tabs.innerHTML =
-    '<button class="main-tab active" id="tabRegistroGastos"   onclick="switchTab(&quot;registroGastos&quot;)">📤 Gastos</button>' +
-    '<button class="main-tab"        id="tabRegistroIngresos" onclick="switchTab(&quot;registroIngresos&quot;)">💰 Ingresos</button>' +
-    '<button class="main-tab" id="tabDashboard" onclick="switchTab(&quot;dashboard&quot;)">📊 P&amp;L</button>' +
-    '<button class="main-tab" id="tabFinanzas" onclick="switchTab(&quot;finanzas&quot;)" style="display:none">💸 Finanzas</button>' +
+    '<button class="main-tab active" id="tabRegistroGastos"   onclick="switchTab(&quot;registroGastos&quot;)">Gastos</button>' +
+    '<button class="main-tab"        id="tabRegistroIngresos" onclick="switchTab(&quot;registroIngresos&quot;)">Ingresos</button>' +
+    '<button class="main-tab" id="tabDashboard" onclick="switchTab(&quot;dashboard&quot;)">Estado de resultados</button>' +
+    '<button class="main-tab" id="tabFinanzas" onclick="switchTab(&quot;finanzas&quot;)" style="display:none">Finanzas</button>' +
     '<div class="main-tab-group">' +
-      '<button class="main-tab" id="tabContabilidad">🗂 Contabilidad <span class="main-tab-arrow">▾</span></button>' +
+      '<button class="main-tab" id="tabContabilidad">Contabilidad <span class="main-tab-arrow">▾</span></button>' +
       '<div class="dropdown-menu">' +
-        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)">🧾 Informe de ITBMS</a>' +
-        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)">📁 Informe Anual</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)">Informe de ITBMS</a>' +
+        '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)">Informe anual</a>' +
       '</div>' +
     '</div>';
   // Desktop: sidebar vertical. Los mismos IDs (tabXyzSb) son contemplados por
@@ -4446,7 +4542,7 @@ async function refreshCurrentSectionWithFeedback(btn) {
   btn.disabled = false;
   btn.style.opacity = '';
   btn.style.cursor = 'pointer';
-  btn.style.background = origBg || '#1565C0';
+  btn.style.background = origBg || 'var(--info)';
   btn.textContent = origText;
 }
 window.refreshCurrentSectionWithFeedback = refreshCurrentSectionWithFeedback;
@@ -4509,11 +4605,11 @@ async function loadReporte(path, forceReload) {
 
   } catch(err) {
     container.innerHTML =
-      '<div style="display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:4rem;color:#C62828">' +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:4rem;color:var(--red)">' +
       '<span style="font-size:2rem">⚠️</span>' +
       '<span>' + esc(err.message) + '</span>' +
       '<button onclick="loadReporte(\'' + path + '\',true)" ' +
-      'style="margin-top:.5rem;padding:.5rem 1.25rem;background:#E05A00;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem">Reintentar</button>' +
+      'style="margin-top:.5rem;padding:.5rem 1.25rem;background:var(--orange);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem">Reintentar</button>' +
       '</div>';
   }
 }
@@ -4647,7 +4743,7 @@ function renderEgresoTable(items) {
       </td>
       <td style="font-size:.8rem">${esc(item.proveedor||'—')}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.75rem">${esc(item.num_fac_ref||'—')}</td>
-      <td style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#C62828">$${total.toFixed(2)}</td>
+      <td style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--red)">$${total.toFixed(2)}</td>
       <td>${estadoBadge(item.estado)}</td>
       ${actionsCell}
     </tr>`;
@@ -4770,9 +4866,9 @@ function eSetAlcance(val, skipWarn) {
   }
   document.getElementById('eAlcance').value = val;
   const isNeg = val === 'negocio';
-  document.getElementById('eAlcanceNeg').style.background  = isNeg ? '#6A1B9A' : 'transparent';
+  document.getElementById('eAlcanceNeg').style.background  = isNeg ? 'var(--data)' : 'transparent';
   document.getElementById('eAlcanceNeg').style.color       = isNeg ? '#fff' : 'var(--muted)';
-  document.getElementById('eAlcancePers').style.background = !isNeg ? '#E65100' : 'transparent';
+  document.getElementById('eAlcancePers').style.background = !isNeg ? 'var(--warn)' : 'transparent';
   document.getElementById('eAlcancePers').style.color      = !isNeg ? '#fff' : 'var(--muted)';
   document.getElementById('eAlcanceHint').textContent      = isNeg
     ? 'Deducible · aparece en reportes DGI'
@@ -4798,7 +4894,7 @@ function eAutoDetectAlcance(parsed) {
     _eAlcanceMismatch = true;
     eSetAlcance('personal', true);
     const nom = parsed.nombre_receptor ? ' (' + parsed.nombre_receptor + ')' : '';
-    return 'marcado como <strong style="color:#E65100">Personal</strong> · factura a RUC ' + rucRec + nom;
+    return 'marcado como <strong style="color:var(--warn)">Personal</strong> · factura a RUC ' + rucRec + nom;
   }
 }
 
@@ -4954,7 +5050,7 @@ function renderIngresosTable(items) {
               : cat.itbms_status === 'exento'    ? 'badge'
               : 'badge';
     const bg = cat.itbms_status === 'exento'    ? 'background:#F5F5F5;color:#555;'
-             : cat.itbms_status === 'no_aplica' ? 'background:#EDE7F6;color:#4527A0;'
+             : cat.itbms_status === 'no_aplica' ? 'background:var(--data-bg);color:var(--data);'
              : '';
     return `<span class="${tone}" style="${bg}">${cat.emoji} ${esc(cat.label)} (L${cat.linea})</span>`;
   };
@@ -5552,7 +5648,7 @@ var costoOpItem = null;
 function abrirModalCostoOperativo(item) {
   costoOpItem = item;
   document.getElementById('costoOpInfo').innerHTML =
-    `<strong>${esc(item.descripcion_prod||'')}</strong> — Costo: <strong style="color:#E65100">$${parseFloat(item.total_carbone||0).toFixed(2)}</strong>`;
+    `<strong>${esc(item.descripcion_prod||'')}</strong> — Costo: <strong style="color:var(--warn)">$${parseFloat(item.total_carbone||0).toFixed(2)}</strong>`;
   document.getElementById('costoOpCategoria').value   = 'otros_gastos';
   document.getElementById('costoOpDescripcion').value = item.descripcion_prod || '';
   document.getElementById('costoOpNotas').value       = '';
@@ -5939,7 +6035,7 @@ function llenarCamposEgreso(parsed) {
     list.innerHTML = parsed.items.map(item =>
       `<div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid var(--border)">
         <span>${esc(item.descripcion||'—')} ×${item.cantidad||1}</span>
-        <span style="font-weight:600;color:#C62828">$${(parseFloat(item.total)||0).toFixed(2)}</span>
+        <span style="font-weight:600;color:var(--red)">$${(parseFloat(item.total)||0).toFixed(2)}</span>
       </div>`
     ).join('');
   }
@@ -6170,7 +6266,7 @@ function esc(s) {
 function showToast(msg, isError) {
   const t = document.getElementById('toast');
   t.innerHTML = msg;
-  t.style.background = isError ? '#C62828' : '';
+  t.style.background = isError ? 'var(--red)' : '';
   t.classList.add('show');
   setTimeout(() => { t.classList.remove('show'); t.style.background = ''; }, 3500);
 }
@@ -6555,10 +6651,10 @@ function openItbmsDetalle() {
     return d.toLocaleDateString('es-PA', { day: '2-digit', month: 'short', year: 'numeric' });
   };
   const tipoBadge = tipo => {
-    if (tipo === 'factura_local')  return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:#E3F2FD;color:#1565C0;padding:.15rem .4rem;border-radius:4px;font-weight:600">📄 Factura local</span>';
+    if (tipo === 'factura_local')  return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:var(--info-bg);color:var(--info);padding:.15rem .4rem;border-radius:4px;font-weight:600">📄 Factura local</span>';
     if (tipo === 'credito_fiscal') return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:var(--green-bg);color:var(--green);padding:.15rem .4rem;border-radius:4px;font-weight:600">✓ Crédito fiscal</span>';
-    if (tipo === 'nota_credito')   return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:#fee2e2;color:#b91c1c;padding:.15rem .4rem;border-radius:4px;font-weight:600">🔄 Nota de crédito</span>';
-    return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:#EDE7F6;color:#4527A0;padding:.15rem .4rem;border-radius:4px;font-weight:600">🏛 Impuesto/Aduana</span>';
+    if (tipo === 'nota_credito')   return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:var(--red-bg);color:#b91c1c;padding:.15rem .4rem;border-radius:4px;font-weight:600">🔄 Nota de crédito</span>';
+    return '<span style="font-family:\'DM Mono\',monospace;font-size:.6rem;background:var(--data-bg);color:var(--data);padding:.15rem .4rem;border-radius:4px;font-weight:600">🏛 Impuesto/Aduana</span>';
   };
 
   const tbody = allRows.map(r => `
@@ -6568,22 +6664,22 @@ function openItbmsDetalle() {
       <td style="padding:.55rem .7rem;font-size:.75rem;font-family:'DM Mono',monospace;color:var(--muted);word-break:break-all;line-height:1.3">
         ${r.drive_url
           ? `<a href="${r.drive_url}" target="_blank" rel="noopener"
-               style="color:#1565C0;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:.2rem"
+               style="color:var(--info);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:.2rem"
                title="Abrir documento en Drive">
                ${r.num_doc}<span style="font-size:.65rem;opacity:.8">↗</span>
              </a>`
           : r.num_doc}
       </td>
       <td style="padding:.55rem .7rem;font-size:.75rem;color:var(--muted);white-space:nowrap">${fmtFecha(r.fecha)}</td>
-      <td style="padding:.55rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.85rem;font-weight:600;color:#1565C0">${r.cobrado > 0 ? fmt(r.cobrado) : '<span style="color:var(--bg3)">—</span>'}</td>
-      <td style="padding:.55rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.85rem;font-weight:600;color:#6A1B9A">${r.pagado > 0 ? fmt(r.pagado) : '<span style="color:var(--bg3)">—</span>'}</td>
+      <td style="padding:.55rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.85rem;font-weight:600;color:var(--info)">${r.cobrado > 0 ? fmt(r.cobrado) : '<span style="color:var(--bg3)">—</span>'}</td>
+      <td style="padding:.55rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.85rem;font-weight:600;color:var(--data)">${r.pagado > 0 ? fmt(r.pagado) : '<span style="color:var(--bg3)">—</span>'}</td>
     </tr>`).join('');
 
   const noDataMsg = allRows.length === 0
     ? `<tr><td colspan="6" style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">Sin movimientos de ITBMS en el período seleccionado</td></tr>`
     : '';
 
-  const netoColor = neto >= 0 ? '#1565C0' : 'var(--green)';
+  const netoColor = neto >= 0 ? 'var(--info)' : 'var(--green)';
   const netoLabel = neto >= 0 ? '↑ A pagar a DGI' : '↓ Crédito fiscal';
 
   const periodoLabel = (typeof plMonth !== 'undefined' && typeof plYear !== 'undefined')
@@ -6652,8 +6748,8 @@ function _cfgPanelInit() {
   var ap = document.getElementById('cfgPanelAuto');
   if (ap) {
     var note = document.createElement('div');
-    note.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:1rem;background:#E3F2FD;border-radius:8px;padding:.65rem .85rem;margin-bottom:.75rem';
-    note.innerHTML = '<div style="font-size:.77rem;color:#1565C0;line-height:1.5">⏱ Corre automáticamente cada 15 min.<br>Ejecútalo manualmente solo si es necesario.</div>'
+    note.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:1rem;background:var(--info-bg);border-radius:8px;padding:.65rem .85rem;margin-bottom:.75rem';
+    note.innerHTML = '<div style="font-size:.77rem;color:var(--info);line-height:1.5">⏱ Corre automáticamente cada 15 min.<br>Ejecútalo manualmente solo si es necesario.</div>'
       + '<button id="btnAcrSync" class="btn-sync" style="white-space:nowrap;flex-shrink:0" onclick="acrSincronizar()">⟳ Sync emails</button>';
     ap.appendChild(note);
     var sa = document.getElementById('setupPanelAcreedores');
@@ -7976,17 +8072,20 @@ function rgRenderEgr() {
   const fmt$ = n => n > 0 ? '$'+n.toLocaleString('en-US',{minimumFractionDigits:2}) : '—';
   const wEl = document.getElementById('rgEgrWidgets');
   if (wEl) {
-    wEl.style.gridTemplateColumns = 'repeat(6,1fr)';
+    // Responsivo: las tarjetas se acomodan solas en vez de forzar 6
+    // columnas, que en mobile truncaba las etiquetas.
+    wEl.style.gridTemplateColumns = 'repeat(auto-fit,minmax(148px,1fr))';
     wEl.innerHTML = [
-      { label:'Pendientes',   val: nPendFilt || '—', color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyEgrEstado(null,'pendiente')",  active: rg_egr_estado === 'pendiente'  },
-      { label:'Aprobados',    val: nRegFilt  || '—', color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyEgrEstado(null,'registrado')", active: rg_egr_estado === 'registrado' },
-      { label:'Deducible',     val: fmt$(totNeg),     color:'#1B5E20', bg:'#F1F8E9', icon:'✅', click:"rgApplyEgrAlcance('negocio',null)",  active: rg_egr_alcance === 'negocio'   },
-      { label:'No Deducible',  val: fmt$(totPers),    color:'#BF360C', bg:'#FBE9E7', icon:'🚫', click:"rgApplyEgrAlcance('personal',null)", active: rg_egr_alcance === 'personal'  },
-      { label:'Total gastado',val: fmt$(totFilt),    color:'#6A1B9A', bg:'#F3E5F5', icon:'💰', click:'', active: false },
-      { label:'ITBMS pagado', val: fmt$(itbFilt),    color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:'', active: false },
-    ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}border:2px solid ${w.active ? w.color : 'transparent'};transition:border-color .15s">`+
-      `<div style="font-size:1.3rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
-      `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}${w.active ? ' ●' : ''}</div>`+
+      { label:'Pendientes',    val: nPendFilt || '—', stripe:'var(--warn)',  sub:'Esperan tu aprobación', click:"rgApplyEgrEstado(null,'pendiente')",  active: rg_egr_estado === 'pendiente'  },
+      { label:'Aprobados',     val: nRegFilt  || '—', stripe:'var(--green)', sub:'Ya en libros',          click:"rgApplyEgrEstado(null,'registrado')", active: rg_egr_estado === 'registrado' },
+      { label:'Deducible',     val: fmt$(totNeg),     stripe:'var(--green)', sub:'Baja tu impuesto',      click:"rgApplyEgrAlcance('negocio',null)",  active: rg_egr_alcance === 'negocio'   },
+      { label:'No deducible',  val: fmt$(totPers),    stripe:'var(--red)',   sub:'No descuenta',          click:"rgApplyEgrAlcance('personal',null)", active: rg_egr_alcance === 'personal'  },
+      { label:'Total gastado', val: fmt$(totFilt),    stripe:'var(--data)',  sub:'Período filtrado',      click:'', active: false },
+      { label:'ITBMS pagado',  val: fmt$(itbFilt),    stripe:'var(--data)',  sub:'Recuperable',           click:'', active: false },
+    ].map(w => `<div onclick="${w.click}" class="rg-kpi${w.active ? ' is-active' : ''}" style="--kpi-stripe:${w.stripe};${w.click?'cursor:pointer;':''}">`+
+      `<div class="rg-kpi-label">${w.label.toUpperCase()}</div>`+
+      `<div class="rg-kpi-val">${w.val}</div>`+
+      `<div class="rg-kpi-sub">${w.active ? 'Filtro activo' : w.sub}</div>`+
       `</div>`).join('');
   }
 
@@ -8041,49 +8140,44 @@ function rgRenderEgr() {
     const origenBadge = esWhatsApp
       ? '<span style="font-size:.68rem;background:#DCEDC8;color:#33691E;padding:.15rem .45rem;border-radius:10px;font-weight:600">📲 WhatsApp</span>'
       : i._esOFX
-        ? '<span style="font-size:.68rem;background:#E3F2FD;color:#1565C0;padding:.15rem .45rem;border-radius:10px;font-weight:600">🏦 OFX</span>'
+        ? '<span style="font-size:.68rem;background:var(--info-bg);color:var(--info);padding:.15rem .45rem;border-radius:10px;font-weight:600">🏦 OFX</span>'
         : (esPendiente || i._esEmail)
-          ? '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
+          ? '<span style="font-size:.68rem;background:var(--data-bg);color:var(--data);padding:.15rem .45rem;border-radius:10px;font-weight:600">📧 Email</span>'
           : '<span style="font-size:.68rem;background:var(--bg2);color:var(--muted);padding:.15rem .45rem;border-radius:10px;font-weight:600">✏️ Manual</span>';
 
     // Badge estado
     const estadoBadge = esPendiente
-      ? '<span style="display:inline-flex;align-items:center;gap:.25rem;background:#FFF9C4;color:#F57F17;padding:.2rem .55rem;border-radius:12px;font-size:.69rem;font-weight:700">⏳ PENDIENTE</span>'
-      : '<span style="display:inline-flex;align-items:center;gap:.25rem;background:#E8F5E9;color:#2E7D32;padding:.2rem .55rem;border-radius:12px;font-size:.69rem;font-weight:700">✅ APROBADO</span>';
+      ? '<span class="rg-badge rg-badge-warn"><i></i>Pendiente</span>'
+      : '<span class="rg-badge rg-badge-ok"><i></i>Aprobado</span>';
 
     // Columna acciones
     let acciones = '';
     if (esPendiente) {
       acciones = `
-        <div style="display:flex;gap:.35rem;align-items:center">
-          <button onclick='acrAbrirDetalle(${JSON.stringify(i._raw)})'
-            style="padding:.28rem .6rem;background:#6A1B9A;color:#fff;border:none;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer"
-            title="Ver detalles y editar">👁 Ver</button>
-          <button onclick='acrAprobarRapido(${JSON.stringify(i._raw)})'
-            style="padding:.28rem .6rem;background:#2E7D32;color:#fff;border:none;border-radius:5px;font-size:.72rem;font-weight:600;cursor:pointer"
-            title="Aprobar con categoría sugerida">✅</button>
-          <button onclick='acrEliminarDirecto("${esc(i._id)}")'
-            style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer"
-            title="Eliminar permanentemente">🗑</button>
+        <div class="rg-act">
+          <button class="is-primary" onclick='acrAbrirDetalle(${JSON.stringify(i._raw)})'
+            title="Ver detalles y editar">Ver</button>
+          <button class="is-ok" onclick='acrAprobarRapido(${JSON.stringify(i._raw)})'
+            title="Aprobar con la categoría sugerida">Aprobar</button>
+          <button class="is-danger" onclick='acrEliminarDirecto("${esc(i._id)}")'
+            title="Eliminar permanentemente">Eliminar</button>
         </div>`;
     } else {
       const docLink = i.drive_url
         ? (i.factura_data
-            ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaEgreso(event,'${esc(i._id)}');return false" style="font-size:.85rem;color:#1565C0;text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
-            : `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:#1565C0" title="Ver factura">📄</a>`)
+            ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaEgreso(event,'${esc(i._id)}');return false" style="font-size:.85rem;color:var(--info);text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
+            : `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.75rem;color:var(--info)" title="Ver factura">📄</a>`)
         : '';
-      acciones = `<div style="display:flex;gap:.5rem;align-items:center">
+      acciones = `<div class="rg-act">
         ${docLink}
         <button onclick='rgAnularEgreso("${esc(i._id)}")'
-          style="padding:.28rem .5rem;background:var(--bg);color:#E65100;border:1px solid #FFE0B2;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
-          title="Anular (mantiene historial)">⊘</button>
-        <button onclick='rgEliminarEgreso("${esc(i._id)}")'
-          style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
-          title="Eliminar permanentemente">🗑</button>
+          title="Anular (mantiene historial)">Anular</button>
+        <button class="is-danger" onclick='rgEliminarEgreso("${esc(i._id)}")'
+          title="Eliminar permanentemente">Eliminar</button>
       </div>`;
     }
 
-    return `<tr style="${rowBg}${rowEdge}${isSel ? 'outline:2px solid #1565C0;outline-offset:-1px;' : ''}">
+    return `<tr style="${rowBg}${rowEdge}${isSel ? 'outline:2px solid var(--info);outline-offset:-1px;' : ''}">
       <td style="text-align:center;padding:.4rem .5rem"><input type="checkbox" data-id="${esc(_rgUidOf(i))}" ${isSel?'checked':''} onchange="rgToggleEgrSel('${esc(_rgUidOf(i))}',this.checked)" style="cursor:pointer;width:1rem;height:1rem"></td>
       <td style="font-family:'DM Mono',monospace;font-size:.76rem;color:var(--muted);white-space:nowrap">${i.fecha||'—'}</td>
       <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.proveedor)}">${esc(i.proveedor)}</td>
@@ -8091,11 +8185,11 @@ function rgRenderEgr() {
       <td style="font-family:'DM Mono',monospace;font-size:.74rem;color:var(--muted)">${esc(i.num_fac)}</td>
       <td>${buildCatChip(i)}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--muted)">${fmt(i.subtotal)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:#1565C0">${fmt(i.itbms)}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:#C62828">$${parseFloat(i.total||0).toFixed(2)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.77rem;color:var(--info)">${fmt(i.itbms)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.86rem;font-weight:700;color:var(--text)">$${parseFloat(i.total||0).toFixed(2)}</td>
       <td>${estadoBadge} ${i.alcance === 'personal'
-        ? `<span class="bc-alc-chip" onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','negocio')" title="Clic: marcar Deducible" style="font-size:.65rem;background:#FBE9E7;color:#BF360C;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">🚫 No Deducible</span>`
-        : `<span class="bc-alc-chip" onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','personal')" title="Clic: marcar No Deducible" style="font-size:.65rem;background:#F1F8E9;color:#1B5E20;padding:.15rem .4rem;border-radius:10px;font-weight:700;vertical-align:middle;cursor:pointer">✅ Deducible</span>`
+        ? `<span class="bc-alc-chip is-nded" onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','negocio')" title="Clic: marcar Deducible"><i></i>No deducible</span>`
+        : `<span class="bc-alc-chip is-ded" onclick="event.stopPropagation();rgToggleAlcance('${esc(i._id)}','${i._tipo}','personal')" title="Clic: marcar No Deducible"><i></i>Deducible</span>`
       }</td>
       <td>${acciones}</td>
     </tr>`;
@@ -8105,11 +8199,11 @@ function rgRenderEgr() {
   const tSub  = items.reduce((s,i) => s + i.subtotal, 0);
   const tItbm = items.reduce((s,i) => s + i.itbms, 0);
   const tTot  = items.reduce((s,i) => s + i.total, 0);
-  tbody.innerHTML += `<tr style="background:#F3E5F5;border-top:2px solid #CE93D8">
-    <td colspan="6" style="padding:.55rem .75rem;font-size:.78rem;font-weight:700;color:#6A1B9A;letter-spacing:.04em;text-align:right">TOTAL · ${items.length} registro${items.length!==1?'s':''}</td>
+  tbody.innerHTML += `<tr style="background:var(--data-bg);border-top:2px solid var(--border)">
+    <td colspan="6" style="padding:.55rem .75rem;font-size:.78rem;font-weight:700;color:var(--data);letter-spacing:.04em;text-align:right">TOTAL · ${items.length} registro${items.length!==1?'s':''}</td>
     <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--muted);padding:.55rem .6rem">$${tSub.toFixed(2)}</td>
-    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:#1565C0;padding:.55rem .6rem">$${tItbm.toFixed(2)}</td>
-    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.9rem;font-weight:800;color:#6A1B9A;padding:.55rem .6rem">$${tTot.toFixed(2)}</td>
+    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--info);padding:.55rem .6rem">$${tItbm.toFixed(2)}</td>
+    <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.9rem;font-weight:800;color:var(--data);padding:.55rem .6rem">$${tTot.toFixed(2)}</td>
     <td colspan="2"></td>
   </tr>`;
 }
@@ -8168,7 +8262,7 @@ function rgRenderEgrCharts(items) {
     });
     const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
     const max = sorted.length ? totals[sorted[0]] : 0;
-    let body = '<div class="rg-chart-title">📂 Top categorías</div>';
+    let body = '<div class="rg-chart-title">Top categorías</div>';
     if (!sorted.length) {
       body += '<div class="rg-chart-empty">Sin datos</div>';
     } else {
@@ -8197,14 +8291,14 @@ function rgRenderEgrCharts(items) {
     });
     const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
     const max = sorted.length ? totals[sorted[0]] : 0;
-    let body = '<div class="rg-chart-title">🏢 Top proveedores</div>';
+    let body = '<div class="rg-chart-title">Top proveedores</div>';
     if (!sorted.length) {
       body += '<div class="rg-chart-empty">Sin datos</div>';
     } else {
       body += sorted.map(p => {
         const pct = max > 0 ? Math.max(2, (totals[p] / max) * 100) : 0;
         const isActive = _rgEgrAcreedor === p;
-        const dot = isActive ? '<span style="color:#1565C0;font-weight:700">●</span> ' : '';
+        const dot = isActive ? '<span style="color:var(--info);font-weight:700">●</span> ' : '';
         return `<div class="rg-chart-row${isActive ? ' active' : ''}" onclick="rgSetAcreedor('${p.replace(/'/g,"\\'")}')" title="${esc(p)}${isActive ? ' — click para quitar filtro' : ''}">`
           + `<div class="rg-chart-lbl">${dot}${esc(p)}</div>`
           + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar prov" style="width:${pct.toFixed(1)}%"></div></div>`
@@ -8493,12 +8587,12 @@ function rgRenderIngWidgets(items) {
   if (!wEl) return;
   wEl.style.gridTemplateColumns = 'repeat(6,1fr)';
   wEl.innerHTML = [
-    { label:'Confirmados', val: nConfirm || '—',     color:'#2E7D32', bg:'#E8F5E9', icon:'✅', click:"rgApplyIngEstado('confirmado')", active: rg_ing_estado === 'confirmado' },
-    { label:'Pendientes',  val: nPend || '—',        color:'#E65100', bg:'#FFF3E0', icon:'⏳', click:"rgApplyIngEstado('pendiente')",  active: rg_ing_estado === 'pendiente' },
-    { label:'Total bruto', val: fmt$(totBruto),      color:'#1B5E20', bg:'#F1F8E9', icon:'💰', click:'',                                 active: false },
-    { label:'Sustractivos',val: fmt$(totSustract),   color:'#BF360C', bg:'#FBE9E7', icon:'↩️', click:'',                                 active: false },
-    { label:'Renta gravable', val: fmt$(rentaGravable), color:'#6A1B9A', bg:'#F3E5F5', icon:'🎯', click:'',                            active: false },
-    { label:'ITBMS cobrado',  val: fmt$(totItbms),   color:'#1565C0', bg:'#E3F2FD', icon:'🏛️', click:"rgApplyIngItbms('gravado')",     active: rg_ing_itbms === 'gravado' },
+    { label:'Confirmados', val: nConfirm || '—',     color:'var(--green)', bg:'var(--green-bg)', icon:'✅', click:"rgApplyIngEstado('confirmado')", active: rg_ing_estado === 'confirmado' },
+    { label:'Pendientes',  val: nPend || '—',        color:'var(--warn)', bg:'var(--warn-bg)', icon:'⏳', click:"rgApplyIngEstado('pendiente')",  active: rg_ing_estado === 'pendiente' },
+    { label:'Total bruto', val: fmt$(totBruto),      color:'var(--green)', bg:'var(--green-bg)', icon:'💰', click:'',                                 active: false },
+    { label:'Sustractivos',val: fmt$(totSustract),   color:'var(--red)', bg:'var(--red-bg)', icon:'↩️', click:'',                                 active: false },
+    { label:'Renta gravable', val: fmt$(rentaGravable), color:'var(--data)', bg:'var(--data-bg)', icon:'🎯', click:'',                            active: false },
+    { label:'ITBMS cobrado',  val: fmt$(totItbms),   color:'var(--info)', bg:'var(--info-bg)', icon:'🏛️', click:"rgApplyIngItbms('gravado')",     active: rg_ing_itbms === 'gravado' },
   ].map(w => `<div onclick="${w.click}" style="background:${w.bg};border-radius:12px;padding:.75rem .9rem;${w.click?'cursor:pointer;':''}border:2px solid ${w.active ? w.color : 'transparent'};transition:border-color .15s">`+
     `<div style="font-size:1.3rem;font-weight:800;color:${w.color};font-family:'DM Mono',monospace;line-height:1">${w.val}</div>`+
     `<div style="font-size:.68rem;font-weight:600;color:${w.color};opacity:.75;margin-top:.2rem;letter-spacing:.04em">${w.icon} ${w.label.toUpperCase()}${w.active ? ' ●' : ''}</div>`+
@@ -8521,7 +8615,7 @@ function rgRenderIngCharts(items) {
     });
     const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
     const max = sorted.length ? Math.abs(totals[sorted[0]]) : 0;
-    let body = '<div class="rg-chart-title">📂 Top categorías DGI</div>';
+    let body = '<div class="rg-chart-title">Top categorías DGI</div>';
     if (!sorted.length) {
       body += '<div class="rg-chart-empty">Sin datos</div>';
     } else {
@@ -8551,14 +8645,14 @@ function rgRenderIngCharts(items) {
     });
     const sorted = Object.keys(totals).sort((a,b) => totals[b] - totals[a]).slice(0, TOP_N);
     const max = sorted.length ? totals[sorted[0]] : 0;
-    let body = '<div class="rg-chart-title">👤 Top clientes</div>';
+    let body = '<div class="rg-chart-title">Top clientes</div>';
     if (!sorted.length) {
       body += '<div class="rg-chart-empty">Sin datos</div>';
     } else {
       body += sorted.map(c => {
         const pct = max > 0 ? Math.max(2, (totals[c] / max) * 100) : 0;
         const isActive = _rgIngCliente === c;
-        const dot = isActive ? '<span style="color:#1565C0;font-weight:700">●</span> ' : '';
+        const dot = isActive ? '<span style="color:var(--info);font-weight:700">●</span> ' : '';
         return `<div class="rg-chart-row${isActive ? ' active' : ''}" onclick="rgSetCliente('${c.replace(/'/g,"\\'")}')" title="${esc(c)}${isActive ? ' — click para quitar filtro' : ''}">`
           + `<div class="rg-chart-lbl">${dot}${esc(c)}</div>`
           + `<div class="rg-chart-bar-wrap"><div class="rg-chart-bar prov" style="width:${pct.toFixed(1)}%"></div></div>`
@@ -8659,8 +8753,8 @@ function rgRenderIng() {
     const rowEdge     = esReciente ? 'box-shadow:inset 4px 0 0 #00897B;' : '';
     const docLink  = i.drive_url
       ? (i.factura_data
-          ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaIngreso(event,'${esc(i.id_trans)}');return false" style="font-size:.95rem;color:#1565C0;text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
-          : `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.95rem;color:#1565C0;text-decoration:none" title="Ver comprobante">📄</a>`)
+          ? `<a href="${esc(i.drive_url)}" onclick="rgVerFacturaIngreso(event,'${esc(i.id_trans)}');return false" style="font-size:.95rem;color:var(--info);text-decoration:none;cursor:pointer" title="Ver factura electrónica">🧾</a>`
+          : `<a href="${esc(i.drive_url)}" target="_blank" style="font-size:.95rem;color:var(--info);text-decoration:none" title="Ver comprobante">📄</a>`)
       : '';
     const idEsc = esc(i.id_trans || '');
     const origenInline = esWhatsApp
@@ -8673,16 +8767,16 @@ function rgRenderIng() {
       <td style="font-size:.78rem">${esc(i.nombre_cliente||'—')}</td>
       <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${esc(i.num_factura||'—')}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted)">${i.subtotal>0?'$'+Number(i.subtotal).toFixed(2):'—'}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:#1565C0">${i.itbms>0?'$'+Number(i.itbms).toFixed(2):'—'}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:#2E7D32">$${Number(i.total||0).toFixed(2)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--info)">${i.itbms>0?'$'+Number(i.itbms).toFixed(2):'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;color:var(--green)">$${Number(i.total||0).toFixed(2)}</td>
       <td style="white-space:nowrap;text-align:center">
         <div style="display:inline-flex;gap:.4rem;align-items:center">
           ${docLink}
           <button onclick='rgEditarIngreso("${idEsc}")'
-            style="padding:.28rem .5rem;background:var(--bg);color:#1565C0;border:1px solid #BBDEFB;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
+            style="padding:.28rem .5rem;background:var(--bg);color:var(--info);border:1px solid #BBDEFB;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
             title="Editar ingreso">✏️</button>
           <button onclick='rgEliminarIngreso("${idEsc}")'
-            style="padding:.28rem .5rem;background:var(--bg);color:#B71C1C;border:1px solid #FFCDD2;border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
+            style="padding:.28rem .5rem;background:var(--bg);color:var(--red);border:1px solid var(--red-bg);border-radius:5px;font-size:.72rem;cursor:pointer;line-height:1"
             title="Eliminar permanentemente">🗑</button>
         </div>
       </td>
@@ -8846,7 +8940,7 @@ function plShowSub(sub) {
   document.getElementById('plSubTabEmpleados').style.display = sub === 'empleados' ? 'block' : 'none';
   var btnQ = document.getElementById('plSubQuincena');
   var btnE = document.getElementById('plSubEmpleados');
-  var purple = '#6A1B9A';
+  var purple = 'var(--data)';
   var muted  = 'var(--muted)';
   btnQ.style.borderBottomColor = sub === 'quincena'  ? purple : 'transparent';
   btnQ.style.color             = sub === 'quincena'  ? purple : muted;
@@ -8938,19 +9032,19 @@ function plRenderPreview() {
     tr += '<td style="padding:.5rem .75rem">';
     tr += '<div style="font-weight:600">' + esc(e.nombre) + '</div>';
     if (e.banco) tr += '<div style="font-size:.68rem;color:var(--muted)">' + esc(e.banco) + (e.cuenta ? ' · ' + esc(e.cuenta) : '') + '</div>';
-    if (esVar)   tr += '<span style="font-size:.62rem;background:#FFF3E0;color:#E65100;padding:.1rem .35rem;border-radius:3px;font-weight:600">VARIABLE</span>';
+    if (esVar)   tr += '<span style="font-size:.62rem;background:var(--warn-bg);color:var(--warn);padding:.1rem .35rem;border-radius:3px;font-weight:600">VARIABLE</span>';
     tr += '</td>';
     tr += '<td style="padding:.5rem .75rem;font-size:.78rem;color:var(--muted)">' + esc(e.cargo) + '</td>';
     tr += '<td style="padding:.5rem .75rem;text-align:right">' + inputHtml + '</td>';
     tr += '<td style="padding:.5rem .75rem;text-align:right;font-weight:600">' + fmtB(d.bruto_quincenal) + '</td>';
-    tr += '<td style="padding:.5rem .75rem;text-align:right;color:#6A1B9A;font-weight:600">' + fmtB(d.css_empleado) + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right;color:var(--data);font-weight:600">' + fmtB(d.css_empleado) + '</td>';
     tr += '<td style="padding:.5rem .75rem;text-align:right">';
-    if (d.isr_quincenal > 0) tr += '<span style="color:#1565C0;font-weight:600">' + fmtB(d.isr_quincenal) + '</span>';
+    if (d.isr_quincenal > 0) tr += '<span style="color:var(--info);font-weight:600">' + fmtB(d.isr_quincenal) + '</span>';
     else tr += '<span style="color:var(--muted)">—</span>';
     tr += '</td>';
-    tr += '<td style="padding:.5rem .75rem;text-align:right;color:#2E7D32;font-weight:700">' + fmtB(d.neto_a_pagar) + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right;color:var(--green);font-weight:700">' + fmtB(d.neto_a_pagar) + '</td>';
     tr += '<td style="padding:.5rem .75rem;text-align:right;font-size:.76rem;color:var(--muted)">' + fmtB(d.css_patronal) + '</td>';
-    tr += '<td style="padding:.5rem .75rem;text-align:right;color:#C62828;font-weight:700">' + fmtB(d.costo_empresa) + '</td>';
+    tr += '<td style="padding:.5rem .75rem;text-align:right;color:var(--red);font-weight:700">' + fmtB(d.costo_empresa) + '</td>';
     tr += '</tr>';
     return tr;
   });
@@ -8961,20 +9055,20 @@ function plRenderPreview() {
   tf += '<td style="padding:.55rem .75rem;font-weight:700" colspan="2">Total — ' + pl_preview.length + ' empleado' + (pl_preview.length !== 1 ? 's' : '') + '</td>';
   tf += '<td></td>';
   tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700">' + fmtB(totB)    + '</td>';
-  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:#6A1B9A">'  + fmtB(totCE)   + '</td>';
-  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:#1565C0">'  + fmtB(totI)    + '</td>';
-  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:#2E7D32">'  + fmtB(totN)    + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:var(--data)">'  + fmtB(totCE)   + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:var(--info)">'  + fmtB(totI)    + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:var(--green)">'  + fmtB(totN)    + '</td>';
   tf += '<td style="padding:.55rem .75rem;text-align:right;font-size:.76rem;color:var(--muted)">' + fmtB(totCP) + '</td>';
-  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:#C62828">'  + fmtB(totCosto) + '</td>';
+  tf += '<td style="padding:.55rem .75rem;text-align:right;font-weight:700;color:var(--red)">'  + fmtB(totCosto) + '</td>';
   tf += '</tr>';
   tfoot.innerHTML = tf;
 
   var kpiDefs = [
-    {label:'Neto a pagar empleados',    val:totN,     color:'#2E7D32'},
-    {label:'CSS Patronal (empresa)',     val:totCP,    color:'#6A1B9A'},
-    {label:'CSS Empleados (retención)', val:totCE,    color:'#6A1B9A'},
-    {label:'ISR retenido',              val:totI,     color:'#1565C0'},
-    {label:'Costo total empresa',       val:totCosto, color:'#C62828'},
+    {label:'Neto a pagar empleados',    val:totN,     color:'var(--green)'},
+    {label:'CSS Patronal (empresa)',     val:totCP,    color:'var(--data)'},
+    {label:'CSS Empleados (retención)', val:totCE,    color:'var(--data)'},
+    {label:'ISR retenido',              val:totI,     color:'var(--info)'},
+    {label:'Costo total empresa',       val:totCosto, color:'var(--red)'},
   ];
   var kpiHtml = '';
   kpiDefs.forEach(function(k) {
@@ -9056,10 +9150,10 @@ function plRenderEmpleados() {
   var html = '';
   todos.forEach(function(e) {
     var isActivo = e.estado === 'activo';
-    var tipoBg   = e.tipo === 'fijo' ? '#E8F5E9' : '#FFF3E0';
-    var tipoClr  = e.tipo === 'fijo' ? '#2E7D32' : '#E65100';
-    var estBg    = isActivo ? '#E8F5E9' : '#FFEBEE';
-    var estClr   = isActivo ? '#2E7D32' : '#C62828';
+    var tipoBg   = e.tipo === 'fijo' ? 'var(--green-bg)' : 'var(--warn-bg)';
+    var tipoClr  = e.tipo === 'fijo' ? 'var(--green)' : 'var(--warn)';
+    var estBg    = isActivo ? 'var(--green-bg)' : 'var(--red-bg)';
+    var estClr   = isActivo ? 'var(--green)' : 'var(--red)';
     html += '<tr style="border-bottom:1px solid var(--bg)' + (isActivo ? '' : ';opacity:.55') + '">';
     html += '<td style="padding:.5rem .75rem;font-size:.75rem;color:var(--muted)">' + esc(e.id_empleado) + '</td>';
     html += '<td style="padding:.5rem .75rem;font-weight:600">' + esc(e.nombre) + '</td>';
@@ -9071,7 +9165,7 @@ function plRenderEmpleados() {
     html += '<td style="padding:.5rem .75rem"><span style="font-size:.68rem;font-weight:600;padding:.15rem .5rem;border-radius:4px;background:' + estBg + ';color:' + estClr + '">' + (isActivo?'Activo':'Inactivo') + '</span></td>';
     html += '<td style="padding:.5rem .75rem;white-space:nowrap">';
     html += '<button onclick="plEditarEmpleado(\'' + esc(e.id_empleado) + '\')" style="padding:.2rem .6rem;font-size:.72rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer">✏️</button>';
-    if (isActivo) html += ' <button onclick="plDesactivar(\'' + esc(e.id_empleado) + '\')" style="padding:.2rem .6rem;font-size:.72rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:#C62828" title="Desactivar">✕</button>';
+    if (isActivo) html += ' <button onclick="plDesactivar(\'' + esc(e.id_empleado) + '\')" style="padding:.2rem .6rem;font-size:.72rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:var(--red)" title="Desactivar">✕</button>';
     html += '</td></tr>';
   });
   tbody.innerHTML = html;
@@ -9197,14 +9291,14 @@ var plBarChart         = null;
 
 const EGR_COLORS = {
   // Costos directos
-  costo_mercancia:          '#E65100',
-  costo_servicio_tecnico:   '#BF360C',
-  impuesto_aduana:          '#4527A0',
+  costo_mercancia:          'var(--warn)',
+  costo_servicio_tecnico:   'var(--red)',
+  impuesto_aduana:          'var(--data)',
   credito_fiscal:           '#1A237E',
   // Gastos operativos DGI
   nomina:                   '#283593',
   prestaciones_laborales:   '#311B92',
-  gastos_representacion:    '#1B5E20',
+  gastos_representacion:    'var(--green)',
   alquileres:               '#4E342E',
   cargos_bancarios:         '#37474F',
   vigilancia_seguridad:     '#263238',
@@ -9212,8 +9306,8 @@ const EGR_COLORS = {
   combustible_transporte:   '#4E342E',
   depreciacion:             '#6D4C41',
   amortizacion:             '#795548',
-  impuestos_tasas:          '#4527A0',
-  honorarios_profesionales: '#1565C0',
+  impuestos_tasas:          'var(--data)',
+  honorarios_profesionales: 'var(--info)',
   seguros:                  '#795548',
   mantenimiento_reparacion: '#558B2F',
   publicidad_mercadeo:      '#AD1457',
@@ -9221,18 +9315,18 @@ const EGR_COLORS = {
   telecomunicaciones:       '#00838F',
   servicios_publicos:       '#00838F',
   tecnologia_software:      '#0277BD',
-  capacitacion:             '#2E7D32',
+  capacitacion:             'var(--green)',
   otros_deducibles:         '#AEAEB2',
   sin_clasificar:           '#FF6F00',
   // Deducibles Personales
-  deducibles_personales:           '#6A1B9A',
+  deducibles_personales:           'var(--data)',
   gastos_medicos:                  '#AD1457',
-  gastos_escolares:                '#1565C0',
+  gastos_escolares:                'var(--info)',
   intereses_hipotecarios:          '#4E342E',
-  intereses_prestamos_educativos:  '#1B5E20',
+  intereses_prestamos_educativos:  'var(--green)',
   gastos_escolares_discapacitados: '#37474F',
   // Legacy
-  costo_operativo:          '#6A1B9A',
+  costo_operativo:          'var(--data)',
   servicios:                '#00695C',
 };
 const TIPO_LABEL = {
@@ -9587,12 +9681,12 @@ function renderDashboard() {
         <span style="margin-left:.25rem">sin ITBMS · bruto ${plFmt(totalIng)}</span>
       </div>
     </div>
-    <div class="pl-kpi" style="--kpi-accent:#6A1B9A">
+    <div class="pl-kpi" style="--kpi-accent:var(--data)">
       <div class="pl-kpi-label">Gastos operativos</div>
-      <div class="pl-kpi-value" style="color:#6A1B9A">${plFmt(gastosGral)}</div>
+      <div class="pl-kpi-value" style="color:var(--data)">${plFmt(gastosGral)}</div>
       <div class="pl-kpi-sub" style="flex-direction:column;align-items:flex-start;gap:.1rem">
         <span>${totalIngNeto > 0 ? ((gastosGral/totalIngNeto)*100).toFixed(1)+'% de ingresos' : gastosGral > 0 ? 'del período' : '—'}</span>
-        ${gastosPersonales > 0 ? `<span style="color:#E65100;font-size:.67rem">🚫 ${plFmt(gastosPersonales)} personal</span>` : ''}
+        ${gastosPersonales > 0 ? `<span style="color:var(--warn);font-size:.67rem">🚫 ${plFmt(gastosPersonales)} personal</span>` : ''}
       </div>
     </div>
     <div class="pl-kpi" style="--kpi-accent:${utilNeta >= 0 ? 'var(--green)' : 'var(--red)'}">
@@ -9603,12 +9697,12 @@ function renderDashboard() {
         <span style="margin-left:.25rem">margen neto</span>
       </div>
     </div>
-    <div class="pl-kpi" style="--kpi-accent:${itbmsNeto >= 0 ? '#1565C0' : 'var(--green)'};cursor:pointer;transition:box-shadow .2s" onclick="openItbmsDetalle()" title="Ver desglose ITBMS · DGI">
+    <div class="pl-kpi" style="--kpi-accent:${itbmsNeto >= 0 ? 'var(--info)' : 'var(--green)'};cursor:pointer;transition:box-shadow .2s" onclick="openItbmsDetalle()" title="Ver desglose ITBMS · DGI">
       <div class="pl-kpi-label">ITBMS neto · DGI</div>
-      <div class="pl-kpi-value" style="color:${itbmsNeto >= 0 ? '#1565C0' : 'var(--green)'}">${plFmt(Math.abs(itbmsNeto))}</div>
+      <div class="pl-kpi-value" style="color:${itbmsNeto >= 0 ? 'var(--info)' : 'var(--green)'}">${plFmt(Math.abs(itbmsNeto))}</div>
       <div class="pl-kpi-sub" style="flex-direction:column;align-items:flex-start;gap:.1rem">
-        <span>Cobrado <strong style="color:#1565C0">${plFmt(itbmsIng)}</strong> · Pagado <strong style="color:#6A1B9A">${plFmt(itbmsEgr)}</strong></span>
-        <span style="color:${itbmsNeto >= 0 ? '#1565C0' : 'var(--green)'}">
+        <span>Cobrado <strong style="color:var(--info)">${plFmt(itbmsIng)}</strong> · Pagado <strong style="color:var(--data)">${plFmt(itbmsEgr)}</strong></span>
+        <span style="color:${itbmsNeto >= 0 ? 'var(--info)' : 'var(--green)'}">
           ${itbmsNeto >= 0 ? '↑ a pagar a DGI' : '↓ crédito fiscal'}
         </span>
         <span style="font-size:.65rem;color:var(--chrome);margin-top:.1rem">🔍 Ver desglose detallado</span>
@@ -9810,14 +9904,14 @@ function erRender() {
     <div style="display:flex;gap:.6rem;align-items:center;padding:.5rem .85rem;background:var(--bg);border-radius:6px;margin:.45rem;font-size:.75rem;flex-wrap:wrap">
       <span style="color:var(--green);font-weight:700">✅ ${plFmt(dedTotal)}</span>
       <span style="color:var(--muted)">deducibles</span>
-      ${nodedTotal > 0 ? `<span style="margin-left:auto;color:#E65100;font-weight:700">🚫 ${plFmt(nodedTotal)}</span><span style="color:var(--muted)">no deducibles</span>` : ''}
+      ${nodedTotal > 0 ? `<span style="margin-left:auto;color:var(--warn);font-weight:700">🚫 ${plFmt(nodedTotal)}</span><span style="color:var(--muted)">no deducibles</span>` : ''}
     </div>` : '';
 
   const detGasHtml = gastosItems.map(e => {
     const cat   = esc(EGR_LABEL[e.tipo_egreso] || e.tipo_egreso || '—');
     const desc  = e.descripcion ? `<span class="er-detail-item-sub">${esc(e.descripcion.substring(0,50))}</span>` : '';
     const alcBadge = (e.alcance || 'negocio') === 'personal'
-      ? '<span style="font-size:.63rem;color:#E65100;margin-left:.3rem">🚫</span>' : '';
+      ? '<span style="font-size:.63rem;color:var(--warn);margin-left:.3rem">🚫</span>' : '';
     return `<div class="er-detail-item">
       <span class="er-detail-item-label">${cat}${alcBadge}${desc}</span>
       <span class="er-detail-item-amt">${plFmt(parseFloat(e.total) || 0)}</span>
@@ -9827,7 +9921,7 @@ function erRender() {
   // ── Detalle Categorías (clicable, despliega items) ──
   const catDetailHtml = catEntries.map(([cat, d]) => {
     const label = esc(EGR_LABEL[cat] || cat);
-    const color = EGR_COLORS[cat] || '#9E9E9E';
+    const color = EGR_COLORS[cat] || 'var(--chrome)';
     const pct   = gastosTotal > 0 ? (d.total / gastosTotal * 100).toFixed(1) : '0.0';
     const safeCat = String(cat).replace(/[^a-zA-Z0-9_-]/g, '_');
     const itemsHtml = d.items.map(e => {
@@ -10015,27 +10109,27 @@ function fnRenderKpis(items, total, totalNeg, totalPer, catEntries, provEntries)
       +'<div class="pl-kpi-value">'+plFmt(total)+'</div>'
       +'<div class="pl-kpi-sub">'+items.length+' transaccion'+(items.length!==1?'es':'')+'</div>'
     +'</div>'
-    +'<div class="pl-kpi" style="--kpi-accent:#6A1B9A">'
+    +'<div class="pl-kpi" style="--kpi-accent:var(--data)">'
       +'<div class="pl-kpi-label">💼 Negocio</div>'
-      +'<div class="pl-kpi-value" style="color:#6A1B9A">'+plFmt(totalNeg)+'</div>'
-      +'<div class="pl-kpi-sub"><span class="pl-kpi-tag" style="background:#EDE7F6;color:#4527A0">'+pctNeg+'% del total</span></div>'
+      +'<div class="pl-kpi-value" style="color:var(--data)">'+plFmt(totalNeg)+'</div>'
+      +'<div class="pl-kpi-sub"><span class="pl-kpi-tag" style="background:var(--data-bg);color:var(--data)">'+pctNeg+'% del total</span></div>'
     +'</div>'
-    +'<div class="pl-kpi" style="--kpi-accent:#E65100">'
+    +'<div class="pl-kpi" style="--kpi-accent:var(--warn)">'
       +'<div class="pl-kpi-label">👤 Personal</div>'
-      +'<div class="pl-kpi-value" style="color:#E65100">'+plFmt(totalPer)+'</div>'
-      +'<div class="pl-kpi-sub"><span class="pl-kpi-tag" style="background:#FFF3E0;color:#E65100">'+pctPer+'% del total</span></div>'
+      +'<div class="pl-kpi-value" style="color:var(--warn)">'+plFmt(totalPer)+'</div>'
+      +'<div class="pl-kpi-sub"><span class="pl-kpi-tag" style="background:var(--warn-bg);color:var(--warn)">'+pctPer+'% del total</span></div>'
     +'</div>'
     +(topCat
-      ? '<div class="pl-kpi" style="--kpi-accent:'+(EGR_COLORS[topCat[0]]||'#9E9E9E')+'">'
+      ? '<div class="pl-kpi" style="--kpi-accent:'+(EGR_COLORS[topCat[0]]||'var(--chrome)')+'">'
           +'<div class="pl-kpi-label">📂 Mayor categoría</div>'
-          +'<div class="pl-kpi-value" style="color:'+(EGR_COLORS[topCat[0]]||'#9E9E9E')+';font-size:.85rem">'+esc(EGR_LABEL[topCat[0]]||topCat[0])+'</div>'
+          +'<div class="pl-kpi-value" style="color:'+(EGR_COLORS[topCat[0]]||'var(--chrome)')+';font-size:.85rem">'+esc(EGR_LABEL[topCat[0]]||topCat[0])+'</div>'
           +'<div class="pl-kpi-sub">'+plFmt(topCat[1].total)+' · '+topCat[1].count+' gasto'+(topCat[1].count!==1?'s':'')+'</div>'
         +'</div>'
       : '<div class="pl-kpi"></div>')
     +(topProv
-      ? '<div class="pl-kpi" style="--kpi-accent:#1565C0">'
+      ? '<div class="pl-kpi" style="--kpi-accent:var(--info)">'
           +'<div class="pl-kpi-label">🏢 Mayor proveedor</div>'
-          +'<div class="pl-kpi-value" style="color:#1565C0;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(topProv[0])+'</div>'
+          +'<div class="pl-kpi-value" style="color:var(--info);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(topProv[0])+'</div>'
           +'<div class="pl-kpi-sub">'+plFmt(topProv[1].total)+' · '+topProv[1].count+' factura'+(topProv[1].count!==1?'s':'')+'</div>'
         +'</div>'
       : '<div class="pl-kpi"></div>');
@@ -10050,7 +10144,7 @@ function fnRenderDonut(totalNeg, totalPer, total) {
     '<div class="fn-section-hdr">Negocio vs Personal</div>'
     +'<div style="display:flex;flex-direction:column;align-items:center;gap:.9rem">'
       +'<div style="position:relative;width:130px;height:130px;flex-shrink:0">'
-        +'<div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(#6A1B9A 0% '+pctNeg.toFixed(2)+'%, #E65100 '+pctNeg.toFixed(2)+'% 100%)"></div>'
+        +'<div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(var(--data) 0% '+pctNeg.toFixed(2)+'%, var(--warn) '+pctNeg.toFixed(2)+'% 100%)"></div>'
         +'<div style="position:absolute;inset:32px;background:var(--white);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">'
           +'<span style="font-size:.63rem;font-weight:700;color:var(--muted)">TOTAL</span>'
           +'<span style="font-size:.75rem;font-weight:700;line-height:1.2">'+plFmt(total)+'</span>'
@@ -10058,12 +10152,12 @@ function fnRenderDonut(totalNeg, totalPer, total) {
       +'</div>'
       +'<div style="width:100%;display:flex;flex-direction:column;gap:.4rem">'
         +'<div style="display:flex;align-items:center;gap:.5rem;font-size:.77rem">'
-          +'<span style="width:10px;height:10px;border-radius:50%;background:#6A1B9A;flex-shrink:0"></span>'
+          +'<span style="width:10px;height:10px;border-radius:50%;background:var(--data);flex-shrink:0"></span>'
           +'<span style="flex:1;color:var(--muted)">💼 Negocio</span>'
           +'<span style="font-family:\'DM Mono\',monospace;font-weight:700">'+pctNeg.toFixed(1)+'%</span>'
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:.5rem;font-size:.77rem">'
-          +'<span style="width:10px;height:10px;border-radius:50%;background:#E65100;flex-shrink:0"></span>'
+          +'<span style="width:10px;height:10px;border-radius:50%;background:var(--warn);flex-shrink:0"></span>'
           +'<span style="flex:1;color:var(--muted)">👤 Personal</span>'
           +'<span style="font-family:\'DM Mono\',monospace;font-weight:700">'+pctPer.toFixed(1)+'%</span>'
         +'</div>'
@@ -10080,7 +10174,7 @@ function fnRenderCatBars(catEntries, total) {
     +'<div style="display:flex;flex-direction:column;gap:.5rem">'
     + top8.map(function(entry) {
         var cat   = entry[0], d = entry[1];
-        var color = EGR_COLORS[cat] || '#9E9E9E';
+        var color = EGR_COLORS[cat] || 'var(--chrome)';
         var label = EGR_LABEL[cat]  || cat;
         var pct   = maxAmt > 0 ? (d.total/maxAmt*100) : 0;
         var pctOf = total  > 0 ? (d.total/total*100).toFixed(1) : '0.0';
@@ -10121,8 +10215,8 @@ function fnRenderTrend() {
     var isAct = i === curM;
     return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:26px;cursor:pointer" onclick="fnSetMonth('+(i+1)+')" title="'+m+': '+plFmt(tot)+'">'
       +'<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:'+H+'px;width:100%;gap:1px">'
-        +(perH > 0 ? '<div style="width:78%;height:'+perH+'px;background:#E65100;border-radius:2px 2px 0 0;opacity:'+(isAct?'1':'.65')+'"></div>' : '')
-        +(negH > 0 ? '<div style="width:78%;height:'+negH+'px;background:#6A1B9A;border-radius:'+(perH>0?'0':'2px 2px')+' 0 0;opacity:'+(isAct?'1':'.65')+'"></div>' : '')
+        +(perH > 0 ? '<div style="width:78%;height:'+perH+'px;background:var(--warn);border-radius:2px 2px 0 0;opacity:'+(isAct?'1':'.65')+'"></div>' : '')
+        +(negH > 0 ? '<div style="width:78%;height:'+negH+'px;background:var(--data);border-radius:'+(perH>0?'0':'2px 2px')+' 0 0;opacity:'+(isAct?'1':'.65')+'"></div>' : '')
         +(negH===0&&perH===0 ? '<div style="width:78%;height:2px;background:var(--border)"></div>' : '')
       +'</div>'
       +'<div style="font-size:.62rem;color:'+(isAct?'var(--text)':'var(--chrome)')+';font-weight:'+(isAct?'700':'400')+'">'+m+'</div>'
@@ -10140,14 +10234,14 @@ function fnRenderCatTable(catEntries, total) {
     +'<tbody>'
     + catEntries.map(function(entry) {
         var cat = entry[0], d = entry[1];
-        var color = EGR_COLORS[cat] || '#9E9E9E';
+        var color = EGR_COLORS[cat] || 'var(--chrome)';
         var label = EGR_LABEL[cat]  || cat;
         var pct   = total > 0 ? (d.total/total*100).toFixed(1) : '0.0';
         return '<tr>'
           +'<td style="font-size:.8rem">'
             +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+color+';margin-right:.4rem;vertical-align:middle"></span>'
             +esc(label)
-            +(d.per > 0 ? '<span style="font-size:.65rem;color:#E65100;margin-left:.35rem">👤 '+plFmt(d.per)+'</span>' : '')
+            +(d.per > 0 ? '<span style="font-size:.65rem;color:var(--warn);margin-left:.35rem">👤 '+plFmt(d.per)+'</span>' : '')
           +'</td>'
           +'<td style="text-align:right;font-size:.78rem;color:var(--muted)">'+d.count+'</td>'
           +'<td style="text-align:right;font-family:\'DM Mono\',monospace;font-size:.8rem;font-weight:600">'+plFmt(d.total)+'</td>'
@@ -10171,7 +10265,7 @@ function fnRenderProvTable(provEntries, total) {
         var pct  = total > 0 ? (d.total/total*100).toFixed(1) : '0.0';
         var badge = d.per > 0 && d.neg > 0
           ? '<span style="font-size:.63rem;color:var(--muted);margin-left:.3rem">mixto</span>'
-          : d.per > 0 ? '<span style="font-size:.63rem;color:#E65100;margin-left:.3rem">👤</span>' : '';
+          : d.per > 0 ? '<span style="font-size:.63rem;color:var(--warn);margin-left:.3rem">👤</span>' : '';
         return '<tr>'
           +'<td style="font-size:.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(prov)+badge+'</td>'
           +'<td style="text-align:right;font-size:.78rem;color:var(--muted)">'+d.count+'</td>'
@@ -10201,7 +10295,7 @@ function fnRenderTxTable(items) {
         var prov  = e.proveedor || '—';
         var catK  = e.tipo_egreso || e.categoria || '';
         var cat   = EGR_LABEL[catK] || catK || '—';
-        var color = EGR_COLORS[catK] || '#9E9E9E';
+        var color = EGR_COLORS[catK] || 'var(--chrome)';
         var isPer = (e.alcance||'negocio') === 'personal';
         return '<tr>'
           +'<td style="font-size:.77rem;color:var(--muted);white-space:nowrap">'+fecha+'</td>'
@@ -10211,8 +10305,8 @@ function fnRenderTxTable(items) {
             +esc(cat)
           +'</td>'
           +'<td>'+(isPer
-            ? '<span style="font-size:.68rem;background:#FFF3E0;color:#E65100;padding:.1rem .4rem;border-radius:10px;font-weight:600;white-space:nowrap">👤 Personal</span>'
-            : '<span style="font-size:.68rem;background:#EDE7F6;color:#4527A0;padding:.1rem .4rem;border-radius:10px;font-weight:600;white-space:nowrap">💼 Negocio</span>')
+            ? '<span style="font-size:.68rem;background:var(--warn-bg);color:var(--warn);padding:.1rem .4rem;border-radius:10px;font-weight:600;white-space:nowrap">👤 Personal</span>'
+            : '<span style="font-size:.68rem;background:var(--data-bg);color:var(--data);padding:.1rem .4rem;border-radius:10px;font-weight:600;white-space:nowrap">💼 Negocio</span>')
           +'</td>'
           +'<td style="text-align:right;font-family:\'DM Mono\',monospace;font-size:.82rem;font-weight:600">'+plFmt(parseFloat(e.total)||0)+'</td>'
         +'</tr>';
@@ -10256,16 +10350,16 @@ function plRenderCostRow(totalCogsRef) {
   }
 
   const TIPO_CFG = {
-    producto:          { label: 'Producto',           icon: '📦', color: '#1565C0' },
-    impuesto:          { label: 'Impuestos / Aduana', icon: '🏛️', color: '#6A1B9A' },
+    producto:          { label: 'Producto',           icon: '📦', color: 'var(--info)' },
+    impuesto:          { label: 'Impuestos / Aduana', icon: '🏛️', color: 'var(--data)' },
     shipping_handling: { label: 'Shipping & Handling', icon: '✈️', color: '#00695C' },
-    mano_obra:         { label: 'Mano de obra',        icon: '🔧', color: '#E65100' },
-    flete:             { label: 'Flete',               icon: '🚛', color: '#4527A0' },
+    mano_obra:         { label: 'Mano de obra',        icon: '🔧', color: 'var(--warn)' },
+    flete:             { label: 'Flete',               icon: '🚛', color: 'var(--data)' },
     subcontrato:       { label: 'Subcontrato',         icon: '🤝', color: '#558B2F' },
     combustible:       { label: 'Combustible',         icon: '⛽', color: '#827717' },
     fianza:            { label: 'Fianza',              icon: '🔒', color: '#78909C' },
     credito_fiscal:    { label: 'Crédito fiscal ITBM',  icon: '✓',  color: 'var(--green)' },
-    otro:              { label: 'Otro',                icon: '📌', color: '#9E9E9E' },
+    otro:              { label: 'Otro',                icon: '📌', color: 'var(--chrome)' },
   };
 
   // Solo mostrar tipos con monto > 0, ordenados de mayor a menor
@@ -10372,11 +10466,11 @@ function plRenderBarChart(year) {
   for (let m = 0; m < 12; m++) utilData[m] = ingData[m] - gastosOpByMes[m];
 
   const activeMes = plMonth === 'ytd' ? -1 : plMonth - 1;
-  const ingColors  = meses.map((_,i) => i === activeMes ? '#E05A00' : 'rgba(224,90,0,.5)');
-  const cogsColors = meses.map((_,i) => i === activeMes ? '#6A1B9A' : 'rgba(106,27,154,.4)');
+  const ingColors  = meses.map((_,i) => i === activeMes ? 'var(--orange)' : 'rgba(224,90,0,.5)');
+  const cogsColors = meses.map((_,i) => i === activeMes ? 'var(--data)' : 'rgba(106,27,154,.4)');
   const utilColors = meses.map((_,i) => {
     const v = utilData[i];
-    if (i === activeMes) return v >= 0 ? '#2E7D32' : '#C62828';
+    if (i === activeMes) return v >= 0 ? 'var(--green)' : 'var(--red)';
     return v >= 0 ? 'rgba(46,125,50,.45)' : 'rgba(198,40,40,.45)';
   });
 
@@ -10393,9 +10487,9 @@ function plRenderBarChart(year) {
           label: 'Utilidad',
           data: utilData,
           type: 'line',
-          borderColor: utilData.reduce((s,v) => s + v, 0) >= 0 ? '#2E7D32' : '#C62828',
+          borderColor: utilData.reduce((s,v) => s + v, 0) >= 0 ? 'var(--green)' : 'var(--red)',
           backgroundColor: 'transparent',
-          pointBackgroundColor: utilData.map(v => v >= 0 ? '#2E7D32' : '#C62828'),
+          pointBackgroundColor: utilData.map(v => v >= 0 ? 'var(--green)' : 'var(--red)'),
           pointBorderColor: '#fff',
           pointBorderWidth: 2,
           pointRadius: 4,
@@ -10629,7 +10723,7 @@ function acrAbrirDetalle(item) {
   _acrBuildCatOptions('acrDetCat', item.categoria || '');
   const conf = (item.notas || '').match(/(\d+)%/);
   const confNum = conf ? parseInt(conf[1]) : null;
-  const confColor = confNum >= 80 ? '#2E7D32' : confNum >= 60 ? '#F57F17' : '#C62828';
+  const confColor = confNum >= 80 ? 'var(--green)' : confNum >= 60 ? 'var(--warn)' : 'var(--red)';
   document.getElementById('acrCatSugerida').innerHTML = confNum !== null
     ? `<span style="color:${confColor}">IA confianza: ${confNum}%</span>`
     : '';
@@ -10882,7 +10976,7 @@ async function _loadSetupAcrGrid() {
     grid.innerHTML = items.map(acr => `
       <div class="prov-card" style="border-left:3px solid ${acr.activo ? '#4A148C' : '#ccc'}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-          <span class="prov-id-badge" style="background:#EDE7F6;color:#4A148C">${acr.id}</span>
+          <span class="prov-id-badge" style="background:var(--data-bg);color:#4A148C">${acr.id}</span>
           <label class="toggle-switch">
             <input type="checkbox" ${acr.activo ? 'checked' : ''} onchange="acrToggle('${acr.id}', this.checked)">
             <span class="slider"></span>
@@ -10890,7 +10984,7 @@ async function _loadSetupAcrGrid() {
         </div>
         <div class="prov-nombre">${acr.nombre}</div>
         <div class="prov-ruc">RUC ${acr.ruc || '—'}${acr.dv ? ' DV ' + acr.dv : ''}</div>
-        <div style="font-size:.72rem;color:#6A1B9A;margin-top:.25rem">${catLabel(acr.categoria_def)}</div>
+        <div style="font-size:.72rem;color:var(--data);margin-top:.25rem">${catLabel(acr.categoria_def)}</div>
         ${acr.drive_ejemplo ? `<a href="${acr.drive_ejemplo}" target="_blank" style="font-size:.72rem;color:var(--orange);margin-top:.25rem;display:block">📄 Ver factura ejemplo</a>` : ''}
       </div>
     `).join('');
@@ -10978,7 +11072,7 @@ async function verificarSistema() {
     if (c.key === 'trigger_sync') {
       const btnLabel = r.activo ? '⏸ Desactivar' : '▶ Activar';
       const btnFn    = r.activo ? 'desactivarTriggerSync' : 'activarTriggerSync';
-      const btnColor = r.activo ? '#BF360C' : '#1B5E20';
+      const btnColor = r.activo ? 'var(--red)' : 'var(--green)';
       return '<div class="setup-status-row" style="margin-bottom:.5rem;align-items:flex-start">' +
         '<div class="setup-status-dot ' + dot + '" style="margin-top:.35rem"></div>' +
         '<div style="flex:1;display:flex;flex-direction:column;gap:.25rem">' +
@@ -11042,7 +11136,7 @@ window.desactivarTriggerSync = desactivarTriggerSync;
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:.75rem">
         <div class="modal-title">ITBMS · Desglose DGI</div>
-        <span id="itbmsPeriodoLabel" style="font-family:'DM Mono',monospace;font-size:.7rem;background:var(--blue-bg);color:#1565C0;padding:.2rem .6rem;border-radius:100px;font-weight:600"></span>
+        <span id="itbmsPeriodoLabel" style="font-family:'DM Mono',monospace;font-size:.7rem;background:var(--blue-bg);color:var(--info);padding:.2rem .6rem;border-radius:100px;font-weight:600"></span>
         <span id="itbmsRowCount" style="font-size:.7rem;color:var(--muted)"></span>
       </div>
       <button class="modal-close" onclick="closeItbmsDetalle()">✕</button>
@@ -11051,8 +11145,8 @@ window.desactivarTriggerSync = desactivarTriggerSync;
 
       <!-- Leyenda rápida -->
       <div style="display:flex;gap:1.5rem;padding:.75rem 1.25rem;background:var(--bg);border-bottom:1px solid var(--border);font-size:.72rem;color:var(--muted)">
-        <span>📄 <strong style="color:#1565C0">Cobrado</strong> = ITBMS en facturas de venta (ingresos)</span>
-        <span>🏛 <strong style="color:#6A1B9A">Pagado</strong> = ITBMS en facturas de compra y aduanas (egresos)</span>
+        <span>📄 <strong style="color:var(--info)">Cobrado</strong> = ITBMS en facturas de venta (ingresos)</span>
+        <span>🏛 <strong style="color:var(--data)">Pagado</strong> = ITBMS en facturas de compra y aduanas (egresos)</span>
       </div>
 
       <!-- Tabla -->
@@ -11072,8 +11166,8 @@ window.desactivarTriggerSync = desactivarTriggerSync;
               <th style="padding:.6rem .7rem;text-align:left;font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600">Empresa / Contraparte</th>
               <th style="padding:.6rem .7rem;text-align:left;font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600">N° Doc.</th>
               <th style="padding:.6rem .7rem;text-align:left;font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap">Fecha</th>
-              <th style="padding:.6rem .7rem;text-align:right;font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:#1565C0;font-weight:700;white-space:nowrap">Cobrado</th>
-              <th style="padding:.6rem .7rem;text-align:right;font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:#6A1B9A;font-weight:700;white-space:nowrap">Pagado</th>
+              <th style="padding:.6rem .7rem;text-align:right;font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--info);font-weight:700;white-space:nowrap">Cobrado</th>
+              <th style="padding:.6rem .7rem;text-align:right;font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--data);font-weight:700;white-space:nowrap">Pagado</th>
             </tr>
           </thead>
           <tbody id="itbmsDetalleBody">
@@ -11081,8 +11175,8 @@ window.desactivarTriggerSync = desactivarTriggerSync;
           <tfoot>
             <tr style="background:var(--bg);border-top:2px solid var(--border)">
               <td colspan="4" style="padding:.75rem 1rem;font-size:.78rem;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:.04em;text-transform:uppercase;color:var(--text)">TOTAL</td>
-              <td style="padding:.75rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.95rem;font-weight:700;color:#1565C0" id="itbmsFootCobrado">$0.00</td>
-              <td style="padding:.75rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.95rem;font-weight:700;color:#6A1B9A" id="itbmsFootPagado">$0.00</td>
+              <td style="padding:.75rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.95rem;font-weight:700;color:var(--info)" id="itbmsFootCobrado">$0.00</td>
+              <td style="padding:.75rem .7rem;text-align:right;font-family:'DM Mono',monospace;font-size:.95rem;font-weight:700;color:var(--data)" id="itbmsFootPagado">$0.00</td>
             </tr>
             <tr style="background:var(--bg2);border-top:1px solid var(--border)">
               <td colspan="4" style="padding:.65rem 1rem">
@@ -11137,7 +11231,7 @@ window.desactivarTriggerSync = desactivarTriggerSync;
           <input type="number" id="plEmpSalario" class="modal-input" step="0.01" min="0" placeholder="0.00">
         </div>
         <div class="modal-field full" style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
-          <input type="checkbox" id="plEmpIsr" style="width:16px;height:16px;accent-color:#1565C0;cursor:pointer">
+          <input type="checkbox" id="plEmpIsr" style="width:16px;height:16px;accent-color:var(--info);cursor:pointer">
           <label for="plEmpIsr" style="font-size:.83rem;cursor:pointer">Aplica retención ISR <span style="font-size:.72rem;color:var(--muted)">(salario anual > B/.11,000)</span></label>
         </div>
         <div class="modal-field">
@@ -11164,7 +11258,7 @@ window.desactivarTriggerSync = desactivarTriggerSync;
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn-primary" style="background:#6A1B9A" onclick="plGuardarEmpleado()">💾 Guardar</button>
+      <button class="btn-primary" style="background:var(--data)" onclick="plGuardarEmpleado()">💾 Guardar</button>
       <button class="btn-secondary" onclick="plCerrarEmpModal()">Cancelar</button>
     </div>
   </div>
@@ -11179,9 +11273,9 @@ document.getElementById('plEmpSalario').addEventListener('input', function() {
   var d = plCalcDed(sal, isr);
   document.getElementById('plEmpCalcContent').innerHTML =
     'Bruto quincena: <strong>B/. ' + d.bruto_quincenal.toFixed(2) + '</strong> · ' +
-    'CSS empleado: <strong style="color:#6A1B9A">B/. ' + d.css_empleado.toFixed(2) + '</strong> · ' +
-    (isr ? 'ISR: <strong style="color:#1565C0">B/. ' + d.isr_quincenal.toFixed(2) + '</strong> · ' : '') +
-    '<strong style="color:#2E7D32">Neto: B/. ' + d.neto_a_pagar.toFixed(2) + '</strong><br>' +
+    'CSS empleado: <strong style="color:var(--data)">B/. ' + d.css_empleado.toFixed(2) + '</strong> · ' +
+    (isr ? 'ISR: <strong style="color:var(--info)">B/. ' + d.isr_quincenal.toFixed(2) + '</strong> · ' : '') +
+    '<strong style="color:var(--green)">Neto: B/. ' + d.neto_a_pagar.toFixed(2) + '</strong><br>' +
     '<span style="color:var(--muted)">CSS patronal: B/. ' + d.css_patronal.toFixed(2) + ' · Costo empresa: <strong>B/. ' + d.costo_empresa.toFixed(2) + '</strong></span>';
 });
 document.getElementById('plEmpIsr').addEventListener('change', function() {
@@ -11292,8 +11386,8 @@ function verFacturaXml(ev, url) {
   gasJsonp('getFacturaXml', { fileId: fileId }).then(function(res) {
     if (!res || !res.success || !res.xml) {
       body.innerHTML = '<div style="text-align:center;padding:2rem">'
-        + '<div style="color:#C62828;margin-bottom:1rem">No se pudo cargar el XML de la factura.</div>'
-        + '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;background:#1565C0;color:#fff;border-radius:8px;text-decoration:none;font-size:.85rem;font-weight:600">↗ Abrir en Drive</a>'
+        + '<div style="color:var(--red);margin-bottom:1rem">No se pudo cargar el XML de la factura.</div>'
+        + '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;background:var(--info);color:#fff;border-radius:8px;text-decoration:none;font-size:.85rem;font-weight:600">↗ Abrir en Drive</a>'
         + '</div>';
       return;
     }
@@ -11303,8 +11397,8 @@ function verFacturaXml(ev, url) {
     _renderFacturaXmlModal(data);
   }).catch(function() {
     body.innerHTML = '<div style="text-align:center;padding:2rem">'
-      + '<div style="color:#C62828;margin-bottom:1rem">Error de conexión con el servidor.</div>'
-      + '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;background:#1565C0;color:#fff;border-radius:8px;text-decoration:none;font-size:.85rem;font-weight:600">↗ Abrir en Drive</a>'
+      + '<div style="color:var(--red);margin-bottom:1rem">Error de conexión con el servidor.</div>'
+      + '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;background:var(--info);color:#fff;border-radius:8px;text-decoration:none;font-size:.85rem;font-weight:600">↗ Abrir en Drive</a>'
       + '</div>';
   });
 }
@@ -11391,7 +11485,7 @@ function _renderFacturaXmlModal(data) {
         + '<td style="padding:.4rem .6rem;border-bottom:1px solid #F0F0F0">' + xt(it.desc || '—') + '</td>'
         + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace">' + it.cant + '</td>'
         + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace">' + fmt(it.prUnit) + '</td>'
-        + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace;color:#1565C0">' + (it.itbms ? fmt(it.itbms) : '—') + '</td>'
+        + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace;color:var(--info)">' + (it.itbms ? fmt(it.itbms) : '—') + '</td>'
         + '<td style="text-align:right;padding:.4rem .5rem;border-bottom:1px solid #F0F0F0;font-family:\'DM Mono\',monospace;font-weight:700">' + fmt(it.total) + '</td>'
         + '</tr>';
     });
@@ -11401,7 +11495,7 @@ function _renderFacturaXmlModal(data) {
   }
 
   var qrHtml = m.qrCode
-    ? '<div style="margin-top:1.25rem;text-align:center"><a href="' + m.qrCode + '" target="_blank" style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;background:#1565C0;color:#fff;border-radius:8px;text-decoration:none;font-size:.8rem;font-weight:600">🔗 Verificar en DGI ↗</a></div>'
+    ? '<div style="margin-top:1.25rem;text-align:center"><a href="' + m.qrCode + '" target="_blank" style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;background:var(--info);color:#fff;border-radius:8px;text-decoration:none;font-size:.8rem;font-weight:600">🔗 Verificar en DGI ↗</a></div>'
     : '';
 
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">'
@@ -11423,10 +11517,10 @@ function _renderFacturaXmlModal(data) {
 
     // Meta badges
     + '<div style="display:flex;flex-wrap:wrap;gap:.55rem;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--border)">'
-    + (m.nroFac ? '<div style="background:#E3F2FD;border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:#1565C0;text-transform:uppercase">N° Factura</div><div style="font-family:\'DM Mono\',monospace;font-weight:700;color:#1565C0;font-size:.88rem">' + xt(m.nroFac) + '</div></div>' : '')
-    + (m.fecha  ? '<div style="background:#F3E5F5;border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:#6A1B9A;text-transform:uppercase">Fecha</div><div style="font-weight:700;color:#6A1B9A;font-size:.88rem">' + xt(m.fecha) + '</div></div>' : '')
-    + (m.tipo   ? '<div style="background:#E8F5E9;border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:#2E7D32;text-transform:uppercase">Tipo</div><div style="font-weight:700;color:#2E7D32;font-size:.88rem">' + xt(m.tipo) + '</div></div>' : '')
-    + (m.authCode ? '<div style="background:#E8F5E9;border-radius:8px;padding:.35rem .75rem;display:flex;align-items:center;gap:.35rem"><span style="color:#2E7D32">✅</span><div><div style="font-size:.6rem;font-weight:700;color:#2E7D32;text-transform:uppercase">Autorizado</div><div style="font-family:\'DM Mono\',monospace;font-size:.76rem;color:#2E7D32">' + xt(m.authCode) + '</div></div></div>' : '')
+    + (m.nroFac ? '<div style="background:var(--info-bg);border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:var(--info);text-transform:uppercase">N° Factura</div><div style="font-family:\'DM Mono\',monospace;font-weight:700;color:var(--info);font-size:.88rem">' + xt(m.nroFac) + '</div></div>' : '')
+    + (m.fecha  ? '<div style="background:var(--data-bg);border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:var(--data);text-transform:uppercase">Fecha</div><div style="font-weight:700;color:var(--data);font-size:.88rem">' + xt(m.fecha) + '</div></div>' : '')
+    + (m.tipo   ? '<div style="background:var(--green-bg);border-radius:8px;padding:.35rem .75rem"><div style="font-size:.6rem;font-weight:700;color:var(--green);text-transform:uppercase">Tipo</div><div style="font-weight:700;color:var(--green);font-size:.88rem">' + xt(m.tipo) + '</div></div>' : '')
+    + (m.authCode ? '<div style="background:var(--green-bg);border-radius:8px;padding:.35rem .75rem;display:flex;align-items:center;gap:.35rem"><span style="color:var(--green)">✅</span><div><div style="font-size:.6rem;font-weight:700;color:var(--green);text-transform:uppercase">Autorizado</div><div style="font-family:\'DM Mono\',monospace;font-size:.76rem;color:var(--green)">' + xt(m.authCode) + '</div></div></div>' : '')
     + '</div>'
 
     // Items
@@ -11439,9 +11533,9 @@ function _renderFacturaXmlModal(data) {
     + '<div style="background:#F8F9FA;border-radius:10px;padding:1rem;margin-bottom:1rem">'
     + '<div style="max-width:260px;margin-left:auto">'
     + (t.neto  ? '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0"><span style="color:var(--muted)">Subtotal</span><span style="font-family:\'DM Mono\',monospace">' + fmt(t.neto) + '</span></div>' : '')
-    + (t.desc  ? '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0"><span style="color:var(--muted)">Descuento</span><span style="font-family:\'DM Mono\',monospace;color:#E65100">-' + fmt(t.desc) + '</span></div>' : '')
-    + (t.itbms ? '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0"><span style="color:var(--muted)">ITBMS (7%)</span><span style="font-family:\'DM Mono\',monospace;color:#1565C0">' + fmt(t.itbms) + '</span></div>' : '')
-    + '<div style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:800;padding:.5rem 0;border-top:2px solid var(--border);margin-top:.3rem"><span>TOTAL</span><span style="font-family:\'DM Mono\',monospace;color:#C62828">' + fmt(t.total) + '</span></div>'
+    + (t.desc  ? '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0"><span style="color:var(--muted)">Descuento</span><span style="font-family:\'DM Mono\',monospace;color:var(--warn)">-' + fmt(t.desc) + '</span></div>' : '')
+    + (t.itbms ? '<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:.2rem 0"><span style="color:var(--muted)">ITBMS (7%)</span><span style="font-family:\'DM Mono\',monospace;color:var(--info)">' + fmt(t.itbms) + '</span></div>' : '')
+    + '<div style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:800;padding:.5rem 0;border-top:2px solid var(--border);margin-top:.3rem"><span>TOTAL</span><span style="font-family:\'DM Mono\',monospace;color:var(--red)">' + fmt(t.total) + '</span></div>'
     + '</div></div>'
 
     + (m.cufe ? '<div style="font-size:.65rem;color:var(--muted);word-break:break-all;margin-bottom:.75rem"><strong>CUFE:</strong> ' + xt(m.cufe) + '</div>' : '')
@@ -11465,9 +11559,9 @@ function _gmailRenderCatGrid() {
     var sel = _gmailSelCats.has(cat.key);
     return '<button onclick="gmailToggleCat(\'' + cat.key + '\')" style="' +
       'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;' +
-      'padding:.45rem .25rem;border:2px solid ' + (sel ? '#1565C0' : 'var(--border)') + ';' +
-      'border-radius:9px;background:' + (sel ? '#E3F2FD' : 'var(--bg)') + ';cursor:pointer;' +
-      'font-size:.6rem;font-weight:700;color:' + (sel ? '#1565C0' : 'var(--text)') + ';' +
+      'padding:.45rem .25rem;border:2px solid ' + (sel ? 'var(--info)' : 'var(--border)') + ';' +
+      'border-radius:9px;background:' + (sel ? 'var(--info-bg)' : 'var(--bg)') + ';cursor:pointer;' +
+      'font-size:.6rem;font-weight:700;color:' + (sel ? 'var(--info)' : 'var(--text)') + ';' +
       'text-align:center;line-height:1.2;transition:all .12s">' +
       '<span style="font-size:1.2rem;line-height:1">' + cat.icon + '</span>' +
       '<span style="letter-spacing:.02em">' + cat.label.toUpperCase() + '</span>' +
@@ -11501,11 +11595,11 @@ function _gmailRenderKwPills() {
     return;
   }
   cont.innerHTML = _gmailCustomKws.map(function(kw, i) {
-    return '<span style="display:inline-flex;align-items:center;gap:.2rem;background:#fff3e0;color:#E65100;' +
+    return '<span style="display:inline-flex;align-items:center;gap:.2rem;background:var(--warn-bg);color:var(--warn);' +
       'border-radius:100px;padding:.12rem .45rem .12rem .6rem;font-size:.71rem;font-weight:700;letter-spacing:.02em">' +
       kw.toUpperCase() +
       '<button onclick="gmailKwRemove(' + i + ')" title="Eliminar" style="background:none;border:none;cursor:pointer;' +
-      'color:#E65100;font-size:.9rem;padding:0 .05rem;line-height:1;opacity:.6">×</button></span>';
+      'color:var(--warn);font-size:.9rem;padding:0 .05rem;line-height:1;opacity:.6">×</button></span>';
   }).join('');
 }
 function gmailKwAdd() {
@@ -11543,7 +11637,7 @@ function _gmailRequestToken() {
     callback: function(tokenResponse) {
       if (tokenResponse.error) {
         document.getElementById('gmailAuthStatus').textContent = '❌ Error: ' + tokenResponse.error;
-        document.getElementById('gmailAuthStatus').style.color = '#c62828'; return;
+        document.getElementById('gmailAuthStatus').style.color = 'var(--red)'; return;
       }
       _gmailToken = tokenResponse.access_token;
       document.getElementById('gmailAuthStatus').textContent = '✅ Gmail conectado';
@@ -11642,7 +11736,7 @@ async function gmailImport_buscar() {
   } catch(e) {
     _gmailShowStep(0);
     document.getElementById('gmailAuthStatus').textContent = '❌ ' + e.message;
-    document.getElementById('gmailAuthStatus').style.color = '#c62828';
+    document.getElementById('gmailAuthStatus').style.color = 'var(--red)';
   }
 }
 
@@ -11711,9 +11805,9 @@ function _gmailRenderTabs() {
   if (counts['custom'] > 0) tabs.push({ key:'custom', icon:'🔑', label:'Personalizado', cnt:counts['custom'] });
   cont.innerHTML = tabs.map(function(t) {
     var isActive = _gmailActiveFilter === t.key;
-    var bg    = isActive ? '#1565C0' : 'var(--bg)';
+    var bg    = isActive ? 'var(--info)' : 'var(--bg)';
     var color = isActive ? '#fff'    : 'var(--text)';
-    var bdr   = isActive ? '#1565C0' : 'var(--border)';
+    var bdr   = isActive ? 'var(--info)' : 'var(--border)';
     var esc   = t.key.replace(/'/g, "\\'");
     return '<button onclick="gmailSetFilter(\'' + esc + '\')" style="padding:.2rem .6rem;border:1px solid ' + bdr +
       ';border-radius:100px;font-size:.69rem;font-weight:700;cursor:pointer;background:' + bg + ';color:' + color +
@@ -11751,12 +11845,12 @@ function _gmailRenderLista() {
     var ds = isNaN(d.getTime()) ? (e.date||'').substring(0,10) :
       (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
     var attLabel = e.atts && e.atts[0]
-      ? '<span style="font-size:.65rem;background:#e8f5e9;color:#2e7d32;border-radius:3px;padding:0 .3rem;flex-shrink:0">' + _gesc(e.atts[0].filename) + '</span>' : '';
+      ? '<span style="font-size:.65rem;background:var(--green-bg);color:var(--green);border-radius:3px;padding:0 .3rem;flex-shrink:0">' + _gesc(e.atts[0].filename) + '</span>' : '';
     var catTags  = (e.matchCats||[]).map(function(c) {
-      return '<span style="font-size:.64rem;background:#e3f2fd;color:#1565C0;border-radius:3px;padding:0 .35rem;font-weight:700">' + c.icon + ' ' + c.label + '</span>';
+      return '<span style="font-size:.64rem;background:var(--info-bg);color:var(--info);border-radius:3px;padding:0 .35rem;font-weight:700">' + c.icon + ' ' + c.label + '</span>';
     }).join('');
     var provBadge = e.proveedorAI
-      ? '<span style="font-size:.67rem;background:#F3E5F5;color:#6A1B9A;border-radius:3px;padding:0 .35rem;font-weight:600">' + _gesc(e.proveedorAI) + '</span>'
+      ? '<span style="font-size:.67rem;background:var(--data-bg);color:var(--data);border-radius:3px;padding:0 .35rem;font-weight:600">' + _gesc(e.proveedorAI) + '</span>'
       : '';
     return '<label style="display:flex;align-items:flex-start;gap:.5rem;padding:.45rem .6rem;border-bottom:1px solid var(--border);cursor:pointer">' +
       '<input type="checkbox" data-idx="' + idx + '" style="margin-top:.25rem;flex-shrink:0" onchange="gmailToggle(' + idx + ',this.checked)"' + (_gmailSel.has(idx) ? ' checked' : '') + '>' +
@@ -11905,7 +11999,7 @@ function gmailSwitchSource(src) {
   document.getElementById('ofxSection').style.display   = (src === 'ofx')   ? '' : 'none';
   var tG = document.getElementById('tabSrcGmail');
   var tO = document.getElementById('tabSrcOFX');
-  var activeStyle   = 'padding:.35rem .9rem;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;background:#1565C0;color:#fff';
+  var activeStyle   = 'padding:.35rem .9rem;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;background:var(--info);color:#fff';
   var inactiveStyle = 'padding:.35rem .9rem;border:1px solid var(--border);border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text)';
   if (tG) tG.style.cssText = (src === 'gmail') ? activeStyle : inactiveStyle;
   if (tO) tO.style.cssText = (src === 'ofx')   ? activeStyle : inactiveStyle;
@@ -12016,9 +12110,9 @@ function _ofxRenderTabs() {
     var active = (_ofxCatFilter === t.key);
     return '<button onclick="ofxSetCatFilter(\'' + t.key + '\')" style="' +
       'padding:.25rem .55rem;border-radius:20px;font-size:.72rem;font-weight:700;cursor:pointer;' +
-      'border:1px solid ' + (active ? '#1565C0' : 'var(--border)') + ';' +
-      'background:' + (active ? '#E3F2FD' : 'var(--bg)') + ';' +
-      'color:' + (active ? '#1565C0' : 'var(--text)') + '">' +
+      'border:1px solid ' + (active ? 'var(--info)' : 'var(--border)') + ';' +
+      'background:' + (active ? 'var(--info-bg)' : 'var(--bg)') + ';' +
+      'color:' + (active ? 'var(--info)' : 'var(--text)') + '">' +
       t.icon + ' ' + t.label + ' <span style="opacity:.7">(' + (counts[t.key]||0) + ')</span>' +
       '</button>';
   }).join('');
@@ -12045,14 +12139,14 @@ function _ofxRenderLista() {
     return '<div onclick="ofxToggle(\'' + t.fitid + '\')" style="' +
       'display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;cursor:pointer;' +
       'border-bottom:1px solid var(--border);transition:background .1s;' +
-      'background:' + (checked ? '#E3F2FD' : 'transparent') + '">' +
+      'background:' + (checked ? 'var(--info-bg)' : 'transparent') + '">' +
       '<input type="checkbox" ' + (checked?'checked':'') + ' onclick="event.stopPropagation();ofxToggle(\'' + t.fitid + '\')" style="flex-shrink:0">' +
       '<span style="font-size:1.1rem;flex-shrink:0">' + icon + '</span>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _gesc(t.proveedor || t.memo) + '</div>' +
         '<div style="font-size:.7rem;color:var(--muted)">' + t.fecha + ' · ' + catLbl + '</div>' +
       '</div>' +
-      '<div style="font-size:.82rem;font-weight:700;color:#C62828;flex-shrink:0">-$' + t.monto.toFixed(2) + '</div>' +
+      '<div style="font-size:.82rem;font-weight:700;color:var(--red);flex-shrink:0">-$' + t.monto.toFixed(2) + '</div>' +
       '</div>';
   }).join('');
   _ofxUpdCount();
@@ -12596,7 +12690,7 @@ async function ofxImport_procesar() {
         <div>
           <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">CATEGORÍA DE GASTO <span style="color:var(--orange)">*</span></label>
           <select id="acrDetCat" style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--text);outline:none"></select>
-          <span id="acrCatSugerida" style="font-size:.72rem;color:#6A1B9A;margin-top:.2rem;display:block"></span>
+          <span id="acrCatSugerida" style="font-size:.72rem;color:var(--data);margin-top:.2rem;display:block"></span>
         </div>
         <div>
           <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem">DESCRIPCIÓN</label>
@@ -12628,10 +12722,10 @@ async function ofxImport_procesar() {
 
       <!-- Botones -->
       <div id="acrDetalleAcciones" style="display:flex;gap:.75rem;justify-content:flex-end">
-        <button onclick="acrEliminar()" style="padding:.5rem 1.1rem;background:#fff;color:#B71C1C;border:1px solid #FFCDD2;border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer" title="Elimina permanentemente del sistema">
+        <button onclick="acrEliminar()" style="padding:.5rem 1.1rem;background:#fff;color:var(--red);border:1px solid var(--red-bg);border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer" title="Elimina permanentemente del sistema">
           🗑 Eliminar
         </button>
-        <button onclick="acrRechazar()" style="padding:.5rem 1.1rem;background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer" title="Marca como rechazado pero conserva el registro">
+        <button onclick="acrRechazar()" style="padding:.5rem 1.1rem;background:var(--red-bg);color:var(--red);border:1px solid var(--red-bg);border-radius:8px;font-size:.83rem;font-weight:600;cursor:pointer" title="Marca como rechazado pero conserva el registro">
           ✕ Rechazar
         </button>
         <button onclick="acrAprobar()" style="padding:.5rem 1.5rem;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
@@ -12655,7 +12749,7 @@ async function ofxImport_procesar() {
         <div id="acrFileLabel" style="font-size:.83rem;color:var(--muted)">📄 Subir factura ejemplo (PDF) — la IA extraerá los datos</div>
         <input type="file" id="acrFileInput" accept=".pdf,image/*" style="display:none" onchange="acrAnalizarFactura(this)">
       </div>
-      <div id="acrAnalisisStatus" style="display:none;font-size:.78rem;color:#6A1B9A;margin-bottom:.75rem;text-align:center">⏳ Analizando con IA...</div>
+      <div id="acrAnalisisStatus" style="display:none;font-size:.78rem;color:var(--data);margin-bottom:.75rem;text-align:center">⏳ Analizando con IA...</div>
 
       <div style="display:grid;gap:.75rem">
         <input type="hidden" id="acrEditId">
@@ -12690,7 +12784,7 @@ async function ofxImport_procesar() {
 
       <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem">
         <button onclick="acrCerrarModalNuevo()" style="padding:.5rem 1.25rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:.83rem;cursor:pointer">Cancelar</button>
-        <button id="btnGuardarAcreedor" onclick="acrGuardar()" style="padding:.5rem 1.5rem;background:#6A1B9A;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">💾 Guardar gasto</button>
+        <button id="btnGuardarAcreedor" onclick="acrGuardar()" style="padding:.5rem 1.5rem;background:var(--data);color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">💾 Guardar gasto</button>
       </div>
       <div id="acrGuardarMsg" style="display:none;margin-top:.5rem;font-size:.78rem;text-align:center"></div>
     </div>
@@ -12707,7 +12801,7 @@ async function ofxImport_procesar() {
 
       <!-- Source tabs -->
       <div style="display:flex;gap:.4rem;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:2px solid var(--border)">
-        <button id="tabSrcGmail" onclick="gmailSwitchSource('gmail')" style="padding:.35rem .9rem;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;background:#1565C0;color:#fff">📧 Gmail</button>
+        <button id="tabSrcGmail" onclick="gmailSwitchSource('gmail')" style="padding:.35rem .9rem;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;background:var(--info);color:#fff">📧 Gmail</button>
         <button id="tabSrcOFX"   onclick="gmailSwitchSource('ofx')"   style="padding:.35rem .9rem;border:1px solid var(--border);border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text)">🏦 Banco General (.OFX)</button>
       </div>
 
@@ -12718,7 +12812,7 @@ async function ofxImport_procesar() {
         <div id="gmailStep0">
           <div style="display:grid;gap:.85rem">
             <!-- Explanation -->
-            <div style="background:#E3F2FD;border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:#1565C0;line-height:1.5">
+            <div style="background:var(--info-bg);border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:var(--info);line-height:1.5">
               🤖 <strong>Búsqueda inteligente:</strong> Busca todos los correos con adjuntos de facturas y los categoriza automáticamente con IA.
             </div>
             <!-- Period -->
@@ -12738,7 +12832,7 @@ async function ofxImport_procesar() {
               <div style="display:flex;gap:.4rem">
                 <input id="gmailKwInput" type="text" placeholder="Ej: IDDAN, CLARO FACTURA…" onkeydown="if(event.key==='Enter')gmailKwAdd()"
                   style="flex:1;padding:.32rem .6rem;border:1px solid var(--border);border-radius:6px;font-size:.78rem;outline:none;background:var(--bg);color:var(--text)">
-                <button onclick="gmailKwAdd()" style="padding:.32rem .7rem;background:#fff3e0;color:#E65100;border:1px solid #FFCC80;border-radius:6px;font-size:.78rem;cursor:pointer;font-weight:700">+ Agregar</button>
+                <button onclick="gmailKwAdd()" style="padding:.32rem .7rem;background:var(--warn-bg);color:var(--warn);border:1px solid #FFCC80;border-radius:6px;font-size:.78rem;cursor:pointer;font-weight:700">+ Agregar</button>
               </div>
             </div>
             <!-- Auth + Search -->
@@ -12746,7 +12840,7 @@ async function ofxImport_procesar() {
               🔑 Conectar con Google Gmail
             </button>
             <div id="gmailAuthStatus" style="font-size:.78rem;text-align:center;color:var(--muted)">No conectado</div>
-            <button id="btnGmailSearch" onclick="gmailImport_buscar()" disabled style="width:100%;padding:.55rem;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;opacity:.45">
+            <button id="btnGmailSearch" onclick="gmailImport_buscar()" disabled style="width:100%;padding:.55rem;background:var(--info);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;opacity:.45">
               🔍 Buscar y categorizar con IA
             </button>
           </div>
@@ -12798,7 +12892,7 @@ async function ofxImport_procesar() {
               <div style="font-size:.98rem;font-weight:700;margin-bottom:.65rem">¡Importación completada!</div>
               <div style="display:grid;gap:.35rem;font-size:.83rem;margin:.5rem auto;max-width:260px;text-align:left">
                 <div>✅ <span style="color:var(--green);font-weight:700" id="gmailDoneOk">0</span> facturas importadas como pendientes</div>
-                <div>🔁 <span style="color:#1565C0;font-weight:700" id="gmailDoneDup">0</span> duplicadas (ya existían)</div>
+                <div>🔁 <span style="color:var(--info);font-weight:700" id="gmailDoneDup">0</span> duplicadas (ya existían)</div>
                 <div>⚠ <span style="color:var(--orange);font-weight:700" id="gmailDoneErr">0</span> no procesadas</div>
               </div>
             </div>
@@ -12826,12 +12920,12 @@ async function ofxImport_procesar() {
         <!-- Step 0: File upload -->
         <div id="ofxStep0">
           <div style="display:grid;gap:.85rem">
-            <div style="background:#E8F5E9;border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:#2E7D32;line-height:1.5">
+            <div style="background:var(--green-bg);border-radius:8px;padding:.65rem .85rem;font-size:.77rem;color:var(--green);line-height:1.5">
               🏦 <strong>Banco General OFX:</strong> Descarga tu estado de cuenta en formato <strong>.OFX</strong> desde Banca en Línea → Consultas → Estado de Cuenta → Exportar OFX. La IA categorizará cada gasto automáticamente.
             </div>
             <!-- File drop area -->
             <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.5rem;border:2px dashed var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s;background:var(--bg)"
-              onmouseover="this.style.borderColor='#1565C0'" onmouseout="this.style.borderColor='var(--border)'">
+              onmouseover="this.style.borderColor='var(--info)'" onmouseout="this.style.borderColor='var(--border)'">
               <span style="font-size:2rem">📁</span>
               <span style="font-size:.82rem;font-weight:600;color:var(--text)">Seleccionar archivo .OFX</span>
               <span id="ofxFileName" style="font-size:.73rem;color:var(--muted)">Ningún archivo seleccionado</span>
@@ -12883,7 +12977,7 @@ async function ofxImport_procesar() {
             <div style="font-size:.98rem;font-weight:700;margin-bottom:.65rem">¡Importación completada!</div>
             <div style="display:grid;gap:.35rem;font-size:.83rem;margin:.5rem auto;max-width:260px;text-align:left">
               <div>✅ <span style="color:var(--green);font-weight:700" id="ofxDoneOk">0</span> transacciones importadas como pendientes</div>
-              <div>🔁 <span style="color:#1565C0;font-weight:700" id="ofxDoneDup">0</span> duplicadas (FITID ya existía)</div>
+              <div>🔁 <span style="color:var(--info);font-weight:700" id="ofxDoneDup">0</span> duplicadas (FITID ya existía)</div>
             </div>
             <p style="font-size:.78rem;color:var(--muted);margin-top:.85rem;line-height:1.5">Revisa los pendientes y aprueba los que correspondan.</p>
             <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.85rem">
@@ -12929,7 +13023,7 @@ async function ofxImport_procesar() {
 <!-- ══ FACTURA XML VIEWER ══════════════════════════════════════ -->
 <div id="factXmlOverlay" onclick="if(event.target===this)factXmlClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1600;overflow-y:auto;padding:2rem 1rem">
   <div style="max-width:780px;margin:0 auto;background:var(--white);border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.3);overflow:hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:#1565C0;color:#fff;flex-shrink:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:var(--info);color:#fff;flex-shrink:0">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;letter-spacing:.05em">📄 Factura Electrónica DGI</div>
       <div style="display:flex;gap:.75rem;align-items:center">
         <a id="factXmlOpenBtn" href="#" target="_blank" style="font-size:.78rem;color:rgba(255,255,255,.8);text-decoration:none;padding:.3rem .65rem;border:1px solid rgba(255,255,255,.3);border-radius:6px">↗ Drive</a>
