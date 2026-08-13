@@ -428,12 +428,15 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 /* ── MAIN TABS (Ventas Web / Operaciones) ── */
 .main-tabs{
-  display:flex;gap:0;border-bottom:1px solid var(--border);
+  display:flex;gap:0;flex-wrap:wrap;
+  border-bottom:1px solid var(--border);
   background:var(--white);padding:0 1.75rem;
   position:sticky;top:58px;z-index:99;
-  overflow-x:auto;scrollbar-width:none;
 }
-.main-tabs::-webkit-scrollbar{ display:none }
+/* Ojo: nada de overflow acá. El menú de Contabilidad es un hijo
+   position:absolute que se dibuja por debajo de la barra, y un
+   contenedor con overflow lo recorta. Por eso envuelven en vez
+   de scrollear. */
 
 .main-tab{
   font-size:.82rem;font-weight:560;letter-spacing:0;
@@ -448,7 +451,9 @@ tr:hover td{background:rgba(0,0,0,.015)}
 
 /* ── DROPDOWN REPORTES ── */
 .main-tab-group{position:relative;display:flex;align-items:stretch}
-.main-tab-group:hover .dropdown-menu{display:block}
+.main-tab-group:hover .dropdown-menu,
+.main-tab-group.is-open .dropdown-menu{display:block}
+.main-tab-group.is-open > .main-tab{color:var(--orange)}
 .dropdown-menu{
   display:none;position:absolute;top:100%;left:0;z-index:200;
   background:var(--white);border:1px solid var(--border);
@@ -4067,6 +4072,26 @@ function gasJsonp(action, params, timeoutMs) {
   });
 }
 
+// El menú de Contabilidad abre con clic además de hover: en touch no
+// hay hover, y ahora es navegación principal y no un extra de mobile.
+function toggleMenuContabilidad(ev) {
+  ev.stopPropagation();
+  const grupo = ev.currentTarget.closest('.main-tab-group');
+  if (!grupo) return;
+  const abierto = grupo.classList.toggle('is-open');
+  ev.currentTarget.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+}
+
+// Un clic fuera lo cierra.
+document.addEventListener('click', function (ev) {
+  document.querySelectorAll('.main-tab-group.is-open').forEach(function (g) {
+    if (g.contains(ev.target)) return;
+    g.classList.remove('is-open');
+    const btn = g.querySelector('.main-tab');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  });
+});
+
 function buildMenu() {
   // Mobile / print: main-tabs horizontal (oculto en desktop por CSS).
   const tabs = document.getElementById('mainTabs');
@@ -4076,7 +4101,7 @@ function buildMenu() {
     '<button class="main-tab" id="tabDashboard" onclick="switchTab(&quot;dashboard&quot;)">Estado de resultados</button>' +
     '<button class="main-tab" id="tabFinanzas" onclick="switchTab(&quot;finanzas&quot;)" style="display:none">Finanzas</button>' +
     '<div class="main-tab-group">' +
-      '<button class="main-tab" id="tabContabilidad">Contabilidad <span class="main-tab-arrow">▾</span></button>' +
+      '<button class="main-tab" id="tabContabilidad" aria-haspopup="true" aria-expanded="false" onclick="toggleMenuContabilidad(event)">Contabilidad <span class="main-tab-arrow">▾</span></button>' +
       '<div class="dropdown-menu">' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/itbms_mensual.html&quot;)">Informe de ITBMS</a>' +
         '<a href="javascript:void(0)" onclick="switchTab(&quot;reporte:reportes/cierre_anual.html&quot;)">Informe anual</a>' +
